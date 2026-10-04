@@ -84,10 +84,10 @@ Module
     local %3 $receiver: ptr<managed>
     local %4 $argument.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %5 $parameter.value: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %6 $call.1: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %7 $call.2: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %8 $call.3: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
-    local %9 $call.4: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
+    local %6 $aggregate.0: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
+    local %7 $aggregate.1: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
+    local %8 $aggregate.2: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
+    local %9 $aggregate.3: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn10(param0, elided-zst param1)
@@ -95,17 +95,17 @@ Module
     store param0 -> local0
     store param1 -> local1
     store local1 -> local2
-    store param0 -> local3
-    store param1 -> local4
-    store local4 -> local5
-    call managed-elided-zst-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local3:ptr<managed>@0] t1 = sig=elided-zst0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> local-fn5(local0, elided-zst local2)
+    call managed-elided-zst-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t1 = sig=elided-zst0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> local-fn5(local0, elided-zst local2)
     store t1 -> local6
     t2 = heap_load param0 +0 : ptr<metadata>
     t3 = heap_load t2 +88 : ptr<metadata>
-    call managed-elided-zst-target1 sp<managed-call:2> live=[param0:ptr<managed>@0, local3:ptr<managed>@0] t4 = sig=elided-zst1 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:1] t3(param0)
+    call managed-elided-zst-target1 sp<managed-call:2> live=[param0:ptr<managed>@0] t4 = sig=elided-zst1 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> dispatch[Virtual:1] t3(param0)
     store t4 -> local7
-    call managed-elided-zst-target2 sp<managed-call:3> live=[param0:ptr<managed>@0, local3:ptr<managed>@0] t5 = sig=elided-zst2 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn9(param0)
+    call managed-elided-zst-target2 sp<managed-call:3> live=[param0:ptr<managed>@0] t5 = sig=elided-zst2 (ptr<managed>) -> elided-zst<struct0 size=0 align=1> local-fn9(param0)
     store t5 -> local8
+    store param0 -> local3
+    store param1 -> local4
+    store local4 -> local5
     call managed-elided-zst-target3 sp<managed-call:4> live=[local3:ptr<managed>@0] t6 = sig=elided-zst3 (ptr<managed>, elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> local-fn7(local3, elided-zst local5)
     store t6 -> local9
     t7 = aggregate (local6, local7, local8, local9) : {struct0, struct0, struct0, struct0}

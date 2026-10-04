@@ -4,8 +4,13 @@ Module
   enum Event
     Data(envelope: Envelope<Leaf<Int>>, enabled: Boolean)
     Empty()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun once @fn0(value: Event) -> Event
     bb0 entry
       val $dependency.argument.0: String

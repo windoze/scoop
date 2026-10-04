@@ -17,6 +17,7 @@ Module
   c-struct struct3 Widths fields=[Int8@0/1,Int16@2/2,Int@4/4,Long@8/8,UInt8@16/1,UInt16@18/2,UInt@20/4,ULong@24/8]
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   callback cb0 shift @scoop$1$cb$d2d3e1d69ed94a867a8444acc5ad494c25fc829f0e0258874d52895091e56ee7 -> @scoop$1$br$74642cc65adddcbd4526710f8d06d31589b2848f88e6f5fb218925b40b148c61 c=(Int)->Int
   callback cb1 shiftEnvelope @scoop$1$cb$1f6893b3f3af4fee583455ac6e9528705862df551892b0f1982d87b87f535b1f -> @scoop$1$br$4b48d0e2897d9a5bfa6340bf9cec3a2602e38101e9d3e13e3d14997dd7826b74 c=(c-struct1)->c-struct1
   fun @scoop$1$cb$470a09c8df70b7324a24af649c164118d8d03ad59d4ac66f6f027dadc889fc6c(i32) -> i32 <no-gc>
@@ -721,10 +722,16 @@ Module
     global_store global12, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=dev.programlink%3Acabi-root%3A0.1.0;p=;o=-;k=S;x=Marker) @scoop$1$td$020bae84b74334a6dd1ac54d0e867b83b4760fac7f4d8277ba02be3b561ff0c3 type-id=4841973385147004278 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 n(c=dev.programlink%3Acabi-root%3A0.1.0;p=;o=-;k=S;x=Marker) @scoop$1$td$020bae84b74334a6dd1ac54d0e867b83b4760fac7f4d8277ba02be3b561ff0c3 type-id=4841973385147004278 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Marker size=8 align=8 refs=[0]
   layout Option size=8 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$1d52ad517c5adb2ad9db6f6d31d0eaf8f7b6806bfca22c1fc8cbd7ef095acbdb

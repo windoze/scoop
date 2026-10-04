@@ -1,0 +1,50 @@
+@Intrinsic("core_string")
+public class String : ToString, Hash, Iterable<Char> {
+    public val byteLength: Long get() = coreStringByteLength(this)
+    public val length: Long get() = coreStringLength(this)
+
+    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+
+    @Intrinsic("string_concat")
+    public operator fun plus(other: String): String
+
+    @Intrinsic("string_compare_to")
+    public operator fun compareTo(other: String): Long
+
+    public override fun toString(): String = this
+    public override fun hash(): Long = coreStringHash(this)
+
+    public operator fun get(index: Long): Char {
+        val value = coreStringGet(this, index)
+        if (value == None) { throw IndexOutOfBoundsException() }
+        return value!!
+    }
+
+    public fun slice(start: Long, endExclusive: Long): String {
+        val result = coreStringSliceBounds(this, start, endExclusive)
+        if (result == None) { throw IndexOutOfBoundsException() }
+        val bounds = result!!
+        return coreStringSliceBytes(this, bounds._1, bounds._2)
+    }
+
+    public override operator fun iterator(): Iterator<Char> = StringIterator(this)
+
+    public fun toCharArray(): MutableArray<Char> {
+        val source = iterator()
+        return MutableArray<Char>(length) { _ -> source.next()!! }
+    }
+
+    public fun toByteArray(): MutableArray<Byte> {
+        val source = this
+        return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
+    }
+
+    public companion object {
+        public fun fromChars(chars: List<Char>): String = coreStringFromChars(chars.toArray())
+
+        @Unsafe
+        public fun fromUtf8Unchecked(bytes: List<Byte>): String =
+            coreStringFromBytes(bytes.toArray())
+    }
+}
+

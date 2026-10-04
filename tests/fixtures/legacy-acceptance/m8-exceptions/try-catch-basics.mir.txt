@@ -2,6 +2,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<Int>
     Some(_0: Int)
     None()
@@ -10,6 +13,8 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun boom @fn0() -> Int
     bb0 entry
       val x: Option<Int>

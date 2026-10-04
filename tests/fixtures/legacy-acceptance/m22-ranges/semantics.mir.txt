@@ -14,6 +14,9 @@ Module
   enum Option<ULong>
     Some(_0: ULong)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class IntRange vtable=0 itables=1
   class LongRange vtable=0 itables=1
   class UIntRange vtable=0 itables=1
@@ -31,6 +34,8 @@ Module
   interface Iterator<ULong>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun showIntRange @fn0(label: String, range: IntRange) -> Unit
     bb0 entry
       val $dependency.argument.0: String

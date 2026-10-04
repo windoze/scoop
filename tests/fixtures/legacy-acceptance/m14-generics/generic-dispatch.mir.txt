@@ -1,10 +1,15 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Base<Int> vtable=1 itables=0
   class Base<String> vtable=1 itables=0
   class Derived<Int> vtable=1 itables=0
   class Derived<String> vtable=1 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val $argument.0: Int

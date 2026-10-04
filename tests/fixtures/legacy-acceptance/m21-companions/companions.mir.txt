@@ -32,6 +32,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Box.Factory>
     Completed(value: Box.Factory)
     Suspended()
@@ -58,11 +61,13 @@ Module
   interface InterfaceHost
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Box.Factory>
   interface SuspendTask<Box.Factory>
   interface SuspendRegistration<Box.Factory>
-  generated_exact_type get0 location=enum2 nominal_id=de7c3f1a33f9d62f7117e8ba9965cbbba3fbe1a0e05ae5f8878c12960d3d29e9 exact_id=16e9e01323c5cf50297d977419b8e6d627eee28568bc6eb124ba4f6aa32526b9
-  generated_exact_type get1 location=enum3 nominal_id=b5d7cb64f775fb4d7eb0ef4627966c81ac59ee13abc48f991a2e39642f3198c4 exact_id=89592a293078dbf7783c69ed0be7eb7247ce12275a5e1e4b16339c2df3b6434d
+  generated_exact_type get0 location=enum3 nominal_id=de7c3f1a33f9d62f7117e8ba9965cbbba3fbe1a0e05ae5f8878c12960d3d29e9 exact_id=16e9e01323c5cf50297d977419b8e6d627eee28568bc6eb124ba4f6aa32526b9
+  generated_exact_type get1 location=enum4 nominal_id=b5d7cb64f775fb4d7eb0ef4627966c81ac59ee13abc48f991a2e39642f3198c4 exact_id=89592a293078dbf7783c69ed0be7eb7247ce12275a5e1e4b16339c2df3b6434d
   generated_callable gc0 function=@fn53 id=5a923357748d78efc7a187ba96fdb0d550fe12a4b9e7ba7897eb15f30b237728
   fun ObjectHost.direct @fn0(this: ObjectHost) -> Int
     bb0 entry

@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<SourceLocation>
     Completed(value: SourceLocation)
     Suspended()
@@ -16,8 +19,10 @@ Module
   interface Continuation<SourceLocation>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface SuspendRegistration<SourceLocation>
-  generated_exact_type get0 location=enum1 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
+  generated_exact_type get0 location=enum2 nominal_id=1061f2b6e1689daffc0bc88977453fad6aa157e73ba67771ebaef4f49426e72c exact_id=9ee8e3e9c2738c74c6d6d74011c510f9dc6cfb1ca5707fee17776e41dc5f71fc
   fun Reporter.bodyLocation @fn0(this: Reporter) -> SourceLocation
     bb0 entry
       return

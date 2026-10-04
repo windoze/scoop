@@ -40,32 +40,38 @@ Module
         Retype DefaultBase
           Type ConsumerDefault
           Local this
+      call $default.local.3: Int = external10 direct
+      call $default.local.4: Int = external11 direct
+      call external21 direct
+      val $default.local.5: DefaultMarker
+        Type DefaultMarker
+        GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
       val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       val $default.local.2: Int
         Type Int
         Local $default.local.1
-      call external21 direct
-      call $call.1: Int = external10 direct
-      call $call.2: Int = external11 direct
-      call $call.3: DefaultValue = external8 direct
+      call $call.1: DefaultValue = external8 direct
         Type Int
         Local $default.local.2
+      val $default.local.6: Int
+        Type Int
+        FieldAccess 0
+          Type DefaultValue
+          Local $call.1
       val $dependency.parameter.value: (Int, Int, DefaultMarker, Int)
         Type (Int, Int, DefaultMarker, Int)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $default.local.3
           Type Int
-          Local $call.2
+          Local $default.local.4
           Type DefaultMarker
-          GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
+          Local $default.local.5
           Type Int
-          FieldAccess 0
-            Type DefaultValue
-            Local $call.3
-      call $call.4: (Int, Int, DefaultMarker, Int) = external12 direct
+          Local $default.local.6
+      call $call.2: (Int, Int, DefaultMarker, Int) = external12 direct
         Type DefaultBase
         Local $dependency.receiver
         Type (Int, Int, DefaultMarker, Int)
@@ -74,7 +80,7 @@ Module
         Type Int
         FieldAccess 1
           Type (Int, Int, DefaultMarker, Int)
-          Local $call.4
+          Local $call.2
   fun ConsumerDefault.inspect @fn1(this: ConsumerDefault) -> Boolean
     bb0 entry
       val $dependency.receiver: DefaultBase
@@ -82,31 +88,37 @@ Module
         Retype DefaultBase
           Type ConsumerDefault
           Local this
+      call $default.local.3: Int = external10 direct
+      call $default.local.4: Int = external11 direct
+      call external21 direct
+      val $default.local.5: DefaultMarker
+        Type DefaultMarker
+        GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
       val $default.local.1: Int
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       val $default.local.2: Int
         Type Int
         Local $default.local.1
-      call external21 direct
-      call $call.1: Int = external10 direct
-      call $call.2: Int = external11 direct
-      call $call.3: DefaultValue = external8 direct
+      call $call.1: DefaultValue = external8 direct
         Type Int
         Local $default.local.2
+      val $default.local.6: Int
+        Type Int
+        FieldAccess 0
+          Type DefaultValue
+          Local $call.1
       val $dependency.parameter.value: (Int, Int, DefaultMarker, Int)
         Type (Int, Int, DefaultMarker, Int)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $default.local.3
           Type Int
-          Local $call.2
+          Local $default.local.4
           Type DefaultMarker
-          GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
+          Local $default.local.5
           Type Int
-          FieldAccess 0
-            Type DefaultValue
-            Local $call.3
+          Local $default.local.6
       call tuple: (Int, Int, DefaultMarker, Int) = external12 direct
         Type DefaultBase
         Local $dependency.receiver
@@ -312,7 +324,7 @@ Module
           CaptureInit field=0
             Type Int
             Local $dependency.parameter.seed
-      call $call.4: () -> Int = external17 direct
+      call $call.2: () -> Int = external17 direct
         Type DefaultBase
         Local $dependency.receiver
         Type Int
@@ -321,7 +333,7 @@ Module
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
-        Local $call.4
+        Local $call.2
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=17 bits=0x00000011
@@ -364,7 +376,7 @@ Module
           Local $dependency.parameter.seed
           Type Int
           Local $dependency.parameter.seed
-      call $call.5: (Int, Int) = external18 direct
+      call $call.3: (Int, Int) = external18 direct
         Type DefaultBase
         Local $dependency.receiver
         Type Int
@@ -373,7 +385,7 @@ Module
         Local $dependency.parameter.value
       call $shortCircuit.4: Boolean = @fn5 direct
         Type (Int, Int)
-        Local $call.5
+        Local $call.3
         Type (Int, Int)
         TupleLiteral
           Type Int
@@ -450,7 +462,7 @@ Module
         Type Boolean
         Local $shortCircuit.6
     bb22 logic.rhs.22
-      assign $logic.6
+      assign $logic.4
         Type Boolean
         Binary RefEq
           Type DefaultMarker
@@ -461,14 +473,14 @@ Module
           GlobalRead $singleton$66654e41720aae7ddf6fe1ca771e7004b2430c917fb97a280733a1df4e8a7ee8
       goto bb24
     bb23 logic.short.23
-      assign $logic.6
+      assign $logic.4
         Type Boolean
         BoolLiteral false
       goto bb24
     bb24 logic.merge.24
       branch bb25 bb26
         Type Boolean
-        Local $logic.6
+        Local $logic.4
     bb25 if.then.25
       val $dependency.receiver: Int
         Type Int

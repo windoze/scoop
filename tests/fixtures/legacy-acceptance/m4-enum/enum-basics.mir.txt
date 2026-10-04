@@ -8,8 +8,13 @@ Module
     Rect(_1: Int, _2: Int)
     Named(w: Int, h: Int)
     WithDefault(d: Int)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val c: Color

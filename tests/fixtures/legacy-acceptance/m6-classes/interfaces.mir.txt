@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<Describable>
     Some(_0: Describable)
     None()
@@ -20,12 +23,14 @@ Module
   interface Describable
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Describable>
   interface SuspendTask<Describable>
   interface SuspendRegistration<Describable>
   generated_exact_type get0 location=class4 nominal_id=768fc1d43de4fd651db6fe5ea8079d960b8cd25a84473ad2987bdcbc61c3e277 exact_id=3d63cf44a2dc755e967691e63546df1c3cf9d9bda15f6eed485a7a62a4edfd84
-  generated_exact_type get1 location=enum2 nominal_id=b5fe9fb967ca22aa2974ef8d23c260bbcc86d87748abfead478947c22e20a9c3 exact_id=773e405dd0af64f3193b0b2632f32e73310c9044f8901e766d58fd9ca52e6e45
-  generated_exact_type get2 location=enum3 nominal_id=4e67420dc0ca3ca869491347bb5d13fddca231c388e770fb5fee4d99f79e1096 exact_id=ca63b76ee1205fa0934762ca46cb44a37344defa6f2a4c593c3975500aced9b4
+  generated_exact_type get1 location=enum3 nominal_id=b5fe9fb967ca22aa2974ef8d23c260bbcc86d87748abfead478947c22e20a9c3 exact_id=773e405dd0af64f3193b0b2632f32e73310c9044f8901e766d58fd9ca52e6e45
+  generated_exact_type get2 location=enum4 nominal_id=4e67420dc0ca3ca869491347bb5d13fddca231c388e770fb5fee4d99f79e1096 exact_id=ca63b76ee1205fa0934762ca46cb44a37344defa6f2a4c593c3975500aced9b4
   generated_callable gc0 function=@fn14 id=57fafb109726312a302376eecc7bc4beca6a3c84d3fc9b8abd5e74f55f74c94a
   generated_callable gc1 function=@fn13 id=ba6399414ddfdc753ed5609bd6027ef6986170af38932dd2d3f85215cf8595c0
   fun Tag.describe @fn0(this: Tag) -> String

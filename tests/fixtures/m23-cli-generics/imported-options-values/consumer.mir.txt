@@ -184,13 +184,19 @@ Module
         Local $new.4
         Type Int
         Local $parameter.number
+      val $aggregate.0: Cell
+        Type Cell
+        Local $new.4
+      val $aggregate.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
       val $dependency.argument.0: (Cell, Int)
         Type (Cell, Int)
         TupleLiteral
           Type Cell
-          Local $new.4
+          Local $aggregate.0
           Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
+          Local $aggregate.1
       val $dependency.parameter._1: (Cell, Int)
         Type (Cell, Int)
         Local $dependency.argument.0

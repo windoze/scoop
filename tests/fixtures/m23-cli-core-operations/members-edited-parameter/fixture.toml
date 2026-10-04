@@ -10,7 +10,7 @@ name = "prepare_core"
 files = [
   {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
   {"mkdir" = {"path" = "${work}/empty-sysroot"}},
-  {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "public infix fun shl(count: Long): Int\n", "new" = "public infix fun shl(distance: Long): Int\n"}},
+  {"replace" = {"path" = "${work}/core-source/src/integers_signed.scoop", "old" = "public infix fun shl(count: Long): Int\n", "new" = "public infix fun shl(distance: Long): Int\n"}},
 ]
 
 [[steps]]
@@ -22,7 +22,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "c4d2db8d8b1dfadc5bc4d9dfba0ad8a08259966ada38efc202ab72a77514de9e"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "7b2304bf1be6d319e60e2c86052c6c4ca4b661ae9fc1273287a73579eb47c591"},
 ]
 
 [[steps]]
@@ -42,7 +42,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "8a5ed3ff1ce5b02add493b5f970eb7d58f3f34d3aee502db05cde7d190e17dfc"},
+  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "577b43fd822f1264850f7e87c5b79b6898ec10e58f7c7669c761f2ace6c6697c"},
   {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
@@ -67,7 +67,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "79edab25bb0ba18d109ae76c53952132d95bf306126875acf039344f968c7c9a"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "06826dac64dff7e464a06a5dfd81db76588b5ae6491817655643f9a8540af646"},
   {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},

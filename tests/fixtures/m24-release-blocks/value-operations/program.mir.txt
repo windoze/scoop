@@ -1,8 +1,8 @@
 Module
   extern ef0 record @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
   extern ef1 count @m24_release_count() -> Int <abi=c no-gc lib=m24_release>
-  callback cb0 @fn3 -> @fn18 function_type0 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
-  callback cb1 @fn6 -> @fn19 function_type0 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
+  callback cb0 @fn3 -> @fn22 function_type0 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
+  callback cb1 @fn6 -> @fn23 function_type0 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
   struct Parts (first: Int, second: Int)
   struct Node (next: Option<Ptr<Node>>, value: Int)
   enum Option<Ptr<Node>>
@@ -11,6 +11,12 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum CoroutineStep<Parts>
+    Completed(value: Parts)
+    Suspended()
+  enum CoroutineSlot<Parts>
+    Empty()
+    Value(value: Parts)
   enum CoroutineStep<Node>
     Completed(value: Node)
     Suspended()
@@ -22,18 +28,26 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class box<Parts> vtable=0 itables=0
   class box<Node> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Continuation<Parts>
+  interface SuspendTask<Parts>
+  interface SuspendRegistration<Parts>
   interface Continuation<Node>
   interface SuspendTask<Node>
   interface SuspendRegistration<Node>
-  generated_exact_type get0 location=enum2 nominal_id=fa2c3b4c73b124b48415b656e116f299162195af9831613d5f087d4bf5025e82 exact_id=033ef530d1b5bd2a0d4c92afe5da97147c7a6c5dde442a5b95bc1572d3e1c844
-  generated_exact_type get1 location=class5 nominal_id=0c0ca2f2e373d6c865c064098543d55615f0c686574dff35eb65a9f26fe3738b exact_id=12d96bfb419d22bee279edac1b47ce374821a6fec3ef7258ccb9a213df658d60
-  generated_exact_type get2 location=enum3 nominal_id=89c7a37a96e968750c3c025581122ee9b23400d567bd610d3b9c51ba9d684a04 exact_id=7c737b9c5ffcc60bae6fd9f3b626ff4a4387ab623a427a4e89acd4c6d4f2cf09
-  generated_callable gc0 function=@fn20 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
-  generated_callable gc1 function=@fn18 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
-  generated_callable gc2 function=@fn19 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
+  generated_exact_type get0 location=enum4 nominal_id=fa2c3b4c73b124b48415b656e116f299162195af9831613d5f087d4bf5025e82 exact_id=033ef530d1b5bd2a0d4c92afe5da97147c7a6c5dde442a5b95bc1572d3e1c844
+  generated_exact_type get1 location=class6 nominal_id=0c0ca2f2e373d6c865c064098543d55615f0c686574dff35eb65a9f26fe3738b exact_id=12d96bfb419d22bee279edac1b47ce374821a6fec3ef7258ccb9a213df658d60
+  generated_exact_type get2 location=class5 nominal_id=bef4eddb6c1397fd556a1d37c53ff1cc690ade970c96a51ae3f318c04571a8c3 exact_id=34314270c85784a39a1bf31ddd1218b01bd1e68f75e1961e01b32f7c4f0369d4
+  generated_exact_type get3 location=enum5 nominal_id=89c7a37a96e968750c3c025581122ee9b23400d567bd610d3b9c51ba9d684a04 exact_id=7c737b9c5ffcc60bae6fd9f3b626ff4a4387ab623a427a4e89acd4c6d4f2cf09
+  generated_exact_type get4 location=enum3 nominal_id=28388b6c5980fffcff0a09671f6fffaf0ac9180bcdfcddc8e6ffe18021f41f5e exact_id=989f05f93c02977ae2f8d1500e0ccb8d578ec934211085fa6e9e5d207790cfc6
+  generated_exact_type get5 location=enum2 nominal_id=75ef9ffc935de4d3f9d43170dcdf703f008dd678dfb801bbc2253af5ff17f343 exact_id=de2cd024786fa57a951e60a4b4cd073bdab4de5523f7bd87c22346ade9ddf510
+  generated_callable gc0 function=@fn25 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
+  generated_callable gc1 function=@fn22 id=755f8f7d0f95010781b2e9ee0229f9668720f72cdaa87885d534162f00fc6583
+  generated_callable gc2 function=@fn24 id=84c76de2538ecc19e476073d4297681b4474662bfc6c3067ad085875324de451
+  generated_callable gc3 function=@fn23 id=cab16a421424784bd53fadc060d0cbadb2ce629bffddc4a5f629e8371a45c9b8
   fun Parts.plus @fn0(this: Parts, other: Parts) -> Parts <no-gc>
     bb0 entry
       val $dependency.receiver: Int
@@ -82,7 +96,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $call.1: Parts = @fn16 direct
+      call $call.1: Parts = @fn20 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -220,7 +234,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Parts = @fn16 direct
+      call $argument.0: Parts = @fn20 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -231,7 +245,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn15 direct
+      call @fn19 direct
         Type Owner
         Local $new.1
         Type Parts
@@ -254,7 +268,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $argument.0: Node = @fn17 direct
+      call $argument.0: Node = @fn21 direct
         Type Option<Ptr<Node>>
         Local $parameter.next
         Type Int
@@ -265,7 +279,7 @@ Module
       assign $new.2
         Type RecursiveOwner
         ClassAlloc RecursiveOwner
-      call @fn14 direct
+      call @fn18 direct
         Type RecursiveOwner
         Local $new.2
         Type Node
@@ -314,19 +328,31 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn10(this: Continuation<Node>, value: Node) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<Parts>, value: Parts) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn11(this: Continuation<Node>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn11(this: Continuation<Parts>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn12(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+  fun SuspendTask.run @fn12(this: SuspendTask<Parts>, $completion: Continuation<Parts>) -> CoroutineStep<Parts>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Parts>, continuation: Continuation<Parts>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.RecursiveOwner.$c0 @fn14(this: RecursiveOwner, node: Node) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Node>, value: Node) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Node>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.RecursiveOwner.$c0 @fn18(this: RecursiveOwner, node: Node) -> Unit
     bb0 entry
       field_set 0
         Type RecursiveOwner
@@ -334,7 +360,7 @@ Module
         Type Node
         Local node
       return
-  fun init.Owner.$c1 @fn15(this: Owner, parts: Parts) -> Unit
+  fun init.Owner.$c1 @fn19(this: Owner, parts: Parts) -> Unit
     bb0 entry
       field_set 0
         Type Owner
@@ -342,7 +368,7 @@ Module
         Type Parts
         Local parts
       return
-  fun ctor.Parts.$c0 @fn16(first: Int, second: Int) -> Parts <no-gc>
+  fun ctor.Parts.$c0 @fn20(first: Int, second: Int) -> Parts <no-gc>
     bb0 entry
       return
         Type Parts
@@ -351,7 +377,7 @@ Module
           Local first
           Type Int
           Local second
-  fun ctor.Node.$c1 @fn17(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
+  fun ctor.Node.$c1 @fn21(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
     bb0 entry
       return
         Type Node
@@ -360,7 +386,7 @@ Module
           Local next
           Type Int
           Local value
-  fun callback bridge for even @fn18($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for even @fn22($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn3 direct
         Type Int
@@ -374,7 +400,7 @@ Module
         Type Int
         Local $value
       return
-  fun callback bridge for odd @fn19($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for odd @fn23($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn6 direct
         Type Int
@@ -388,11 +414,53 @@ Module
         Type Int
         Local $value
       return
-  fun startCoroutine<Node> @fn20(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+  fun startCoroutine<Parts> @fn24(task: SuspendTask<Parts>, completion: Continuation<Parts>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn10 interface Continuation<Node>[0]
+      call @fn10 interface Continuation<Parts>[0]
+        Type Continuation<Parts>
+        Local completion
+        Type Parts
+        EnumField v0 f0
+          Type CoroutineStep<Parts>
+          Local $step
+      return
+    bb2 failed
+      call @fn11 interface Continuation<Parts>[1]
+        Type Continuation<Parts>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Parts> = @fn12 interface SuspendTask<Parts>[0]
+        Type SuspendTask<Parts>
+        Local task
+        Type Continuation<Parts>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Parts>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Node> @fn25(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn14 interface Continuation<Node>[0]
         Type Continuation<Node>
         Local completion
         Type Node
@@ -401,7 +469,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn11 interface Continuation<Node>[1]
+      call @fn15 interface Continuation<Node>[1]
         Type Continuation<Node>
         Local completion
         Type Throwable
@@ -416,7 +484,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Node> = @fn12 interface SuspendTask<Node>[0]
+      call $step: CoroutineStep<Node> = @fn16 interface SuspendTask<Node>[0]
         Type SuspendTask<Node>
         Local task
         Type Continuation<Node>
@@ -453,7 +521,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Parts = @fn16 direct
+      call $argument.0: Parts = @fn20 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -639,14 +707,22 @@ Module
         Type Int
         Local $dependency.parameter.value
       goto bb1
-  coroutine_step cs0 CoroutineStep<Node> result=Node
-  coroutine_slot cl0 CoroutineSlot<Node> value=Node
-  coroutine_start ct0 result=Node function=fn20
-  coroutine_fn cf0 @fn12 source_return=Node step=cs0 immediate
+  coroutine_step cs0 CoroutineStep<Parts> result=Parts
+  coroutine_step cs1 CoroutineStep<Node> result=Node
+  coroutine_slot cl0 CoroutineSlot<Parts> value=Parts
+  coroutine_slot cl1 CoroutineSlot<Node> value=Node
+  coroutine_start ct0 result=Parts function=fn24
+  coroutine_start ct1 result=Node function=fn25
+  coroutine_fn cf0 @fn12 source_return=Parts step=cs0 immediate
+  coroutine_fn cf1 @fn16 source_return=Node step=cs1 immediate
   instance mi0 function=@fn9 <- println
   instance mi1 function=@fn10 <- Continuation.resume
   instance mi2 function=@fn11 <- Continuation.resumeWithException
   instance mi3 function=@fn12 <- SuspendTask.run
   instance mi4 function=@fn13 <- SuspendRegistration.register
+  instance mi5 function=@fn14 <- Continuation.resume
+  instance mi6 function=@fn15 <- Continuation.resumeWithException
+  instance mi7 function=@fn16 <- SuspendTask.run
+  instance mi8 function=@fn17 <- SuspendRegistration.register
   str @str0 "\n"
   output executable @fn8

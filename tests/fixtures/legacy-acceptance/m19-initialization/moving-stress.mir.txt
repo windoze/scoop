@@ -1,8 +1,13 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class MovingBase vtable=0 itables=0
   class MovingDerived vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun MovingDerived.verify @fn0(this: MovingDerived) -> Boolean
     bb0 entry
       return

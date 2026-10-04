@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<Probe>
     Some(_0: Probe)
     None()
@@ -48,6 +51,8 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Handler>
   interface SuspendTask<Handler>
   interface SuspendRegistration<Handler>
@@ -59,15 +64,15 @@ Module
   interface SuspendRegistration<Service>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
     bridge function_type1 -> @fn31 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
-  generated_exact_type get0 location=enum9 nominal_id=e701e8af322c0c9c03a5c47d4f1ce2e0053af01cc961da3e66f837517730f76e exact_id=15cb76b57ac78bbc23be8feb63555581bc9963830b617259eeed92c28b3c7d51
+  generated_exact_type get0 location=enum10 nominal_id=e701e8af322c0c9c03a5c47d4f1ce2e0053af01cc961da3e66f837517730f76e exact_id=15cb76b57ac78bbc23be8feb63555581bc9963830b617259eeed92c28b3c7d51
   generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
   generated_exact_type get2 location=class5 nominal_id=2ccfbde929e9e22c95d3e5a9f05faeef8a54af0504f6d13646ab076b7041a519 exact_id=432ba16193ca6812a2e32bad578449910369a55861a2b12e4396846df8c4a928
-  generated_exact_type get3 location=enum8 nominal_id=2537e59213599a5cd5efbe4c1df0c85071bf13ca2521e5007eb0a09385ba84e9 exact_id=744aeeb40fdbe0e5f31f7d12817289695f281150eb6fa6bd62ee5f26334c6d5d
-  generated_exact_type get4 location=enum10 nominal_id=3f700b66ada8f0680f0a055c5620014c5dfd9d2478eaaf17a1d45283b8866929 exact_id=9a277ecdf36bb1df752a7e96b16db62d0afdb7fb7a699755eca7eb0a40000c81
-  generated_exact_type get5 location=enum11 nominal_id=5d99f04ce324c46e0075d2065d58112d21be837b9aa48755c76503e273795b3f exact_id=b9e5a25f80739a83930840f117344e9845e531da039a91179ca7c1f9938a39f0
+  generated_exact_type get3 location=enum9 nominal_id=2537e59213599a5cd5efbe4c1df0c85071bf13ca2521e5007eb0a09385ba84e9 exact_id=744aeeb40fdbe0e5f31f7d12817289695f281150eb6fa6bd62ee5f26334c6d5d
+  generated_exact_type get4 location=enum11 nominal_id=3f700b66ada8f0680f0a055c5620014c5dfd9d2478eaaf17a1d45283b8866929 exact_id=9a277ecdf36bb1df752a7e96b16db62d0afdb7fb7a699755eca7eb0a40000c81
+  generated_exact_type get5 location=enum12 nominal_id=5d99f04ce324c46e0075d2065d58112d21be837b9aa48755c76503e273795b3f exact_id=b9e5a25f80739a83930840f117344e9845e531da039a91179ca7c1f9938a39f0
   generated_exact_type get6 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get7 location=enum12 nominal_id=cf50dff2e0a98596d841b3f6b9d885f006034fcde71b8279394d8f57f7a54be9 exact_id=e9473522faa18d0d93c5ef9d0421b24f5a23da981f722949bbe286f0e3c22b8c
-  generated_exact_type get8 location=enum7 nominal_id=980ea426df84ef7cffd28d3ae00dc489c0a28e2f22e993aa083f0a0e798b5319 exact_id=f1b0cd923da9aecd50880ece2f68f1d993326a668c36426eb9bc26bfd1d44551
+  generated_exact_type get7 location=enum13 nominal_id=cf50dff2e0a98596d841b3f6b9d885f006034fcde71b8279394d8f57f7a54be9 exact_id=e9473522faa18d0d93c5ef9d0421b24f5a23da981f722949bbe286f0e3c22b8c
+  generated_exact_type get8 location=enum8 nominal_id=980ea426df84ef7cffd28d3ae00dc489c0a28e2f22e993aa083f0a0e798b5319 exact_id=f1b0cd923da9aecd50880ece2f68f1d993326a668c36426eb9bc26bfd1d44551
   generated_callable gc0 function=@fn31 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   generated_callable gc1 function=@fn30 id=27e642b06d374af02bf2a677a17630a732fec603486cf9de5e45684afbda1f47
   generated_callable gc2 function=@fn28 id=296bfc4daca43a768c1c5242d7c60341a49c800fe561a777e69159bbee683787

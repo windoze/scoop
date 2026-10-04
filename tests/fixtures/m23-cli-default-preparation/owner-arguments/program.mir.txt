@@ -251,6 +251,11 @@ Module
       val $parameter.value: String
         Type String
         Local $result.0
+      call $aggregate.0: String = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
       val $argument.0: String
         Type String
         Local $parameter.seed
@@ -277,12 +282,7 @@ Module
       val $parameter.value: String
         Type String
         Local $result.0
-      call $call.11: String = @fn5 direct
-        Type String
-        Local $parameter.seed
-        Type String
-        Local $parameter.value
-      call $call.12: String = @fn2 direct
+      call $aggregate.1: String = @fn2 direct
         Type String
         Local $parameter.seed
         Type String
@@ -291,10 +291,10 @@ Module
         Type (String, String)
         TupleLiteral
           Type String
-          Local $call.11
+          Local $aggregate.0
           Type String
-          Local $call.12
-      call $call.13: (String, String) = @fn8 direct
+          Local $aggregate.1
+      call $call.11: (String, String) = @fn8 direct
         Type OwnerCombinationHost
         Local $receiver
         Type String
@@ -326,12 +326,12 @@ Module
         Type Boolean
         BoolLiteral true
     bb16 if.then.16
-      call $call.14: String = @fn4 direct
+      call $call.12: String = @fn4 direct
         Type String
         Local $parameter.seed
       assign $result.0
         Type String
-        Local $call.14
+        Local $call.12
       goto bb18
     bb17 if.else.17
       assign $result.0
@@ -352,7 +352,7 @@ Module
         Local $parameter.seed
         Type String
         Local $parameter.value
-      call $call.15: String = @fn10 direct
+      call $call.13: String = @fn10 direct
         Type OwnerCombinationHost
         Local $receiver
         Type String

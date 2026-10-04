@@ -5,18 +5,24 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class UnwrapException vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class ArithmeticException vtable=0 itables=0
-  class ArrayIterator<Int> vtable=0 itables=1
+  class ListIterator<Int> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
+  interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   fun main @fn0() -> Unit
     bb0 entry
@@ -26,7 +32,7 @@ Module
       goto bb2
     bb2 try.dispatch.2
       begin_catch
-      branch bb14 bb15
+      branch bb9 bb10
         Type Boolean
         IsInstance IndexOutOfBoundsException
           Type Any
@@ -44,7 +50,7 @@ Module
       end_catch
       resume
     bb7 try.end.7
-      goto bb25
+      goto bb20
     bb8 try.body.8 unwind bb1
       val a: Array<Int>
         Type Array<Int>
@@ -62,297 +68,251 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.1: Array<Int>
+      call $dependency.argument.0: Int = @fn2 direct
         Type Array<Int>
         Local $dependency.receiver
-      val $idx.2: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb10 bb9
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb9 logic.rhs.9 unwind bb1
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Int>
-            Type Array<Int>
-            Local $arr.1
-      goto bb11
-    bb10 logic.short.10 unwind bb1
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb11
-    bb11 logic.merge.11 unwind bb1
-      branch bb12 bb13
-        Type Boolean
-        Local $logic.1
-    bb12 if.then.12 unwind bb1
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external6 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw unwind bb1
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb13 if.merge.13 unwind bb1
-      val $dependency.argument.0: Int
-        Type Int
-        ArrayGet Array<Int>
-          Type Array<Int>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
       goto bb7
-    bb14 try.catch.14
-      call $catch.3: Any = @scoop_rt_materialize_exception direct
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val e: IndexOutOfBoundsException
         Type IndexOutOfBoundsException
         Retype IndexOutOfBoundsException
           Type Any
-          Local $catch.3
-      goto bb16
-    bb15 try.next.15
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
       rethrow unwind bb5
-    bb16 scope.16 unwind bb3
+    bb11 scope.11 unwind bb3
       val $dependency.argument.0: String
         Type String
         StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type String
         Local $dependency.parameter.value
       end_catch
-      goto bb17
-    bb17 scope.17
+      goto bb12
+    bb12 scope.12
       goto bb7
-    bb18 try.unwind.18
+    bb13 try.unwind.13
       landing_pad cleanup=false
-      goto bb19
-    bb19 try.dispatch.19
+      goto bb14
+    bb14 try.dispatch.14
       begin_catch
-      branch bb29 bb30
+      branch bb24 bb25
         Type Boolean
         IsInstance UnwrapException
           Type Any
           CaughtException
-    bb20 try.handler_pad.20
+    bb15 try.handler_pad.15
       landing_pad cleanup=true
-      goto bb21
-    bb21 try.handler_cleanup.21
+      goto bb16
+    bb16 try.handler_cleanup.16
       end_catch
       resume
-    bb22 try.exit_pad.22
+    bb17 try.exit_pad.17
       landing_pad cleanup=true
-      goto bb23
-    bb23 try.exit_cleanup.23
+      goto bb18
+    bb18 try.exit_cleanup.18
       end_catch
       resume
-    bb24 try.end.24
-      goto bb40
-    bb25 try.body.25 unwind bb18
+    bb19 try.end.19
+      goto bb35
+    bb20 try.body.20 unwind bb13
       val x: Option<Int>
         Type Option<Int>
         VariantConstruct Option<Int> v1
-      val $opt.3: Option<Int>
+      val $opt.1: Option<Int>
         Type Option<Int>
         Local x
-      branch bb26 bb27
+      branch bb21 bb22
         Type Boolean
         VariantTest Option<Int> v0
           Type Option<Int>
-          Local $opt.3
-    bb26 if.then.26 unwind bb18
-      val $uw.4: Int
+          Local $opt.1
+    bb21 if.then.21 unwind bb13
+      val $uw.2: Int
         Type Int
         VariantPayloadProject Option<Int> v0 f0
           Type Option<Int>
-          Local $opt.3
-      goto bb28
-    bb27 if.else.27 unwind bb18
-      assign $new.4
+          Local $opt.1
+      goto bb23
+    bb22 if.else.22 unwind bb13
+      assign $new.2
         Type UnwrapException
         ClassAlloc UnwrapException
       call external5 direct
         Type UnwrapException
-        Local $new.4
-      throw unwind bb18
+        Local $new.2
+      throw unwind bb13
         Type UnwrapException
-        Local $new.4
-    bb28 if.merge.28 unwind bb18
+        Local $new.2
+    bb23 if.merge.23 unwind bb13
       val $dependency.argument.0: Int
         Type Int
-        Local $uw.4
+        Local $uw.2
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
-      goto bb24
-    bb29 try.catch.29
-      call $catch.5: Any = @scoop_rt_materialize_exception direct
+      goto bb19
+    bb24 try.catch.24
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val e: UnwrapException
         Type UnwrapException
         Retype UnwrapException
           Type Any
-          Local $catch.5
-      goto bb31
-    bb30 try.next.30
-      rethrow unwind bb22
-    bb31 scope.31 unwind bb20
+          Local $catch.3
+      goto bb26
+    bb25 try.next.25
+      rethrow unwind bb17
+    bb26 scope.26 unwind bb15
       val $dependency.argument.0: String
         Type String
         StringConst @str1
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type String
         Local $dependency.parameter.value
       end_catch
-      goto bb32
-    bb32 scope.32
-      goto bb24
-    bb33 try.unwind.33
+      goto bb27
+    bb27 scope.27
+      goto bb19
+    bb28 try.unwind.28
       landing_pad cleanup=false
-      goto bb34
-    bb34 try.dispatch.34
+      goto bb29
+    bb29 try.dispatch.29
       begin_catch
-      branch bb43 bb44
+      branch bb38 bb39
         Type Boolean
         IsInstance ClassCastException
           Type Any
           CaughtException
-    bb35 try.handler_pad.35
+    bb30 try.handler_pad.30
       landing_pad cleanup=true
-      goto bb36
-    bb36 try.handler_cleanup.36
+      goto bb31
+    bb31 try.handler_cleanup.31
       end_catch
       resume
-    bb37 try.exit_pad.37
+    bb32 try.exit_pad.32
       landing_pad cleanup=true
-      goto bb38
-    bb38 try.exit_cleanup.38
+      goto bb33
+    bb33 try.exit_cleanup.33
       end_catch
       resume
-    bb39 try.end.39
-      goto bb54
-    bb40 try.body.40 unwind bb33
+    bb34 try.end.34
+      goto bb49
+    bb35 try.body.35 unwind bb28
       val a: Any
         Type Any
         Box
           Type Int
           IntegerLiteral Int value=1 bits=0x00000001
-      val $cast.5: Any
+      val $cast.3: Any
         Type Any
         Local a
-      branch bb41 bb42
+      branch bb36 bb37
         Type Boolean
         Unary BoolNot
           Type Boolean
           IsInstance String
             Type Any
-            Local $cast.5
-    bb41 if.then.41 unwind bb33
-      assign $new.6
+            Local $cast.3
+    bb36 if.then.36 unwind bb28
+      assign $new.4
         Type ClassCastException
         ClassAlloc ClassCastException
       call external3 direct
         Type ClassCastException
-        Local $new.6
-      throw unwind bb33
+        Local $new.4
+      throw unwind bb28
         Type ClassCastException
-        Local $new.6
-    bb42 if.merge.42 unwind bb33
+        Local $new.4
+    bb37 if.merge.37 unwind bb28
       val s: String
         Type String
         Retype String
           Type Any
-          Local $cast.5
+          Local $cast.3
       val $dependency.argument.0: String
         Type String
         Local s
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type String
         Local $dependency.parameter.value
-      goto bb39
-    bb43 try.catch.43
-      call $catch.7: Any = @scoop_rt_materialize_exception direct
+      goto bb34
+    bb38 try.catch.38
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val e: ClassCastException
         Type ClassCastException
         Retype ClassCastException
           Type Any
-          Local $catch.7
-      goto bb45
-    bb44 try.next.44
-      rethrow unwind bb37
-    bb45 scope.45 unwind bb35
+          Local $catch.5
+      goto bb40
+    bb39 try.next.39
+      rethrow unwind bb32
+    bb40 scope.40 unwind bb30
       val $dependency.argument.0: String
         Type String
         StringConst @str2
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type String
         Local $dependency.parameter.value
       end_catch
-      goto bb46
-    bb46 scope.46
-      goto bb39
-    bb47 try.unwind.47
+      goto bb41
+    bb41 scope.41
+      goto bb34
+    bb42 try.unwind.42
       landing_pad cleanup=false
-      goto bb48
-    bb48 try.dispatch.48
+      goto bb43
+    bb43 try.dispatch.43
       begin_catch
-      branch bb63 bb64
+      branch bb58 bb59
         Type Boolean
         IsInstance ArithmeticException
           Type Any
           CaughtException
-    bb49 try.handler_pad.49
+    bb44 try.handler_pad.44
       landing_pad cleanup=true
-      goto bb50
-    bb50 try.handler_cleanup.50
+      goto bb45
+    bb45 try.handler_cleanup.45
       end_catch
       resume
-    bb51 try.exit_pad.51
+    bb46 try.exit_pad.46
       landing_pad cleanup=true
-      goto bb52
-    bb52 try.exit_cleanup.52
+      goto bb47
+    bb47 try.exit_cleanup.47
       end_catch
       resume
-    bb53 try.end.53
+    bb48 try.end.48
       return
-    bb54 try.body.54 unwind bb47
+    bb49 try.body.49 unwind bb42
       val $dependency.receiver: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -362,136 +322,218 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $div.6: Int
+      val $div.4: Int
         Type Int
         Local $dependency.receiver
-      val $div.7: Int
+      val $div.5: Int
         Type Int
         Local $dependency.parameter.other
-      branch bb55 bb56
+      branch bb50 bb51
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          Local $div.7
+          Local $div.5
           Type Int
           IntegerLiteral Int value=0 bits=0x00000000
-    bb55 if.then.55 unwind bb47
-      assign $new.8
+    bb50 if.then.50 unwind bb42
+      assign $new.6
         Type ArithmeticException
         ClassAlloc ArithmeticException
       call external4 direct
         Type ArithmeticException
-        Local $new.8
-      throw unwind bb47
+        Local $new.6
+      throw unwind bb42
         Type ArithmeticException
-        Local $new.8
-    bb56 if.merge.56 unwind bb47
-      branch bb57 bb58
+        Local $new.6
+    bb51 if.merge.51 unwind bb42
+      branch bb52 bb53
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          Local $div.6
+          Local $div.4
           Type Int
           IntegerLiteral Int value=-2147483648 bits=0x80000000
-    bb57 logic.rhs.57 unwind bb47
-      assign $logic.9
+    bb52 logic.rhs.52 unwind bb42
+      assign $logic.7
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          Local $div.7
+          Local $div.5
           Type Int
           IntegerLiteral Int value=-1 bits=0xffffffff
-      goto bb59
-    bb58 logic.short.58 unwind bb47
-      assign $logic.9
+      goto bb54
+    bb53 logic.short.53 unwind bb42
+      assign $logic.7
         Type Boolean
         BoolLiteral false
-      goto bb59
-    bb59 logic.merge.59 unwind bb47
-      branch bb60 bb61
+      goto bb54
+    bb54 logic.merge.54 unwind bb42
+      branch bb55 bb56
         Type Boolean
-        Local $logic.9
-    bb60 if.then.60 unwind bb47
-      assign $div.result.8
+        Local $logic.7
+    bb55 if.then.55 unwind bb42
+      assign $div.result.6
         Type Int
         IntegerLiteral Int value=-2147483648 bits=0x80000000
-      goto bb62
-    bb61 if.else.61 unwind bb47
-      assign $div.result.8
+      goto bb57
+    bb56 if.else.56 unwind bb42
+      assign $div.result.6
         Type Int
         SafeIntegerDivRem divide kind=Int
           Type Int
-          Local $div.6
+          Local $div.4
           Type Int
-          Local $div.7
-      goto bb62
-    bb62 if.merge.62 unwind bb47
+          Local $div.5
+      goto bb57
+    bb57 if.merge.57 unwind bb42
       val $dependency.argument.0: Int
         Type Int
-        Local $div.result.8
+        Local $div.result.6
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
-      goto bb53
-    bb63 try.catch.63
-      call $catch.10: Any = @scoop_rt_materialize_exception direct
+      goto bb48
+    bb58 try.catch.58
+      call $catch.8: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val e: ArithmeticException
         Type ArithmeticException
         Retype ArithmeticException
           Type Any
-          Local $catch.10
-      goto bb65
-    bb64 try.next.64
-      rethrow unwind bb51
-    bb65 scope.65 unwind bb49
+          Local $catch.8
+      goto bb60
+    bb59 try.next.59
+      rethrow unwind bb46
+    bb60 scope.60 unwind bb44
       val $dependency.argument.0: String
         Type String
         StringConst @str3
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type String
         Local $dependency.parameter.value
       end_catch
-      goto bb66
-    bb66 scope.66
-      goto bb53
+      goto bb61
+    bb61 scope.61
+      goto bb48
   fun iterator @fn1(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn9 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ListIterator<Int>
+          Local $new.1
+  fun get @fn2(this: Array<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn3(this: Array<Int>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Int>
         Type Array<Int>
         Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Int>
-        Type Array<Int>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Int>
-        ClassAlloc ArrayIterator<Int>
-      call @fn5 direct
-        Type ArrayIterator<Int>
-        Local $new.1
-        Type Array<Int>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
       return
-        Type Iterator<Int>
-        Retype Iterator<Int>
-          Type ArrayIterator<Int>
-          Local $new.1
-  fun println @fn2(value: Int) -> Unit
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -515,7 +557,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn3(value: String) -> Unit
+  fun println @fn5(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -539,26 +581,34 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun next @fn4(this: ArrayIterator<Int>) -> Option<Int>
+  fun next @fn6(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          FieldAccess 0
-            Type ArrayIterator<Int>
-            Local this
+      call $dependency.local.3: Long = @fn7 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
@@ -567,79 +617,38 @@ Module
             Local $dependency.local.4
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Int>
-        Type Array<Int>
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
         FieldAccess 0
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      val $arr.1: Array<Int>
-        Type Array<Int>
+      call $dependency.local.1: Int = @fn8 interface List<Int>[1]
+        Type List<Int>
         Local $dependency.local.5
-      val $idx.2: Long
         Type Long
         Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Int>
-        VariantConstruct Option<Int> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Int>
-            Type Array<Int>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external6 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Int
-        Type Int
-        ArrayGet Array<Int>
-          Type Array<Int>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -648,7 +657,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -667,23 +676,38 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun init.ArrayIterator.$c0 @fn5(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun List.$get$size @fn7(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn8(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn9(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
-        Type Array<Int>
+        Type List<Int>
         Local source
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
       return
   instance mi0 function=@fn1 <- iterator
-  instance mi1 function=@fn2 <- println
-  instance mi2 function=@fn3 <- println
-  instance mi3 function=@fn4 <- next
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- size
+  instance mi3 function=@fn4 <- println
+  instance mi4 function=@fn5 <- println
+  instance mi5 function=@fn6 <- next
+  instance mi6 function=@fn7 <- List.$get$size
+  instance mi7 function=@fn8 <- List.get
   str @str0 "index"
   str @str1 "unwrap"
   str @str2 "cast"

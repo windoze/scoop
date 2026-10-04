@@ -1,7 +1,12 @@
 Module
   struct SourceLocation (file: String, line: Long, column: Long, functionName: String, typeName: String)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val location: SourceLocation

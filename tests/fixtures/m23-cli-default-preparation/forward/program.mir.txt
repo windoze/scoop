@@ -13,10 +13,11 @@ Module
   class PrepGenericChild vtable=1 itables=0
   class PrepGeneric<Int> vtable=1 itables=0
   class PrepSecondary vtable=0 itables=0
-  class ArrayIterator<Int> vtable=0 itables=1
+  class ListIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
   fun PrepBase.choose @fn0(this: PrepBase, value: Int) -> Int
@@ -100,7 +101,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local seed
-      call $parameter.first: Int = @fn17 direct
+      call $parameter.first: Int = @fn19 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -108,7 +109,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local seed
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn19 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -124,7 +125,7 @@ Module
       call $parameter.value: Int = @fn13 direct
         Type Int
         Local $parameter.value
-      call $call.1: PrepValue = @fn26 direct
+      call $call.1: PrepValue = @fn30 direct
         Type Int
         Local $parameter.value
       val $parameter.value: Int
@@ -192,7 +193,7 @@ Module
       assign $new.6
         Type PrepChild
         ClassAlloc PrepChild
-      call @fn20 direct
+      call @fn24 direct
         Type PrepChild
         Local $new.6
       val $receiver: PrepChild
@@ -215,7 +216,7 @@ Module
       assign $new.8
         Type PrepGenericChild
         ClassAlloc PrepGenericChild
-      call @fn21 direct
+      call @fn25 direct
         Type PrepGenericChild
         Local $new.8
       val $receiver: PrepGenericChild
@@ -255,7 +256,7 @@ Module
       assign $new.10
         Type PrepSecondary
         ClassAlloc PrepSecondary
-      call @fn23 direct
+      call @fn27 direct
         Type PrepSecondary
         Local $new.10
         Type String
@@ -271,18 +272,18 @@ Module
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $call.12: Int = @fn13 direct
+      call $aggregate.0: Int = @fn13 direct
         Type Int
         Local $parameter.value
       val $parameter.values: Array<Int>
         Type Array<Int>
         ArrayLiteral Array<Int>
           Type Int
-          Local $call.12
+          Local $aggregate.0
       call $parameter.values: Array<Int> = @fn11 direct
         Type Array<Int>
         Local $parameter.values
-      call $call.13: Array<Int> = @fn12 direct
+      call $call.12: Array<Int> = @fn12 direct
         Type Array<Int>
         Local $parameter.values
       val $argument.0: Int
@@ -291,104 +292,74 @@ Module
       val $parameter.seed: Int
         Type Int
         Local $argument.0
-      call $call.14: Int = @fn14 direct
+      call $call.13: Int = @fn14 direct
         Type Int
         Local $parameter.seed
       return
   fun iterator @fn16(this: Array<Int>) -> Iterator<Int>
     bb0 entry
-      val $dependency.local.1: Array<Int>
-        Type Array<Int>
-        Local this
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Int>
-        Type Array<Int>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Int>
-        ClassAlloc ArrayIterator<Int>
-      call @fn24 direct
-        Type ArrayIterator<Int>
-        Local $new.1
-        Type Array<Int>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn28 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Int>
         Retype Iterator<Int>
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local $new.1
-  fun $local.0.local @fn17(first: Int, second: Int) -> Int
+  fun get @fn17(this: Array<Int>, index: Long) -> Int
     bb0 entry
-      return
-        Type Int
-        Local second
-  fun next @fn18(this: ArrayIterator<Int>) -> Option<Int>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Int>
-          Local this
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
       val $dependency.local.3: Long
         Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          FieldAccess 0
-            Type ArrayIterator<Int>
-            Local this
+        Local index
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Int>
-        Type Array<Int>
-        FieldAccess 0
-          Type ArrayIterator<Int>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Int>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
       val $arr.1: Array<Int>
         Type Array<Int>
-        Local $dependency.local.5
+        Local $dependency.local.2
       val $idx.2: Long
         Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
+        Local $dependency.local.4
+      branch bb2 bb1
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Int>
-        VariantConstruct Option<Int> v1
-    bb3 logic.rhs.3
+    bb1 logic.rhs.1
       assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -398,17 +369,17 @@ Module
           ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
-      goto bb5
-    bb4 logic.short.4
+      goto bb3
+    bb2 logic.short.2
       assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
         Type Boolean
         Local $logic.1
-    bb6 if.then.6
+    bb4 if.then.4
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -418,18 +389,97 @@ Module
       throw
         Type IndexOutOfBoundsException
         Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Int
+    bb5 if.merge.5
+      return
         Type Int
         ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
           Local $idx.2
+  fun size @fn18(this: Array<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun $local.0.local @fn19(first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local second
+  fun next @fn20(this: ListIterator<Int>) -> Option<Int>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      call $dependency.local.3: Long = @fn21 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Int = @fn22 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -438,7 +488,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -457,26 +507,32 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun init.PrepBase.$c0 @fn19(this: PrepBase) -> Unit
+  fun List.$get$size @fn21(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn22(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.PrepBase.$c0 @fn23(this: PrepBase) -> Unit
     bb0 entry
       return
-  fun init.PrepChild.$c1 @fn20(this: PrepChild) -> Unit
+  fun init.PrepChild.$c1 @fn24(this: PrepChild) -> Unit
     bb0 entry
-      call @fn19 direct
+      call @fn23 direct
         Type PrepBase
         Retype PrepBase
           Type PrepChild
           Local this
       return
-  fun init.PrepGenericChild.$c3 @fn21(this: PrepGenericChild) -> Unit
+  fun init.PrepGenericChild.$c3 @fn25(this: PrepGenericChild) -> Unit
     bb0 entry
-      call @fn25 direct
+      call @fn29 direct
         Type PrepGeneric<Int>
         Retype PrepGeneric<Int>
           Type PrepGenericChild
           Local this
       return
-  fun init.PrepSecondary.$c4 @fn22(this: PrepSecondary, value: Int) -> Unit
+  fun init.PrepSecondary.$c4 @fn26(this: PrepSecondary, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type PrepSecondary
@@ -484,7 +540,7 @@ Module
         Type Int
         Local value
       return
-  fun init.PrepSecondary.$c5 @fn23(this: PrepSecondary, marker: String, value: Int) -> Unit
+  fun init.PrepSecondary.$c5 @fn27(this: PrepSecondary, marker: String, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -492,29 +548,34 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn22 direct
+      call @fn26 direct
         Type PrepSecondary
         Local this
         Type Int
         Local $parameter.value
       return
-  fun init.ArrayIterator.$c0 @fn24(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ListIterator.$c0 @fn28(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
-        Type Array<Int>
+        Type List<Int>
         Local source
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun init.PrepGeneric.$c2 @fn25(this: PrepGeneric<Int>) -> Unit
+  fun init.PrepGeneric.$c2 @fn29(this: PrepGeneric<Int>) -> Unit
     bb0 entry
       return
-  fun ctor.PrepValue.$c0 @fn26(value: Int) -> PrepValue <no-gc>
+  fun ctor.PrepValue.$c0 @fn30(value: Int) -> PrepValue <no-gc>
     bb0 entry
       return
         Type PrepValue
@@ -523,6 +584,10 @@ Module
           Local value
   instance mi0 function=@fn2 <- PrepGeneric.choose
   instance mi1 function=@fn16 <- iterator
-  instance mi2 function=@fn18 <- next
+  instance mi2 function=@fn17 <- get
+  instance mi3 function=@fn18 <- size
+  instance mi4 function=@fn20 <- next
+  instance mi5 function=@fn21 <- List.$get$size
+  instance mi6 function=@fn22 <- List.get
   str @str0 "secondary"
   output executable @fn15

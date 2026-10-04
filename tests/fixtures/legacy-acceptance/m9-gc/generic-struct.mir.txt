@@ -6,6 +6,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Readable>
     Completed(value: Readable)
     Suspended()
@@ -19,12 +22,14 @@ Module
   interface Readable
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Readable>
   interface SuspendTask<Readable>
   interface SuspendRegistration<Readable>
   generated_exact_type get0 location=class3 nominal_id=06a8591a8715f02ac38c7507919a17bcd2ac72ac5478f8eb5e851fc87487d02c exact_id=949b9437da8fa50212ae88592e639c00974b8ee8d25ea6eb8f4a80ee8ca6734c
-  generated_exact_type get1 location=enum1 nominal_id=f44f289e862efdb46719d5ca7f6f34d59347d2a295fe3bc651d201bbe8fee12d exact_id=9a04c97516cc56803c81d1ce64431c1063b8b4e138d4628cc168cf95183506b0
-  generated_exact_type get2 location=enum2 nominal_id=2066624d2c4313e2e7fa15d02c5a6d073e34bf4dc264d8bde0a62ed5409c9c21 exact_id=efb55938426011f8d8e7cec725a9c764fd1c9a624083b2932827af2305f4d4c9
+  generated_exact_type get1 location=enum2 nominal_id=f44f289e862efdb46719d5ca7f6f34d59347d2a295fe3bc651d201bbe8fee12d exact_id=9a04c97516cc56803c81d1ce64431c1063b8b4e138d4628cc168cf95183506b0
+  generated_exact_type get2 location=enum3 nominal_id=2066624d2c4313e2e7fa15d02c5a6d073e34bf4dc264d8bde0a62ed5409c9c21 exact_id=efb55938426011f8d8e7cec725a9c764fd1c9a624083b2932827af2305f4d4c9
   generated_callable gc0 function=@fn15 id=97c7da109727441033a17bdbbd087e8257a95f88828cf54261de7f4fb168fec1
   generated_callable gc1 function=@fn16 id=fa6007098f7b97a936745a33286fd1c3fd8f64a342070658937d9cd51eda0ea9
   fun main @fn0() -> Unit

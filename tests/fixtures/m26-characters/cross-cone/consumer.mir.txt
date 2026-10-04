@@ -197,15 +197,21 @@ Module
       val $dependency.parameter._1: Char
         Type Char
         Local $dependency.argument.0
+      val $aggregate.0: Option<Char>
+        Type Option<Char>
+        VariantConstruct Option<Char> v0
+          Type Char
+          Local $dependency.parameter._1
+      val $aggregate.1: String
+        Type String
+        StringConst @str1
       val $dependency.argument.0: (Option<Char>, String)
         Type (Option<Char>, String)
         TupleLiteral
           Type Option<Char>
-          VariantConstruct Option<Char> v0
-            Type Char
-            Local $dependency.parameter._1
+          Local $aggregate.0
           Type String
-          StringConst @str1
+          Local $aggregate.1
       val $dependency.parameter.value: (Option<Char>, String)
         Type (Option<Char>, String)
         Local $dependency.argument.0
@@ -244,21 +250,27 @@ Module
       val $default.local.1: Char
         Type Char
         Local $default.local.0
-      val $default.local.2: (Option<Char>, Int)
+      val $default.local.2: Option<Char>
+        Type Option<Char>
+        VariantConstruct Option<Char> v0
+          Type Char
+          Local $default.local.1
+      val $default.local.3: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $default.local.4: (Option<Char>, Int)
         Type (Option<Char>, Int)
         TupleLiteral
           Type Option<Char>
-          VariantConstruct Option<Char> v0
-            Type Char
-            Local $default.local.1
+          Local $default.local.2
           Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
-      val $default.local.3: (Option<Char>, Int)
+          Local $default.local.3
+      val $default.local.5: (Option<Char>, Int)
         Type (Option<Char>, Int)
-        Local $default.local.2
+        Local $default.local.4
       call $dependency.parameter.value: Int = @fn15 direct
         Type (Option<Char>, Int)
-        Local $default.local.3
+        Local $default.local.5
       call $dependency.receiver: Int = external1 direct
         Type Int
         Local $dependency.parameter.value

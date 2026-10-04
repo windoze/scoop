@@ -6,8 +6,13 @@ Module
   global4 m23_tls_zero: Int extern m23_tls_zero thread_local
   struct Marker (text: String)
   struct Pair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val $dependency.receiver: String

@@ -2,6 +2,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
@@ -27,12 +30,14 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
-  generated_exact_type get0 location=enum3 nominal_id=f9fe13082c167e8a106730434fd80c0891d40d2656f1a625d24fb96593c07ae2 exact_id=8d426031a7985134e5260265501e8a72dccd9f54a2b5f615b716ed9edc322c34
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=enum4 nominal_id=f9fe13082c167e8a106730434fd80c0891d40d2656f1a625d24fb96593c07ae2 exact_id=8d426031a7985134e5260265501e8a72dccd9f54a2b5f615b716ed9edc322c34
   generated_exact_type get1 location=class7 nominal_id=257c60d9b8f1f771bf33f331db14e2a1574b0aac9f532e07246870c35fbb39fc exact_id=a2ef815cc13eb59481d2c293db1a30893f712d870b51f1e5479e9facfb9b3e01
   generated_exact_type get2 location=class6 nominal_id=d7c18a8b0b293ea3201b63e594d0c624a5384cd26716e426ac322027cbbd11be exact_id=a69428d02148d47ad0aac6ad321ea9637a94cd76d1e034f0f71ad63463cc7fea
-  generated_exact_type get3 location=enum1 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
-  generated_exact_type get4 location=enum4 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
-  generated_exact_type get5 location=enum2 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_exact_type get3 location=enum2 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get4 location=enum5 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get5 location=enum3 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_callable gc0 function=@fn17 id=50c971231d5ab913d42c0b964a2dd0ac2357c2d2db66a905ce824e45009eddd8
   generated_callable gc1 function=@fn16 id=531b0f7521bc7a5af159a69ded58e38d9770925669a5c244e9f62663dd9286d7
   generated_callable gc2 function=@fn15 id=5a680656f037823b58d3c5596121b779363790b9d55e51b51205b7c94ab2517f

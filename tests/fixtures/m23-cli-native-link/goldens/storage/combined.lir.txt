@@ -11,6 +11,7 @@ Module
   native_global3 m23_tls_initial @m23_tls_initial : i32 c=Int mutable(get=ng-get3,set=ng-set2,address=ng-address3) thread_local
   native_global4 m23_tls_zero @m23_tls_zero : i32 c=Int mutable(get=ng-get4,set=ng-set3,address=ng-address4) thread_local
   c-struct struct1 Pair fields=[Int@0/4,Int@4/4]
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$b4e54ef519be36409cb37fbc131a9a3d2e2ded3d8769e5f7274342cb41d98435() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
@@ -363,6 +364,12 @@ Module
     global_store global5, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=dev.programlink%3Astorage-root%3A0.1.0;p=;o=-;k=S;x=Marker) @scoop$1$td$cd5ac1cb81d722408e2f509fe021d5ad029aa9ad918fa80f735b93ca805e98ac type-id=1541256207650147346 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 n(c=dev.programlink%3Astorage-root%3A0.1.0;p=;o=-;k=S;x=Marker) @scoop$1$td$cd5ac1cb81d722408e2f509fe021d5ad029aa9ad918fa80f735b93ca805e98ac type-id=1541256207650147346 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Marker size=8 align=8 refs=[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$b4e54ef519be36409cb37fbc131a9a3d2e2ded3d8769e5f7274342cb41d98435

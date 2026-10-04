@@ -3,6 +3,21 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Offset>
+    Completed(value: Offset)
+    Suspended()
+  enum CoroutineSlot<Offset>
+    Empty()
+    Value(value: Offset)
+  enum CoroutineStep<MutableName>
+    Completed(value: MutableName)
+    Suspended()
+  enum CoroutineSlot<MutableName>
+    Empty()
+    Value(value: MutableName)
   class Named vtable=0 itables=0
   class MutableName vtable=0 itables=0
   class ReceiverFactory vtable=0 itables=0
@@ -10,46 +25,63 @@ Module
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Offset> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Continuation<Offset>
+  interface SuspendTask<Offset>
+  interface SuspendRegistration<Offset>
+  interface Continuation<MutableName>
+  interface SuspendTask<MutableName>
+  interface SuspendRegistration<MutableName>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn14 captures=1
-    bridge function_type1 -> @fn32 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
-  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn19 captures=1
-    bridge function_type3 -> @fn33 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
-  closure cc2 $Closure$reference1 type=function_type4 invoke=@fn20 captures=0
-    bridge function_type5 -> @fn34 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
-  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn21 captures=1
-    bridge function_type1 -> @fn35 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
-  closure cc4 $Closure$reference3 type=function_type4 invoke=@fn22 captures=0
-    bridge function_type5 -> @fn36 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
-  closure cc5 $Closure$reference4 type=function_type0 invoke=@fn23 captures=1
-    bridge function_type1 -> @fn37 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
-  closure cc6 $Closure$reference5 type=function_type0 invoke=@fn24 captures=1
-    bridge function_type1 -> @fn38 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
-  closure cc7 $Closure$reference6 type=function_type6 invoke=@fn25 captures=1
-    bridge function_type1 -> @fn39 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
-  closure cc8 $Closure$reference7 type=function_type6 invoke=@fn26 captures=1
-    bridge function_type1 -> @fn40 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
+    bridge function_type1 -> @fn42 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
+  closure cc1 $Closure$reference0 type=function_type2 invoke=@fn27 captures=1
+    bridge function_type3 -> @fn43 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc2 $Closure$reference1 type=function_type4 invoke=@fn28 captures=0
+    bridge function_type5 -> @fn44 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
+  closure cc3 $Closure$reference2 type=function_type0 invoke=@fn29 captures=1
+    bridge function_type1 -> @fn45 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  closure cc4 $Closure$reference3 type=function_type4 invoke=@fn30 captures=0
+    bridge function_type5 -> @fn46 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
+  closure cc5 $Closure$reference4 type=function_type0 invoke=@fn31 captures=1
+    bridge function_type1 -> @fn47 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  closure cc6 $Closure$reference5 type=function_type0 invoke=@fn32 captures=1
+    bridge function_type1 -> @fn48 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
+  closure cc7 $Closure$reference6 type=function_type6 invoke=@fn33 captures=1
+    bridge function_type1 -> @fn49 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  closure cc8 $Closure$reference7 type=function_type6 invoke=@fn34 captures=1
+    bridge function_type1 -> @fn50 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
   generated_exact_type get0 location=closure7 nominal_id=021aefdb45795169eee5f61e3e2265a0c680ec2777d12bbf588f030d1f1131d1 exact_id=19276589522880797caae0c339c66b0aed7fca11656ae1ca728c9961de8f1030
-  generated_exact_type get1 location=closure3 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
-  generated_exact_type get2 location=closure0 nominal_id=b9646c907731a5a39ccc98ff44b6e123c5c0a738187a912b592b673e755cc9e8 exact_id=6c759f89e41205fee0949b0cc7f8a184adc3270687b25eb8810fd09e248d8eff
-  generated_exact_type get3 location=closure2 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
-  generated_exact_type get4 location=closure4 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
-  generated_exact_type get5 location=closure5 nominal_id=dad1aa8313a6f2b2f2c28d2cb92be40613bb93998a53c95ebfe7e3352494f032 exact_id=baf0aa42922913ccf82717ae3c6d4469276a08436b3838e1161047d957d6c5c3
-  generated_exact_type get6 location=closure8 nominal_id=5e0486b370bd417c3d5be0cae1e8f83c00f184f8fa781b92ee1e4bccb7bc2246 exact_id=c9b6ed9286f407d2076ee05ee0bdf296b2ec2350e77aef2ae4f2605657e0e4a4
-  generated_exact_type get7 location=closure1 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
-  generated_exact_type get8 location=closure6 nominal_id=ea4d883a297721288b80781ec0ce1a137273bb1c233c118e291ad302f83b054e exact_id=d73d1e4bf9ac0f1310e74b31b315b2b686778413eff8fcf89fe43a39c87ce352
-  generated_exact_type get9 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn35 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
-  generated_callable gc1 function=@fn36 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
-  generated_callable gc2 function=@fn34 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
-  generated_callable gc3 function=@fn40 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
-  generated_callable gc4 function=@fn38 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
-  generated_callable gc5 function=@fn33 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
-  generated_callable gc6 function=@fn32 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
-  generated_callable gc7 function=@fn39 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
-  generated_callable gc8 function=@fn37 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
+  generated_exact_type get1 location=class8 nominal_id=74a491df9972e51c57e1b54c117a56754b8332004f12904e2339b2f7db1f25e0 exact_id=4188d1dcfb9f6c2dfcd68ff0fc89040d62a18240dedcac8bcfbb7ea355bd186f
+  generated_exact_type get2 location=closure3 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
+  generated_exact_type get3 location=closure0 nominal_id=b9646c907731a5a39ccc98ff44b6e123c5c0a738187a912b592b673e755cc9e8 exact_id=6c759f89e41205fee0949b0cc7f8a184adc3270687b25eb8810fd09e248d8eff
+  generated_exact_type get4 location=closure2 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get5 location=enum3 nominal_id=5707a87069154872afb96777b54a83453aa615efbf0aeaeeb0325cc2c31a20f4 exact_id=856f59f35a5a3c91800de2255340559df834296513b1cf6c02797a4367f5bfd8
+  generated_exact_type get6 location=closure4 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
+  generated_exact_type get7 location=closure5 nominal_id=dad1aa8313a6f2b2f2c28d2cb92be40613bb93998a53c95ebfe7e3352494f032 exact_id=baf0aa42922913ccf82717ae3c6d4469276a08436b3838e1161047d957d6c5c3
+  generated_exact_type get8 location=closure8 nominal_id=5e0486b370bd417c3d5be0cae1e8f83c00f184f8fa781b92ee1e4bccb7bc2246 exact_id=c9b6ed9286f407d2076ee05ee0bdf296b2ec2350e77aef2ae4f2605657e0e4a4
+  generated_exact_type get9 location=closure1 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get10 location=closure6 nominal_id=ea4d883a297721288b80781ec0ce1a137273bb1c233c118e291ad302f83b054e exact_id=d73d1e4bf9ac0f1310e74b31b315b2b686778413eff8fcf89fe43a39c87ce352
+  generated_exact_type get11 location=enum2 nominal_id=d901a489fa6ad445e822694949aa241c15db24b6025cfd0a7cc7e01a778f7125 exact_id=d868ced75d08f615f4293ca8c99a4b366207ae982f2f88f16fe1fea0eacaa542
+  generated_exact_type get12 location=enum5 nominal_id=d37fbf4ba83f4cfa7ad87f3dd0ea7440c5bd0c988f8507b251c0faa374eaa626 exact_id=e1936d3aa31809c69bbc2548a5ecc3420e4f0e13d890ba04f76ab9fc224f63a5
+  generated_exact_type get13 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get14 location=enum4 nominal_id=82d8ba134eb77e040a44e25052595a60ca010d2af016b57a3c85f7c9b3a33c47 exact_id=f9e02ce7e0fdf5dce802f482dba191021a8e753b7561cfd200570b5e6a7055dc
+  generated_callable gc0 function=@fn45 id=36a8241fd386358a1b9203a9260351ba78d4d890df61a3acebf8fbbd2c638148
+  generated_callable gc1 function=@fn46 id=3a8f0f4782d597155accd0e83eb2b3104036394b7a3b071d4a96c14172ee4323
+  generated_callable gc2 function=@fn44 id=3d79ac385a5545fd5d287c4821eae1b8f8753669c0875dc90eedef8fa114c962
+  generated_callable gc3 function=@fn50 id=6f645a60591360884d44e983a441259e53ac2f154738d144d5f770b0a6248ae0
+  generated_callable gc4 function=@fn41 id=7049965cf1fc1b0c146d7be3a329f1cd5c42e72be79a78f676e02ea4c75a76af
+  generated_callable gc5 function=@fn48 id=93429161f970ef7862bb42902b96db10176ae1150851b6e8e1d42864b6c863a9
+  generated_callable gc6 function=@fn43 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc7 function=@fn42 id=cf58f0caf725ecc5576a734723aafd8facb2caef06e0d0a4d15ae5cf975054ac
+  generated_callable gc8 function=@fn40 id=d1214749f4116b69eaa12ba7824a416d0a9f6e59c0547b8be63b446e0c1566fa
+  generated_callable gc9 function=@fn49 id=d390c9e8caec2d8889d353b2972bdfbcf549ab03737fd84372a13ed64a9c7d1c
+  generated_callable gc10 function=@fn47 id=d3dff9bf72827a01b702a58dabf34e9da3a3205b391a9afae8c83f4428b6e4cb
   fun Named.label @fn0(this: Named) -> String
     bb0 entry
       val $dependency.receiver: String
@@ -338,7 +370,7 @@ Module
       assign $new.1
         Type Named
         ClassAlloc Named
-      call @fn27 direct
+      call @fn35 direct
         Type Named
         Local $new.1
         Type String
@@ -382,7 +414,7 @@ Module
       assign $new.2
         Type MutableName
         ClassAlloc MutableName
-      call @fn28 direct
+      call @fn36 direct
         Type MutableName
         Local $new.2
         Type String
@@ -416,7 +448,7 @@ Module
       val $parameter.amount: Int
         Type Int
         Local $argument.0
-      call $receiver: Offset = @fn31 direct
+      call $receiver: Offset = @fn39 direct
         Type Int
         Local $parameter.amount
       val $argument.0: Int
@@ -469,7 +501,7 @@ Module
       assign $new.3
         Type ReceiverFactory
         ClassAlloc ReceiverFactory
-      call @fn29 direct
+      call @fn37 direct
         Type ReceiverFactory
         Local $new.3
         Type Int
@@ -506,7 +538,7 @@ Module
       val $parameter.amount: Int
         Type Int
         Local $argument.0
-      call offset: Offset = @fn31 direct
+      call offset: Offset = @fn39 direct
         Type Int
         Local $parameter.amount
       val snapshot: (Int) -> Int
@@ -521,7 +553,7 @@ Module
       val $parameter.amount: Int
         Type Int
         Local $argument.0
-      call $call.5: Offset = @fn31 direct
+      call $call.5: Offset = @fn39 direct
         Type Int
         Local $parameter.amount
       assign offset
@@ -530,7 +562,7 @@ Module
       assign $new.6
         Type ThrowingExtension
         ClassAlloc ThrowingExtension
-      call @fn30 direct
+      call @fn38 direct
         Type ThrowingExtension
         Local $new.6
       val throwing: (Int) -> Int
@@ -784,7 +816,31 @@ Module
       return
         Type String
         Local value
-  fun $reference.0 @fn19($closure: () -> String) -> String
+  fun Continuation.resume @fn19(this: Continuation<Offset>, value: Offset) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Offset>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Offset>, $completion: Continuation<Offset>) -> CoroutineStep<Offset>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Offset>, continuation: Continuation<Offset>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<MutableName>, value: MutableName) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<MutableName>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<MutableName>, $completion: Continuation<MutableName>) -> CoroutineStep<MutableName>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<MutableName>, continuation: Continuation<MutableName>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn27($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn0 direct
         Type Named
@@ -794,7 +850,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.1 @fn20($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+  fun $reference.1 @fn28($closure: (String, String) -> String, arg0: String, arg1: String) -> String
     bb0 entry
       call $call.1: String = @fn3 direct
         Type String
@@ -804,7 +860,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.2 @fn21($closure: (String) -> String, arg0: String) -> String
+  fun $reference.2 @fn29($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @fn3 direct
         Type String
@@ -816,7 +872,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.3 @fn22($closure: (String, String) -> String, arg0: String, arg1: String) -> String
+  fun $reference.3 @fn30($closure: (String, String) -> String, arg0: String, arg1: String) -> String
     bb0 entry
       call $call.1: String = @fn18 direct
         Type String
@@ -826,7 +882,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.4 @fn23($closure: (String) -> String, arg0: String) -> String
+  fun $reference.4 @fn31($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @fn18 direct
         Type String
@@ -838,7 +894,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.5 @fn24($closure: (String) -> String, arg0: String) -> String
+  fun $reference.5 @fn32($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @fn3 direct
         Type String
@@ -850,7 +906,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.6 @fn25($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.6 @fn33($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn11 direct
         Type Offset
@@ -862,7 +918,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.7 @fn26($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.7 @fn34($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn12 direct
         Type ThrowingExtension
@@ -874,7 +930,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Named.$c0 @fn27(this: Named, value: String) -> Unit
+  fun init.Named.$c0 @fn35(this: Named, value: String) -> Unit
     bb0 entry
       field_set 0
         Type Named
@@ -882,7 +938,7 @@ Module
         Type String
         Local value
       return
-  fun init.MutableName.$c1 @fn28(this: MutableName, value: String) -> Unit
+  fun init.MutableName.$c1 @fn36(this: MutableName, value: String) -> Unit
     bb0 entry
       field_set 0
         Type MutableName
@@ -890,7 +946,7 @@ Module
         Type String
         Local value
       return
-  fun init.ReceiverFactory.$c2 @fn29(this: ReceiverFactory, calls: Int) -> Unit
+  fun init.ReceiverFactory.$c2 @fn37(this: ReceiverFactory, calls: Int) -> Unit
     bb0 entry
       field_set 0
         Type ReceiverFactory
@@ -898,17 +954,101 @@ Module
         Type Int
         Local calls
       return
-  fun init.ThrowingExtension.$c3 @fn30(this: ThrowingExtension) -> Unit
+  fun init.ThrowingExtension.$c3 @fn38(this: ThrowingExtension) -> Unit
     bb0 entry
       return
-  fun ctor.Offset.$c0 @fn31(amount: Int) -> Offset <no-gc>
+  fun ctor.Offset.$c0 @fn39(amount: Int) -> Offset <no-gc>
     bb0 entry
       return
         Type Offset
         StructInit Offset
           Type Int
           Local amount
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn32($source: (String) -> String, arg0: Any) -> Any
+  fun startCoroutine<Offset> @fn40(task: SuspendTask<Offset>, completion: Continuation<Offset>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Offset>[0]
+        Type Continuation<Offset>
+        Local completion
+        Type Offset
+        EnumField v0 f0
+          Type CoroutineStep<Offset>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Offset>[1]
+        Type Continuation<Offset>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Offset> = @fn21 interface SuspendTask<Offset>[0]
+        Type SuspendTask<Offset>
+        Local task
+        Type Continuation<Offset>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Offset>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<MutableName> @fn41(task: SuspendTask<MutableName>, completion: Continuation<MutableName>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<MutableName>[0]
+        Type Continuation<MutableName>
+        Local completion
+        Type MutableName
+        EnumField v0 f0
+          Type CoroutineStep<MutableName>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<MutableName>[1]
+        Type Continuation<MutableName>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<MutableName> = @fn25 interface SuspendTask<MutableName>[0]
+        Type SuspendTask<MutableName>
+        Local task
+        Type Continuation<MutableName>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<MutableName>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn42($source: (String) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
         Type (String) -> String
@@ -922,7 +1062,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference0.() -> Any @fn33($source: () -> String) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn43($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type2> closure[function_type2]
         Type () -> String
@@ -932,7 +1072,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any, Any) -> Any @fn34($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any, Any) -> Any @fn44($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type4> closure[function_type4]
         Type (String, String) -> String
@@ -950,7 +1090,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn35($source: (String) -> String, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn45($source: (String) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
         Type (String) -> String
@@ -964,7 +1104,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference3.(Any, Any) -> Any @fn36($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$reference3.(Any, Any) -> Any @fn46($source: (String, String) -> String, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type4> closure[function_type4]
         Type (String, String) -> String
@@ -982,7 +1122,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference4.(Any) -> Any @fn37($source: (String) -> String, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference4.(Any) -> Any @fn47($source: (String) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
         Type (String) -> String
@@ -996,7 +1136,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference5.(Any) -> Any @fn38($source: (String) -> String, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference5.(Any) -> Any @fn48($source: (String) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
         Type (String) -> String
@@ -1010,7 +1150,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference6.(Any) -> Any @fn39($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference6.(Any) -> Any @fn49($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type6> closure[function_type6]
         Type (Int) -> Int
@@ -1024,7 +1164,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference7.(Any) -> Any @fn40($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference7.(Any) -> Any @fn50($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type6> closure[function_type6]
         Type (Int) -> Int
@@ -1038,10 +1178,26 @@ Module
         Box
           Type Int
           Local $call.1
+  coroutine_step cs0 CoroutineStep<Offset> result=Offset
+  coroutine_step cs1 CoroutineStep<MutableName> result=MutableName
+  coroutine_slot cl0 CoroutineSlot<Offset> value=Offset
+  coroutine_slot cl1 CoroutineSlot<MutableName> value=MutableName
+  coroutine_start ct0 result=Offset function=fn40
+  coroutine_start ct1 result=MutableName function=fn41
+  coroutine_fn cf0 @fn21 source_return=Offset step=cs0 immediate
+  coroutine_fn cf1 @fn25 source_return=MutableName step=cs1 immediate
   instance mi0 function=@fn15 <- println
   instance mi1 function=@fn16 <- $extension.keep
   instance mi2 function=@fn17 <- println
   instance mi3 function=@fn18 <- $extension.echo
+  instance mi4 function=@fn19 <- Continuation.resume
+  instance mi5 function=@fn20 <- Continuation.resumeWithException
+  instance mi6 function=@fn21 <- SuspendTask.run
+  instance mi7 function=@fn22 <- SuspendRegistration.register
+  instance mi8 function=@fn23 <- Continuation.resume
+  instance mi9 function=@fn24 <- Continuation.resumeWithException
+  instance mi10 function=@fn25 <- SuspendTask.run
+  instance mi11 function=@fn26 <- SuspendRegistration.register
   str @str0 "member-"
   str @str1 "once"
   str @str2 "any"

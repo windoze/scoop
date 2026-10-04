@@ -209,6 +209,9 @@ Module
         Local $dependency.local.5
         Type (Later) -> Later
         Local $dependency.local.6
+      val $dependency.local.12: Later
+        Type Later
+        Local $dependency.local.1
       val $dependency.local.7: Later
         Type Later
         Local value
@@ -235,7 +238,7 @@ Module
           CaptureInit field=0
             Type Box<Later>
             Local $dependency.local.10
-      call $call.2: Later = @fn6 direct
+      call $dependency.local.13: Later = @fn6 direct
         Type Box<Later>
         Local $dependency.local.10
         Type () -> Later
@@ -244,82 +247,82 @@ Module
         Type (Later, Later)
         TupleLiteral
           Type Later
-          Local $dependency.local.1
+          Local $dependency.local.12
           Type Later
-          Local $call.2
-      val $dependency.local.12: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.13: Later
-        Type Later
-        Local value
+          Local $dependency.local.13
       val $dependency.local.14: Int
         Type Int
-        Local $dependency.local.12
+        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.15: Later
         Type Later
-        Local $dependency.local.13
-      val $dependency.local.16: (Int) -> Int
-        Type (Int) -> Int
-        ClosureAlloc cc2 $Closure$reference2
-      call $dependency.local.17: Int = @fn8 direct
+        Local value
+      val $dependency.local.16: Int
         Type Int
         Local $dependency.local.14
+      val $dependency.local.17: Later
         Type Later
         Local $dependency.local.15
+      val $dependency.local.18: (Int) -> Int
         Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+      call $dependency.local.19: Int = @fn8 direct
+        Type Int
         Local $dependency.local.16
-      val $dependency.local.18: Int
+        Type Later
+        Local $dependency.local.17
+        Type (Int) -> Int
+        Local $dependency.local.18
+      val $dependency.local.20: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.19: Int
+      val $dependency.local.21: Int
         Type Int
-        Local $dependency.local.18
+        Local $dependency.local.20
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.17
-            Type Int
             Local $dependency.local.19
+            Type Int
+            Local $dependency.local.21
     bb1 if.then.1
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      val $dependency.local.20: Later
-        Type Later
-        Local value
-      val $dependency.local.21: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.22: Later
         Type Later
-        Local $dependency.local.20
+        Local value
       val $dependency.local.23: Int
         Type Int
-        Local $dependency.local.21
-      val $dependency.local.24: (Later) -> Later
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.24: Later
+        Type Later
+        Local $dependency.local.22
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.26: (Later) -> Later
         Type (Later) -> Later
         ClosureAlloc cc3 $Closure$reference3
       call $dependency.local.3: Later = @fn9 direct
         Type Later
-        Local $dependency.local.22
-        Type Int
-        Local $dependency.local.23
-        Type (Later) -> Later
         Local $dependency.local.24
-      val $dependency.local.25: () -> Int
+        Type Int
+        Local $dependency.local.25
+        Type (Later) -> Later
+        Local $dependency.local.26
+      val $dependency.local.27: () -> Int
         Type () -> Int
         ClosureAlloc cc4 $Closure$reference4
-      call $call.3: Int = external2 direct
+      call $call.2: Int = external2 direct
         Type () -> Int
-        Local $dependency.local.25
+        Local $dependency.local.27
       return
         Type Int
-        Local $call.3
+        Local $call.2
   fun exercise @fn2(value: Int) -> Int
     bb0 entry
       val $dependency.local.4: Int
@@ -336,6 +339,9 @@ Module
         Local $dependency.local.5
         Type (Int) -> Int
         Local $dependency.local.6
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.1
       val $dependency.local.7: Int
         Type Int
         Local value
@@ -362,7 +368,7 @@ Module
           CaptureInit field=0
             Type Box<Int>
             Local $dependency.local.10
-      call $call.2: Int = @fn12 direct
+      call $dependency.local.13: Int = @fn12 direct
         Type Box<Int>
         Local $dependency.local.10
         Type () -> Int
@@ -371,82 +377,82 @@ Module
         Type (Int, Int)
         TupleLiteral
           Type Int
-          Local $dependency.local.1
+          Local $dependency.local.12
           Type Int
-          Local $call.2
-      val $dependency.local.12: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.13: Int
-        Type Int
-        Local value
+          Local $dependency.local.13
       val $dependency.local.14: Int
         Type Int
-        Local $dependency.local.12
+        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.15: Int
         Type Int
-        Local $dependency.local.13
-      val $dependency.local.16: (Int) -> Int
-        Type (Int) -> Int
-        ClosureAlloc cc7 $Closure$reference7
-      call $dependency.local.17: Int = @fn13 direct
+        Local value
+      val $dependency.local.16: Int
         Type Int
         Local $dependency.local.14
+      val $dependency.local.17: Int
         Type Int
         Local $dependency.local.15
+      val $dependency.local.18: (Int) -> Int
         Type (Int) -> Int
+        ClosureAlloc cc7 $Closure$reference7
+      call $dependency.local.19: Int = @fn13 direct
+        Type Int
         Local $dependency.local.16
-      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+        Type (Int) -> Int
+        Local $dependency.local.18
+      val $dependency.local.20: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.19: Int
+      val $dependency.local.21: Int
         Type Int
-        Local $dependency.local.18
+        Local $dependency.local.20
       branch bb1 bb2
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.17
-            Type Int
             Local $dependency.local.19
+            Type Int
+            Local $dependency.local.21
     bb1 if.then.1
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb2 if.merge.2
-      val $dependency.local.20: Int
-        Type Int
-        Local value
-      val $dependency.local.21: Int
-        Type Int
-        IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.local.22: Int
         Type Int
-        Local $dependency.local.20
+        Local value
       val $dependency.local.23: Int
         Type Int
-        Local $dependency.local.21
-      val $dependency.local.24: (Int) -> Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.24: Int
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.26: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference8
       call $dependency.local.3: Int = @fn13 direct
         Type Int
-        Local $dependency.local.22
-        Type Int
-        Local $dependency.local.23
-        Type (Int) -> Int
         Local $dependency.local.24
-      val $dependency.local.25: () -> Int
+        Type Int
+        Local $dependency.local.25
+        Type (Int) -> Int
+        Local $dependency.local.26
+      val $dependency.local.27: () -> Int
         Type () -> Int
         ClosureAlloc cc9 $Closure$reference9
-      call $call.3: Int = external2 direct
+      call $call.2: Int = external2 direct
         Type () -> Int
-        Local $dependency.local.25
+        Local $dependency.local.27
       return
         Type Int
-        Local $call.3
+        Local $call.2
   fun identity @fn3(value: Later) -> Later
     bb0 entry
       return

@@ -11,8 +11,13 @@ Module
   enum Option<FunPtr<(Int) -> Int>>
     Some(_0: FunPtr<(Int) -> Int>)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_callable gc0 function=@fn16 id=2de79a89f4eed844d142b4de4c1495efc81d723a2508a69e2921c155912af73e
   generated_callable gc1 function=@fn17 id=3df1117804ba4823760199f3a330e2b1b78266bc7380c2c088030e4f6accea6a
   fun shift @fn0(value: Int) -> Int <no-gc>

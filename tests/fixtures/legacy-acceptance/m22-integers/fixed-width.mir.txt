@@ -5,15 +5,21 @@ Module
   enum Option<Long>
     Some(_0: Long)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class ListIterator<Long> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
-  class ArrayIterator<Long> vtable=0 itables=1
+  interface List<Long> : Iterable<Long>
   interface Iterable<Long>
   interface Iterator<Long>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun defaultKind @fn0(value: Int) -> String
     bb0 entry
       return
@@ -97,7 +103,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -119,7 +125,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn9 direct
         Type Int16
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -141,7 +147,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -163,7 +169,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -185,7 +191,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -207,7 +213,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn13 direct
         Type UInt16
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -229,7 +235,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn14 direct
         Type UInt
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -251,7 +257,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type ULong
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt8
@@ -260,7 +266,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.argument.0: Int16
@@ -269,7 +275,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn9 direct
         Type Int16
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -283,7 +289,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -297,7 +303,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn14 direct
         Type UInt
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -319,7 +325,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -341,7 +347,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       var incremented: Int8
@@ -370,7 +376,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $old.2: Int8
@@ -396,7 +402,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.argument.0: Int8
@@ -405,7 +411,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.argument.0: Int8
@@ -414,7 +420,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -496,7 +502,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -578,7 +584,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn9 direct
         Type Int16
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -660,7 +666,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -742,7 +748,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       goto bb40
@@ -788,7 +794,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -810,7 +816,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn17 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -832,7 +838,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn17 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -854,7 +860,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -880,7 +886,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn17 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -906,7 +912,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn17 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -1007,7 +1013,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       goto bb39
@@ -1030,7 +1036,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -1044,7 +1050,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       goto bb55
@@ -1055,7 +1061,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       goto bb55
@@ -1085,7 +1091,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -1113,7 +1119,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -1141,7 +1147,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1169,7 +1175,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1183,7 +1189,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type ULong
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -1197,7 +1203,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -1211,7 +1217,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn8 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -1225,7 +1231,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1240,7 +1246,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Long
@@ -1255,7 +1261,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: UInt
@@ -1270,7 +1276,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: ULong
@@ -1285,7 +1291,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Long
@@ -1300,7 +1306,7 @@ Module
       val $parameter.second: Long
         Type Long
         Local $argument.1
-      call $dependency.argument.0: Long = @fn16 direct
+      call $dependency.argument.0: Long = @fn18 direct
         Type Long
         Local $parameter.first
         Type Long
@@ -1308,7 +1314,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: Long
@@ -1323,7 +1329,7 @@ Module
       val $parameter.second: Long
         Type Long
         Local $argument.1
-      call $dependency.argument.0: Long = @fn16 direct
+      call $dependency.argument.0: Long = @fn18 direct
         Type Long
         Local $parameter.first
         Type Long
@@ -1331,7 +1337,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val jointlyInferredArray: Array<Long>
@@ -1350,57 +1356,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.17: Array<Long>
+      call $dependency.receiver: Long = @fn6 direct
         Type Array<Long>
         Local $dependency.receiver
-      val $idx.18: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb57 bb56
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.18
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb56 logic.rhs.56
-      assign $logic.12
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.18
-          Type Long
-          ArrayLen Array<Long>
-            Type Array<Long>
-            Local $arr.17
-      goto bb58
-    bb57 logic.short.57
-      assign $logic.12
-        Type Boolean
-        BoolLiteral true
-      goto bb58
-    bb58 logic.merge.58
-      branch bb59 bb60
-        Type Boolean
-        Local $logic.12
-    bb59 if.then.59
-      assign $new.13
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external12 direct
-        Type IndexOutOfBoundsException
-        Local $new.13
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.13
-    bb60 if.merge.60
-      val $dependency.receiver: Long
-        Type Long
-        ArrayGet Array<Long>
-          Type Array<Long>
-          Local $arr.17
-          Type Long
-          Local $idx.18
       val $dependency.receiver: Array<Long>
         Type Array<Long>
         Local jointlyInferredArray
@@ -1410,57 +1370,11 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.19: Array<Long>
+      call $dependency.argument.0: Long = @fn6 direct
         Type Array<Long>
         Local $dependency.receiver
-      val $idx.20: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb62 bb61
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.20
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb61 logic.rhs.61
-      assign $logic.14
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.20
-          Type Long
-          ArrayLen Array<Long>
-            Type Array<Long>
-            Local $arr.19
-      goto bb63
-    bb62 logic.short.62
-      assign $logic.14
-        Type Boolean
-        BoolLiteral true
-      goto bb63
-    bb63 logic.merge.63
-      branch bb64 bb65
-        Type Boolean
-        Local $logic.14
-    bb64 if.then.64
-      assign $new.15
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external12 direct
-        Type IndexOutOfBoundsException
-        Local $new.15
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.15
-    bb65 if.merge.65
-      val $dependency.argument.0: Long
-        Type Long
-        ArrayGet Array<Long>
-          Type Array<Long>
-          Local $arr.19
-          Type Long
-          Local $idx.20
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
@@ -1474,23 +1388,23 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
-      branch bb66 bb67
+      branch bb56 bb57
         Type Boolean
         BoolLiteral false
-    bb66 if.then.66
+    bb56 if.then.56
       assign $result.4
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      goto bb68
-    bb67 if.else.67
+      goto bb58
+    bb57 if.else.57
       assign $result.4
         Type Long
         IntegerLiteral Long value=2147483648 bits=0x0000000080000000
-      goto bb68
-    bb68 if.merge.68
+      goto bb58
+    bb58 if.merge.58
       val jointlyInferredIf: Long
         Type Long
         Local $result.4
@@ -1500,30 +1414,30 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
-      val $when.21: Int8
+      val $when.17: Int8
         Type Int8
         Local signed8
-      branch bb69 bb70
+      branch bb59 bb60
         Type Boolean
         IntegerCompare equal operands=Int8 result=Boolean
           Type Int8
-          Local $when.21
+          Local $when.17
           Type Int8
           IntegerLiteral Int8 value=127 bits=0x7f
-    bb69 pattern.pass.69
+    bb59 pattern.pass.59
       assign $result.5
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      goto bb71
-    bb70 pattern.else.70
+      goto bb61
+    bb60 pattern.else.60
       assign $result.5
         Type Long
         IntegerLiteral Long value=2147483648 bits=0x0000000080000000
-      goto bb71
-    bb71 pattern.merge.71
+      goto bb61
+    bb61 pattern.merge.61
       val jointlyInferredWhen: Long
         Type Long
         Local $result.5
@@ -1533,33 +1447,33 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
-      goto bb79
-    bb72 try.unwind.72
+      goto bb69
+    bb62 try.unwind.62
       landing_pad cleanup=false
-      goto bb73
-    bb73 try.dispatch.73
+      goto bb63
+    bb63 try.dispatch.63
       begin_catch
-      branch bb80 bb81
+      branch bb70 bb71
         Type Boolean
         IsInstance ArithmeticException
           Type Any
           CaughtException
-    bb74 try.handler_pad.74
+    bb64 try.handler_pad.64
       landing_pad cleanup=true
-      goto bb75
-    bb75 try.handler_cleanup.75
+      goto bb65
+    bb65 try.handler_cleanup.65
       end_catch
       resume
-    bb76 try.exit_pad.76
+    bb66 try.exit_pad.66
       landing_pad cleanup=true
-      goto bb77
-    bb77 try.exit_cleanup.77
+      goto bb67
+    bb67 try.exit_cleanup.67
       end_catch
       resume
-    bb78 try.end.78
+    bb68 try.end.68
       val jointlyInferredTry: Long
         Type Long
         Local $result.6
@@ -1569,7 +1483,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val byte: Int8
@@ -1656,7 +1570,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -1719,65 +1633,147 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type ULong
         Local $dependency.parameter.value
       return
-    bb79 try.body.79 unwind bb72
+    bb69 try.body.69 unwind bb62
       assign $result.6
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      goto bb78
-    bb80 try.catch.80
-      call $catch.16: Any = @scoop_rt_materialize_exception direct
+      goto bb68
+    bb70 try.catch.70
+      call $catch.12: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val error: ArithmeticException
         Type ArithmeticException
         Retype ArithmeticException
           Type Any
-          Local $catch.16
-      goto bb82
-    bb81 try.next.81
-      rethrow unwind bb76
-    bb82 scope.82 unwind bb74
+          Local $catch.12
+      goto bb72
+    bb71 try.next.71
+      rethrow unwind bb66
+    bb72 scope.72 unwind bb64
       assign $result.6
         Type Long
         IntegerLiteral Long value=2147483648 bits=0x0000000080000000
       end_catch
-      goto bb83
-    bb83 scope.83
-      goto bb78
+      goto bb73
+    bb73 scope.73
+      goto bb68
   fun iterator @fn5(this: Array<Long>) -> Iterator<Long>
+    bb0 entry
+      val $dependency.local.1: List<Long>
+        Type List<Long>
+        Retype List<Long>
+          Type Array<Long>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Long>
+        Type List<Long>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Long>
+        ClassAlloc ListIterator<Long>
+      call @fn22 direct
+        Type ListIterator<Long>
+        Local $new.1
+        Type List<Long>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Long>
+        Retype Iterator<Long>
+          Type ListIterator<Long>
+          Local $new.1
+  fun get @fn6(this: Array<Long>, index: Long) -> Long
+    bb0 entry
+      val $dependency.local.2: Array<Long>
+        Type Array<Long>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Long>
+        Type Array<Long>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Long>
+            Type Array<Long>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external12 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Long
+        ArrayGet Array<Long>
+          Type Array<Long>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn7(this: Array<Long>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Long>
         Type Array<Long>
         Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Long>
-        Type Array<Long>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Long>
-        ClassAlloc ArrayIterator<Long>
-      call @fn18 direct
-        Type ArrayIterator<Long>
-        Local $new.1
-        Type Array<Long>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
       return
-        Type Iterator<Long>
-        Retype Iterator<Long>
-          Type ArrayIterator<Long>
-          Local $new.1
-  fun println @fn6(value: Int8) -> Unit
+        Type Long
+        ArrayLen Array<Long>
+          Type Array<Long>
+          Local $dependency.local.1
+  fun println @fn8(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
         Type Int8
@@ -1801,7 +1797,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn7(value: Int16) -> Unit
+  fun println @fn9(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
         Type Int16
@@ -1825,7 +1821,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn8(value: Int) -> Unit
+  fun println @fn10(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -1849,7 +1845,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn9(value: Long) -> Unit
+  fun println @fn11(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -1873,7 +1869,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn10(value: UInt8) -> Unit
+  fun println @fn12(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
         Type UInt8
@@ -1897,7 +1893,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn11(value: UInt16) -> Unit
+  fun println @fn13(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
         Type UInt16
@@ -1921,7 +1917,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn12(value: UInt) -> Unit
+  fun println @fn14(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
         Type UInt
@@ -1945,7 +1941,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn13(value: ULong) -> Unit
+  fun println @fn15(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
@@ -1969,7 +1965,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn14(value: String) -> Unit
+  fun println @fn16(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1993,7 +1989,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn15(value: Boolean) -> Unit
+  fun println @fn17(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -2017,31 +2013,39 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun second @fn16(first: Long, second: Long) -> Long
+  fun second @fn18(first: Long, second: Long) -> Long
     bb0 entry
       return
         Type Long
         Local second
-  fun next @fn17(this: ArrayIterator<Long>) -> Option<Long>
+  fun next @fn19(this: ListIterator<Long>) -> Option<Long>
     bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Long>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Long>
+          Type ListIterator<Long>
           Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Long>
-          Type Array<Long>
-          FieldAccess 0
-            Type ArrayIterator<Long>
-            Local this
+      call $dependency.local.3: Long = @fn20 interface List<Long>[2]
+        Type List<Long>
+        FieldAccess 0
+          Type ListIterator<Long>
+          Local this
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
@@ -2050,79 +2054,38 @@ Module
             Local $dependency.local.4
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Long>
-        Type Array<Long>
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Long>
+        VariantConstruct Option<Long> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Long>
+        Type List<Long>
         FieldAccess 0
-          Type ArrayIterator<Long>
+          Type ListIterator<Long>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Long>
+          Type ListIterator<Long>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      val $arr.1: Array<Long>
-        Type Array<Long>
+      call $dependency.local.1: Long = @fn21 interface List<Long>[1]
+        Type List<Long>
         Local $dependency.local.5
-      val $idx.2: Long
         Type Long
         Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Long>
-        VariantConstruct Option<Long> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Long>
-            Type Array<Long>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external12 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Long
-        Type Long
-        ArrayGet Array<Long>
-          Type Array<Long>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Long>
+          Type ListIterator<Long>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -2131,7 +2094,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Long>
+        Type ListIterator<Long>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -2150,22 +2113,33 @@ Module
         VariantConstruct Option<Long> v0
           Type Long
           Local $dependency.local.12
-  fun init.ArrayIterator.$c0 @fn18(this: ArrayIterator<Long>, source: Array<Long>, index: Long) -> Unit
+  fun List.$get$size @fn20(this: List<Long>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn21(this: List<Long>, index: Long) -> Long
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn22(this: ListIterator<Long>, source: List<Long>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Long>
+        Type ListIterator<Long>
         Local this
-        Type Array<Long>
+        Type List<Long>
         Local source
       field_set 1
-        Type ArrayIterator<Long>
+        Type ListIterator<Long>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Long>
+        Local this
+        Type Boolean
+        Local exhausted
       return
   instance mi0 function=@fn5 <- iterator
-  instance mi1 function=@fn6 <- println
-  instance mi2 function=@fn7 <- println
+  instance mi1 function=@fn6 <- get
+  instance mi2 function=@fn7 <- size
   instance mi3 function=@fn8 <- println
   instance mi4 function=@fn9 <- println
   instance mi5 function=@fn10 <- println
@@ -2174,8 +2148,12 @@ Module
   instance mi8 function=@fn13 <- println
   instance mi9 function=@fn14 <- println
   instance mi10 function=@fn15 <- println
-  instance mi11 function=@fn16 <- second
-  instance mi12 function=@fn17 <- next
+  instance mi11 function=@fn16 <- println
+  instance mi12 function=@fn17 <- println
+  instance mi13 function=@fn18 <- second
+  instance mi14 function=@fn19 <- next
+  instance mi15 function=@fn20 <- List.$get$size
+  instance mi16 function=@fn21 <- List.get
   str @str0 "Int"
   str @str1 "Long"
   str @str2 "UInt"

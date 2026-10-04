@@ -964,6 +964,13 @@ Module
           CaptureInit field=0
             Type Int
             Local $default.local.5
+      call $default.local.11: () -> Int = @fn40 direct
+        Type CallableHost<Int>
+        Local $default.local.3
+        Type Int
+        Local $default.local.5
+        Type () -> Int
+        Local $default.local.6
       val $default.local.7: CallableHost<Int>
         Type CallableHost<Int>
         Local $dependency.receiver
@@ -979,14 +986,7 @@ Module
           CaptureInit field=0
             Type String
             Local $default.local.9
-      call $call.14: () -> Int = @fn40 direct
-        Type CallableHost<Int>
-        Local $default.local.3
-        Type Int
-        Local $default.local.5
-        Type () -> Int
-        Local $default.local.6
-      call $call.15: () -> String = @fn36 direct
+      call $default.local.12: () -> String = @fn36 direct
         Type CallableHost<Int>
         Local $default.local.7
         Type String
@@ -997,9 +997,9 @@ Module
         Type (() -> Int, () -> String)
         TupleLiteral
           Type () -> Int
-          Local $call.14
+          Local $default.local.11
           Type () -> String
-          Local $call.15
+          Local $default.local.12
       val $default.local.4: CallableHost<Int>
         Type CallableHost<Int>
         Local $dependency.receiver
@@ -1009,6 +1009,11 @@ Module
           CaptureInit field=0
             Type CallableHost<Int>
             Local $default.local.4
+      call $default.local.8: (Int) -> Int = @fn38 direct
+        Type CallableHost<Int>
+        Local $default.local.4
+        Type (Int) -> Int
+        Local $default.local.5
       val $default.local.6: CallableHost<Int>
         Type CallableHost<Int>
         Local $dependency.receiver
@@ -1018,12 +1023,7 @@ Module
           CaptureInit field=0
             Type CallableHost<Int>
             Local $default.local.6
-      call $call.16: (Int) -> Int = @fn38 direct
-        Type CallableHost<Int>
-        Local $default.local.4
-        Type (Int) -> Int
-        Local $default.local.5
-      call $call.17: (String) -> String = @fn42 direct
+      call $default.local.9: (String) -> String = @fn42 direct
         Type CallableHost<Int>
         Local $default.local.6
         Type (String) -> String
@@ -1032,9 +1032,9 @@ Module
         Type ((Int) -> Int, (String) -> String)
         TupleLiteral
           Type (Int) -> Int
-          Local $call.16
+          Local $default.local.8
           Type (String) -> String
-          Local $call.17
+          Local $default.local.9
       call $dependency.receiver: Int = @fn43 direct
         Type CallableHost<Int>
         Local $dependency.receiver

@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<GenericMapper>
     Completed(value: GenericMapper)
     Suspended()
@@ -25,6 +28,8 @@ Module
   interface TextMapper
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<GenericMapper>
   interface SuspendTask<GenericMapper>
   interface SuspendRegistration<GenericMapper>
@@ -49,12 +54,12 @@ Module
   closure cc9 $Closure$reference9 type=function_type0 invoke=@fn30 captures=1
     bridge function_type1 -> @fn50 id=08f86e91f4ce8638fce090329615d849a60de8a2547b7ea9a26958d3d36d9217
   generated_exact_type get0 location=closure6 nominal_id=021aefdb45795169eee5f61e3e2265a0c680ec2777d12bbf588f030d1f1131d1 exact_id=19276589522880797caae0c339c66b0aed7fca11656ae1ca728c9961de8f1030
-  generated_exact_type get1 location=enum2 nominal_id=58f0488b747dd33f8ed762e82b9cf34403ec79754fd89788793e3eac4ebb06b5 exact_id=5b7792cb0a608cb7b464bdaa430945928f8d50345fe2383e19a091bd14cd8a50
+  generated_exact_type get1 location=enum3 nominal_id=58f0488b747dd33f8ed762e82b9cf34403ec79754fd89788793e3eac4ebb06b5 exact_id=5b7792cb0a608cb7b464bdaa430945928f8d50345fe2383e19a091bd14cd8a50
   generated_exact_type get2 location=closure2 nominal_id=59305a445c8fbe3ce35e8684439640fda59a923a1de015447c65fd7fddf96f1b exact_id=64ba6dc8e9a60eb45fb8b59b74cb55d31953cd35ce021e8f192fc3d92cdf2aff
   generated_exact_type get3 location=closure9 nominal_id=e3b0ca8af9090047b1399683a3c795d31f5a6a28bf9ac1fbef0ca0c0193fe08b exact_id=6c4cd3fad29e1a91d2915df84e08f2a093af2b985e63e337e14124544b6f0df0
   generated_exact_type get4 location=closure1 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
   generated_exact_type get5 location=closure3 nominal_id=1e353bde12d06bfe9d2633647a4a2571b86d5c95625e386f999c743cea1bcd8b exact_id=92a80349df8afbcce7cd921a95823cdcb53643e924bb53b81fbbfc75ad736aa2
-  generated_exact_type get6 location=enum1 nominal_id=f5a2e6a068316d45ff7142ca9581830c12bc34ad148e9e40d6599b0f4eef791f exact_id=b800086fb592d7a56071d232009bd52f3f7dee992920cda7db54c5df43b5927e
+  generated_exact_type get6 location=enum2 nominal_id=f5a2e6a068316d45ff7142ca9581830c12bc34ad148e9e40d6599b0f4eef791f exact_id=b800086fb592d7a56071d232009bd52f3f7dee992920cda7db54c5df43b5927e
   generated_exact_type get7 location=closure4 nominal_id=dad1aa8313a6f2b2f2c28d2cb92be40613bb93998a53c95ebfe7e3352494f032 exact_id=baf0aa42922913ccf82717ae3c6d4469276a08436b3838e1161047d957d6c5c3
   generated_exact_type get8 location=closure7 nominal_id=5e0486b370bd417c3d5be0cae1e8f83c00f184f8fa781b92ee1e4bccb7bc2246 exact_id=c9b6ed9286f407d2076ee05ee0bdf296b2ec2350e77aef2ae4f2605657e0e4a4
   generated_exact_type get9 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba

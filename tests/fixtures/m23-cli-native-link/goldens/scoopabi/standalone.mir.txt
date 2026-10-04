@@ -3,8 +3,13 @@ Module
   extern ef1 empty @m23_empty(Empty) -> Empty <abi=scoop managed lib=m23_scoopabi>
   extern ef2 value @m23_zst_value(Empty, Int) -> Int <abi=scoop no-gc lib=m23_scoopabi>
   struct Empty ()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun echo @fn0(arg0: String) -> String
     bb0 entry
       call $call.1: String = extern0 @m23_managed_echo direct

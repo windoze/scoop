@@ -347,6 +347,11 @@ Module
         FieldAccess 0
           Type DefaultContainer.Generic<Int>
           Local $receiver
+      call $aggregate.0: Int = @fn16 direct
+        Type DefaultContainer.Generic<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
       val $receiver: DefaultContainer.Generic<Int>
         Type DefaultContainer.Generic<Int>
         Local this
@@ -361,17 +366,12 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.seed
-      call $parameter.value: Int = @fn16 direct
+      call $parameter.value: Int = @fn17 direct
         Type Int
         Local $parameter.seed
         Type Int
         Local $parameter.value
-      call $call.1: Int = @fn17 direct
-        Type DefaultContainer.Generic<Int>
-        Local $receiver
-        Type Int
-        Local $parameter.value
-      call $call.2: Int = @fn18 direct
+      call $aggregate.1: Int = @fn18 direct
         Type DefaultContainer.Generic<Int>
         Local $receiver
         Type Int
@@ -380,9 +380,9 @@ Module
         Type (Int, Int)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $aggregate.0
           Type Int
-          Local $call.2
+          Local $aggregate.1
   fun DefaultContainer.Generic.pair @fn12(this: DefaultContainer.Generic<String>) -> (String, String)
     bb0 entry
       val $receiver: DefaultContainer.Generic<String>
@@ -393,6 +393,11 @@ Module
         FieldAccess 0
           Type DefaultContainer.Generic<String>
           Local $receiver
+      call $aggregate.0: String = @fn19 direct
+        Type DefaultContainer.Generic<String>
+        Local $receiver
+        Type String
+        Local $parameter.value
       val $receiver: DefaultContainer.Generic<String>
         Type DefaultContainer.Generic<String>
         Local this
@@ -407,17 +412,12 @@ Module
       val $parameter.value: String
         Type String
         Local $parameter.seed
-      call $parameter.value: String = @fn19 direct
+      call $parameter.value: String = @fn20 direct
         Type String
         Local $parameter.seed
         Type String
         Local $parameter.value
-      call $call.1: String = @fn20 direct
-        Type DefaultContainer.Generic<String>
-        Local $receiver
-        Type String
-        Local $parameter.value
-      call $call.2: String = @fn21 direct
+      call $aggregate.1: String = @fn21 direct
         Type DefaultContainer.Generic<String>
         Local $receiver
         Type String
@@ -426,9 +426,9 @@ Module
         Type (String, String)
         TupleLiteral
           Type String
-          Local $call.1
+          Local $aggregate.0
           Type String
-          Local $call.2
+          Local $aggregate.1
   fun DefaultContainer.Nested.choose @fn13(this: DefaultContainer.Nested, seed: Int, value: Int) -> Int
     bb0 entry
       return
@@ -664,12 +664,12 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun defaultIdentity @fn16(seed: Int, value: Int) -> Int
+  fun DefaultContainer.Generic.choose @fn16(this: DefaultContainer.Generic<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun DefaultContainer.Generic.choose @fn17(this: DefaultContainer.Generic<Int>, value: Int) -> Int
+  fun defaultIdentity @fn17(seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -679,12 +679,12 @@ Module
       return
         Type Int
         Local value
-  fun defaultIdentity @fn19(seed: String, value: String) -> String
+  fun DefaultContainer.Generic.choose @fn19(this: DefaultContainer.Generic<String>, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun DefaultContainer.Generic.choose @fn20(this: DefaultContainer.Generic<String>, value: String) -> String
+  fun defaultIdentity @fn20(seed: String, value: String) -> String
     bb0 entry
       return
         Type String
@@ -865,11 +865,11 @@ Module
   instance mi0 function=@fn11 <- DefaultContainer.Generic.pair
   instance mi1 function=@fn12 <- DefaultContainer.Generic.pair
   instance mi2 function=@fn13 <- DefaultContainer.Nested.choose
-  instance mi3 function=@fn16 <- defaultIdentity
-  instance mi4 function=@fn17 <- DefaultContainer.Generic.choose
+  instance mi3 function=@fn16 <- DefaultContainer.Generic.choose
+  instance mi4 function=@fn17 <- defaultIdentity
   instance mi5 function=@fn18 <- DefaultContainer.Generic.copy
-  instance mi6 function=@fn19 <- defaultIdentity
-  instance mi7 function=@fn20 <- DefaultContainer.Generic.choose
+  instance mi6 function=@fn19 <- DefaultContainer.Generic.choose
+  instance mi7 function=@fn20 <- defaultIdentity
   instance mi8 function=@fn21 <- DefaultContainer.Generic.copy
   instance mi9 function=@fn22 <- Continuation.resume
   instance mi10 function=@fn23 <- Continuation.resumeWithException

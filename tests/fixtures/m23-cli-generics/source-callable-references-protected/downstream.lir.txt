@@ -97,32 +97,32 @@ Module
     local %5 $dependency.local.6: ptr<managed>
     local %6 $dependency.local.7: ptr<managed>
     local %7 $dependency.local.8: ptr<managed>
-    local %8 $new.1: ptr<managed>
-    local %9 $call.2: ptr<managed>
-    local %10 $call.3: ptr<managed>
+    local %8 $dependency.local.9: ptr<managed>
+    local %9 $dependency.local.10: ptr<managed>
+    local %10 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local3
     store local3 -> local4
     call managed-direct-target0 sp<managed-call:0> live=[local4:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    store t0 -> local8
-    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0, local8:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn18(local8, local4)
+    store t0 -> local10
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0, local10:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn18(local10, local4)
     t1 = aggregate () : {}
-    store local8 -> local0
+    store local10 -> local0
     store local0 -> local5
     call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local5:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn3(local5)
     store t2 -> local1
+    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local1(local1)
+    store t3 -> local8
     store local0 -> local6
-    call managed-direct-target2 sp<managed-call:3> live=[local1:ptr<managed>@0, local6:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(32)))
-    t4 = function_address @scoop$1$cb$62d2437d436cd8c72fc85334970262c96cd90d0075dc53f5516ca464ebcd012d : ptr
-    heap_store t3 +16 t4
-    heap_store t3 +24 local6
-    store t3 -> local7
-    call managed-direct-target3 sp<managed-call:4> live=[local1:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local1(local1)
-    store t5 -> local9
-    call managed-direct-target4 sp<managed-call:5> live=[local6:ptr<managed>@0, local7:ptr<managed>@0, local9:ptr<managed>@0] t6 = sig=direct4 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn5(local6, local7)
-    store t6 -> local10
-    t7 = aggregate (local9, local10) : {ptr<managed>, ptr<managed>}
+    call managed-direct-target3 sp<managed-call:4> live=[local6:ptr<managed>@0, local8:ptr<managed>@0] t4 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(32)))
+    t5 = function_address @scoop$1$cb$62d2437d436cd8c72fc85334970262c96cd90d0075dc53f5516ca464ebcd012d : ptr
+    heap_store t4 +16 t5
+    heap_store t4 +24 local6
+    store t4 -> local7
+    call managed-direct-target4 sp<managed-call:5> live=[local6:ptr<managed>@0, local7:ptr<managed>@0, local8:ptr<managed>@0] t6 = sig=direct4 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn5(local6, local7)
+    store t6 -> local9
+    t7 = aggregate (local8, local9) : {ptr<managed>, ptr<managed>}
     store t7 -> local2
     ret integer<Int>(0x0000002a)
   fun @scoop$1$cb$8bcb2a4ff6922906a8a57d21bb5662823919fbc779c40e9be2b32cd1d8847c36(i32) -> i32
@@ -134,32 +134,32 @@ Module
     local %5 $dependency.local.6: ptr<managed>
     local %6 $dependency.local.7: ptr<managed>
     local %7 $dependency.local.8: ptr<managed>
-    local %8 $new.1: ptr<managed>
-    local %9 $call.2: i32
-    local %10 $call.3: i32
+    local %8 $dependency.local.9: i32
+    local %9 $dependency.local.10: i32
+    local %10 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store param0 -> local3
     store local3 -> local4
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td7, machine<byte-size>(ByteSize(24)))
-    store t0 -> local8
-    call managed-void-target0 sp<managed-call:1> live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn19(local8, local4)
+    store t0 -> local10
+    call managed-void-target0 sp<managed-call:1> live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn19(local10, local4)
     t1 = aggregate () : {}
-    store local8 -> local0
+    store local10 -> local0
     store local0 -> local5
     call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local5:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn6(local5)
     store t2 -> local1
+    call managed-direct-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> i32 dispatch[Closure:2] local1(local1)
+    store t3 -> local8
     store local0 -> local6
-    call managed-direct-target2 sp<managed-call:3> live=[local1:ptr<managed>@0, local6:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(32)))
-    t4 = function_address @scoop$1$cb$5a7414ddec91f8a9db89ef519bd27cf8010391f8e5b0d6ae6673a88c57048982 : ptr
-    heap_store t3 +16 t4
-    heap_store t3 +24 local6
-    store t3 -> local7
-    call managed-direct-target3 sp<managed-call:4> live=[local1:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>) -> i32 dispatch[Closure:2] local1(local1)
-    store t5 -> local9
+    call managed-direct-target3 sp<managed-call:4> live=[local6:ptr<managed>@0] t4 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(32)))
+    t5 = function_address @scoop$1$cb$5a7414ddec91f8a9db89ef519bd27cf8010391f8e5b0d6ae6673a88c57048982 : ptr
+    heap_store t4 +16 t5
+    heap_store t4 +24 local6
+    store t4 -> local7
     call managed-direct-target4 sp<managed-call:5> live=[local6:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=direct4 (ptr<managed>, ptr<managed>) -> i32 local-fn8(local6, local7)
-    store t6 -> local10
-    t7 = aggregate (local9, local10) : {i32, i32}
+    store t6 -> local9
+    t7 = aggregate (local8, local9) : {i32, i32}
     store t7 -> local2
     ret integer<Int>(0x0000002a)
   fun @scoop$1$cb$eae79215af8dd0fcd7729ab1a992a7ed90c7e0dbc93fe77da1aeeab4fe19916b(ptr<managed>) -> ptr<managed>

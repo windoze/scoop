@@ -1,8 +1,13 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
     bridge function_type1 -> @fn15 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn4 captures=0

@@ -27,12 +27,13 @@ Module
     Value(value: Ordinary)
   class Tape vtable=0 itables=0
   class Ordinary vtable=0 itables=0
-  class ArrayIterator<Int> vtable=0 itables=1
+  class ListIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class box<Packet> vtable=0 itables=0
+  interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
   interface Continuation<Packet>
@@ -51,9 +52,9 @@ Module
   generated_exact_type get4 location=enum4 nominal_id=9e495d90a8dbf716191c37c391cfd8d449aa964cbacdeb3d3b2555c029449aa5 exact_id=cdf8dda6958d81813c45ca69fe4ea9dbf1ca37e104838ace9f44fa54634b5b93
   generated_exact_type get5 location=enum3 nominal_id=a34d4ea00dbc2a68f67b018d0e8f5582493905575ff7aa799e5df4429fc16c86 exact_id=e22f8a9fab295b0c3615d075e47cb8bc3c63295f2e69c004b3d59af344b25ae7
   generated_exact_type get6 location=enum5 nominal_id=816707ced45cef6e6dfc5a8c5decf7f72aa2f647d53ba61339b6458bd38d25b4 exact_id=fb5d8a2338f4c6cb64f04ac0f34a0d8f1a5a6a8e35a05c0d10eb3ea1eaaf909c
-  generated_callable gc0 function=@fn27 id=8217500f36025ec867ab642e20982ca4a3c94a4d99fd119ec02f9e85e611f834
-  generated_callable gc1 function=@fn26 id=8c57aeab55df0127f6fecd0e119659614ef57682f351e8ee677d840a797cd736
-  generated_callable gc2 function=@fn25 id=e354b5b929ac25866dbb239715e19fbaecd240b6e9223083ad321fced3106e48
+  generated_callable gc0 function=@fn31 id=8217500f36025ec867ab642e20982ca4a3c94a4d99fd119ec02f9e85e611f834
+  generated_callable gc1 function=@fn30 id=8c57aeab55df0127f6fecd0e119659614ef57682f351e8ee677d840a797cd736
+  generated_callable gc2 function=@fn29 id=e354b5b929ac25866dbb239715e19fbaecd240b6e9223083ad321fced3106e48
   fun Tape.mark @fn0(this: Tape, value: Int) -> Int
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -153,39 +154,121 @@ Module
       return
   fun iterator @fn6(this: Array<Int>) -> Iterator<Int>
     bb0 entry
-      val $dependency.local.1: Array<Int>
-        Type Array<Int>
-        Local this
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Int>
-        Type Array<Int>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Int>
-        ClassAlloc ArrayIterator<Int>
-      call @fn24 direct
-        Type ArrayIterator<Int>
-        Local $new.1
-        Type Array<Int>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn28 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Int>
         Retype Iterator<Int>
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local $new.1
-  fun Ordinary.invoke @fn7(this: Ordinary) -> Int
+  fun get @fn7(this: Array<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn8(this: Array<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun Ordinary.invoke @fn9(this: Ordinary) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-  fun more @fn8(tape: Tape, ignored: Int) -> Boolean
+  fun more @fn10(tape: Tape, ignored: Int) -> Boolean
     bb0 entry
       call $dependency.receiver: Int = @fn4 direct
         Type Tape
@@ -207,26 +290,34 @@ Module
             Local $dependency.parameter.other
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-  fun next @fn9(this: ArrayIterator<Int>) -> Option<Int>
+  fun next @fn11(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          FieldAccess 0
-            Type ArrayIterator<Int>
-            Local this
+      call $dependency.local.3: Long = @fn12 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
@@ -235,79 +326,38 @@ Module
             Local $dependency.local.4
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Int>
-        Type Array<Int>
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
         FieldAccess 0
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      val $arr.1: Array<Int>
-        Type Array<Int>
+      call $dependency.local.1: Int = @fn13 interface List<Int>[1]
+        Type List<Int>
         Local $dependency.local.5
-      val $idx.2: Long
         Type Long
         Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Int>
-        VariantConstruct Option<Int> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Int>
-            Type Array<Int>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external0 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Int
-        Type Int
-        ArrayGet Array<Int>
-          Type Array<Int>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -316,7 +366,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -335,43 +385,49 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun Continuation.resume @fn10(this: Continuation<Packet>, value: Packet) -> Unit
+  fun List.$get$size @fn12(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn13(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn14(this: Continuation<Packet>, value: Packet) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn11(this: Continuation<Packet>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn15(this: Continuation<Packet>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn12(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+  fun SuspendTask.run @fn16(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn14(this: Continuation<Tape>, value: Tape) -> Unit
+  fun Continuation.resume @fn18(this: Continuation<Tape>, value: Tape) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn15(this: Continuation<Tape>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn19(this: Continuation<Tape>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn16(this: SuspendTask<Tape>, $completion: Continuation<Tape>) -> CoroutineStep<Tape>
+  fun SuspendTask.run @fn20(this: SuspendTask<Tape>, $completion: Continuation<Tape>) -> CoroutineStep<Tape>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Tape>, continuation: Continuation<Tape>) -> Unit
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Tape>, continuation: Continuation<Tape>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn18(this: Continuation<Ordinary>, value: Ordinary) -> Unit
+  fun Continuation.resume @fn22(this: Continuation<Ordinary>, value: Ordinary) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn19(this: Continuation<Ordinary>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn23(this: Continuation<Ordinary>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn20(this: SuspendTask<Ordinary>, $completion: Continuation<Ordinary>) -> CoroutineStep<Ordinary>
+  fun SuspendTask.run @fn24(this: SuspendTask<Ordinary>, $completion: Continuation<Ordinary>) -> CoroutineStep<Ordinary>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Ordinary>, continuation: Continuation<Ordinary>) -> Unit
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Ordinary>, continuation: Continuation<Ordinary>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Tape.$c0 @fn22(this: Tape) -> Unit
+  fun init.Tape.$c0 @fn26(this: Tape) -> Unit
     bb0 entry
       field_set 0
         Type Tape
@@ -384,27 +440,32 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun init.Ordinary.$c3 @fn23(this: Ordinary) -> Unit
+  fun init.Ordinary.$c3 @fn27(this: Ordinary) -> Unit
     bb0 entry
       return
-  fun init.ArrayIterator.$c0 @fn24(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ListIterator.$c0 @fn28(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
-        Type Array<Int>
+        Type List<Int>
         Local source
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun startCoroutine<Tape> @fn25(task: SuspendTask<Tape>, completion: Continuation<Tape>) -> Unit
+  fun startCoroutine<Tape> @fn29(task: SuspendTask<Tape>, completion: Continuation<Tape>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn14 interface Continuation<Tape>[0]
+      call @fn18 interface Continuation<Tape>[0]
         Type Continuation<Tape>
         Local completion
         Type Tape
@@ -413,7 +474,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn15 interface Continuation<Tape>[1]
+      call @fn19 interface Continuation<Tape>[1]
         Type Continuation<Tape>
         Local completion
         Type Throwable
@@ -428,7 +489,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Tape> = @fn16 interface SuspendTask<Tape>[0]
+      call $step: CoroutineStep<Tape> = @fn20 interface SuspendTask<Tape>[0]
         Type SuspendTask<Tape>
         Local task
         Type Continuation<Tape>
@@ -442,11 +503,11 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun startCoroutine<Packet> @fn26(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+  fun startCoroutine<Packet> @fn30(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn10 interface Continuation<Packet>[0]
+      call @fn14 interface Continuation<Packet>[0]
         Type Continuation<Packet>
         Local completion
         Type Packet
@@ -455,7 +516,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn11 interface Continuation<Packet>[1]
+      call @fn15 interface Continuation<Packet>[1]
         Type Continuation<Packet>
         Local completion
         Type Throwable
@@ -470,7 +531,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Packet> = @fn12 interface SuspendTask<Packet>[0]
+      call $step: CoroutineStep<Packet> = @fn16 interface SuspendTask<Packet>[0]
         Type SuspendTask<Packet>
         Local task
         Type Continuation<Packet>
@@ -484,11 +545,11 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun startCoroutine<Ordinary> @fn27(task: SuspendTask<Ordinary>, completion: Continuation<Ordinary>) -> Unit
+  fun startCoroutine<Ordinary> @fn31(task: SuspendTask<Ordinary>, completion: Continuation<Ordinary>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn18 interface Continuation<Ordinary>[0]
+      call @fn22 interface Continuation<Ordinary>[0]
         Type Continuation<Ordinary>
         Local completion
         Type Ordinary
@@ -497,7 +558,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn19 interface Continuation<Ordinary>[1]
+      call @fn23 interface Continuation<Ordinary>[1]
         Type Continuation<Ordinary>
         Local completion
         Type Throwable
@@ -512,7 +573,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Ordinary> = @fn20 interface SuspendTask<Ordinary>[0]
+      call $step: CoroutineStep<Ordinary> = @fn24 interface SuspendTask<Ordinary>[0]
         Type SuspendTask<Ordinary>
         Local task
         Type Continuation<Ordinary>
@@ -532,18 +593,18 @@ Module
   coroutine_slot cl0 CoroutineSlot<Tape> value=Tape
   coroutine_slot cl1 CoroutineSlot<Packet> value=Packet
   coroutine_slot cl2 CoroutineSlot<Ordinary> value=Ordinary
-  coroutine_start ct0 result=Tape function=fn25
-  coroutine_start ct1 result=Packet function=fn26
-  coroutine_start ct2 result=Ordinary function=fn27
-  coroutine_fn cf0 @fn12 source_return=Packet step=cs1 immediate
-  coroutine_fn cf1 @fn16 source_return=Tape step=cs0 immediate
-  coroutine_fn cf2 @fn20 source_return=Ordinary step=cs2 immediate
+  coroutine_start ct0 result=Tape function=fn29
+  coroutine_start ct1 result=Packet function=fn30
+  coroutine_start ct2 result=Ordinary function=fn31
+  coroutine_fn cf0 @fn16 source_return=Packet step=cs1 immediate
+  coroutine_fn cf1 @fn20 source_return=Tape step=cs0 immediate
+  coroutine_fn cf2 @fn24 source_return=Ordinary step=cs2 immediate
   instance mi0 function=@fn6 <- iterator
-  instance mi1 function=@fn9 <- next
-  instance mi2 function=@fn10 <- Continuation.resume
-  instance mi3 function=@fn11 <- Continuation.resumeWithException
-  instance mi4 function=@fn12 <- SuspendTask.run
-  instance mi5 function=@fn13 <- SuspendRegistration.register
+  instance mi1 function=@fn7 <- get
+  instance mi2 function=@fn8 <- size
+  instance mi3 function=@fn11 <- next
+  instance mi4 function=@fn12 <- List.$get$size
+  instance mi5 function=@fn13 <- List.get
   instance mi6 function=@fn14 <- Continuation.resume
   instance mi7 function=@fn15 <- Continuation.resumeWithException
   instance mi8 function=@fn16 <- SuspendTask.run
@@ -552,4 +613,8 @@ Module
   instance mi11 function=@fn19 <- Continuation.resumeWithException
   instance mi12 function=@fn20 <- SuspendTask.run
   instance mi13 function=@fn21 <- SuspendRegistration.register
+  instance mi14 function=@fn22 <- Continuation.resume
+  instance mi15 function=@fn23 <- Continuation.resumeWithException
+  instance mi16 function=@fn24 <- SuspendTask.run
+  instance mi17 function=@fn25 <- SuspendRegistration.register
   output library

@@ -1,9 +1,14 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<Int>
     Some(_0: Int)
     None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val $dependency.argument.0: Int

@@ -1,6 +1,6 @@
 schema = 1
 name = "program-link-rebuilt-core"
-inputs = ["cone", "../../m23-program-link/read-println.scoop", "relocated-string.scoop", "../../m23-program-link/rebuilt-core-native.scoop", "ordinary-string", "../../m23-program-link/shadow-string-library.scoop", "root", "../../m23-program-link/rebuilt-core-root.scoop"]
+inputs = ["cone", "../../m23-program-link/read-println.scoop", "relocated-string.scoop", "../../m23-program-link/rebuilt-core-native.scoop", "ordinary-string", "../../m23-program-link/shadow-string-library.scoop", "root", "../../m23-program-link/rebuilt-core-root.scoop", "string-declaration.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin"]
 tags = ["program-link", "stage-golden", "core", "multi-cone", "moving-gc"]
@@ -38,7 +38,7 @@ checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "nor
 
 [[steps]]
 name = "prepare_core"
-files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "@Intrinsic(\"core_string\")\npublic class String : ToString, Hash {\n    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)\n\n    @Intrinsic(\"string_concat\")\n    public operator fun plus(other: String): String\n\n    @Intrinsic(\"string_compare_to\")\n    public operator fun compareTo(other: String): Long\n\n    public override fun toString(): String = this\n\n    public override fun hash(): Long = coreStringHash(this)\n}\n\n", "new" = "public typealias String = relocated.String\n\n"}}, {"copy" = {"from" = "${fixture}/relocated-string.scoop", "to" = "${work}/core-source/src/relocated-string.scoop"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/rebuilt-core-native.scoop", "to" = "${work}/core-source/src/rebuilt-native.scoop"}}]
+files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}}, {"replace" = {"path" = "${work}/core-source/src/strings.scoop", "old" = {"file" = "${fixture}/string-declaration.scoop"}, "new" = "public typealias String = relocated.String\n\n"}}, {"copy" = {"from" = "${fixture}/relocated-string.scoop", "to" = "${work}/core-source/src/relocated-string.scoop"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/rebuilt-core-native.scoop", "to" = "${work}/core-source/src/rebuilt-native.scoop"}}]
 checks = []
 
 [[steps]]

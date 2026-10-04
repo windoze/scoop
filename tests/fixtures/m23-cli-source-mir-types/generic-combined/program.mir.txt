@@ -15,10 +15,11 @@ Module
   class Throwable vtable=0 itables=0
   class Reference vtable=0 itables=0
   class Owner<Reference> vtable=0 itables=0
-  class IndexOutOfBoundsException vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
-  class ArrayIterator<Pair<Reference>> vtable=0 itables=1
+  class ListIterator<Pair<Reference>> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
   class box<Pair<Reference>> vtable=0 itables=0
+  interface List<Pair<Reference>> : Iterable<Pair<Reference>>
   interface Iterable<Pair<Reference>>
   interface Iterator<Pair<Reference>>
   generated_exact_type get0 location=class9 nominal_id=34153a8830b59bfb7d3eb74deff3b76a05fc64453079aee972ad28eda1fc8079 exact_id=d24f8c78a8a59b3a92ad6738dfea0b6caa60c05eccd655bf62a55b751d024e08
@@ -89,7 +90,7 @@ Module
       val $dependency.parameter.second: Reference
         Type Reference
         Local $dependency.argument.1
-      call pair: Pair<Reference> = @fn8 direct
+      call pair: Pair<Reference> = @fn12 direct
         Type Reference
         Local $dependency.parameter.first
         Type Reference
@@ -100,7 +101,7 @@ Module
       val $dependency.parameter.value: Reference
         Type Reference
         Local $dependency.argument.0
-      call $dependency.argument.0: Owner<Reference> = @fn3 direct
+      call $dependency.argument.0: Owner<Reference> = @fn5 direct
         Type Reference
         Local $dependency.parameter.value
       val $dependency.argument.0: Pair<Reference>
@@ -145,7 +146,7 @@ Module
       val $dependency.parameter.value: Owner<Reference>
         Type Owner<Reference>
         Local $dependency.argument.0
-      call $call.1: Reference = @fn4 direct
+      call $call.1: Reference = @fn6 direct
         Type Owner<Reference>
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -209,99 +210,16 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.4: Array<Pair<Reference>>
+      call $call.3: Pair<Reference> = @fn3 direct
         Type Array<Pair<Reference>>
         Local $dependency.receiver
-      val $idx.5: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb11 bb10
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.5
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb4 pattern.pass.4
-      val item: Pair<Reference>
-        Type Pair<Reference>
-        VariantPayloadProject Maybe<Pair<Reference>> v1 f0
-          Type Maybe<Pair<Reference>>
-          Local $pattern.subject.3
-      branch bb7 bb8
-        Type Boolean
-        Binary RefEq
-          Type Reference
-          FieldAccess 0
-            Type Pair<Reference>
-            Local item
-          Type Reference
-          Local first
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-    bb7 logic.rhs.7
-      assign $logic.2
-        Type Boolean
-        Binary RefEq
-          Type Reference
-          FieldAccess 1
-            Type Pair<Reference>
-            Local item
-          Type Reference
-          Local second
-      goto bb9
-    bb8 logic.short.8
-      assign $logic.2
-        Type Boolean
-        BoolLiteral false
-      goto bb9
-    bb9 logic.merge.9
-      assign $result.0
-        Type Boolean
-        Local $logic.2
-      goto bb6
-    bb10 logic.rhs.10
-      assign $logic.3
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.5
-          Type Long
-          ArrayLen Array<Pair<Reference>>
-            Type Array<Pair<Reference>>
-            Local $arr.4
-      goto bb12
-    bb11 logic.short.11
-      assign $logic.3
-        Type Boolean
-        BoolLiteral true
-      goto bb12
-    bb12 logic.merge.12
-      branch bb13 bb14
-        Type Boolean
-        Local $logic.3
-    bb13 if.then.13
-      assign $new.4
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external5 direct
-        Type IndexOutOfBoundsException
-        Local $new.4
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.4
-    bb14 if.merge.14
       val $dependency.argument.0: Reference
         Type Reference
         FieldAccess 0
           Type Pair<Reference>
-          ArrayGet Array<Pair<Reference>>
-            Type Array<Pair<Reference>>
-            Local $arr.4
-            Type Long
-            Local $idx.5
+          Local $call.3
       val $dependency.parameter.value: Reference
         Type Reference
         Local $dependency.argument.0
@@ -319,59 +237,16 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.6: Array<Pair<Reference>>
+      call $call.4: Pair<Reference> = @fn3 direct
         Type Array<Pair<Reference>>
         Local $dependency.receiver
-      val $idx.7: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb16 bb15
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.7
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb15 logic.rhs.15
-      assign $logic.5
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.7
-          Type Long
-          ArrayLen Array<Pair<Reference>>
-            Type Array<Pair<Reference>>
-            Local $arr.6
-      goto bb17
-    bb16 logic.short.16
-      assign $logic.5
-        Type Boolean
-        BoolLiteral true
-      goto bb17
-    bb17 logic.merge.17
-      branch bb18 bb19
-        Type Boolean
-        Local $logic.5
-    bb18 if.then.18
-      assign $new.6
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external5 direct
-        Type IndexOutOfBoundsException
-        Local $new.6
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.6
-    bb19 if.merge.19
       val $dependency.argument.0: Reference
         Type Reference
         FieldAccess 1
           Type Pair<Reference>
-          ArrayGet Array<Pair<Reference>>
-            Type Array<Pair<Reference>>
-            Local $arr.6
-            Type Long
-            Local $idx.7
+          Local $call.4
       val $dependency.parameter.value: Reference
         Type Reference
         Local $dependency.argument.0
@@ -412,39 +287,79 @@ Module
         Box
           Type Pair<Reference>
           Local pair
-      val $cast.8: Any
+      val $cast.4: Any
         Type Any
         Local erased
-      branch bb20 bb21
+      branch bb10 bb11
         Type Boolean
         Unary BoolNot
           Type Boolean
           IsInstance Pair<Reference>
             Type Any
-            Local $cast.8
-    bb20 if.then.20
-      assign $new.7
+            Local $cast.4
+    bb4 pattern.pass.4
+      val item: Pair<Reference>
+        Type Pair<Reference>
+        VariantPayloadProject Maybe<Pair<Reference>> v1 f0
+          Type Maybe<Pair<Reference>>
+          Local $pattern.subject.3
+      branch bb7 bb8
+        Type Boolean
+        Binary RefEq
+          Type Reference
+          FieldAccess 0
+            Type Pair<Reference>
+            Local item
+          Type Reference
+          Local first
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 logic.rhs.7
+      assign $logic.2
+        Type Boolean
+        Binary RefEq
+          Type Reference
+          FieldAccess 1
+            Type Pair<Reference>
+            Local item
+          Type Reference
+          Local second
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      assign $result.0
+        Type Boolean
+        Local $logic.2
+      goto bb6
+    bb10 if.then.10
+      assign $new.5
         Type ClassCastException
         ClassAlloc ClassCastException
       call external4 direct
         Type ClassCastException
-        Local $new.7
+        Local $new.5
       throw
         Type ClassCastException
-        Local $new.7
-    bb21 if.merge.21
-      val $ub.9: Pair<Reference>
+        Local $new.5
+    bb11 if.merge.11
+      val $ub.5: Pair<Reference>
         Type Pair<Reference>
         Unbox
           Type Any
-          Local $cast.8
+          Local $cast.4
       val $argument.0: Boolean
         Type Boolean
         Binary RefEq
           Type Reference
           FieldAccess 1
             Type Pair<Reference>
-            Local $ub.9
+            Local $ub.5
           Type Reference
           Local second
       val $parameter.value: Boolean
@@ -456,34 +371,116 @@ Module
       return
   fun iterator @fn2(this: Array<Pair<Reference>>) -> Iterator<Pair<Reference>>
     bb0 entry
-      val $dependency.local.1: Array<Pair<Reference>>
-        Type Array<Pair<Reference>>
-        Local this
+      val $dependency.local.1: List<Pair<Reference>>
+        Type List<Pair<Reference>>
+        Retype List<Pair<Reference>>
+          Type Array<Pair<Reference>>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Pair<Reference>>
-        Type Array<Pair<Reference>>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Pair<Reference>>
+        Type List<Pair<Reference>>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Pair<Reference>>
-        ClassAlloc ArrayIterator<Pair<Reference>>
-      call @fn6 direct
-        Type ArrayIterator<Pair<Reference>>
-        Local $new.1
-        Type Array<Pair<Reference>>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Pair<Reference>>
+        ClassAlloc ListIterator<Pair<Reference>>
+      call @fn10 direct
+        Type ListIterator<Pair<Reference>>
+        Local $new.1
+        Type List<Pair<Reference>>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Pair<Reference>>
         Retype Iterator<Pair<Reference>>
-          Type ArrayIterator<Pair<Reference>>
+          Type ListIterator<Pair<Reference>>
           Local $new.1
-  fun owner @fn3(value: Reference) -> Owner<Reference>
+  fun get @fn3(this: Array<Pair<Reference>>, index: Long) -> Pair<Reference>
+    bb0 entry
+      val $dependency.local.2: Array<Pair<Reference>>
+        Type Array<Pair<Reference>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Pair<Reference>>
+        Type Array<Pair<Reference>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Pair<Reference>>
+            Type Array<Pair<Reference>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external5 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Pair<Reference>
+        ArrayGet Array<Pair<Reference>>
+          Type Array<Pair<Reference>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn4(this: Array<Pair<Reference>>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Pair<Reference>>
+        Type Array<Pair<Reference>>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Pair<Reference>>
+          Type Array<Pair<Reference>>
+          Local $dependency.local.1
+  fun owner @fn5(value: Reference) -> Owner<Reference>
     bb0 entry
       val $dependency.local.1: Reference
         Type Reference
@@ -494,7 +491,7 @@ Module
       assign $new.1
         Type Owner<Reference>
         ClassAlloc Owner<Reference>
-      call @fn7 direct
+      call @fn11 direct
         Type Owner<Reference>
         Local $new.1
         Type Reference
@@ -502,33 +499,41 @@ Module
       return
         Type Owner<Reference>
         Local $new.1
-  fun ownedValue @fn4(value: Owner<Reference>) -> Reference
+  fun ownedValue @fn6(value: Owner<Reference>) -> Reference
     bb0 entry
       return
         Type Reference
         FieldAccess 0
           Type Owner<Reference>
           Local value
-  fun next @fn5(this: ArrayIterator<Pair<Reference>>) -> Option<Pair<Reference>>
+  fun next @fn7(this: ListIterator<Pair<Reference>>) -> Option<Pair<Reference>>
     bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Pair<Reference>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Pair<Reference>>
+        VariantConstruct Option<Pair<Reference>> v1
+    bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Pair<Reference>>
+          Type ListIterator<Pair<Reference>>
           Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Pair<Reference>>
-          Type Array<Pair<Reference>>
-          FieldAccess 0
-            Type ArrayIterator<Pair<Reference>>
-            Local this
+      call $dependency.local.3: Long = @fn8 interface List<Pair<Reference>>[2]
+        Type List<Pair<Reference>>
+        FieldAccess 0
+          Type ListIterator<Pair<Reference>>
+          Local this
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
@@ -537,79 +542,38 @@ Module
             Local $dependency.local.4
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Pair<Reference>>
-        Type Array<Pair<Reference>>
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Pair<Reference>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Pair<Reference>>
+        VariantConstruct Option<Pair<Reference>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Pair<Reference>>
+        Type List<Pair<Reference>>
         FieldAccess 0
-          Type ArrayIterator<Pair<Reference>>
+          Type ListIterator<Pair<Reference>>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Pair<Reference>>
+          Type ListIterator<Pair<Reference>>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      val $arr.1: Array<Pair<Reference>>
-        Type Array<Pair<Reference>>
+      call $dependency.local.1: Pair<Reference> = @fn9 interface List<Pair<Reference>>[1]
+        Type List<Pair<Reference>>
         Local $dependency.local.5
-      val $idx.2: Long
         Type Long
         Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Pair<Reference>>
-        VariantConstruct Option<Pair<Reference>> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Pair<Reference>>
-            Type Array<Pair<Reference>>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external5 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Pair<Reference>
-        Type Pair<Reference>
-        ArrayGet Array<Pair<Reference>>
-          Type Array<Pair<Reference>>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Pair<Reference>>
+          Type ListIterator<Pair<Reference>>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -618,7 +582,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Pair<Reference>>
+        Type ListIterator<Pair<Reference>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -637,20 +601,31 @@ Module
         VariantConstruct Option<Pair<Reference>> v0
           Type Pair<Reference>
           Local $dependency.local.12
-  fun init.ArrayIterator.$c1 @fn6(this: ArrayIterator<Pair<Reference>>, source: Array<Pair<Reference>>, index: Long) -> Unit
+  fun List.$get$size @fn8(this: List<Pair<Reference>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn9(this: List<Pair<Reference>>, index: Long) -> Pair<Reference>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c1 @fn10(this: ListIterator<Pair<Reference>>, source: List<Pair<Reference>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Pair<Reference>>
+        Type ListIterator<Pair<Reference>>
         Local this
-        Type Array<Pair<Reference>>
+        Type List<Pair<Reference>>
         Local source
       field_set 1
-        Type ArrayIterator<Pair<Reference>>
+        Type ListIterator<Pair<Reference>>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Pair<Reference>>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun init.Owner.$c2 @fn7(this: Owner<Reference>, value: Reference) -> Unit
+  fun init.Owner.$c2 @fn11(this: Owner<Reference>, value: Reference) -> Unit
     bb0 entry
       field_set 0
         Type Owner<Reference>
@@ -658,7 +633,7 @@ Module
         Type Reference
         Local value
       return
-  fun ctor.Pair.$c0 @fn8(first: Reference, second: Reference) -> Pair<Reference> <no-gc>
+  fun ctor.Pair.$c0 @fn12(first: Reference, second: Reference) -> Pair<Reference> <no-gc>
     bb0 entry
       return
         Type Pair<Reference>
@@ -668,8 +643,12 @@ Module
           Type Reference
           Local second
   instance mi0 function=@fn2 <- iterator
-  instance mi1 function=@fn3 <- owner
-  instance mi2 function=@fn4 <- ownedValue
-  instance mi3 function=@fn5 <- next
+  instance mi1 function=@fn3 <- get
+  instance mi2 function=@fn4 <- size
+  instance mi3 function=@fn5 <- owner
+  instance mi4 function=@fn6 <- ownedValue
+  instance mi5 function=@fn7 <- next
+  instance mi6 function=@fn8 <- List.$get$size
+  instance mi7 function=@fn9 <- List.get
   str @str0 "illegal state"
   output executable @fn1

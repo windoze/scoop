@@ -4,12 +4,17 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class ClassCastException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<References> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=class3 nominal_id=d519211beacbc67294593691a73f94ff9fa99fd9cfb988b3dd533ee2e143d3e8 exact_id=d3ed47ad01fb6a74519b8c652f9ccba83159249baa3036624f6091bb5eae2c91
   fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
     bb0 entry
@@ -41,18 +46,21 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.1: String = @scoop_rt_string_concat direct
+      call $aggregate.0: String = @scoop_rt_string_concat direct
         Type String
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.other
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
       val $argument.1: (String, Long)
         Type (String, Long)
         TupleLiteral
           Type String
-          Local $call.1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=42 bits=0x000000000000002a
+          Local $aggregate.1
       call $argument.2: Empty = @fn7 direct
       val $parameter.first: String
         Type String
@@ -63,7 +71,7 @@ Module
       val $parameter.empty: Empty
         Type Empty
         Local $argument.2
-      call $call.2: References = @fn8 direct
+      call $call.1: References = @fn8 direct
         Type String
         Local $parameter.first
         Type (String, Long)
@@ -72,7 +80,7 @@ Module
         Local $parameter.empty
       return
         Type References
-        Local $call.2
+        Local $call.1
   fun identity @fn2(value: References) -> References
     bb0 entry
       return

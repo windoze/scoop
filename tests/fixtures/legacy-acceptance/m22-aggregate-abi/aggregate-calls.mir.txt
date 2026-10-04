@@ -11,6 +11,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Signal>
     Completed(value: Signal)
     Suspended()
@@ -26,6 +29,8 @@ Module
   class box<(Int, Long)> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Signal>
   interface SuspendTask<Signal>
   interface SuspendRegistration<Signal>
@@ -35,8 +40,8 @@ Module
   generated_exact_type get1 location=class5 nominal_id=11c8d780f41fb73cf744630194b0ac248bed0df4c78f45ff8965276ab4268d91 exact_id=38ada29282764d617fb1539eec45bc4625b727336d18460fc5e100106d5e4f94
   generated_exact_type get2 location=class6 nominal_id=b3d4e9df0b5dfafde9cbc54f879aa56b151191debba0b2a8681d2a3b2e1a9441 exact_id=43c6893b2d52d20bdcedb5ba4738e35d506c274cbc4f03f772a317825f89e893
   generated_exact_type get3 location=class4 nominal_id=e759b2c5535d4b7c4e6138eb42a891aedb0d0e05086637d754de5c4395dbae3a exact_id=7e4b6ff8dd45b68ed6f9f4f9870c4a95266f901b784d9433cc172d41ba6c9dc5
-  generated_exact_type get4 location=enum3 nominal_id=fb52d557a86b400ca643c36e72e1ea00dedb87d997103c89966576e662163915 exact_id=a253ca5b578dd4db12b8ca4e3e0627297f22c5df142af162ca01443b66de81da
-  generated_exact_type get5 location=enum4 nominal_id=3348c722c81918b50fdd083c0f72a36f67f8d172861a7e3e3f47ca203fdb1275 exact_id=d05f4d1434d8ed6efc137877ce2aed2fb4b092d4c19caaced54a2152af217855
+  generated_exact_type get4 location=enum4 nominal_id=fb52d557a86b400ca643c36e72e1ea00dedb87d997103c89966576e662163915 exact_id=a253ca5b578dd4db12b8ca4e3e0627297f22c5df142af162ca01443b66de81da
+  generated_exact_type get5 location=enum5 nominal_id=3348c722c81918b50fdd083c0f72a36f67f8d172861a7e3e3f47ca203fdb1275 exact_id=d05f4d1434d8ed6efc137877ce2aed2fb4b092d4c19caaced54a2152af217855
   generated_callable gc0 function=@fn20 id=02308c728fd275d58fcda46727312241e663fe8076f92fc8535cc28c34c9c7d7
   generated_callable gc1 function=@fn21 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   fun signalValue @fn0(value: Signal) -> Int <no-gc>
@@ -139,18 +144,21 @@ Module
       val $parameter.value: Signal
         Type Signal
         Local $argument.0
-      call $call.1: Int = @fn0 direct
+      call $aggregate.0: Int = @fn0 direct
         Type Signal
         Local $parameter.value
+      val $aggregate.1: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          Local value
       return
         Type (Int, Long)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $aggregate.0
           Type Long
-          FieldAccess 1
-            Type (Signal, Long)
-            Local value
+          Local $aggregate.1
   fun noGcFlat32 @fn3(value: (Long, Long, Long, Long)) -> Long <no-gc>
     bb0 entry
       val $dependency.receiver: Long
@@ -279,15 +287,21 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
       val $argument.2: (Signal, Option<Int>)
         Type (Signal, Option<Int>)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Option<Int>
-          VariantConstruct Option<Int> v1
+          Local $aggregate.1
       val $parameter.optional: Option<Int>
         Type Option<Int>
         Local $argument.0
@@ -394,15 +408,21 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=55 bits=0x0000000000000037
       val $argument.1: (Signal, Long)
         Type (Signal, Long)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=55 bits=0x0000000000000037
+          Local $aggregate.1
       val $parameter.marker: Int
         Type Int
         Local $argument.0
@@ -472,15 +492,21 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=55 bits=0x0000000000000037
       val nested24: (Signal, Long)
         Type (Signal, Long)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=55 bits=0x0000000000000037
+          Local $aggregate.1
       val $argument.0: (Signal, Long)
         Type (Signal, Long)
         Local nested24
@@ -527,15 +553,21 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=70 bits=0x0000000000000046
       val $argument.0: (Signal, Long)
         Type (Signal, Long)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=70 bits=0x0000000000000046
+          Local $aggregate.1
       val $parameter.value: (Signal, Long)
         Type (Signal, Long)
         Local $argument.0
@@ -631,18 +663,21 @@ Module
       val $parameter.right: String
         Type String
         Local $argument.1
-      call $call.1: String = @fn4 direct
+      call $aggregate.0: String = @fn4 direct
         Type String
         Local $parameter.left
         Type String
         Local $parameter.right
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=700 bits=0x00000000000002bc
       val $argument.1: (String, Long)
         Type (String, Long)
         TupleLiteral
           Type String
-          Local $call.1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=700 bits=0x00000000000002bc
+          Local $aggregate.1
       val $parameter.first: String
         Type String
         Local $argument.0
@@ -809,14 +844,14 @@ Module
         Local $dependency.parameter.value
       goto bb7
     bb9 try.catch.9
-      call $catch.2: Any = @scoop_rt_materialize_exception direct
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val exception: UnwrapException
         Type UnwrapException
         Retype UnwrapException
           Type Any
-          Local $catch.2
+          Local $catch.1
       goto bb11
     bb10 try.next.10
       rethrow unwind bb5
@@ -884,17 +919,23 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Long
+        Type Long
+        IntegerLiteral Long value=90 bits=0x000000000000005a
       call closureResult: (Int, Long) = <closure:function_type0> closure[function_type0]
         Type ((Signal, Long)) -> (Int, Long)
         Local $callable.receiver
         Type (Signal, Long)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Long
-          IntegerLiteral Long value=90 bits=0x000000000000005a
+          Local $aggregate.1
       val $dependency.argument.0: Int
         Type Int
         FieldAccess 0
@@ -958,14 +999,14 @@ Module
         Local $dependency.parameter.value
       goto bb19
     bb21 try.catch.21
-      call $catch.3: Any = @scoop_rt_materialize_exception direct
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       val exception: UnwrapException
         Type UnwrapException
         Retype UnwrapException
           Type Any
-          Local $catch.3
+          Local $catch.2
       goto bb23
     bb22 try.next.22
       rethrow unwind bb17
@@ -1085,6 +1126,9 @@ Module
       val $parameter.value: Signal
         Type Signal
         Local $argument.0
+      call $aggregate.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
       val $dependency.receiver: Long
         Type Long
         ClosureCapture cc0 0
@@ -1096,20 +1140,20 @@ Module
       val $dependency.parameter.other: Long
         Type Long
         Local $dependency.argument.0
-      call $call.1: Int = @fn0 direct
-        Type Signal
-        Local $parameter.value
+      val $aggregate.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
       return
         Type (Int, Long)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $aggregate.0
           Type Long
-          IntegerBinary add kind=Long
-            Type Long
-            Local $dependency.receiver
-            Type Long
-            Local $dependency.parameter.other
+          Local $aggregate.1
   fun Continuation.resume @fn13(this: Continuation<Signal>, value: Signal) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"

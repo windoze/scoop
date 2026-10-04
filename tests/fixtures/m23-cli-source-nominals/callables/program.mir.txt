@@ -347,6 +347,13 @@ Module
       val $dependency.local.13: Argument
         Type Argument
         Local $dependency.local.11
+      call $dependency.local.17: Int = @fn10 direct
+        Type Box<Int>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.12
+        Type Argument
+        Local $dependency.local.13
       val $dependency.local.14: Box<Int>
         Type Box<Int>
         Local $dependency.local.3
@@ -356,14 +363,7 @@ Module
       val $dependency.local.16: Argument
         Type Argument
         Local $dependency.local.15
-      call $call.2: Int = @fn10 direct
-        Type Box<Int>
-        Local $dependency.local.9
-        Type Int
-        Local $dependency.local.12
-        Type Argument
-        Local $dependency.local.13
-      call $call.3: Argument = @fn11 direct
+      call $dependency.local.18: Argument = @fn11 direct
         Type Box<Int>
         Local $dependency.local.14
         Type Argument
@@ -372,9 +372,9 @@ Module
         Type (Int, Argument)
         TupleLiteral
           Type Int
-          Local $call.2
+          Local $dependency.local.17
           Type Argument
-          Local $call.3
+          Local $dependency.local.18
   fun exercise @fn3(this: Envelope, value: String, other: Argument) -> (String, Argument)
     bb0 entry
       val $dependency.local.4: String
@@ -420,6 +420,13 @@ Module
       val $dependency.local.13: Argument
         Type Argument
         Local $dependency.local.11
+      call $dependency.local.17: String = @fn14 direct
+        Type Box<String>
+        Local $dependency.local.9
+        Type String
+        Local $dependency.local.12
+        Type Argument
+        Local $dependency.local.13
       val $dependency.local.14: Box<String>
         Type Box<String>
         Local $dependency.local.3
@@ -429,14 +436,7 @@ Module
       val $dependency.local.16: Argument
         Type Argument
         Local $dependency.local.15
-      call $call.2: String = @fn14 direct
-        Type Box<String>
-        Local $dependency.local.9
-        Type String
-        Local $dependency.local.12
-        Type Argument
-        Local $dependency.local.13
-      call $call.3: Argument = @fn15 direct
+      call $dependency.local.18: Argument = @fn15 direct
         Type Box<String>
         Local $dependency.local.14
         Type Argument
@@ -445,9 +445,9 @@ Module
         Type (String, Argument)
         TupleLiteral
           Type String
-          Local $call.2
+          Local $dependency.local.17
           Type Argument
-          Local $call.3
+          Local $dependency.local.18
   fun view @fn4(this: Envelope, value: Int) -> (Int, Int, Int, Int)
     bb0 entry
       val $dependency.local.3: Int
@@ -470,21 +470,21 @@ Module
       val $dependency.local.5: Reader<Int>
         Type Reader<Int>
         Local $dependency.local.2
+      call $dependency.local.7: Int = @fn16 direct
+        Type Reader<Int>
+        Local $dependency.local.5
+      call $dependency.local.8: Int = @fn18 direct
+        Type Reader<Int>
+        Local $dependency.local.2
       val $dependency.local.6: Reader<Int>
         Type Reader<Int>
         Local $dependency.local.2
-      call $call.2: Int = @fn16 direct
-        Type Reader<Int>
-        Local $dependency.local.5
-      call $call.3: Int = @fn18 direct
-        Type Reader<Int>
-        Local $dependency.local.2
-      call $call.4: Int = @fn17 interface View<Int>[1]
+      call $dependency.local.9: Int = @fn17 interface View<Int>[1]
         Type View<Int>
         Retype View<Int>
           Type Reader<Int>
           Local $dependency.local.6
-      call $call.5: Int = @fn19 interface View<Int>[3]
+      call $dependency.local.10: Int = @fn19 interface View<Int>[3]
         Type View<Int>
         Retype View<Int>
           Type Reader<Int>
@@ -493,13 +493,13 @@ Module
         Type (Int, Int, Int, Int)
         TupleLiteral
           Type Int
-          Local $call.2
+          Local $dependency.local.7
           Type Int
-          Local $call.3
+          Local $dependency.local.8
           Type Int
-          Local $call.4
+          Local $dependency.local.9
           Type Int
-          Local $call.5
+          Local $dependency.local.10
   fun $derived.equals.0 @fn5(this: (Int, Int, Int, Int), other: (Int, Int, Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -601,21 +601,21 @@ Module
       val $dependency.local.5: Reader<String>
         Type Reader<String>
         Local $dependency.local.2
+      call $dependency.local.7: String = @fn20 direct
+        Type Reader<String>
+        Local $dependency.local.5
+      call $dependency.local.8: String = @fn22 direct
+        Type Reader<String>
+        Local $dependency.local.2
       val $dependency.local.6: Reader<String>
         Type Reader<String>
         Local $dependency.local.2
-      call $call.2: String = @fn20 direct
-        Type Reader<String>
-        Local $dependency.local.5
-      call $call.3: String = @fn22 direct
-        Type Reader<String>
-        Local $dependency.local.2
-      call $call.4: Int = @fn21 interface View<String>[1]
+      call $dependency.local.9: Int = @fn21 interface View<String>[1]
         Type View<String>
         Retype View<String>
           Type Reader<String>
           Local $dependency.local.6
-      call $call.5: Int = @fn23 interface View<String>[3]
+      call $dependency.local.10: Int = @fn23 interface View<String>[3]
         Type View<String>
         Retype View<String>
           Type Reader<String>
@@ -624,13 +624,13 @@ Module
         Type (String, String, Int, Int)
         TupleLiteral
           Type String
-          Local $call.2
+          Local $dependency.local.7
           Type String
-          Local $call.3
+          Local $dependency.local.8
           Type Int
-          Local $call.4
+          Local $dependency.local.9
           Type Int
-          Local $call.5
+          Local $dependency.local.10
   fun $derived.equals.1 @fn7(this: (String, String, Int, Int), other: (String, String, Int, Int)) -> Boolean
     bb0 entry
       call $call.1: Boolean = external2 direct

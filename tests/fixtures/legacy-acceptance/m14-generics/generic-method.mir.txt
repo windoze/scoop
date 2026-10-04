@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Show>
     Completed(value: Show)
     Suspended()
@@ -26,6 +29,8 @@ Module
   interface Show
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Shown>
   interface SuspendTask<Shown>
   interface SuspendRegistration<Shown>
@@ -34,11 +39,11 @@ Module
   interface SuspendRegistration<Show>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn16 captures=1
     bridge function_type1 -> @fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
-  generated_exact_type get0 location=enum4 nominal_id=7ae229868c15d5da6424ac0b579492db55814394c85f3aac4f17f5c3130fd516 exact_id=083260dab036773b989e6143ccac4f48766c0df4b555b0c2b0abf0f45c090bd7
-  generated_exact_type get1 location=enum3 nominal_id=a9af568515b997c1703f8657cb2f0e70b172f728b24bac885c630f012ead0447 exact_id=5f6c9182cf1472a4eb42826b721096adcd2c97a2173bd2fb3bb3a38397305769
-  generated_exact_type get2 location=enum2 nominal_id=5da7ffe8112b0594bc79dfabea2f13e5797ec9d35cbb05d69e014eae1b513363 exact_id=a689cc00bd943a4a2fce353a95ea5eb57961a344c4a05070f9b2f5ff0207b127
+  generated_exact_type get0 location=enum5 nominal_id=7ae229868c15d5da6424ac0b579492db55814394c85f3aac4f17f5c3130fd516 exact_id=083260dab036773b989e6143ccac4f48766c0df4b555b0c2b0abf0f45c090bd7
+  generated_exact_type get1 location=enum4 nominal_id=a9af568515b997c1703f8657cb2f0e70b172f728b24bac885c630f012ead0447 exact_id=5f6c9182cf1472a4eb42826b721096adcd2c97a2173bd2fb3bb3a38397305769
+  generated_exact_type get2 location=enum3 nominal_id=5da7ffe8112b0594bc79dfabea2f13e5797ec9d35cbb05d69e014eae1b513363 exact_id=a689cc00bd943a4a2fce353a95ea5eb57961a344c4a05070f9b2f5ff0207b127
   generated_exact_type get3 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
-  generated_exact_type get4 location=enum1 nominal_id=87615e8f3121a7a3969e2d33558187aaa88e2525824006eb1240177cea9d1a5d exact_id=dea86fb45a3f81830066e26898012e75b754ab003d1e92dd9ad9e25da33dbe7f
+  generated_exact_type get4 location=enum2 nominal_id=87615e8f3121a7a3969e2d33558187aaa88e2525824006eb1240177cea9d1a5d exact_id=dea86fb45a3f81830066e26898012e75b754ab003d1e92dd9ad9e25da33dbe7f
   generated_exact_type get5 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get6 location=class6 nominal_id=cc2ccdb393707b05550302f76a00a8d553556cd0bcfdac667cdf9c3d308bc97c exact_id=ff9b77883f54df29a8c6eab78207ec71501409b8bc048c93e00f6b6df0149655
   generated_callable gc0 function=@fn21 id=2ca99b1e0b3c49159db795a15ad941e5729e7e3879c4ec62cd65eacc49661488

@@ -11,18 +11,24 @@ Module
   enum Option<Packet>
     Some(_0: Packet)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class IndexOutOfBoundsException vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
-  class ArrayIterator<Packet> vtable=0 itables=1
+  class ListIterator<Packet> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
   class box<Packet> vtable=0 itables=0
+  interface List<Packet> : Iterable<Packet>
   interface Iterable<Packet>
   interface Iterator<Packet>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=class8 nominal_id=3251fde356830f179f1b71be89c53c45ce7e4b55848a167889c4ab676262ebde exact_id=ca8d79550c945e01b8367ac7b345213a9c056330c23dcb72ef45fe6d175c511c
   fun main @fn0() -> Unit
     bb0 entry
@@ -115,100 +121,57 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.3: Array<Packet>
+      call $call.2: Packet = @fn2 direct
         Type Array<Packet>
         Local $dependency.receiver
-      val $idx.4: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb5 bb4
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb4 logic.rhs.4
-      assign $logic.2
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.4
-          Type Long
-          ArrayLen Array<Packet>
-            Type Array<Packet>
-            Local $arr.3
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.2
-        Type Boolean
-        BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      branch bb7 bb8
-        Type Boolean
-        Local $logic.2
-    bb7 if.then.7
-      assign $new.3
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external16 direct
-        Type IndexOutOfBoundsException
-        Local $new.3
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.3
-    bb8 if.merge.8
       val boxed: Any
         Type Any
         Box
           Type Packet
-          ArrayGet Array<Packet>
-            Type Array<Packet>
-            Local $arr.3
-            Type Long
-            Local $idx.4
-      val $cast.5: Any
+          Local $call.2
+      val $cast.3: Any
         Type Any
         Local boxed
-      branch bb9 bb10
+      branch bb4 bb5
         Type Boolean
         Unary BoolNot
           Type Boolean
           IsInstance Packet
             Type Any
-            Local $cast.5
-    bb9 if.then.9
-      assign $new.4
+            Local $cast.3
+    bb4 if.then.4
+      assign $new.3
         Type ClassCastException
         ClassAlloc ClassCastException
       call external14 direct
         Type ClassCastException
-        Local $new.4
+        Local $new.3
       throw
         Type ClassCastException
-        Local $new.4
-    bb10 if.merge.10
-      val $ub.6: Packet
+        Local $new.3
+    bb5 if.merge.5
+      val $ub.4: Packet
         Type Packet
         Unbox
           Type Any
-          Local $cast.5
+          Local $cast.3
       val packet: Packet
         Type Packet
-        Local $ub.6
-      val $when.7: Packet
+        Local $ub.4
+      val $when.5: Packet
         Type Packet
         Local packet
-      val $pattern.subject.8: Packet
+      val $pattern.subject.6: Packet
         Type Packet
-        Local $when.7
-      branch bb11 bb12
+        Local $when.5
+      branch bb6 bb7
         Type Boolean
         VariantTest Packet v0
           Type Packet
-          Local $pattern.subject.8
-    bb11 pattern.pass.11
+          Local $pattern.subject.6
+    bb6 pattern.pass.6
       val $default.local.0: String
         Type String
         StringConst @str0
@@ -220,27 +183,27 @@ Module
         VariantConstruct Option<String> v0
           Type String
           Local $default.local.1
-      assign $new.5
+      assign $new.4
         Type IllegalStateException
         ClassAlloc IllegalStateException
       call external8 direct
         Type IllegalStateException
-        Local $new.5
+        Local $new.4
         Type Option<String>
         Local $dependency.parameter.message
       throw
         Type IllegalStateException
-        Local $new.5
-    bb12 pattern.else.12
-      val $pattern.subject.9: Packet
+        Local $new.4
+    bb7 pattern.else.7
+      val $pattern.subject.7: Packet
         Type Packet
-        Local $when.7
-      branch bb14 bb15
+        Local $when.5
+      branch bb9 bb10
         Type Boolean
         VariantTest Packet v1
           Type Packet
-          Local $pattern.subject.9
-    bb13 pattern.merge.13
+          Local $pattern.subject.7
+    bb8 pattern.merge.8
       val $dependency.argument.0: Token
         Type Token
         Local token
@@ -256,24 +219,24 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      branch bb17 bb18
+      branch bb12 bb13
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-    bb14 pattern.pass.14
+    bb9 pattern.pass.9
       val references: References
         Type References
         VariantPayloadProject Packet v1 f0
           Type Packet
-          Local $pattern.subject.9
+          Local $pattern.subject.7
       val copied: Wide
         Type Wide
         VariantPayloadProject Packet v1 f1
           Type Packet
-          Local $pattern.subject.9
+          Local $pattern.subject.7
       val $dependency.argument.0: String
         Type String
         FieldAccess 0
@@ -282,7 +245,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -295,7 +258,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -308,7 +271,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -349,15 +312,15 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type Long
         Local $dependency.parameter.value
-      goto bb16
-    bb15 pattern.else.15
+      goto bb11
+    bb10 pattern.else.10
       unreachable
-    bb16 pattern.merge.16
-      goto bb13
-    bb17 if.then.17
+    bb11 pattern.merge.11
+      goto bb8
+    bb12 if.then.12
       val $dependency.receiver: Long
         Type Long
         FieldAccess 2
@@ -376,53 +339,135 @@ Module
           Local $dependency.receiver
           Type Long
           Local $dependency.parameter.other
-      goto bb19
-    bb18 if.else.18
+      goto bb14
+    bb13 if.else.13
       val $shortCircuit.0: Boolean
         Type Boolean
         BoolLiteral false
-      goto bb19
-    bb19 if.merge.19
+      goto bb14
+    bb14 if.merge.14
       val $dependency.argument.0: Boolean
         Type Boolean
         Local $shortCircuit.0
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn6 direct
         Type Boolean
         Local $dependency.parameter.value
       return
   fun iterator @fn1(this: Array<Packet>) -> Iterator<Packet>
     bb0 entry
-      val $dependency.local.1: Array<Packet>
-        Type Array<Packet>
-        Local this
+      val $dependency.local.1: List<Packet>
+        Type List<Packet>
+        Retype List<Packet>
+          Type Array<Packet>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Packet>
-        Type Array<Packet>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Packet>
+        Type List<Packet>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Packet>
-        ClassAlloc ArrayIterator<Packet>
-      call @fn6 direct
-        Type ArrayIterator<Packet>
-        Local $new.1
-        Type Array<Packet>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Packet>
+        ClassAlloc ListIterator<Packet>
+      call @fn10 direct
+        Type ListIterator<Packet>
+        Local $new.1
+        Type List<Packet>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Packet>
         Retype Iterator<Packet>
-          Type ArrayIterator<Packet>
+          Type ListIterator<Packet>
           Local $new.1
-  fun println @fn2(value: String) -> Unit
+  fun get @fn2(this: Array<Packet>, index: Long) -> Packet
+    bb0 entry
+      val $dependency.local.2: Array<Packet>
+        Type Array<Packet>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Packet>
+        Type Array<Packet>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Packet>
+            Type Array<Packet>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external16 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Packet
+        ArrayGet Array<Packet>
+          Type Array<Packet>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn3(this: Array<Packet>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Packet>
+        Type Array<Packet>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Packet>
+          Type Array<Packet>
+          Local $dependency.local.1
+  fun println @fn4(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -446,7 +491,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn3(value: Long) -> Unit
+  fun println @fn5(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -470,7 +515,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn4(value: Boolean) -> Unit
+  fun println @fn6(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -494,26 +539,34 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun next @fn5(this: ArrayIterator<Packet>) -> Option<Packet>
+  fun next @fn7(this: ListIterator<Packet>) -> Option<Packet>
     bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Packet>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Packet>
+        VariantConstruct Option<Packet> v1
+    bb2 if.merge.2
       val $dependency.local.2: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Packet>
+          Type ListIterator<Packet>
           Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Packet>
-          Type Array<Packet>
-          FieldAccess 0
-            Type ArrayIterator<Packet>
-            Local this
+      call $dependency.local.3: Long = @fn8 interface List<Packet>[2]
+        Type List<Packet>
+        FieldAccess 0
+          Type ListIterator<Packet>
+          Local this
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
           Type Long
           IntegerCompareTo operands=Long result=Long
             Type Long
@@ -522,79 +575,38 @@ Module
             Local $dependency.local.4
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Packet>
-        Type Array<Packet>
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Packet>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Packet>
+        VariantConstruct Option<Packet> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Packet>
+        Type List<Packet>
         FieldAccess 0
-          Type ArrayIterator<Packet>
+          Type ListIterator<Packet>
           Local this
       val $dependency.local.6: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Packet>
+          Type ListIterator<Packet>
           Local this
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      val $arr.1: Array<Packet>
-        Type Array<Packet>
+      call $dependency.local.1: Packet = @fn9 interface List<Packet>[1]
+        Type List<Packet>
         Local $dependency.local.5
-      val $idx.2: Long
         Type Long
         Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Packet>
-        VariantConstruct Option<Packet> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Packet>
-            Type Array<Packet>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external16 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Packet
-        Type Packet
-        ArrayGet Array<Packet>
-          Type Array<Packet>
-          Local $arr.1
-          Type Long
-          Local $idx.2
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Packet>
+          Type ListIterator<Packet>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -603,7 +615,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Packet>
+        Type ListIterator<Packet>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -622,24 +634,39 @@ Module
         VariantConstruct Option<Packet> v0
           Type Packet
           Local $dependency.local.12
-  fun init.ArrayIterator.$c0 @fn6(this: ArrayIterator<Packet>, source: Array<Packet>, index: Long) -> Unit
+  fun List.$get$size @fn8(this: List<Packet>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn9(this: List<Packet>, index: Long) -> Packet
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn10(this: ListIterator<Packet>, source: List<Packet>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Packet>
+        Type ListIterator<Packet>
         Local this
-        Type Array<Packet>
+        Type List<Packet>
         Local source
       field_set 1
-        Type ArrayIterator<Packet>
+        Type ListIterator<Packet>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Packet>
+        Local this
+        Type Boolean
+        Local exhausted
       return
   instance mi0 function=@fn1 <- iterator
-  instance mi1 function=@fn2 <- println
-  instance mi2 function=@fn3 <- println
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- size
   instance mi3 function=@fn4 <- println
-  instance mi4 function=@fn5 <- next
+  instance mi4 function=@fn5 <- println
+  instance mi5 function=@fn6 <- println
+  instance mi6 function=@fn7 <- next
+  instance mi7 function=@fn8 <- List.$get$size
+  instance mi8 function=@fn9 <- List.get
   str @str0 "illegal state"
   str @str1 "\n"
   str @str2 "\n"

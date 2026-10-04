@@ -10,6 +10,7 @@ import UInt16
 import UInt
 import ULong
 import Boolean
+import Char
 import String
 import IntRange
 import coreLongToString

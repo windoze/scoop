@@ -4,6 +4,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum RenderState<Point>
     Value(_1: Point)
     Empty()
@@ -28,16 +31,18 @@ Module
   interface ToString
   interface Hash
   interface Label
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Point>
   interface SuspendTask<Point>
   interface SuspendRegistration<Point>
   interface Continuation<Label>
   interface SuspendTask<Label>
   interface SuspendRegistration<Label>
-  generated_exact_type get0 location=enum4 nominal_id=ccac458f1167fa753072394c97ec264da000aaa86840136c77a9e04f70980f83 exact_id=01289d22dae9748bde2ad73b697df11cc3845128f52d08b8da0523f629da6cae
-  generated_exact_type get1 location=enum3 nominal_id=62d9c7e467a7568b1f70e6327fe60da7d30e934c2651552b21c62ec2aa1770c7 exact_id=115f3834a35e5bca81adc411e5def2ae8514d615db4e52490fe33780333415ca
-  generated_exact_type get2 location=enum2 nominal_id=410c0625bed689075aa05d20f6fb73d5107510a77066f077ec386d7a0d2b2e69 exact_id=962c23de47c2920d33a42843116719afb2c76951ae1369ceee8095f992e87427
-  generated_exact_type get3 location=enum5 nominal_id=58fdada013fcf18d269530cebf57be93f9f345cc299ec384986d62b11d712f4c exact_id=a0d2a9d499ae1f7970e62979fcebe6fa71a937ecbe4748a275c4a57449992946
+  generated_exact_type get0 location=enum5 nominal_id=ccac458f1167fa753072394c97ec264da000aaa86840136c77a9e04f70980f83 exact_id=01289d22dae9748bde2ad73b697df11cc3845128f52d08b8da0523f629da6cae
+  generated_exact_type get1 location=enum4 nominal_id=62d9c7e467a7568b1f70e6327fe60da7d30e934c2651552b21c62ec2aa1770c7 exact_id=115f3834a35e5bca81adc411e5def2ae8514d615db4e52490fe33780333415ca
+  generated_exact_type get2 location=enum3 nominal_id=410c0625bed689075aa05d20f6fb73d5107510a77066f077ec386d7a0d2b2e69 exact_id=962c23de47c2920d33a42843116719afb2c76951ae1369ceee8095f992e87427
+  generated_exact_type get3 location=enum6 nominal_id=58fdada013fcf18d269530cebf57be93f9f345cc299ec384986d62b11d712f4c exact_id=a0d2a9d499ae1f7970e62979fcebe6fa71a937ecbe4748a275c4a57449992946
   generated_exact_type get4 location=class5 nominal_id=f3f91b4130a1ee3233f394c01e48e0d668ede5f7f3b647f8dbd7bb0c6d30c2ee exact_id=c9bccfaf04f63846264d81bab213b36668c75f122087aa26bce5d19d9e5140d6
   generated_callable gc0 function=@fn33 id=463b7f5875bea0087b9f22351e91f9d69079bf012a0cc24c7f88e19ef6b7eb57
   generated_callable gc1 function=@fn31 id=467a5707f94112724914fa53531e932274698d14d1d804d3b2fc32ab67b34492

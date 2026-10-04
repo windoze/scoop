@@ -26,8 +26,8 @@ checks = []
 [[steps]]
 name = "modify_core"
 files = [
-  {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "= ArrayIterator<T>(this, 0L)", "new" = "= ArrayIterator<T>(this, 1L)"}},
-  {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "= MutableArrayIterator<T>(this, 0L)", "new" = "= MutableArrayIterator<T>(this, 1L)"}},
+  {"replace" = {"path" = "${work}/core-source/src/arrays.scoop", "old" = "public fun toMutableArray(): MutableArray<T>\n\n    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)", "new" = "public fun toMutableArray(): MutableArray<T>\n\n    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 1L, false)"}},
+  {"replace" = {"path" = "${work}/core-source/src/arrays.scoop", "old" = "public fun toArray(): Array<T>\n\n    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)", "new" = "public fun toArray(): Array<T>\n\n    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 1L, false)"}},
   {"copy" = {"from" = "${fixture}/../../m23-rebuilt-core-generics/core-additions.scoop", "to" = "${work}/core-source/src/rebuilt_generics.scoop"}},
 ]
 

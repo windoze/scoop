@@ -111,21 +111,21 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn1 virtual[0]
+      call $aggregate.0: Int = @fn1 virtual[0]
         Type Abstract
         Local $receiver
         Type Int
         Local $parameter.value
-      call $call.2: Int = @fn2 virtual[1]
+      call $aggregate.1: Int = @fn2 virtual[1]
         Type Abstract
         Local this
       return
         Type (Int, Int)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $aggregate.0
           Type Int
-          Local $call.2
+          Local $aggregate.1
   fun Abstract.obligation @fn1(this: Abstract, value: Int) -> Int
     bb0 entry
       trap "call to abstract method `Abstract.obligation`"

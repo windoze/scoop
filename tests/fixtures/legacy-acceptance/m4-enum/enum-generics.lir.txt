@@ -6,15 +6,16 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Box tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Box niche(kind=managed,payload_variant=0)
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: i32
     local %1 $parameter._1: i32
-    local %2 a: enum0
+    local %2 a: enum1
     local %3 $argument.0: ptr<managed>
     local %4 $parameter._1: ptr<managed>
-    local %5 b: enum1
+    local %5 b: enum2
     local %6 v: i32
     local %7 $dependency.argument.0: i32
     local %8 $dependency.parameter.value: i32
@@ -25,56 +26,56 @@ Module
     local %13 $dependency.parameter.value: ptr<managed>
     local %14 $dependency.argument.0: ptr<managed>
     local %15 $dependency.parameter.value: ptr<managed>
-    local %16 c: enum0
+    local %16 c: enum1
     local %17 v: i32
     local %18 $dependency.argument.0: i32
     local %19 $dependency.parameter.value: i32
     local %20 $dependency.argument.0: ptr<managed>
     local %21 $dependency.parameter.value: ptr<managed>
-    local %22 $when.1: enum0
-    local %23 $pattern.subject.2: enum0
-    local %24 $pattern.subject.3: enum0
-    local %25 $when.4: enum1
-    local %26 $pattern.subject.5: enum1
-    local %27 $pattern.subject.6: enum1
-    local %28 $when.7: enum0
-    local %29 $pattern.subject.8: enum0
-    local %30 $pattern.subject.9: enum0
+    local %22 $when.1: enum1
+    local %23 $pattern.subject.2: enum1
+    local %24 $pattern.subject.3: enum1
+    local %25 $when.4: enum2
+    local %26 $pattern.subject.5: enum2
+    local %27 $pattern.subject.6: enum2
+    local %28 $when.7: enum1
+    local %29 $pattern.subject.8: enum1
+    local %30 $pattern.subject.9: enum1
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000001) -> local0
     store local0 -> local1
-    t0 = enum_wrap e0 v0 (local1) : enum0
+    t0 = enum_wrap e1 v0 (local1) : enum1
     store t0 -> local2
     store global0 -> local3
     store local3 -> local4
-    t1 = enum_wrap e1 v0 (local4) : enum1
+    t1 = enum_wrap e2 v0 (local4) : enum2
     store t1 -> local5
     store local2 -> local22
     store local22 -> local23
-    t2 = variant_test e0 v0 local23 : i1
+    t2 = variant_test e1 v0 local23 : i1
     cbr t2 then @pattern.pass.1 else @pattern.else.2
   block pattern.pass.1
-    t3 = variant_payload_project e0 v0 f0 local23 : i32
+    t3 = variant_payload_project e1 v0 f0 local23 : i32
     store t3 -> local6
     store local6 -> local7
     store local7 -> local8
-    call managed-void-target0 sp<managed-call:1> live=[local5:enum1@0] sig=void0 (i32) local-fn1(local8)
+    call managed-void-target0 sp<managed-call:1> live=[local5:enum2@0] sig=void0 (i32) local-fn1(local8)
     t4 = aggregate () : {}
     br @pattern.merge.3
   block pattern.else.2
     store local22 -> local24
-    t5 = variant_test e0 v1 local24 : i1
+    t5 = variant_test e1 v1 local24 : i1
     cbr t5 then @pattern.pass.4 else @pattern.else.5
   block pattern.merge.3
     store local5 -> local25
     store local25 -> local26
-    t6 = variant_test e1 v0 local26 : i1
+    t6 = variant_test e2 v0 local26 : i1
     cbr t6 then @pattern.pass.7 else @pattern.else.8
   block pattern.pass.4
     store global1 -> local9
     store local9 -> local10
-    call managed-void-target1 sp<managed-call:0> live=[local5:enum1@0, local10:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local10)
+    call managed-void-target1 sp<managed-call:0> live=[local5:enum2@0, local10:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local10)
     t7 = aggregate () : {}
     br @pattern.merge.6
   block pattern.else.5
@@ -82,7 +83,7 @@ Module
   block pattern.merge.6
     br @pattern.merge.3
   block pattern.pass.7
-    t8 = variant_payload_project e1 v0 f0 local26 : ptr<managed>
+    t8 = variant_payload_project e2 v0 f0 local26 : ptr<managed>
     store t8 -> local11
     store local11 -> local12
     store local12 -> local13
@@ -91,14 +92,14 @@ Module
     br @pattern.merge.9
   block pattern.else.8
     store local25 -> local27
-    t10 = variant_test e1 v1 local27 : i1
+    t10 = variant_test e2 v1 local27 : i1
     cbr t10 then @pattern.pass.10 else @pattern.else.11
   block pattern.merge.9
-    t11 = enum_wrap e0 v1 () : enum0
+    t11 = enum_wrap e1 v1 () : enum1
     store t11 -> local16
     store local16 -> local28
     store local28 -> local29
-    t12 = variant_test e0 v0 local29 : i1
+    t12 = variant_test e1 v0 local29 : i1
     cbr t12 then @pattern.pass.13 else @pattern.else.14
   block pattern.pass.10
     store global2 -> local14
@@ -111,7 +112,7 @@ Module
   block pattern.merge.12
     br @pattern.merge.9
   block pattern.pass.13
-    t14 = variant_payload_project e0 v0 f0 local29 : i32
+    t14 = variant_payload_project e1 v0 f0 local29 : i32
     store t14 -> local17
     store local17 -> local18
     store local18 -> local19
@@ -120,7 +121,7 @@ Module
     br @pattern.merge.15
   block pattern.else.14
     store local28 -> local30
-    t16 = variant_test e0 v1 local30 : i1
+    t16 = variant_test e1 v1 local30 : i1
     cbr t16 then @pattern.pass.16 else @pattern.else.17
   block pattern.merge.15
     ret
@@ -186,8 +187,14 @@ Module
     global_store global6, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$48df59fc0f03b4d0735a3c998f9c1f4024c3e33c79307838758e345f142cdaf1 type-id=8160705373680476875 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$c4144bef3feabb74d3402512c24ee6c5b25c5ecf7cd484c848dc6d39abdfba8e type-id=10976983589520657707 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$48df59fc0f03b4d0735a3c998f9c1f4024c3e33c79307838758e345f142cdaf1 type-id=8160705373680476875 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$c4144bef3feabb74d3402512c24ee6c5b25c5ecf7cd484c848dc6d39abdfba8e type-id=10976983589520657707 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Option size=16 align=8 enum-scan=none
   layout Box size=16 align=8 enum-scan=none
   layout Box size=8 align=8 enum-scan=refs[0]
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

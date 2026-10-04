@@ -14,8 +14,13 @@ Module
   init2 top-level:text eager global2 initializer=@fn9 ensure=@fn10 failure=7 deps=[]
   init3 top-level:zed eager global3 initializer=@fn12 ensure=@fn13 failure=8 deps=[]
   init4 top-level:betaOrder eager global4 initializer=@fn15 ensure=@fn16 failure=9 deps=[]
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun runtimeValue @fn0(label: String, value: Int) -> Int
     bb0 entry
       val $dependency.argument.0: String
