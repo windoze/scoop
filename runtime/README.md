@@ -23,9 +23,9 @@ runtime-owned exception ABI:
   debug queries;
 - `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
   throw/begin/end/rethrow, and stable external-root lifetime;
-- `src/eh_personality.c` owns the bounded LSDA decoder and the Scoop
-  personality for the qualified LLVM 22.1 Darwin/AArch64 catch-all/cleanup
-  profile;
+- `src/eh_personality.c` owns the Scoop personality; `src/eh/` contains
+  the bounded LLVM 22.1 catch-all/cleanup LSDA decoder, including tables
+  that omit TType for cleanup-only functions;
 - `src/platform/` provides the target-selected image, OS/VM and frame/ABI
   components. M15 currently supports Darwin/AArch64 only.
 

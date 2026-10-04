@@ -161,9 +161,7 @@ fn closed_lsda_rejects_truncated_and_overflowing_headers() {
 
 #[test]
 fn closed_lsda_rejects_unknown_encodings() {
-    // The second mutation explicitly locks out LLVM's cleanup-only `ff ff`
-    // form; Scoop cleanup pads must remain inside a function with catch-all.
-    for (index, replacement) in [(0, 0x00), (1, 0xff), (3, 0x03)] {
+    for (index, replacement) in [(0, 0x00), (1, 0x03), (3, 0x03)] {
         let mut bytes = CATCH_AND_CLEANUP.to_vec();
         bytes[index] = replacement;
         assert!(
@@ -171,6 +169,25 @@ fn closed_lsda_rejects_unknown_encodings() {
             "encoding byte {index} was accepted"
         );
     }
+}
+
+#[test]
+fn cleanup_only_lsda_omits_the_type_table_and_all_actions() {
+    // LLVM emits no TType offset in this form. The final bytes align the
+    // next exception table and are not a null catch-all type entry.
+    let bytes = [0xff, 0xff, 0x01, 8, 0, 4, 16, 0, 4, 4, 0, 0, 0, 0];
+    let observed = parse_lsda(&bytes, 32, PROFILE).expect("cleanup-only LSDA");
+    assert_eq!(observed.actions, BTreeSet::from([EhActionKind::Cleanup]));
+    assert_eq!(observed.protected_ranges.len(), 1);
+    assert_eq!(observed.protected_ranges[0].range, 0..4);
+
+    let mut action_without_type = bytes;
+    action_without_type[7] = 1;
+    assert!(parse_lsda(&action_without_type, 32, PROFILE).is_err());
+    assert!(parse_lsda(&bytes[..11], 32, PROFILE).is_err());
+    let mut trailing_action = bytes;
+    trailing_action[12] = 1;
+    assert!(parse_lsda(&trailing_action, 32, PROFILE).is_err());
 }
 
 #[test]

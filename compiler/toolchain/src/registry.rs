@@ -52,6 +52,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/value_scan.c",
                     "runtime/src/eh.c",
                     "runtime/src/eh_personality.c",
+                    "runtime/src/eh/lsda.c",
                     "runtime/src/initialization.c",
                     "runtime/src/image/ranges.c",
                     "runtime/src/image/checks.c",
