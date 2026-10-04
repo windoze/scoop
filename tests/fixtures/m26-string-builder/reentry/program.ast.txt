@@ -1,0 +1,77 @@
+SourceFile
+  RootPackage
+  class Reentrant(val builder: StringBuilder), ToString
+    var calls: Int =
+      IntLiteral 0
+    public fun toString
+  class Failing(val builder: StringBuilder), ToString
+    public fun toString
+  fun main()
+    val builder
+      Call StringBuilder
+    for index
+      InfixCall until
+        IntLiteral 0L
+        IntLiteral 7L
+      MethodCall add
+        Var builder
+        StringLiteral "p"
+    val value
+      Call Reentrant
+        Var builder
+    MethodCall add
+      Var builder
+      Var value
+    val before
+      MethodCall build
+        Var builder
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var value
+          IntLiteral 1
+        Binary Ne
+          Var before
+          StringLiteral "pppppppiiiiiiiiiiiiouter"
+      Call println
+        StringLiteral "reentry"
+      return
+    var failed
+      BoolLiteral false
+    try
+      MethodCall add
+        Var builder
+        Call Failing
+          Var builder
+    catch e: IllegalStateException
+      assign failed
+        BoolLiteral true
+    if
+      Binary Or
+        Unary Not
+          Var failed
+        Binary Ne
+          MethodCall build
+            Var builder
+          Binary Add
+            Var before
+            StringLiteral "kept"
+      Call println
+        StringLiteral "throw"
+      return
+    MethodCall add
+      Var builder
+      StringLiteral "tail"
+    if
+      Binary Ne
+        MethodCall build
+          Var builder
+        Binary Add
+          Var before
+          StringLiteral "kepttail"
+      Call println
+        StringLiteral "continue"
+      return
+    Call println
+      IntLiteral 42

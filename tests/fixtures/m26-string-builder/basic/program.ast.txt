@@ -1,0 +1,119 @@
+SourceFile
+  RootPackage
+  fun main()
+    val builder
+      Call StringBuilder
+    if
+      Binary Or
+        Binary Ne
+          MethodCall build
+            Var builder
+          StringLiteral ""
+        Binary Ne
+          FieldAccess length
+            MethodCall build
+              Var builder
+          IntLiteral 0L
+      Call println
+        StringLiteral "empty"
+      return
+    val same
+      MethodCall add
+        Var builder
+        StringLiteral "A"
+    MethodCall add
+      MethodCall add
+        MethodCall add
+          Var same
+          CharLiteral '雪'
+        CharLiteral '\0'
+      IntLiteral 42
+    val first
+      MethodCall build
+        Var builder
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var first
+            StringLiteral "A雪\042"
+          Binary Ne
+            FieldAccess length
+              Var first
+            IntLiteral 5L
+        Binary Ne
+          MethodCall build
+            Var builder
+          Var first
+      Call println
+        StringLiteral "chain"
+      return
+    MethodCall add<String>
+      MethodCall add
+        Var builder
+        StringLiteral ""
+      StringLiteral "🚀"
+    Call gcCollect
+    if
+      Binary Or
+        Binary Ne
+          Var first
+          StringLiteral "A雪\042"
+        Binary Ne
+          MethodCall build
+            Var builder
+          StringLiteral "A雪\042🚀"
+      Call println
+        StringLiteral "snapshot"
+      return
+    val many
+      Call StringBuilder
+    var expected
+      StringLiteral ""
+    for index
+      InfixCall until
+        IntLiteral 0L
+        IntLiteral 130L
+      MethodCall add
+        Var many
+        Var index
+      assign expected
+        Binary Add
+          Var expected
+          MethodCall toString
+            Var index
+    Call gcCollect
+    val result
+      MethodCall build
+        Var many
+    if
+      Binary Or
+        Binary Ne
+          Var result
+          Var expected
+        Binary Ne
+          MethodCall build
+            Var many
+          Var result
+      Call println
+        StringLiteral "many"
+      return
+    MethodCall add
+      Var many
+      StringLiteral "tail"
+    if
+      Binary Or
+        Binary Ne
+          MethodCall build
+            Var many
+          Binary Add
+            Var expected
+            StringLiteral "tail"
+        Binary Ne
+          Var result
+          Var expected
+      Call println
+        StringLiteral "append"
+      return
+    Call println
+      IntLiteral 42

@@ -527,6 +527,8 @@ String 的两个定位后备遵守当前 core `Option` 的 Scoop ABI：`Option<C
 
 M26 的 parts 拼接后备只消费 `MutableArray<Option<String>>` 的有效前缀及 `Long` partCount，返回普通 String；source-level core 边界为 `coreStringJoinParts(storage, partCount): String`。StringBuilder 从自己私有的 ArrayList 取得当前 backing 与 size 作为本次调用实参，期间不执行用户代码；该内部存储访问不成为公开 List 方法或 borrow/view API。runtime 不读取 ArrayList/StringBuilder 字段，也不改变它们的状态。
 
+具体入口 `scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count)` 使用普通 Scoop ABI 的 Managed native contract；Option<String> 消费既有 nullable managed pointer niche。只在分配前检查有效前缀中的非空 String 并累计字节数，分配后的复制复用这个不变前缀。
+
 该 helper 检查本次动态前缀范围，对所有 Some(String) 的 physical byte count checked 求和，经既有 String allocation shape 分配一次最终字节存储，再顺序复制 parts。空/单 part 可以直接复用不可变 String。None 出现在有效前缀属于内部不变量错误；这里不重复验证完整静态 TD、每个 part 的 UTF-8 或用户语言规则。native 入口及分配前按既有 caller-root/managed-anchor 协议保活 backing；allocation 后从被更新的 backing 重新读取 String ref 与 data 地址，不能跨 safepoint 缓存 part 指针。填充结果的循环不分配、不回调、不抛源码异常；如实现添加 poll，必须同时 root 结果并在 poll 后重新取得全部地址。最终 String 发布后不再写入其字节。
 
 Char 编码、String 解码到 `MutableArray<Char>` 与 UTF-8 字节快照都沿同一精确 TD、分配、root 与复制路径。接受 List 的公开 companion 方法先在 managed core 中物化数组快照，不在 native helper 中遍历任意 interface 或调用用户 getter。fromUtf8Unchecked 信任调用方已经满足的 UTF-8 前置条件；toByteArray 是安全的复制，不返回可写 String view。M26 不引入 native buffer 所有权、显式 close、release hook 或外部内存压力记账。

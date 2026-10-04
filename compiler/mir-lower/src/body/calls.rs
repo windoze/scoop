@@ -152,7 +152,26 @@ impl BodyLowerer<'_> {
                 || mir::Callee::User(self.function_map[&function]),
                 mir::Callee::Monomorphized,
             ),
-            hir::FunctionKind::Extern(extern_id) => mir::Callee::Extern(self.extern_map[extern_id]),
+            hir::FunctionKind::Extern(extern_id) => {
+                // A specialization has the same call boundary in its provider
+                // and consumers, including generated closures in its body.
+                let managed_caller = match self.current_owner {
+                    mir::LocalValueOwner::Function(caller) => {
+                        self.functions[caller].gc_effect == mir::GcEffect::Managed
+                    }
+                    mir::LocalValueOwner::ReleaseHook(_) => false,
+                };
+                if managed_caller
+                    && !matches!(
+                        self.current_materialization.context(),
+                        hir::CallableMaterializationContext::NoSubstitution
+                    )
+                {
+                    mir::Callee::User(self.function_map[&function])
+                } else {
+                    mir::Callee::Extern(self.extern_map[extern_id])
+                }
+            }
             hir::FunctionKind::Intrinsic(_) => unreachable!("handled above"),
         }
     }

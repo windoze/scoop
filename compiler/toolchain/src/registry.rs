@@ -40,6 +40,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/rt.c",
                     "runtime/src/characters.c",
                     "runtime/src/strings.c",
+                    "runtime/src/string_parts.c",
                     "runtime/src/utf8.c",
                     "runtime/src/startup.c",
                     "runtime/src/startup/failure.c",

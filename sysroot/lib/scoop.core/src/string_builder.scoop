@@ -1,0 +1,19 @@
+public class StringBuilder public constructor() {
+    private val parts: ArrayList<String> = ArrayList<String>()
+
+    public fun add(part: String): StringBuilder {
+        parts.add(part)
+        return this
+    }
+
+    public fun <T : ToString> add(part: T): StringBuilder {
+        val text = part.toString()
+        parts.add(text)
+        return this
+    }
+
+    public fun build(): String = coreStringJoinParts(parts.backing, parts.size)
+}
+
+@Extern(name = "scoop_rt_string_join_parts", abi = "scoop")
+internal fun coreStringJoinParts(storage: MutableArray<String?>, partCount: Long): String

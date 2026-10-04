@@ -1,0 +1,25 @@
+fun main() {
+    val builder = StringBuilder()
+    if (builder.build() != "" || builder.build().length != 0L) { println("empty"); return }
+    val same = builder.add("A")
+    same.add('雪').add('\u0000').add(42)
+    val first = builder.build()
+    if (first != "A雪\u000042" || first.length != 5L || builder.build() != first) {
+        println("chain"); return
+    }
+    builder.add("").add<String>("🚀")
+    gcCollect()
+    if (first != "A雪\u000042" || builder.build() != "A雪\u000042🚀") { println("snapshot"); return }
+    val many = StringBuilder()
+    var expected = ""
+    for (index in 0L until 130L) {
+        many.add(index)
+        expected = expected + index.toString()
+    }
+    gcCollect()
+    val result = many.build()
+    if (result != expected || many.build() != result) { println("many"); return }
+    many.add("tail")
+    if (many.build() != expected + "tail" || result != expected) { println("append"); return }
+    println(42)
+}

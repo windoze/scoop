@@ -1,0 +1,70 @@
+SourceFile
+  RootPackage
+  class Value(var number: Int), ToString
+    var calls: Int =
+      IntLiteral 0
+    public fun toString
+  fun main()
+    val builder
+      Call StringBuilder
+    val value
+      Call Value
+        IntLiteral 10
+    MethodCall add
+      Var builder
+      Var value
+    assign .number
+      Var value
+      IntLiteral 11
+    val asInterface: ToString
+      Var value
+    MethodCall add
+      Var builder
+      Var asInterface
+    assign .number
+      Var value
+      IntLiteral 99
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var value
+          IntLiteral 2
+        Binary Ne
+          MethodCall build
+            Var builder
+          StringLiteral "1011"
+      Call println
+        StringLiteral "immediate"
+      return
+    val result
+      MethodCall build
+        Var builder
+    MethodCall build
+      Var builder
+    MethodCall add
+      MethodCall add
+        Var builder
+        BoolLiteral true
+      MethodCall toUInt8
+        IntLiteral 255
+    Call gcCollect
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess calls
+              Var value
+            IntLiteral 2
+          Binary Ne
+            Var result
+            StringLiteral "1011"
+        Binary Ne
+          MethodCall build
+            Var builder
+          StringLiteral "1011true255"
+      Call println
+        StringLiteral "stable"
+      return
+    Call println
+      IntLiteral 42

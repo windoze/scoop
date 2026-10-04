@@ -1,6 +1,6 @@
 # M26 设计：List、字符与 parts 字符串构建
 
-状态：实现中；数组初始化、List、Char 与 String 已完成，StringBuilder 与插值继续按第 9 节实施。
+状态：实现中；数组初始化、List、Char、String 与 StringBuilder 已完成，插值继续按第 9 节实施。
 
 日期：2026-10-04。
 
@@ -355,3 +355,12 @@ python3 tests/run_fixtures.py --all
 - 原 types.scoop 按职责拆为 53 行的基本协议/alias/Boolean 文件、487 行 signed integers、468 行 unsigned integers，以及独立的 String 与 iterator 文件。
 - 9 个正式 String fixture 全部通过，包含 5 个完整诊断负例与 18 份阶段 golden；覆盖空串、NUL、组合字符、全部 UTF-8 宽度边界、Long 越界、持续耗尽、独立快照、用户 getter 的顺序/异常、泛型 Iterable，以及删除 core/provider/consumer 源码后的独立产物链接和 moving GC。
 - 执行 cargo fmt、全 workspace clippy、C 严格告警语法检查；HIR lowering 1314 和 toolchain 12 个单元测试通过。10 个已有数组/List/Char 正式正例回归通过，36 份阶段 golden 同步。
+
+### StringBuilder
+
+- 普通 core class 以私有 ArrayList<String> 保存 parts；泛型 add 在每次调用中立即执行一次 ToString，成功后追加，允许重入与异常的既有副作用保留。build 可重复调用，也可继续追加。
+- 45 行 runtime 拼接入口只消费 backing 与有效前缀，checked 求和、一次分配并集中复制 UTF-8；分配前登记 backing root，分配后重取 parts。未加入容器布局、用户 callback、额外快照或新的 IR 指令。
+- 修复定义 Cone 与消费 Cone 中同一泛型实例的 source extern 调用边界差异：两端均调用原 provider 的 Scoop 薄入口，保持 safepoint 身份和根记录一致；release 的直接 C leaf 保留既有路径。
+- 6 个正式 fixture 全部通过，锁定 18 份阶段 golden；覆盖空/单/大量 parts、别名返回、立即转换、重复 build、继续追加、跨扩容重入与抛出、普通泛型/默认值，以及删除源码后的产物链接。正例包含正常和 moving GC 运行。
+- 执行 cargo fmt、全 workspace clippy 与 C 严格告警语法检查；MIR lowering 114 个单元测试通过。
+- 4 个既有 List/String 正式回归 fixture 通过，包含跨 Cone 与 moving GC；13 份阶段 golden 校验通过，更新其中 4 份因 core 新增公开类型而变化的 HIR 依赖指纹。

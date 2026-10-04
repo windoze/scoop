@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-当前 HIR 格式为 `core-bootstrap-interface/6`、`cross-cone-interface/47` 与 `cross-cone-type-semantics/14`：M26 增加完整 ArrayGenerate、负长度异常目标与数组长度 intrinsic；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
+当前 HIR 格式为 `core-bootstrap-interface/7`、`cross-cone-interface/48` 与 `cross-cone-type-semantics/15`：M26 增加完整 ArrayGenerate、负长度异常目标、数组长度 intrinsic 与 Char 表示；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1088,6 +1088,8 @@ Link reader 检查外部字节的 envelope/hash、required inventory、identity/
 所有 `SourceExtern` 按同一规则处理：先按实际 target/symbol 合并完整 library、function/data/TLS/mutability、C/Scoop ABI、calling convention、GC effect 及 signature/storage，再从本次实际对象和 provider export 中解析定义。M23-9 只提供 runtime 对象和固定 SDK 系统 provider，不按 core 身份、函数名或 core 已用 API 建立白名单。未被 core/runtime 使用的系统 export 同样可由普通 extern 引用；缺失定义、合同冲突及既有保留符号冲突对所有 Cone 同样报错。与实际 `RuntimeAbi`／target support 需求共用符号时，继续比较已有完整合同，不改变 SourceExtern 分类。普通外部对象没有完整函数类型时，不伪造 ABI 证明，外部实现遵守声明仍按语言 FFI 契约负责。M23-10 增加新逻辑 library、archive 等物理输入的供应，复用同一合并与解析器。
 
 定义方 MIR 为参数自由的 source extern 生成普通 Scoop ABI 薄入口，沿原 extern lowering 转发参数和结果；C ABI 继续使用已有 generated-C bridge。该入口是原 source function 的 Strong callable body，参数与结果来自同一声明；入口包含 native transition 与 caller-root publication，因此其 Scoop callable GC effect 固定为 Managed。原 native callee 的 GC effect 继续保存在 HIR source effects 与 native requirement 中，C leaf 或 Scoop NoGc 声明均不能把此入口降为普通 NoGc 调用。HIR implementation 仍保留 SourceExtern 身份。消费者通过已有 HIR/MIR/LIR callable bridge 调用这个原 provider 的入口，普通 import、泛型正文和默认参数不另行生成包装或复制 native 声明。额外 library 的输入供应由 Link 决定；不再在 HIR 以 M23-10 阶段限制笼统拒绝 native dependency call。 generated-C 的 canonical flags 同时包含 `-fno-builtin`，禁止系统 C compiler 按普通 extern 名称（如 `abs`）用 builtin 替换实际调用；flag contract 新增 tag 13，fingerprint 随之变化，旧 bridge 产物与缓存重建。
+
+本地具体化的普通 managed 泛型正文及其生成闭包调用参数自由 source extern 时，也必须使用上述原 provider 的 Scoop 薄入口，使同一 specialization 在定义 Cone 和消费 Cone 具有相同调用边界、GC effect 与 safepoint 序列。不能因 native 声明恰好位于当前 Cone 而绕过该入口。NoGc 正文与 release block 的直接 native 调用仍遵守既有调用规则；release leaf 见 2.13。
 
 **runtime-build：**输入为实际 target、C toolchain、构建规则、列明的 C/assembly 源文件及所依赖头文件内容；输出为任意非空数量的普通 relocatable object 和完整定义／引用摘要。runtime 不再定义 C main、Scoop main 或第二份 image。源码和头文件、实际 compiler/SDK、flags、runtime ABI 与 build-rule 变化使缓存失效，修改 mtime 不代替内容检查。构建 key 与对象内容 fingerprint 分开；一次成功构建的完整结果直接交给 linker，缓存或独立进程读入对象时检查 bytes、格式、符号、ABI 和引用。普通对象索引只是缓存／进程交接记录，不是新的可分发容器、来源授权或不可伪造凭证。
 
