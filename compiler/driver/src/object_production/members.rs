@@ -58,6 +58,7 @@ pub(super) struct PlannedObjectBindings {
 }
 
 pub(super) fn plan_objects(
+    target: LirTargetProfile,
     producer_units: &ProducerUnitPartitionV1,
     scoop_lir_sources: Vec<UnboundScoopLirObject>,
     generated_c_bridge_sources: Vec<UnboundGeneratedCBridgeObject>,
@@ -79,6 +80,7 @@ pub(super) fn plan_objects(
             source,
         })?;
     let member_plan = PlannedLinkObjectMemberSetV1::new(
+        target,
         producer_units,
         scoop_lir_unit_sets,
         generated_bridge_unit_sets,

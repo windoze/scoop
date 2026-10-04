@@ -9,6 +9,7 @@ use scoop_identity::{
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
+use scoop_identity::{ObjectFormatId, TargetProfileWireId};
 
 #[test]
 fn scoop_lir_units_are_nonempty_unique_and_canonical() {
@@ -47,7 +48,9 @@ fn generated_bridge_units_use_a_distinct_domain_and_capability() {
         lir.logical_key().unit_set_digest().as_array()
     );
     assert_eq!(
-        generated.logical_key().member_role(),
+        generated
+            .logical_key()
+            .member_role(scoop_lir::LirTargetProfile::DARWIN_AARCH64),
         SlibMemberRole::LinkObject {
             target_profile: TargetProfileWireId::darwin_aarch64(),
             object_format: ObjectFormatId::macho_relocatable(),
@@ -122,21 +125,25 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
     let second = definition_plan(21);
     let forward = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
     let reversed = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![second, first]).unwrap(),
     )
     .unwrap();
     let split = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::SINGLE_FILE,
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first]).unwrap(),
     )
     .unwrap();
     let other_cone = PlannedScoopLirObjectMemberV1::new(
         ConeIdentity::CORE,
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         CanonicalScoopLirObjectUnitSetV1::new(vec![first, second]).unwrap(),
     )
     .unwrap();
@@ -145,7 +152,13 @@ fn member_plan_freezes_identity_before_object_bytes_exist() {
     assert_ne!(forward.member_id(), split.member_id());
     assert_ne!(forward.member_id(), other_cone.member_id());
     assert_eq!(forward.stable_key(), reversed.stable_key());
-    assert_eq!(forward.role(), &forward.units().logical_key().member_role());
+    assert_eq!(
+        forward.role(),
+        &forward
+            .units()
+            .logical_key()
+            .member_role(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+    );
 }
 
 fn definition_plan(seed: u8) -> ObjectDefinitionPlanId {

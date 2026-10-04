@@ -225,6 +225,7 @@ fn owner_set_for_subject(
     let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let partition = scoop_lir::ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         vec![],

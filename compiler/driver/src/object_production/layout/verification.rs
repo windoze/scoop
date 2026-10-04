@@ -9,6 +9,7 @@ pub(crate) fn prepare(
         return Err(BuiltinObjectProductionError::GeneratedBridgePlanMismatch);
     }
     let bindings = plan_codegen_objects(
+        emitted.target_selection().target(),
         emitted.partition().producer_units(),
         emitted.members(),
         generated,

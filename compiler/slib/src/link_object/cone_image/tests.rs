@@ -337,6 +337,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(

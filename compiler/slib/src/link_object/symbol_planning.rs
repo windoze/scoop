@@ -92,6 +92,9 @@ impl PlannedStrongObjectSymbolSetV1 {
         surface: &ObjectSymbolSurfaceV1,
         member_plan: &PlannedLinkObjectMemberSetV1,
     ) -> Result<Self, StrongObjectSymbolPlanningError> {
+        if target != member_plan.target() {
+            return Err(StrongObjectSymbolPlanningError::TargetMismatch);
+        }
         let normalization = target.contract().native_symbol_normalization();
         let expected_plans = member_plan
             .definition_assignments()
@@ -243,6 +246,7 @@ fn insert_symbol(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongObjectSymbolPlanningError {
+    TargetMismatch,
     MissingMemberAssignment(ObjectDefinitionPlanId),
     MissingSymbolPlan(ObjectDefinitionPlanId),
     DuplicateMachOSymbol {

@@ -757,6 +757,8 @@ M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每�
 
 generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF primary entry 使用实际 `STT_FUNC` 的 section-relative offset/size；一字节 signature/context 标记分别位于 `.rodata.scoop_sig` / `.rodata.scoop_ctx`，无指针 relocation。bridge 定义及边界采用 hidden strong linkage；外来 C 函数与 TLS 引用保留平台 ABI。Darwin 的 section 名称和发射形式保持。generated-C 编译沿既有 profile 禁用独立 unwind tables，不把 C bridge 当成含 Scoop stackmap 的 managed callable。
 
+`.slib` builtin member 的 `LinkObject` role 从本次已选择的 LIR target 取得 target-profile 与 object-format；对象生成和 artifact reader 重建 materialization 时均显式传入同一选择，不使用 Darwin 默认值。member logical key 继续只描述实际 producer unit 集合；目标兼容性由已有 manifest/role 字段表达，不给单位身份增加重复的 target 编码。
+
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
 
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：

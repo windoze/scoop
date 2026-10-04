@@ -100,6 +100,7 @@ impl Fixture {
         let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&inputs.foundation).unwrap();
         let partition = ProducerUnitPartitionV1::from_foundation(&inputs.foundation).unwrap();
         let member_plan = PlannedLinkObjectMemberSetV1::new(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             &partition,
             vec![CanonicalScoopLirObjectUnitSetV1::new(inputs.definitions).unwrap()],
             Vec::new(),

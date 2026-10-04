@@ -295,6 +295,7 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
     let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let members = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         Vec::new(),

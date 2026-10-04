@@ -15,6 +15,7 @@ fn assigns_every_plan_and_bridge_unit_to_exactly_one_member() {
     let fixture = fixture(true);
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(vec![fixture.lir_plans[1]]).unwrap(),
@@ -51,6 +52,7 @@ fn rejects_overlapping_and_incomplete_shards() {
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
 
     let duplicate = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap(),
@@ -64,6 +66,7 @@ fn rejects_overlapping_and_incomplete_shards() {
     ));
 
     let missing_bridge = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),
@@ -79,6 +82,7 @@ fn generated_members_are_absent_when_the_partition_has_no_bridge_units() {
     let fixture = fixture(false);
     let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
     let plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
         Vec::new(),
@@ -94,6 +98,54 @@ struct Fixture {
     lir_plans: [ObjectDefinitionPlanId; 2],
     bridge_unit: GeneratedBridgeUnitId,
     bridge_plan: ObjectDefinitionPlanId,
+}
+
+#[test]
+fn builtin_member_roles_preserve_the_selected_target_and_object_format() {
+    let fixture = fixture(true);
+    let partition = ProducerUnitPartitionV1::from_foundation(&fixture.foundation).unwrap();
+    let mut ids = None;
+    for target in [
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_lir::LirTargetProfile::LINUX_X86_64_GNU,
+        scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL,
+    ] {
+        let plan = PlannedLinkObjectMemberSetV1::new(
+            target,
+            &partition,
+            vec![CanonicalScoopLirObjectUnitSetV1::new(fixture.lir_plans.to_vec()).unwrap()],
+            vec![CanonicalGeneratedBridgeObjectUnitSetV1::new(vec![fixture.bridge_unit]).unwrap()],
+        )
+        .unwrap();
+        assert_eq!(plan.target(), target);
+        let members = plan
+            .scoop_lir_members()
+            .iter()
+            .map(|m| (m.member_id(), m.role()))
+            .chain(
+                plan.generated_bridge_members()
+                    .iter()
+                    .map(|m| (m.member_id(), m.role())),
+            )
+            .collect::<Vec<_>>();
+        for (_, role) in &members {
+            let crate::SlibMemberRole::LinkObject {
+                target_profile,
+                object_format,
+                ..
+            } = role
+            else {
+                panic!("builtin object role");
+            };
+            assert_eq!(*target_profile, target.wire_id());
+            assert_eq!(*object_format, target.id().object_format());
+        }
+        let actual_ids = members.iter().map(|(id, _)| *id).collect::<Vec<_>>();
+        if let Some(ids) = &ids {
+            assert_eq!(&actual_ids, ids);
+        }
+        ids = Some(actual_ids);
+    }
 }
 
 fn fixture(include_bridge: bool) -> Fixture {

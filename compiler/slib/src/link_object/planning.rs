@@ -47,6 +47,7 @@ impl GeneratedBridgeUnitMemberAssignmentV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PlannedLinkObjectMemberSetV1 {
     producer: ConeIdentity,
+    target: scoop_lir::LirTargetProfile,
     scoop_lir_members: Vec<PlannedScoopLirObjectMemberV1>,
     generated_bridge_members: Vec<PlannedGeneratedBridgeObjectMemberV1>,
     definition_assignments: Vec<DefinitionPlanMemberAssignmentV1>,
@@ -55,6 +56,7 @@ pub struct PlannedLinkObjectMemberSetV1 {
 
 impl PlannedLinkObjectMemberSetV1 {
     pub fn new(
+        target: scoop_lir::LirTargetProfile,
         partition: &ProducerUnitPartitionV1,
         scoop_lir_unit_sets: Vec<CanonicalScoopLirObjectUnitSetV1>,
         generated_bridge_unit_sets: Vec<CanonicalGeneratedBridgeObjectUnitSetV1>,
@@ -66,7 +68,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         let mut scoop_lir_members = scoop_lir_unit_sets
             .into_iter()
-            .map(|units| PlannedScoopLirObjectMemberV1::new(producer, units))
+            .map(|units| PlannedScoopLirObjectMemberV1::new(producer, target, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         scoop_lir_members.sort_unstable_by_key(PlannedScoopLirObjectMemberV1::member_id);
@@ -105,7 +107,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         let mut generated_bridge_members = generated_bridge_unit_sets
             .into_iter()
-            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(producer, units))
+            .map(|units| PlannedGeneratedBridgeObjectMemberV1::new(producer, target, units))
             .collect::<Result<Vec<_>, _>>()
             .map_err(LinkObjectMemberSetPlanError::Member)?;
         generated_bridge_members
@@ -178,6 +180,7 @@ impl PlannedLinkObjectMemberSetV1 {
 
         Ok(Self {
             producer,
+            target,
             scoop_lir_members,
             generated_bridge_members,
             definition_assignments: definition_assignments
@@ -194,6 +197,10 @@ impl PlannedLinkObjectMemberSetV1 {
                 .map(|(unit, member)| GeneratedBridgeUnitMemberAssignmentV1 { unit, member })
                 .collect(),
         })
+    }
+
+    pub const fn target(&self) -> scoop_lir::LirTargetProfile {
+        self.target
     }
 
     pub const fn producer(&self) -> ConeIdentity {

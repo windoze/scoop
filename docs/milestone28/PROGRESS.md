@@ -19,6 +19,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 正式 LLVM 对象分区现已物化 ELF atom 边界和 metadata 指纹补丁位置。LIR 物理 atom 按对象格式选择 EH/compact-unwind 与 TLS；ELF label 使用真实 extent，end size 为零，stackmap 输入允许 relocation。现有 typed symbol plan 决定 hidden visibility 和 COMDAT，同 member 的 backend contributions 加入实际 callable group；ELF 编辑保留旧 section/symbol 索引，不重建 RELA、TLS 或 merge-entry 格式。Linux backend 的 CPU 字段同步为实际 `x86-64`。`.slib` 的 builtin ELF reader/finalizer、generated-C 边界与最终 executable 仍在后续批次。
 - 后续按设计完成 target/toolchain、ELF/codegen/runtime、正式 CLI 与多 Cone，再进行三种 Linux 链接配置及 macOS/AArch64 回归。
 - generated-C 的共有 typed bridge plan 现按 ELF/Mach-O 分派边界物化；ELF 使用实际函数 extent、hidden strong symbols 和只读的一字节 callback signature marker，Darwin 发射形式保持。正式 C invocation 已能编译两 libc 的 outbound、TLS accessor 和 managed callback trampoline；builtin `.slib` ELF 消费接入仍待完成。
+- builtin `.slib` member 规划及 materialization replay 已显式携带实际 target，正确设置两个 Linux target 的 ELF role；driver 两种对象生产入口与 Compile/Link reader 均传递原选择，symbol plan 拒绝与 member plan 混用 target。member 身份及 logical-key bytes 保持既有规则。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
 
@@ -43,3 +44,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - LLVM ELF 对象：3 项新增测试通过，两 libc × O0/O2 × 普通/COMDAT 分段 × GC/异常两组真实 LIR，共 16 份对象；涵盖零/单/aggregate 根、`byval`/`sret`、直接/间接 invoke、catch/cleanup，以及坏 frame size、EH pointer addend/relocation 和缺少 `noredzone` 的诊断。共有 artifact 19 项、statepoint 14 项和 Darwin 异常实际对象 2 项回归通过。Darwin O2 验证暴露旧 LLVM C API relocation 名称读取的多余字节问题，现统一通过 `object` 的数值字段读取并复用一次文件解析；实际 Mac 执行回归仍在总验收阶段。workspace fmt/clippy 通过。
 - ELF 物化经过两 libc × 普通/ODR 正式 `emit_object_set` 测试，检查全部 planned boundaries、零初始化与非零初始化 TLS、hidden symbol、真实 COMDAT membership、可重定位 stackmap flags 及所有零值指纹槽。GNU ld 对同一份 ODR callable member 输入两次后，合并对象仍通过同一 stackmap/EH 检查。Linux codegen 4 项、LIR 479 项、Darwin 对象分区 6 项测试通过，workspace fmt/clippy 通过。清理完成的 codegen 探针及失败测试遗留，Rust target/debug 保持约 1.3 GiB。
 - generated-C ELF 新增实际编译/链接/运行测试：通过正式 `emit_c_bridge_object_set` 在 glibc 与 musl 各产生 5 个成员，检查 planned boundaries、符号尺寸/visibility、无 C unwind table；运行 outbound 参数与返回、native TLS 读写/取址，以及 signature/context/argument/result callback 传递。callback 测试使用 C harness 的 runtime gateway stub，只验证 C bridge ABI，不代表完整 managed callback/GC 验收。原有 C layout/bridge 32 项测试与 workspace fmt/clippy 均通过。
+- member target 传递变更通过 slib 全部 593 项单元测试和 driver 的 3 项对象规划测试，新增三 target 的 Scoop/generated-C role 矩阵与 Linux materialization replay 检查；Darwin 原有 canonical logical-key 向量保持。workspace fmt/clippy 通过。

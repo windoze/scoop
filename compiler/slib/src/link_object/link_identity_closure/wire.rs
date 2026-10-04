@@ -478,12 +478,13 @@ impl SymbolProjectionCheckedLinkIdentityClosureSectionV1 {
 impl DecodedLinkIdentityClosureSectionV1 {
     pub fn validate_materializations(
         self,
+        target: scoop_lir::LirTargetProfile,
         partition: &ProducerUnitPartitionV1,
     ) -> Result<
         MaterializationCheckedLinkIdentityClosureSectionV1,
         LinkObjectMaterializationValidationError,
     > {
-        let member_plan = self.replay_materializations(partition)?;
+        let member_plan = self.replay_materializations(target, partition)?;
         Ok(MaterializationCheckedLinkIdentityClosureSectionV1 {
             decoded: self,
             member_plan,

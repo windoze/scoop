@@ -325,6 +325,7 @@ pub(in crate::link_object) fn member_plan(
         .map(|unit| CanonicalGeneratedBridgeObjectUnitSetV1::new(vec![unit.unit()]).unwrap())
         .collect();
     PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![fixture.lir_plan]).unwrap()],
         bridge_sets,
