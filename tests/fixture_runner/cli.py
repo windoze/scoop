@@ -56,12 +56,16 @@ def tool_output(argv):
     return result.stdout.decode().strip()
 
 
-def environment(repo, work, fixtures, args):
-    host = (platform.system(), platform.machine())
-    supported = {
+def host_targets():
+    return {
         ("Darwin", "arm64"): ["aarch64-apple-darwin"],
         ("Linux", "x86_64"): ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
-    }.get(host, [])
+    }.get((platform.system(), platform.machine()), [])
+
+
+def environment(repo, work, fixtures, args):
+    host = (platform.system(), platform.machine())
+    supported = host_targets()
     target = args.target or (supported[0] if supported else None)
     if target not in supported:
         raise EnvironmentError(f"target {target!r} cannot execute on fixture host {host}")
@@ -158,7 +162,9 @@ def main(argv=None):
     repo = Path(__file__).resolve().parents[2]
     suite = (args.suite or repo / "tests/fixtures").resolve()
     try:
-        fixtures = discover(suite, args.update_snapshots)
+        supported = host_targets()
+        target = args.target or (supported[0] if supported else None)
+        fixtures = discover(suite, args.update_snapshots, target)
         selected = [
             fixture
             for fixture in fixtures

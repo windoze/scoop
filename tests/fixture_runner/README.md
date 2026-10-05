@@ -116,7 +116,7 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 所有后台步骤必须有 wait。失败或中断时 runner 清理自己启动的进程并收割。
 wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完成后才可用。
 变量按每个变体分别校验，不能借用其他变体才声明的变量。
-长诊断 JSON 文件在发现时加载和校验引用，避免启动编译后才发现配置错误。
+长诊断 JSON 文件在发现时加载和校验引用，避免启动编译后才发现配置错误。文件名可含 `${target}`，按当前目标加载；fixture 必须声明 `targets`。仅列举或目标不适用时用其首个声明目标校验格式，诊断内容仍完整比较且不受 snapshot 更新影响。
 不允许逐 case Python/shell 编排脚本、动态 predicate 或专用注册表。
 
 报告单列用例、变体、进程和 golden 数量，不将支持文件或目标不适用项计作通过。

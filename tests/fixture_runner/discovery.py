@@ -50,7 +50,7 @@ def expectation_files(value, base, update):
                 expectation_files(item, base, update)
 
 
-def discover(suite: Path, update=False):
+def discover(suite: Path, update=False, target=None):
     sources = set(suite.rglob("*.scoop"))
     carriers = sorted(set(suite.rglob("*.fixture.toml")) | set(suite.rglob("fixture.toml")))
     raw = [(carrier, tomllib.loads(carrier.read_text())) for carrier in carriers]
@@ -64,7 +64,7 @@ def discover(suite: Path, update=False):
     for locator, data in raw:
         try:
             base = locator.parent
-            validate(data, base)
+            validate(data, base, target)
             expectation_files(data["steps"], base, update)
             inputs = input_files(base, data["inputs"])
             support = input_files(base, data.get("support", []))

@@ -4,7 +4,7 @@ import re
 
 from . import schema_values as values
 from .model import ConfigurationError
-from .values import json_value, references
+from .values import expand, json_value, references
 
 TOP = {
     "schema",
@@ -112,7 +112,7 @@ def variables(value, where):
         values.require(key not in BUILTINS, f"{where}: reserved variable {key}")
 
 
-def validate(data, base=None):
+def validate(data, base=None, target=None):
     fields(data, TOP, {"schema", "name", "inputs", "steps"}, "fixture")
     if type(data["schema"]) is not int or data["schema"] != 1:
         raise ConfigurationError("fixture schema must be 1")
@@ -144,7 +144,18 @@ def validate(data, base=None):
     for step in data["steps"]:
         if base is not None and isinstance(step, dict) and "diagnostics" in step:
             try:
-                step["diagnostics"] = json_value(step["diagnostics"], base)
+                expected = step["diagnostics"]
+                if isinstance(expected, dict) and set(expected) == {"file"}:
+                    parameters = set(references(expected))
+                    if parameters:
+                        targets = data.get("targets", [])
+                        values.require(
+                            parameters == {"target"} and targets,
+                            "diagnostics file parameters require ${target} and declared targets",
+                        )
+                        selected = target if target in targets else targets[0]
+                        expected = expand(expected, {"target": selected})
+                step["diagnostics"] = json_value(expected, base)
             except (OSError, ValueError) as error:
                 raise ConfigurationError(f"diagnostics expectation: {error}") from error
         validate_step(step)

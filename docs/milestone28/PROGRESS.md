@@ -113,3 +113,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - macOS 回归修复两个宿主适配问题：绕过 inkwell 按宿主追加 Mach-O 逗号的 section setter，直接使用目标 profile 的精确 section 名；Darwin OS adapter 显式开启 Darwin 原生声明，兼容设置 POSIX feature macro 的 runtime 测试。Linux codegen 331 项及 M3 上 LLVM 22.1.8 的 codegen 317 项全部通过，两个宿主的 workspace fmt/clippy 通过。远程使用 `~/repos/scoop/target/m28-darwin` 隔离 worktree，主工作区原有改动未覆盖；完整文件 fixture 仍在执行。
 
 - 同一泛型 callable 同时出现在 storage 定义 Cone 和其下游时，导入 storage 的默认 ELF visibility 曾使下游生成 GOT 间接访问，与本地直接访问的机器码不一致。导入 Scoop storage 现复用实际使用声明的 hidden visibility，未使用声明仍不产生额外符号。正式 demanded-initialization 独立/跨 Cone 两个程序已通过；原有 ODR 对象/LIR/ABI/stackmap 指纹一致性检查保持。
+
+- 完整诊断的 JSON 期望文件可按 `${target}` 选择，仍在发现阶段加载并检查引用，且不参与 snapshot 自动更新；用于精确比较不同目标的 LIR fingerprint 与原生格式诊断。runner 公共规则 37 项和 Ruff 0.16.10 通过。
