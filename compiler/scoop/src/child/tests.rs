@@ -206,7 +206,7 @@ fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
         fake_compiler_body(
             &compiler,
             &format!(
-                "test -n \"$PATH\" || exit 9\ntest -x \"$REALGCC\" || exit 9\ncase \"$TMPDIR\" in \"$SCOOP_SYSROOT\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9\nprintf '{response}'"
+                "/bin/cat >/dev/null\ntest -n \"$PATH\" || exit 9\ntest -x \"$REALGCC\" || exit 9\ncase \"$TMPDIR\" in \"$SCOOP_SYSROOT\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9\nprintf '{response}'"
             ),
         );
         let io = ChildIoPlan::new(directory.path().to_owned(), directory.path().to_owned())
