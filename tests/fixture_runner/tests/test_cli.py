@@ -40,6 +40,16 @@ class EnvironmentTests(unittest.TestCase):
             locate.assert_called_once_with("musl-gcc")
             discover.assert_not_called()
             self.assertEqual(common["cc"], "/opt/musl-gcc")
+            self.assertEqual(common["cc_args"], ["-fPIC", "-pthread"])
+            self.assertEqual(common["compile_args"], ["--target", "x86_64-unknown-linux-musl"])
+            self.assertEqual(
+                common["link_args"],
+                common["compile_args"]
+                + [
+                    "--unwind-prefix",
+                    str(repo / "sysroot/native/x86_64-unknown-linux-musl/unwind"),
+                ],
+            )
             self.assertNotIn("sdk", common)
             self.assertNotIn("ar", common)
 

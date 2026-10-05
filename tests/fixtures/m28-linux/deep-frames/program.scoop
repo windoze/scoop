@@ -1,0 +1,48 @@
+@CLayout(aligned = 16L)
+struct Words(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+struct Empty()
+class Box(val text: String)
+@Global var unwound: Int = 0
+
+fun descend(depth: Int, words: Words, empty: Empty, root: Box,
+            a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int): Words {
+    if (depth == 0) {
+        val fresh = Box(root.text + "!")
+        if (fresh.text != "retained!") { throw IllegalStateException() }
+        return Words(words.a, words.b, words.c, words.d, words.e, words.f, words.g, words.h)
+    }
+    val result = descend(depth - 1, words, empty, root, a, b, c, d, e, f, g, h)
+    if (root.text != "retained" || a + b + c + d + e + f + g + h != 36 ||
+        result.a != 1L || result.h != 8L) { throw IllegalStateException() }
+    return result
+}
+
+fun throwDeep(depth: Int, root: Box) {
+    if (depth == 0) {
+        val fresh = Box(root.text + "!")
+        if (fresh.text != "retained!") { throw IllegalStateException() }
+        throw IllegalStateException()
+    }
+    try {
+        throwDeep(depth - 1, root)
+    } finally {
+        if (root.text != "retained") { throw IllegalStateException() }
+        unwound += 1
+    }
+}
+
+fun main() {
+    val call: (Int, Words, Empty, Box, Int, Int, Int, Int, Int, Int, Int, Int) -> Words = ::descend
+    val root = Box("retained")
+    val result = call(2048, Words(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L), Empty(), root,
+                      1, 2, 3, 4, 5, 6, 7, 8)
+    if (result.b + result.c + result.d + result.e + result.f + result.g != 27L) {
+        throw IllegalStateException()
+    }
+    var caught = false
+    try { throwDeep(600, root) }
+    catch (error: IllegalStateException) { caught = true }
+    if (!caught || unwound != 600 || root.text != "retained") { throw IllegalStateException() }
+    println("deep frames passed")
+}

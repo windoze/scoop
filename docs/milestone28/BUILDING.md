@@ -103,6 +103,10 @@ python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/native-dso \
 constructor、动态 TLS、DSO 调用静态 archive、重链接及错误版本不覆盖旧输出。
 Linux 的同名导出遵循 ELF 平坦命名空间；不能同时实现的显式库绑定会报符号冲突。
 
+`tests/fixtures/m28-linux/deep-frames` 覆盖 2,048 层递归中的移动 GC、间接调用、
+零尺寸值、16 字节对齐的大聚合和溢出到栈的标量参数，以及 600 层异常 cleanup。
+同一 runner 可分别选择两种 libc；musl 另有显式 PIE 变体。
+
 大量 fixture 可先用 `cargo build --release -p scoop -p scoopc -p scoop-linker --bins`
 构建优化版工具，再给 runner 传入 `--scoop target/release/scoop`
 `--scoopc target/release/scoopc --scoop-link target/release/scoop-link`。

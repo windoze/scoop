@@ -2,6 +2,7 @@
 
 import argparse
 import dataclasses
+import errno
 import fnmatch
 import json
 import os
@@ -68,8 +69,22 @@ def environment(repo, work, fixtures, args):
         "cache": str(work / "cache"),
         "sysroot": str(work / "sysroot"),
         "target": target,
+        "target_profile": {
+            "aarch64-apple-darwin": "darwin-aarch64",
+            "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
+            "x86_64-unknown-linux-musl": "linux-x86-64-musl",
+        }[target],
+        "symbol_prefix": "_" if target == "aarch64-apple-darwin" else "",
+        "errno_eloop": errno.ELOOP,
         "python": sys.executable,
+        "compile_args": ["--target", target],
+        "cc_args": [],
     }
+    if target != "aarch64-apple-darwin" and args.cc:
+        common["compile_args"] += ["--cc", str(args.cc.resolve())]
+    common["link_args"] = list(common["compile_args"])
+    if target != "aarch64-apple-darwin":
+        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/native" / target / "unwind")]
     applicable = [
         fixture
         for fixture in fixtures
@@ -96,7 +111,15 @@ def environment(repo, work, fixtures, args):
             sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
             deployment=tool_output(["/usr/bin/sw_vers", "-productVersion"]),
         )
+        common["cc_args"] = [
+            "-target",
+            target,
+            "-isysroot",
+            common["sdk"],
+            "-mmacosx-version-min=" + common["deployment"],
+        ]
     elif needed & {"cc", "ar"}:
+        common["cc_args"] = ["-fPIC", "-pthread"]
         for name, program in {
             "cc": str(args.cc) if args.cc else "musl-gcc" if target.endswith("musl") else "gcc",
             "ar": "ar",

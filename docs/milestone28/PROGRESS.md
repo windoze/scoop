@@ -95,3 +95,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - workspace 回归发现 `scoop` 的依赖发现、图排序及 immutable snapshot 测试仍固定调用 Darwin 工具链。相关请求现使用宿主 target，合成 artifact 显式携带测试所需 target；Darwin 格式与缓存固定向量继续使用原 profile。`scoop` 全部 96 项单元测试通过，workspace fmt/clippy 通过；别名测试继续覆盖宿主 canonical/alias 的同一规范化。完整 workspace 的其余 crate 回归仍在进行。
 
 - 既有 raw globals/TLS fixture 在 GNU ld 暴露 unused hidden TLS 声明被 LLVM 发成 `STT_NOTYPE` 的问题。ELF 发射现只将实际使用的外部声明设为 hidden，未使用声明保持默认 visibility，不再生成这类伪 undefined symbol；真实 TLS 定义和引用保持 `STT_TLS`。两 libc 的对象测试增加符号类型断言，codegen 全部 330 项测试及 workspace fmt/clippy 通过。glibc 的 raw globals、跨 Cone 多线程 TLS/callback 与 Scoop ABI 大值/moving GC 三个正式 fixture 已通过，共 6 个 variant、28 个进程。fixture 的全面平台参数和快照迁移仍在进行，尚未计作整体完成。
+
+- fixture runner 提供共有编译、链接、native companion 参数及目标目录名、符号前缀、宿主 ELOOP 常量，沿用 schema 1 的参数展开；平台相关快照按实际 target 分开。新增 deep-frames 正式程序：2,048 层递归中传递 ZST、16 字节对齐的 64-byte 值和八个标量，经函数值间接调用并跨移动 GC 保留引用；600 层异常 cleanup 验证上层根和执行次数。glibc 的 debug/release 两个变体及 musl 静态 debug/release、PIE release 三个变体全部通过，共 10 个正式进程。Python 公共规则 34 项及 Ruff 0.16.10 通过。既有 fixture 的大批迁移尚未完成全部目标验收。

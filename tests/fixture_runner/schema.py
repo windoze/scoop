@@ -72,6 +72,9 @@ BUILTINS = {
     "scoopc",
     "scoop-link",
     "cc",
+    "cc_args",
+    "compile_args",
+    "link_args",
     "ar",
     "sdk",
     "deployment",
@@ -79,6 +82,9 @@ BUILTINS = {
     "variant",
     "variants",
     "target",
+    "target_profile",
+    "symbol_prefix",
+    "errno_eloop",
     "python",
 }
 
