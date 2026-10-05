@@ -23,7 +23,7 @@ impl WireEncode for NativeInputs {
                         record.id.encode(e)?;
                     }
                 }
-                NativeContent::Object(_) => e.array(0)?,
+                NativeContent::Object(_) | NativeContent::ElfDynamic(_) => e.array(0)?,
                 NativeContent::Archive(members) => {
                     e.array(members.len() as u64)?;
                     for member in members {
@@ -56,7 +56,7 @@ impl NativeInputs {
         }
         for file in self.ordered_files() {
             match &file.content {
-                NativeContent::Dynamic(_) => continue,
+                NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => continue,
                 NativeContent::Object(_) => text.push_str(&format!(
                     "native object {} slice={}..{}\n",
                     file.id, file.slice.start, file.slice.end

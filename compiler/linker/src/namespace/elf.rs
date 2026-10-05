@@ -1,23 +1,75 @@
 use super::*;
+pub(crate) use crate::native_input::elf_dynamic::dynamic_strings;
+use crate::native_input::elf_dynamic::{ElfDynamic, ElfExport, ElfImport, ElfSymbols};
 use object::read::archive::ArchiveFile;
-use object::read::elf::{Dyn, ElfFile64, ProgramHeader};
+use object::read::elf::ElfFile64;
 use object::{Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, SectionFlags, elf};
-use scoop_toolchain::LinuxFinalLinkProfile;
 use std::collections::BTreeSet;
+use std::sync::Arc;
+
+mod final_image;
+mod graph;
+mod plan;
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod tests;
+
+#[derive(Clone)]
+pub(crate) enum ElfBinding {
+    System(NativeSymbolDefinition),
+    Shared {
+        input: NativeInputId,
+        export: ElfExport,
+    },
+}
+impl ElfBinding {
+    pub fn definition(&self) -> NativeSymbolDefinition {
+        match self {
+            Self::System(definition) => *definition,
+            Self::Shared { export, .. } => export.definition,
+        }
+    }
+}
+
+pub(crate) struct ElfProvider {
+    pub name: String,
+    pub locator: PathBuf,
+    pub interface: Arc<ElfDynamic>,
+}
 
 pub(crate) struct ElfNamespace {
     pub system: BTreeMap<String, NativeSymbolDefinition>,
-    pub bindings: BTreeMap<String, NativeSymbolDefinition>,
+    pub bindings: BTreeMap<String, ElfBinding>,
+    pub system_interfaces: BTreeMap<String, ElfSymbols>,
+    pub providers: BTreeMap<NativeInputId, ElfProvider>,
+    pub roots: Vec<NativeInputId>,
+    pub selected: BTreeSet<NativeInputId>,
+    pub expanded: BTreeSet<NativeInputId>,
+    pub edges: BTreeMap<NativeInputId, Vec<NativeInputId>>,
+    pub rpaths: BTreeSet<PathBuf>,
     pub paths: Vec<PathBuf>,
     pub needed: BTreeSet<String>,
 }
 
 impl ElfNamespace {
-    pub fn read(profile: &LinuxFinalLinkProfile) -> Result<Self, LinkError> {
+    pub fn read(
+        native: &mut NativeInputs,
+        roots: &[PathBuf],
+        profile: &ValidatedFinalLinkProfile,
+    ) -> Result<Self, LinkError> {
+        let ValidatedFinalLinkProfile::Linux(linux) = profile else {
+            return Err(error("ELF namespace requires a Linux target"));
+        };
         let mut result = Self {
             system: BTreeMap::new(),
+            system_interfaces: BTreeMap::new(),
+            providers: BTreeMap::new(),
+            roots: Vec::new(),
+            selected: BTreeSet::new(),
+            expanded: BTreeSet::new(),
+            edges: BTreeMap::new(),
+            rpaths: BTreeSet::new(),
             bindings: BTreeMap::new(),
-            paths: profile.input_paths().map(PathBuf::from).collect(),
+            paths: linux.input_paths().map(PathBuf::from).collect(),
             needed: BTreeSet::new(),
         };
         for path in &result.paths {
@@ -35,95 +87,84 @@ impl ElfNamespace {
                 for member in archive.members() {
                     let member = member.map_err(error)?;
                     let data = member.data(bytes.as_slice()).map_err(error)?;
-                    result.system.extend(exports(data, false)?);
+                    result.system.extend(exports(data)?);
                 }
             } else if bytes.starts_with(b"\x7fELF") {
-                result.system.extend(exports(&bytes, true)?);
-                let file: ElfFile64<'_> = ElfFile64::parse(bytes.as_slice()).map_err(error)?;
-                let mut soname = false;
-                for (tag, value) in dynamic_strings(&file)? {
-                    if tag == elf::DT_SONAME {
-                        soname = true;
-                        result.needed.insert(value);
+                let interface = ElfDynamic::read(&bytes, profile.id())?;
+                let name = interface.soname.as_deref().unwrap_or(name).to_owned();
+                for (symbol, exports) in &interface.symbols.exports {
+                    if let Some(export) = exports.iter().find(|export| export.default) {
+                        result.system.insert(symbol.clone(), export.definition);
                     }
                 }
-                if !soname {
-                    result.needed.insert(name.to_owned());
-                }
+                result.needed.insert(name.clone());
+                result.system_interfaces.insert(name, interface.symbols);
             }
             // GNU libc development .so scripts name the concrete ELF files in
             // the same driver trace. Their text is already part of the profile.
         }
+        result.read_graph(native, roots, profile)?;
         Ok(result)
     }
 
-    pub fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        // Actual CRT/library bytes are covered by the final toolchain profile.
-        e.array(2)?;
-        e.unsigned(2)?;
-        e.array(self.bindings.len() as u64)?;
-        for symbol in self.bindings.keys() {
-            e.text(symbol)?;
+    pub fn candidates(&self, symbol: &str, explicit: Option<NativeInputId>) -> Vec<NativeBinding> {
+        let mut result = Vec::new();
+        for id in self
+            .roots
+            .iter()
+            .filter(|id| explicit.is_none_or(|explicit| explicit == **id))
+        {
+            if let Some(export) = self.providers[id].interface.symbols.find(symbol, None) {
+                result.push(NativeBinding::Elf(ElfBinding::Shared {
+                    input: *id,
+                    export: export.clone(),
+                }));
+            }
         }
-        Ok(())
+        if explicit.is_none()
+            && let Some(definition) = self.system.get(symbol)
+        {
+            result.push(NativeBinding::Elf(ElfBinding::System(*definition)));
+        }
+        result
+    }
+
+    pub fn system_import(&self, import: &ElfImport) -> bool {
+        if import.version.is_none() {
+            return self.system.contains_key(&import.name);
+        }
+        if let Some(library) = &import.library {
+            return self.system_interfaces.get(library).is_some_and(|symbols| {
+                symbols
+                    .find(&import.name, import.version.as_deref())
+                    .is_some()
+            });
+        }
+        self.system_interfaces.values().any(|symbols| {
+            symbols
+                .find(&import.name, import.version.as_deref())
+                .is_some()
+        })
     }
 }
 
-fn exports(
-    bytes: &[u8],
-    dynamic: bool,
-) -> Result<BTreeMap<String, NativeSymbolDefinition>, LinkError> {
+fn exports(bytes: &[u8]) -> Result<BTreeMap<String, NativeSymbolDefinition>, LinkError> {
     let file: ElfFile64<'_> = ElfFile64::parse(bytes).map_err(error)?;
     if file.architecture() != Architecture::X86_64
         || !file.is_little_endian()
-        || file.kind()
-            != if dynamic {
-                ObjectKind::Dynamic
-            } else {
-                ObjectKind::Relocatable
-            }
+        || file.kind() != ObjectKind::Relocatable
     {
         return Err(error(
             "selected system input is not the expected ELF64 amd64 object",
         ));
     }
-    let endian = file.endian();
-    let sections = file.elf_section_table();
-    let versions = if dynamic {
-        sections.versions(endian, bytes).map_err(error)?
-    } else {
-        None
-    };
-    if dynamic
-        && let Some((indices, table)) = sections.gnu_versym(endian, bytes).map_err(error)?
-        && (indices.len() != file.elf_dynamic_symbol_table().len()
-            || table != file.elf_dynamic_symbol_table().section())
-    {
-        return Err(error(
-            "ELF symbol versions do not match the dynamic symbol table",
-        ));
-    }
-    let symbols = if dynamic {
-        file.dynamic_symbols()
-    } else {
-        file.symbols()
-    };
+    let symbols = file.symbols();
     let mut result = BTreeMap::new();
     for symbol in symbols {
         if !symbol.is_global() || symbol.is_undefined() {
             continue;
         }
         let raw = symbol.elf_symbol();
-        if dynamic && !matches!(raw.st_visibility(), elf::STV_DEFAULT | elf::STV_PROTECTED) {
-            continue;
-        }
-        if let Some(versions) = &versions {
-            let index = versions.version_index(endian, symbol.index());
-            if index.is_local() || index.is_hidden() {
-                continue;
-            }
-            versions.version(index).map_err(error)?;
-        }
         let kind = match raw.st_type() {
             elf::STT_FUNC | elf::STT_GNU_IFUNC => NativeSymbolKind::Function,
             elf::STT_OBJECT | elf::STT_COMMON => NativeSymbolKind::Data,
@@ -148,34 +189,4 @@ fn exports(
         );
     }
     Ok(result)
-}
-
-pub(crate) fn dynamic_strings(file: &ElfFile64<'_>) -> Result<Vec<(u32, String)>, LinkError> {
-    let mut values = Vec::new();
-    for segment in file.elf_program_headers() {
-        if let Some(entries) = segment.dynamic(file.endian(), file.data()).map_err(error)? {
-            for entry in entries {
-                let tag = entry.d_tag(file.endian());
-                if tag == u64::from(elf::DT_NULL) {
-                    break;
-                }
-                if matches!(
-                    tag as u32,
-                    elf::DT_SONAME | elf::DT_NEEDED | elf::DT_RPATH | elf::DT_RUNPATH
-                ) {
-                    let offset = u32::try_from(entry.d_val(file.endian())).map_err(error)?;
-                    let value = file
-                        .elf_dynamic_symbol_table()
-                        .strings()
-                        .get(offset)
-                        .map_err(|_| error("ELF dynamic string exceeds its table"))?;
-                    values.push((
-                        tag as u32,
-                        std::str::from_utf8(value).map_err(error)?.to_owned(),
-                    ));
-                }
-            }
-        }
-    }
-    Ok(values)
 }

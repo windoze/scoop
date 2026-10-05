@@ -89,21 +89,7 @@ pub(crate) fn verify(
     let crate::namespace::NativeNamespace::Elf(namespace) = &inputs.namespace else {
         return Err(error("ELF output requires an ELF namespace"));
     };
-    for symbol in image
-        .file
-        .dynamic_symbols()
-        .filter(|symbol| symbol.is_undefined() && !symbol.is_weak())
-    {
-        let name = symbol.name().map_err(error)?;
-        if !name.is_empty() && !namespace.system.contains_key(name) {
-            return Err(error(format!("unresolved final ELF import {name}")));
-        }
-    }
-    for (tag, value) in crate::namespace::elf::dynamic_strings(&image.file)? {
-        if tag == elf::DT_NEEDED && !namespace.needed.contains(&value) {
-            return Err(error(format!("unexpected ELF dependency {value}")));
-        }
-    }
+    namespace.check_final(&image.file)?;
     stackmaps::check(&image, inputs)?;
     Ok(())
 }

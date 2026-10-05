@@ -132,7 +132,15 @@ pub(super) fn resolve(
             }
             Candidate::Definition => continue,
             Candidate::Dynamic(binding) => {
-                inputs.namespace.bind(symbol, binding)?;
+                for requirement in inputs.namespace.bind(symbol.clone(), binding)? {
+                    inputs.requirements.insert(requirement.clone());
+                    inputs
+                        .requirement_origins
+                        .entry(requirement.clone())
+                        .or_default()
+                        .push(format!("native dynamic input selected by {symbol}"));
+                    pending.insert(requirement);
+                }
             }
         }
     }

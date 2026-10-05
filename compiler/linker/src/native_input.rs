@@ -11,6 +11,7 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 use crate::{LinkError, error, native_object::NativeObjectIndex};
 
 mod archive;
+pub(crate) mod elf_dynamic;
 mod objects;
 mod plan;
 pub(crate) use objects::{NativeArchiveMemberId, NativeObjectId};
@@ -44,6 +45,7 @@ pub(crate) enum NativeContent {
     Object(NativeObjectIndex),
     Archive(Vec<archive::Member>),
     Dynamic(Vec<Arc<crate::dynamic::DynamicProvider>>),
+    ElfDynamic(Arc<elf_dynamic::ElfDynamic>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +55,7 @@ pub(crate) enum NativeFileKind {
     Dylib = 3,
     TextStub = 4,
     Framework = 5,
+    SharedObject = 6,
 }
 
 impl NativeInputId {

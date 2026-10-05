@@ -24,7 +24,7 @@ pub(crate) enum NativeNamespace {
 
 pub(crate) enum NativeBinding {
     Darwin(DynamicBinding),
-    ElfSystem(NativeSymbolDefinition),
+    Elf(elf::ElfBinding),
 }
 
 impl NativeBinding {
@@ -34,14 +34,14 @@ impl NativeBinding {
                 ExportStorage::Definition(definition) => Some(definition),
                 ExportStorage::InterfaceOnly => None,
             },
-            Self::ElfSystem(definition) => Some(*definition),
+            Self::Elf(binding) => Some(binding.definition()),
         }
     }
 
     pub fn is_tls(&self) -> bool {
         match self {
             Self::Darwin(binding) => binding.interface.kind == SystemExportKind::ThreadLocal,
-            Self::ElfSystem(definition) => definition.kind == NativeSymbolKind::ThreadLocal,
+            Self::Elf(binding) => binding.definition().kind == NativeSymbolKind::ThreadLocal,
         }
     }
 }
@@ -57,7 +57,9 @@ impl NativeNamespace {
                 providers: DynamicInputs::read(native, roots, profile)?,
                 bindings: BTreeMap::new(),
             })),
-            ValidatedFinalLinkProfile::Linux(profile) => ElfNamespace::read(profile).map(Self::Elf),
+            ValidatedFinalLinkProfile::Linux(_) => {
+                ElfNamespace::read(native, roots, profile).map(Self::Elf)
+            }
         }
     }
 
@@ -79,22 +81,23 @@ impl NativeNamespace {
                 .providers
                 .candidates(native, symbol, explicit)
                 .map(|values| values.into_iter().map(NativeBinding::Darwin).collect()),
-            Self::Elf(namespace) => Ok(namespace
-                .system
-                .get(symbol)
-                .filter(|_| explicit.is_none())
-                .map(|definition| vec![NativeBinding::ElfSystem(*definition)])
-                .unwrap_or_default()),
+            Self::Elf(namespace) => Ok(namespace.candidates(symbol, explicit)),
         }
     }
 
-    pub fn bind(&mut self, symbol: String, binding: NativeBinding) -> Result<(), LinkError> {
+    pub fn bind(
+        &mut self,
+        symbol: String,
+        binding: NativeBinding,
+    ) -> Result<Vec<String>, LinkError> {
+        let mut requirements = Vec::new();
         match (self, binding) {
             (Self::Darwin(namespace), NativeBinding::Darwin(binding)) => {
                 namespace.bindings.insert(symbol, binding);
             }
-            (Self::Elf(namespace), NativeBinding::ElfSystem(definition)) => {
-                namespace.bindings.insert(symbol, definition);
+            (Self::Elf(namespace), NativeBinding::Elf(binding)) => {
+                requirements = namespace.import_requirements(&binding);
+                namespace.bindings.insert(symbol, binding);
             }
             _ => {
                 return Err(error(
@@ -102,7 +105,7 @@ impl NativeNamespace {
                 ));
             }
         }
-        Ok(())
+        Ok(requirements)
     }
 
     pub fn bound_symbols(&self) -> Vec<&String> {
@@ -125,6 +128,7 @@ impl NativeNamespace {
 
     pub fn project(
         &mut self,
+        definitions: &BTreeMap<String, crate::program::DefinitionOwner>,
         roots: &[PathBuf],
         profile: &ValidatedFinalLinkProfile,
     ) -> Result<(), LinkError> {
@@ -134,7 +138,7 @@ impl NativeNamespace {
                     .providers
                     .project(&namespace.bindings, roots, profile)
             }
-            Self::Elf(_) => Ok(()),
+            Self::Elf(namespace) => namespace.project(definitions),
         }
     }
 
@@ -160,7 +164,7 @@ impl NativeNamespace {
     pub fn dump(&self) -> String {
         match self {
             Self::Darwin(namespace) => namespace.providers.dump(&namespace.bindings),
-            Self::Elf(namespace) => format!("ELF system imports={}\n", namespace.bindings.len()),
+            Self::Elf(namespace) => namespace.dump(),
         }
     }
 }

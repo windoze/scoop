@@ -10,6 +10,7 @@ const OPTIONS: &[&str] = &[
     "-pthread",
     "-nodefaultlibs",
     "-Wl,--eh-frame-hdr",
+    "-Wl,--enable-new-dtags",
     "-Wl,--build-id=none",
     "-Wl,-z,relro,-z,now,-z,noexecstack,-z,text",
     "-Wl,--no-undefined",

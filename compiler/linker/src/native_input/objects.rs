@@ -59,7 +59,7 @@ impl WireEncode for NativeObjectId {
 impl NativeFile {
     pub fn candidate(&self, symbol: &str) -> Option<(NativeObjectId, &NativeObjectIndex)> {
         match &self.content {
-            NativeContent::Dynamic(_) => None,
+            NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => None,
             NativeContent::Object(index) => index
                 .info
                 .definitions
@@ -74,7 +74,7 @@ impl NativeFile {
 
     pub fn objects(&self) -> Vec<(NativeObjectId, &NativeObjectIndex, Range<usize>)> {
         match &self.content {
-            NativeContent::Dynamic(_) => Vec::new(),
+            NativeContent::Dynamic(_) | NativeContent::ElfDynamic(_) => Vec::new(),
             NativeContent::Object(index) => {
                 vec![(NativeObjectId::Direct(self.id), index, self.slice.clone())]
             }

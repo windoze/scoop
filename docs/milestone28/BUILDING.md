@@ -90,7 +90,24 @@ python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-program \
   --target x86_64-unknown-linux-musl --work-dir target/m28-program/musl
 ```
 
-其余 native DSO、功能组合及 macOS 回归的完成情况见 [实施记录](PROGRESS.md)。
+动态原生库的组合验证使用同一 runner：
+
+```sh
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/native-dso \
+  --target x86_64-unknown-linux-gnu --work-dir target/m28-native/gnu
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/native-dso \
+  --target x86_64-unknown-linux-musl --work-dir target/m28-native/musl
+```
+
+该用例显式选择 dynamic 模式，覆盖 SONAME、无 SONAME 库、版本化依赖、
+constructor、动态 TLS、DSO 调用静态 archive、重链接及错误版本不覆盖旧输出。
+Linux 的同名导出遵循 ELF 平坦命名空间；不能同时实现的显式库绑定会报符号冲突。
+
+大量 fixture 可先用 `cargo build --release -p scoop -p scoopc -p scoop-linker --bins`
+构建优化版工具，再给 runner 传入 `--scoop target/release/scoop`
+`--scoopc target/release/scoopc --scoop-link target/release/scoop-link`。
+这只优化 Rust 编译器工具自身，与被测 Scoop 程序的 debug/release 选择分开。
+更广的功能组合及 macOS 回归状态见 [实施记录](PROGRESS.md)。
 
 ## 构建目录管理
 

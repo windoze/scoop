@@ -81,7 +81,9 @@ pub(super) fn resolve(
         })?;
     }
     selection::resolve(inputs, declarations)?;
-    inputs.namespace.project(library_paths, profile)?;
+    inputs
+        .namespace
+        .project(&inputs.definitions, library_paths, profile)?;
     for file in inputs.native.ordered_files() {
         for (id, _, range) in file.objects() {
             if inputs.native.selected.contains_key(&id) {

@@ -2,6 +2,8 @@ use super::*;
 use scoop_toolchain::LinuxFinalLinkProfile;
 use std::collections::BTreeSet;
 
+mod shared;
+
 pub(super) fn link(
     profile: &LinuxFinalLinkProfile,
     inputs: &ProgramInputs<'_>,
@@ -18,6 +20,7 @@ pub(super) fn link(
         inputs.symbol("scoop_td_String"),
         inputs.string_target
     ));
+    let shared = shared::append(inputs, directory, &mut command)?;
     profile.append_system_libraries(&mut command);
     let result = command
         .scoop_output()
@@ -30,6 +33,7 @@ pub(super) fn link(
     }
     let allowed: BTreeSet<_> = paths
         .iter()
+        .chain(&shared)
         .map(PathBuf::as_path)
         .chain(profile.input_paths())
         .map(|path| std::fs::canonicalize(path).map_err(error))

@@ -1945,7 +1945,9 @@ Cone 的 defined/undefined 记录只覆盖带 `SlibMemberId` 的 `.slib` object�
 
 完整 extern 声明集合始终参与合同冲突与候选可用性检查；只有实际机器引用推动 archive 成员抽取。program-link 以实际 undefined 符号工作集闭合所需成员，包括成员之间及多个已提供 archive 之间的引用，选中的成员以独立对象交给系统 linker。同一归档内同名候选按物理成员顺序选择；重复被选的物理成员只加入一次，实际纳入的重复定义仍报冲突。归档循环引用由有限成员工作集处理，不要求用户重复列库或提供 whole-archive/group 参数。不被抽取的成员不贡献定义、引用、初始化或运行时效果；其容器、成员边界及候选符号索引仍须可正确读取。
 
-一般 dynamic provider 是已有 native FFI 实现，按实际 install name、export、re-export 与 load-command 依赖解析；它不是可动态加载的 Scoop Cone。非 re-export 的依赖不会自动成为父库的公开 export。final-link 使用 two-level binding，并把每个实际 import 关联到确定的 provider；多个库中存在同名 export 不足以改变一个显式 library binding，默认命名空间中的多 provider 则报歧义。普通 native 文件的依赖不能触发 Scoop 源码、C/C++ 编译或隐式目录搜索。
+一般 dynamic provider 是已有 native FFI 实现，不是可动态加载的 Scoop Cone。Darwin 按实际 install name、export、re-export 与 load-command 依赖解析；非 re-export 的依赖不会自动成为父库的公开 export。Darwin final-link 使用 two-level binding，并把每个实际 import 关联到确定的 provider；多个库中存在同名 export 不足以改变一个显式 library binding，默认命名空间中的多 provider 则报歧义。普通 native 文件的依赖不能触发 Scoop 源码或 C/C++ 编译。
+
+Linux 动态模式读取 ELF `.so` 的 SONAME、DT_NEEDED、版本化导出与 TLS 类型，未版本化的源码符号匹配默认版本；DT_NEEDED 不使子库导出自动成为父库的公开接口。显式 `lib` 仍要求该库自身提供兼容定义；ELF 的平坦命名空间若使实际链接顺序无法同时满足这些绑定，报原生符号冲突，不模拟 two-level binding。库依赖按显式搜索目录、已有 DSO 的 RPATH/RUNPATH（含 `$ORIGIN`）及所选系统库目录读取。无 SONAME 的普通库沿用其文件名，最终程序使用正常 DT_NEEDED/RUNPATH 与系统 loader；不在运行时证明外部库字节或阻止平台正常的符号 interposition。静态程序只消费静态原生输入，framework/TBD 留在 Darwin。
 
 `--library-path` 首先是链接时 locator。对于实际选中的 `@rpath/...` provider，M23-10 还从匹配该 install name 的明确目录生成必要 `LC_RPATH`，以使正常运行可以找到该库；这些实际写入 executable 的路径与 install name 属于装载语义，必须进入 link plan。纯输入 locator、临时快照路径和输出文件名仍不进入 identity 或 plan。此区别不影响 Cone/entity identity、三层语义 fingerprint 或 `.slib` 内容；不承诺复制／部署第三方库，也不在运行时证明 dylib 内容未改变。具体相对装载名范围及解析规则见 M23-10 设计第 5 节。
 

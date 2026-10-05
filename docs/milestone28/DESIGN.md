@@ -251,6 +251,8 @@ Linux CRT 可能带有普通的 weak `__cxa_finalize` 引用，探针在 glibc/m
 
 ELF 动态符号按实际 SONAME、`DT_NEEDED`、symbol version 和 TLS 类型处理；不复制 Mach-O two-level namespace/ordinal 规则。普通 C/native DSO 的加载行为沿平台 ABI，Scoop 不承诺防止用户通过 loader 环境改变外部库解析。
 
+显式 `lib` 约束仍须由该库自身提供匹配定义。如果已选 DSO 的同名默认导出使 ELF 链接顺序无法实现这组源声明的库绑定，报告原生符号冲突；不为它生成两级命名空间或运行时符号查找包装。DSO 的实际依赖闭包以普通动态输入交给 linker，并将原库目录写入 RUNPATH；共享库在运行时仍由系统 loader 加载。
+
 最终验证只检查链接产生的新事实：目标/文件类型、loader/库依赖、实际符号闭合和所需地址唯一性、metadata 范围/权限、stackmap/EH 的保留、startup 引用。不重放 HIR/MIR 语义，也不为 ELF 新写一套全程序指令/来源证明系统。保留现有失败不覆盖旧输出的原子发布行为。
 
 ## 8. 产物与缓存

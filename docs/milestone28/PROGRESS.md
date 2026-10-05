@@ -85,3 +85,9 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - `m28-cli-program` 在 glibc PIE 与 musl 默认静态模式各通过 debug/release 两个变体（各 8 个正式进程）；`m28-cli-program-musl-pie` 通过显式 musl PIE 变体（4 个进程）。包含 class/String 分配、强制移动 GC、异常抛出/捕获、独立 `scoop-link` 重链接及再次运行。更新后的独立 linker 又在三个模式下重链接旧 `.slib`/runtime index 并运行通过；`scoop-link` 无 libLLVM 动态依赖。真实 ELF 检查确认两个 PIE 的目标 loader/EH/RELRO，以及 musl static 为无动态依赖的 ET_EXEC。该闭环不代表 native DSO 和全部功能组合已验收。
 
 - linker 的共有测试 helper 已适配宿主 C toolchain，Mach-O 格式专属测试留在 macOS 执行。Linux linker 测试全量中 14 项通过；最后一项因测试 C 素材中的 Darwin `.linker_option` 失败，限定该指令的平台后单独重跑通过。新增最终 ELF 损坏测试覆盖动态导入、String alias、startup pointer、RELRO、stackmap 与 interpreter；既有跨 Cone、原生对象/符号链接替换和归档按需选入也通过。workspace fmt/clippy 无警告。原生 `.so`、更广的功能组合和最终 macOS/AArch64 回归仍未完成。
+
+- ordinary ELF `.so` 已接入实际 library 查找、默认/非默认版本、SONAME/无 SONAME、DT_NEEDED、RPATH/RUNPATH 与 TLS 接口。动态输入按已读字节写入私有链接目录，运行时名称和原库目录保留在普通 DT_NEEDED/RUNPATH 中；不生成 Mach-O stub 或 ordinal。ELF 平坦查找顺序无法同时实现的显式库绑定报符号冲突。已选 DSO 的普通未解析强引用继续推动原生 archive 选入；GNU ld 为无版本 GLOBAL/WEAK undefined symbol 使用版本索引 0 时，也保留其引用。最终检查包含实际库依赖、导入版本与运行路径。
+
+- `m28-native-dso` 在两 libc 各通过 12 个正式进程，覆盖两版本函数的默认选择、版本化子库、constructor、动态 TLS 读写、无 SONAME 库、DSO 调用按需抽取的 C archive 成员、artifact-only 重链接、错误依赖版本诊断，以及失败不覆盖旧输出。18 项 linker 测试全部通过，随后 typed target reader 的两项接口测试再次通过；包含截短版本表、错架构、PIE 冒充 DSO、ELF 同名导出冲突和原文件替换后仍用已读版本/字节链接。workspace fmt/clippy 无警告。
+
+- 已构建优化版 Rust 工具用于后续批量验收。当前 `tests/fixtures/m28-linux` 整组回归：glibc 3 个适用 case、4 个 variant、22 个进程通过，musl 4 个 case、5 个 variant、26 个进程通过；glibc 的 musl PIE case 单列为不适用，未计作通过。其余既有语言/FFI/并发组合的 Linux 覆盖以及 macOS/AArch64 回归仍需继续，M28 尚未完成。
