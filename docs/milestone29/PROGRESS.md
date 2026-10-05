@@ -45,4 +45,10 @@ runner 单测、workspace 格式化/lint 和三个 release CLI 构建。整数�
 
 阶段性清理了旧 `target/m29-scalars` 工作目录和手工 core/JSON `.slib`，保留实际报告。
 后续仍须实现完整宿主 companion、annotation/shape、自动派生与核心组合 codec；
-本节不代表整个 M29-1 或 M29 已完成。Linux 验证及最终全量结果另行记录。
+本节不代表整个 M29-1 或 M29 已完成。
+
+首批实现提交为 `754e85b17`。该提交在 nuc12 使用 LLVM 22.1.2 完成 release CLI
+构建和 workspace 格式化/lint；glibc、musl 各通过全部 6 个 M29 fixture，分别为
+20 个进程、4 份 golden。各平台 HIR/MIR 一致，新增两份 Linux LIR golden。
+随后清理已验收的 macOS core operations、core binding 和首次 artifact 工作目录，
+回收约 1.6 GiB，JSON 报告另存 `/tmp`；保留当前 M29 fixture 结果及既有 worktree。
