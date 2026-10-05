@@ -223,19 +223,25 @@ fn emits_m6_type_descriptors_and_call_indirect() {
 /// field, ptr field, TD vtable pointer), and a descriptor-refined box operation
 /// with a typed aggregate payload local.
 pub(super) fn heap_module() -> Module {
+    heap_module_for(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+}
+
+pub(super) fn heap_module_for(target: scoop_lir::LirTargetProfile) -> Module {
     let globals = Arena::default();
-    let mut meta = string_metadata();
+    let mut meta = string_metadata_for(target);
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name: "Point".to_string(),
         identity: type_descriptor_identity("Point"),
-        instance_layout: layout_identity(
-            "Point",
-            scoop_identity::RepresentationRole::ManagedObject,
-        ),
+        instance_layout: scoop_lir::LayoutIdentity::managed_object(
+            test_exact_type("Point"),
+            target,
+            scoop_lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
         instance_shape: TypeInstanceShapeV1::fixed_object(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            target,
             32,
             8,
             RefScan::References(vec![24]),

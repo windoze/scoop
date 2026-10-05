@@ -61,7 +61,7 @@ fn requires_tlvp_forms_only_for_the_runtime_tls_contract() {
             VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
         ),
         Err(
-            RuntimeAndEhRequirementValidationError::TlvpRelocationRequiresTlsContract {
+            RuntimeAndEhRequirementValidationError::TlsRelocationRequiresTlsContract {
                 form: VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
                 ..
             }

@@ -757,6 +757,8 @@ M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每�
 
 generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF primary entry 使用实际 `STT_FUNC` 的 section-relative offset/size；一字节 signature/context 标记分别位于 `.rodata.scoop_sig` / `.rodata.scoop_ctx`，无指针 relocation。bridge 定义及边界采用 hidden strong linkage；外来 C 函数与 TLS 引用保留平台 ABI。Darwin 的 section 名称和发射形式保持。generated-C 编译沿既有 profile 禁用独立 unwind tables，不把 C bridge 当成含 Scoop stackmap 的 managed callable。
 
+generated-C 及 runtime requirement 的 relocation 分类使用目标架构的调用、普通地址与 TLS 引用语义。amd64 的直接调用采用四字节 PC-relative/PLT relocation，并要求指向函数起点的 `-4` addend；普通 data/GOT 地址与 TLS 引用不能互换。Linux target-support 在既有枚举追加 `__tls_get_addr`（tag 3），合同为 native pointer 参数、pointer 返回的 leaf helper；Linux registry 包含 memcpy 与该 TLS resolver，Darwin 保持 memcpy 与 `_tlv_bootstrap`。LLVM 发射的 Scoop TLS resolver 与 memcpy 调用沿同一个 target-support requirement 分类，不能把它列为 Scoop runtime ABI，也不能不经分类直接忽略。既有 Darwin 编码与 registry 不变。
+
 `.slib` builtin member 的 `LinkObject` role 从本次已选择的 LIR target 取得 target-profile 与 object-format；对象生成和 artifact reader 重建 materialization 时均显式传入同一选择，不使用 Darwin 默认值。member logical key 继续只描述实际 producer unit 集合；目标兼容性由已有 manifest/role 字段表达，不给单位身份增加重复的 target 编码。
 
 共有对象消费使用格式无关的 section/symbol 事实：section ordinal 为非零 32-bit 原生 section 索引，Mach-O 的 nlist ordinal 在读取边界扩宽；ELF 的长 section 名称、符号尺寸/TLS 类型、binding/visibility 与 COMDAT 信息保留实际值。文件头和原始 relocation 使用封闭 Mach-O/ELF 分支，不能给 ELF 填入伪造的 Darwin deployment、nlist flags 或 ARM64 relocation。metadata 中的绝对 64-bit 指针共用符号加 addend 的语义；ELF RELA 的 signed addend 与指令字段原始字节分别保存。

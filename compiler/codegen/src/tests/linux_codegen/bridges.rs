@@ -12,6 +12,29 @@ use super::*;
 use crate::tests::c_layout::{c_opaque_pointer, c_value};
 
 #[test]
+fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
+    let directory = tempfile::tempdir().unwrap();
+    for target in [
+        TargetProfileId::LinuxX86_64Gnu,
+        TargetProfileId::LinuxX86_64Musl,
+    ] {
+        let (module, _) = fixture(target);
+        let fixture = super::slib_support::SlibObjects::new(module, directory.path());
+        let builtins = fixture.builtins(&fixture.objects);
+        let sites = fixture.sites(builtins, &fixture.objects);
+        let requirements = fixture.requirements(sites);
+        assert_eq!(requirements.selection().target().id(), target);
+        assert!(requirements.requirements().iter().any(|requirement| {
+            requirement.use_site().symbol() == b"__tls_get_addr"
+                && matches!(
+                    requirement.requirement(),
+                    scoop_slib::FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { .. }
+                )
+        }));
+    }
+}
+
+#[test]
 fn linux_generated_c_functions_tls_and_callback_link_and_run() {
     let directory = tempfile::tempdir().unwrap();
     for target in [

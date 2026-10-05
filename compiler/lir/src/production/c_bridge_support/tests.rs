@@ -66,6 +66,47 @@ fn registry_is_a_closed_typed_lookup() {
     );
 }
 
+#[test]
+fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
+    for target in [
+        LirTargetProfile::LINUX_X86_64_GNU,
+        LirTargetProfile::LINUX_X86_64_MUSL,
+    ] {
+        let compiler =
+            crate::GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(b"gcc inputs")).unwrap();
+        let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).unwrap();
+        let registry = CBridgeTargetSupportRegistryV1::current(target, &profile).unwrap();
+        assert_eq!(registry.requirements().len(), 2);
+        assert_eq!(
+            registry
+                .requirement_for_object_symbol(b"__tls_get_addr")
+                .unwrap()
+                .support(),
+            CBridgeTargetSupportV1::TlsGetAddr
+        );
+        assert!(
+            registry
+                .requirement_for_object_symbol(b"_tlv_bootstrap")
+                .is_none()
+        );
+        assert!(matches!(
+            CBridgeTargetSupportRequirementV1::current(
+                target,
+                &profile,
+                CBridgeTargetSupportV1::TlvBootstrap
+            ),
+            Err(CBridgeTargetSupportRegistryError::UnsupportedTargetSupport { .. })
+        ));
+    }
+    for (support, tag) in [
+        (CBridgeTargetSupportV1::Memcpy, 1),
+        (CBridgeTargetSupportV1::TlvBootstrap, 2),
+        (CBridgeTargetSupportV1::TlsGetAddr, 3),
+    ] {
+        assert_eq!(encode(&support).unwrap(), vec![tag]);
+    }
+}
+
 fn profile(build: &str) -> CBridgeToolchainProfileV1 {
     let deployment = DarwinCBridgeDeploymentContractV1::new(
         DarwinPackedVersionV1::new(0x000d_0100).unwrap(),

@@ -18,15 +18,26 @@ const C_BRIDGE_TARGET_SUPPORT_DOMAIN: &str = "scoop-c-bridge-target-support-v1";
 pub enum CBridgeTargetSupportV1 {
     Memcpy,
     TlvBootstrap,
+    TlsGetAddr,
 }
 
 impl CBridgeTargetSupportV1 {
-    pub const ALL: [Self; 2] = [Self::Memcpy, Self::TlvBootstrap];
+    pub const ALL: [Self; 3] = [Self::Memcpy, Self::TlvBootstrap, Self::TlsGetAddr];
+
+    pub const fn for_target(target: LirTargetProfile) -> &'static [Self] {
+        match target.id() {
+            crate::TargetProfileId::DarwinAarch64 => &[Self::Memcpy, Self::TlvBootstrap],
+            crate::TargetProfileId::LinuxX86_64Gnu | crate::TargetProfileId::LinuxX86_64Musl => {
+                &[Self::Memcpy, Self::TlsGetAddr]
+            }
+        }
+    }
 
     pub const fn logical_symbol(self) -> &'static str {
         match self {
             Self::Memcpy => "memcpy",
             Self::TlvBootstrap => "_tlv_bootstrap",
+            Self::TlsGetAddr => "__tls_get_addr",
         }
     }
 }
@@ -36,6 +47,7 @@ impl WireEncode for CBridgeTargetSupportV1 {
         encoder.unsigned(match self {
             Self::Memcpy => 1,
             Self::TlvBootstrap => 2,
+            Self::TlsGetAddr => 3,
         })
     }
 }
@@ -80,6 +92,11 @@ impl CBridgeTargetSupportRequirementV1 {
         profile: &CBridgeToolchainProfileV1,
         support: CBridgeTargetSupportV1,
     ) -> Result<Self, CBridgeTargetSupportRegistryError> {
+        if !CBridgeTargetSupportV1::for_target(target).contains(&support) {
+            return Err(
+                CBridgeTargetSupportRegistryError::UnsupportedTargetSupport { target, support },
+            );
+        }
         let target_id = target.wire_id();
         let target_fingerprint = target.fingerprint()?;
         if profile.contract().target() != &target_id {
@@ -190,7 +207,7 @@ impl CBridgeTargetSupportRegistryV1 {
         profile: &CBridgeToolchainProfileV1,
     ) -> Result<Self, CBridgeTargetSupportRegistryError> {
         let mut by_object_symbol = BTreeMap::new();
-        for support in CBridgeTargetSupportV1::ALL {
+        for &support in CBridgeTargetSupportV1::for_target(target) {
             let requirement = CBridgeTargetSupportRequirementV1::current(target, profile, support)?;
             let object_symbol = requirement.object_symbol(target);
             if by_object_symbol
@@ -238,6 +255,10 @@ impl CBridgeTargetSupportRegistryV1 {
 
 #[derive(Debug)]
 pub enum CBridgeTargetSupportRegistryError {
+    UnsupportedTargetSupport {
+        target: LirTargetProfile,
+        support: CBridgeTargetSupportV1,
+    },
     ProfileTargetMismatch,
     ProfileTargetFingerprintMismatch,
     DuplicateObjectSymbol(Vec<u8>),

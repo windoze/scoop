@@ -13,6 +13,7 @@ pub(super) struct SlibObjects {
     bridge_objects: VerifiedCBridgeProductionEnvelopeSetV1,
     patches: Vec<ProvisionalDigestPatchSiteV1>,
     profile: scoop_lir::CBridgeToolchainProfileV1,
+    c_objects: Vec<(SlibMemberId, Vec<u8>)>,
 }
 
 impl SlibObjects {
@@ -35,6 +36,7 @@ impl SlibObjects {
             backend,
         )
         .unwrap();
+        let c_emitted = emit_c_bridge_object_set(&input, directory, &invocation).unwrap();
         let partition =
             scoop_lir::ProducerUnitPartitionV1::from_foundation(emitted.foundation()).unwrap();
         let plans = PlannedLinkObjectMemberSetV1::new(
@@ -50,7 +52,13 @@ impl SlibObjects {
                     .unwrap()
                 })
                 .collect(),
-            Vec::new(),
+            c_emitted
+                .members()
+                .iter()
+                .map(|member| {
+                    CanonicalGeneratedBridgeObjectUnitSetV1::new(vec![member.unit()]).unwrap()
+                })
+                .collect(),
         )
         .unwrap();
         let surface =
@@ -59,7 +67,19 @@ impl SlibObjects {
             PlannedStrongObjectSymbolSetV1::new(emitted.target(), &surface, &plans).unwrap();
         let bridges =
             scoop_lir::GeneratedBridgePlanSetV1::from_foundation(emitted.foundation()).unwrap();
-        assert!(bridges.units().is_empty());
+        let mut c_objects = c_emitted
+            .members()
+            .iter()
+            .map(|member| {
+                (
+                    plans
+                        .member_for_generated_bridge_unit(member.unit())
+                        .unwrap(),
+                    std::fs::read(member.object_path()).unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        c_objects.sort_by_key(|(member, _)| *member);
         let production = scoop_lir::CBridgeProductionSetV1::from_generated_bridge_plan(
             &bridges,
             invocation.profile(),
@@ -69,7 +89,7 @@ impl SlibObjects {
             production,
             invocation.profile(),
             &plans,
-            &[],
+            &c_candidates(&c_objects),
         )
         .unwrap();
         let mut objects = emitted
@@ -111,6 +131,7 @@ impl SlibObjects {
             bridge_objects,
             patches,
             profile: invocation.profile().clone(),
+            c_objects,
         }
     }
 
@@ -123,7 +144,7 @@ impl SlibObjects {
             &self.symbols,
             &candidates(objects),
             self.bridge_objects.clone(),
-            &[],
+            &c_candidates(&self.c_objects),
         )
         .expect("real ELF definitions and relocations")
     }
@@ -199,4 +220,11 @@ pub(super) fn set_rela_addend(
     }
     let field = field.expect("metadata pointer RELA");
     bytes[field..field + 8].copy_from_slice(&addend.to_le_bytes());
+}
+
+fn c_candidates(objects: &[(SlibMemberId, Vec<u8>)]) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {
+    objects
+        .iter()
+        .map(|(member, bytes)| GeneratedCBridgeObjectCandidateV1::new(*member, bytes))
+        .collect()
 }

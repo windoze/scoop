@@ -181,26 +181,31 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
     assert!(validate_native_contract_kind(write_id, write, &mutable_data).is_ok());
     assert!(validate_native_contract_kind(write_id, write, &mutable_tls).is_ok());
     assert!(native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_data,
         VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_data,
         VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
         VerifiedObjectRelocationFormV1::Branch26,

@@ -111,7 +111,7 @@ fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
             native_surface(producer, vec![data_record], Vec::new()),
         ),
         Err(
-            SourceExternalRequirementValidationError::TlvpRelocationRequiresTlsContract {
+            SourceExternalRequirementValidationError::TlsRelocationContractMismatch {
                 contract: fingerprint,
                 form: VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
             }

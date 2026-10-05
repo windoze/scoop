@@ -102,16 +102,23 @@ pub fn verify_runtime_and_eh_requirements_v1(
         let eh = eh_registry.requirement_for_object_symbol(binding.symbol());
         match (runtime, eh) {
             (Some(contract), None) => {
-                validate_runtime_relocation(contract, binding.relocation_form())?;
+                validate_runtime_relocation(
+                    contract,
+                    binding.relocation_form(),
+                    selection.target(),
+                )?;
                 runtime_requirements.push(RuntimeAbiRequirementUseV1 {
                     use_site: CanonicalUndefinedRelocationUseV1::from(binding),
                     contract: contract.clone(),
                 });
             }
             (None, Some(requirement)) => {
-                if is_tlvp_relocation(binding.relocation_form()) {
+                if binding
+                    .relocation_form()
+                    .is_tls_reference(selection.target())
+                {
                     return Err(
-                        RuntimeAndEhRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                        RuntimeAndEhRequirementValidationError::TlsRelocationRequiresTlsContract {
                             symbol: binding.symbol().to_vec(),
                             form: binding.relocation_form(),
                         },
@@ -145,9 +152,10 @@ pub fn verify_runtime_and_eh_requirements_v1(
 fn validate_runtime_relocation(
     contract: &RuntimeSymbolContractV1,
     form: VerifiedObjectRelocationFormV1,
+    target: scoop_lir::LirTargetProfile,
 ) -> Result<(), RuntimeAndEhRequirementValidationError> {
     let is_allocation_context = contract.symbol() == RuntimeAbiSymbolV1::AllocationContext;
-    if is_tlvp_relocation(form) != is_allocation_context {
+    if form.is_tls_reference(target) != is_allocation_context {
         return Err(
             RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
                 symbol: contract.symbol(),
@@ -156,14 +164,6 @@ fn validate_runtime_relocation(
         );
     }
     Ok(())
-}
-
-const fn is_tlvp_relocation(form: VerifiedObjectRelocationFormV1) -> bool {
-    matches!(
-        form,
-        VerifiedObjectRelocationFormV1::TlvpLoadPage21
-            | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12
-    )
 }
 
 #[derive(Debug)]
@@ -180,7 +180,7 @@ pub enum RuntimeAndEhRequirementValidationError {
         symbol: RuntimeAbiSymbolV1,
         form: VerifiedObjectRelocationFormV1,
     },
-    TlvpRelocationRequiresTlsContract {
+    TlsRelocationRequiresTlsContract {
         symbol: Vec<u8>,
         form: VerifiedObjectRelocationFormV1,
     },
