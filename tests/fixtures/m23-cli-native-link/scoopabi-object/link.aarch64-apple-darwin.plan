@@ -1,0 +1,43 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone dev.programlink:scoopabi-provider:0.1.0 kind=Library objects=20
+cone dev.programlink:scoopabi-facade:0.1.0 kind=Library objects=1
+cone dev.programlink:scoopabi-root:0.1.0 kind=Executable objects=8
+runtime objects=63
+images=4 root=_scoop$1$re$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_scoop_leaf requirement=1d559fa74a16747fbe92a039fd856e154ad1e4cfa5aa6b1ffa2b801aed056a88 input=17a19377012195e83272b7f192337833e73a7b20fd4ad7a86179e8bff3fcdba4 origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([4, 41, 45, 13, 2, 183, 162, 126, 115, 6, 58, 170, 182, 231, 166, 113, 105, 78, 156, 57, 130, 16, 113, 66, 17, 26, 246, 128, 166, 179, 26, 97])])
+native library m23_scoopabi requirement=405655b1d7b79de7fd6a09ad1d7bc47246eb9b339a456511ae0193c3958c9987 input=c85c55c28695a98971ea3fa0a869a67c32cd3b5475e1a2a7899986c64f9dc149 origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 42, 243, 168, 26, 177, 229, 251, 245, 250, 110, 21, 35, 188, 221, 169, 173, 48, 15, 254, 34, 84, 189, 55, 158, 229, 139, 208, 61, 49, 196, 216])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([114, 51, 149, 239, 23, 135, 212, 232, 14, 254, 188, 46, 206, 79, 190, 130, 26, 75, 222, 145, 141, 149, 242, 175, 246, 128, 188, 83, 216, 53, 10, 251])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 114, 56, 98, 146, 24, 89, 0, 156, 73, 2, 221, 5, 249, 251, 39, 152, 228, 28, 196, 217, 181, 226, 253, 124, 119, 37, 184, 57, 100, 59, 69])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([157, 52, 151, 244, 89, 239, 63, 254, 135, 170, 109, 96, 33, 84, 151, 82, 157, 13, 184, 104, 57, 155, 86, 84, 228, 119, 250, 38, 46, 136, 177, 136])])
+native object 17a19377012195e83272b7f192337833e73a7b20fd4ad7a86179e8bff3fcdba4 slice=0..536
+native object c85c55c28695a98971ea3fa0a869a67c32cd3b5475e1a2a7899986c64f9dc149 slice=0..2176
+startup object references:
+  _scoop$1$im$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$6764f814bc817d98604b337271860ef7e25f1a84c985b76a87b0b7793d212ec2
+  _scoop$1$im$ce0b04c203d4c56a11412d2e74e8081dbff41609c98ff427f6bba35a38a6497d
+  _scoop$1$re$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$ce0b04c203d4c56a11412d2e74e8081dbff41609c98ff427f6bba35a38a6497d");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$6764f814bc817d98604b337271860ef7e25f1a84c985b76a87b0b7793d212ec2");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

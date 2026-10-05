@@ -2,7 +2,7 @@ schema = 1
 name = "core-layouts-ordinary"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-core-layout-exports/ordinary.scoop", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["core-layouts", "ordinary-layouts", "stage-golden"]
 
 [[steps]]
@@ -15,7 +15,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -44,7 +44,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
 exit = 0
 stdout = ""
 stderr = ""

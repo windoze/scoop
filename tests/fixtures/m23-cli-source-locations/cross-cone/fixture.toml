@@ -2,7 +2,7 @@ schema = 1
 name = "source-locations-cross-cone-relocation"
 inputs = ["provider", "facade", "consumer", "standalone.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["source-locations", "defaults", "generics", "reexport", "cache", "moving-gc", "stage-golden"]
 
 [vars]
@@ -25,7 +25,7 @@ files = [
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/source/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -47,7 +47,7 @@ stderr = ""
 
 [[steps]]
 name = "single"
-argv = ["${scoop}", "build", "${work}/source/renamed.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/single-dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/renamed.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/single-dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -73,7 +73,7 @@ files = [{move = {from = "${work}/source", to = "${work}/relocated"}}]
 
 [[steps]]
 name = "relocated"
-argv = ["${scoop}", "build", "${work}/relocated/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/relocated-dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/relocated/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/relocated-dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -104,7 +104,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
 env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 exit = 0
 stdout = ""

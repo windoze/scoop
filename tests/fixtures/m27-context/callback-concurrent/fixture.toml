@@ -3,7 +3,7 @@ name = "m27-context-callback-concurrent"
 root = "program.scoop"
 inputs = ["program.scoop", "../../m13-callback/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m27", "context", "gc", "stage-golden", "callback"]
 
 [[steps]]
@@ -12,7 +12,7 @@ files = [{mkdir = {path = "${work}/native"}}]
 
 [[steps]]
 name = "native"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/fixture.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/fixture.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +26,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -35,7 +35,7 @@ diagnostics = []
 checks = [
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
 ]
 
 [[steps]]

@@ -2,7 +2,7 @@ schema = 1
 name = "core-layouts-shared-units-combined"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-core-layout-exports/shared-units-combined.scoop", "consumer", "../support/consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["core-layouts", "shared_initialization_units_replay_source_keys_and_complete_strong_pairs", "stage-golden"]
 
 [[steps]]
@@ -16,7 +16,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -28,7 +28,7 @@ checks = [
   {"file" = "${work}/dump/core/${core.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/lir.txt", "snapshot" = "core.lir.txt"},
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "3783ad7a021a8d18b55e3bb9f163cedd9f5184aed1123825ec7bf748c90cda58"},
+
 ]
 
 [[steps]]
@@ -46,7 +46,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -65,3 +65,7 @@ name = "remove_consumer_source"
 files = [
   {"remove" = {"path" = "${work}/consumer"}},
 ]
+
+[[steps]]
+name = "artifact-fingerprints"
+checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

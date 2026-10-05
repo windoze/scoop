@@ -3,7 +3,7 @@ name = "cli-input-manifest-roots"
 root = "cone/Cone.toml"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "manifest"]
 
 [vars]
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "baseline"
-argv = ["${scoop}", "build", "${work}/cone", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,7 +37,7 @@ checks = [
 
 [[steps]]
 name = "absolute_manifest"
-argv = ["${scoop}", "build", "${work}/cone/Cone.toml", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone/Cone.toml", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -52,7 +52,7 @@ checks = [
 
 [[steps]]
 name = "relative_directory"
-argv = ["${scoop}", "build", "cone", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "cone", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -67,7 +67,7 @@ checks = [
 
 [[steps]]
 name = "directory_symlink"
-argv = ["${scoop}", "build", "alias", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "alias", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -82,7 +82,7 @@ checks = [
 
 [[steps]]
 name = "manifest_symlink"
-argv = ["${scoop}", "build", "${work}/manifest-alias/Cone.toml", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/manifest-alias/Cone.toml", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -97,7 +97,7 @@ checks = [
 
 [[steps]]
 name = "default_manifest"
-argv = ["${scoop}", "build", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -112,7 +112,7 @@ checks = [
 
 [[steps]]
 name = "explicit_dot"
-argv = ["${scoop}", "build", ".", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, ".", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -127,7 +127,7 @@ checks = [
 
 [[steps]]
 name = "relative_manifest"
-argv = ["${scoop}", "build", "Cone.toml", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "Cone.toml", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -142,7 +142,7 @@ checks = [
 
 [[steps]]
 name = "producer"
-argv = ["${scoopc}", "build", "${work}/alias", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${baseline.result.dependencies.0.path}", "--out-slib", "${work}/manual.slib"]
+argv = ["${scoopc}", "build", "${work}/alias", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${baseline.result.dependencies.0.path}", "--out-slib", "${work}/manual.slib"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -2,7 +2,7 @@ schema = 1
 name = "cli-input-manifest-syntax"
 inputs = []
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "negative"]
 
 [vars]
@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "public"
-argv = ["${scoop}", "build", "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -40,7 +40,7 @@ checks = [
 
 [[steps]]
 name = "human"
-argv = ["${scoop}", "build", "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
 stderr = "${work}/cone/Cone.toml:11..11: error[SCOOP_BUILD_FAILED]: invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 1, column 12\n  |\n1 | schema = [\n  |            ^\ninvalid array\nexpected `]`\n\n"

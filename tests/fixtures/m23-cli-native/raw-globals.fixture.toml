@@ -2,7 +2,7 @@ schema = 1
 name = "native-raw-globals-and-tls"
 inputs = ["../m12-globals/globals.scoop", "../m12-globals/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native", "raw-globals", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../m12-globals/native.c", "-o", "${work}/native/objects/raw-globals.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../m12-globals/native.c", "-o", "${work}/native/objects/raw-globals.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -34,7 +34,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${fixture}/../m12-globals/globals.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../m12-globals/globals.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

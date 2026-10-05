@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-storage-archive"
 inputs = ["storage-provider", "../../m23-native-link/storage/provider.scoop", "storage-facade", "../../m23-native-link/storage/facade.scoop", "storage-root", "../../m23-native-link/storage/combined.scoop", "../../m23-native-link/storage/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -18,7 +18,7 @@ files = [{"copy" = {"from" = "${fixture}/storage-provider", "to" = "${work}/sour
 
 [[steps]]
 name = "compile_0"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/storage/native.c", "-o", "${work}/objects/storage-payload.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/storage/native.c", "-o", "${work}/objects/storage-payload.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,13 +38,13 @@ files = [{"remove" = {"path" = "${work}/objects/storage-payload.o"}}]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/storage-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/storage-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 3}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "storage-provider"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "../goldens/storage/provider.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "../goldens/storage/provider.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "../goldens/storage/provider.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "../goldens/storage/provider.lir.txt"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "storage-facade"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "../goldens/storage/facade.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "../goldens/storage/facade.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "../goldens/storage/facade.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "../goldens/storage/facade.lir.txt"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "storage-root"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/storage/combined.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/storage/combined.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/storage/combined.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/storage/combined.lir.txt"}]
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 3}, {"actual" = "${build.result.dependencies.0.coordinate.name}", "equals" = "scoop.core"}, {"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "storage-provider"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "../goldens/storage/provider.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "../goldens/storage/provider.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "../goldens/storage/provider.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "../goldens/storage/provider.lir.${target}.txt"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "storage-facade"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "../goldens/storage/facade.ast.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "../goldens/storage/facade.hir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "../goldens/storage/facade.mir.txt"}, {"file" = "${work}/dump/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "../goldens/storage/facade.lir.txt"}, {"actual" = "${build.result.root.coordinate.name}", "equals" = "storage-root"}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "../goldens/storage/combined.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "../goldens/storage/combined.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "../goldens/storage/combined.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "../goldens/storage/combined.lir.txt"}]
 
 [[steps]]
 name = "run_built"
@@ -59,14 +59,14 @@ files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifa
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "run_linked"

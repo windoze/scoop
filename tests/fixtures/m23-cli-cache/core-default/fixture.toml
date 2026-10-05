@@ -2,7 +2,7 @@ schema = 1
 name = "cli-core-default-source-and-artifact"
 inputs = ["root", "../../core-library/extension.scoop", "../../core-library/library-consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "core", "cache", "negative", "stage-golden"]
 
 [vars]
@@ -19,7 +19,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/private-sysroot/lib/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/private-sysroot/lib/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,12 +32,12 @@ checks = [
 [[steps]]
 name = "poison_artifact"
 files = [
-  {"write" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "data" = "not an archive\n"}},
+  {"write" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "data" = "not an archive\n"}},
 ]
 
 [[steps]]
 name = "source"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -47,7 +47,7 @@ checks = [
   {"actual" = "${source.result.dependencies.0.artifact_fingerprint}", "equals" = "${core.result.root.artifact_fingerprint}"},
   {"actual" = "${source.result.observations.nodes.0.origin}", "equals" = "cache"},
   {"actual" = "${source.result.observations.child_invocations}", "equals" = ["${source.result.root.identity}"]},
-  {"file" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "equals" = "not an archive\n"},
+  {"file" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "equals" = "not an archive\n"},
   {"file" = "${work}/dump/${source.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
   {"file" = "${work}/dump/${source.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
   {"file" = "${work}/dump/${source.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
@@ -58,7 +58,7 @@ checks = [
 name = "save_previous"
 files = [
   {"copy" = {"from" = "${work}/library.slib", "to" = "${work}/previous.slib"}},
-  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
@@ -69,7 +69,7 @@ files = [
 
 [[steps]]
 name = "invalid_source"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -87,7 +87,7 @@ files = [
 
 [[steps]]
 name = "missing_manifest"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -106,7 +106,7 @@ files = [
 
 [[steps]]
 name = "dangling_source"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -120,12 +120,12 @@ checks = [
 name = "prepare_invalid_artifact"
 files = [
   {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"write" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "data" = "not an archive\n"}},
+  {"write" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib", "data" = "not an archive\n"}},
 ]
 
 [[steps]]
 name = "invalid_artifact"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -138,12 +138,12 @@ checks = [
 [[steps]]
 name = "prepare_wrong_coordinate"
 files = [
-  {"copy" = {"from" = "${work}/previous.slib", "to" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${work}/previous.slib", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "wrong_coordinate"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -156,13 +156,13 @@ checks = [
 [[steps]]
 name = "prepare_artifact_directory"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
-  {"mkdir" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"mkdir" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "artifact_directory"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -175,12 +175,12 @@ checks = [
 [[steps]]
 name = "prepare_missing_artifact"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "missing_artifact"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""

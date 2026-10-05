@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-resolution-late-archive"
 inputs = ["cone", "../../m23-native-link/resolution/root.scoop", "../../m23-native-link/resolution/dynamic.c", "native-sources/compile_control.c", "../../m23-native-link/resolution/archive.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "stage-golden"]
 

@@ -3,7 +3,7 @@ name = "release-blocks-roots-closures"
 root = "program.scoop"
 inputs = ["program.scoop", "../common.scoop", "../native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m24", "release-blocks", "stage-golden"]
 
 [[steps]]
@@ -16,7 +16,7 @@ files = [{mkdir = {path = "${work}/native"}}]
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${fixture}/../native.c", "-o", "${work}/native/trace.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${fixture}/../native.c", "-o", "${work}/native/trace.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,7 @@ env = {ZERO_AR_DATE = "1"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/program.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/program.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -41,7 +41,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
 ]
 
 [[steps]]

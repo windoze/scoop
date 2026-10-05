@@ -2,7 +2,7 @@ schema = 1
 name = "source-locations-legacy-defaults-coroutines"
 inputs = ["../m17-defaults/source-locations.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["source-locations", "defaults", "coroutines", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -13,7 +13,7 @@ env = {SCOOP_GC_STRESS_MOVE = "1"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${fixture}/../m17-defaults/source-locations.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../m17-defaults/source-locations.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

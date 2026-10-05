@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-native-reserved"
 inputs = ["cone", "../../m23-program-link/native-reserved.scoop", "../../m23-program-link/empty.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "native-link", "negative"]
 
 [[steps]]
@@ -17,7 +17,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/native-reserved", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/native-reserved", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,7 +32,7 @@ checks = []
 
 [[steps]]
 name = "recompile"
-argv = ["${scoopc}", "build", "${work}/sources/native-reserved", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--out-slib", "${work}/replacement.slib"]
+argv = ["${scoopc}", "build", "${work}/sources/native-reserved", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--out-slib", "${work}/replacement.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -49,7 +49,7 @@ checks = []
 
 [[steps]]
 name = "reject"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""

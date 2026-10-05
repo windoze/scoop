@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-dynamic-install-errors"
 inputs = ["cone", "../../m23-native-link/dynamic/overlap.scoop", "../../m23-native-link/dynamic/a.c", "../../m23-native-link/dynamic/b.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "stage-golden"]
 

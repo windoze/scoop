@@ -2,7 +2,7 @@ schema = 1
 name = "cli-core-source-cache"
 inputs = ["root", "runner", "../../core-library/extension.scoop", "../../core-library/library-consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "core", "cache", "stage-golden"]
 
 [vars]
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -44,7 +44,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -70,7 +70,7 @@ checks = [
 
 [[steps]]
 name = "cold_program"
-argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -100,7 +100,7 @@ files = [
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/changed"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dumps/changed"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -128,7 +128,7 @@ checks = [
 
 [[steps]]
 name = "changed_warm"
-argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -154,7 +154,7 @@ checks = [
 
 [[steps]]
 name = "changed_program"
-argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -184,7 +184,7 @@ files = [
 
 [[steps]]
 name = "restored"
-argv = ["${scoop}", "build", "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -210,7 +210,7 @@ checks = [
 
 [[steps]]
 name = "restored_program"
-argv = ["${scoop}", "build", "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runner", {"each" = "${options}"}, "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""

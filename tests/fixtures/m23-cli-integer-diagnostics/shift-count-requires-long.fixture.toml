@@ -2,12 +2,12 @@ schema = 1
 name = "integer-diagnostics-shift-count-requires-long"
 inputs = ["../m22-integers/errors/shift-count-requires-long.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["integer-diagnostics", "negative"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "${fixture}/../m22-integers/errors/shift-count-requires-long.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../m22-integers/errors/shift-count-requires-long.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

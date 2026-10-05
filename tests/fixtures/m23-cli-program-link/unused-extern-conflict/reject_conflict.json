@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native contract conflict for _abs: C parameter ABI differs; origins: dev.programlink:left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([20, 251, 111, 166, 0, 181, 47, 187, 116, 78, 196, 207, 54, 185, 190, 234, 90, 180, 131, 246, 19, 240, 169, 170, 127, 253, 127, 157, 253, 216, 113, 114])]), dev.programlink:right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([59, 169, 119, 144, 8, 58, 12, 219, 58, 174, 59, 105, 50, 208, 4, 1, 130, 182, 205, 164, 28, 120, 92, 93, 74, 204, 252, 54, 72, 1, 239, 85])]), dev.programlink:root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([81, 35, 140, 87, 37, 117, 129, 202, 112, 221, 201, 40, 97, 185, 138, 217, 200, 65, 117, 76, 2, 53, 64, 240, 158, 246, 215, 248, 18, 172, 231, 108])])",
+    "message": "native contract conflict for ${symbol_prefix}abs: C parameter ABI differs; origins: dev.programlink:left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([20, 251, 111, 166, 0, 181, 47, 187, 116, 78, 196, 207, 54, 185, 190, 234, 90, 180, 131, 246, 19, 240, 169, 170, 127, 253, 127, 157, 253, 216, 113, 114])]), dev.programlink:right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([59, 169, 119, 144, 8, 58, 12, 219, 58, 174, 59, 105, 50, 208, 4, 1, 130, 182, 205, 164, 28, 120, 92, 93, 74, 204, 252, 54, 72, 1, 239, 85])]), dev.programlink:root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([81, 35, 140, 87, 37, 117, 129, 202, 112, 221, 201, 40, 97, 185, 138, 217, 200, 65, 117, 76, 2, 53, 64, 240, 158, 246, 215, 248, 18, 172, 231, 108])])",
     "notes": [],
     "origin": {
       "kind": "none"

@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-scoopabi-dynamic"
 inputs = ["scoopabi-provider", "../../m23-native-link/scoopabi/provider.scoop", "scoopabi-facade", "../../m23-native-link/scoopabi/facade.scoop", "scoopabi-root", "../../m23-native-link/scoopabi/root.scoop", "../../m23-native-link/scoopabi/native.c", "../../m23-native-link/scoopabi/leaf.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
 

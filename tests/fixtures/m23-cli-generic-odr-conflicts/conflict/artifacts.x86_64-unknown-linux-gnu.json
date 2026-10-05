@@ -1,0 +1,9 @@
+{
+  "core": "9fd19f2d1832d46eb09da0cd7ad248fcbf5170d899b2c144199fd59c7e093654",
+  "left_consumer": "31757895eadd3518afcf69d24b994e17042a6d951ff06dde9e09a5d778ebd4b1",
+  "left_program": "f71e303c7cc8069843ab9790757bba3cdc9e0ceda7867fcc87779e6516b486b4",
+  "left_provider": "0feb8ac488a0b59f71bc81c1c48aef985d0075fed195788befdd5c8406f3b823",
+  "right_consumer": "96a2efc0ffe83ba3962e24275c7a67e7783a375649654da6844408c958067bec",
+  "right_program": "d1ca213660fd02fdcc49bf52a433093251ed1c83026e04efc4dc394808fa7824",
+  "right_provider": "3e1e22a58cf89800ae1c6f1bad1bf27ad7af1bcf0701f14487a38f0a33a96f1a"
+}

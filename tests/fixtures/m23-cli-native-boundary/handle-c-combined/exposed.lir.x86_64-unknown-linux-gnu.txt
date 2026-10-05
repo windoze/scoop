@@ -1,0 +1,199 @@
+Module
+  global @scoop$1$io$a4937e6da7fdccaa455cf45386325ec45eb54b206dcfddc0a9fc39685f54e65d = "illegal state"
+  native_global0 nativeHandle @native_handle : i64 c=ULong mutable(get=ng-get0,set=ng-set0,address=ng-address0)
+  c-struct struct0 NativeHandles fields=[UInt8@0/1,ULong@8/8,ULong@16/8]
+  enum Option niche(kind=managed,payload_variant=0)
+  enum Option niche(kind=code,payload_variant=0)
+  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$53a525edcbd745de1ac0a5c3ddcc70d234e48adfa416beddae856a0a9fc7557b gc-leaf nounwind lib=m23_native_boundary>
+  extern ef1 exchangeHandles @exchange_handles(struct0, ptr<raw>, enum1) -> struct0 <c exact=(c-struct0,data-ptr<ULong,direct>,code-ptr<(ULong)->ULong,nullable=enum1<(ULong)->ULong>>)->c-struct0 bridge=@scoop$1$br$42c1935321086666f6d310772aa7aab45f1d721daa97f92ee03cd5ee472079b8 gc-leaf nounwind lib=m23_native_boundary>
+  callback cb0 echoHandle @scoop$1$cb$c159e97e9410d1cd7ac15cdd1674a8d4885c455b16c74c390770af98bc532f4a -> @scoop$1$br$cc03931433660f63f87df66c34fb725541796ec9246f0c5b22d0b9a4be105c0e c=(ULong)->ULong
+  fun @scoop$1$cb$331f1699dd256700b333c5b7770b5b66c9862008fab79667f910c551243e5ac1() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$e2429bd1529061feff4c7ad3aff13d413e269cdd4ce952c761ae593dd8c8798c() -> void
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.raw: i64
+    local %2 $equality.lhs: struct2
+    local %3 $default.local.0: ptr<managed>
+    local %4 $default.local.1: ptr<managed>
+    local %5 $dependency.parameter.message: enum0
+    local %6 $call.1: struct2
+    local %7 $call.2: i1
+    local %8 $new.3: ptr<managed>
+    local %9 $sc.1: struct2
+    local %10 $sc.2: struct2
+    local %11 $sc.3: struct2
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn4()
+    t0 = aggregate () : {}
+    t1 = native_global_load ng0 sp<native-safe:0> roots=[] : i64
+    t2 = aggregate (t1) : struct2
+    store t2 -> local2
+    store integer<ULong>(0x0000000000000009) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct2 size=8 align=8 scan=none, i64) local-fn7(local1)
+    store local9 -> local6
+    store local2 -> local10
+    store local6 -> local11
+    call managed-direct-target0 sp<managed-call:1> live=[] t3 = sig=direct0 (indirect<struct2 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) -> i1 local-fn5(indirect local10, indirect local11)
+    store t3 -> local7
+    t4 = Not local7 : i1
+    cbr t4 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store global0 -> local3
+    store local3 -> local4
+    t5 = enum_wrap e0 v0 (local4) : enum0
+    store t5 -> local5
+    call managed-direct-target1 sp<managed-call:2> live=[local5:enum0@0] t6 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
+    store t6 -> local8
+    call managed-void-target1 sp<managed-call:3> live=[local5:enum0@0, local8:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn0(local8, local5)
+    t7 = aggregate () : {}
+    throw local8
+    unreachable
+  block if.merge.2
+    call native-safe-void-target0 sp<native-safe:1> roots=[] sig=void2 () extern0()
+    t8 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$e4f471c8e00e4bed8e0abb0d1f9ff21b84538586c1bef6071b974777cf0605f3(indirect<struct0 size=24 align=8 scan=none>, ptr<raw>, enum1) -> sret<struct0 size=24 align=8 scan=none>
+    local %0 $call.1: struct0
+    local %1 $sc.1: struct0
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: enum1
+    local %4 $sc.4: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    store param1 -> local2
+    store param2 -> local3
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer struct0 size=24 align=8 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern1(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
+    store local4 -> local0
+    ret local0
+  fun @scoop$1$cb$18a925ff2c6fffcfcee920683b0fecddc910b88fd286b88845cddb0467ecec06(indirect<struct2 size=8 align=8 scan=none>) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$d00e5d4a2b7e154fdcfbb35a7bd66f9c7d9327aaf2ad55132b419c0e2bf69572() -> void
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.raw: i64
+    local %2 handle: struct2
+    local %3 $dependency.argument.0: i64
+    local %4 $dependency.parameter.raw: i64
+    local %5 pin: struct1
+    local %6 callback: ptr<code>
+    local %7 $dependency.argument.0: ptr<code>
+    local %8 $dependency.parameter._1: ptr<code>
+    local %9 optional: enum1
+    local %10 $argument.0: i8
+    local %11 $argument.1: struct1
+    local %12 $argument.2: struct2
+    local %13 $parameter.flag: i8
+    local %14 $parameter.pin: struct1
+    local %15 $parameter.handle: struct2
+    local %16 $argument.0: struct0
+    local %17 $argument.1: ptr<raw>
+    local %18 $argument.2: enum1
+    local %19 $parameter.value: struct0
+    local %20 $parameter.pointer: ptr<raw>
+    local %21 $parameter.callback: enum1
+    local %22 result: struct0
+    local %23 $sc.1: struct2
+    local %24 $sc.2: struct1
+    local %25 $sc.3: struct1
+    local %26 $sc.4: struct2
+    local %27 $sc.5: struct0
+    local %28 $sc.6: struct0
+    local %29 $sc.7: ptr<raw>
+    local %30 $sc.8: enum1
+    local %31 $sc.9: struct0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<ULong>(0x0000000000000001) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local23 = sig=indirect0 (sret struct2 size=8 align=8 scan=none, i64) local-fn7(local1)
+    store local23 -> local2
+    store integer<ULong>(0x0000000000000002) -> local3
+    store local3 -> local4
+    call no-gc-indirect-target1 local24 = sig=indirect1 (sret struct1 size=8 align=8 scan=none, i64) local-fn8(local4)
+    store local24 -> local5
+    t0 = function_address @scoop$1$br$cc03931433660f63f87df66c34fb725541796ec9246f0c5b22d0b9a4be105c0e : ptr
+    store t0 -> local6
+    store local6 -> local7
+    store local7 -> local8
+    t1 = enum_wrap e1 v0 (local8) : enum1
+    store t1 -> local9
+    store integer<UInt8>(0x03) -> local10
+    store local5 -> local11
+    store local2 -> local12
+    store local10 -> local13
+    store local11 -> local14
+    store local12 -> local15
+    store local14 -> local25
+    store local15 -> local26
+    call no-gc-indirect-target2 local27 = sig=indirect2 (sret struct0 size=24 align=8 scan=none, i8, indirect<struct1 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) local-fn6(local13, indirect local25, indirect local26)
+    store local27 -> local16
+    t2 = local_address local2 : ptr
+    store t2 -> local17
+    store local9 -> local18
+    store local16 -> local19
+    store local17 -> local20
+    store local18 -> local21
+    store local19 -> local28
+    store local20 -> local29
+    store local21 -> local30
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local31 = sig=indirect3 (c-storage-pointer struct0 size=24 align=8 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern1(c-arg-address(local28), c-arg-address(local29), c-arg-address(local30))
+    store local31 -> local22
+    t3 = extract local22, 2 : i64
+    t4 = aggregate (t3) : struct2
+    t5 = extract t4, 0 : i64
+    native_global_store ng0, t5 sp<native-safe:1> roots=[]
+    ret
+  fun @scoop$1$cb$f3c0c2be547b3674d67c2f4e78fefc5f364bff6eaf118a77b557bb1bb79172b1(indirect<struct2 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i64
+    t1 = extract param1, 0 : i64
+    t2 = integer_compare_Equal<ULong> t0, t1 : i1
+    ret t2
+  fun @scoop$1$cb$f1a405c9871470f39e6abcb62b8fddfce8e4e23e7a0b6e49570a15cd06c20b46(i8, indirect<struct1 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) -> sret<struct0 size=24 align=8 scan=none> <no-gc>
+  block entry
+    t0 = extract param1, 0 : i64
+    t1 = extract param2, 0 : i64
+    t2 = aggregate (param0, t0, t1) : struct0
+    ret t2
+  fun @scoop$1$cb$5de9fd09d6fd1391d730b0fb135fd200662f47e2a13fa4abae2c32adecb95e97(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct2
+    ret t0
+  fun @scoop$1$cb$7a312fd30cec1bbf8dc2ea7921b44523c3032b9faf8ce97f1ae2a2fc4b8d4255(i64) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  fun @scoop$1$cb$c159e97e9410d1cd7ac15cdd1674a8d4885c455b16c74c390770af98bc532f4a(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: struct2
+    local %1 $sc.1: struct2
+    local %2 $sc.2: struct2
+  block entry
+    t0 = raw_load param1 align 8 : struct2
+    store t0 -> local1
+    call no-gc-indirect-target0 local2 = sig=indirect0 (sret struct2 size=8 align=8 scan=none, indirect<struct2 size=8 align=8 scan=none>) local-fn3(indirect local1)
+    store local2 -> local0
+    raw_store param0 local0 align 8
+    t1 = aggregate () : {}
+    ret
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=GcHandle);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)])]->a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=GcHandle);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]))]) @scoop$1$td$7c5f63bf6beaf8b8d811366065b6ae803225c9a24d6fc9505a0a994527726b24 type-id=17741920155844367776 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=NativeHandles) @scoop$1$td$808edff71914343340b8235dc8d84dfe35a22ef6df802727887d58cd5c1b52cc type-id=18342981886433068227 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=GcHandle);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) @scoop$1$td$a1aa08fb59e2eeef139cd9aa7bb3fdc2d7bc9b99b20c3c8b96c57d5a9bedd0df type-id=5592580737159135366 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=PinnedPtr);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) @scoop$1$td$c9474bcb8d51ac4735470547dbd8ef2dd38d1e64f0cb959fc0725b6ea3cf9d3f type-id=14583362639462011508 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout NativeHandles size=24 align=8 refs=[]
+  layout-meta NativeHandles c-layout(aligned=0,packed=0) fields=[0@1,8@8,16@8] interior-mutable=false
+  layout NativeHandles size=24 align=8 refs=[]
+  layout-meta NativeHandles c-layout(aligned=0,packed=0) fields=[0@1,8@8,16@8] interior-mutable=false
+  layout PinnedPtr size=8 align=8 refs=[]
+  layout GcHandle size=8 align=8 refs=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=8 align=8 enum-scan=none
+  output library

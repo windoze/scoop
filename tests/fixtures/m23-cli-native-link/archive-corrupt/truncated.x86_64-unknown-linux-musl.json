@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native candidate ${work}/native/libm23_math.a: archive member payload/padding exceeds file; requirement 5efff7f6f6024613bdade487eebc6e75566a06c1a1374a241d67ce46a63faa19; origins: dev.programlink:archive:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([183, 151, 23, 136, 70, 118, 234, 116, 29, 68, 86, 220, 55, 114, 75, 66, 237, 111, 107, 187, 42, 116, 91, 146, 182, 83, 31, 144, 23, 250, 105, 101])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

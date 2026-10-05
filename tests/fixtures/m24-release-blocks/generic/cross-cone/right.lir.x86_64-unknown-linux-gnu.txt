@@ -1,0 +1,126 @@
+Module
+  extern ef0 m24_release_add @m24_release_add(i32) -> void <c exact=(Int)->void bridge=@scoop$1$br$c4a6e563749ab5f9e1b51a0c9928dad5f93e4316b21aeaa359c4b184e0bc5929 gc-leaf nounwind lib=m24_release>
+  fun @scoop$1$cb$61e7aaf85570121a17422a434e45c964f70532ced8fb5539429e9c39e50b1837() -> ptr<managed>
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.argument.1: i32
+    local %2 $dependency.parameter.value: i32
+    local %3 $dependency.parameter.handle: i32
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000000d) -> local0
+    store integer<Int>(0x00000013) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    store t0 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i32, i32) local-fn6(local4, local2, local3)
+    t1 = aggregate () : {}
+    publish_release_ready local4
+    ret local4
+  fun @scoop$1$cb$122e36ee490195097ad809515331b92f3b214d9dcda689a8ab1e50878c6bfb1c() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.argument.1: i32
+    local %2 $dependency.parameter.value: i64
+    local %3 $dependency.parameter.handle: i32
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Long>(0x000000000000000f) -> local0
+    store integer<Int>(0x00000017) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(32)))
+    store t0 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local4:ptr<managed>@0] sig=void0 (ptr<managed>, i64, i32) local-fn7(local4, local2, local3)
+    t1 = aggregate () : {}
+    publish_release_ready local4
+    ret local4
+  fun @scoop$1$cb$a607774b32a8cdbbffca723851f7682b32190296f79be3da21df80916aaef194(ptr<managed>) -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn5(local0)
+    store t0 -> local1
+    ret local1
+  fun @scoop$1$cb$117c009869c80472f6897baabb07b0cd005ff2bb2eae4b44c987c115072b72f7(i32) -> i32 <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$fe9b506b8924fed65a85b5abce0f8f9ba17a52fbd84dca41e99eaba76767f307(i64) -> i64 <no-gc>
+  block entry
+    ret param0
+  fun @scoop$1$cb$9e838a20198eadb3ec40f7cce35e3f5ed0ba1e597fb01ecba01da6a0091a9b6f(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000002)
+  fun @scoop$1$cb$21b50254007689655b36873a8c13f33fcd50cb234ae2016b814a836b71d6eaef(ptr<managed>, i32, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    heap_store param0 +20 param2
+    ret
+  fun @scoop$1$cb$4e2489254ea6661bed88c382961115034f8220a66c4aeba1d5c25a540a3c17d9(ptr<managed>, i64, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    heap_store param0 +24 param2
+    ret
+  fun @scoop$1$cb$6c9364eea52dc4de4c7b96078090a0540acff9e3fdfc3fc9407b5e6133e898eb(ptr<raw>) -> void <no-gc>
+    local %0 $dependency.release.local.0: i32
+    local %1 $dependency.release.local.1: i32
+    local %2 $dependency.release.local.2: i32
+    local %3 $dependency.release.local.3: i32
+    local %4 $dependency.release.local.4: i32
+    local %5 $dependency.release.local.5: i32
+    local %6 $dependency.release.local.6: i32
+    local %7 $sc.1: i32
+  block entry
+    t0 = release_field_load +16 : i32
+    store t0 -> local1
+    store local1 -> local2
+    call release-scoop-direct-target0 t1 = sig=direct0 (i32) -> i32 local-fn3(local2)
+    store t1 -> local0
+    t2 = release_field_load +20 : i32
+    store t2 -> local3
+    store local3 -> local4
+    call release-scoop-direct-target1 t3 = sig=direct1 (i32) -> i32 external-fn0(local4)
+    store t3 -> local5
+    store local5 -> local6
+    store local6 -> local7
+    call release-native-leaf-void-target0 sig=void0 (ptr<raw>) extern0(c-arg-address(local7))
+    t4 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$ceec0190a34248b31282571ad55b0fbafea4617ca8f34f6277afb96315bd433f(ptr<raw>) -> void <no-gc>
+    local %0 $dependency.release.local.0: i64
+    local %1 $dependency.release.local.1: i64
+    local %2 $dependency.release.local.2: i64
+    local %3 $dependency.release.local.3: i32
+    local %4 $dependency.release.local.4: i32
+    local %5 $dependency.release.local.5: i32
+    local %6 $dependency.release.local.6: i32
+    local %7 $sc.1: i32
+  block entry
+    t0 = release_field_load +16 : i64
+    store t0 -> local1
+    store local1 -> local2
+    call release-scoop-direct-target0 t1 = sig=direct0 (i64) -> i64 local-fn4(local2)
+    store t1 -> local0
+    t2 = release_field_load +24 : i32
+    store t2 -> local3
+    store local3 -> local4
+    call release-scoop-direct-target1 t3 = sig=direct1 (i32) -> i32 external-fn0(local4)
+    store t3 -> local5
+    store local5 -> local6
+    store local6 -> local7
+    call release-native-leaf-void-target0 sig=void0 (ptr<raw>) extern0(c-arg-address(local7))
+    t4 = aggregate () : {}
+    ret
+  td td0 a(n(c=test%3Arelease-generic-provider%3A0.1.0;p=releasegeneric;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$c09587dbb5fdb44ac6757978683a9ef9dec098a30f027f4bb846ef3800a91eac type-id=15393349309046686018 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=test%3Arelease-generic-provider%3A0.1.0;p=releasegeneric;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$d8254830c4ccedd37250ef5e6f88debf61502f0d78f7ac5bf510b6f9436c0762 type-id=6961297851594739157 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Owner value size=8 align=8 refs=[0]
+  layout Owner size=24 align=8 refs=[]
+  layout Owner value size=8 align=8 refs=[0]
+  layout Owner size=32 align=8 refs=[]
+  output library

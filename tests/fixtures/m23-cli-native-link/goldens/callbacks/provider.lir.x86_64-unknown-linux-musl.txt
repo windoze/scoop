@@ -1,0 +1,41 @@
+Module
+  extern ef0 invokeNative @m23_callback_invoke(ptr<code>, ptr<raw>, i32) -> i32 <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->Int bridge=@scoop$1$br$bf32f2da9fe46097e0a974b7ae875279ebd23a4621c8062da599761dfa9c77e5 gc-leaf nounwind lib=m23_callbacks>
+  extern ef1 joinNative @m23_callback_join(ptr<code>, ptr<raw>, i32) -> i32 <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->Int bridge=@scoop$1$br$6c11079102359bcd1fee4b52dbadcf58ed97585ba34592f5bc33eb0215462b7b gc-leaf nounwind lib=m23_callbacks>
+  extern ef2 threadCount @scoop_rt_thread_debug_count() -> i64 <c exact=()->ULong bridge=@scoop$1$br$f2e67f231db9f445234ffb7ebc7b76d0a5dd440fa417bfcaec2f23c90768655e gc-leaf nounwind>
+  fun @scoop$1$cb$cb44b9f5570ef2f5639da5cef1b194ea4ba129313df54baef7740626bf91beba(ptr<code>, ptr<raw>, i32) -> i32
+    local %0 $call.1: i32
+    local %1 $sc.1: ptr<code>
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: i32
+    local %4 $sc.4: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    store param1 -> local2
+    store param2 -> local3
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
+    store local4 -> local0
+    ret local0
+  fun @scoop$1$cb$bfdc09bef71a5f9d3e2002783fa392a91d9203ac53531a24b587a04590fb2633(ptr<code>, ptr<raw>, i32) -> i32
+    local %0 $call.1: i32
+    local %1 $sc.1: ptr<code>
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: i32
+    local %4 $sc.4: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    store param1 -> local2
+    store param2 -> local3
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern1(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
+    store local4 -> local0
+    ret local0
+  fun @scoop$1$cb$313025a31b921d8a76b7bcde1a00d2f667af2188ed73d8fd15cd55fa33be4465() -> i64
+    local %0 $call.1: i64
+    local %1 $sc.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none) extern2()
+    store local1 -> local0
+    ret local0
+  output library

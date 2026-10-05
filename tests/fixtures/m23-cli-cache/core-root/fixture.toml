@@ -2,7 +2,7 @@ schema = 1
 name = "cli-edited-core-root-artifact-consumer"
 inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/call-consumer.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "cache", "core", "stage-golden"]
 
 [[steps]]
@@ -15,7 +15,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib", "--emit", "all", "--dump-dir", "${work}/dumps/core"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib", "--emit", "all", "--dump-dir", "${work}/dumps/core"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,7 +37,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -59,14 +59,14 @@ checks = [
 [[steps]]
 name = "isolate_core"
 files = [
-  {"copy" = {"from" = "${work}/core.slib", "to" = "${work}/artifact-only-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${work}/core.slib", "to" = "${work}/artifact-only-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
   {"remove" = {"path" = "${work}/edited-library"}},
   {"copy" = {"from" = "${fixture}/../../core-library/call-consumer.scoop", "to" = "${work}/consumer.scoop"}},
 ]
 
 [[steps]]
 name = "manual"
-argv = ["/usr/bin/env", "-i", "SCOOP_SYSROOT=${work}/artifact-only-sysroot", "${scoopc}", "build", "${work}/consumer.scoop", "--out-slib", "${work}/manual-consumer.slib"]
+argv = ["/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "TMPDIR=${work}", "SCOOP_SYSROOT=${work}/artifact-only-sysroot", "${scoopc}", "build", {each = "${compile_args}"}, "${work}/consumer.scoop", "--out-slib", "${work}/manual-consumer.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -76,7 +76,7 @@ checks = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/consumer.scoop", "--sysroot", "${work}/artifact-only-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dumps/consumer", "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer.scoop", "--sysroot", "${work}/artifact-only-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dumps/consumer", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -2,7 +2,7 @@ schema = 1
 name = "cli-input-non-regular"
 inputs = []
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "negative"]
 
 [vars]
@@ -25,7 +25,7 @@ checks = []
 
 [[steps]]
 name = "public"
-argv = ["${scoop}", "build", "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -47,7 +47,7 @@ checks = [
 
 [[steps]]
 name = "human"
-argv = ["${scoop}", "build", "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/pipe.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
 stderr = "${work}/pipe.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/pipe.scoop: operand must resolve to a directory or regular file\n"
