@@ -27,6 +27,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 类型 registration、诊断字符串和 itable directory 已接入 ELF 绝对指针及 section symbol + addend 读取；关联 atom 以实际 section/address 核对，外部类型/释放 hook 符号使用所选 target。较长的 descriptor reader 拆为描述符、诊断与 itable 三个模块。完整对象指纹 finalizer 的 Linux 验收仍在后续批次。
 - immortal、static storage 和 initialization registration 已接入 ELF pointer/addend 与 target 符号规则；模板和诊断引用核对实际 atom 起点，空哨兵继续检查范围、对齐与非 atom 区域。LLVM 保留独立地址的只读字符串不必带 merge flags。零尺寸 encoded storage 的地址 token 修正为 file-backed writable data，运行时初始化的 token 继续使用 zero-fill。初始化诊断和静态本地指针规则分别拆入小模块。
 - Cone image 的支持 atom、坐标字符串和各类 registration 数组已接入 ELF 绝对指针读取；长 verification 文件按 atom bytes 与 relocation 检查拆分。原本报错为不同 atom 的无效坐标引用现在按实际地址诊断为错误 target value，拒绝行为保持。
+- LLVM ELF personality 间接指针已纳入 callable 的既有 `AddressTakenConstant` 关联 atom；helper 符号重命名为该 atom 的边界，独立 group 退役，指针 section 使用 `.data.rel.ro.scoop.personality`。ODR 指针及 RELA 随所属函数 group 合并。物化保留全部原生索引，兼容 LLVM 共用 section/symbol string table 的形式，不增加语言实体、wire tag 或 runtime ABI。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
 
@@ -59,3 +60,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 类型 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实对象 reader 集成测试。对象包含 String、接口、父类、子类、vtable 和 itable；本批验证 registration、descriptor 诊断及 itable 关联指针，分别把诊断和 directory 的 RELA addend 改到相邻字节时均拒绝。外部 parent/release hook 的符号比较单测覆盖三个 target；完整类型与对象 fingerprint 链尚未作为 Linux 已完成项。
 - 存储/初始化 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy、8 项既有初始化回归及两 libc 的实际组合对象测试。组合对象含两个 immortal String、整数/引用/ZST encoded storage、两组惰性初始化存储与 failure root；immortal/static registration object fingerprints 计算通过，损坏模板或诊断 RELA addend 时 reader 拒绝。该测试读取实际初始化记录，不执行初始化算法；eager gateway 的 EH 与完整 finalizer 仍需后续接入。
 - Cone image 接入通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc × 空/非空存储与初始化表的真实对象测试；完整读取十个支持指针和 registration 数组，损坏 local pointer 或把 registration pointer 改到其内部时均拒绝。尚未将正式 executable final-link 或整体 image fingerprint 闭环计为完成。
+- personality contribution 变更通过 479 项 LIR 测试、10 项 Linux codegen 测试及 workspace fmt/clippy。两 libc × Strong/ODR 的真实异常成员经过完整发射与 LLVM EH 校验、slib definitions/relocations/stackmaps 读取；GNU ld 对 ODR member 重复输入后仅保留一份代码与间接指针，合并对象再次通过正式 EH/stackmap 检查。后续仍需完整对象指纹、requirement closure 和 executable 链接。

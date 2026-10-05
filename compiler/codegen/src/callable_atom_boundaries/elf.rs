@@ -5,6 +5,8 @@ use object::{Object, ObjectSection, ObjectSymbol, SymbolKind};
 use super::*;
 use crate::elf_object::{ElfObject, error};
 
+mod personality;
+
 pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<(), CodegenError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let mut output = ElfObject::read(&bytes)?;
@@ -27,7 +29,14 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         .ok_or_else(|| CodegenError("ELF callable extent overflows".into()))?;
     let mut associated = vec![primary_section];
     let mut planned_backend = BTreeSet::new();
+    let personality_atom = personality::atom(plan)?;
     for boundary in plan.atom_boundaries() {
+        if boundary.atom() == personality_atom {
+            let section = personality::materialize(&mut output, *boundary)?;
+            associated.push(section);
+            planned_backend.insert(section.0);
+            continue;
+        }
         let extent = match boundary.atom_role() {
             DefinitionAtomRole::Primary => Some((primary_section, primary_start, primary_end)),
             role @ (DefinitionAtomRole::Stackmap
@@ -101,6 +110,7 @@ fn backend_role(name: &str) -> Option<DefinitionAtomRole> {
     match name {
         ".llvm_stackmaps" => Some(DefinitionAtomRole::Stackmap),
         ".eh_frame" => Some(DefinitionAtomRole::EhFrame),
+        ".data.DW.ref.scoop_eh_personality" => Some(DefinitionAtomRole::AddressTakenConstant),
         name if name == ".gcc_except_table" || name.starts_with(".gcc_except_table.") => {
             Some(DefinitionAtomRole::Lsda)
         }

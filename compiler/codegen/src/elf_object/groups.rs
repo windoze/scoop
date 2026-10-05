@@ -54,7 +54,7 @@ impl ElfObject<'_> {
                 .file
                 .section_by_index(SectionIndex(*index))
                 .map_err(error)?;
-            if section.elf_section_header().sh_flags(LE) & u64::from(elf::SHF_GROUP) != 0 {
+            if self.section_flags(section.index())? & u64::from(elf::SHF_GROUP) != 0 {
                 return Err(CodegenError(
                     "ELF associated atom already belongs to another group".into(),
                 ));
@@ -69,5 +69,65 @@ impl ElfObject<'_> {
             updated.extend_from_slice(&u32::try_from(index).map_err(error)?.to_le_bytes());
         }
         self.replace_section(group_index, &updated)
+    }
+
+    /// The personality pointer becomes part of its callable's contribution.
+    pub(crate) fn detach_personality_group(
+        &mut self,
+        pointer: SectionIndex,
+    ) -> Result<(), CodegenError> {
+        let mut found = None;
+        for section in self.file.sections() {
+            let Some((_, members)) = section
+                .elf_section_header()
+                .group(LE, self.file.data())
+                .map_err(error)?
+            else {
+                continue;
+            };
+            if members
+                .iter()
+                .any(|member| member.get(LE) as usize == pointer.0)
+            {
+                if found.is_some() {
+                    return Err(error("personality pointer belongs to multiple groups"));
+                }
+                let members = members
+                    .iter()
+                    .map(|member| SectionIndex(member.get(LE) as usize))
+                    .collect::<Vec<_>>();
+                for member in &members {
+                    let header = self
+                        .file
+                        .section_by_index(*member)
+                        .map_err(error)?
+                        .elf_section_header();
+                    if *member != pointer
+                        && !(header.sh_type(LE) == elf::SHT_RELA
+                            && header.sh_info(LE) as usize == pointer.0)
+                    {
+                        return Err(error("personality COMDAT contains an unrelated section"));
+                    }
+                }
+                found = Some((section.index(), members));
+            }
+        }
+        let (group, members) =
+            found.ok_or_else(|| error("personality pointer has no COMDAT group"))?;
+        for member in members {
+            self.write_u64(
+                self.header_offset(member)? + 8,
+                self.section_flags(member)? & !u64::from(elf::SHF_GROUP),
+            )?;
+        }
+        // Retire the old header as empty non-allocated metadata. Other section
+        // and symbol indices, including every RELA target, stay unchanged.
+        self.rename_section(group, ".comment")?;
+        self.replace_section(group, &[])?;
+        let header = self.header_offset(group)?;
+        self.write_u32(header + 4, elf::SHT_PROGBITS)?;
+        self.write_u32(header + 40, 0)?;
+        self.write_u32(header + 44, 0)?;
+        self.write_u64(header + 56, 0)
     }
 }

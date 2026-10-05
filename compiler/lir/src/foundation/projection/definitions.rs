@@ -330,6 +330,8 @@ pub(super) fn callable_body_associated_atoms(
         associated.push((DefinitionAtomRole::Lsda, subkey()));
         if target.native_object_format() == crate::NativeObjectFormat::MachO64 {
             associated.push((DefinitionAtomRole::EhFrame, subkey()));
+        } else {
+            associated.push((DefinitionAtomRole::AddressTakenConstant, subkey()));
         }
     }
     associated.extend(cstrings.iter().map(|identity| {

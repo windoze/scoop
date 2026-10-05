@@ -771,6 +771,8 @@ ELF 的 `.rodata.str*` 接受两种只读字符串输入：普通 `SHF_ALLOC`，
 
 零尺寸 static storage 的一字节地址 token 仍按初始化类别选择 section：`EncodedStaticValue` 使用 file-backed writable data，`ZeroedForRuntimeUnit` 使用 zero-fill；不能仅因语言值大小为零而改变已计划的初始化物化形式。
 
+ELF callable 的 EH personality 间接指针是该函数的 backend contribution，使用已有 `AddressTakenConstant` role 与 `CallableBody(body)` subkey 规划关联 atom。物化时将 LLVM 的 `DW.ref.scoop_eh_personality` 定义重命名为该 atom 的 start boundary，保留原 symbol/relocation 索引，并放入 `.data.rel.ro.scoop.personality`。其旧的独立 COMDAT group 退役；若所属函数为 ODR，则指针及其 RELA 与 EH/stackmap 一起加入函数 group。普通函数按其 Strong boundary 物化。helper 不形成新的语言实体、runtime ABI symbol 或独立 ODR 定义；CIE 到该边界的引用按已有本地 atom 指针解析，pointer 到 Scoop personality 的引用沿已有 EH requirement 解析。
+
 独立 `.slib` reader 的 stackmap normalization 按已选择 target 使用架构帧合同，LLVM v3 字段解析、site/owner 匹配和 canonical fingerprint 共用。amd64 要求 `N >= 8`、`N % 16 == 8`，SP/FP 的 DWARF 编号为 7/6，`FP = SP + N - 8`；root 必须是 `[SP, FP)` 内八字节对齐的完整八字节 indirect slot，base/derived 相同。reader 使用不依赖 LLVM 的成熟 amd64 解码库，从实际函数起点解码至最后 safepoint，确认 return PC 是直接或间接 call 的下一条指令边界，并确认首个 call 前已保存 RBP、建立 RBP frame chain。该检查不按 call opcode 的局部字节猜测指令长度，不引入新的产物字段或重复的语言语义检查。
 
 对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。

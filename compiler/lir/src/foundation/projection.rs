@@ -987,7 +987,8 @@ mod tests {
                 [
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap,
-                    DefinitionAtomRole::Lsda
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomRole::AddressTakenConstant,
                 ]
             );
         }

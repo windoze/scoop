@@ -13,6 +13,7 @@ use scoop_lir::LinkageClass;
 use crate::CodegenError;
 
 mod groups;
+mod names;
 
 pub(crate) struct ElfObject<'a> {
     pub(crate) file: ElfFile64<'a, LE>,
@@ -22,6 +23,7 @@ pub(crate) struct ElfObject<'a> {
     symtab: SectionIndex,
     strtab: SectionIndex,
     names: BTreeSet<String>,
+    section_strings: Option<(SectionIndex, Vec<u8>)>,
 }
 
 impl<'a> ElfObject<'a> {
@@ -66,6 +68,7 @@ impl<'a> ElfObject<'a> {
             symtab,
             strtab,
             names: BTreeSet::new(),
+            section_strings: None,
         })
     }
 
@@ -160,14 +163,18 @@ impl<'a> ElfObject<'a> {
 
     fn add_section_flags(&mut self, section: SectionIndex, flags: u64) -> Result<(), CodegenError> {
         let field = self.header_offset(section)? + 8;
-        let original = u64::from_le_bytes(
+        self.write_u64(field, self.section_flags(section)? | flags)
+    }
+
+    fn section_flags(&self, section: SectionIndex) -> Result<u64, CodegenError> {
+        let field = self.header_offset(section)? + 8;
+        Ok(u64::from_le_bytes(
             self.bytes
                 .get(field..field + 8)
                 .ok_or_else(|| CodegenError("ELF section flags are out of range".into()))?
                 .try_into()
                 .expect("ELF64 field"),
-        );
-        self.write_u64(field, original | flags)
+        ))
     }
 
     fn header_offset(&self, section: SectionIndex) -> Result<usize, CodegenError> {
@@ -186,6 +193,14 @@ impl<'a> ElfObject<'a> {
     fn write_u64(&mut self, field: usize, value: u64) -> Result<(), CodegenError> {
         self.bytes
             .get_mut(field..field + 8)
+            .ok_or_else(|| CodegenError("ELF field is outside the file".into()))?
+            .copy_from_slice(&value.to_le_bytes());
+        Ok(())
+    }
+
+    fn write_u32(&mut self, field: usize, value: u32) -> Result<(), CodegenError> {
+        self.bytes
+            .get_mut(field..field + 4)
             .ok_or_else(|| CodegenError("ELF field is outside the file".into()))?
             .copy_from_slice(&value.to_le_bytes());
         Ok(())
@@ -223,6 +238,9 @@ impl<'a> ElfObject<'a> {
         let symbols = std::mem::take(&mut self.symbols);
         self.replace_section(self.strtab, &strings)?;
         self.replace_section(self.symtab, &symbols)?;
+        if let Some((index, strings)) = self.section_strings.take() {
+            self.replace_section(index, &strings)?;
+        }
         Ok(self.bytes)
     }
 }
