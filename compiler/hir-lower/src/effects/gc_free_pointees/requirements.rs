@@ -297,7 +297,7 @@ impl Lowerer {
             crate::Owner::Enum(id) => &self.enums[id].type_params,
             crate::Owner::Class(id) => &self.classes[id].type_params,
             crate::Owner::Interface(id) => &self.interfaces[id].type_params,
-            crate::Owner::Object(_) => return Vec::new(),
+            crate::Owner::Object(id) => &self.classes[self.objects[id].backing_class].type_params,
         };
         let owner_parameters = owner_parameters
             .iter()
@@ -328,7 +328,9 @@ impl Lowerer {
             crate::Owner::Enum(id) => &self.enums[id].gc_free_pointee_requirements,
             crate::Owner::Class(id) => &self.classes[id].gc_free_pointee_requirements,
             crate::Owner::Interface(id) => &self.interfaces[id].gc_free_pointee_requirements,
-            crate::Owner::Object(_) => &[],
+            crate::Owner::Object(id) => {
+                &self.classes[self.objects[id].backing_class].gc_free_pointee_requirements
+            }
         }
     }
 }

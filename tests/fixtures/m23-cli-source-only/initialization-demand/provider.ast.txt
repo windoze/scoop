@@ -5,6 +5,7 @@ SourceFile
   public object DeferredRegistry
     public suspend fun fetch
   public class DeferredHost<T>()
+  public class ReadyHost()
     public companion object ReadyFactory
       public val seed: Int = <expr>
         IntLiteral 6
@@ -13,7 +14,7 @@ SourceFile
     public val count: Int = <expr>
       Binary Add
         MethodCall read
-          Var DeferredHost
+          Var ReadyHost
         IntLiteral 1
     public fun read
   public val eager: Int = <expr>

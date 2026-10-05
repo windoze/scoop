@@ -116,6 +116,26 @@ pub(super) fn validate(
             )?;
             Some((source.fields(), declared_fields.as_slice()))
         }
+        (
+            Source::Object(source),
+            Repr::Class {
+                kind,
+                declared_fields,
+                release_policy,
+            },
+        ) => {
+            Error::require(
+                exact,
+                Component::ClassKind,
+                *kind == mir::MirClassKindV1::Final,
+            )?;
+            Error::require(
+                exact,
+                Component::ReleasePolicy,
+                *release_policy == mir::MirClassReleasePolicyV1::None,
+            )?;
+            Some((source.fields(), declared_fields.as_slice()))
+        }
         (Source::Enum(source), Repr::Enum { variants }) => {
             Error::require(
                 exact,

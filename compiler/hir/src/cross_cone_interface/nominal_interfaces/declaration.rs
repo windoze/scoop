@@ -114,7 +114,9 @@ impl NominalDeclarationDetailsV1 {
         if !self.constructors.is_empty()
             && !matches!(
                 kind,
-                PublicNominalKindV1::Class | PublicNominalKindV1::Struct
+                PublicNominalKindV1::Class
+                    | PublicNominalKindV1::Struct
+                    | PublicNominalKindV1::Object
             )
         {
             return Err(NominalInterfaceRecordBuildError::ConstructorsNotAllowed(

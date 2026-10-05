@@ -18,6 +18,7 @@ mod callables;
 mod context;
 mod interpolation;
 mod primary;
+mod qualifiers;
 
 /// Precedence tier of the comparison operators — shared by the type
 /// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside
@@ -324,6 +325,10 @@ impl Parser {
                     receiver = self.parse_index(receiver)?;
                 }
                 TokenKind::Less if !self.peek().newline_before => {
+                    if let Some(qualifier) = self.parse_applied_qualifier(&receiver)? {
+                        receiver = Expr::TypeQualifier(qualifier);
+                        continue;
+                    }
                     let type_args = self.parse_explicit_call_type_args()?;
                     if type_args.is_empty() {
                         break;

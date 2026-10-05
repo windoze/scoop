@@ -294,6 +294,10 @@ fn initialization_subject(key: &InitializationUnitKey) -> DefinitionOriginSubjec
         | InitializationUnitKey::GenericDelegatedExtensionApplication { property: id, .. } => {
             DefinitionOriginSubject::ExtensionProperty(*id)
         }
+        InitializationUnitKey::GenericCompanionTemplate(id)
+        | InitializationUnitKey::GenericCompanionApplication { companion: id, .. } => {
+            DefinitionOriginSubject::GenericType(*id)
+        }
         InitializationUnitKey::Object(id) | InitializationUnitKey::Companion(id) => {
             DefinitionOriginSubject::Type(*id)
         }

@@ -47,7 +47,7 @@ impl Lowerer {
             Some(ResolvedTypeName::Nominal(owner)) => self
                 .nominal_application(subject)
                 .is_some_and(|subject| subject.template == owner),
-            Some(ResolvedTypeName::Alias(ty)) => self.types_equal(ty, subject),
+            Some(ResolvedTypeName::Applied(ty)) => self.types_equal(ty, subject),
             None => false,
         };
         Some(matched)

@@ -38,7 +38,9 @@ pub fn validate_shared_mir_objects(
         };
         let value = shape.value();
 
-        let unit = *units.get(&owner).ok_or(Error::MissingUnit(owner))?;
+        let unit = *units
+            .get(&hir::SourceNominalId::Concrete(owner))
+            .ok_or(Error::MissingUnit(owner))?;
 
         let record = objects.get(value).ok_or(Error::MissingObject(value))?;
         let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner))?;

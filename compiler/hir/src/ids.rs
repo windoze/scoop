@@ -10,6 +10,7 @@ pub type ImportedDerivedEqualityUseId = Idx<ImportedDerivedEquality>;
 pub type ImportedDependencyCallableUseId = Idx<ImportedDependencyCallableUse>;
 pub type ImportedGenericCallableTemplateId = Idx<ImportedGenericCallableTemplate>;
 pub type ImportedGenericDelegateTemplateId = Idx<ImportedGenericDelegateTemplate>;
+pub type ImportedCompanionTemplateId = Idx<ImportedCompanionTemplate>;
 pub type ImportedGenericCallableApplicationId = Idx<ImportedGenericCallableApplication>;
 pub type ImportedConstructorTemplateId = Idx<ImportedConstructorTemplate>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;

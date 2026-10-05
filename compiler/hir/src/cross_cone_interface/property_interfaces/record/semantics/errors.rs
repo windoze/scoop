@@ -58,9 +58,6 @@ pub enum PropertyInterfaceSemanticValidationError<E> {
     ConstOwnerKind {
         actual: PublicNominalKindV1,
     },
-    ConstOwnerArity {
-        actual: u32,
-    },
 }
 
 impl<E: fmt::Display> fmt::Display for PropertyInterfaceSemanticValidationError<E> {
@@ -125,10 +122,6 @@ impl<E: fmt::Display> fmt::Display for PropertyInterfaceSemanticValidationError<
             Self::ConstOwnerKind { actual } => write!(
                 formatter,
                 "const member property requires an object owner, found {actual:?}"
-            ),
-            Self::ConstOwnerArity { actual } => write!(
-                formatter,
-                "const object owner must be non-generic, found arity {actual}"
             ),
         }
     }

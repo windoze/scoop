@@ -146,7 +146,7 @@ impl Concretizer<'_> {
                 concrete::MethodOwner::Interface(self.lower_interface_application(id, substitution))
             }
             export::MethodOwnerApplication::Object(id) => {
-                concrete::MethodOwner::Object(self.lower_object_type(id))
+                concrete::MethodOwner::Object(self.lower_object_type(id, substitution))
             }
         }
     }
@@ -167,7 +167,7 @@ impl Concretizer<'_> {
                 concrete::MethodOwner::Enum(self.lower_enum_application(id, substitution))
             }
             export::GenericMethodOwner::Object(id) => {
-                concrete::MethodOwner::Object(self.lower_object_type(id))
+                concrete::MethodOwner::Object(self.lower_object_type(id, substitution))
             }
         }
     }

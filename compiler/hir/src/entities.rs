@@ -107,6 +107,7 @@ pub struct Module {
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
     pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,
+    pub imported_companion_templates: Arena<ImportedCompanionTemplate>,
     pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     pub imported_constructor_templates: Arena<ImportedConstructorTemplate>,
     /// Template-only calls through a class or interface upper bound. Entries

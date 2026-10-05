@@ -74,9 +74,14 @@ impl CanonicalNominalInterfacesV1 {
             let details = record.declaration_details();
 
             let error = match relation {
-                // Object initialization has a constructor identity but is not a
-                // callable source constructor declaration (including privately).
-                Constructor(_) if record.kind() == PublicNominalKindV1::Object => continue,
+                // Non-generic objects publish their initialized value directly.
+                // Generic objects retain the hidden initializer as template support.
+                Constructor(_)
+                    if record.kind() == PublicNominalKindV1::Object
+                        && matches!(owner, SourceNominalId::Concrete(_)) =>
+                {
+                    continue;
+                }
                 Constructor(constructor)
                     if !details.constructors().values().contains(&constructor) =>
                 {

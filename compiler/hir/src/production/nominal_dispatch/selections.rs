@@ -10,7 +10,9 @@ impl Projection<'_> {
             NominalOwner::Interface(id) => &self.export.interfaces[id].type_params,
             NominalOwner::Struct(id) => &self.export.structs[id].type_params,
             NominalOwner::Enum(id) => &self.export.enums[id].type_params,
-            NominalOwner::Object(_) => &[],
+            NominalOwner::Object(id) => {
+                &self.export.classes[self.export.objects[id].backing_class].type_params
+            }
         };
         self.binders = super::super::signatures::HirInterfaceSignatureProjector::new(self.export)
             .binder_frame(parameters, 0)

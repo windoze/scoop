@@ -48,9 +48,10 @@ impl Lowerer {
             let (declaring, property, ty) =
                 self.find_accessible_class_application_property(application, name, receiver_ty)?;
             let owner = match self.properties[property].owner {
-                hir::PropertyOwner::Object(object) => {
-                    hir::MethodOwnerApplication::Object(self.objects[object].object_type)
-                }
+                hir::PropertyOwner::Object(object) => self.method_owner_application(
+                    crate::Owner::Object(object),
+                    self.class_applications[declaring].arguments.clone(),
+                ),
                 _ => hir::MethodOwnerApplication::Class(declaring),
             };
             return Some((property, owner, ty));

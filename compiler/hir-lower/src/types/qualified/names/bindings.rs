@@ -13,7 +13,7 @@ impl Lowerer {
             ),
             TypeLookupTarget::Current(TopLevelTypeTarget::Alias(alias)) => self
                 .resolve_type_alias_id_reference(alias, name, supplied_type_arguments)
-                .map(ResolvedTypeName::Alias),
+                .map(ResolvedTypeName::Applied),
             TypeLookupTarget::Dependency(binding) => {
                 if let Some(owner) = binding.target().source_nominal() {
                     Some(ResolvedTypeName::Nominal(owner))
@@ -23,13 +23,13 @@ impl Lowerer {
                         name,
                         supplied_type_arguments,
                     )
-                    .map(ResolvedTypeName::Alias)
+                    .map(ResolvedTypeName::Applied)
                 }
             }
         }
     }
 
-    pub(super) fn resolve_nested_type_name(
+    pub(in crate::types) fn resolve_nested_type_name(
         &mut self,
         owner: hir::SourceNominalId,
         name: &ast::Ident,

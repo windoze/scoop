@@ -1,0 +1,9 @@
+struct Box<T>(val value: T) {
+    companion object {
+        const val version: Int = 1
+        fun create(value: T): Box<T> = Box<T>(value)
+    }
+}
+
+fun inspect(value: Box.Companion) {}
+fun main() {}

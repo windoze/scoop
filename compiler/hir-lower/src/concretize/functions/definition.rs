@@ -1,6 +1,24 @@
 use super::*;
 
-pub(in crate::concretize) struct ResolvedFunctionDefinition<'a> {
+pub(in crate::concretize) enum ResolvedFunctionDefinition<'a> {
+    Body(ResolvedBodyDefinition<'a>),
+    Companion {
+        template: export::ImportedCompanionTemplateId,
+        role: scoop_identity::InitializationCallableRole,
+        signature: &'a export::CallableSignature,
+    },
+}
+
+impl ResolvedFunctionDefinition<'_> {
+    pub(in crate::concretize) fn signature(&self) -> &export::CallableSignature {
+        match self {
+            Self::Body(body) => body.signature,
+            Self::Companion { signature, .. } => signature,
+        }
+    }
+}
+
+pub(in crate::concretize) struct ResolvedBodyDefinition<'a> {
     pub signature: &'a export::CallableSignature,
     pub capture_bindings: Vec<export::BindingId>,
     pub implementation: &'a export::FunctionKind,
@@ -42,12 +60,12 @@ impl<'input> Concretizer<'input> {
                     }
                     None => DefinitionReceiver::None,
                 };
-                ResolvedFunctionDefinition {
+                ResolvedFunctionDefinition::Body(ResolvedBodyDefinition {
                     signature: &source.signature,
                     capture_bindings: self.local_capture_bindings(id),
                     implementation: &source.kind,
                     receiver,
-                }
+                })
             }
             FunctionSource::Imported(id) => {
                 let source = &self.source.imported_generic_templates[id];
@@ -71,13 +89,18 @@ impl<'input> Concretizer<'input> {
                     } => capture_bindings.clone(),
                     _ => Vec::new(),
                 };
-                ResolvedFunctionDefinition {
+                ResolvedFunctionDefinition::Body(ResolvedBodyDefinition {
                     signature: &source.signature.signature,
                     capture_bindings,
                     implementation: &source.implementation,
                     receiver,
-                }
+                })
             }
+            FunctionSource::Companion(template, role) => ResolvedFunctionDefinition::Companion {
+                template,
+                role,
+                signature: &self.source.imported_companion_templates[template].signature,
+            },
         }
     }
 

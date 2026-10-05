@@ -2,6 +2,8 @@ use super::*;
 use crate::NominalTarget;
 use crate::imports::lookup::calls::{ExpressionQualifierLookup, ExpressionQualifierTarget};
 
+mod applied;
+
 impl Lowerer {
     /// A direct receiver spelling is still an expression name first. Keep
     /// this guard shared by every qualifier consumer so none of them can

@@ -239,6 +239,11 @@ impl CanonicalCrossConeRouteAuthority<'_> {
                             property: id,
                             ..
                         } => self.property_resolution(PropertyOwner::ExtensionProperty(*id)),
+                        InitializationUnitKey::GenericCompanionTemplate(id)
+                        | InitializationUnitKey::GenericCompanionApplication {
+                            companion: id,
+                            ..
+                        } => self.nominal_resolution(NominalDeclarationOwner::GenericTemplate(*id)),
                         InitializationUnitKey::Object(id)
                         | InitializationUnitKey::Companion(id) => {
                             self.nominal_resolution(NominalDeclarationOwner::Concrete(*id))

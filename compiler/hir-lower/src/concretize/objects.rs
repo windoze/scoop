@@ -1,6 +1,8 @@
 //! Object declarations and values are allocated when their representation is needed.
 
+use super::initialization::InitializationSource;
 use super::*;
+mod imported;
 
 impl Concretizer<'_> {
     pub(super) fn register_object(
@@ -23,7 +25,7 @@ impl Concretizer<'_> {
         });
         assert!(
             self.object_type_map
-                .insert(source.object_type, object_type)
+                .insert(backing_class, object_type)
                 .is_none()
         );
         let value = concrete::SingletonValueId::from_raw(
@@ -39,10 +41,13 @@ impl Concretizer<'_> {
                 });
         assert!(
             self.singleton_root_map
-                .insert(source_value.published_root, published_root)
+                .insert(value, published_root)
                 .is_none()
         );
-        let initialization = self.request_initialization_unit(source_value.initialization);
+        let initialization = self.request_initialization(InitializationKey {
+            source: InitializationSource::Defined(source_value.initialization),
+            arguments: self.classes[backing_class].type_arguments.clone(),
+        });
         let allocated_value = self.singleton_values.alloc(concrete::SingletonValue {
             identity: self.source.object_value_identities[source.singleton_value].id(),
             declaration: object,
@@ -53,7 +58,7 @@ impl Concretizer<'_> {
         assert_eq!(allocated_value, value);
         assert!(
             self.singleton_value_map
-                .insert(source.singleton_value, value)
+                .insert(object_type, value)
                 .is_none()
         );
         let kind = match source.kind {
@@ -92,29 +97,53 @@ impl Concretizer<'_> {
     pub(super) fn lower_object_type(
         &mut self,
         source: export::ObjectTypeId,
+        substitution: &[concrete::TypeId],
     ) -> concrete::ObjectTypeId {
-        if let Some(id) = self.object_type_map.get(&source) {
-            return *id;
-        }
         let representation = self.source.object_types[source].representation;
-        self.lower_class_application(representation, &[]);
-        self.object_type_map[&source]
+        let class = self.lower_class_application(representation, substitution);
+        self.object_type_map[&class]
+    }
+
+    pub(super) fn singleton_value_for_type(
+        &self,
+        ty: concrete::TypeId,
+    ) -> concrete::SingletonValueId {
+        let concrete::TypeKind::Class(class) = self.types[ty].kind else {
+            unreachable!("a singleton has a class representation")
+        };
+        self.singleton_value_map[&self.object_type_map[&class]]
+    }
+
+    pub(super) fn singleton_value_for_application(
+        &self,
+        source: export::SingletonValueId,
+        arguments: &[concrete::TypeId],
+    ) -> concrete::SingletonValueId {
+        let object = &self.source.objects[self.source.singleton_values[source].declaration];
+        let owner = self.source.nominal_identities[object.backing_class].declaration_id();
+        let class = self.class_by_key[&(owner, arguments.to_vec())];
+        self.singleton_value_map[&self.object_type_map[&class]]
     }
 
     pub(super) fn lower_singleton_value(
         &mut self,
         source: export::SingletonValueId,
+        arguments: &[concrete::TypeId],
     ) -> concrete::SingletonValueId {
         let value = &self.source.singleton_values[source];
-        self.lower_object_type(value.object_type);
-        self.singleton_value_map[&source]
+        let object_type = self.lower_object_type(value.object_type, arguments);
+        self.singleton_value_map[&object_type]
     }
 
     pub(super) fn lower_singleton_root(
         &mut self,
         source: export::SingletonPublishedRootId,
+        substitution: &[concrete::TypeId],
     ) -> concrete::SingletonPublishedRootId {
-        self.lower_singleton_value(self.source.singleton_published_roots[source].value);
-        self.singleton_root_map[&source]
+        let value = self.lower_singleton_value(
+            self.source.singleton_published_roots[source].value,
+            substitution,
+        );
+        self.singleton_root_map[&value]
     }
 }

@@ -167,7 +167,7 @@ impl DecodedIdentityKey<PersistentTypeId> for DecodedGeneratedNominalKey {
     }
 }
 
-struct ObjectValueCandidate(PersistentTypeId);
+struct ObjectValueCandidate(crate::NominalDeclarationOwner);
 
 impl WireEncode for ObjectValueCandidate {
     fn encode(
@@ -175,8 +175,16 @@ impl WireEncode for ObjectValueCandidate {
         encoder: &mut scoop_wire::Encoder,
     ) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
-        encoder.field(1)?;
-        self.0.encode(encoder)
+        match self.0 {
+            crate::NominalDeclarationOwner::Concrete(id) => {
+                encoder.field(1)?;
+                id.encode(encoder)
+            }
+            crate::NominalDeclarationOwner::GenericTemplate(id) => {
+                encoder.field(2)?;
+                id.encode(encoder)
+            }
+        }
     }
 }
 
@@ -186,7 +194,17 @@ impl DecodedIdentityKey<PersistentObjectValueId> for DecodedSourceDeclarationKey
     type Canonical = SourceDeclarationKey;
 
     fn candidate_identity(&self) -> Result<PersistentObjectValueId, HashError> {
-        let source_type = derive_candidate("scoop-type-id-v1", &SourceTypeCandidate(self))?;
+        let source_type = if self.is_generic_nominal() {
+            crate::NominalDeclarationOwner::GenericTemplate(derive_candidate(
+                "scoop-generic-type-id-v1",
+                self,
+            )?)
+        } else {
+            crate::NominalDeclarationOwner::Concrete(derive_candidate(
+                "scoop-type-id-v1",
+                &SourceTypeCandidate(self),
+            )?)
+        };
         derive_candidate(
             "scoop-object-value-id-v1",
             &ObjectValueCandidate(source_type),

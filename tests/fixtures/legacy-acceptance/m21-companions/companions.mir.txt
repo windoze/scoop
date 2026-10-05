@@ -2,12 +2,12 @@ Module
   global0 $singleton$ObjectHost: ObjectHost managed initial=zeroed-for-runtime-unit
   global1 $singleton$Maker: StructHost.Maker managed initial=zeroed-for-runtime-unit
   global2 $singleton$Values: EnumHost.Values managed initial=zeroed-for-runtime-unit
-  global3 $singleton$Factory: Box.Factory managed initial=zeroed-for-runtime-unit
-  global4 $singleton$Companion: DefaultHost.Companion managed initial=zeroed-for-runtime-unit
-  global5 $singleton$Companion: Independent.Companion managed initial=zeroed-for-runtime-unit
-  global6 $singleton$Companion: InheritedHost.Companion managed initial=zeroed-for-runtime-unit
-  global7 $singleton$Provider: InterfaceHost.Provider managed initial=zeroed-for-runtime-unit
-  global8 $singleton$NestedCompanion: ObjectHost.NestedCompanion managed initial=zeroed-for-runtime-unit
+  global3 $singleton$Companion: DefaultHost.Companion managed initial=zeroed-for-runtime-unit
+  global4 $singleton$Companion: Independent.Companion managed initial=zeroed-for-runtime-unit
+  global5 $singleton$Companion: InheritedHost.Companion managed initial=zeroed-for-runtime-unit
+  global6 $singleton$Provider: InterfaceHost.Provider managed initial=zeroed-for-runtime-unit
+  global7 $singleton$NestedCompanion: ObjectHost.NestedCompanion managed initial=zeroed-for-runtime-unit
+  global8 $singleton$Factory: Box.Factory<Int> managed initial=zeroed-for-runtime-unit
   global9 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global10 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global11 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
@@ -17,30 +17,21 @@ Module
   global15 $init$failure$6: Any managed initial=zeroed-for-runtime-unit
   global16 $init$failure$7: Any managed initial=zeroed-for-runtime-unit
   global17 $init$failure$8: Any managed initial=zeroed-for-runtime-unit
-  init0 object:ObjectHost singleton lazy global0 initializer=@fn10 ensure=@fn11 failure=9 deps=[]
-  init1 companion:StructHost.Maker singleton lazy global1 initializer=@fn14 ensure=@fn15 failure=10 deps=[]
-  init2 companion:EnumHost.Values singleton lazy global2 initializer=@fn16 ensure=@fn17 failure=11 deps=[]
-  init3 companion:Box.Factory singleton lazy global3 initializer=@fn18 ensure=@fn19 failure=12 deps=[]
-  init4 companion:DefaultHost.Companion singleton lazy global4 initializer=@fn20 ensure=@fn21 failure=13 deps=[]
-  init5 companion:Independent.Companion singleton lazy global5 initializer=@fn22 ensure=@fn23 failure=14 deps=[]
-  init6 companion:InheritedHost.Companion singleton lazy global6 initializer=@fn24 ensure=@fn25 failure=15 deps=[]
-  init7 companion:InterfaceHost.Provider singleton lazy global7 initializer=@fn26 ensure=@fn27 failure=16 deps=[]
-  init8 companion:ObjectHost.NestedCompanion singleton lazy global8 initializer=@fn28 ensure=@fn29 failure=17 deps=[]
+  init0 object:ObjectHost singleton lazy global0 initializer=@fn8 ensure=@fn9 failure=9 deps=[]
+  init1 companion:StructHost.Maker singleton lazy global1 initializer=@fn12 ensure=@fn13 failure=10 deps=[]
+  init2 companion:EnumHost.Values singleton lazy global2 initializer=@fn14 ensure=@fn15 failure=11 deps=[]
+  init3 companion:DefaultHost.Companion singleton lazy global3 initializer=@fn16 ensure=@fn17 failure=12 deps=[]
+  init4 companion:Independent.Companion singleton lazy global4 initializer=@fn18 ensure=@fn19 failure=13 deps=[]
+  init5 companion:InheritedHost.Companion singleton lazy global5 initializer=@fn20 ensure=@fn21 failure=14 deps=[]
+  init6 companion:InterfaceHost.Provider singleton lazy global6 initializer=@fn22 ensure=@fn23 failure=15 deps=[]
+  init7 companion:ObjectHost.NestedCompanion singleton lazy global7 initializer=@fn24 ensure=@fn25 failure=16 deps=[]
+  init8 companion:Box.Factory singleton lazy global8 initializer=@fn27 ensure=@fn28 failure=17 deps=[]
   struct StructHost ()
   enum EnumHost
     Entry()
-  enum Option<String>
-    Some(_0: String)
-    None()
   enum Option<Char>
     Some(_0: Char)
     None()
-  enum CoroutineStep<Box.Factory>
-    Completed(value: Box.Factory)
-    Suspended()
-  enum CoroutineSlot<Box.Factory>
-    Empty()
-    Value(value: Box.Factory)
   class DefaultHost vtable=0 itables=0
   class ObjectHost vtable=0 itables=0
   class Independent vtable=0 itables=0
@@ -48,32 +39,28 @@ Module
   class InheritedHost vtable=0 itables=0
   class StructHost.Maker vtable=0 itables=0
   class EnumHost.Values vtable=0 itables=0
-  class Box.Factory vtable=0 itables=0
   class DefaultHost.Companion vtable=0 itables=0
   class Independent.Companion vtable=0 itables=0
   class InheritedHost.Companion vtable=0 itables=0
   class InterfaceHost.Provider vtable=0 itables=0
   class ObjectHost.NestedCompanion vtable=0 itables=0
+  class Box.Factory<Int> vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
-  class IllegalStateException vtable=0 itables=0
-  class Exception vtable=0 itables=0
-  class Throwable vtable=0 itables=0
   interface InterfaceHost
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Iterable<Char>
   interface Iterator<Char>
-  interface Continuation<Box.Factory>
-  interface SuspendTask<Box.Factory>
-  interface SuspendRegistration<Box.Factory>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum3 nominal_id=de7c3f1a33f9d62f7117e8ba9965cbbba3fbe1a0e05ae5f8878c12960d3d29e9 exact_id=16e9e01323c5cf50297d977419b8e6d627eee28568bc6eb124ba4f6aa32526b9
-  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get5 location=enum4 nominal_id=b5d7cb64f775fb4d7eb0ef4627966c81ac59ee13abc48f991a2e39642f3198c4 exact_id=89592a293078dbf7783c69ed0be7eb7247ce12275a5e1e4b16339c2df3b6434d
-  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn53 id=5a923357748d78efc7a187ba96fdb0d550fe12a4b9e7ba7897eb15f30b237728
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   fun ObjectHost.direct @fn0(this: ObjectHost) -> Int
     bb0 entry
       return
@@ -94,69 +81,22 @@ Module
       return
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
-  fun Box.Factory.emptyInt @fn4(this: Box.Factory) -> Box<Int>
-    bb0 entry
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
-      assign $new.1
-        Type Box<Int>
-        ClassAlloc Box<Int>
-      call @fn51 direct
-        Type Box<Int>
-        Local $new.1
-        Type Int
-        Local $parameter.value
-      return
-        Type Box<Int>
-        Local $new.1
-  fun Box.Factory.answer @fn5(this: Box.Factory) -> Int
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Box.Factory
-          Local this
-      val $receiver: Box.Factory
-        Type Box.Factory
-        Local this
-      call $call.1: Box<Int> = @fn4 direct
-        Type Box.Factory
-        Local $receiver
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Box<Int>
-          Local $call.1
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun DefaultHost.Companion.value @fn6(this: DefaultHost.Companion) -> Int
+  fun DefaultHost.Companion.value @fn4(this: DefaultHost.Companion) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-  fun InterfaceHost.Provider.value @fn7(this: InterfaceHost.Provider) -> Int
+  fun InterfaceHost.Provider.value @fn5(this: InterfaceHost.Provider) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=10 bits=0x0000000a
-  fun ObjectHost.NestedCompanion.forwarded @fn8(this: ObjectHost.NestedCompanion) -> Int
+  fun ObjectHost.NestedCompanion.forwarded @fn6(this: ObjectHost.NestedCompanion) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=12 bits=0x0000000c
-  fun marked @fn9(label: String, value: Int) -> Int
+  fun marked @fn7(label: String, value: Int) -> Int
     bb0 entry
       val $dependency.argument.0: String
         Type String
@@ -164,25 +104,25 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn26 direct
         Type String
         Local $dependency.parameter.value
       return
         Type Int
         Local value
-  fun $init$body$0 @fn10() -> Unit
+  fun $init$body$0 @fn8() -> Unit
     bb0 entry
       assign $new.1
         Type ObjectHost
         ClassAlloc ObjectHost
-      call @fn39 direct
+      call @fn35 direct
         Type ObjectHost
         Local $new.1
       global_assign $singleton$ObjectHost
         Type ObjectHost
         Local $new.1
       return
-  fun $init$ensure$0 @fn11() -> Unit
+  fun $init$ensure$0 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -227,7 +167,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn10 direct
+      call @fn8 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
@@ -280,12 +220,12 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun chooseFactory @fn12(value: Box.Factory) -> Box.Factory
+  fun chooseFactory @fn10(value: Box.Factory<Int>) -> Box.Factory<Int>
     bb0 entry
       return
-        Type Box.Factory
+        Type Box.Factory<Int>
         Local value
-  fun main @fn13() -> Unit
+  fun main @fn11() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -293,7 +233,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -302,7 +242,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -324,7 +264,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -333,45 +273,45 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn26 direct
         Type String
         Local $dependency.parameter.value
-      call @fn19 direct
-      val $receiver: Box.Factory
-        Type Box.Factory
+      call @fn28 direct
+      val $receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
-      call $dependency.argument.0: Int = @fn5 direct
-        Type Box.Factory
+      call $dependency.argument.0: Int = @fn30 direct
+        Type Box.Factory<Int>
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn19 direct
+      call @fn28 direct
       field_set 1
-        Type Box.Factory
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      call @fn19 direct
+      call @fn28 direct
       val $dependency.argument.0: Int
         Type Int
         FieldAccess 1
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn19 direct
+      call @fn28 direct
       val $dependency.receiver: Int
         Type Int
         FieldAccess 1
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
       val $dependency.argument.0: Int
         Type Int
@@ -379,9 +319,9 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn19 direct
+      call @fn28 direct
       field_set 1
-        Type Box.Factory
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
         Type Int
         IntegerBinary add kind=Int
@@ -389,73 +329,73 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call @fn19 direct
+      call @fn28 direct
       val $dependency.argument.0: Int
         Type Int
         FieldAccess 1
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn19 direct
-      call @fn19 direct
+      call @fn28 direct
+      call @fn28 direct
       val $dependency.argument.0: Boolean
         Type Boolean
         Binary RefEq
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn32 direct
+      call @fn31 direct
         Type Boolean
         Local $dependency.parameter.value
-      call @fn19 direct
-      val $argument.0: Box.Factory
-        Type Box.Factory
+      call @fn28 direct
+      val $argument.0: Box.Factory<Int>
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
-      val $parameter.value: Box.Factory
-        Type Box.Factory
+      val $parameter.value: Box.Factory<Int>
+        Type Box.Factory<Int>
         Local $argument.0
-      call @fn19 direct
-      call $call.1: Box.Factory = @fn12 direct
-        Type Box.Factory
+      call @fn28 direct
+      call $call.1: Box.Factory<Int> = @fn10 direct
+        Type Box.Factory<Int>
         Local $parameter.value
       val $dependency.argument.0: Boolean
         Type Boolean
         Binary RefEq
-          Type Box.Factory
+          Type Box.Factory<Int>
           Local $call.1
-          Type Box.Factory
+          Type Box.Factory<Int>
           GlobalRead $singleton$Factory
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn32 direct
+      call @fn31 direct
         Type Boolean
         Local $dependency.parameter.value
-      call @fn19 direct
-      val $receiver: Box.Factory
-        Type Box.Factory
+      call @fn28 direct
+      val $receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
-      call $dependency.argument.0: Int = @fn5 direct
-        Type Box.Factory
+      call $dependency.argument.0: Int = @fn30 direct
+        Type Box.Factory<Int>
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn19 direct
-      val $receiver: Box.Factory
-        Type Box.Factory
+      call @fn28 direct
+      val $receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
         GlobalRead $singleton$Factory
       val $argument.0: Int
         Type Int
@@ -463,44 +403,44 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Int = @fn33 direct
-        Type Box.Factory
+      call $dependency.argument.0: Int = @fn32 direct
+        Type Box.Factory<Int>
         Local $receiver
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn21 direct
+      call @fn17 direct
       val $receiver: DefaultHost.Companion
         Type DefaultHost.Companion
         GlobalRead $singleton$Companion
-      call $dependency.argument.0: Int = @fn6 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type DefaultHost.Companion
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn21 direct
+      call @fn17 direct
       val $receiver: DefaultHost.Companion
         Type DefaultHost.Companion
         GlobalRead $singleton$Companion
-      call $dependency.argument.0: Int = @fn6 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type DefaultHost.Companion
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn15 direct
+      call @fn13 direct
       val $receiver: StructHost.Maker
         Type StructHost.Maker
         GlobalRead $singleton$Maker
@@ -510,10 +450,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn15 direct
+      call @fn13 direct
       val $receiver: StructHost.Maker
         Type StructHost.Maker
         GlobalRead $singleton$Maker
@@ -523,10 +463,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn17 direct
+      call @fn15 direct
       val $receiver: EnumHost.Values
         Type EnumHost.Values
         GlobalRead $singleton$Values
@@ -536,10 +476,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn17 direct
+      call @fn15 direct
       val $receiver: EnumHost.Values
         Type EnumHost.Values
         GlobalRead $singleton$Values
@@ -549,33 +489,33 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn27 direct
+      call @fn23 direct
       val $receiver: InterfaceHost.Provider
         Type InterfaceHost.Provider
         GlobalRead $singleton$Provider
-      call $dependency.argument.0: Int = @fn7 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type InterfaceHost.Provider
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn27 direct
+      call @fn23 direct
       val $receiver: InterfaceHost.Provider
         Type InterfaceHost.Provider
         GlobalRead $singleton$Provider
-      call $dependency.argument.0: Int = @fn7 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type InterfaceHost.Provider
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -584,7 +524,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -593,10 +533,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn11 direct
+      call @fn9 direct
       val $receiver: ObjectHost
         Type ObjectHost
         GlobalRead $singleton$ObjectHost
@@ -606,39 +546,39 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn29 direct
+      call @fn25 direct
       val $receiver: ObjectHost.NestedCompanion
         Type ObjectHost.NestedCompanion
         GlobalRead $singleton$NestedCompanion
-      call $dependency.argument.0: Int = @fn8 direct
+      call $dependency.argument.0: Int = @fn6 direct
         Type ObjectHost.NestedCompanion
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn29 direct
+      call @fn25 direct
       val $receiver: ObjectHost.NestedCompanion
         Type ObjectHost.NestedCompanion
         GlobalRead $singleton$NestedCompanion
-      call $dependency.argument.0: Int = @fn8 direct
+      call $dependency.argument.0: Int = @fn6 direct
         Type ObjectHost.NestedCompanion
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       assign $new.2
         Type Independent
         ClassAlloc Independent
-      call @fn40 direct
+      call @fn36 direct
         Type Independent
         Local $new.2
       val independent: Independent
@@ -650,10 +590,10 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn26 direct
         Type String
         Local $dependency.parameter.value
-      call @fn23 direct
+      call @fn19 direct
       val $dependency.argument.0: Int
         Type Int
         FieldAccess 0
@@ -662,10 +602,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn25 direct
+      call @fn21 direct
       val $dependency.argument.0: Int
         Type Int
         FieldAccess 0
@@ -674,10 +614,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn25 direct
+      call @fn21 direct
       val $receiver: InheritedHost.Companion
         Type InheritedHost.Companion
         GlobalRead $singleton$Companion
@@ -689,27 +629,137 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn29 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun $init$body$1 @fn14() -> Unit
+  fun $init$body$1 @fn12() -> Unit
     bb0 entry
       assign $new.1
         Type StructHost.Maker
         ClassAlloc StructHost.Maker
-      call @fn43 direct
+      call @fn39 direct
         Type StructHost.Maker
         Local $new.1
       global_assign $singleton$Maker
         Type StructHost.Maker
         Local $new.1
       return
-  fun $init$ensure$1 @fn15() -> Unit
+  fun $init$ensure$1 @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn12 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:StructHost.Maker
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:StructHost.Maker
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:StructHost.Maker
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:StructHost.Maker
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$2 @fn14() -> Unit
+    bb0 entry
+      assign $new.1
+        Type EnumHost.Values
+        ClassAlloc EnumHost.Values
+      call @fn40 direct
+        Type EnumHost.Values
+        Local $new.1
+      global_assign $singleton$Values
+        Type EnumHost.Values
+        Local $new.1
+      return
+  fun $init$ensure$2 @fn15() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:EnumHost.Values
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -753,7 +803,7 @@ Module
       call @fn14 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:StructHost.Maker
+        InitializationUnitAddress init2 companion:EnumHost.Values
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -768,7 +818,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:StructHost.Maker
+        InitializationUnitAddress init2 companion:EnumHost.Values
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -789,37 +839,37 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:StructHost.Maker
+        InitializationUnitAddress init2 companion:EnumHost.Values
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:StructHost.Maker
+        InitializationUnitAddress init2 companion:EnumHost.Values
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$2 @fn16() -> Unit
+  fun $init$body$4 @fn16() -> Unit
     bb0 entry
       assign $new.1
-        Type EnumHost.Values
-        ClassAlloc EnumHost.Values
-      call @fn44 direct
-        Type EnumHost.Values
+        Type DefaultHost.Companion
+        ClassAlloc DefaultHost.Companion
+      call @fn41 direct
+        Type DefaultHost.Companion
         Local $new.1
-      global_assign $singleton$Values
-        Type EnumHost.Values
+      global_assign $singleton$Companion
+        Type DefaultHost.Companion
         Local $new.1
       return
-  fun $init$ensure$2 @fn17() -> Unit
+  fun $init$ensure$4 @fn17() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:EnumHost.Values
+        InitializationUnitAddress init3 companion:DefaultHost.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -863,7 +913,7 @@ Module
       call @fn16 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:EnumHost.Values
+        InitializationUnitAddress init3 companion:DefaultHost.Companion
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -878,7 +928,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:EnumHost.Values
+        InitializationUnitAddress init3 companion:DefaultHost.Companion
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -899,37 +949,37 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:EnumHost.Values
+        InitializationUnitAddress init3 companion:DefaultHost.Companion
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:EnumHost.Values
+        InitializationUnitAddress init3 companion:DefaultHost.Companion
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$3 @fn18() -> Unit
+  fun $init$body$5 @fn18() -> Unit
     bb0 entry
       assign $new.1
-        Type Box.Factory
-        ClassAlloc Box.Factory
-      call @fn45 direct
-        Type Box.Factory
+        Type Independent.Companion
+        ClassAlloc Independent.Companion
+      call @fn42 direct
+        Type Independent.Companion
         Local $new.1
-      global_assign $singleton$Factory
-        Type Box.Factory
+      global_assign $singleton$Companion
+        Type Independent.Companion
         Local $new.1
       return
-  fun $init$ensure$3 @fn19() -> Unit
+  fun $init$ensure$5 @fn19() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:Box.Factory
+        InitializationUnitAddress init4 companion:Independent.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -973,7 +1023,7 @@ Module
       call @fn18 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:Box.Factory
+        InitializationUnitAddress init4 companion:Independent.Companion
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -988,7 +1038,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:Box.Factory
+        InitializationUnitAddress init4 companion:Independent.Companion
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -1009,37 +1059,37 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:Box.Factory
+        InitializationUnitAddress init4 companion:Independent.Companion
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:Box.Factory
+        InitializationUnitAddress init4 companion:Independent.Companion
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$4 @fn20() -> Unit
+  fun $init$body$6 @fn20() -> Unit
     bb0 entry
       assign $new.1
-        Type DefaultHost.Companion
-        ClassAlloc DefaultHost.Companion
-      call @fn46 direct
-        Type DefaultHost.Companion
+        Type InheritedHost.Companion
+        ClassAlloc InheritedHost.Companion
+      call @fn43 direct
+        Type InheritedHost.Companion
         Local $new.1
       global_assign $singleton$Companion
-        Type DefaultHost.Companion
+        Type InheritedHost.Companion
         Local $new.1
       return
-  fun $init$ensure$4 @fn21() -> Unit
+  fun $init$ensure$6 @fn21() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 companion:DefaultHost.Companion
+        InitializationUnitAddress init5 companion:InheritedHost.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -1083,7 +1133,7 @@ Module
       call @fn20 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 companion:DefaultHost.Companion
+        InitializationUnitAddress init5 companion:InheritedHost.Companion
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -1098,7 +1148,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 companion:DefaultHost.Companion
+        InitializationUnitAddress init5 companion:InheritedHost.Companion
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -1119,37 +1169,37 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 companion:DefaultHost.Companion
+        InitializationUnitAddress init5 companion:InheritedHost.Companion
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 companion:DefaultHost.Companion
+        InitializationUnitAddress init5 companion:InheritedHost.Companion
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$5 @fn22() -> Unit
+  fun $init$body$7 @fn22() -> Unit
     bb0 entry
       assign $new.1
-        Type Independent.Companion
-        ClassAlloc Independent.Companion
-      call @fn47 direct
-        Type Independent.Companion
+        Type InterfaceHost.Provider
+        ClassAlloc InterfaceHost.Provider
+      call @fn44 direct
+        Type InterfaceHost.Provider
         Local $new.1
-      global_assign $singleton$Companion
-        Type Independent.Companion
+      global_assign $singleton$Provider
+        Type InterfaceHost.Provider
         Local $new.1
       return
-  fun $init$ensure$5 @fn23() -> Unit
+  fun $init$ensure$7 @fn23() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 companion:Independent.Companion
+        InitializationUnitAddress init6 companion:InterfaceHost.Provider
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -1193,7 +1243,7 @@ Module
       call @fn22 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 companion:Independent.Companion
+        InitializationUnitAddress init6 companion:InterfaceHost.Provider
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -1208,7 +1258,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 companion:Independent.Companion
+        InitializationUnitAddress init6 companion:InterfaceHost.Provider
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -1229,37 +1279,37 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 companion:Independent.Companion
+        InitializationUnitAddress init6 companion:InterfaceHost.Provider
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init5 companion:Independent.Companion
+        InitializationUnitAddress init6 companion:InterfaceHost.Provider
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$6 @fn24() -> Unit
+  fun $init$body$8 @fn24() -> Unit
     bb0 entry
       assign $new.1
-        Type InheritedHost.Companion
-        ClassAlloc InheritedHost.Companion
-      call @fn48 direct
-        Type InheritedHost.Companion
+        Type ObjectHost.NestedCompanion
+        ClassAlloc ObjectHost.NestedCompanion
+      call @fn45 direct
+        Type ObjectHost.NestedCompanion
         Local $new.1
-      global_assign $singleton$Companion
-        Type InheritedHost.Companion
+      global_assign $singleton$NestedCompanion
+        Type ObjectHost.NestedCompanion
         Local $new.1
       return
-  fun $init$ensure$6 @fn25() -> Unit
+  fun $init$ensure$8 @fn25() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 companion:InheritedHost.Companion
+        InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -1303,7 +1353,7 @@ Module
       call @fn24 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 companion:InheritedHost.Companion
+        InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -1318,7 +1368,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 companion:InheritedHost.Companion
+        InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -1339,241 +1389,21 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 companion:InheritedHost.Companion
+        InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init6 companion:InheritedHost.Companion
+        InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
       call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$7 @fn26() -> Unit
-    bb0 entry
-      assign $new.1
-        Type InterfaceHost.Provider
-        ClassAlloc InterfaceHost.Provider
-      call @fn49 direct
-        Type InterfaceHost.Provider
-        Local $new.1
-      global_assign $singleton$Provider
-        Type InterfaceHost.Provider
-        Local $new.1
-      return
-  fun $init$ensure$7 @fn27() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init7 companion:InterfaceHost.Provider
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn26 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init7 companion:InterfaceHost.Provider
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init7 companion:InterfaceHost.Provider
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init7 companion:InterfaceHost.Provider
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init7 companion:InterfaceHost.Provider
-      call external4 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun $init$body$8 @fn28() -> Unit
-    bb0 entry
-      assign $new.1
-        Type ObjectHost.NestedCompanion
-        ClassAlloc ObjectHost.NestedCompanion
-      call @fn50 direct
-        Type ObjectHost.NestedCompanion
-        Local $new.1
-      global_assign $singleton$NestedCompanion
-        Type ObjectHost.NestedCompanion
-        Local $new.1
-      return
-  fun $init$ensure$8 @fn29() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn28 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init8 companion:ObjectHost.NestedCompanion
-      call external4 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun println @fn30(value: String) -> Unit
+  fun println @fn26(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1597,7 +1427,117 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn31(value: Int) -> Unit
+  fun $init$body$3 @fn27() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Box.Factory<Int>
+        ClassAlloc Box.Factory<Int>
+      call @fn46 direct
+        Type Box.Factory<Int>
+        Local $new.1
+      global_assign $singleton$Factory
+        Type Box.Factory<Int>
+        Local $new.1
+      return
+  fun $init$ensure$3 @fn28() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init8 companion:Box.Factory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn27 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init8 companion:Box.Factory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init8 companion:Box.Factory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init8 companion:Box.Factory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init8 companion:Box.Factory
+      call external4 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun println @fn29(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -1621,7 +1561,35 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn32(value: Boolean) -> Unit
+  fun Box.Factory.answer @fn30(this: Box.Factory<Int>) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Box.Factory<Int>
+          Local this
+      val $receiver: Box.Factory<Int>
+        Type Box.Factory<Int>
+        Local this
+      call $call.1: Box<Int> = @fn33 direct
+        Type Box.Factory<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local $call.1
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun println @fn31(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -1645,33 +1613,40 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Box.Factory.identity @fn33(this: Box.Factory, value: Int) -> Int
+  fun Box.Factory.identity @fn32(this: Box.Factory<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun Continuation.resume @fn34(this: Continuation<Box.Factory>, value: Box.Factory) -> Unit
+  fun Box.Factory.emptyInt @fn33(this: Box.Factory<Int>) -> Box<Int>
     bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn35(this: Continuation<Box.Factory>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn36(this: SuspendTask<Box.Factory>, $completion: Continuation<Box.Factory>) -> CoroutineStep<Box.Factory>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Box.Factory>, continuation: Continuation<Box.Factory>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun init.DefaultHost.$c1 @fn38(this: DefaultHost) -> Unit
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn47 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type Box<Int>
+        Local $new.1
+  fun init.DefaultHost.$c1 @fn34(this: DefaultHost) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.$c5 @fn39(this: ObjectHost) -> Unit
+  fun init.ObjectHost.$c5 @fn35(this: ObjectHost) -> Unit
     bb0 entry
       return
-  fun init.Independent.$c2 @fn40(this: Independent) -> Unit
+  fun init.Independent.$c2 @fn36(this: Independent) -> Unit
     bb0 entry
       return
-  fun init.FactoryBase.$c3 @fn41(this: FactoryBase) -> Unit
+  fun init.FactoryBase.$c3 @fn37(this: FactoryBase) -> Unit
     bb0 entry
       field_set 0
         Type FactoryBase
@@ -1679,53 +1654,23 @@ Module
         Type Int
         IntegerLiteral Int value=14 bits=0x0000000e
       return
-  fun init.InheritedHost.$c4 @fn42(this: InheritedHost) -> Unit
+  fun init.InheritedHost.$c4 @fn38(this: InheritedHost) -> Unit
     bb0 entry
       return
-  fun init.StructHost.Maker.$c6 @fn43(this: StructHost.Maker) -> Unit
+  fun init.StructHost.Maker.$c6 @fn39(this: StructHost.Maker) -> Unit
     bb0 entry
       return
-  fun init.EnumHost.Values.$c7 @fn44(this: EnumHost.Values) -> Unit
+  fun init.EnumHost.Values.$c7 @fn40(this: EnumHost.Values) -> Unit
     bb0 entry
       return
-  fun init.Box.Factory.$c8 @fn45(this: Box.Factory) -> Unit
+  fun init.DefaultHost.Companion.$c9 @fn41(this: DefaultHost.Companion) -> Unit
+    bb0 entry
+      return
+  fun init.Independent.Companion.$c10 @fn42(this: Independent.Companion) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
         StringConst @str5
-      val $argument.1: Int
-        Type Int
-        IntegerLiteral Int value=40 bits=0x00000028
-      val $parameter.label: String
-        Type String
-        Local $argument.0
-      val $parameter.value: Int
-        Type Int
-        Local $argument.1
-      call $call.1: Int = @fn9 direct
-        Type String
-        Local $parameter.label
-        Type Int
-        Local $parameter.value
-      field_set 0
-        Type Box.Factory
-        Local this
-        Type Int
-        Local $call.1
-      field_set 1
-        Type Box.Factory
-        Local this
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      return
-  fun init.DefaultHost.Companion.$c9 @fn46(this: DefaultHost.Companion) -> Unit
-    bb0 entry
-      return
-  fun init.Independent.Companion.$c10 @fn47(this: Independent.Companion) -> Unit
-    bb0 entry
-      val $argument.0: String
-        Type String
-        StringConst @str6
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=13 bits=0x0000000d
@@ -1735,7 +1680,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $call.1: Int = @fn9 direct
+      call $call.1: Int = @fn7 direct
         Type String
         Local $parameter.label
         Type Int
@@ -1746,21 +1691,51 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.InheritedHost.Companion.$c11 @fn48(this: InheritedHost.Companion) -> Unit
+  fun init.InheritedHost.Companion.$c11 @fn43(this: InheritedHost.Companion) -> Unit
     bb0 entry
-      call @fn41 direct
+      call @fn37 direct
         Type FactoryBase
         Retype FactoryBase
           Type InheritedHost.Companion
           Local this
       return
-  fun init.InterfaceHost.Provider.$c12 @fn49(this: InterfaceHost.Provider) -> Unit
+  fun init.InterfaceHost.Provider.$c12 @fn44(this: InterfaceHost.Provider) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.NestedCompanion.$c13 @fn50(this: ObjectHost.NestedCompanion) -> Unit
+  fun init.ObjectHost.NestedCompanion.$c13 @fn45(this: ObjectHost.NestedCompanion) -> Unit
     bb0 entry
       return
-  fun init.Box.$c0 @fn51(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.Factory.$c8 @fn46(this: Box.Factory<Int>) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @fn7 direct
+        Type String
+        Local $parameter.label
+        Type Int
+        Local $parameter.value
+      field_set 0
+        Type Box.Factory<Int>
+        Local this
+        Type Int
+        Local $call.1
+      field_set 1
+        Type Box.Factory<Int>
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+  fun init.Box.$c0 @fn47(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -1768,109 +1743,24 @@ Module
         Type Int
         Local value
       return
-  fun ctor.StructHost.$c0 @fn52() -> StructHost <no-gc>
+  fun ctor.StructHost.$c0 @fn48() -> StructHost <no-gc>
     bb0 entry
       return
         Type StructHost
         StructInit StructHost
-  fun startCoroutine<Box.Factory> @fn53(task: SuspendTask<Box.Factory>, completion: Continuation<Box.Factory>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn34 interface Continuation<Box.Factory>[0]
-        Type Continuation<Box.Factory>
-        Local completion
-        Type Box.Factory
-        EnumField v0 f0
-          Type CoroutineStep<Box.Factory>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn35 interface Continuation<Box.Factory>[1]
-        Type Continuation<Box.Factory>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Box.Factory> = @fn36 interface SuspendTask<Box.Factory>[0]
-        Type SuspendTask<Box.Factory>
-        Local task
-        Type Continuation<Box.Factory>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Box.Factory>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  coroutine_step cs0 CoroutineStep<Box.Factory> result=Box.Factory
-  coroutine_slot cl0 CoroutineSlot<Box.Factory> value=Box.Factory
-  coroutine_start ct0 result=Box.Factory function=fn53
-  coroutine_fn cf0 @fn36 source_return=Box.Factory step=cs0 immediate
-  instance mi0 function=@fn30 <- println
-  instance mi1 function=@fn31 <- println
-  instance mi2 function=@fn32 <- println
-  instance mi3 function=@fn33 <- Box.Factory.identity
-  instance mi4 function=@fn34 <- Continuation.resume
-  instance mi5 function=@fn35 <- Continuation.resumeWithException
-  instance mi6 function=@fn36 <- SuspendTask.run
-  instance mi7 function=@fn37 <- SuspendRegistration.register
+  instance mi0 function=@fn26 <- println
+  instance mi1 function=@fn27 <- $init$body$3
+  instance mi2 function=@fn28 <- $init$ensure$3
+  instance mi3 function=@fn29 <- println
+  instance mi4 function=@fn30 <- Box.Factory.answer
+  instance mi5 function=@fn31 <- println
+  instance mi6 function=@fn32 <- Box.Factory.identity
+  instance mi7 function=@fn33 <- Box.Factory.emptyInt
   str @str0 "before-box"
   str @str1 "after-independent-construction"
   str @str2 "\n"
   str @str3 "\n"
   str @str4 "\n"
-  str @str5 "box-companion"
-  str @str6 "independent-companion"
-  output executable @fn13
+  str @str5 "independent-companion"
+  str @str6 "box-companion"
+  output executable @fn11

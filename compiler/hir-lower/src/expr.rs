@@ -247,6 +247,11 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::TypeQualifier(reference) => {
+                self.resolve_type_ref(reference)?;
+                self.error(reference.span, "a type qualifier is not a value".into());
+                None
+            }
             ast::Expr::ContextScope { value, body, span } => {
                 self.lower_context_scope(value, body, *span, sink, expected)
             }

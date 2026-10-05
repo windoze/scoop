@@ -48,20 +48,52 @@ pub(crate) fn initializer_root(
     if let scoop_identity::CallableTemplateOwner::Constructor(constructor) = root.template() {
         let source =
             identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(constructor)?;
-        let Some(scoop_identity::DefinitionOwnerAtom::Type(owner)) =
-            source.owners().owners().last()
-        else {
-            return Ok(None);
-        };
+        let owner = source.owners().owners().last();
         for unit in local_units {
             let key =
                 identities.canonical_key::<_, scoop_identity::InitializationUnitKey>(*unit)?;
-            if matches!(key.as_ref(), scoop_identity::InitializationUnitKey::Object(actual)
-                | scoop_identity::InitializationUnitKey::Companion(actual) if actual == owner)
-            {
-                if root.context() != CallableMaterializationContext::NoSubstitution {
-                    return Err(Error::InitializationRootContext(root));
+            use scoop_identity::{
+                CallableApplicationKey, CallableInstantiationOwner, DefinitionOwnerAtom,
+                ExactTypeKey, InitializationUnitKey,
+            };
+            let matches = match (owner, key.as_ref()) {
+                (
+                    Some(DefinitionOwnerAtom::Type(owner)),
+                    InitializationUnitKey::Object(actual)
+                    | InitializationUnitKey::Companion(actual),
+                ) if actual == owner => {
+                    if root.context() != CallableMaterializationContext::NoSubstitution {
+                        return Err(Error::InitializationRootContext(root));
+                    }
+                    true
                 }
+                (
+                    Some(DefinitionOwnerAtom::GenericType(owner)),
+                    InitializationUnitKey::GenericCompanionApplication {
+                        companion,
+                        arguments,
+                    },
+                ) if companion == owner => {
+                    let CallableMaterializationContext::Application(application) = root.context()
+                    else {
+                        return Err(Error::InitializationRootContext(root));
+                    };
+                    let application =
+                        identities.canonical_key::<_, CallableApplicationKey>(application)?;
+                    let CallableInstantiationOwner::ExactNominalOwner(exact) =
+                        application.instantiation_owner()
+                    else {
+                        return Err(Error::InitializationRootContext(root));
+                    };
+                    *identities.canonical_key::<_, ExactTypeKey>(exact)?
+                        == ExactTypeKey::NominalApplication {
+                            origin: *companion,
+                            arguments: arguments.clone(),
+                        }
+                }
+                _ => false,
+            };
+            if matches {
                 return Ok(Some(*unit));
             }
         }

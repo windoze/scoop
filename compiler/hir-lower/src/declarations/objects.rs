@@ -180,7 +180,7 @@ impl Lowerer {
 
     pub(crate) fn resolve_object(&mut self, object: ObjectId, source: ObjectSource<'_>) {
         let backing = self.objects[object].backing_class;
-        self.type_params_in_scope.clear();
+        self.type_params_in_scope = self.classes[backing].type_params.clone();
         let mut names = std::collections::HashSet::new();
         let mut fields = Vec::new();
         for (member_index, member) in source.members().iter().enumerate() {

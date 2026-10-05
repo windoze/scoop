@@ -73,7 +73,7 @@ impl<'a> Input<'a> {
                     .key(&self.foundation.callable_applications, application)
                     .map(|_| ()),
                 CallableMaterializationContext::InitializationApplication(unit) => {
-                    self.generic_delegate(unit)
+                    self.initialization(unit)
                 }
                 CallableMaterializationContext::NoSubstitution => Ok(()),
             }?;

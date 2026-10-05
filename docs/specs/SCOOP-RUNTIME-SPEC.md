@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项待实现；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
+2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 

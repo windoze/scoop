@@ -43,6 +43,9 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             }
         }
         Expr::Var(ident) => out.push_str(&format!("{pad}Var {}\n", ident.text)),
+        Expr::TypeQualifier(ty) => {
+            out.push_str(&format!("{pad}TypeQualifier {}\n", dump_type_ref(ty)))
+        }
         Expr::Lambda {
             id,
             is_suspend,

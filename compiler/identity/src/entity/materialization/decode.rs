@@ -17,6 +17,11 @@ pub enum DecodedInitializationUnitKey {
     ExtensionProperty(DecodedPersistentId<PersistentExtensionPropertyId>),
     Object(DecodedPersistentId<PersistentTypeId>),
     Companion(DecodedPersistentId<PersistentTypeId>),
+    GenericCompanionTemplate(DecodedPersistentId<crate::PersistentGenericTypeId>),
+    GenericCompanionApplication {
+        companion: DecodedPersistentId<crate::PersistentGenericTypeId>,
+        arguments: NonEmptyVec<DecodedPersistentId<PersistentExactTypeId>>,
+    },
     GenericDelegatedExtensionApplication {
         property: DecodedPersistentId<PersistentExtensionPropertyId>,
         receiver_arguments: NonEmptyVec<DecodedPersistentId<PersistentExactTypeId>>,
@@ -32,7 +37,8 @@ impl DecodedInitializationUnitKey {
         R: PersistentIdResolver<PersistentPropertyId, Error = E>
             + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
             + PersistentIdResolver<PersistentTypeId, Error = E>
-            + PersistentIdResolver<PersistentExactTypeId, Error = E>,
+            + PersistentIdResolver<PersistentExactTypeId, Error = E>
+            + PersistentIdResolver<crate::PersistentGenericTypeId, Error = E>,
     {
         match self {
             Self::TopLevelProperty(id) => {
@@ -43,6 +49,16 @@ impl DecodedInitializationUnitKey {
             }
             Self::Object(id) => resolve_id(resolver, id).map(InitializationUnitKey::Object),
             Self::Companion(id) => resolve_id(resolver, id).map(InitializationUnitKey::Companion),
+            Self::GenericCompanionTemplate(id) => {
+                resolve_id(resolver, id).map(InitializationUnitKey::GenericCompanionTemplate)
+            }
+            Self::GenericCompanionApplication {
+                companion,
+                arguments,
+            } => Ok(InitializationUnitKey::GenericCompanionApplication {
+                companion: resolve_id(resolver, companion)?,
+                arguments: resolve_non_empty(arguments, resolver)?,
+            }),
             Self::GenericDelegatedExtensionApplication {
                 property,
                 receiver_arguments,
@@ -63,6 +79,18 @@ impl WireEncode for DecodedInitializationUnitKey {
             Self::ExtensionProperty(id) => encode_value_sum(encoder, 2, id),
             Self::Object(id) => encode_value_sum(encoder, 3, id),
             Self::Companion(id) => encode_value_sum(encoder, 4, id),
+            Self::GenericCompanionTemplate(id) => encode_value_sum(encoder, 6, id),
+            Self::GenericCompanionApplication {
+                companion,
+                arguments,
+            } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 7)?;
+                encoder.field(1)?;
+                companion.encode(encoder)?;
+                encoder.field(2)?;
+                encode_sequence(encoder, arguments.as_slice())
+            }
             Self::GenericDelegatedExtensionApplication {
                 property,
                 receiver_arguments,
@@ -86,6 +114,14 @@ impl WireDecode for DecodedInitializationUnitKey {
             2 => decode_id_variant(decoder, fields, Self::ExtensionProperty),
             3 => decode_id_variant(decoder, fields, Self::Object),
             4 => decode_id_variant(decoder, fields, Self::Companion),
+            6 => decode_id_variant(decoder, fields, Self::GenericCompanionTemplate),
+            7 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::GenericCompanionApplication {
+                    companion: decoder.field(1, DecodedPersistentId::decode)?,
+                    arguments: decoder.field(2, decode_non_empty_exact_ids)?,
+                })
+            }
             5 => {
                 expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::GenericDelegatedExtensionApplication {

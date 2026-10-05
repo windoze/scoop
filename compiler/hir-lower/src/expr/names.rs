@@ -345,7 +345,24 @@ impl Lowerer {
         object: hir::ObjectId,
         span: ast::Span,
     ) -> Option<hir::Expr> {
+        self.lower_singleton_application(object, Vec::new(), span)
+    }
+
+    pub(crate) fn lower_singleton_application(
+        &mut self,
+        object: hir::ObjectId,
+        arguments: Vec<TypeId>,
+        span: ast::Span,
+    ) -> Option<hir::Expr> {
         let declaration = self.objects[object].clone();
+        let parameters = self.classes[declaration.backing_class].type_params.len();
+        if arguments.len() != parameters {
+            self.error(
+                span,
+                "generic companion access requires complete host type arguments".into(),
+            );
+            return None;
+        }
         if !self.access_domain_allows(&declaration.access.lookup.0) {
             let kind = match declaration.kind {
                 hir::ObjectKind::Standalone => "object",
@@ -360,12 +377,12 @@ impl Lowerer {
         let value = self.singleton_values[declaration.singleton_value];
         if let Some(current) = self.current_initialization_unit {
             let dependencies = &mut self.initialization_units[current].dependencies;
-            if !dependencies
-                .iter()
-                .any(|dependency| dependency.unit == value.initialization)
-            {
+            if !dependencies.iter().any(|dependency| {
+                dependency.unit == value.initialization && dependency.type_arguments == arguments
+            }) {
                 dependencies.push(hir::InitializationDependency {
                     unit: value.initialization,
+                    type_arguments: arguments.clone(),
                     span,
                 });
             }
@@ -374,7 +391,7 @@ impl Lowerer {
             kind: hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(
                 declaration.singleton_value,
             )),
-            ty: self.object_types[declaration.object_type].canonical_type,
+            ty: self.class_application(declaration.backing_class, arguments),
             span,
             origin: self.expression_origin(span),
         })

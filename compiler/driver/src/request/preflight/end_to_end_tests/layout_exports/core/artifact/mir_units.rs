@@ -36,9 +36,9 @@ pub(super) fn check(
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (4, 4)
+                (15, 15)
             );
-            // String's companion and the suspend object have initialization pairs.
+            // Scalar codec companions and the suspend object retain initialization pairs.
             assert_eq!(
                 metadata
                     .source_initialization_units()
@@ -48,7 +48,7 @@ pub(super) fn check(
                 units.iter().map(|unit| unit.unit()).collect(),
             );
         } else {
-            assert_eq!(units.len(), 6);
+            assert_eq!(units.len(), 17);
         }
     }
     units

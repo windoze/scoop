@@ -48,6 +48,7 @@ pub(in crate::production::nominal_interfaces) fn object_shape(
     id: crate::ObjectId,
     declaration: &crate::ObjectDecl,
     owner: NominalDeclarationOwner,
+    binders: &[HirSignatureBinder],
 ) -> Result<NominalSourceShapeV1, NominalInterfaceBuildError> {
     let value = projection
         .export
@@ -73,7 +74,7 @@ pub(in crate::production::nominal_interfaces) fn object_shape(
     let fields = declared_fields(
         projection,
         &projection.export.classes[declaration.backing_class],
-        &[],
+        binders,
         owner,
     )?;
     Ok(NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(

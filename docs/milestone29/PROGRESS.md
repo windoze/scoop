@@ -52,3 +52,32 @@ runner 单测、workspace 格式化/lint 和三个 release CLI 构建。整数�
 20 个进程、4 份 golden。各平台 HIR/MIR 一致，新增两份 Linux LIR golden。
 随后清理已验收的 macOS core operations、core binding 和首次 artifact 工作目录，
 回收约 1.6 GiB，JSON 报告另存 `/tmp`；保留当前 M29 fixture 结果及既有 worktree。
+
+
+## 完整宿主限定与泛型 companion
+
+已贯通 `Box<Int>.Companion` 的类型、值、转发成员和方法引用；命名 companion、
+透明别名及不同宿主种类沿同一查询处理。companion 使用直接宿主的 binder/bound，
+方法自身参数保持独立。普通 nested 类型继续具有独立作用域；缺少宿主实参、`_`、
+非法宿主 bound、方法参数重名、实例/词法值遮蔽及不同 application 的赋值均诊断。
+
+每个完整 application 拥有独立 exact 类型、存储、初始化 gate 和失败缓存。参数不影响
+字段布局的空 companion 也保持类型及实例区别。隐藏构造模板、默认值、局部泛型函数、
+闭包、Context 和直接初始化依赖使用原声明身份及完整实参；跨 Cone 物化不重复生成
+源码声明。多个使用方的相同 application 经已有 nominal ODR 合并为同一个 singleton。
+泛型初始化依赖和普通外部 property/object 的依赖均保留在已有初始化数据中。
+
+新增 13 个正式 fixture：10 个独立 negative，以及 application、失败缓存和删除源码后的
+artifact-only 场景。macOS、Linux glibc/musl 均已逐项通过普通及 moving GC 运行；
+包含 struct/class/enum/interface 宿主、空字段、泛型方法、初始化中的闭包和局部泛型
+默认值、接口分派、绑定函数引用与 Context。HIR/MIR/LIR golden 保留普通调用与完整
+application；三平台分别提供 LIR golden。另通过 81 个相关旧 fixture 和 38 个 runner 单测。
+
+产物兼容版本按实现规范 2.17 更新，缓存及 profile 固定向量同步迁移；未修改 runtime C
+ABI。旧测试中无实参访问泛型 companion 的源码已迁移，静态 nested import 仍保留。
+新增实现按类型限定、字段/调用、具体化身份和初始化、导入模板分模块；既有初始化文件
+从 544 行降为 481 行。清理已验收的回归和 artifact 工作目录，报告移至 `/tmp`，保留
+`target/m28-darwin` worktree。注解、静态 shape、派生与最终完整 fixture 验收仍待后续批次。
+
+Workspace 的完整 release 测试与文档测试已通过（5292 项），随后对限定名解析
+补充并运行 parser 回归，确保 `Unit.names.Item` 仍按普通包路径解析。

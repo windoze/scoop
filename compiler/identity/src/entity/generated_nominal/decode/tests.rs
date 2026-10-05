@@ -51,6 +51,7 @@ macro_rules! test_identity {
 test_identity!(crate::ConeIdentity);
 test_identity!(PersistentFunctionId);
 test_identity!(PersistentGenericFunctionId);
+test_identity!(crate::PersistentGenericTypeId);
 test_identity!(PersistentConstructorId);
 test_identity!(PersistentPropertyAccessorId);
 test_identity!(PersistentGeneratedCallableId);
@@ -146,8 +147,8 @@ fn generated_nominal_resolution_rejects_invalid_adapter_target() {
 
 #[test]
 fn generated_nominal_decoder_rejects_unknown_tags() {
-    let outer = decode_canonical::<DecodedGeneratedNominalKey>(b"\xa1\x00\x0a").unwrap_err();
-    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 10 });
+    let outer = decode_canonical::<DecodedGeneratedNominalKey>(b"\xa1\x00\x0b").unwrap_err();
+    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 11 });
 
     let role = decode_canonical::<ClosureEnvironmentRole>(b"\x04").unwrap_err();
     assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 4 });

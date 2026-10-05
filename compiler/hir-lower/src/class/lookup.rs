@@ -223,12 +223,13 @@ impl Lowerer {
             let Some(class) = self.source_class_id(application_value.template) else {
                 break;
             };
-            let owner_application = self
-                .object_by_backing_class
-                .get(&class)
-                .map_or(hir::MethodOwnerApplication::Class(application), |object| {
-                    hir::MethodOwnerApplication::Object(self.objects[*object].object_type)
-                });
+            let owner_application = match self.object_by_backing_class.get(&class).copied() {
+                Some(object) => self.method_owner_application(
+                    Owner::Object(object),
+                    application_value.arguments.clone(),
+                ),
+                None => hir::MethodOwnerApplication::Class(application),
+            };
             out.extend(self.classes[class].methods.iter().copied().map(|function| {
                 let source = match bound {
                     Some((receiver_parameter, bound)) => {

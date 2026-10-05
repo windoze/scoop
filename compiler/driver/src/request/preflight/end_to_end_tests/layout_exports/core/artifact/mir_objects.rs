@@ -26,7 +26,7 @@ pub(super) fn check(
             .identities
             .canonical_key::<_, SourceDeclarationKey>(owner)
             .unwrap();
-        let unit = units[&owner];
+        let unit = units[&hir::SourceNominalId::Concrete(owner)];
         let kind = metadata
             .identities
             .canonical_key::<_, scoop_identity::InitializationUnitKey>(unit)
@@ -39,8 +39,8 @@ pub(super) fn check(
         assert_eq!(key.origin(), source.provider());
         objects += 1;
     }
-    // Include the companion that provides String's copying conversions.
-    assert_eq!(objects, if name.ends_with("combined") { 4 } else { 3 });
+    // Include the ordinary scalar codec companions from core.
+    assert_eq!(objects, if name.ends_with("combined") { 15 } else { 14 });
     for object in section.object_values().records() {
         let remaining = mir::CanonicalMirObjectValuesV1::try_new(
             section

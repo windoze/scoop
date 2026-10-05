@@ -1573,6 +1573,16 @@ impl StaticStorageIdentity {
         )
     }
 
+    pub fn singleton_application_root(
+        owner: scoop_identity::PersistentExactTypeId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::singleton_application_root(owner),
+            root,
+        )
+    }
+
     pub fn singleton_published_root(
         owner: scoop_identity::PersistentTypeId,
         root: MaterializationRoot,

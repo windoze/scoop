@@ -1,0 +1,3 @@
+struct Plain(val value: Int)
+struct Box<T : Encodable>(val value: T) { companion object }
+fun main() { val value = Box<Plain>.Companion }

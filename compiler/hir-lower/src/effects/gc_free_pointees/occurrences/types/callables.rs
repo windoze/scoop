@@ -74,7 +74,7 @@ fn collect_method_owner_types(
         hir::MethodOwnerApplication::Interface(application) => {
             Some(lowerer.interface_applications[application].canonical_type)
         }
-        hir::MethodOwnerApplication::Object(_) => None,
+        hir::MethodOwnerApplication::Object(id) => Some(lowerer.object_types[id].canonical_type),
     };
     out.extend(ty);
 }
@@ -94,7 +94,7 @@ fn collect_generic_method_owner_types(
         hir::GenericMethodOwner::Enum(application) => {
             Some(lowerer.enum_applications[application].canonical_type)
         }
-        hir::GenericMethodOwner::Object(_) => None,
+        hir::GenericMethodOwner::Object(id) => Some(lowerer.object_types[id].canonical_type),
     };
     out.extend(ty);
 }

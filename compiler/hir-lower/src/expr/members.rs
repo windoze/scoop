@@ -181,14 +181,17 @@ impl Lowerer {
         if let Some(owner) = self.resolve_imported_nominal_qualifier(receiver).ok()? {
             return self.lower_imported_qualified_call(owner, name, call, sink, expected);
         }
+        let applied = self.resolve_applied_qualifier(receiver).ok()?;
         let direct_alias = match self.resolve_direct_alias_qualifier(receiver) {
             Ok(alias) => alias,
             Err(()) => return None,
         };
-        let qualifier = direct_alias
-            .as_ref()
-            .map(|(_, target)| *target)
-            .or_else(|| self.nominal_qualifier_target(receiver));
+        let qualifier = applied.map(|(_, target)| target).or_else(|| {
+            direct_alias
+                .as_ref()
+                .map(|(_, target)| *target)
+                .or_else(|| self.nominal_qualifier_target(receiver))
+        });
         if let Some(qualifier) = qualifier {
             if let Some(target) = self.nested_nominal_target(qualifier.owner(), &name.text) {
                 return self.lower_static_nested_constructor(target, name, call, sink, expected);
@@ -207,7 +210,11 @@ impl Lowerer {
             if let NominalTarget::Object(object) = qualifier
                 && forwarded.is_none()
             {
-                let receiver = self.lower_singleton_value(object, receiver.span())?;
+                let receiver = self.lower_qualified_singleton(
+                    object,
+                    applied.map(|(ty, _)| ty),
+                    receiver.span(),
+                )?;
                 return self.lower_explicit_named_call(
                     receiver,
                     name,
@@ -218,7 +225,11 @@ impl Lowerer {
                 );
             }
             if let Some(companion) = forwarded {
-                let receiver = self.lower_singleton_value(companion, receiver.span())?;
+                let receiver = self.lower_qualified_singleton(
+                    companion,
+                    applied.map(|(ty, _)| ty),
+                    receiver.span(),
+                )?;
                 return self.lower_explicit_named_call(
                     receiver,
                     name,

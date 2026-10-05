@@ -32,7 +32,7 @@ pub(super) fn visit_types(
         }
         LocalNominalId::Enum(id) => (&export.enums[id].type_params, &export.enums[id].methods),
         LocalNominalId::Object(id) => (
-            &[],
+            &export.classes[export.objects[id].backing_class].type_params,
             &export.classes[export.objects[id].backing_class].methods,
         ),
         LocalNominalId::Interface(id) => {

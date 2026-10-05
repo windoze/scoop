@@ -165,7 +165,12 @@ impl ConstructorIdentityBuilder<'_> {
                 let (owner, parameters) = if let Some(object) =
                     self.lowerer.object_by_backing_class.get(&constructor.owner)
                 {
-                    (&self.nominals[*object], &[][..])
+                    (
+                        &self.nominals[*object],
+                        self.lowerer.classes[constructor.owner]
+                            .type_params
+                            .as_slice(),
+                    )
                 } else {
                     (
                         &self.nominals[constructor.owner],

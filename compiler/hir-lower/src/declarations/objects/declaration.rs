@@ -104,33 +104,47 @@ impl Lowerer {
         let initialization_id =
             hir::InitializationUnitId::from_raw((self.initialization_units.len() as u32).into());
 
+        let parameters = match source {
+            ObjectSource::Companion(_) => {
+                self.owner_type_params(owner.expect("a companion has a host"))
+            }
+            ObjectSource::Object(_) => Vec::new(),
+        };
+        let host_arguments = match source {
+            ObjectSource::Companion(_) => {
+                self.owner_type_args(owner.expect("a companion has a host"))
+            }
+            ObjectSource::Object(_) => Vec::new(),
+        };
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let identity = self.prepare_nominal_identity(NominalIdentityInput {
             name,
             parent: owner,
             access: access.declared,
-            type_parameter_count: 0,
+            type_parameter_count: parameters.len(),
             kind: SourceNominalKind::Object,
             file,
             span: source.span(),
         })?;
-        let backing_identity = hir::HirNominalIdentity::from_generated_key(
-            scoop_identity::GeneratedNominalKey::ObjectBackingClass {
-                object: identity
-                    .concrete_type_id()
-                    .expect("an object declaration has no type parameters"),
-            },
-        )
-        .map_err(|error| {
-            let mut diagnostic = Diagnostic::at(
-                source.span(),
-                format!("cannot derive persistent nominal identity: {error}"),
-            );
-            diagnostic.file = file;
-            self.diagnostics.push(diagnostic);
-        })
-        .ok()?;
+        let backing_key = match identity.declaration_id() {
+            hir::SourceNominalId::Concrete(object) => {
+                scoop_identity::GeneratedNominalKey::ObjectBackingClass { object }
+            }
+            hir::SourceNominalId::GenericTemplate(object) => {
+                scoop_identity::GeneratedNominalKey::GenericObjectBackingClass { object }
+            }
+        };
+        let backing_identity = hir::HirNominalIdentity::from_generated_key(backing_key)
+            .map_err(|error| {
+                let mut diagnostic = Diagnostic::at(
+                    source.span(),
+                    format!("cannot derive persistent nominal identity: {error}"),
+                );
+                diagnostic.file = file;
+                self.diagnostics.push(diagnostic);
+            })
+            .ok()?;
         let backing_class = self.classes.alloc(ClassDecl {
             name: name.to_string(),
             owner: owner.map(Owner::as_nominal_owner),
@@ -139,7 +153,7 @@ impl Lowerer {
                 release_policy: Default::default(),
                 modifier: hir::ClassModifier::Final,
                 self_application,
-                type_params: Vec::new(),
+                type_params: parameters.clone(),
                 representation: hir::ClassRepresentation::Declared,
                 fields: Vec::new(),
                 base_class: None,
@@ -168,7 +182,7 @@ impl Lowerer {
         assert_eq!(object, object_id);
         self.register_nominal_identity(Owner::Object(object), identity);
         self.register_nominal_identity(Owner::Class(backing_class), backing_identity);
-        let canonical_type = self.class_application(backing_class, Vec::new());
+        let canonical_type = self.class_application(backing_class, host_arguments);
         assert_eq!(self.types[canonical_type], Type::Class(self_application));
         let object_type = self.object_types.alloc(hir::ObjectType {
             declaration: object,
@@ -205,6 +219,15 @@ impl Lowerer {
                 });
         let (initializer, ensure) =
             self.allocate_initialization_functions(initialization_id, source.span(), file);
+        if !parameters.is_empty() {
+            for function in [initializer, ensure] {
+                self.signatures
+                    .get_mut(&function)
+                    .expect("initialization signature")
+                    .type_params = parameters.clone();
+                self.register_generic(function, parameters.clone());
+            }
+        }
         let value = self.singleton_values.alloc(hir::SingletonValue {
             declaration: object,
             object_type,

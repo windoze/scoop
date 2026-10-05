@@ -91,6 +91,10 @@ pub enum GeneratedNominalKey {
     ObjectBackingClass {
         object: PersistentTypeId,
     },
+    /// Physical storage template; the language type is the generic object.
+    GenericObjectBackingClass {
+        object: crate::PersistentGenericTypeId,
+    },
 }
 
 impl WireEncode for GeneratedNominalKey {
@@ -124,6 +128,7 @@ impl WireEncode for GeneratedNominalKey {
             Self::BoxedValue { payload } => encode_value_sum(encoder, 6, payload),
             Self::CoroutineSlot { value } => encode_value_sum(encoder, 7, value),
             Self::ObjectBackingClass { object } => encode_value_sum(encoder, 8, object),
+            Self::GenericObjectBackingClass { object } => encode_value_sum(encoder, 10, object),
         }
     }
 }

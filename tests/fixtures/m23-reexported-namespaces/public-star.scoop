@@ -1,10 +1,11 @@
 package consumer.nesting
 
+import facade.nesting.Outer
 public import facade.nesting.Outer.*
 
 public fun <T> exercise(value: T, read: (T) -> Int): Int {
     val box = Box<T>(value)
-    val leaf = Leaf(companionAdd(companionBase))
+    val leaf = Leaf(Outer<Int>.companionAdd(Outer<Int>.companionBase))
     return if (read(box.value) == 42) { leaf.number } else { 0 }
 }
 

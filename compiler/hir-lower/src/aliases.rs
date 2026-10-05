@@ -238,6 +238,7 @@ impl Lowerer {
                 }
             }
             ast::TypeRefKind::Generic(_, _)
+            | ast::TypeRefKind::AppliedMember { .. }
             | ast::TypeRefKind::Qualified { .. }
             | ast::TypeRefKind::Tuple(_)
             | ast::TypeRefKind::Unit

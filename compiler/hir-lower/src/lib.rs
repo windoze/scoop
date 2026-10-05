@@ -559,6 +559,7 @@ pub(crate) struct Lowerer {
     pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
+    pub(crate) imported_companion_templates: Arena<hir::ImportedCompanionTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,

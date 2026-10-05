@@ -130,6 +130,7 @@ fn every_structurally_valid_static_storage_shape_round_trips() {
         StaticStorageKey::property_delegate(property_owner()),
         StaticStorageKey::static_place_for_property(property_owner()),
         StaticStorageKey::singleton_published_root(nominal_type()),
+        StaticStorageKey::singleton_application_root(exact_type()),
         StaticStorageKey::initialization_failure_root(initialization_unit_id()),
         StaticStorageKey::root_entry_failure_root(cone(), main),
         StaticStorageKey::delegated_application_backing(&delegated).unwrap(),

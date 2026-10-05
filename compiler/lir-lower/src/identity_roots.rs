@@ -142,6 +142,16 @@ impl<'input> IdentityRoots<'input> {
         owner: mir::StaticStorageOwner,
     ) -> lir::MaterializationRoot {
         match owner {
+            mir::StaticStorageOwner::SingletonApplicationPublishedRoot(exact) => {
+                let source = self
+                    .input
+                    .module()
+                    .meta
+                    .source_exact_types
+                    .get_by_identity(exact)
+                    .expect("a singleton application retains its exact type");
+                self.for_type(source.ty())
+            }
             mir::StaticStorageOwner::GenericDelegate(unit)
             | mir::StaticStorageOwner::InitializationFailureRoot(unit) => {
                 self.immortal_owners[&mir::ImmortalObjectOwner::InitializationUnit(unit)].clone()

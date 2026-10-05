@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v50_retains_context_contracts() {
+fn source_interface_v51_retains_context_contracts() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        50,
+        51,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v50_retains_context_contracts() {
 }
 
 #[test]
-fn type_semantics_v16_retains_context_slot_contracts() {
+fn type_semantics_v17_retains_context_slot_contracts() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        16,
+        17,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v10_retains_task_frames() {
+fn mir_type_bridge_v11_retains_task_frames() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        10,
+        11,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,10 +48,10 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v7_retains_character_scalars() {
+fn lir_layout_abi_v8_retains_character_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        7,
+        8,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

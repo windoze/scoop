@@ -285,7 +285,10 @@ impl<'a> HirSignatureTypeMapper<'a> {
             ));
         }
         let (identity, arity) = match object {
-            Some(object) => (self.object_identity(object)?, 0),
+            Some(object) => (
+                self.object_identity(object)?,
+                self.inputs.classes[owner].type_params.len(),
+            ),
             None => (
                 &self.inputs.nominal_identities[owner],
                 self.inputs.classes[owner].type_params.len(),

@@ -245,6 +245,14 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                         } => {
                             self.property_resolution(PropertyOwner::ExtensionProperty(*id), target)
                         }
+                        InitializationUnitKey::GenericCompanionTemplate(id)
+                        | InitializationUnitKey::GenericCompanionApplication {
+                            companion: id,
+                            ..
+                        } => self.nominal_resolution(
+                            NominalDeclarationOwner::GenericTemplate(*id),
+                            target,
+                        ),
                         InitializationUnitKey::Object(id)
                         | InitializationUnitKey::Companion(id) => {
                             self.nominal_resolution(NominalDeclarationOwner::Concrete(*id), target)

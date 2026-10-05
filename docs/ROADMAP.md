@@ -471,7 +471,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
-- 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为后续目标；此项尚未实现。
+- 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为当前规则；泛型 companion 已通过 macOS、Linux glibc/musl 正式 fixture，M29 其余批次继续实施。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。其后（同日）再调整：新增 M12"泛型上界约束与接口化"（ToString/Hash/equals，spec 11.11 已定稿），字符串插值顺延为 M13、多 Cone 顺延为 M14。
 - 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。

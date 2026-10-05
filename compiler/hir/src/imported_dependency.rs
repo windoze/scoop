@@ -6,6 +6,8 @@ mod applications;
 pub use applications::*;
 mod delegates;
 pub use delegates::*;
+mod companions;
+pub use companions::*;
 mod equality;
 pub use equality::*;
 

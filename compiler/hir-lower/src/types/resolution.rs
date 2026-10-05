@@ -182,7 +182,19 @@ impl Lowerer {
             NominalTarget::Enum(id) => ("enum", self.enums[id].type_params.clone()),
             NominalTarget::Class(id) => ("class", self.classes[id].type_params.clone()),
             NominalTarget::Interface(id) => ("interface", self.interfaces[id].type_params.clone()),
-            NominalTarget::Object(_) => ("object", Vec::new()),
+            NominalTarget::Object(id) => {
+                if !self.classes[self.objects[id].backing_class]
+                    .type_params
+                    .is_empty()
+                {
+                    self.error(
+                        span,
+                        "generic companion type requires complete host type arguments".into(),
+                    );
+                    return None;
+                }
+                ("object", Vec::new())
+            }
         };
         let arity = params.len();
         if arity == 0 && !arguments.is_empty() {
@@ -258,6 +270,14 @@ impl Lowerer {
     /// is empty everywhere else).
     fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
+            ast::TypeRefKind::AppliedMember {
+                owner,
+                name,
+                arguments,
+            } => {
+                let owner = self.resolve_type_ref(owner)?;
+                self.resolve_applied_member_type(owner, name, arguments, ty_ref.span)
+            }
             ast::TypeRefKind::Unit => Some(self.unit),
             ast::TypeRefKind::Generic(name, args) => {
                 // `Name<T1, ...>`: generic type application. M4: only

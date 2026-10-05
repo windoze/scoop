@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=427
+cone scoop:scoop.core:0.1.0 kind=Library objects=639
 cone dev.example:class-provider:0.1.0 kind=Library objects=299
 cone dev.example:classes-initialization-object-default:0.1.0 kind=Library objects=2
 cone dev.example:class-downstream-initialization-object-default:0.1.0 kind=Library objects=2

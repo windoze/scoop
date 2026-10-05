@@ -132,6 +132,12 @@ fn role(
             ))
             .map_err(StrongInitializationUnitError::Hash)?
         }
+        InitializationUnitKey::GenericCompanionApplication { companion, .. } => {
+            PersistentInitializationUnitId::from_key(
+                &InitializationUnitKey::GenericCompanionTemplate(*companion),
+            )
+            .map_err(StrongInitializationUnitError::Hash)?
+        }
         _ => unit,
     };
     let expected = PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::Initialization {

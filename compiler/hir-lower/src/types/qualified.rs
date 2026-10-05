@@ -4,6 +4,7 @@ use super::*;
 use crate::NominalTarget;
 use crate::imports::lookup::TypeLookupTarget;
 
+mod applied;
 mod names;
 pub(crate) use names::ResolvedTypeName;
 
@@ -23,7 +24,7 @@ impl Lowerer {
             return None;
         };
         match target {
-            ResolvedTypeName::Alias(ty) => Some(ty),
+            ResolvedTypeName::Applied(ty) => Some(ty),
             ResolvedTypeName::Nominal(owner) => {
                 if let Some(target) = self.current_nominal_name_target(owner) {
                     let display = path

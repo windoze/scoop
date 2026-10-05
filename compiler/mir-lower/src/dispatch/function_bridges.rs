@@ -169,7 +169,7 @@ impl Lowerer {
                         .group(),
                 ),
                 hir::CallableMaterializationContext::InitializationApplication(unit) => {
-                    Some(delegated_property_group(module, unit))
+                    Some(crate::initialization_odr_group(module, unit))
                 }
             };
             return mir::FunctionBridgeIdentity::new(
@@ -205,27 +205,4 @@ impl Lowerer {
         }
         unreachable!("every closure class has a persistent environment identity")
     }
-}
-
-fn delegated_property_group(
-    module: &hir::Module,
-    unit: hir::PersistentInitializationUnitId,
-) -> hir::OdrGroupId {
-    let unit = module
-        .initialization_units
-        .iter()
-        .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
-        .expect("a closure materialization references its initialization unit");
-    let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
-        property,
-        receiver_arguments,
-    } = unit.identity.key()
-    else {
-        panic!("an initialization closure belongs to a generic delegated extension")
-    };
-    hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
-        origin: *property,
-        receiver_arguments: receiver_arguments.clone(),
-    })
-    .expect("a delegated-property ODR group identity is hashable")
 }

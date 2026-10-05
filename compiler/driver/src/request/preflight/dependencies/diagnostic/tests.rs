@@ -43,7 +43,7 @@ fn reader_slots_follow_dependency_order_and_semantics_keep_the_provider() {
         location(&error, &order),
         Some((
             ConeIdentity::SINGLE_FILE,
-            "lir/cone-production/6/registrations/InitializationUnit".to_owned()
+            "lir/cone-production/7/registrations/InitializationUnit".to_owned()
         ))
     );
     assert_eq!(location(&error, &[]), location(&error, &order));

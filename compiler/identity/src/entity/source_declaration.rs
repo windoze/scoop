@@ -441,10 +441,12 @@ impl PersistentObjectValueId {
         if key.declaration_kind != SourceDeclarationKind::Object {
             return Err(SourceDeclarationIdentityError::ExpectedObject);
         }
-        require_non_generic(key).map_err(|_| SourceDeclarationIdentityError::ExpectedObject)?;
-        let type_id = PersistentTypeId::from_source_declaration(key)?;
-        derive_persistent_id("scoop-object-value-id-v1", &ObjectValueKey(type_id))
-            .map_err(Into::into)
+        let value = if key.duplicate_signature().type_parameter_count() == 0 {
+            ObjectValueKey::Concrete(PersistentTypeId::from_source_declaration(key)?)
+        } else {
+            ObjectValueKey::Template(PersistentGenericTypeId::from_source_declaration(key)?)
+        };
+        derive_persistent_id("scoop-object-value-id-v1", &value).map_err(Into::into)
     }
 }
 
@@ -460,13 +462,24 @@ impl WireEncode for SourceTypeIdentityKey<'_> {
     }
 }
 
-struct ObjectValueKey(PersistentTypeId);
+enum ObjectValueKey {
+    Concrete(PersistentTypeId),
+    Template(PersistentGenericTypeId),
+}
 
 impl WireEncode for ObjectValueKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
-        encoder.field(1)?;
-        self.0.encode(encoder)
+        match self {
+            Self::Concrete(id) => {
+                encoder.field(1)?;
+                id.encode(encoder)
+            }
+            Self::Template(id) => {
+                encoder.field(2)?;
+                id.encode(encoder)
+            }
+        }
     }
 }
 

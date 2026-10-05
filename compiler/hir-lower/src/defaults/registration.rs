@@ -240,6 +240,27 @@ impl Lowerer {
                 );
             }
         }
+        for (_, object) in self.objects.clone().iter() {
+            let class = &self.classes[object.backing_class];
+            for constructor in class.constructors.clone() {
+                let context = DefaultContext {
+                    definition_root: hir::LexicalDefinitionRoot::ClassConstructor(constructor),
+                    source_context: hir::SourceContextSubject::Constructor(
+                        hir::SourceContextConstructor::Class(constructor),
+                    ),
+                    type_parameters: self.classes[object.backing_class].type_params.clone(),
+                    receiver: None,
+                    is_suspend: false,
+                    safety: hir::Safety::Safe,
+                    callable_name: object.name.clone(),
+                };
+                self.register_export_parameter_interface(
+                    hir::ExportParameterOwner::ClassConstructor(constructor),
+                    &[],
+                    &context,
+                );
+            }
+        }
         self.finish_export_parameter_interfaces();
     }
 }

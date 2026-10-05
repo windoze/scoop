@@ -106,7 +106,11 @@ pub(super) fn header(
         }
         LocalNominalId::Object(id) => {
             let d = &export.objects[id];
-            (&d.name, d.owner, &[])
+            (
+                &d.name,
+                d.owner,
+                &export.classes[d.backing_class].type_params,
+            )
         }
     }
 }
@@ -142,7 +146,10 @@ fn instantiation_conditions(
         LocalNominalId::Interface(id) => {
             (false, &export.interfaces[id].gc_free_pointee_requirements)
         }
-        LocalNominalId::Object(_) => (false, &[]),
+        LocalNominalId::Object(id) => (
+            false,
+            &export.classes[export.objects[id].backing_class].gc_free_pointee_requirements,
+        ),
     };
     let mut indices = requirements
         .iter()

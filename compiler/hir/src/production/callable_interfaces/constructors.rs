@@ -139,7 +139,16 @@ pub(super) fn project_class(
             projection
                 .export
                 .nominal_identities
-                .get_class(constructor.owner),
+                .get_class(constructor.owner)
+                .filter(|identity| identity.source().is_some())
+                .or_else(|| {
+                    projection
+                        .export
+                        .objects
+                        .iter()
+                        .find(|(_, object)| object.backing_class == constructor.owner)
+                        .map(|(id, _)| &projection.export.nominal_identities[id])
+                }),
         )?,
         &owner.type_params,
         super::arena_get(

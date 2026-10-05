@@ -43,6 +43,8 @@ pub enum Expr {
         span: Span,
     },
     Var(Ident),
+    /// An explicitly applied type used as a member qualifier, never a value.
+    TypeQualifier(TypeRef),
     /// `{ p: T -> body }` / `{ body }`. `parameters = None` means the
     /// parameter list was omitted; this is distinct from the explicit
     /// zero-parameter form `{ -> body }` for expected-type `it` inference.
@@ -209,6 +211,24 @@ pub enum InfixTarget {
 }
 
 impl Expr {
+    /// Recover a type path only when it contains an explicit application.
+    pub fn applied_qualifier_type(&self) -> Option<TypeRef> {
+        match self {
+            Self::TypeQualifier(ty) => Some(ty.clone()),
+            Self::FieldAccess(access) if access.navigation == Navigation::Direct => {
+                let FieldSelector::Name(name) = &access.selector else {
+                    return None;
+                };
+                Some(access.receiver.applied_qualifier_type()?.with_member(
+                    name.clone(),
+                    Vec::new(),
+                    access.span.end,
+                ))
+            }
+            _ => None,
+        }
+    }
+
     pub fn span(&self) -> Span {
         match self {
             Expr::IntLiteral(literal) => literal.span,
@@ -244,6 +264,7 @@ impl Expr {
             Expr::When(when) => when.span,
             Expr::Try(try_) => try_.span,
             Expr::Var(ident) => ident.span,
+            Expr::TypeQualifier(ty) => ty.span,
             Expr::FieldAccess(access) => access.span,
             Expr::Call(call) => call.span,
         }

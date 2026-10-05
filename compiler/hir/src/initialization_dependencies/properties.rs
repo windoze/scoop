@@ -31,7 +31,12 @@ pub(crate) fn accessor_initialization_unit(
         InitializationUnitKey::Object(owner) | InitializationUnitKey::Companion(owner) => {
             property.owner() == PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(*owner))
         }
-        InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => false,
+        InitializationUnitKey::GenericCompanionTemplate(owner) => {
+            property.owner()
+                == PublicDeclarationOwnerV1::Nominal(SourceNominalId::GenericTemplate(*owner))
+        }
+        InitializationUnitKey::GenericCompanionApplication { .. }
+        | InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => false,
     });
     let unit = matches.next().map(CborIdentityRecord::id);
     if matches.next().is_some() {

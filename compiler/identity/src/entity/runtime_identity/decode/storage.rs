@@ -93,6 +93,7 @@ impl DecodedStaticStorageKey {
         R: PersistentIdResolver<PersistentPropertyId, Error = E>
             + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
             + PersistentIdResolver<PersistentTypeId, Error = E>
+            + PersistentIdResolver<crate::PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
             + PersistentKeyResolver<PersistentInitializationUnitId, InitializationUnitKey, Error = E>
             + PersistentIdResolver<ConeIdentity, Error = E>
@@ -119,6 +120,13 @@ impl DecodedStaticStorageKey {
             ) => resolver
                 .resolve(owner)
                 .map(StaticStorageKey::singleton_published_root)
+                .map_err(StaticStorageResolutionError::Reference),
+            (
+                DecodedDefinitionOwner::Nominal(DecodedNominalOwner::ExactApplication(owner)),
+                StorageRole::SingletonPublishedRoot,
+            ) => resolver
+                .resolve(owner)
+                .map(StaticStorageKey::singleton_application_root)
                 .map_err(StaticStorageResolutionError::Reference),
             (
                 DecodedDefinitionOwner::InitializationUnit(unit),

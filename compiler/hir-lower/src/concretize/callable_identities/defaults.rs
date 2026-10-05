@@ -10,6 +10,7 @@ impl CallableIdentityBuilder<'_> {
         let mut seen = HashSet::new();
         for key in &self.concretizer.function_keys {
             let source = match self.concretizer.function_source(key) {
+                FunctionSource::Companion(..) => continue,
                 FunctionSource::Local(source) => source,
                 FunctionSource::Imported(source) => {
                     let origin =

@@ -40,6 +40,17 @@ impl MirTypeBridgeAuthority<'_> {
                     MirTypeOriginV1::GeneratedNominal { nominal, .. },
                     FieldIdentityView::Generated { owner: actual, .. },
                 ) => actual == *nominal,
+                (
+                    MirTypeOriginV1::NominalApplication(object),
+                    FieldIdentityView::Generated { owner: actual, .. },
+                ) => {
+                    let key = GeneratedNominalKey::GenericObjectBackingClass { object: *object };
+                    self.identities
+                        .canonical_key::<_, SourceDeclarationKey>(*object)?
+                        .declaration_kind()
+                        == SourceDeclarationKind::Object
+                        && PersistentTypeId::from_generated_key(&key).ok() == Some(actual)
+                }
                 _ => false,
             };
             if !correct_owner {

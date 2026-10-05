@@ -28,6 +28,10 @@ pub struct DecodedSourceDeclarationKey {
 }
 
 impl DecodedSourceDeclarationKey {
+    pub(crate) fn is_generic_nominal(&self) -> bool {
+        matches!(self.duplicate_signature, DecodedDuplicateSignatureKey::Nominal { type_parameter_count } if type_parameter_count != 0)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

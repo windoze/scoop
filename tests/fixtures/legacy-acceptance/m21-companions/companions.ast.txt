@@ -52,7 +52,7 @@ SourceFile
   class InheritedHost()
     companion object
   val combinedVersion: Int <const> = <expr>
-  fun chooseFactory(value: Box.Factory): Box.Companion
+  fun chooseFactory(value: Box<Int>.Factory): Box<Int>.Companion
     =
       Var value
   fun main()
@@ -60,58 +60,58 @@ SourceFile
       Var combinedVersion
     Call println
       FieldAccess version
-        Var Box
+        TypeQualifier Box<Int>
     Call println
       Binary Add
         FieldAccess version
           FieldAccess Factory
-            Var Box
+            TypeQualifier Box<Int>
         FieldAccess version
           FieldAccess Companion
-            Var Box
+            TypeQualifier Box<Int>
     Call println
       StringLiteral "before-box"
     Call println
       MethodCall answer
-        Var Box
+        TypeQualifier Box<Int>
     assign .count
-      Var Box
+      TypeQualifier Box<Int>
       IntLiteral 3
     Call println
       FieldAccess count
-        Var Box
+        TypeQualifier Box<Int>
     assign .count
       FieldAccess Factory
-        Var Box
+        TypeQualifier Box<Int>
       Binary Add
         FieldAccess count
           FieldAccess Factory
-            Var Box
+            TypeQualifier Box<Int>
         IntLiteral 1
     Call println
       FieldAccess count
         FieldAccess Companion
-          Var Box
+          TypeQualifier Box<Int>
     Call println
       Binary RefEq
         FieldAccess Factory
-          Var Box
+          TypeQualifier Box<Int>
         FieldAccess Companion
-          Var Box
+          TypeQualifier Box<Int>
     Call println
       Binary RefEq
         Call chooseFactory
           FieldAccess Factory
-            Var Box
+            TypeQualifier Box<Int>
         FieldAccess Companion
-          Var Box
+          TypeQualifier Box<Int>
     Call println
       MethodCall answer
         FieldAccess Factory
-          Var Box
+          TypeQualifier Box<Int>
     Call println
       MethodCall identity<Int>
-        Var Box
+        TypeQualifier Box<Int>
         IntLiteral 5
     Call println
       MethodCall value

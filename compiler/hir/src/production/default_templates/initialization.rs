@@ -63,6 +63,13 @@ impl<'a> GenericInitializationProducer<'a> {
                 );
             }
         }
+        for (object, declaration) in export.objects.iter() {
+            self.schedule(
+                &export.nominal_identities[object],
+                Owner::Class(declaration.backing_class),
+                roots,
+            );
+        }
     }
 
     fn schedule(&mut self, identity: &HirNominalIdentity, local: Owner, roots: &SharedSourceRoots) {
