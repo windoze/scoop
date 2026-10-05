@@ -9,7 +9,7 @@ M28 功能实现和 fixture 平台迁移已完成，正在进行最终三平台�
 - 两种 libc 的 LLVM libunwind 22.1.2 构建、musl PIE 的索引未命中兼容补丁、三种链接模式的真实异常展开均已验证。
 - 所有适用 Linux fixture 已在迁移批次中运行通过：glibc 2,295 个，musl 2,297 个。最终不更新快照的 `--all` 正在执行；其中 7 份历史 glibc 产物指纹已确认受 imported-storage visibility 修复影响，更新后普通复验全部通过。分批通过不计作最终完成。
 - Linux workspace 首轮 5,317 项通过、1 项假编译器 stdin 读取竞态失败；修复测试 helper 后，所属 `scoop` 的 96 项全部通过。macOS/AArch64 workspace 的 5,290 项全部通过。两个宿主的 fmt/clippy、Python 公共规则 38 项及 Ruff 0.16.10 均已通过。
-- macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 正在执行。
+- macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 全部通过：2,314 个用例、2,404 个变体、12,076 个进程、12,305 份快照，另有 6 个 Linux 专用用例不适用。
 
 ## 分批实施记录
 

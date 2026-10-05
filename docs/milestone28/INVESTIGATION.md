@@ -1,6 +1,6 @@
 # M28 调研与工具链探针
 
-日期：2026-10-05。对应 [设计文档](DESIGN.md)。本记录区分当前代码事实、已经执行的探针和后续验收要求，不是 M28 完成记录。
+日期：2026-10-05。对应 [设计文档](DESIGN.md)。本文保留实施前的代码状态、工具链调研和小型探针结果；当前能力见 [实施记录](PROGRESS.md)，实际工具链准备使用 [构建说明](BUILDING.md)。
 
 ## 1. 本机环境
 
@@ -54,6 +54,8 @@ M28 固定使用给定的 22.1.2 源码便于复现；未来可以独立升级 u
 在临时源码副本中去掉这些不适用于该 local x86_64 构建的依赖后，musl 静态库及最小 catch 探针成功。这只能证明有可行的修正方向，不表示原始源码无需补丁；没有修改用户的 `../libunwind`。切换到 LLVM 方案后，不再把这些补丁作为 M28 的交付前置条件。
 
 ## 3. LLVM libunwind 的可复现构建
+
+以下保留最初直接构建上游源码的探针命令。实际 Scoop 程序应使用构建说明中的脚本；实施时发现 musl PIE 的 FDE 索引未命中问题，脚本已在私有源码副本应用相应补丁，原始源码不改动。
 
 已执行的构建使用原始 `../llvm-project-22.1.2.src`、Homebrew Clang/Clang++ 21.1.8、CMake 和 Unix Makefiles。两套 `unwind` target 均成功，无需 Clang 22、LLD 或 C++ runtime 库。
 
@@ -211,9 +213,9 @@ SECTIONS {
 
 静态链接已经完成函数地址 relocation，因此可直接由只读 LOAD segment 承载。这是两种最终链接脚本需要区分的实际原因。正式脚本还要包括全部 Scoop 不可变记录、ODR section 和 startup image array；本次没有验证完整程序布局。[GNU ld READONLY 输出类型](https://sourceware.org/binutils/docs/ld/Output-Section-Type.html)。
 
-## 7. 尚未完成的验证
+## 7. 调研结束时尚未完成的验证
 
-本次没有修改编译器/runtime 实现，也没有运行完整 workspace 或 fixture 验收。当前正式 CLI 和 fixture runner 仍只接受 Darwin/AArch64；Linux 的 target/object/link/runtime 路径尚待实施。
+本次调研没有修改编译器/runtime 实现，也没有运行完整 workspace 或 fixture 验收。当时的正式 CLI 和 fixture runner 只接受 Darwin/AArch64；Linux 的 target/object/link/runtime 路径尚待实施。后续实现和验证记录在实施记录中。
 
 还必须完成：cleanup-only decoder、完整 moving GC、ODR/COMDAT 及重复 stackmap、TLS、C bridge 和所有 native shim、多 Cone artifact-only 链接、初始化/协程/Context/callback/release 组合，以及真实 Darwin 回归。不能以这些小型探针替代第 9 节的完成条件。
 

@@ -1,6 +1,6 @@
 # M28 本机构建与验证
 
-从仓库根目录运行。当前已提供 LLVM libunwind 准备和真实异常展开测试；完整 Scoop Linux CLI 的完成状态见 [实施记录](PROGRESS.md)。
+本文给出 LLVM libunwind 准备、三个 Linux 链接模式和三平台 fixture 的复现命令，均从仓库根目录运行。当前验收状态见 [实施记录](PROGRESS.md)。
 
 ## LLVM 与 unwind 准备
 

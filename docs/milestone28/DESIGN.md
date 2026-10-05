@@ -4,7 +4,7 @@
 
 本阶段新增 `x86_64-unknown-linux-gnu` 和 `x86_64-unknown-linux-musl`，保持现有 Darwin/AArch64。`amd64` 与 `x86_64` 在本文中指同一架构；CLI/LLVM canonical triple 统一使用 `x86_64`。profile name 遵循现有不含下划线的标识符规则，使用 `x86-64`；后续 Linux arm64 的 canonical triple 使用 `aarch64`。
 
-建议采用 **LLVM 项目的 libunwind 22.1.2**，源码取自 `../llvm-project-22.1.2.src`。Scoop 只消费 Itanium Level I `_Unwind_*` 接口，继续使用 M25 的异常记录和 personality。独立项目 `../libunwind` 的额外架构、远程展开及调试能力不进入本阶段。
+采用 **LLVM 项目的 libunwind 22.1.2**，源码取自 `../llvm-project-22.1.2.src`。Scoop 只消费 Itanium Level I `_Unwind_*` 接口，继续使用 M25 的异常记录和 personality。独立项目 `../libunwind` 的额外架构、远程展开及调试能力不进入本阶段。
 
 本设计的依据包括三份规范、现有 target/toolchain/runtime/linker 实现和本机小型编译运行探针。环境、命令、实测结论及其局限见 [调研记录](INVESTIGATION.md)。这些探针不等同于 Scoop 已完成 Linux 支持。
 
@@ -82,6 +82,8 @@ runtime:   platform/image/{elf,macho}.c
 ```
 
 `runtime_sources` 拆为共有源文件清单和实际 platform 组件清单。glibc/musl 共用 Linux/amd64 runtime 源码，区别主要由编译输入和最终链接表达。通用 collector、thread、callback 和 Context 不散布 arch/libc 条件编译。
+
+实际实现入口见 [runtime 源文件组合](../../compiler/toolchain/src/runtime.rs)、[Linux platform bundle](../../runtime/src/platform/profiles/linux_x86_64.c)、[ELF 共有 reader](../../compiler/slib/src/link_object/elf.rs)、[amd64 relocation](../../compiler/slib/src/link_object/elf/x86_64.rs)、[codegen 机器帧检查](../../compiler/codegen/src/artifact/x86_64.rs)及 [ELF 链接动作](../../compiler/linker/src/link/elf.rs)。这些边界由当前 Darwin 和两种 Linux libc 的实现共用；未为未来 arm64 添加空 profile 或占位实现。
 
 现有 `scoop_darwin_aarch64_managed_frame_ops` 等名称在确有跨 OS 复用时改为相应架构/ABI 名称；Darwin 与 ELF 的汇编符号拼写留在格式适配处。不能假定 Darwin AArch64 的每个过程 ABI 细节都等同于 Linux AAPCS64。
 
@@ -208,9 +210,9 @@ ELF 没有 Darwin 的 24 字节 TLV descriptor，不能复用 `storage/tls.rs` �
 
 ### 7.1 host 工具与目标 libc 分开
 
-`LLVM_SYS_221_PREFIX=/usr/lib/llvm-22` 选择本机 22.1.2 后端；当前 PATH 中的 `llvm-config`/Clang 是 21.1.8，不能让 LLVM crate 自动选错版本。C compiler 的版本则独立：当前 GCC 15.2 和 Clang 21.1.8 均可作为待验收的 C/native 工具。
+`LLVM_SYS_221_PREFIX=/usr/lib/llvm-22` 选择本机 22.1.2 后端；当前 PATH 中的 `llvm-config`/Clang 是 21.1.8，不能让 LLVM crate 自动选错版本。C compiler 的版本则独立：本阶段正式 C/native 工具使用 GCC 15.2，Clang 21.1.8 用于构建 LLVM libunwind。
 
-第一版正式 Linux C driver 建议以本机 GCC / musl-gcc 加 GNU ld 的组合落地，避免依赖尚未安装的 Clang 22 或 LLD；后端仍是 LLVM 22.1。generated-C 的现有 clang/SDK 调用封装改成封闭 driver 分支，GCC 不接收 Clang 的 `-target`、Darwin `-isysroot` 或 deployment flags。LLVM libunwind 的构建可单独使用支持目标 headers 的 Clang/Clang++。
+第一版正式 Linux C driver 使用本机 GCC / musl-gcc 加 GNU ld 的组合；后端仍是 LLVM 22.1。generated-C 的现有 clang/SDK 调用封装改成封闭 driver 分支，GCC 不接收 Clang 的 `-target`、Darwin `-isysroot` 或 deployment flags。LLVM libunwind 的构建可单独使用支持目标 headers 的 Clang/Clang++。
 
 复用 `--target`，新增以下普通工具链参数，并在第一批同步 CLI/protocol 文档：
 
