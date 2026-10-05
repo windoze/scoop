@@ -1,0 +1,68 @@
+import scoop.json.Json
+
+private var evaluations: Int = 0
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"unit encoding assertion ${code}")) }
+}
+
+private fun produce(fail: Boolean = false): Unit {
+    evaluations += 1
+    if (fail) { throw IllegalStateException(Some("unit argument")) }
+}
+
+private fun <T> erase(value: T): Any = value
+private fun <T : Encodable> encoded(value: T): String = Json.encode(value)
+
+public struct Row(val empty: Unit, val count: Int) : Encodable {
+    public companion object : Decodable<Row>
+}
+
+public struct Generic<T : Encodable>(val value: T) : Encodable
+
+private class Bound public constructor(private val value: Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { value.encode(encoder) }
+}
+
+private class Throws public constructor() : Encodable {
+    public override fun encode(encoder: Encoder) {
+        produce(true).encode(encoder)
+    }
+}
+
+fun main() {
+    check(Json.encode(Unit) == "null", 1)
+    check(encoded(()) == "null", 2)
+    check(Json.encode(produce()) == "null" && evaluations == 1, 3)
+    val fromAny = erase(Unit)
+    check(fromAny is Encodable, 4)
+    check(Json.encode(fromAny as Encodable) == "null", 5)
+    val boxed: Encodable = Unit
+    check(Json.encode(boxed) == "null", 6)
+    check(Json.encode(Bound(Unit)) == "null", 7)
+    val record = Json.decode("{\"count\":7,\"empty\":null}", Row.Companion)
+    check(record.empty == Unit && Json.encode(record) == "{\"empty\":null,\"count\":7}", 8)
+    check(Json.encode(Generic<Unit>(Unit)) == "{\"value\":null}", 9)
+    check(Json.decode(Json.encode(Unit), UnitDecoder) == (), 10)
+    val reference: (Encoder) -> Unit = Unit::encode
+    val thunk: () -> Unit = { produce() }
+    check(Json.encode(thunk()) == "null" && evaluations == 2, 11)
+    try { Json.encode(Throws()); check(false, 12) }
+    catch (error: IllegalStateException) { check(error.message == Some("unit argument"), 13) }
+    check(evaluations == 3, 14)
+    val sequence = Array<Unit>(3L) { _ -> Unit }
+    check(sequence.size == 3L && sequence[2L] == Unit, 15)
+    // The bound callable reference has a zero-sized captured receiver.
+    val wrapper = UsesReference(reference)
+    check(Json.encode(wrapper) == "null", 16)
+    check(Unit is Encodable && !(Unit !is Encodable), 17)
+    check(produce() is Encodable && evaluations == 4, 18)
+    val unrelated: Any = "unrelated"
+    check(!(unrelated is Generic<Unit> && unrelated is Encodable), 19)
+    check(Generic<Unit>(Unit) is Encodable, 20)
+    println("unit-values-ok")
+}
+
+private class UsesReference public constructor(private val body: (Encoder) -> Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { body(encoder) }
+}

@@ -1,0 +1,8 @@
+package units
+
+public struct Box<T : Encodable>(val value: T) : Encodable
+public fun unitFromProvider(): Any = Unit
+public fun <T> erase(value: T): Any = value
+public fun <T : Encodable> expose(value: T): Encodable = value
+public fun <T : Encodable> makeBox(value: T): Box<T> = Box<T>(value)
+public fun unitEncoder(): (Encoder) -> Unit = Unit::encode

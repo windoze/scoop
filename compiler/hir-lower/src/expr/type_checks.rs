@@ -23,6 +23,13 @@ impl Lowerer {
             );
             return None;
         }
+        let operand = match operand {
+            hir::Expr {
+                kind: ExprKind::Unbox(source),
+                ..
+            } if !self.is_value_ty(source.ty) => *source,
+            operand => self.adapt_to(operand, self.any),
+        };
         let is_expr = hir::Expr {
             kind: ExprKind::IsInstance {
                 operand: Box::new(operand),

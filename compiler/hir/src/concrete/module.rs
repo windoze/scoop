@@ -404,6 +404,7 @@ impl ForeignCallbackFailureResult {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IntrinsicTypeCore {
+    pub unit: StructId,
     pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,

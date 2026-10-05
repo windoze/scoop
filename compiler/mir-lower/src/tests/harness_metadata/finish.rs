@@ -120,7 +120,10 @@ impl Harness {
             hir::IntrinsicTypeKind::Char,
             character_type,
         );
+        let intrinsic_unit =
+            self.declare_fixed_intrinsic_struct("Unit", hir::IntrinsicTypeKind::Unit, self.unit);
         let intrinsic_type_core = hir::IntrinsicTypeCore {
+            unit: intrinsic_unit,
             character,
             integers: intrinsic_integers,
             boolean: intrinsic_boolean,

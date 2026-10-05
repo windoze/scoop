@@ -38,6 +38,9 @@ impl Lowerer {
                 },
                 hir::StructRepresentation::Intrinsic { application, .. } => {
                     mir::StructRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::Unit => {
+                            mir::IntrinsicTypeRepresentation::Unit
+                        }
                         hir::IntrinsicTypeRepresentation::Integer(kind) => {
                             mir::IntrinsicTypeRepresentation::Integer(lower_integer_kind(*kind))
                         }
@@ -297,7 +300,8 @@ impl Lowerer {
                                 ),
                             }
                         }
-                        hir::IntrinsicTypeRepresentation::Integer(_)
+                        hir::IntrinsicTypeRepresentation::Unit
+                        | hir::IntrinsicTypeRepresentation::Integer(_)
                         | hir::IntrinsicTypeRepresentation::Char
                         | hir::IntrinsicTypeRepresentation::Boolean
                         | hir::IntrinsicTypeRepresentation::Ptr { .. }

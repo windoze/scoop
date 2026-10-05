@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v53_retains_class_primary_mapping() {
+fn source_interface_v54_retains_intrinsic_unit_members() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        53,
+        54,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v53_retains_class_primary_mapping() {
 }
 
 #[test]
-fn type_semantics_v17_retains_context_slot_contracts() {
+fn type_semantics_v18_retains_intrinsic_unit_relations() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        17,
+        18,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v11_retains_task_frames() {
+fn mir_type_bridge_v12_retains_intrinsic_unit_interfaces() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        11,
+        12,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -58,10 +58,10 @@ fn lir_layout_abi_v8_retains_character_scalars() {
 }
 
 #[test]
-fn compiler_protocol_v8_retains_missing_context_exception() {
+fn compiler_protocol_v9_retains_intrinsic_unit_declaration() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        8,
+        9,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
@@ -115,10 +115,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v5_retains_annotation_identities_in_every_profile_and_view() {
+fn hir_foundation_v6_retains_intrinsic_unit_representation() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        5,
+        6,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

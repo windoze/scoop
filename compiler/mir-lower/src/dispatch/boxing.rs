@@ -440,7 +440,7 @@ impl Lowerer {
         payload: &mir::Type,
     ) -> Option<hir::StructId> {
         match payload {
-            mir::Type::Integer(_) | mir::Type::Boolean => {
+            mir::Type::Unit | mir::Type::Integer(_) | mir::Type::Boolean => {
                 let exact = self
                     .source_exact_types
                     .get(payload)

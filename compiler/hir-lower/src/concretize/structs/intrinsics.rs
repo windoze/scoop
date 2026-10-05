@@ -5,6 +5,10 @@ use super::*;
 impl Concretizer<'_> {
     pub(in crate::concretize) fn ensure_box_source(&mut self, ty: concrete::TypeId) {
         let (family, application) = match self.types[ty].kind {
+            concrete::TypeKind::Unit => (
+                export::IntrinsicTypeKind::Unit,
+                concrete::IntrinsicTypeRepresentation::Unit,
+            ),
             concrete::TypeKind::Integer(kind) => (
                 export::IntrinsicTypeKind::Integer(kind),
                 concrete::IntrinsicTypeRepresentation::Integer(kind),

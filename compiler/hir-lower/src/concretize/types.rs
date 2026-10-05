@@ -102,6 +102,9 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::IntrinsicTypeRepresentation {
         match representation {
+            export::IntrinsicTypeRepresentation::Unit => {
+                concrete::IntrinsicTypeRepresentation::Unit
+            }
             export::IntrinsicTypeRepresentation::Char => {
                 concrete::IntrinsicTypeRepresentation::Char
             }

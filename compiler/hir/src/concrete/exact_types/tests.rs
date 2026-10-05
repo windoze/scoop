@@ -17,6 +17,7 @@ fn empty_tuple_cannot_enter_the_exact_type_relation() {
     let interfaces = Arena::new();
     let objects = Arena::new();
     let intrinsic_core = IntrinsicTypeCore {
+        unit: StructId::from_raw(12_u32.into()),
         integers: IntegerTypeCore::new(std::array::from_fn(|index| {
             StructId::from_raw((index as u32).into())
         }))

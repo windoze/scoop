@@ -59,8 +59,7 @@ fn source<'a>(
                 .ok_or(Error::MissingType(payload.value))?;
             source(types, schemas, payload)
         }
-        mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
-        | mir::MirTypeRepresentationV1::CoroutineStep { .. }
+        mir::MirTypeRepresentationV1::CoroutineStep { .. }
         | mir::MirTypeRepresentationV1::CoroutineSlot { .. } => {
             if ty.base_and_interfaces().base != mir::MirBaseClassV1::None
                 || !ty.base_and_interfaces().interfaces.is_empty()

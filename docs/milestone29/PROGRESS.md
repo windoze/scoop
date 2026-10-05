@@ -249,3 +249,24 @@ unit variant 和 singleton 修复在两端通过全部 16 项自动编解码语�
 
 本批完成自动 decode；核心容器与 tuple 的条件 Encodable，以及完整 workspace/
 文件 fixture 总验收继续实施。报告已归档，完成的测试工作目录按批清理。
+
+
+## Unit 的普通核心编码实现
+
+Unit 由五行普通 core 源码声明提供 Encodable，encode 调用
+`singleValue().writeNull()`。其 intrinsic 声明复用原固定 Unit identity；
+`Unit`、`()`、零大小布局和返回 ABI 保持不变，UnitDecoder 仍是独立 object。
+成员查找、泛型上界、接口装箱、绑定引用和跨 Cone 分派沿既有 intrinsic struct
+路径，共有声明与机器布局消费同一份实际接口信息。
+
+组合用例同时修复普通类型测试的操作数表示：值通过既有装箱转换为引用，
+智能转换形成的 Unbox 则复用原引用，保留短路和单次求值。新增独立及产物 fixture
+覆盖 Unit 方法/接口、普通函数引用、泛型包装、自动 encode/decode、异常、数组、
+源码删除后的独立链接及 moving GC。macOS、Linux glibc/musl 各通过 13 个进程、
+7 份阶段 golden，5 份共有 HIR/MIR 字节一致。
+
+workspace 回归还修正了测试夹具中的 Unit 固定身份与 intrinsic family 清单，
+并区分泛型 companion 的源码初始化记录和实际机器初始化单元。相应 HIR、全部
+114 项 MIR lowering 与 driver 定向回归通过；两端 workspace 格式化/lint 通过。
+三平台均完成不更新快照的正式复验，报告已归档并清理本批 fixture 工作目录。
+核心容器与 tuple 的条件 Encodable、完整 workspace/文件 fixture 总验收继续实施。

@@ -9,6 +9,9 @@ pub(crate) fn struct_layout(
 ) -> StorageResult<lir::Layout> {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
+            mir::IntrinsicTypeRepresentation::Unit => {
+                (0, 1, lir::IntrinsicTypeRepresentation::Unit)
+            }
             mir::IntrinsicTypeRepresentation::Integer(kind) => {
                 let kind = integer_kind(*kind);
                 let layout = context.integer_layout(kind);

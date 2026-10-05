@@ -290,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "17db2519f8c1514152f4a785ac62bc8da7ba4c553409369f2949ecc0230ae3d8"
+            "11b89a426ffc899a41f7a6efaf0ba8bd30947efb303265287cdfb54dd6569c01"
         );
     }
 

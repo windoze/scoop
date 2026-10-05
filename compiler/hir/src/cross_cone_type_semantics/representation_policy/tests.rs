@@ -52,6 +52,8 @@ fn intrinsic_family_keeps_integer_width_and_signedness_and_generic_family_distin
         .into_iter()
         .map(IntrinsicTypeKind::Integer)
         .chain([
+            IntrinsicTypeKind::Unit,
+            IntrinsicTypeKind::Char,
             IntrinsicTypeKind::Boolean,
             IntrinsicTypeKind::String,
             IntrinsicTypeKind::Array,
@@ -70,13 +72,13 @@ fn intrinsic_family_keeps_integer_width_and_signedness_and_generic_family_distin
             family
         );
     }
-    assert_eq!(encodings.len(), 14);
+    assert_eq!(encodings.len(), 16);
 }
 
 #[test]
 fn representation_reader_rejects_unknown_family_alignment_and_extra_fields() {
     for bytes in [
-        &[0xa1, 0, 9][..],
+        &[0xa1, 0, 10][..],
         &[0xa2, 0, 4, 1, 0][..],
         &[0xa1, 0, 1][..],
         &[0xa3, 0, 1, 1, 0xa1, 0, 3, 2, 0xa1, 0, 1][..],

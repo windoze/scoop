@@ -1,0 +1,34 @@
+import scoop.json.Json
+import units.Box
+import units.unitFromProvider
+import units.erase
+import units.expose
+import units.makeBox
+import units.unitEncoder
+import unitpeer.peerUnit
+import unitpeer.peerEncoding
+import unitpeer.peerBox
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"unit artifact assertion ${code}")) }
+}
+
+private class UsesReference public constructor(private val body: (Encoder) -> Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { body(encoder) }
+}
+
+fun main() {
+    val providerValue = unitFromProvider()
+    check(providerValue is Encodable, 1)
+    check(Json.encode(providerValue as Encodable) == "null", 2)
+    check(peerUnit() is Encodable && erase(Unit) is Encodable, 3)
+    check(Json.encode(peerEncoding()) == "null", 4)
+    check(Json.encode(expose(Unit)) == "null", 5)
+    val other = peerBox()
+    check(other is Box<Unit> && other is Encodable, 6)
+    check(Json.encode(other as Encodable) == "{\"value\":null}", 7)
+    check(Json.encode(makeBox(Unit)) == "{\"value\":null}", 8)
+    check(Json.encode(UsesReference(unitEncoder())) == "null", 9)
+    check(Json.decode("null", UnitDecoder) == Unit, 10)
+    println("unit-artifacts-ok")
+}

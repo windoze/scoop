@@ -147,6 +147,13 @@ pub(super) fn validate(
                 DefinitionOriginSubject::Type(record.id()),
                 OriginExpectation::declaration(record.key()),
             )?;
+        } else if record.id() == CoreBuiltinNominal::Unit.identity_record().id() {
+            // The language key also exists without a local declaration. When
+            // core publishes Unit's source declaration, retain its normal source location.
+            requirements.allow(
+                DefinitionOriginSubject::Type(record.id()),
+                OriginExpectation::declaration(record.key()),
+            )?;
         }
     }
     macro_rules! declarations {

@@ -8,7 +8,9 @@ fn families() -> impl Iterator<Item = IntrinsicTypeKind> {
         .into_iter()
         .map(IntrinsicTypeKind::Integer)
         .chain([
+            IntrinsicTypeKind::Unit,
             IntrinsicTypeKind::Boolean,
+            IntrinsicTypeKind::Char,
             IntrinsicTypeKind::String,
             IntrinsicTypeKind::Array,
             IntrinsicTypeKind::MutableArray,
@@ -48,7 +50,7 @@ fn intrinsic_source_shapes_keep_every_family_and_fixed_tag_through_both_readers(
             shape
         );
     }
-    assert_eq!(encodings.len(), 14);
+    assert_eq!(encodings.len(), 16);
 }
 
 #[test]
@@ -56,7 +58,7 @@ fn intrinsic_shape_rejects_missing_family_extra_fields_and_unknown_kinds() {
     for bytes in [
         &[0xa1, 0, 6][..],
         &[0xa3, 0, 6, 1, 0xa1, 0, 2, 2, 0][..],
-        &[0xa2, 0, 6, 1, 0xa1, 0, 9][..],
+        &[0xa2, 0, 6, 1, 0xa1, 0, 10][..],
         &[0xa2, 0, 6, 1, 0xa3, 0, 1, 1, 0xa1, 0, 3, 2, 0xa1, 0, 1][..],
         &[0xa2, 0, 6, 1, 0xa3, 0, 1, 1, 0xa1, 0, 1, 2, 0xa1, 0, 5][..],
     ] {

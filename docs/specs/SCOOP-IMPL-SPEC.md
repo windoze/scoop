@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-当前 HIR 格式为 `core-bootstrap-interface/7`、`cross-cone-interface/48` 与 `cross-cone-type-semantics/15`：M26 增加完整 ArrayGenerate、负长度异常目标、数组长度 intrinsic 与 Char 表示；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
+M29 的 Unit 批次使用 HIR `identity-foundation/6`、`core-bootstrap-interface/9`、`cross-cone-interface/54`、`cross-cone-type-semantics/18` 与 MIR `cross-cone-type-bridge/12`，旧产物与缓存需重建。Unit 的实际 core 声明保留普通成员及 Encodable 接口，零大小值布局和 runtime ABI 不变，详见 §2.17。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -10,7 +10,7 @@
 
 静态 namespace 查询只依赖已选 nominal owner 和其实际 public binding 表，不以 provider 的 direct/support 角色过滤嵌套成员。direct package index 仍只包含直接依赖；exact、star、public import 与普通 receiver 查询共用实际终点绑定。公开绑定和外部名称引用的 reader 检查归属、typed target、namespace、role、闭合及既有转导出连续性，删除重复的 direct-provider 资格检查和仅服务该检查的输入表。该规则自 `hir/cross-cone-interface/39` 起启用；runtime ABI 与 GC 契约不变。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；当前共有 HIR 格式为 `/42`，旧 `/41` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；该批次共有 HIR 格式为 `/42`，旧 `/41` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
 
 静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
@@ -155,9 +155,9 @@ LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整�
 
 协议导入保留实际 definition-origin 的 provider 与完整 typed callable 引用；其 provider 来自共有声明 metadata，不由导入 artifact 的身份补齐。driver 只保留前端所需的 ImportedCoreInputs。初始化选择直接查询实际 provider 的普通 MIR callable 导出，后续使用普通 LIR 导出；前端已经解析的角色和声明不再包装成独立来源证明。
 
-MIR type bridge 的本地类型导出必须包含由当前 provider 拥有的语言内建 Unit/Any，即使它们没有普通源码声明 arena 或 nominal representation-support 记录。HIR facts 先完整发布当前 provider 拥有的 Unit/Any 固定语义，不能仅依赖普通 nominal roots 或源码签名触发它们。MIR 生产器从同次 sealed MIR 的 typed source-exact 引用与 HIR exact facts 投影其固定表示，并核对语言内建 nominal identity 及声明 provider；Unit 保持 ZST/GcFree，Any 保持根类型的 reference 语义，MIR 使用无成员、无 base 的 abstract class 表示和空 class dispatch schema，并由 LIR 生成既有 abstract-reference 布局；其 class-kind identity 不变。外来 Unit/Any 继续由依赖类型表提供，不能在每个 consumer 中重复发布，也不能将这一规则推广为 CORE 来源的任意类型豁免。当前 provider 的公共形状需求同时包含其 canonical declaration key 所拥有的 Unit/Any；它们不依赖普通源码 arena、public binding 或调用位置才成为提供方根。producer 与共有 reader 都按完整 typed builtin identity 和声明 origin 查询这两个根，foundation 必须含对应 canonical source key；不能只因依赖图含该 key 就把外来 builtin 当本地根。Unit 的 BoxedValue、Unit/Any 的 coroutine-step 与 coroutine-slot 沿同一 LocalConcrete、Strong、MIR/LIR ShapeSupport 生产和验证路径发布，必须有实际定义及完整布局、descriptor 和 GC 合同，不能绕过 helper 集合校验。
+MIR type bridge 的本地类型导出必须包含由当前 provider 拥有的语言内建 Unit/Any。Unit 使用 core 实际声明的 nominal representation-support 和继承信息；没有普通源码声明的 Any 继续按语言内建事实投影。HIR facts 先完整发布当前 provider 拥有的 Unit/Any 固定语义，不能仅依赖普通 nominal roots 或源码签名触发它们。MIR 生产器从同次 sealed MIR 的 typed source-exact 引用与 HIR exact facts 投影其固定表示，并核对语言内建 nominal identity 及声明 provider；Unit 保持 ZST/GcFree，Any 保持根类型的 reference 语义，MIR 使用无成员、无 base 的 abstract class 表示和空 class dispatch schema，并由 LIR 生成既有 abstract-reference 布局；其 class-kind identity 不变。外来 Unit/Any 继续由依赖类型表提供，不能在每个 consumer 中重复发布，也不能将这一规则推广为 CORE 来源的任意类型豁免。当前 provider 的公共形状需求同时包含其 canonical declaration key 所拥有的 Unit/Any；它们不依赖普通源码 arena、public binding 或调用位置才成为提供方根。producer 与共有 reader 都按完整 typed builtin identity 和声明 origin 查询这两个根，foundation 必须含对应 canonical source key；不能只因依赖图含该 key 就把外来 builtin 当本地根。Unit 的 BoxedValue、Unit/Any 的 coroutine-step 与 coroutine-slot 沿同一 LocalConcrete、Strong、MIR/LIR ShapeSupport 生产和验证路径发布，必须有实际定义及完整布局、descriptor 和 GC 合同，不能绕过 helper 集合校验。
 
-HIR selected 目标以封闭分支区分语言内建类型与普通源码 nominal：普通分支必须同时借用已验证的表示和继承记录；Unit/Any 分支按固定 typed declaration identity 及其真实 origin 核对 terminal provider，并借用该 provider 的完整 exact facts，分别保持 ZST/GcFree 与 reference/managed 语义，不补造源码表示或继承记录。内建分支可承载 Signature、Representation、TypeTest 和 ShapeSupport 目标存在性检查；实际 shape-support 及机器使用仍由既有完整闭包验证。构造、成员、槽、单例和直接继承仍须各自真实声明与关系，不因内建身份获得操作资格。每次实际使用、语义边、来源、依赖可达性、selected 精确覆盖仍经过共有检查；该区分不增加 wire tag 或新的来源证明表。
+HIR selected 目标以封闭分支区分语言内建类型与普通源码 nominal：普通分支必须同时借用已验证的表示和继承记录；Unit 的成员及 conformance 使用 core 实际声明，固定身份和 ZST/GcFree 事实保持不变。仅查询内建身份的 Unit/Any 分支按固定 typed declaration identity 及其真实 origin 核对 terminal provider，并借用该 provider 的完整 exact facts，分别保持 ZST/GcFree 与 reference/managed 语义。内建分支可承载 Signature、Representation、TypeTest 和 ShapeSupport 目标存在性检查；实际 shape-support 及机器使用仍由既有完整闭包验证。构造、成员、槽、单例和直接继承仍须各自真实声明与关系，不因内建身份获得操作资格。每次实际使用、语义边、来源、依赖可达性、selected 精确覆盖仍经过共有检查；该区分不增加 wire tag 或新的来源证明表。
 
 MIR callable inventory 按共同 HIR 的完整 owner、receiver、参数、结果和实际物化需求关联定义。未实例化模板保留完整语义接口，不要求不存在的机器正文；普通声明包含封闭泛型 application 不能因旧 source-only gate 被排除。实际需要的机器定义缺失是产物／生产错误，不以能力标签放过。
 
@@ -1775,6 +1775,26 @@ tuple 的组合解码闭包共用源码 lambda 的参数、词法来源、捕获
 encode归数据类型，decode归实际companion/解码器。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同解码器即使返回同一个R也保持不同声明；同一provider application才沿原ODR合并。构造调用的求值来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
 
 **核心类型与格式库。** scalar数据值实现Encodable，其普通companion实现具体`Decodable<Scalar>`；Unit使用普通UnitDecoder。Option/Array/MutableArray/ArrayList和tuple按11.13的封闭规则提供结构型Encodable，不给数据类型追加Decodable conformance。generic核心类型的companion随宿主具体化，其普通decoder方法使用宿主T、显式接收`Decodable<T>`并构造持有该依赖的常规helper；每次传入的codec不写入singleton状态。方法的普通声明身份由已有core协议关系引用，不以同名用户声明替代。核心类型的原泛型范围保持不变。
+
+Unit 的 core 声明使用 `core_unit` intrinsic 表示，固定声明身份与语言内建 Unit
+相同；`Unit`/`()` 表达式、零大小值布局和 Unit 返回 ABI 保持不变。该声明正常
+保存成员及已声明接口，`encode` 是调用 `singleValue().writeNull()` 的普通源码
+方法。成员查找、上界、装箱及跨 Cone 分派复用其他 intrinsic struct 的路径；
+共有类型事实继续使用原 Unit identity，并从实际声明取得接口关系。旧的无源码
+声明 Unit 分支仅描述该声明引入前的实现，不能丢弃现在已发布的成员和继承信息。
+UnitDecoder 仍是独立普通 object，不为 Unit 自动建立 companion。
+
+普通 `is`/`!is` 的操作数在 Export HIR 中归一化为引用，值操作数使用既有装箱
+适配。若智能转换已经把同一引用表示为 `Unbox`，类型测试直接复用其原引用；
+不把拆箱后的值传给 runtime 的引用参数，也不把右侧条件的拆箱提前到短路判断
+之前。操作数仍只求值一次，后续阶段消费已明确的引用表示。
+
+Unit 批次为共有 intrinsic family 分配 tag 9（此前 tag 1～8 保持不变），并在
+LIR 的布局内容编码中为 Unit 分配 tag 7。HIR identity-foundation 升至 `/6`、
+core-bootstrap-interface 升至 `/9`、cross-cone-interface 升至 `/54`、
+cross-cone-type-semantics 升至 `/18`，MIR cross-cone-type-bridge 升至 `/12`；
+这些版本保存实际 Unit 声明及接口，旧产物和缓存重建。MIR 继续使用既有 Unit
+类型桥表示，LIR 的 exact layout 与 runtime ABI 均保持零大小 Unit 契约。
 
 Json是普通库的Encoder/Decoder实现。Json.decode接收源码可见的`Decodable<T>`实参，按正常interface调用；Json.encode仍使用Encodable bound。core登记和body检查不依赖JSON库。String/Char/List、格式数据树、异常、codec helper与DecodeFunction使用普通库/语言能力，没有compiler JSON builtin或runtime JSON C入口。
 

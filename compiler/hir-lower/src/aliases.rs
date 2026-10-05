@@ -313,9 +313,10 @@ impl Lowerer {
 
     pub(crate) fn nominal_target_for_type(&self, ty: hir::TypeId) -> Option<NominalTarget> {
         match self.types[ty] {
-            Type::Integer(_) | Type::Boolean | Type::String => {
+            Type::Unit | Type::Integer(_) | Type::Boolean | Type::String => {
                 let kind = match self.types[ty] {
                     Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                    Type::Unit => hir::IntrinsicTypeKind::Unit,
                     Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                     Type::String => hir::IntrinsicTypeKind::String,
                     _ => unreachable!("the outer match selected an intrinsic primitive type"),
@@ -346,7 +347,7 @@ impl Lowerer {
                 .map(NominalTarget::Interface),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::Unit | Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
+            Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
         }
     }
 }

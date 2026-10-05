@@ -96,6 +96,9 @@ impl Lowerer {
                 hir::IntrinsicTypeKind::Integer(kind),
                 &mut declared,
             ),
+            Type::Unit => {
+                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Unit, &mut declared)
+            }
             Type::Boolean => {
                 self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Boolean, &mut declared)
             }

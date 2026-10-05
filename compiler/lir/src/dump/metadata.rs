@@ -163,7 +163,8 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
                 scan.dump()
             )),
             LayoutKind::Intrinsic(
-                IntrinsicTypeRepresentation::Integer(_)
+                IntrinsicTypeRepresentation::Unit
+                | IntrinsicTypeRepresentation::Integer(_)
                 | IntrinsicTypeRepresentation::Char
                 | IntrinsicTypeRepresentation::Boolean
                 | IntrinsicTypeRepresentation::String,

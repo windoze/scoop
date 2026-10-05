@@ -840,6 +840,7 @@ pub enum LayoutKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,

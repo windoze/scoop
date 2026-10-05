@@ -10,13 +10,10 @@ impl Graph<'_> {
             .current
             .identities
             .canonical_key::<_, ExactTypeKey>(receiver)?;
-        // Language builtins have no ordinary source nominal declaration.
+        // Any has no source declaration; Unit members use its ordinary core declaration.
         if let ExactTypeKey::Nominal(owner) = key.as_ref() {
             self.resolve_nominal(*owner)?;
-            if [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
-                .iter()
-                .any(|builtin| builtin.identity_record().id() == *owner)
-            {
+            if CoreBuiltinNominal::Any.identity_record().id() == *owner {
                 return Ok(Vec::new());
             }
         }

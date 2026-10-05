@@ -86,6 +86,15 @@ pub(in crate::tests) fn test_nominal_identities(
     let struct_identities = structs
         .iter()
         .map(|(_, declaration)| {
+            if matches!(
+                declaration.representation,
+                hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::Unit)
+            ) {
+                return hir::HirNominalIdentity::from_source_declaration(
+                    scoop_identity::CoreBuiltinNominal::Unit.declaration_key(),
+                )
+                .expect("the test intrinsic Unit retains its fixed language identity");
+            }
             test_source_nominal_identity(
                 &declaration.name,
                 scoop_identity::SourceNominalKind::Struct,

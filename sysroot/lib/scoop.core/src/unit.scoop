@@ -1,0 +1,5 @@
+@Intrinsic("core_unit")
+public struct Unit : Encodable {
+    public override fun encode(encoder: Encoder): Unit =
+        encoder.singleValue().writeNull()
+}

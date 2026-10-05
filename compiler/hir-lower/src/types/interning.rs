@@ -99,6 +99,9 @@ impl Lowerer {
         );
         let canonical_type = match &representation {
             hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Unit,
+            ) => self.unit,
+            hir::StructApplicationRepresentation::Intrinsic(
                 hir::IntrinsicTypeRepresentation::Integer(kind),
             ) => self.integer_type(*kind),
             hir::StructApplicationRepresentation::Intrinsic(

@@ -6,10 +6,9 @@ use super::{HirNativeBoundaryTypeDefinitionError, HirNativeBoundaryTypeDefinitio
 use crate::{
     ClassRepresentation, EnumVariantFieldRef, EnumVariantRef, HirNominalIdentity,
     HirSignatureBinder, HirSignatureTypeMapper, HirSourceNominalIdentity,
-    NativeBoundaryCLayoutPolicy, NativeBoundaryFieldDefinition, NativeBoundaryNominalShape,
-    NativeBoundaryTypeDefinitionRecord, NativeBoundaryVariantDefinition,
-    NativeBoundaryVariantFieldDefinition, NominalIntrinsicRepresentationV1, StructFieldRef,
-    StructRepresentation, TypeParamDecl,
+    NativeBoundaryFieldDefinition, NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
+    NativeBoundaryVariantDefinition, NativeBoundaryVariantFieldDefinition,
+    NominalIntrinsicRepresentationV1, StructFieldRef, StructRepresentation, TypeParamDecl,
 };
 
 pub(super) fn build(
@@ -147,10 +146,9 @@ fn core_builtin(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
 ) -> Result<NativeBoundaryTypeDefinitionRecord, HirNativeBoundaryTypeDefinitionError> {
     let shape = match builtin {
-        CoreBuiltinNominal::Unit => NativeBoundaryNominalShape::Struct {
-            c_layout: NativeBoundaryCLayoutPolicy::NotCLayout,
-            fields: Vec::new(),
-        },
+        CoreBuiltinNominal::Unit => NativeBoundaryNominalShape::Intrinsic(
+            NominalIntrinsicRepresentationV1::new(crate::IntrinsicTypeKind::Unit),
+        ),
         CoreBuiltinNominal::Any => NativeBoundaryNominalShape::Reference,
     };
     NativeBoundaryTypeDefinitionRecord::new(

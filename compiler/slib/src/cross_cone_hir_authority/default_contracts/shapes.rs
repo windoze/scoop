@@ -40,10 +40,10 @@ impl<'g> DefaultNominalShapes<'g> {
                         CoreBuiltinNominal::Unit => PublicNominalKindV1::Struct,
                         CoreBuiltinNominal::Any => PublicNominalKindV1::Class,
                     };
-                    result.insert(
-                        SourceNominalId::Concrete(record.id()),
-                        PublicNominalShapeV1::new(kind, 0),
-                    )?;
+                    result
+                        .shapes
+                        .entry(SourceNominalId::Concrete(record.id()))
+                        .or_insert(PublicNominalShapeV1::new(kind, 0));
                 }
             }
         }

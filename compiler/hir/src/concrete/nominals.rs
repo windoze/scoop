@@ -453,6 +453,7 @@ impl ClassDef {
 /// this application's already-lowered arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,

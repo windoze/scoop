@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
+use scoop_identity::{CoreBuiltinNominal, InitializationUnitKey, SignatureTypeKey};
 
 mod mutations;
 
@@ -36,13 +36,20 @@ pub(super) fn check(
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (15, 15)
+                (19, 15)
             );
-            // Scalar codec companions and the suspend object retain initialization pairs.
+            // Generic companion templates do not create strong initialization pairs.
+            // Scalar companions and the suspend object retain their ordinary pairs.
             assert_eq!(
                 metadata
                     .source_initialization_units()
                     .iter()
+                    .filter(|source| {
+                        !matches!(
+                            source.key(),
+                            InitializationUnitKey::GenericCompanionTemplate(_)
+                        )
+                    })
                     .map(|source| source.id())
                     .collect::<std::collections::BTreeSet<_>>(),
                 units.iter().map(|unit| unit.unit()).collect(),

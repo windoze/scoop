@@ -55,6 +55,14 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
         );
         for provider in &providers {
             match provider.family {
+                IntrinsicTypeKind::Unit => assert!(
+                    authority
+                        .validate_const_value_type(
+                            concrete(provider.owner),
+                            CanonicalConstValueKindV1::Boolean,
+                        )
+                        .is_err()
+                ),
                 IntrinsicTypeKind::Integer(kind) => authority
                     .validate_const_value_type(
                         concrete(provider.owner),

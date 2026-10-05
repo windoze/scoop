@@ -136,7 +136,8 @@ impl Concretizer<'_> {
             concrete::TypeKind::Struct(id) => self.structs[id].interface_implementations.clone(),
             concrete::TypeKind::Enum(id) => self.enums[id].interface_implementations.clone(),
             concrete::TypeKind::Class(id) => self.classes[id].interface_implementations.clone(),
-            concrete::TypeKind::Integer(_)
+            concrete::TypeKind::Unit
+            | concrete::TypeKind::Integer(_)
             | concrete::TypeKind::Boolean
             | concrete::TypeKind::String => {
                 if let Some((_, value)) = self
@@ -157,6 +158,7 @@ impl Concretizer<'_> {
                 }
                 let family = match self.types[receiver].kind {
                     concrete::TypeKind::Integer(kind) => export::IntrinsicTypeKind::Integer(kind),
+                    concrete::TypeKind::Unit => export::IntrinsicTypeKind::Unit,
                     concrete::TypeKind::Boolean => export::IntrinsicTypeKind::Boolean,
                     concrete::TypeKind::String => export::IntrinsicTypeKind::String,
                     _ => unreachable!("scalar conformance has a scalar representation"),
