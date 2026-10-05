@@ -11,12 +11,22 @@ fn exact(nominal: CoreBuiltinNominal) -> PersistentExactTypeId {
 fn a_parent_relocation_must_match_the_exact_external_descriptor_symbol() {
     let unit = PersistentSymbolKey::TypeDescriptor(exact(CoreBuiltinNominal::Unit));
     let other = PersistentSymbolKey::TypeDescriptor(exact(CoreBuiltinNominal::Any));
-    let target = VerifiedRelocationTargetV1::ExternalUndefined {
-        table_index: 7,
-        name: format!("_{}", MangledSymbol::from_key(&unit)).into_bytes(),
-    };
-    assert!(external_target_matches(&target, unit));
-    assert!(!external_target_matches(&target, other));
+    for profile in [
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Gnu),
+        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Musl),
+    ] {
+        let target = VerifiedRelocationTargetV1::ExternalUndefined {
+            table_index: 7,
+            name: profile
+                .contract()
+                .native_symbol_normalization()
+                .compiler_generated_object_symbol(MangledSymbol::from_key(&unit).as_str())
+                .into_bytes(),
+        };
+        assert!(external_target_matches(profile, &target, unit));
+        assert!(!external_target_matches(profile, &target, other));
+    }
 }
 
 #[test]
@@ -29,12 +39,22 @@ fn a_separate_hook_object_is_referenced_by_its_exact_callable_body_symbol() {
     };
     let expected = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Unit));
     let other = PersistentSymbolKey::CallableBody(hook(CoreBuiltinNominal::Any));
-    let target = VerifiedRelocationTargetV1::ExternalUndefined {
-        table_index: 4,
-        name: format!("_{}", MangledSymbol::from_key(&expected)).into_bytes(),
-    };
-    assert!(external_target_matches(&target, expected));
-    assert!(!external_target_matches(&target, other));
+    for profile in [
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Gnu),
+        scoop_lir::LirTargetProfile::from_id(scoop_identity::TargetProfileId::LinuxX86_64Musl),
+    ] {
+        let target = VerifiedRelocationTargetV1::ExternalUndefined {
+            table_index: 4,
+            name: profile
+                .contract()
+                .native_symbol_normalization()
+                .compiler_generated_object_symbol(MangledSymbol::from_key(&expected).as_str())
+                .into_bytes(),
+        };
+        assert!(external_target_matches(profile, &target, expected));
+        assert!(!external_target_matches(profile, &target, other));
+    }
 }
 
 #[test]

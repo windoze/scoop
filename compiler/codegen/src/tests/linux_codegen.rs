@@ -10,6 +10,10 @@ mod bridges;
 mod objects;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod slib_stackmaps;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod slib_support;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod slib_types;
 
 fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module {
     module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));

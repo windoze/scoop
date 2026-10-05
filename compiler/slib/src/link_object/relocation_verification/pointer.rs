@@ -34,6 +34,29 @@ impl Form {
 }
 
 impl Shape {
+    /// Resolve an absolute pointer within this object, in section coordinates.
+    pub fn absolute64_local_address(
+        &self,
+        encoded_field: u64,
+    ) -> Option<(std::num::NonZeroU32, u64)> {
+        use super::VerifiedRelocationTargetV1 as Target;
+        let (section, base) = match self.absolute64_target()? {
+            Target::LocalDefinition {
+                section_ordinal,
+                value,
+                ..
+            } => (*section_ordinal, *value),
+            Target::SectionBase {
+                section_ordinal, ..
+            } => (*section_ordinal, 0),
+            _ => return None,
+        };
+        Some((
+            section,
+            self.form().absolute64_address(encoded_field, base)?,
+        ))
+    }
+
     pub fn absolute64_target(&self) -> Option<&super::VerifiedRelocationTargetV1> {
         match self {
             Self::Unsigned64 { target }
