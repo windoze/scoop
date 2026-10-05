@@ -1796,6 +1796,11 @@ cross-cone-type-semantics 升至 `/18`，MIR cross-cone-type-bridge 升至 `/12`
 这些版本保存实际 Unit 声明及接口，旧产物和缓存重建。MIR 继续使用既有 Unit
 类型桥表示，LIR 的 exact layout 与 runtime ABI 均保持零大小 Unit 契约。
 
+`encodeList` 是带显式 `T : Encodable` 上界的普通 core 泛型函数，正文使用既有
+for、接口调用和 unkeyed Encoder 协议。它的普通 callable 身份、函数引用、模板
+消费、异常与 GC 均复用现有实现；List 本身不因提供这个 helper 而增加 Encodable
+接口，core 不增加编译器专用的序列编码操作。
+
 Json是普通库的Encoder/Decoder实现。Json.decode接收源码可见的`Decodable<T>`实参，按正常interface调用；Json.encode仍使用Encodable bound。core登记和body检查不依赖JSON库。String/Char/List、格式数据树、异常、codec helper与DecodeFunction使用普通库/语言能力，没有compiler JSON builtin或runtime JSON C入口。
 
 **产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，解码器沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。

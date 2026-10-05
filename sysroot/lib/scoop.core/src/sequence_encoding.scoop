@@ -1,0 +1,7 @@
+public fun <T : Encodable> encodeList(values: List<T>, encoder: Encoder): Unit {
+    val elements = encoder.unkeyed()
+    for (value in values) {
+        value.encode(elements.element())
+    }
+    elements.end()
+}

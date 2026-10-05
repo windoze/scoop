@@ -1737,7 +1737,14 @@ public annotation class Transient
 
 核心Boolean、现有定宽整数、String、Char、Unit无条件提供Encodable；`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`在T满足Encodable时提供该方向的结构型conformance；非空tuple在每个元素满足Encodable时提供conformance。这些封闭规则不改变容器本身无bound的定义，不禁止`Array<NonEncodable>`的普通使用。核心解码使用11.13.4的普通companion/解码器对象，不为数据类型追加Decodable conformance。
 
-List/MutableList不推导结构型Encodable，也没有唯一默认解码结果，库可提供带显式元素bound的encodeList helper。Any、函数、Ptr/FunPtr没有默认codec。用户可显式实现Decodable<`List<T>`>、`Decodable<Any>`等并选择正常返回值；不从运行期类型名推断具体实现。
+List/MutableList不推导结构型Encodable，也没有唯一默认解码结果。核心库提供普通
+`fun <T : Encodable> encodeList(values: List<T>, encoder: Encoder): Unit`：取得一个
+unkeyed 容器，按 values 的普通迭代次序逐项取得 element encoder 并调用元素的
+encode，最后结束该容器。空列表同样结束容器；元素异常沿普通调用传播。该函数
+只遍历逻辑元素，不编码容器的 capacity、backing 或空闲槽。
+
+Any、函数、Ptr/FunPtr没有默认codec。用户可显式实现Decodable<`List<T>`>、
+`Decodable<Any>`等并选择正常返回值；不从运行期类型名推断具体实现。
 
 #### 11.13.2 容器协议与库边界
 

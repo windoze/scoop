@@ -270,3 +270,19 @@ workspace 回归还修正了测试夹具中的 Unit 固定身份与 intrinsic fa
 114 项 MIR lowering 与 driver 定向回归通过；两端 workspace 格式化/lint 通过。
 三平台均完成不更新快照的正式复验，报告已归档并清理本批 fixture 工作目录。
 核心容器与 tuple 的条件 Encodable、完整 workspace/文件 fixture 总验收继续实施。
+
+
+## 普通列表编码 helper
+
+核心库新增七行普通 `encodeList<T : Encodable>`，按 List 的迭代次序向 unkeyed
+容器逐项编码，最后结束容器；空列表同样结束，元素异常按普通调用传播。List 与
+MutableList 自身没有增加 Encodable 接口；泛型实例、函数引用、跨 Cone 正文和
+GC 复用既有路径，没有新增 IR 指令、格式版本或 runtime ABI。
+
+三个正式 fixture 覆盖空列表、Array/MutableArray/ArrayList、逻辑元素与清空后的
+空闲容量、Unicode、Unit、嵌套编码、列表视图、绑定泛型函数引用、元素求值及异常，
+并以独立 provider/consumer 测试删除所有源码后的链接、运行和 moving GC。
+负例锁定无 Encodable 元素的泛型上界诊断及精确位置。macOS、Linux glibc/musl
+各通过 13 个进程、7 份阶段 golden，均完成不更新快照的复验；5 份共有 HIR/MIR
+字节一致，4 份 Linux LIR 独立保存。两端格式化/lint 通过，报告归档后清理本批
+fixture 工作目录。容器与 tuple 的条件 Encodable 和正式总验收继续实施。
