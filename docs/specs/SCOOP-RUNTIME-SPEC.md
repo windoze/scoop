@@ -1,5 +1,7 @@
 # Scoop Runtime 规范
 
+2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项待实现；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
+
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，当前格式为 `hir/cross-cone-interface/43`。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
 `for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
@@ -139,6 +141,10 @@ M23-6的class instance以完整base instance作为prefix：继承字段offset不
 
 ### 2.2 TypeDescriptor
 
+M29的静态类型描述见语言规范9.6，它属于编译器/`.slib`类型接口，不是本节的运行期TypeDescriptor。字段名、字段类型列表和annotation不发射为反射枚举表，wire名称只是普通String常量。Encodable与`Decodable<T>`均沿既有普通interface ABI；后者的decode具有真实companion/解码器receiver和普通itable slot，返回显式T，不增加类型级工厂、metatype或运行期构造器注册表。
+
+companion按完整宿主application分别使用既有exactly-once gate；`Box<Int>.Companion`与`Box<String>.Companion`具有不同exact type、TypeDescriptor和对象，各自扫描替换类型参数后的成员。普通解码器、元素codec依赖及闭包按正常对象/函数值表示保活。M29的解码临时值、容器和结果沿原value layout、根、write barrier与异常路径处理；class目标必须执行正常构造及release-ready发布，runtime不按TypeDescriptor填字段或补default。JSON算法由普通Scoop库实现，本里程碑不改变对象头、扫描记录、runtime metadata ABI或C入口。
+
 M23-6a 的共同 HIR 按原声明与完整 application 产生类型事实，MIR/LIR 保留对应 exact identity、实际 provider、Strong/ODR 归属及布局。源码与依赖产物的类型表示统一不改变对象布局、TypeDescriptor、GC 或初始化契约；runtime 消费实际生成的记录，不因声明来自另一 Cone 重新判定语言类型或复制定义方状态。新实例的必要 facts 由编译阶段完成，运行时继续检查动态对象范围、状态和 GC 要求。
 
 每个**runtime-materialized concrete exact type**有且只有一份编译器生成的`TypeDescriptor`。materialized精确定义为该exact type进入某Cone的LIR layout/type closure或param-free exported LIR bridge；只存在于尚未替换的Export HIR template/binder中的type不提前产生descriptor。它包括每个单态化exact nominal实例，也包括进入LIR的tuple、managed function、raw/native pointer等结构exact type；后者即使layout相同也按各自`PersistentExactTypeId`区分。descriptor至少包含：
@@ -213,11 +219,15 @@ M23-7 的固定动态 invoke 将 runtime metadata ABI 升至 2。`ScoopTypeDescr
 - closure 的分配、调用与回收不需要新增 runtime API，走现有 managed 分配、statepoint 与动态分派设施；
 - 本节对象不得直接当作 `FunPtr` 交给原生代码。spec 13.10 的 `FunPtr` callback 是独立的 GC-free 原生地址；spec 14.3 的 GC-aware closure 回调则必须先通过 runtime 注册/保活协议。
 
-### 2.7 M21 initialization unit与singleton发布
+### 2.7 Initialization unit 与 singleton 发布（M21；M29 修订）
 
-跨 Cone singleton 访问调用提供方的同一个 ensure 入口，再读取其已登记的 published-root；consumer 不分配或登记根的副本。对象引用离开读取点后遵守普通 GC root 规则，静态根始终由实际提供方登记。失败缓存、循环检测、发布顺序及 C 调用约定沿用本节契约。
+跨 Cone singleton 访问调用对应完整singleton identity的同一个ensure入口，再读取其已登记的published root。参数自由object/companion复用定义方的Strong记录；M29的generic companion按完整宿主application物化并沿既有ODR合并，多个consumer不能各自保留独立状态。对象引用离开读取点后遵守普通GC root规则；失败缓存、循环检测、发布顺序及C调用约定沿用本节契约。
 
-每个需要runtime求值的top-level property及每个object/companion拥有独立、GC-free的`ScoopInitializationCell` side metadata；它不位于managed object内，也不是TypeDescriptor字段。状态为`Uninitialized`、`Initializing(owner_thread, dependency_stack)`、`Initialized`或`Failed`。cell只控制整个generated initializer entry恰好执行一次：ordinary stored property在Initialized状态下始终已有声明type的合法值，`var p: T?`省略initializer时写入的就是普通`None`；runtime不得为property另建late-init bit或读取检查。
+**M29 后续修订，待实现。** 每个实际使用的generic companion application拥有独立的cell、initializer/ensure、published root、failure root及initialization registration。`Box<Int>.Companion`初始化成功或失败不改变`Box<String>.Companion`的状态，二者只有显式代码依赖才互相ensure；同一application跨Cone和image只初始化一次。即使T未出现在成员布局中，状态也不能按相同布局或函数正文合并。直接宿主application与companion声明共同决定这些记录的typed identity；未具体化模板没有对象、cell或初始化执行。
+
+同一generic companion application的对象类型、初始化支持和可变状态按普通ODR归属一致物化。多个image的引用必须由linker合并到相同记录与地址，registration及root按原规则只登记一次。runtime直接消费编译器生成的普通exact type和unit记录，不根据类型名或类型参数构造singleton，也不增加运行期泛型对象工厂。宿主实例构造、类型查询和const读取不隐式初始化companion，实际非const访问才进入本节lazy gate。
+
+每个需要runtime求值的top-level property及每个实际singleton拥有独立、GC-free的`ScoopInitializationCell` side metadata；companion以完整宿主application区分singleton。cell不位于managed object内，也不是TypeDescriptor字段。状态为`Uninitialized`、`Initializing(owner_thread, dependency_stack)`、`Initialized`或`Failed`。cell只控制整个generated initializer entry恰好执行一次：ordinary stored property在Initialized状态下始终已有声明type的合法值，`var p: T?`省略initializer时写入的就是普通`None`；runtime不得为property另建late-init bit或读取检查。
 
 零字节普通属性或委托值仍保留其 initializer、ensure、cell 和求值副作用；初始化登记关联原属性拥有的 `StaticPlaceToken` 存储。该角色只用于实际 value byte size 为零的存储，其 allocation extent 与空 scan 沿已有 ZST 规则处理；非零字节值仍使用实际 backing/delegate 角色。此关系不增加 runtime 状态或 C ABI。
 
