@@ -31,6 +31,16 @@ fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
         };
         let registrations = verify(&fixture.objects).expect("real ELF type registrations");
         assert_eq!(registrations.registrations().len(), 4);
+        let requirements = fixture.requirements(registrations.patch_sites().clone());
+        assert_eq!(requirements.selection().target(), fixture.emitted.target());
+        let fingerprints = compute_strong_type_fingerprints_v1(
+            registrations.clone(),
+            fixture.emitted.production().canonical_shape_definitions(),
+            requirements,
+            &candidates(&fixture.objects),
+        )
+        .expect("real ELF type fingerprints");
+        assert_eq!(fingerprints.fingerprints().len(), 4);
         let with_itable = registrations
             .registrations()
             .iter()

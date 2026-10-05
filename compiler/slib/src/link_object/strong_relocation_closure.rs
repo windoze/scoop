@@ -14,6 +14,7 @@ use super::{
     VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
 };
 use crate::SlibMemberId;
+use scoop_lir::LirTargetProfile;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum RelocationTargetSlotV1 {
@@ -175,12 +176,17 @@ impl StrongRelocationBindingV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedCurrentConeStrongRelocationClosureV1 {
+    target: LirTargetProfile,
     producer: ConeIdentity,
     members: Vec<VerifiedMemberObjectRelocationIndexV1>,
     bindings: Vec<StrongRelocationBindingV1>,
 }
 
 impl VerifiedCurrentConeStrongRelocationClosureV1 {
+    pub const fn target(&self) -> LirTargetProfile {
+        self.target
+    }
+
     pub const fn producer(&self) -> ConeIdentity {
         self.producer
     }
@@ -239,6 +245,18 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
         });
     }
 
+    let target = LirTargetProfile::from_id(members[0].definitions().sections().envelope().target());
+    if let Some(member) = members
+        .iter()
+        .find(|member| member.definitions().sections().envelope().target() != target.id())
+    {
+        return Err(StrongRelocationClosureValidationError::MixedTarget {
+            expected: target,
+            actual: LirTargetProfile::from_id(member.definitions().sections().envelope().target()),
+            member: member.member(),
+        });
+    }
+
     let (symbols, primaries) = index_strong_definitions(&members)?;
     let mut bindings = Vec::new();
     for member in &members {
@@ -254,6 +272,7 @@ pub fn verify_current_cone_strong_relocation_closure_v1(
     }
     bindings.sort_unstable_by_key(binding_key);
     Ok(VerifiedCurrentConeStrongRelocationClosureV1 {
+        target,
         producer,
         members,
         bindings,
@@ -523,6 +542,11 @@ pub enum StrongRelocationClosureValidationError {
     MixedProducer {
         expected: ConeIdentity,
         actual: ConeIdentity,
+        member: SlibMemberId,
+    },
+    MixedTarget {
+        expected: LirTargetProfile,
+        actual: LirTargetProfile,
         member: SlibMemberId,
     },
     DuplicateMember(SlibMemberId),

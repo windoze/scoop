@@ -74,9 +74,8 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
     ) -> bool {
         if self.legacy.producer() != closure.producer()
             || self.cross_cone.producer() != closure.producer()
-            || self.legacy.selection()
-                != scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-            || self.cross_cone.target() != scoop_lir::LirTargetProfile::DARWIN_AARCH64
+            || self.legacy.selection().target() != closure.target()
+            || self.cross_cone.target() != closure.target()
         {
             return false;
         }

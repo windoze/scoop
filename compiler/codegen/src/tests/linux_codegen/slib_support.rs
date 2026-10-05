@@ -3,6 +3,8 @@
 use super::*;
 use scoop_slib::*;
 
+mod requirements;
+
 pub(super) struct SlibObjects {
     pub emitted: EmittedConeObjectSetV1,
     pub objects: Vec<(SlibMemberId, Vec<u8>)>,
@@ -10,6 +12,7 @@ pub(super) struct SlibObjects {
     symbols: PlannedStrongObjectSymbolSetV1,
     bridge_objects: VerifiedCBridgeProductionEnvelopeSetV1,
     patches: Vec<ProvisionalDigestPatchSiteV1>,
+    profile: scoop_lir::CBridgeToolchainProfileV1,
 }
 
 impl SlibObjects {
@@ -107,6 +110,7 @@ impl SlibObjects {
             symbols,
             bridge_objects,
             patches,
+            profile: invocation.profile().clone(),
         }
     }
 

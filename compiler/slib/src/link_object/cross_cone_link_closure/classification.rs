@@ -95,6 +95,12 @@ fn classify(
     semantic_imports: CrossConeLinkSemanticImportSetV1,
 ) -> Result<VerifiedCrossConeStrongRequirementClosureV1, CrossConeStrongRequirementValidationError>
 {
+    if strong_closure.target() != target {
+        return Err(CrossConeStrongRequirementValidationError::TargetMismatch {
+            object: strong_closure.target(),
+            selection: target,
+        });
+    }
     let consumer = strong_closure.producer();
     let bridge = semantic_imports.consumer();
     if consumer != bridge {
