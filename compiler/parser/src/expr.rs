@@ -246,7 +246,7 @@ impl Parser {
 
     /// Postfix operators share the highest precedence tier and chain left
     /// to right: `.name` / `._n`, `?.name`, `!!`, and `[index]`.
-    fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
+    pub(crate) fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
         let mut receiver = self.parse_atom()?;
         loop {
             match self.peek().kind {

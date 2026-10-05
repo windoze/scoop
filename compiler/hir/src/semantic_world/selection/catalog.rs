@@ -89,6 +89,10 @@ pub(super) struct DependencyCatalog {
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
+    pub(super) annotations:
+        BTreeMap<scoop_identity::PersistentAnnotationId, super::ImportedAnnotationDeclaration>,
+    pub(super) annotated_targets:
+        BTreeMap<crate::AnnotationTargetV1, Vec<crate::AnnotationApplicationV1>>,
 }
 
 impl ImportedSemanticWorld<'_> {
@@ -107,10 +111,29 @@ impl ImportedSemanticWorld<'_> {
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
+        let mut annotations = BTreeMap::new();
+        let mut annotated_targets = BTreeMap::new();
         let mut nominals = BTreeMap::new();
         let mut nominal_visibilities = BTreeMap::new();
         let mut static_namespaces = BTreeMap::new();
         for provider in &self.providers {
+            for declaration in provider.interface().annotations().declarations() {
+                let (_, key) = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .annotation_by_bytes(declaration.annotation.as_array())
+                    .expect("indexed annotation has its source key");
+                annotations.insert(
+                    declaration.annotation,
+                    super::ImportedAnnotationDeclaration {
+                        source: key.clone(),
+                        declaration: declaration.clone(),
+                    },
+                );
+            }
+            for target in provider.interface().annotations().targets() {
+                annotated_targets.insert(target.target, target.annotations.clone());
+            }
             let foundation = provider.foundation().canonical_for_semantic_authority();
             for record in foundation.callback_registration_records() {
                 callback_registrations
@@ -428,6 +451,8 @@ impl ImportedSemanticWorld<'_> {
                 properties,
                 constants,
                 type_aliases,
+                annotations,
+                annotated_targets,
             }),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),

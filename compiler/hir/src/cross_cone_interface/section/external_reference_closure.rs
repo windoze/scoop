@@ -55,6 +55,10 @@ impl CrossConeHirInterfaceSectionV1 {
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::ConstTypes(Box::new(error))
             })?;
+        self.validate_annotation_reference_closure(authority, path)
+            .map_err(|error| {
+                CrossConeHirExternalReferenceValidationError::Annotations(Box::new(error))
+            })?;
         self.validate_inheritance_reference_closure(authority)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::Inheritance(Box::new(error))
@@ -70,6 +74,7 @@ pub enum CrossConeHirExternalReferenceValidationError<E> {
     Aliases(Box<ExternalHirAliasClosureValidationError<E>>),
     Defaults(Box<ExternalHirDefaultClosureValidationError<E>>),
     GenericBodies(Box<ExternalHirDefaultClosureValidationError<E>>),
+    Annotations(Box<ExternalHirDefaultClosureValidationError<E>>),
     ConstTypes(Box<ExternalHirConstTypeClosureValidationError<E>>),
     Inheritance(Box<ExternalHirInheritanceClosureValidationError<E>>),
 }
@@ -83,6 +88,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirExternalReferenceValidationEr
             Self::Aliases(error) => ("type-alias closure", error.as_ref()),
             Self::Defaults(error) => ("default dependency closure", error.as_ref()),
             Self::GenericBodies(error) => ("generic body dependency closure", error.as_ref()),
+            Self::Annotations(error) => ("annotation dependency closure", error.as_ref()),
             Self::ConstTypes(error) => ("constant type closure", error.as_ref()),
             Self::Inheritance(error) => ("inheritance dependency closure", error.as_ref()),
         };

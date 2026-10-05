@@ -167,6 +167,23 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     SourceNominalId::from_source_declaration(&key)
                         .map_err(|_| invalid(owner, "nested object value has no source nominal"))?
                 }
+                BindableEntity::Annotation(id) => {
+                    let key = self.identities.canonical_key::<scoop_identity::PersistentAnnotationId, SourceDeclarationKey>(id).map_err(Error::Identity)?;
+                    let annotation = self
+                        .current_interface
+                        .annotations()
+                        .declaration(id)
+                        .ok_or_else(|| invalid(owner, "nested annotation has no declaration"))?;
+                    if self.source_key_owner("annotation", &key)? != expected
+                        || annotation.visibility != DeclaredVisibilityV1::Public
+                    {
+                        return Err(invalid(
+                            owner,
+                            "nested annotation binding has a different owner or visibility",
+                        ));
+                    }
+                    continue;
+                }
                 BindableEntity::EnumVariant(id) => {
                     let scoop_hir::NominalSourceShapeV1::Enum(shape) = record.source_shape() else {
                         return Err(invalid(owner, "variant binding requires an enum owner"));

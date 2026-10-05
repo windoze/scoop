@@ -56,6 +56,7 @@ impl Lowerer {
         // namespace and must not collide; functions occupy a separate
         // namespace where one name may collect several overloads (M7), and
         // member functions live in per-owner namespaces.
+        let mut pending_annotations = Vec::new();
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
@@ -69,6 +70,9 @@ impl Lowerer {
             let is_core = self.source_is_core(file_index);
             for decl in &file.declarations {
                 match decl {
+                    ast::Decl::AnnotationClass(decl) => {
+                        pending_annotations.push((decl, file_index, None))
+                    }
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
                     ast::Decl::Struct(decl) => {
                         let _ = self.declare_struct(
@@ -137,6 +141,7 @@ impl Lowerer {
         let root_interfaces = pending_interfaces.clone();
         let root_objects = pending_objects.clone();
         let mut nested_queues = crate::declarations::NestedDeclarationQueues {
+            annotations: &mut pending_annotations,
             structs: &mut pending_structs,
             enums: &mut pending_enums,
             classes: &mut pending_classes,
@@ -169,6 +174,11 @@ impl Lowerer {
             let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
             diagnostic.file = error.file();
             return Err(vec![diagnostic]);
+        }
+
+        for (declaration, file, owner) in pending_annotations {
+            self.current_file = file;
+            self.declare_annotation_class(declaration, file, owner);
         }
 
         let errors_before_imports = self.diagnostics.len();
@@ -441,6 +451,24 @@ impl Lowerer {
             self.declaration_surface.is_frozen(),
             "body-capable passes require a frozen declaration surface"
         );
+
+        self.resolve_annotation_declarations();
+        for &(id, declaration, file) in &pending_structs {
+            self.annotate_struct(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_enums {
+            self.annotate_enum(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_classes {
+            self.annotate_class(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_interfaces {
+            self.annotate_interface(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_objects {
+            self.annotate_object(id, declaration, file);
+        }
+        self.current_owner = None;
 
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface

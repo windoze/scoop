@@ -1,0 +1,3 @@
+annotation class Label
+@Label val value: Int = 7
+fun main() {}

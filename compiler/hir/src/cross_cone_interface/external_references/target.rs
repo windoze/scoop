@@ -3,12 +3,12 @@ use std::fmt;
 use scoop_identity::{
     BindableEntity, CallableTemplateOrigin, DecodedCallableTemplateOrigin,
     DecodedNominalDeclarationOwner, DecodedPersistentId, DecodedPropertyOwner,
-    NominalDeclarationOwner, PersistentConstructorId, PersistentEnumVariantFieldId,
-    PersistentEnumVariantId, PersistentExtensionPropertyId, PersistentFieldId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentGenericTypeId, PersistentIdResolver, PersistentObjectValueId,
-    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    PropertyOwner,
+    NominalDeclarationOwner, PersistentAnnotationId, PersistentConstructorId,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdResolver,
+    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PersistentTypeAliasId, PersistentTypeId, PropertyOwner,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -21,6 +21,7 @@ pub enum ExternalHirTargetV1 {
     Property(PropertyOwner),
     ObjectValue(PersistentObjectValueId),
     TypeAlias(PersistentTypeAliasId),
+    Annotation(PersistentAnnotationId),
     Field(PersistentFieldId),
     EnumVariantField(PersistentEnumVariantFieldId),
     GeneratedCallable(PersistentGeneratedCallableId),
@@ -53,6 +54,7 @@ impl From<BindableEntity> for ExternalHirTargetV1 {
                 Self::Property(PropertyOwner::ExtensionProperty(target))
             }
             BindableEntity::TypeAlias(target) => Self::TypeAlias(target),
+            BindableEntity::Annotation(target) => Self::Annotation(target),
             BindableEntity::EnumVariant(target) => {
                 Self::Callable(CallableTemplateOrigin::VariantConstructor(target))
             }
@@ -70,6 +72,7 @@ impl WireEncode for ExternalHirTargetV1 {
             Self::Property(_) => 3,
             Self::ObjectValue(_) => 4,
             Self::TypeAlias(_) => 5,
+            Self::Annotation(_) => 9,
             Self::Field(_) => 6,
             Self::EnumVariantField(_) => 7,
             Self::GeneratedCallable(_) => 8,
@@ -81,6 +84,7 @@ impl WireEncode for ExternalHirTargetV1 {
             Self::Property(target) => target.encode(encoder),
             Self::ObjectValue(target) => target.encode(encoder),
             Self::TypeAlias(target) => target.encode(encoder),
+            Self::Annotation(target) => target.encode(encoder),
             Self::Field(target) => target.encode(encoder),
             Self::EnumVariantField(target) => target.encode(encoder),
             Self::GeneratedCallable(target) => target.encode(encoder),
@@ -95,6 +99,7 @@ pub enum DecodedExternalHirTargetV1 {
     Property(DecodedPropertyOwner),
     ObjectValue(DecodedPersistentId<PersistentObjectValueId>),
     TypeAlias(DecodedPersistentId<PersistentTypeAliasId>),
+    Annotation(DecodedPersistentId<PersistentAnnotationId>),
     Field(DecodedPersistentId<PersistentFieldId>),
     EnumVariantField(DecodedPersistentId<PersistentEnumVariantFieldId>),
     GeneratedCallable(DecodedPersistentId<PersistentGeneratedCallableId>),
@@ -125,6 +130,10 @@ impl DecodedExternalHirTargetV1 {
                 .resolve(target)
                 .map(ExternalHirTargetV1::ObjectValue)
                 .map_err(ExternalHirTargetResolutionError::ObjectValue),
+            Self::Annotation(target) => resolver
+                .resolve(target)
+                .map(ExternalHirTargetV1::Annotation)
+                .map_err(ExternalHirTargetResolutionError::Annotation),
             Self::TypeAlias(target) => resolver
                 .resolve(target)
                 .map(ExternalHirTargetV1::TypeAlias)
@@ -155,6 +164,7 @@ impl WireEncode for DecodedExternalHirTargetV1 {
             Self::Property(_) => 3,
             Self::ObjectValue(_) => 4,
             Self::TypeAlias(_) => 5,
+            Self::Annotation(_) => 9,
             Self::Field(_) => 6,
             Self::EnumVariantField(_) => 7,
             Self::GeneratedCallable(_) => 8,
@@ -166,6 +176,7 @@ impl WireEncode for DecodedExternalHirTargetV1 {
             Self::Property(target) => target.encode(encoder),
             Self::ObjectValue(target) => target.encode(encoder),
             Self::TypeAlias(target) => target.encode(encoder),
+            Self::Annotation(target) => target.encode(encoder),
             Self::Field(target) => target.encode(encoder),
             Self::EnumVariantField(target) => target.encode(encoder),
             Self::GeneratedCallable(target) => target.encode(encoder),
@@ -202,6 +213,9 @@ impl WireDecode for DecodedExternalHirTargetV1 {
             8 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::GeneratedCallable),
+            9 => decoder
+                .field(1, DecodedPersistentId::decode)
+                .map(Self::Annotation),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),
@@ -223,6 +237,7 @@ pub trait ExternalHirTargetResolver<E>:
     + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
     + PersistentIdResolver<PersistentObjectValueId, Error = E>
     + PersistentIdResolver<PersistentTypeAliasId, Error = E>
+    + PersistentIdResolver<PersistentAnnotationId, Error = E>
     + PersistentIdResolver<PersistentFieldId, Error = E>
     + PersistentIdResolver<PersistentEnumVariantFieldId, Error = E>
     + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
@@ -241,6 +256,7 @@ impl<R, E> ExternalHirTargetResolver<E> for R where
         + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
         + PersistentIdResolver<PersistentObjectValueId, Error = E>
         + PersistentIdResolver<PersistentTypeAliasId, Error = E>
+        + PersistentIdResolver<PersistentAnnotationId, Error = E>
         + PersistentIdResolver<PersistentFieldId, Error = E>
         + PersistentIdResolver<PersistentEnumVariantFieldId, Error = E>
         + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>
@@ -254,6 +270,7 @@ pub enum ExternalHirTargetResolutionError<E> {
     Property(E),
     ObjectValue(E),
     TypeAlias(E),
+    Annotation(E),
     Field(E),
     EnumVariantField(E),
     GeneratedCallable(E),
@@ -267,6 +284,7 @@ impl<E: fmt::Display> fmt::Display for ExternalHirTargetResolutionError<E> {
             Self::Property(error) => ("property", error),
             Self::ObjectValue(error) => ("object value", error),
             Self::TypeAlias(error) => ("type alias", error),
+            Self::Annotation(error) => ("annotation", error),
             Self::Field(error) => ("field", error),
             Self::EnumVariantField(error) => ("enum variant field", error),
             Self::GeneratedCallable(error) => ("generated callable", error),

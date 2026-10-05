@@ -9,6 +9,7 @@ mod bindings;
 pub(crate) enum ResolvedTypeName {
     Nominal(hir::SourceNominalId),
     Applied(TypeId),
+    Annotation(scoop_identity::PersistentAnnotationId),
 }
 
 impl Lowerer {
@@ -123,6 +124,12 @@ impl Lowerer {
             };
             return Ok(Some((binding, length)));
         }
+        if let Some(annotation) = self.lexical_annotation_named(&first.text) {
+            return Ok(Some((
+                TypeLookupTarget::Current(TopLevelTypeTarget::Annotation(annotation)),
+                0,
+            )));
+        }
         if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
             return Ok(Some((
                 TypeLookupTarget::Current(TopLevelTypeTarget::Nominal(target)),
@@ -152,6 +159,7 @@ impl Lowerer {
         target: ResolvedTypeName,
     ) -> Option<hir::SourceNominalId> {
         match target {
+            ResolvedTypeName::Annotation(_) => None,
             ResolvedTypeName::Nominal(owner) => Some(owner),
             ResolvedTypeName::Applied(ty) => self
                 .nominal_target_for_type(ty)
@@ -162,6 +170,7 @@ impl Lowerer {
 
     fn resolved_type_name_is_accessible(&self, target: ResolvedTypeName) -> bool {
         let identity = match target {
+            ResolvedTypeName::Annotation(id) => return self.annotation_is_accessible(id),
             ResolvedTypeName::Nominal(identity) => identity,
             ResolvedTypeName::Applied(ty) => return self.nominal_is_accessible(ty),
         };

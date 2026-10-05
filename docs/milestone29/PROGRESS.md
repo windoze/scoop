@@ -81,3 +81,39 @@ ABI。旧测试中无实参访问泛型 companion 的源码已迁移，静态 ne
 
 Workspace 的完整 release 测试与文档测试已通过（5292 项），随后对限定名解析
 补充并运行 parser 回归，确保 `Unit.names.Item` 仍按普通包路径解析。
+
+## 编译期注解与产物保存
+
+已实现普通 `annotation class`、Boolean/String/Char/定宽整数参数、常量 default，
+以及位置/命名参数绑定。应用补齐参数后保存实际标量常量，并保留声明身份与源码顺序。
+`const val` 引用复用普通访问及常量检查，包括完整的泛型 companion 限定；读取常量
+不触发 singleton 初始化。注解没有运行期类型、实例或 constructor。
+
+注解使用独立 `PersistentAnnotationId`，名称按普通类型名称域处理；顶层、嵌套、
+别名、跨 Cone 导入和 re-export 保留同一个声明。type、variant、struct/variant 字段
+及 class/interface logical property 使用原 typed target。primary 普通参数、函数、
+全局属性及值类型 computed property 的不合法应用均报错。注解不会复制到 accessor
+或隐藏存储，也不会使私有声明变为可导入名称。
+
+`SerialName` 和 `Transient` 是 core 中的普通注解声明，前端按实际 prelude binding
+识别其身份并检查目标及共存规则；用户同名注解仍是普通静态数据。字段 default 和
+wire 名唯一性的派生检查属于后续方法合成批次。本批没有新增 runtime C 接口。
+
+HIR dump 展示注解声明、实际参数类型、完整常量及原目标。共有接口保存声明与应用，
+foundation 保存独立声明键；兼容版本为 HIR foundation `/5` 和 interface `/52`。
+reader 在原源码接口边界检查常量种类、参数个数、目标及引用，复用既有来源和依赖表。
+公开类型上的私有注解作为所需静态数据保留，消费方仍不能按源码 import 访问它。
+
+新增 40 个正式 fixture，macOS、Linux glibc/musl 均已通过，分别为 51 个进程和 4 份
+stage golden。包含全部标量边界、别名、嵌套、泛型 companion 常量、私有注解支持，
+以及删除 provider/facade/consumer 源码后的产物消费、链接和普通/移动 GC 运行。
+FFI 注解继续只接受原有字面量形式；用户注解的常量路径不会放宽该规则。
+
+workspace 完整回归及四个修正包的复跑共验证 5299 项 Rust/文档测试，fixture runner
+的 38 项单测通过。新增 Rust 实现最长为 256 行。Linux 的旧 companion 验收目录已
+保存报告后清理，回收约 487 MiB；既有 worktree 与当前使用的构建输出保留。
+
+90 个相关旧 fixture 已通过，覆盖 FFI、const、property、companion、初始化、可见性、
+import 和 enum（97 个变体、139 个进程、152 份 golden）。HIR/MIR/LIR 快照同步保留新增
+核心编码协议及内部引用索引；原有运行行为与 negative 诊断均按预期完成。
+统一静态 shape 查询、构造/default 关联和编码/解码方法合成仍待后续功能批次。

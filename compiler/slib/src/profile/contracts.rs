@@ -126,7 +126,7 @@ impl CapabilityContractRegistry {
             capability.name(),
             capability.major_version(),
         ) {
-            ("org.scoop-lang.hir", "identity-foundation", 4) => (
+            ("org.scoop-lang.hir", "identity-foundation", 5) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
@@ -153,7 +153,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 51) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 52) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,

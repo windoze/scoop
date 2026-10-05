@@ -153,6 +153,7 @@ mod stmt;
 #[cfg(test)]
 mod tests;
 mod types;
+mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
@@ -658,6 +659,13 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) source_annotations: std::collections::BTreeMap<
+        scoop_identity::PersistentAnnotationId,
+        user_annotations::SourceAnnotationInput,
+    >,
+    pub(crate) annotation_metadata: hir::SourceAnnotations,
+    pub(crate) nested_annotations_by_owner:
+        HashMap<(Owner, String), scoop_identity::PersistentAnnotationId>,
     pub(crate) top_level_namespaces: namespace::TopLevelNamespaces,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,

@@ -13,6 +13,7 @@ pub enum HirExportBindingEntityKind {
     Function,
     Property,
     TypeAlias,
+    Annotation,
 }
 
 impl fmt::Display for HirExportBindingEntityKind {
@@ -27,6 +28,7 @@ impl fmt::Display for HirExportBindingEntityKind {
             Self::Function => "function",
             Self::Property => "property",
             Self::TypeAlias => "type alias",
+            Self::Annotation => "annotation",
         })
     }
 }

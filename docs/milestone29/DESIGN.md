@@ -6,7 +6,7 @@
 
 依赖：M17 的参数/default 协议，M19 的正常构造与初始化，M20/M21 的泛型、property 和 interface 实现选择，M23 的共有 HIR/跨 Cone/`.slib`/ODR，以及 M25～M27 的异常、String/Char/List 和 Context。以当前完成 M27 的仓库为实现基线。本文件定义新的 M29，不沿用原 M29 的目标或实现计划。
 
-2026-10-05 决策补充：companion 按完整宿主类型分别拥有 singleton，并可使用宿主类型参数。第 3.3 节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 的共享、非 generic companion 规则，也修订后续实现中不携带宿主实参的假设。此前 milestone 设计作为历史记录保留原文；后续修改由本设计及当前三份 spec 记录。本项与 M29 其他能力一起实施，尚未修改编译器代码。
+2026-10-05 决策补充：companion 按完整宿主类型分别拥有 singleton，并可使用宿主类型参数。第 3.3 节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 的共享、非 generic companion 规则，也修订后续实现中不携带宿主实参的假设。此前 milestone 设计作为历史记录保留原文；后续修改由本设计及当前三份 spec 记录。泛型 companion 已实现并通过三平台验收；M29 其余能力的实现情况见实施记录。
 
 对应[路线图](../ROADMAP.md)、[语言规范](../specs/SCOOP-SPEC.md) 9.4～9.6、11.13、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.17 和[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 2.2。语言行为以已同步的规范为准；本文解释实现方式、展开结果及完成门。
 

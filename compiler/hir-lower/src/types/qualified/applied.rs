@@ -36,11 +36,16 @@ impl Lowerer {
             );
             return None;
         };
-        let ResolvedTypeName::Nominal(nested) = nested else {
-            let ResolvedTypeName::Applied(ty) = nested else {
-                unreachable!()
-            };
-            return Some(ty);
+        let nested = match nested {
+            ResolvedTypeName::Nominal(nominal) => nominal,
+            ResolvedTypeName::Applied(ty) => return Some(ty),
+            ResolvedTypeName::Annotation(_) => {
+                self.error(
+                    span,
+                    "annotation declarations cannot be used as value types".into(),
+                );
+                return None;
+            }
         };
         let local = self.current_nominal_name_target(nested);
         if !self.nominal_is_companion(nested) {

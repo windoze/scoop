@@ -119,6 +119,8 @@ pub use persistent_export_bindings::*;
 mod reexports;
 pub use reexports::*;
 
+mod annotations;
+pub use annotations::*;
 mod cross_cone_interface;
 pub use cross_cone_interface::*;
 

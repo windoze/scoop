@@ -23,6 +23,7 @@ pub(crate) enum CurrentUnitTarget {
     Enum(hir::EnumId),
     Object(hir::ObjectId),
     TypeAlias(SourceTypeAliasId),
+    Annotation(scoop_identity::PersistentAnnotationId),
     Function(hir::FunctionId),
     Property(hir::PropertyId),
     EnumVariant(hir::EnumVariantRef),
@@ -41,6 +42,7 @@ impl CurrentUnitTarget {
                     | Self::Enum(_)
                     | Self::Object(_)
                     | Self::TypeAlias(_)
+                    | Self::Annotation(_)
             ),
             BindingNamespace::Value => matches!(
                 self,

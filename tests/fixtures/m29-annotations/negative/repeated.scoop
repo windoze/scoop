@@ -1,0 +1,4 @@
+annotation class Label
+@Label @Label
+struct Value()
+fun main() {}

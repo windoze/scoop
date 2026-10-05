@@ -19,7 +19,7 @@ Module
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[local2:enum0@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local2:enum0@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td12, machine<byte-size>(ByteSize(24)))
     store t1 -> local3
     call managed-void-target0 sp<managed-call:1> live=[local2:enum0@0, local3:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local3, local2)
     t2 = aggregate () : {}

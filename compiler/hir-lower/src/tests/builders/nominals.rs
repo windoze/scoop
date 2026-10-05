@@ -32,6 +32,7 @@ pub(crate) fn class_decl(
         constructor: ctor
             .into_iter()
             .map(|(mutable, name, ty)| ast::PrimaryClassParameter {
+                annotations: Vec::new(),
                 property: if mutable {
                     ast::PrimaryParameterProperty::Var
                 } else {
@@ -266,6 +267,7 @@ pub(crate) fn generic_struct_decl_full(
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
+                annotations: Vec::new(),
                 name: ident(name),
                 ty,
                 syntax: ast::ParameterSyntax::Required,

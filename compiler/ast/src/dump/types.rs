@@ -15,11 +15,7 @@ pub(super) fn dump_annotations(annotations: &[Annotation], indent: usize, out: &
                         .as_ref()
                         .map(|name| format!("{} = ", name.text))
                         .unwrap_or_default();
-                    let value = match &arg.value {
-                        AnnotationLiteral::String(value) => format!("{value:?}"),
-                        AnnotationLiteral::Int(literal) => literal.to_string(),
-                        AnnotationLiteral::Boolean(value) => value.to_string(),
-                    };
+                    let value = dump_annotation_literal(&arg.value);
                     format!("{name}{value}")
                 })
                 .collect();
@@ -86,5 +82,74 @@ pub(super) fn dump_type_ref(ty: &TypeRef) -> String {
             TypeRefKind::Function(_) => format!("({})?", dump_type_ref(inner)),
             _ => format!("{}?", dump_type_ref(inner)),
         },
+    }
+}
+
+pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
+    match value {
+        AnnotationLiteral::String(value) => format!("{value:?}"),
+        AnnotationLiteral::Int(literal) => literal.to_string(),
+        AnnotationLiteral::Boolean(value) => value.to_string(),
+        AnnotationLiteral::Char(value) => format!("{value:?}"),
+        AnnotationLiteral::SignedInt { negative, literal } => {
+            format!("{}{literal}", if *negative { "-" } else { "+" })
+        }
+        AnnotationLiteral::ConstReference(reference) => dump_constant_reference(reference),
+    }
+}
+
+pub(super) fn dump_annotation_prefix(annotations: &[Annotation]) -> String {
+    let mut text = String::new();
+    dump_annotations(annotations, 0, &mut text);
+    text.replace('\n', " ")
+}
+
+pub(super) fn dump_annotation_class(
+    declaration: &AnnotationClassDecl,
+    indent: usize,
+    out: &mut String,
+) {
+    dump_annotations(&declaration.annotations, indent, out);
+    let parameters = declaration
+        .parameters
+        .iter()
+        .map(|parameter| {
+            let default = parameter
+                .default
+                .as_ref()
+                .map(|value| format!(" = {}", dump_annotation_literal(value)))
+                .unwrap_or_default();
+            format!(
+                "val {}: {}{default}",
+                parameter.name.text,
+                dump_type_ref(&parameter.ty)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    out.push_str(&format!(
+        "{}{}annotation class {}({parameters})\n",
+        "  ".repeat(indent),
+        super::declarations::dump_visibility(declaration.visibility),
+        declaration.name.text
+    ));
+}
+
+fn dump_constant_reference(reference: &Expr) -> String {
+    match reference {
+        Expr::Var(name) => name.text.clone(),
+        Expr::TypeQualifier(ty) => dump_type_ref(ty),
+        Expr::FieldAccess(access) => {
+            let selector = match &access.selector {
+                FieldSelector::Name(name) => name.text.clone(),
+                FieldSelector::Index(index, _) => format!("_{index}"),
+            };
+            format!("{}.{}", dump_constant_reference(&access.receiver), selector)
+        }
+        _ => {
+            let mut output = String::new();
+            super::expressions::dump_expr(reference, 0, &mut output);
+            output.trim().to_string()
+        }
     }
 }

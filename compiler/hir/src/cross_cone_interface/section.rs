@@ -1,4 +1,8 @@
 use crate::{
+    AnnotationDataResolutionError, AnnotationDataResolver, CanonicalAnnotationsV1,
+    DecodedCanonicalAnnotationsV1,
+};
+use crate::{
     CanonicalExportGenericDelegatesV1, DecodedCanonicalExportGenericDelegatesV1,
     GenericDelegateTemplateResolutionError, IndexedExportGenericDelegatesV1,
 };
@@ -39,6 +43,7 @@ use crate::{
 };
 
 mod alias_reference_closure;
+mod annotation_reference_closure;
 mod const_type_reference_closure;
 mod default_reference_closure;
 mod definition_source_closure;
@@ -83,6 +88,7 @@ pub struct CrossConeHirInterfaceSectionV1 {
     generic_callable_bodies: CanonicalExportGenericCallableBodiesV1,
     generic_initializations: CanonicalExportGenericInitializationsV1,
     generic_delegates: CanonicalExportGenericDelegatesV1,
+    annotations: CanonicalAnnotationsV1,
 }
 
 impl CrossConeHirInterfaceSectionV1 {
@@ -121,7 +127,16 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_callable_bodies,
             generic_initializations,
             generic_delegates,
+            annotations: CanonicalAnnotationsV1::empty(),
         }
+    }
+
+    pub const fn annotations(&self) -> &CanonicalAnnotationsV1 {
+        &self.annotations
+    }
+
+    pub fn set_annotations(&mut self, annotations: CanonicalAnnotationsV1) {
+        self.annotations = annotations;
     }
 
     pub const fn public_bindings(&self) -> &CanonicalPublicExportBindingsV1 {
@@ -213,6 +228,7 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_callable_bodies,
             generic_initializations,
             generic_delegates,
+            annotations: &self.annotations,
         })
     }
 }
@@ -231,11 +247,12 @@ pub struct IndexedCrossConeHirInterfaceSectionV1<'a> {
     generic_callable_bodies: IndexedExportGenericCallableBodiesV1<'a>,
     generic_initializations: IndexedExportGenericInitializationsV1<'a>,
     generic_delegates: IndexedExportGenericDelegatesV1<'a>,
+    annotations: &'a CanonicalAnnotationsV1,
 }
 
 impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(13)?;
+        encoder.map(14)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -261,7 +278,9 @@ impl WireEncode for IndexedCrossConeHirInterfaceSectionV1<'_> {
         encoder.field(12)?;
         self.generic_initializations.encode(encoder)?;
         encoder.field(13)?;
-        self.generic_delegates.encode(encoder)
+        self.generic_delegates.encode(encoder)?;
+        encoder.field(14)?;
+        self.annotations.encode(encoder)
     }
 }
 
@@ -280,6 +299,7 @@ pub struct DecodedCrossConeHirInterfaceSectionV1 {
     generic_callable_bodies: DecodedCanonicalExportGenericCallableBodiesV1,
     generic_initializations: DecodedCanonicalExportGenericInitializationsV1,
     generic_delegates: DecodedCanonicalExportGenericDelegatesV1,
+    annotations: DecodedCanonicalAnnotationsV1,
 }
 
 impl DecodedCrossConeHirInterfaceSectionV1 {
@@ -353,6 +373,10 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
         let generic_delegates = self.generic_delegates.resolve(resolver).map_err(|error| {
             CrossConeHirInterfaceResolutionError::GenericDelegates(Box::new(error))
         })?;
+        let annotations = self
+            .annotations
+            .resolve(resolver)
+            .map_err(|error| CrossConeHirInterfaceResolutionError::Annotations(Box::new(error)))?;
         Ok(CrossConeHirInterfaceSectionV1 {
             public_bindings,
             nominal_interfaces,
@@ -367,13 +391,14 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             generic_callable_bodies,
             generic_initializations,
             generic_delegates,
+            annotations,
         })
     }
 }
 
 impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(13)?;
+        encoder.map(14)?;
         encoder.field(1)?;
         self.public_bindings.encode(encoder)?;
         encoder.field(2)?;
@@ -399,13 +424,15 @@ impl WireEncode for DecodedCrossConeHirInterfaceSectionV1 {
         encoder.field(12)?;
         self.generic_initializations.encode(encoder)?;
         encoder.field(13)?;
-        self.generic_delegates.encode(encoder)
+        self.generic_delegates.encode(encoder)?;
+        encoder.field(14)?;
+        self.annotations.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(13)?;
+        decoder.expect_map(14)?;
         Ok(Self {
             public_bindings: decoder.field(1, DecodedCanonicalPublicExportBindingsV1::decode)?,
             nominal_interfaces: decoder.field(2, DecodedCanonicalNominalInterfacesV1::decode)?,
@@ -427,6 +454,7 @@ impl WireDecode for DecodedCrossConeHirInterfaceSectionV1 {
                 .field(12, DecodedCanonicalExportGenericInitializationsV1::decode)?,
             generic_delegates: decoder
                 .field(13, DecodedCanonicalExportGenericDelegatesV1::decode)?,
+            annotations: decoder.field(14, DecodedCanonicalAnnotationsV1::decode)?,
         })
     }
 }
@@ -440,6 +468,7 @@ pub trait CrossConeHirInterfaceResolver<E>:
     + DefaultStatementReferenceResolver<E>
     + ExportConstValueResolver<E>
     + ExternalHirReferenceResolver<E>
+    + AnnotationDataResolver<E>
 {
 }
 
@@ -452,6 +481,7 @@ impl<R, E> CrossConeHirInterfaceResolver<E> for R where
         + DefaultStatementReferenceResolver<E>
         + ExportConstValueResolver<E>
         + ExternalHirReferenceResolver<E>
+        + AnnotationDataResolver<E>
 {
 }
 
@@ -505,6 +535,7 @@ pub enum CrossConeHirInterfaceResolutionError<E> {
     GenericCallableBodies(Box<GenericCallableBodiesResolutionError<E>>),
     GenericInitializations(Box<GenericInitializationResolutionError<E>>),
     GenericDelegates(Box<GenericDelegateTemplateResolutionError<E>>),
+    Annotations(Box<AnnotationDataResolutionError<E>>),
     Constants(Box<ExportConstValueSetValidationError<E>>),
     DefinitionSources(Box<ExportDefinitionSourceSetValidationError<E>>),
     ExternalReferences(Box<ExternalHirReferenceSetValidationError<E>>),
@@ -523,6 +554,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirInterfaceResolutionError<E> {
             Self::GenericCallableBodies(error) => ("generic callable bodies", error),
             Self::GenericInitializations(error) => ("generic initializations", error),
             Self::GenericDelegates(error) => ("generic delegates", error),
+            Self::Annotations(error) => ("annotations", error),
             Self::Constants(error) => ("constants", error),
             Self::DefinitionSources(error) => ("definition sources", error),
             Self::ExternalReferences(error) => ("external references", error),

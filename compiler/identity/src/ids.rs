@@ -118,6 +118,7 @@ persistent_id!(PersistentPropertyId, "property");
 persistent_id!(PersistentExtensionPropertyId, "extension property");
 persistent_id!(PersistentObjectValueId, "object value");
 persistent_id!(PersistentTypeAliasId, "type alias");
+persistent_id!(PersistentAnnotationId, "annotation");
 persistent_id!(PersistentPropertyAccessorId, "property accessor");
 persistent_id!(PersistentFieldId, "field");
 persistent_id!(PersistentEnumVariantId, "enum variant");

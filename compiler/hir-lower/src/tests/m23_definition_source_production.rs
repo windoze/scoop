@@ -83,6 +83,7 @@ fn producer_collects_the_exact_deduplicated_definition_source_closure() {
         &Default::default(),
         &Default::default(),
         &Default::default(),
+        &Default::default(),
     )
     .unwrap();
 

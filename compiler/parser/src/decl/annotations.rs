@@ -1,13 +1,14 @@
 use super::*;
+mod declaration;
+mod values;
 
 impl Parser {
-    /// Parse compiler annotations without assigning them language semantics.
-    /// Target, schema and coexistence checks belong to HIR (M12 design 1.2).
+    /// Preserve source annotations; target and constant checks belong to HIR.
     pub(crate) fn parse_annotations(&mut self) -> Result<Vec<Annotation>, Diagnostic> {
         let mut annotations = Vec::new();
         while matches!(self.peek().kind, TokenKind::At) {
             let at = self.bump();
-            let name = self.expect_ident("annotation name")?;
+            let name = self.parse_annotation_path("annotation name")?;
             let (args, end) = self.parse_annotation_arguments(name.span.end)?;
             annotations.push(Annotation {
                 name,
@@ -47,23 +48,11 @@ impl Parser {
                     }
                     None
                 };
-                let token = self.bump();
-                let value = match token.kind {
-                    TokenKind::Str(value) => AnnotationLiteral::String(value),
-                    TokenKind::Int(lexeme) => AnnotationLiteral::Int(lexeme.with_span(token.span)),
-                    TokenKind::True => AnnotationLiteral::Boolean(true),
-                    TokenKind::False => AnnotationLiteral::Boolean(false),
-                    _ => {
-                        return Err(Diagnostic::at(
-                            token.span,
-                            "annotation argument must be a string, integer or boolean literal",
-                        ));
-                    }
-                };
+                let (value, end) = self.parse_annotation_value()?;
                 args.push(AnnotationArg {
                     name,
                     value,
-                    span: Span::new(start, token.span.end),
+                    span: Span::new(start, end),
                 });
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();

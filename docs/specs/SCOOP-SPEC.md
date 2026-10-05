@@ -1217,7 +1217,7 @@ public struct Account(@Description("Stable identifier") val id: Long)
 ```
 
 - annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于Boolean、String、Char和现有定宽整数；无参数声明可省略括号。
-- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；值限于上述类型的字面量、带符号整数字面量和已绑定的同类型`const val`。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、重复/缺失/未知参数及可见性错误在定义或使用处诊断。
+- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；值限于上述类型的字面量、带符号整数字面量和已绑定的同类型`const val`。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、重复/缺失/未知参数及可见性错误在定义或使用处诊断。
 - 自定义注解可标在名义类型、enum variant、struct/variant字段和class/interface的logical property上。主构造参数带`val`/`var`时注解属于该字段/property；普通值参数不因此成为可注解字段。M29不增加use-site target、可重复注解、注解继承、元注解执行或编译器插件API。同一target重复同一annotation声明是错误；不同注解按源码顺序保留。
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v51_retains_context_contracts() {
+fn source_interface_v52_retains_annotations() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        51,
+        52,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -115,10 +115,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v4_rejects_retired_native_witnesses_in_every_profile_and_view() {
+fn hir_foundation_v5_retains_annotation_identities_in_every_profile_and_view() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        4,
+        5,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

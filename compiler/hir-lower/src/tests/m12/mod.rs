@@ -111,6 +111,7 @@ fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
         Decl::Interface(decl) => &mut decl.type_params,
         Decl::Class(decl) => &mut decl.type_params,
         Decl::Object(_) => panic!("objects have no type parameters"),
+        Decl::AnnotationClass(_) => panic!("annotation classes have no type parameters"),
         Decl::Global(_) => panic!("globals have no type parameters"),
         Decl::TypeAlias(_) => panic!("M22 typealiases have no type parameters"),
     };

@@ -1,5 +1,8 @@
 //! Canonical HIR production contracts shared by ordinary and core Cones.
 
+mod annotations;
+pub use annotations::AnnotationProductionError;
+
 use std::fmt;
 
 use scoop_identity::{

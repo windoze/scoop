@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 
+mod annotations;
 mod callable;
 mod callable_declarations;
 mod callable_source;
@@ -22,6 +23,7 @@ mod property_declarations;
 mod source_inventory;
 mod type_alias;
 
+pub use annotations::CrossConeHirAnnotationError;
 pub use callable_source::*;
 pub use const_value::*;
 pub use default_contracts::{
@@ -303,6 +305,16 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                     self.require_current("nested extension property binding", key.origin())?;
                     self.source_key_owner("nested extension property binding", &key)
                 }),
+            BindableEntity::Annotation(id) => {
+                let key = self
+                    .identities
+                    .canonical_key::<scoop_identity::PersistentAnnotationId, SourceDeclarationKey>(
+                        id,
+                    )
+                    .map_err(CrossConeHirNominalAuthorityError::Identity)?;
+                self.require_current("nested annotation binding", key.origin())?;
+                self.source_key_owner("nested annotation binding", &key)
+            }
             BindableEntity::TypeAlias(id) => {
                 let key = self
                     .identities

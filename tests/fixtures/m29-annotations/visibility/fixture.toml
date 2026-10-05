@@ -1,0 +1,53 @@
+schema = 1
+name = "m29-annotations-visibility"
+inputs = ["../artifacts/provider", "consumer"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "annotation", "reexport", "artifact-only", "gc", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {mkdir = {path = "${work}/standalone"}},
+  {remove = {path = "${work}/standalone"}},
+  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/sources/core"}},
+  {copy = {from = "${fixture}/../artifacts/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_core"
+files = [{remove = {path = "${work}/sources/core"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/annotation-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_provider"
+files = [{remove = {path = "${work}/sources/provider"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "private.diagnostics.json"}
+

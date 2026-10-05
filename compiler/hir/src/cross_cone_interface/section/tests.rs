@@ -134,7 +134,7 @@ fn empty_section_has_fixed_wire_and_resolves() {
 
     assert_eq!(
         hex(&bytes),
-        "ad018002a20180028003a20180028004a201800280058006800780088009800a800b800c800d80"
+        "ae018002a20180028003a20180028004a201800280058006800780088009800a800b800c800d800ea201800280"
     );
 
     let decoded: DecodedCrossConeHirInterfaceSectionV1 = decode_canonical(&bytes).unwrap();

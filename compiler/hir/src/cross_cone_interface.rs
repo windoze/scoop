@@ -1,9 +1,11 @@
 //! Canonical public semantic interface shared across Cone boundaries.
 
+mod annotations;
 mod binders;
 mod callable_interfaces;
 mod callable_source_interfaces;
 mod canonical_ids;
+pub use annotations::*;
 mod const_values;
 mod declaration_common;
 mod declaration_references;

@@ -1,0 +1,2 @@
+enum Value { Some(@SerialName("value") Int) }
+fun main() {}

@@ -7,6 +7,9 @@ impl Lowerer {
         target: crate::namespace::TopLevelTypeTarget,
     ) -> bool {
         let domain = match target {
+            crate::namespace::TopLevelTypeTarget::Annotation(id) => {
+                &self.source_annotations[&id].access.lookup.0
+            }
             crate::namespace::TopLevelTypeTarget::Alias(alias) => {
                 return self.source_type_alias_is_accessible(alias);
             }
@@ -61,7 +64,8 @@ impl Lowerer {
     pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
         match self.top_level_type_target_for_reference(name)? {
             crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
-            crate::namespace::TopLevelTypeTarget::Alias(_) => None,
+            crate::namespace::TopLevelTypeTarget::Alias(_)
+            | crate::namespace::TopLevelTypeTarget::Annotation(_) => None,
         }
     }
 
@@ -78,7 +82,8 @@ impl Lowerer {
         }
         match target {
             crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
-            crate::namespace::TopLevelTypeTarget::Alias(_) => None,
+            crate::namespace::TopLevelTypeTarget::Alias(_)
+            | crate::namespace::TopLevelTypeTarget::Annotation(_) => None,
         }
     }
 
@@ -129,7 +134,7 @@ impl Lowerer {
             .copied()
     }
 
-    fn nominal_parent(&self, owner: Owner) -> Option<Owner> {
+    pub(crate) fn nominal_parent(&self, owner: Owner) -> Option<Owner> {
         let parent = match owner {
             Owner::Class(id) => self.classes[id].owner,
             Owner::Interface(id) => self.interfaces[id].owner,
@@ -320,6 +325,15 @@ impl Lowerer {
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
                 match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Annotation(_),
+                    )) => {
+                        self.error(
+                            name.span,
+                            format!("annotation `{}` cannot be used as a value type", name.text),
+                        );
+                        return None;
+                    }
                     Some(crate::imports::lookup::TypeLookupTarget::Current(
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
                     )) => return self.resolve_type_alias_id_reference(alias, name, true),
@@ -543,6 +557,15 @@ impl Lowerer {
                     );
                 }
                 match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Annotation(_),
+                    )) => {
+                        self.error(
+                            name.span,
+                            format!("annotation `{}` cannot be used as a value type", name.text),
+                        );
+                        return None;
+                    }
                     Some(crate::imports::lookup::TypeLookupTarget::Current(
                         crate::namespace::TopLevelTypeTarget::Alias(alias),
                     )) => {

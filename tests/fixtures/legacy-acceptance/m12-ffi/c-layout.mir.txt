@@ -32,6 +32,11 @@ Module
   interface Iterator<Outer>
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Continuation<Packed>
   interface SuspendTask<Packed>
   interface SuspendRegistration<Packed>

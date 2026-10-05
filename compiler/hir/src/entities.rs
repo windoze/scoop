@@ -28,6 +28,7 @@ pub struct Module {
     pub property_accessor_identities: HirPropertyAccessorIdentities,
     /// Total persistent identity relation for transparent source aliases.
     pub type_alias_identities: HirTypeAliasIdentities,
+    pub annotations: SourceAnnotations,
     /// Total persistent identity relation for source enum variants and fields.
     pub enum_member_identities: HirEnumMemberIdentities,
     /// Total persistent identity relation for struct and class storage fields.

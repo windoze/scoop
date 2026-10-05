@@ -286,6 +286,12 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                     .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
                 self.source_resolution(key, BindingTarget::object_value(key))
             }
+            ExternalHirTargetV1::Annotation(id) => {
+                let key = self
+                    .annotation_key(id)
+                    .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
+                self.source_resolution(key, BindingTarget::annotation(key))
+            }
             ExternalHirTargetV1::TypeAlias(id) => {
                 let key = self
                     .type_alias_key(id)

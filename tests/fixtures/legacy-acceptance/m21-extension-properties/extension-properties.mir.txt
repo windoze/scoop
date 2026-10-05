@@ -22,6 +22,11 @@ Module
   class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Continuation<Counter>
   interface SuspendTask<Counter>
   interface SuspendRegistration<Counter>

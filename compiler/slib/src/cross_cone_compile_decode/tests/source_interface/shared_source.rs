@@ -89,6 +89,7 @@ fn replace(
         &Default::default(),
         &Default::default(),
         &Default::default(),
+        &Default::default(),
     )
     .unwrap();
     fixture.interface = CrossConeHirInterfaceSectionV1::new(

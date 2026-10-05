@@ -17,6 +17,7 @@ use crate::{
 impl CanonicalExportDefinitionSourcesV1 {
     /// Collects the exact canonical set of definition sources embedded in
     /// cross-Cone interface declarations and templates.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_interface_parts(
         type_aliases: &CanonicalTypeAliasInterfacesV1,
         source_interfaces: &CanonicalCallableSourceInterfacesV1,
@@ -25,8 +26,21 @@ impl CanonicalExportDefinitionSourcesV1 {
         generic_callable_bodies: &CanonicalExportGenericCallableBodiesV1,
         generic_initializations: &crate::CanonicalExportGenericInitializationsV1,
         generic_delegates: &crate::CanonicalExportGenericDelegatesV1,
+        annotations: &crate::CanonicalAnnotationsV1,
     ) -> Result<Self, ExportDefinitionSourceProductionError> {
         let mut sources = BTreeSet::new();
+        sources.extend(
+            annotations
+                .declarations()
+                .iter()
+                .map(|entry| entry.definition_origin.clone()),
+        );
+        sources.extend(annotations.targets().iter().flat_map(|target| {
+            target
+                .annotations
+                .iter()
+                .map(|entry| entry.definition_origin.clone())
+        }));
 
         sources.extend(
             type_aliases

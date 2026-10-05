@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项待实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
+2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
 当前 HIR 格式为 `core-bootstrap-interface/7`、`cross-cone-interface/48` 与 `cross-cone-type-semantics/15`：M26 增加完整 ArrayGenerate、负长度异常目标、数组长度 intrinsic 与 Char 表示；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
 
@@ -1703,6 +1703,20 @@ M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启
 **共有HIR事实。** 静态描述复用类型、名义shape、PersistentFieldId、variant、logical property与constructor/default记录；只补缺失的annotation及关联，不复制类型或布局图。annotation使用独立typed声明身份，应用保存实际引用和按参数序补齐的typed常量。泛型字段保留binder引用，实例化后完整；tuple保留位置，class字段保留owner，computed/delegated property与intrinsic表示保持区别。不得使用FQN fallback、裸annotation名称identity或opaque default指针。
 
 共有查询为每种类型提供完整shape，dump能展示名称/类型/annotation，必要内容进入Export HIR。未使用类型不因此成为LIR物化根；没有运行期TypeInfo对象或通用CTFE。外来类型沿同一查询，字段及构造信息不扩大源码可见性。
+
+annotation 声明复用已有 `SourceDeclarationKind::AnnotationClass` 源码键，并使用独立的
+`PersistentAnnotationId`；它与可出现在运行期签名中的 nominal type 分开。注解名称参与
+普通类型名称域的冲突、限定路径、import alias 和访问检查，绑定的 target/role 明确为
+annotation。声明保存参数的实际标量类型、名称和可选缺省常量，应用复用已有
+`CanonicalConstValueV1`，按参数序保存补齐后的值。target 使用原 nominal、variant、
+field 或 logical property 的 typed 引用；不为读取注解复制字段或生成运行期类型。
+
+此批在 HIR identity foundation 的 field 35 保存 annotation 声明键，在共有源码接口的
+field 14 保存注解声明及其有序应用。两者分别将 `identity-foundation` 升至 `/5`、
+`cross-cone-interface` 升至 `/52`；旧产物和缓存重建，其他阶段的 wire 与 runtime ABI
+不因静态注解数据改变。读取边界复用普通绑定和实体查询，检查参数常量种类及 target
+引用；外部标量类型和注解声明复用原外部引用表，以 `AnnotationDependency`（tag 11）
+记录实际依赖。后续阶段直接使用已解析事实，不重新执行注解源码或常量求值。
 
 **companion作用域与物化。** companion继承直接宿主的类型参数环境和bound，不继承宿主实例或primary参数值；普通static nested声明仍隔断外层参数环境。成员字段、base/interface、default、initializer和body使用同一组宿主binder，方法自有参数另用typed身份，完整调用实参按宿主在前、方法在后保存。裸generic宿主只可作声明命名空间限定；类型别名、命名companion别名、转发和跨Cone查询必须保留同一完整宿主application。
 

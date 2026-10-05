@@ -24,6 +24,13 @@ impl Lowerer {
             return None;
         };
         match target {
+            ResolvedTypeName::Annotation(_) => {
+                self.error(
+                    span,
+                    "annotation declarations cannot be used as value types".into(),
+                );
+                None
+            }
             ResolvedTypeName::Applied(ty) => Some(ty),
             ResolvedTypeName::Nominal(owner) => {
                 if let Some(target) = self.current_nominal_name_target(owner) {

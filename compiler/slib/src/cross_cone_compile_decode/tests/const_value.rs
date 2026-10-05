@@ -32,6 +32,7 @@ use crate::cross_cone_hir_authority::{
     CrossConeHirConstAuthorityError, CrossConeHirIntrinsicTypeError,
 };
 
+mod annotations;
 mod intrinsic_providers;
 
 #[test]

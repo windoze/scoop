@@ -1,0 +1,2 @@
+annotation class Label(val value: Int = true)
+fun main() {}

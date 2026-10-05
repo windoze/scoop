@@ -89,6 +89,12 @@ impl CanonicalExternalHirReferencesV1 {
             )?;
         }
         surface::collect_constants(input, &mut accumulator)?;
+        for target in input.annotations.declaration_targets() {
+            accumulator.observe(
+                target,
+                crate::ExternalHirReferenceRoleV1::AnnotationDependency,
+            )?;
+        }
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
         }

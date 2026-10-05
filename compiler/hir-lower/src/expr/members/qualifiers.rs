@@ -76,6 +76,14 @@ impl Lowerer {
                         | ExpressionQualifierLookup::Inaccessible(
                             ExpressionQualifierTarget::DependencyObject(_),
                         )
+                        | ExpressionQualifierLookup::Unique(ExpressionQualifierTarget::Type(
+                            crate::namespace::TopLevelTypeTarget::Annotation(_),
+                        ))
+                        | ExpressionQualifierLookup::Inaccessible(
+                            ExpressionQualifierTarget::Type(
+                                crate::namespace::TopLevelTypeTarget::Annotation(_),
+                            ),
+                        )
                         | ExpressionQualifierLookup::Missing
                         | ExpressionQualifierLookup::Value
                         | ExpressionQualifierLookup::Ambiguous

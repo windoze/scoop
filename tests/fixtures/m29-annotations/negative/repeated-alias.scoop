@@ -1,0 +1,6 @@
+package demo
+import demo.Label as Other
+annotation class Label
+@Label @Other
+struct Value()
+fun main() {}

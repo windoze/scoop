@@ -15,6 +15,13 @@ impl Lowerer {
         supplied_type_arguments: bool,
     ) -> Option<hir::TypeId> {
         match binding.target() {
+            hir::ImportedTarget::Annotation(_) => {
+                self.error(
+                    name.span,
+                    format!("annotation `{}` cannot be used as a value type", name.text),
+                );
+                None
+            }
             hir::ImportedTarget::TypeAlias(_) => {
                 self.resolve_imported_dependency_type_alias(binding, name, supplied_type_arguments)
             }

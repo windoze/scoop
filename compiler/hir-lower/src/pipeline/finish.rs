@@ -318,6 +318,7 @@ impl Lowerer {
             property_identities,
             property_accessor_identities,
             type_alias_identities,
+            annotations: self.annotation_metadata,
             enum_member_identities: self
                 .enum_member_identities
                 .expect("completed HIR retains original enum member identities"),

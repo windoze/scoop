@@ -464,6 +464,7 @@ impl Harness {
         let export_binding_identities = hir::HirExportBindingIdentities::from_public_surface(
             hir::HirExportBindingIdentityInputs {
                 surface: &public_surface,
+                annotations: &hir::SourceAnnotations::default(),
                 structs: &self.structs,
                 enums: &self.enums,
                 classes: &self.classes,
@@ -556,6 +557,7 @@ impl Harness {
             .expect("the empty MIR test callback relation is valid");
         let source_parameter_interfaces = self.test_parameter_interfaces();
         let module = hir::Module {
+            annotations: hir::SourceAnnotations::default(),
             release_hooks: Arena::new(),
             cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             nominal_identities,

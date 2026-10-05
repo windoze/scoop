@@ -121,6 +121,17 @@ impl CrossConeHirProductionAuthority<'_, '_> {
         })
     }
 
+    pub(super) fn annotation_key(
+        &self,
+        id: scoop_identity::PersistentAnnotationId,
+    ) -> Option<&SourceDeclarationKey> {
+        self.foundations().find_map(|foundation| {
+            foundation
+                .annotation_by_bytes(id.as_array())
+                .map(|(_, key)| key)
+        })
+    }
+
     pub(super) fn type_alias_key(
         &self,
         id: PersistentTypeAliasId,

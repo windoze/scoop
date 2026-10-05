@@ -40,7 +40,7 @@ impl<'a> ObjectSource<'a> {
         }
     }
 
-    fn annotations(self) -> &'a [ast::Annotation] {
+    pub(crate) fn annotations(self) -> &'a [ast::Annotation] {
         match self {
             Self::Object(declaration) => &declaration.annotations,
             Self::Companion(declaration) => &declaration.annotations,

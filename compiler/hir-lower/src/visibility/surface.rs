@@ -152,6 +152,13 @@ impl Lowerer {
                         .then_some(declaration.singleton_value)
                 })
                 .collect(),
+            annotations: self
+                .source_annotations
+                .iter()
+                .filter_map(|(id, declaration)| {
+                    Self::nominal_is_exported(&declaration.access).then_some(*id)
+                })
+                .collect(),
             type_aliases: self
                 .type_aliases
                 .iter()

@@ -1,9 +1,9 @@
 use scoop_identity::{
-    BindableEntity, CallableTemplateOrigin, DuplicateSignatureKey, PersistentConstructorId,
-    PersistentEnumVariantId, PersistentExtensionPropertyId, PersistentFunctionId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
-    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    PropertyOwner,
+    BindableEntity, CallableTemplateOrigin, DuplicateSignatureKey, PersistentAnnotationId,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+    PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PersistentTypeAliasId, PersistentTypeId, PropertyOwner,
 };
 
 use crate::{ImportedHirId, SourceNominalId};
@@ -95,6 +95,7 @@ pub enum ImportedTarget {
     Property(ImportedHirId<PersistentPropertyId>),
     ExtensionProperty(ImportedHirId<PersistentExtensionPropertyId>),
     TypeAlias(ImportedHirId<PersistentTypeAliasId>),
+    Annotation(ImportedHirId<PersistentAnnotationId>),
     EnumVariant(ImportedHirId<PersistentEnumVariantId>),
 }
 
@@ -109,6 +110,7 @@ impl ImportedTarget {
             Self::Property(id) => BindableEntity::Property(id.persistent()),
             Self::ExtensionProperty(id) => BindableEntity::ExtensionProperty(id.persistent()),
             Self::TypeAlias(id) => BindableEntity::TypeAlias(id.persistent()),
+            Self::Annotation(id) => BindableEntity::Annotation(id.persistent()),
             Self::EnumVariant(id) => BindableEntity::EnumVariant(id.persistent()),
         }
     }
@@ -123,6 +125,7 @@ impl ImportedTarget {
             | Self::Property(_)
             | Self::ExtensionProperty(_)
             | Self::TypeAlias(_)
+            | Self::Annotation(_)
             | Self::EnumVariant(_) => None,
         }
     }

@@ -104,6 +104,7 @@ pub struct PublicSemanticSurface {
     pub companion_relations: Vec<crate::CompanionRelationId>,
     pub singleton_values: Vec<crate::SingletonValueId>,
     pub type_aliases: Vec<crate::ExportTypeAliasId>,
+    pub annotations: Vec<scoop_identity::PersistentAnnotationId>,
 }
 
 /// Domain used for direct name/member lookup after intersecting every owner.

@@ -17,6 +17,11 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Continuation<ExtensionDelegate>
   interface SuspendTask<ExtensionDelegate>
   interface SuspendRegistration<ExtensionDelegate>

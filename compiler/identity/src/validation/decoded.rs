@@ -19,7 +19,7 @@ use crate::{
     GeneratedCallableKey, GeneratedNominalKey, ImmortalObjectKey, InitializationUnitKey, LayoutKey,
     LocalBindingKey, LocalValueKey, NativeLinkRequirementId, NativeLinkRequirementKey,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey,
+    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey, PersistentAnnotationId,
     PersistentCallableApplicationId, PersistentCallbackApplicationId,
     PersistentCallbackRegistrationId, PersistentConstructorId, PersistentDispatchSlotId,
     PersistentDispatchTableId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
@@ -229,6 +229,7 @@ source_declaration_key!(
     "scoop-extension-property-id-v1"
 );
 source_declaration_key!(PersistentTypeAliasId, "scoop-type-alias-id-v1");
+source_declaration_key!(PersistentAnnotationId, "scoop-annotation-id-v1");
 
 decoded_key!(DecodedPropertyAccessorKey => PropertyAccessorKey, PersistentPropertyAccessorId, "scoop-property-accessor-id-v1");
 decoded_key!(DecodedFieldIdentityKey => FieldIdentityKey, PersistentFieldId, "scoop-field-id-v1");

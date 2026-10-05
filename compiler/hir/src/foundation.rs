@@ -7,12 +7,12 @@ use scoop_identity::{
     DefinitionOwnerAtom, DispatchSlotKey, EnumVariantFieldKey, EnumVariantIdentityKey,
     ExactTypeKey, ExportBindingKey, FieldIdentityKey, GeneratedCallableKey, GeneratedNominalKey,
     InitializationUnitKey, LocalBindingKey, LocalValueKey, OdrGroupId, OdrMemberId, OdrMemberKey,
-    PersistentCallableApplicationId, PersistentCallbackRegistrationId, PersistentConstructorId,
-    PersistentDispatchSlotId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentExportBindingId, PersistentExtensionPropertyId,
-    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentId,
-    PersistentInitializationUnitId, PersistentLocalBindingId, PersistentLocalValueId,
+    PersistentAnnotationId, PersistentCallableApplicationId, PersistentCallbackRegistrationId,
+    PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentExactTypeId, PersistentExportBindingId,
+    PersistentExtensionPropertyId, PersistentFieldId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentId, PersistentInitializationUnitId, PersistentLocalBindingId, PersistentLocalValueId,
     PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
     PersistentSourceContextId, PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey,
     SourceContextKey, SourceDeclarationKey, SourceIdentity, SourceNativeExternalContractRecord,
@@ -22,6 +22,7 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{NativeBoundaryTypeDefinitionRecord, SourceRecord, SourceRecordError};
 
+mod annotations;
 mod wire;
 pub use wire::{
     DecodedHirFoundation, DefinitionOriginValidationError, HirFoundationValidationError,
@@ -68,6 +69,7 @@ type PropertyRecord = CborIdentityRecord<PersistentPropertyId, SourceDeclaration
 type ExtensionPropertyRecord =
     CborIdentityRecord<PersistentExtensionPropertyId, SourceDeclarationKey>;
 type ObjectValueRecord = CborIdentityRecord<PersistentObjectValueId, SourceDeclarationKey>;
+type AnnotationRecord = CborIdentityRecord<PersistentAnnotationId, SourceDeclarationKey>;
 type TypeAliasRecord = CborIdentityRecord<PersistentTypeAliasId, SourceDeclarationKey>;
 type PropertyAccessorRecord = CborIdentityRecord<PersistentPropertyAccessorId, PropertyAccessorKey>;
 type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
@@ -104,6 +106,7 @@ pub struct CanonicalHirFoundation {
     extension_properties: Vec<ExtensionPropertyRecord>,
     object_values: Vec<ObjectValueRecord>,
     type_aliases: Vec<TypeAliasRecord>,
+    annotations: Vec<AnnotationRecord>,
     property_accessors: Vec<PropertyAccessorRecord>,
     fields: Vec<FieldRecord>,
     enum_variants: Vec<EnumVariantRecord>,
@@ -150,6 +153,7 @@ impl CanonicalHirFoundation {
             extension_properties: Vec::new(),
             object_values: Vec::new(),
             type_aliases: Vec::new(),
+            annotations: Vec::new(),
             property_accessors: Vec::new(),
             fields: Vec::new(),
             enum_variants: Vec::new(),
@@ -700,7 +704,7 @@ impl CanonicalHirFoundation {
 
 impl WireEncode for CanonicalHirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(32)?;
+        encoder.map(33)?;
         encode_table_field(encoder, 1, &self.sources)?;
         encode_table_field(encoder, 2, &self.types)?;
         encode_table_field(encoder, 3, &self.generic_types)?;
@@ -732,7 +736,8 @@ impl WireEncode for CanonicalHirFoundation {
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 31, &self.external_source_types)?;
         encode_table_field(encoder, 32, &self.external_generic_types)?;
-        encode_table_field(encoder, 34, &self.native_boundary_types)
+        encode_table_field(encoder, 34, &self.native_boundary_types)?;
+        encode_table_field(encoder, 35, &self.annotations)
     }
 }
 
@@ -748,6 +753,7 @@ pub enum HirFoundationTable {
     ExtensionProperty,
     ObjectValue,
     TypeAlias,
+    Annotation,
     PropertyAccessor,
     Field,
     EnumVariant,
@@ -785,6 +791,7 @@ impl HirFoundationTable {
             Self::ExtensionProperty => "extension property",
             Self::ObjectValue => "object value",
             Self::TypeAlias => "type alias",
+            Self::Annotation => "annotation",
             Self::PropertyAccessor => "property accessor",
             Self::Field => "field",
             Self::EnumVariant => "enum variant",
