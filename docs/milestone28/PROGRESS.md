@@ -7,7 +7,7 @@ M28 功能实现和 fixture 平台迁移已完成，正在进行最终三平台�
 - 正式 CLI 支持 glibc amd64 动态 PIE、musl amd64 默认静态程序和显式动态 PIE；包括 core/库产物、独立链接、原生对象/归档/DSO、异常、精确移动 GC、callback、协程与 Context。
 - ELF/Mach-O、OS/VM、架构帧与 libc 工具链分别处理实际差异。glibc/musl 共用 Linux OS、ELF image 和 amd64 runtime；后续 Linux arm64 可复用前三者中的 OS/ELF 部分及共有链接编排，只补 AArch64 ABI/机器码/relocation、入口和目标工具链输入。
 - 两种 libc 的 LLVM libunwind 22.1.2 构建、musl PIE 的索引未命中兼容补丁、三种链接模式的真实异常展开均已验证。
-- 所有适用 Linux fixture 已在迁移批次中运行通过：glibc 2,295 个，musl 2,297 个。最终不更新快照的 `--all` 正在执行；其中 7 份历史 glibc 产物指纹已确认受 imported-storage visibility 修复影响，更新后普通复验全部通过。分批通过不计作最终完成。
+- 所有适用 Linux fixture 已在迁移批次中运行通过：glibc 2,295 个，musl 2,297 个。最终不更新快照的 `--all` 正在执行；其中 8 份历史 glibc 产物指纹已确认受 imported-storage visibility 修复影响，更新后普通复验全部通过。分批通过不计作最终完成。
 - Linux workspace 首轮 5,317 项通过、1 项假编译器 stdin 读取竞态失败；修复测试 helper 后，所属 `scoop` 的 96 项全部通过。macOS/AArch64 workspace 的 5,290 项全部通过。两个宿主的 fmt/clippy、Python 公共规则 38 项及 Ruff 0.16.10 均已通过。
 - macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 全部通过：2,314 个用例、2,404 个变体、12,076 个进程、12,305 份快照，另有 6 个 Linux 专用用例不适用。
 
@@ -140,3 +140,5 @@ M28 功能实现和 fixture 平台迁移已完成，正在进行最终三平台�
 - eager 初始化失败及依赖初始化失败顺序的 fixture 显式调用 C `fflush(NULL)` 保留 trace，再验证 abort；不再依赖 Darwin 的 libc 缓冲清理行为，也不修改 runtime 的异常终止语义。两 libc 与真实 Darwin 的 normal/moving 变体均通过，保留 stdout、完整异常诊断及 SIGABRT 断言。
 
 - 最终 glibc 全量运行发现 7 份产物指纹仍来自 imported-storage visibility 修复前。逐个比较旧缓存与当前 ELF，确认 storage 从默认 visibility 的 GOT 访问改为 hidden 的直接访问；重复构建的归档逐字节相同。IR、链接及运行断言保持，仅更新相应 `program` 指纹；7 个 fixture 的普通复验全部通过，共 44 个进程、86 份快照。
+
+- 后续 `heap-zst-combined` 同样保留了旧 storage visibility 的产物指纹。旧缓存对比确认同一原因，更新该 `program` 指纹后普通复验通过，包含 6 个进程和 10 份快照。
