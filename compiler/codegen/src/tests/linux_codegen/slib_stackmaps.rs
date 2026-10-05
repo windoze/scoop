@@ -28,6 +28,8 @@ fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
             )
         };
         let verified = verify(objects).expect("real ELF stackmap machine and root contract");
+        let callables = fixture.callables(verified.clone());
+        assert_eq!(callables.fingerprints().len(), 3);
         assert_eq!(verified.records().len(), 3);
         let mut roots = verified
             .records()

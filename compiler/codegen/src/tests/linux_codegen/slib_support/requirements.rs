@@ -3,6 +3,37 @@
 use super::*;
 
 impl SlibObjects {
+    pub fn callables(
+        &self,
+        stackmaps: VerifiedScoopLirStackmapSetV1,
+    ) -> VerifiedStrongCallableFingerprintSetV1 {
+        let sites = self.sites(stackmaps.builtins().clone(), &self.objects);
+        let requirements = self.requirements(sites.clone());
+        let objects = candidates(&self.objects);
+        let registrations = verify_strong_callable_registrations_v1(
+            sites,
+            self.emitted
+                .production()
+                .registration_production()
+                .callables()
+                .clone(),
+            &objects,
+        )
+        .unwrap();
+        let bodies = compute_strong_callable_body_object_fingerprints_v1(
+            registrations,
+            stackmaps,
+            requirements,
+            &objects,
+        )
+        .expect("real ELF callable body fingerprints");
+        compute_strong_callable_fingerprints_v1(
+            bodies,
+            self.emitted.production().canonical_callable_definitions(),
+        )
+        .expect("real ELF callable definition and registration fingerprints")
+    }
+
     pub fn requirements(
         &self,
         sites: VerifiedScoopLirDigestPatchSiteSetV1,

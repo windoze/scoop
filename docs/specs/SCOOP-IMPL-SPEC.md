@@ -779,6 +779,8 @@ ELF callable 的 EH personality 间接指针是该函数的 backend contribution
 
 对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。
 
+ELF raw callable/shape atom 的 section-symbol 引用以同一定义中覆盖 section 起点的 atom 作为基址，编码该 atom 的 typed identity 与相对 offset；section ordinal 不进入 fingerprint。RELA addend 仍独立保留，与对该 atom 起点的本地符号引用一致。这里规范化的是 relocation 的符号基址，不把 PC-relative addend 当作绝对地址，也不固定加四或五来猜测指令尾部。若 section 基址没有当前定义所属的实际 atom，则拒绝；metadata 的语义指针继续按已验证的实际目标地址处理。
+
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
 
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：

@@ -63,3 +63,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - personality contribution 变更通过 479 项 LIR 测试、10 项 Linux codegen 测试及 workspace fmt/clippy。两 libc × Strong/ODR 的真实异常成员经过完整发射与 LLVM EH 校验、slib definitions/relocations/stackmaps 读取；GNU ld 对 ODR member 重复输入后仅保留一份代码与间接指针，合并对象再次通过正式 EH/stackmap 检查。后续仍需完整对象指纹、requirement closure 和 executable 链接。
 
 - requirement closure 与 code fingerprint 已改为消费实际对象 target：同 Cone 成员拒绝 glibc/musl 混用，dependency 选择、undefined partition 和 native requirement surface 不再默认 Darwin。两 libc 的真实类对象完成外部符号分类、descriptor/layout/registration fingerprints；类型集合含 String、接口、父类、子类和 itable。新增混合 libc 成员与错误 requirement target 负例。全部 599 项 slib 测试、11 项 Linux codegen 测试及 workspace fmt/clippy 通过；函数体与整份产物的最终指纹仍需继续接入。
+
+- ELF raw atom relocation 的 section-symbol 基址现规范化为当前定义所属 atom，RELA kind/width/signed addend 保留。两 libc 的普通 GC 函数及 Strong/ODR 异常函数完成 body/definition/registration 指纹计算，涵盖 EH frame、LSDA、stackmap 与 personality 指针。真实对象将 section target 改写为等址 atom boundary 后指纹一致，改变 EH RELA addend 后指纹改变。599 项 slib 测试、12 项 Linux codegen 测试（含修正后的局部重绑定测试）及 workspace fmt/clippy 通过。

@@ -29,70 +29,98 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         let mut targets = Vec::new();
         let mut canonical_value = relocation.encoded_value();
         for (slot, target) in relocation_targets(relocation.shape()) {
-            let target =
-                match target {
-                    VerifiedRelocationTargetV1::LocalDefinition {
-                        owner_atom: Some(target_atom),
-                        section_ordinal,
-                        value,
-                        ..
-                    } => {
-                        let range = associated_atoms
+            let target = match target {
+                VerifiedRelocationTargetV1::LocalDefinition {
+                    owner_atom: Some(target_atom),
+                    section_ordinal,
+                    value,
+                    ..
+                } => {
+                    let range = associated_atoms
                         .iter()
                         .find(|range| range.atom() == *target_atom)
                         .ok_or(
                             ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
                         )?;
-                        if range.section_ordinal() != *section_ordinal
-                            || *value < range.start()
-                            || *value >= range.end()
-                        {
-                            return Err(
-                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
-                        );
-                        }
-                        CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
-                            atom: *target_atom,
-                            role: range.atom_role(),
-                            offset_within_atom: *value - range.start(),
-                        }
-                    }
-                    VerifiedRelocationTargetV1::SectionBase {
-                        section_ordinal, ..
-                    } if relocation.shape().form()
-                        == VerifiedObjectRelocationFormV1::Unsigned64 =>
+                    if range.section_ordinal() != *section_ordinal
+                        || *value < range.start()
+                        || *value >= range.end()
                     {
-                        let address = relocation.encoded_value();
-                        let range = associated_atoms.iter().find(|range| {
-                        range.section_ordinal().get() == section_ordinal.get()
-                            && range.start() <= address && address < range.end()
-                    }).ok_or(ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget)?;
-                        canonical_value = 0;
-                        CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
-                            atom: range.atom(),
-                            role: range.atom_role(),
-                            offset_within_atom: address - range.start(),
-                        }
-                    }
-                    VerifiedRelocationTargetV1::LocalDefinition { .. }
-                    | VerifiedRelocationTargetV1::SectionBase { .. } => {
                         return Err(
                             ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
                         );
                     }
-                    VerifiedRelocationTargetV1::StrongDefinition { .. }
-                    | VerifiedRelocationTargetV1::ExternalUndefined { .. } => {
-                        let binding = bindings
-                            .iter()
-                            .find(|binding| binding.target_slot() == slot)
-                            .ok_or(ObjectDefinitionRelocationFailureV1::BindingCount)?;
-                        binding_count += 1;
-                        CanonicalRelocationTargetKindV1::Requirement(canonical_requirement(
-                            binding,
-                            requirements,
-                        )?)
+                    CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                        atom: *target_atom,
+                        role: range.atom_role(),
+                        offset_within_atom: *value - range.start(),
                     }
-                };
+                }
+                VerifiedRelocationTargetV1::SectionBase {
+                    section_ordinal, ..
+                } if matches!(
+                    relocation.shape().form(),
+                    VerifiedObjectRelocationFormV1::ElfRela { .. }
+                ) =>
+                {
+                    // Preserve S + A: the atom at the section base supplies S,
+                    // and RELA keeps A, including instruction-relative biases.
+                    let range = associated_atoms
+                        .iter()
+                        .find(|range| {
+                            range.section_ordinal() == *section_ordinal
+                                && range.start() == 0
+                                && range.end() != 0
+                        })
+                        .ok_or(
+                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                        )?;
+                    CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                        atom: range.atom(),
+                        role: range.atom_role(),
+                        offset_within_atom: 0,
+                    }
+                }
+                VerifiedRelocationTargetV1::SectionBase {
+                    section_ordinal, ..
+                } if relocation.shape().form() == VerifiedObjectRelocationFormV1::Unsigned64 => {
+                    let address = relocation.encoded_value();
+                    let range = associated_atoms
+                        .iter()
+                        .find(|range| {
+                            range.section_ordinal().get() == section_ordinal.get()
+                                && range.start() <= address
+                                && address < range.end()
+                        })
+                        .ok_or(
+                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                        )?;
+                    canonical_value = 0;
+                    CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
+                        atom: range.atom(),
+                        role: range.atom_role(),
+                        offset_within_atom: address - range.start(),
+                    }
+                }
+                VerifiedRelocationTargetV1::LocalDefinition { .. }
+                | VerifiedRelocationTargetV1::SectionBase { .. } => {
+                    return Err(
+                        ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                    );
+                }
+                VerifiedRelocationTargetV1::StrongDefinition { .. }
+                | VerifiedRelocationTargetV1::ExternalUndefined { .. } => {
+                    let binding = bindings
+                        .iter()
+                        .find(|binding| binding.target_slot() == slot)
+                        .ok_or(ObjectDefinitionRelocationFailureV1::BindingCount)?;
+                    binding_count += 1;
+                    CanonicalRelocationTargetKindV1::Requirement(canonical_requirement(
+                        binding,
+                        requirements,
+                    )?)
+                }
+            };
             targets.push(CanonicalRelocationTargetV1 { slot, target });
         }
         if bindings.len() != binding_count {

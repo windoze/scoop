@@ -25,8 +25,11 @@ fn elf_exception_personality_pointer_belongs_to_its_callable() {
             let eh = artifact::eh_expectations(&module).unwrap();
             let fixture = SlibObjects::new(module, directory.path());
             let builtins = fixture.builtins(&fixture.objects);
-            verify_scoop_lir_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
-                .unwrap();
+            let stackmaps =
+                verify_scoop_lir_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
+                    .unwrap();
+            let callables = fixture.callables(stackmaps);
+            assert!(!callables.fingerprints().is_empty());
             let mut pointers = 0;
             for member in fixture.emitted.members() {
                 let bytes = std::fs::read(member.path()).unwrap();
