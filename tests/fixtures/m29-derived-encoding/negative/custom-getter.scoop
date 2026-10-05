@@ -1,0 +1,6 @@
+class Item() : Encodable {
+    val value: Int = 1
+        get() = field
+}
+
+fun main() {}

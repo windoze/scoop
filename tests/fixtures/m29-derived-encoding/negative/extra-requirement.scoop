@@ -1,0 +1,4 @@
+interface Extended : Encodable { public fun other(): Int }
+struct Item(val value: Int) : Extended
+
+fun main() {}

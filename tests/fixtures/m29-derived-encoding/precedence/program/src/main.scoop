@@ -1,0 +1,42 @@
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("encoding selection assertion failed")) }
+}
+
+public struct Explicit(val value: Any) : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(11L) }
+}
+
+public interface Default : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(12L) }
+}
+public struct UsesDefault(val value: Any) : Default
+
+public open class Base public constructor() : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(13L) }
+}
+public class Child public constructor(public val value: Any) : Base()
+
+public interface Extended : Encodable { public fun label(): String }
+public struct Item(val value: Int) : Extended {
+    public fun encode(number: Int): Int = number + 1
+    public fun another(encoder: Encoder) {}
+    public override fun label(): String = "item"
+}
+
+public struct Envelope(val value: Encodable) : Encodable
+
+fun main() {
+    check(Json.encode(Explicit(1)) == "11")
+    check(Json.encode(UsesDefault(1)) == "12")
+    check(Json.encode(Child(1)) == "13")
+    val value = Item(7)
+    check(value.encode(1) == 2)
+    check(value.label() == "item")
+    check(Json.encode(value) == "{\"value\":7}")
+    val extended: Extended = value
+    check(Json.encode(extended) == "{\"value\":7}")
+    check(Json.encode(Envelope(extended)) == "{\"value\":{\"value\":7}}")
+    println("precedence-ok")
+}

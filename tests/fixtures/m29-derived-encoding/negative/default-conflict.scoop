@@ -1,0 +1,9 @@
+interface Left : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(1L) }
+}
+interface Right : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(2L) }
+}
+struct Item(val value: Int) : Left, Right
+
+fun main() {}

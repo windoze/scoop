@@ -1,0 +1,3 @@
+struct Item(val value: Any) : Encodable
+
+fun main() {}

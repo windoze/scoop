@@ -77,6 +77,24 @@ impl Lowerer {
     }
 
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
+        self.lower_body_input(id, &decl.name.text, &decl.body)
+    }
+
+    pub(crate) fn lower_synthesized_body(
+        &mut self,
+        id: FunctionId,
+        body: &ast::FunctionBody,
+    ) -> hir::Body {
+        let name = self.source_function_declarations[&id].name.clone();
+        self.lower_body_input(id, &name, body)
+    }
+
+    fn lower_body_input(
+        &mut self,
+        id: FunctionId,
+        name: &str,
+        input: &ast::FunctionBody,
+    ) -> hir::Body {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
         let outer_definition_paths = std::mem::take(&mut self.definition_paths);
@@ -92,8 +110,8 @@ impl Lowerer {
         // method-suffix namespace established in pass 2.5.
         self.type_params_in_scope = sig.type_params.clone();
         self.current_return_ty = sig.return_ty;
-        self.current_fn_name = decl.name.text.clone();
-        self.push_suspension_context(if decl.is_suspend {
+        self.current_fn_name = name.to_owned();
+        self.push_suspension_context(if self.functions[id].is_suspend {
             SuspensionContext::SuspendFunction
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
@@ -150,7 +168,7 @@ impl Lowerer {
         let mut entry = self.lower_context_entry(id);
 
         let returns_unit = self.types_equal(sig.return_ty, self.unit);
-        let statements = match &decl.body {
+        let statements = match input {
             ast::FunctionBody::Block(block) => {
                 let diagnostics_before = self.diagnostics.len();
                 let statements = self.lower_block(block);
@@ -167,8 +185,7 @@ impl Lowerer {
                     self.error(
                         block.span,
                         format!(
-                            "non-Unit function `{}` may complete without returning a value",
-                            decl.name.text
+                            "non-Unit function `{name}` may complete without returning a value"
                         ),
                     );
                 }
@@ -183,10 +200,7 @@ impl Lowerer {
                         let expected = self.type_name(sig.return_ty);
                         let found = self.type_name(value.ty);
                         let message = self.with_nominal_invariance_detail(
-                            format!(
-                                "body of `{}` must be of type {expected}, found {found}",
-                                decl.name.text
-                            ),
+                            format!("body of `{name}` must be of type {expected}, found {found}"),
                             value.ty,
                             sig.return_ty,
                         );

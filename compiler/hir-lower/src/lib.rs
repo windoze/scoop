@@ -477,8 +477,8 @@ struct SourceProvider {
     source: String,
 }
 
-/// Source spelling retained for every source FunctionId.
-/// Generated/accessor/initialization functions are deliberately absent.
+/// Source-visible named declarations, including synthesized nominal members.
+/// Lexical helpers, accessors and initialization functions are absent.
 #[derive(Debug, Clone)]
 pub(crate) struct SourceFunctionDeclaration {
     pub(crate) name: String,
@@ -689,6 +689,9 @@ pub(crate) struct Lowerer {
     pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
     pub(crate) derived_equality_application_by_type:
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
+    /// Ordinary encode members awaiting their complete bodies. The final
+    /// element is the already selected core Encodable application.
+    derived_encoding_methods: Vec<(FunctionId, Owner, TypeId)>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     /// Total lowering-time map for the eight canonical integer identities.

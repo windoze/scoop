@@ -1,0 +1,3 @@
+object Item : Encodable { val value: Int = 1 }
+
+fun main() {}

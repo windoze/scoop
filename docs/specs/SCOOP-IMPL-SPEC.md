@@ -1755,6 +1755,14 @@ companion声明、带宿主实参的application与concrete实体沿名义类型�
 5. tuple组合可生成普通typed闭包并调用核心`DecodeFunction<T>`；其捕获、函数值和调用沿现有closure路径。core容器使用普通companion方法及持有显式元素解码器的generic class，不增加MIR序列化指令或运行期反射数据。
 6. Export HIR保存完整body/template及已选声明关系；具体化只做普通替换/单态化。LocalConcrete不残留缺失实现、无类型字段或待解释的Serialize/Deserialize计划。
 
+缺失方法在现有 interface 实现选择器的 obligation 分支登记；用户方法、继承方法和
+合法 default 已经选择成功时不进入合成。编译器从 core 的普通绑定取得实际名义声明
+identity，再以该接口的已解析签名匹配 requirement；同名用户声明不参与此识别。
+合成的具名成员以请求它的源码类型为 owner，使用普通成员声明、参数接口及方法
+application 身份。所有签名登记后，字段/variant/property 和注解取自共有 HIR 声明，
+生成的块沿普通 body lowering 绑定字段访问、方法调用和模式分支。中间待办只在
+HIR lowering 内存在，不为派生增加独立 callable 类别或跨阶段的序列化执行计划。
+
 encode归数据类型，decode归实际companion/解码器。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同解码器即使返回同一个R也保持不同声明；同一provider application才沿原ODR合并。构造调用的求值来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
 
 **核心类型与格式库。** scalar数据值实现Encodable，其普通companion实现具体`Decodable<Scalar>`；Unit使用普通UnitDecoder。Option/Array/MutableArray/ArrayList和tuple按11.13的封闭规则提供结构型Encodable，不给数据类型追加Decodable conformance。generic核心类型的companion随宿主具体化，其普通decoder方法使用宿主T、显式接收`Decodable<T>`并构造持有该依赖的常规helper；每次传入的codec不写入singleton状态。方法的普通声明身份由已有core协议关系引用，不以同名用户声明替代。核心类型的原泛型范围保持不变。

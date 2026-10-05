@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Item` inherits conflicting defaults for `encode` from Left.encode and Right.encode; declare an explicit override",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 282,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 241
+    },
+    "severity": "error"
+  }
+]

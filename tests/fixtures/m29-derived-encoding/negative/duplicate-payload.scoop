@@ -1,0 +1,5 @@
+enum Item : Encodable {
+    Named(@SerialName("same") val first: Int, @SerialName("same") val second: Int)
+}
+
+fun main() {}

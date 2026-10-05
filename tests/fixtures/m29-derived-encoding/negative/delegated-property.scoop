@@ -1,0 +1,8 @@
+class Slot() {
+    public operator fun getValue(thisRef: Item): Int = 1
+}
+class Item() : Encodable {
+    val value: Int by Slot()
+}
+
+fun main() {}

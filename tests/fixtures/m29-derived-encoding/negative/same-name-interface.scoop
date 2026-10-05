@@ -1,0 +1,4 @@
+interface Encodable { public fun encode(encoder: Encoder) }
+struct Item(val value: Int) : Encodable
+
+fun main() {}

@@ -1,0 +1,6 @@
+class Item() : Encodable {
+    var value: Int = 1
+        set(next) { field = next }
+}
+
+fun main() {}

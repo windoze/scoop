@@ -1,0 +1,6 @@
+enum Item : Encodable {
+    @SerialName("same") First,
+    @SerialName("same") Second
+}
+
+fun main() {}

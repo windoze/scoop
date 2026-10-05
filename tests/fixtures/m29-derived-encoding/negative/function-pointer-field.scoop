@@ -1,0 +1,3 @@
+struct Item(val value: FunPtr<(Int) -> Int>) : Encodable
+
+fun main() {}

@@ -1,0 +1,16 @@
+package derived
+
+public struct Packet<T : Encodable>(
+    @SerialName("payload") val value: T,
+    @Transient val ignored: Any
+) : Encodable
+
+public enum Event<T : Encodable> : Encodable {
+    Empty,
+    Named(@SerialName("item") val value: T),
+    Pair(T, Int)
+}
+
+public class Row public constructor(private val id: Int, public val name: String) : Encodable
+
+public fun make(): Packet<Int> = Packet<Int>(7, "provider")

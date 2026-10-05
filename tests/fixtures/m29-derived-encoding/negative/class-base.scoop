@@ -1,0 +1,4 @@
+open class Base()
+class Item(val value: Int) : Base(), Encodable
+
+fun main() {}

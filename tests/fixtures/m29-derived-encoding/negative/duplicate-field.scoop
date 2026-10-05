@@ -1,0 +1,4 @@
+struct Item(@SerialName("same") val first: Int,
+            @SerialName("same") val second: String) : Encodable
+
+fun main() {}

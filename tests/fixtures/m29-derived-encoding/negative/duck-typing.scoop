@@ -1,0 +1,6 @@
+struct Value() {
+    public fun encode(encoder: Encoder) { encoder.singleValue().writeNull() }
+}
+struct Item(val value: Value) : Encodable
+
+fun main() {}

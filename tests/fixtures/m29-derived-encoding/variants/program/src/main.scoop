@@ -1,0 +1,30 @@
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("derived enum assertion failed")) }
+}
+
+public enum Choice<T : Encodable> : Encodable {
+    @SerialName("nothing") Empty,
+    Pair(T, Int),
+    Record { value: T, count: Int },
+    Named(@SerialName("item") val value: T, @Transient val ignored: Any, val count: Int = 2)
+}
+
+public enum Tree : Encodable { Leaf, Branch(val node: Node) }
+public class Node public constructor(public val child: Tree) : Encodable
+public struct Wrapper<T : Encodable>(val value: T) : Encodable
+
+fun main() {
+    val empty: Choice<String> = Choice<String>.Empty
+    check(Json.encode(empty) == "{\"nothing\":{}}")
+    check(Json.encode(Choice<String>.Pair("one", 1)) == "{\"Pair\":[\"one\",1]}")
+    val record = Choice<String>.Record(value = "two", count = 2)
+    check(Json.encode(record) == "{\"Record\":{\"value\":\"two\",\"count\":2}}")
+    val named = Choice<String>.Named("three", 99)
+    check(Json.encode(named) == "{\"Named\":{\"item\":\"three\",\"count\":2}}")
+    check(Json.encode(Wrapper<Choice<String>>(named)) == "{\"value\":{\"Named\":{\"item\":\"three\",\"count\":2}}}")
+    val tree = Tree.Branch(Node(Tree.Leaf))
+    check(Json.encode(tree) == "{\"Branch\":{\"node\":{\"child\":{\"Leaf\":{}}}}}")
+    println("variants-ok")
+}

@@ -188,14 +188,27 @@ impl Lowerer {
                             self.conformance_target(&declaration, span)
                         }
                         InterfaceDefaultSelection::Obligation(_) => {
-                            self.report_interface_obligation(
-                                &mut reported_obligations,
+                            if let Some(function) = self.derive_missing_encoding(
+                                owner,
                                 &member,
-                                span,
-                                host,
-                                false,
-                            );
-                            None
+                                &all_interfaces,
+                                &candidates,
+                            ) {
+                                candidates
+                                    .push(crate::CallableCandidate::method(function, own_owner));
+                                Some(hir::InterfaceImplementationTarget::Method(
+                                    self.record_method_application(function, own_owner),
+                                ))
+                            } else {
+                                self.report_interface_obligation(
+                                    &mut reported_obligations,
+                                    &member,
+                                    span,
+                                    host,
+                                    false,
+                                );
+                                None
+                            }
                         }
                         InterfaceDefaultSelection::Conflict(defaults) => {
                             let mut key = defaults

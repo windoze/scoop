@@ -1,0 +1,20 @@
+import scoop.json.Json
+import derived.Packet
+import derived.Event
+import derived.Row
+import derived.make
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("derived artifact assertion failed")) }
+}
+
+fun <T : Encodable> encode(value: T): String = Json.encode(value)
+
+fun main() {
+    check(encode(make()) == "{\"payload\":7}")
+    check(encode(Packet<Int>(8, "consumer")) == "{\"payload\":8}")
+    check(encode(Packet<String>("text", 9)) == "{\"payload\":\"text\"}")
+    check(encode(Event<Packet<Int>>.Named(make())) == "{\"Named\":{\"item\":{\"payload\":7}}}")
+    check(encode(Row(10, "ten")) == "{\"id\":10,\"name\":\"ten\"}")
+    println("artifacts-ok")
+}

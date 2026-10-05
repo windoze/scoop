@@ -1,6 +1,7 @@
 use super::*;
 mod abstract_methods;
 mod context;
+mod encoding;
 mod imported;
 mod interfaces;
 mod order;

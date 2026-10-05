@@ -165,3 +165,30 @@ macOS、Linux glibc/musl 各通过 10 个进程、5 份 golden；共有 HIR/MIR 
 
 两端已清理调试增量缓存，保留当前 CLI 和既有 worktree。编码/解码方法合成、核心
 条件组合 codec，以及完整 workspace/文件 fixture 总验收仍在后续批次实施。
+
+## 名义类型的自动编码
+
+struct、enum 和没有 class 基类的普通 final class 可通过显式 `Encodable` conformance
+请求缺失的 `encode`。继承选择先保留合法用户方法、基类方法和 interface default，
+仅在普通 obligation 分支登记合成成员；无关 overload 不阻止合成，错误 override
+与 default 冲突仍走原诊断。core 接口从普通绑定取得 typed identity，同名用户接口
+不触发派生。
+
+合成成员使用原源码 owner、完整签名、参数接口与普通方法身份；全部签名建立后，
+按共有 HIR 的字段、variant、logical property 和注解生成普通块，复用原 body lowering。
+Export HIR 保留完整 body/template，跨 Cone 不重新派生。没有新增 IR 执行指令、
+wire 版本或 runtime 入口。公开存储 property 的生成 accessor 与用户自定义 accessor
+按已有来源类别区分；computed property 不参与，Transient 排除存储字段，SerialName
+按实际 core annotation identity 更改 wire 名称。重复名称与缺失字段能力在定义处报错。
+
+新增实现按登记、字段/property、普通语法块和 variant 划分，最长文件 167 行。
+八项语义测试及全部 1346 项 HIR lowering 测试通过，两端 workspace lint 通过。
+新增 23 个正式 fixture：19 项精确诊断，以及 record、enum、实现选择和独立产物组合。
+覆盖泛型 bound、接口调用、四种 variant、递归 class/enum、default 不被编码重复求值、
+删除 core/JSON/provider/consumer 源码后的链接，以及普通和 moving GC 运行。
+macOS、Linux glibc/musl 各通过 41 个进程、10 份 golden；七份共有 HIR/MIR 字节一致，
+三平台 LIR 分别保存。macOS 的全部 86 个 M29 fixture 回归通过，共 156 个进程、
+33 份 golden。已保存报告并清理两端四个完成的测试工作目录，回收约 956 MiB。
+
+本批完成名义类型的自动 encode；自动 decode、核心容器/tuple 的条件组合以及
+完整 workspace/文件 fixture 总验收继续按后续批次实施。

@@ -325,6 +325,7 @@ impl Lowerer {
             generic_method_application_by_key: HashMap::new(),
             derived_equality_applications: Arena::new(),
             derived_equality_application_by_type: HashMap::new(),
+            derived_encoding_methods: Vec::new(),
             top_level: Vec::new(),
             unit,
             integer_types,
