@@ -119,3 +119,35 @@ callback token 在注册时保存不可变 binding-root handle；空快照使用
 保存报告后执行 `cargo clean`：清理前 `du` 显示约 84 GB；Cargo 报告移除
 74328 个文件、89.8 GiB 产物，`target` 目录已删除。清理日志保存为
 `/tmp/scoop-m27-final-cargo-clean.log`。
+
+## 当前主线的三平台复验（2026-10-05）
+
+在 `04e3e2e05` 上重新核对 M27。该提交已包含上述六批实现、GC 生命周期
+修复与 M28 Linux 支持；本次复验没有发现需要修改的 M27 实现。
+macOS 在当前 checkout 执行，Linux 使用 `ssh nuc12` 的 `~/repos/scoop`，
+两端源码均为同一提交。外部 LLVM 分别为 22.1.8 和 22.1.2。
+
+两端重新构建 release 配置的 `scoop`、`scoopc`、`scoop-link`，使用
+`python3 tests/run_fixtures.py --suite tests/fixtures/m27-context` 运行全部
+72 个 M27 fixture。三个目标分别使用全新工作目录，没有更新快照或期望值；
+Linux glibc 和 musl 两批并发执行，耗时仅记录本次运行观测。
+
+| 目标 | 通过 | 执行进程 | stage / plan golden | 耗时 |
+| --- | ---: | ---: | ---: | ---: |
+| `aarch64-apple-darwin` | 72 / 72 | 116 | 48 | 24.84 秒 |
+| `x86_64-unknown-linux-gnu` | 72 / 72 | 116 | 48 | 58.61 秒 |
+| `x86_64-unknown-linux-musl` | 72 / 72 | 116 | 48 | 57.66 秒 |
+
+两个宿主的 `cargo fmt --all -- --check`、
+`cargo clippy --workspace --all-targets` 均通过。底层
+`task_context_radix_and_snapshots_survive_moving_gc` 测试在两个宿主各执行
+一次并通过，覆盖完整 u32 slot 边界、嵌套恢复、fork 与 native-safe 线程根
+的移动更新。公共 fixture runner 的 38 项测试在 macOS 通过。
+本次为 M27 专项复验；完整 workspace 和全量文件 fixture 的既有验收见上文
+及 [M28 验收记录](../milestone28/ACCEPTANCE.md)。
+
+报告与构建、lint、测试日志集中保存在
+`/tmp/scoop-m27-revalidation-04e3e2e05/`，三个报告分别为
+`darwin-report.json`、`gnu-report.json`、`musl-report.json`。
+清理仅针对已结束的构建缓存和本次 fixture 工作目录；保留 release 工具，
+以及本机 `target/m28-darwin` 中带未提交修改的既有 worktree。
