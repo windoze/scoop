@@ -111,3 +111,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - musl 的 managed-callback 强制移动 GC 组合定位到 native helper 的等待错误：主线程只配合一个 GC epoch 就在 native-borrowed 状态阻塞 join，回调的后续收集等待该线程。helper 现在在回调退出前持续经过显式 GC 入口，再 join；不改变 runtime 协议或延长超时。glibc/musl 各两个变体、八个正式进程通过。
 
 - macOS 回归修复两个宿主适配问题：绕过 inkwell 按宿主追加 Mach-O 逗号的 section setter，直接使用目标 profile 的精确 section 名；Darwin OS adapter 显式开启 Darwin 原生声明，兼容设置 POSIX feature macro 的 runtime 测试。Linux codegen 331 项及 M3 上 LLVM 22.1.8 的 codegen 317 项全部通过，两个宿主的 workspace fmt/clippy 通过。远程使用 `~/repos/scoop/target/m28-darwin` 隔离 worktree，主工作区原有改动未覆盖；完整文件 fixture 仍在执行。
+
+- 同一泛型 callable 同时出现在 storage 定义 Cone 和其下游时，导入 storage 的默认 ELF visibility 曾使下游生成 GOT 间接访问，与本地直接访问的机器码不一致。导入 Scoop storage 现复用实际使用声明的 hidden visibility，未使用声明仍不产生额外符号。正式 demanded-initialization 独立/跨 Cone 两个程序已通过；原有 ODR 对象/LIR/ABI/stackmap 指纹一致性检查保持。
