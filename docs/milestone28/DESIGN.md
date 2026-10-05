@@ -247,7 +247,7 @@ LLVM landingpad/LSDA 和 `_Unwind_Exception` 的大小、对齐、exception data
 
 实测还发现一个需要修订的封闭 LSDA 条件：当前 personality 固定要求 type-table encoding 为 `0x9b`，LLVM 的 cleanup-only 函数正常会输出 `0xff`（省略 type table）。M28 在 spec、对象 decoder 和 runtime decoder 中加入这种实际形态：没有 type table 时只接受对应 cleanup/no-action 记录，不能读不存在的 type-table offset；catch-all 继续按现有 `0x9b` 规则。范围只覆盖 Scoop 使用的 catch/cleanup，不扩展为任意 C++ type/filter decoder。
 
-Linux CRT 可能带有普通的 weak `__cxa_finalize` 引用，探针在 glibc/musl PIE 中均观察到。它不表示 Scoop 使用 C++ 异常 ABI。生成的 Scoop/runtime 对象继续不导入 C++ EH 接口；最终产物检查区分 CRT 正常引用与 `__cxa_throw`、`__cxa_begin_catch`、C++ personality 等异常依赖，不能把 Darwin 的全前缀禁止规则机械套到 Linux CRT。
+Linux CRT 可能带有普通的 weak `__cxa_finalize` 引用，探针在 glibc/musl PIE 中均观察到；glibc 的 C `atexit` 实现还会引入 `__cxa_atexit`。这两个退出清理入口不表示 Scoop 使用 C++ 异常 ABI。生成的 Scoop/runtime 对象继续不导入 C++ EH 接口；最终产物检查区分 CRT 正常引用与 `__cxa_throw`、`__cxa_begin_catch`、C++ personality 等异常依赖，不能把 Darwin 的全前缀禁止规则机械套到 Linux CRT。
 
 原生库查找延续显式 search roots 和歧义诊断：Linux 查找 `L.o`、`libL.a`、动态模式下的 `libL.so`；framework/TBD 是 Darwin 专属。用户输入与系统 libc 的 linker script 分开处理：CRT/libc 开发包的标准脚本交由所选 compiler/linker 处理，不为 Scoop 实现通用 linker-script 解释器。
 

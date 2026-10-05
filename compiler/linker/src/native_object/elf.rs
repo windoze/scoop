@@ -35,7 +35,8 @@ pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjec
     }
     for symbol in file.symbols().filter(|symbol| symbol.is_global()) {
         let name = symbol.name().map_err(error)?.to_owned();
-        if (name.starts_with("__cxa_") && name != "__cxa_finalize")
+        if (name.starts_with("__cxa_")
+            && !matches!(name.as_ref(), "__cxa_finalize" | "__cxa_atexit"))
             || name.starts_with("__gxx_personality")
             || name.starts_with("__gcc_personality")
             || name.starts_with("_ZSt9terminate")

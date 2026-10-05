@@ -37,7 +37,13 @@ fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() 
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("main.c");
         let object = directory.path().join("main.o");
-        std::fs::write(&source, probe::SOURCE).unwrap();
+        let source_text = format!(
+            "#include <stdlib.h>\n#define main unwind_main\n{}\n#undef main\n\
+             static void cleanup(void) {{ puts(\"C atexit passed\"); }}\n\
+             int main(void) {{ if (atexit(cleanup)) return 1; return unwind_main(); }}\n",
+            probe::SOURCE,
+        );
+        std::fs::write(&source, source_text).unwrap();
         probe::run(
             linux
                 .startup
@@ -60,7 +66,10 @@ fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() 
         let bytes = std::fs::read(&binary).unwrap();
         linux.check_image(&bytes).unwrap();
         let output = probe::run(&mut Command::new(binary)).unwrap();
-        assert_eq!(output.stdout, b"LLVM unwinder and target libc passed\n");
+        assert_eq!(
+            output.stdout,
+            b"LLVM unwinder and target libc passed\nC atexit passed\n"
+        );
         assert_eq!(
             profile.fingerprint().unwrap(),
             target

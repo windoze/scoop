@@ -88,7 +88,7 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
     {
         let name = symbol.name().map_err(error)?;
         if name.starts_with("_Unwind_")
-            || (name.starts_with("__cxa_") && name != "__cxa_finalize")
+            || (name.starts_with("__cxa_") && !matches!(name, "__cxa_finalize" | "__cxa_atexit"))
             || name.starts_with("__gxx_personality")
         {
             return Err(error(format!(

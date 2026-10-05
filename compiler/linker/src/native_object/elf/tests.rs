@@ -76,6 +76,27 @@ fn elf_native_inputs_reject_initializers_common_storage_and_cpp_eh() {
     }
 }
 
+#[test]
+fn elf_native_inputs_accept_libc_exit_cleanup_without_accepting_cpp_eh() {
+    let bytes = compile(
+        "extern int __cxa_atexit(void (*)(void *), void *, void *);\n\
+         extern void __cxa_finalize(void *);\n\
+         static void cleanup(void *p) { (void)p; }\n\
+         int register_cleanup(void) { return __cxa_atexit(cleanup, 0, 0); }\n\
+         void finish_cleanup(void) { __cxa_finalize(0); }\n",
+        "c",
+        &[],
+    );
+    for target in [
+        TargetProfileId::LinuxX86_64Gnu,
+        TargetProfileId::LinuxX86_64Musl,
+    ] {
+        let info = read(&bytes, target).unwrap();
+        assert!(info.requirements.contains("__cxa_atexit"));
+        assert!(info.requirements.contains("__cxa_finalize"));
+    }
+}
+
 const RELOCATIONS: &str = ".text\n.globl function\n.type function,@function\n\
 function: call foreign\nret\n.size function,.-function\n\
 .section .debug_test,\"\",@progbits\n.long foreign\n\

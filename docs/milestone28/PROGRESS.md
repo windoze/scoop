@@ -115,3 +115,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 同一泛型 callable 同时出现在 storage 定义 Cone 和其下游时，导入 storage 的默认 ELF visibility 曾使下游生成 GOT 间接访问，与本地直接访问的机器码不一致。导入 Scoop storage 现复用实际使用声明的 hidden visibility，未使用声明仍不产生额外符号。正式 demanded-initialization 独立/跨 Cone 两个程序已通过；原有 ODR 对象/LIR/ABI/stackmap 指纹一致性检查保持。
 
 - 完整诊断的 JSON 期望文件可按 `${target}` 选择，仍在发现阶段加载并检查引用，且不参与 snapshot 自动更新；用于精确比较不同目标的 LIR fingerprint 与原生格式诊断。runner 公共规则 37 项和 Ruff 0.16.10 通过。
+
+- ELF 原生输入与最终 image 区分 C++ EH 和 libc 退出清理，允许 `__cxa_finalize`/`__cxa_atexit`，继续拒绝 C++ throw/personality。真实 C `atexit` handler 在 glibc PIE、musl 静态与 musl PIE 的 LLVM unwinder 测试中执行；linker 19 项、toolchain 15 项及 workspace fmt/clippy 通过。
