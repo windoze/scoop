@@ -14,6 +14,8 @@ mod archive;
 mod objects;
 mod plan;
 pub(crate) use objects::{NativeArchiveMemberId, NativeObjectId};
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod elf_tests;
 pub(crate) mod locate;
 mod slice;
 

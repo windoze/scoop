@@ -89,14 +89,9 @@ pub(crate) fn read(
             NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
         }
         NativeFileKind::Object => {
-            let index = NativeObjectIndex::read(
+            let index = NativeObjectIndex::read_with_toolchain(
                 &bytes[slice.clone()],
-                profile
-                    .startup_toolchain()
-                    .profile()
-                    .contract()
-                    .deployment()
-                    .map_err(error)?,
+                profile.startup_toolchain().profile(),
             )?;
             NativeContent::Object(index)
         }

@@ -4,10 +4,17 @@ use object::read::elf::SectionHeader;
 use scoop_slib::ValidatedElfObject;
 
 pub(super) fn read(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjectInfo, LinkError> {
+    let index = index(bytes, target)?;
+    index.check_selected(bytes)?;
+    Ok(index.info)
+}
+
+pub(super) fn index(bytes: &[u8], target: TargetProfileId) -> Result<NativeObjectIndex, LinkError> {
     let object = ValidatedElfObject::read(bytes, target).map_err(error)?;
     let file = object.file();
     let mut definitions = BTreeMap::new();
     let mut requirements = BTreeSet::new();
+    let mut rejection = None;
     for section in file.sections() {
         let name = section.name().map_err(error)?;
         let kind = section.elf_section_header().sh_type(file.endian());
@@ -21,9 +28,9 @@ pub(super) fn read(bytes: &[u8], target: TargetProfileId) -> Result<NativeObject
                     & u64::from(elf::SHF_EXECINSTR)
                     != 0)
         {
-            return Err(error(format!(
+            rejection.get_or_insert_with(|| format!(
                 "native object contains unsupported initialization, LTO or executable-stack section {name}"
-            )));
+            ));
         }
     }
     for symbol in file.symbols().filter(|symbol| symbol.is_global()) {
@@ -33,14 +40,23 @@ pub(super) fn read(bytes: &[u8], target: TargetProfileId) -> Result<NativeObject
             || name.starts_with("__gcc_personality")
             || name.starts_with("_ZSt9terminate")
         {
-            return Err(error(format!(
-                "native object has forbidden C++ EH dependency {name}"
-            )));
+            rejection.get_or_insert_with(|| {
+                format!("native object has forbidden C++ EH dependency {name}")
+            });
         }
         if symbol.is_common() {
-            return Err(error(format!(
-                "native common/tentative definition {name} requires actual storage"
-            )));
+            rejection.get_or_insert_with(|| {
+                format!("native common/tentative definition {name} requires actual storage")
+            });
+            definitions.insert(
+                name,
+                NativeSymbolDefinition {
+                    kind: NativeSymbolKind::Data,
+                    read_only: false,
+                    weak: symbol.is_weak(),
+                },
+            );
+            continue;
         }
         if symbol.is_undefined() {
             requirements.insert(name);
@@ -85,9 +101,12 @@ pub(super) fn read(bytes: &[u8], target: TargetProfileId) -> Result<NativeObject
             return Err(error(format!("duplicate native definition {name}")));
         }
     }
-    Ok(NativeObjectInfo {
-        definitions,
-        requirements,
+    Ok(NativeObjectIndex {
+        info: NativeObjectInfo {
+            definitions,
+            requirements,
+        },
+        selection: NativeSelectionChecks::Elf { rejection },
     })
 }
 

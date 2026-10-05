@@ -56,16 +56,9 @@ pub(super) fn read(
                 "native archive member {ordinal} ({name}) is a nested archive"
             )));
         }
-        let index = NativeObjectIndex::read(
-            payload,
-            profile
-                .startup_toolchain()
-                .profile()
-                .contract()
-                .deployment()
-                .map_err(error)?,
-        )
-        .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
+        let index =
+            NativeObjectIndex::read_with_toolchain(payload, profile.startup_toolchain().profile())
+                .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
         let start = slice
             .start
             .checked_add(usize::try_from(offset).map_err(error)?)

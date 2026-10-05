@@ -95,7 +95,9 @@ pub(super) fn include(
             .push(origin.clone());
     }
     inputs.native.selected.insert(id, reason.into());
-    inputs.native.references.insert(id, references);
+    if let Some(references) = references {
+        inputs.native.references.insert(id, references);
+    }
     Ok(())
 }
 

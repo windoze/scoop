@@ -775,6 +775,8 @@ ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol 
 
 program-link 的 startup C 生成共用同一 image 数组、root 引用和 `main → scoop_rt_run_program` 调用，原生名称遵守所选 target 的 symbol normalization。Darwin 数组位于 `__DATA_CONST,__const`，Linux 数组位于 `.data.rel.ro.scoop.startup`，由最终链接脚本落实只读权限。启动对象按对应对象格式检查唯一的 `main` 定义和计划中的 image/root/runtime 引用；ELF assembler 保留的隐式 GOT-base 符号由链接器提供，不作为额外源码依赖。
 
+ordinary native object 与 archive member 索引按已选 C toolchain 的对象格式读取。ELF 格式/extent/group/relocation 边界在索引时验证；common storage、隐式 constructor/destructor、LTO、可执行栈及 C++ EH 限制在成员真正选入时诊断，未被引用的 archive member 不引入这些执行行为。已索引的 ELF 成员选入时复用检查结果，不套用 Mach-O 的指令引用重建。
+
 M28 的 CLI 将 `--cc`、`--native-sysroot` 作为 C 工具链输入；`--sysroot` 仍定位 Scoop core。`scoop build/run/link` 与 `scoop-link` 的 `--unwind-prefix`、`--link-mode static|dynamic` 只用于 runtime/最终 executable，不使 library `.slib` 构建依赖 unwind archive。runtime headers 与最终 archive 使用同一 target prefix。Linux 默认缓存遵守绝对 `XDG_CACHE_HOME`，其次为 `$HOME/.cache/scoop`；Darwin 保持 `$HOME/Library/Caches/Scoop`，显式 cache 配置优先。
 
 父子 machine protocol 升为 3。target request 是三个必需字段的 product：field 1 为 canonical triple，field 2 为 C driver，field 3 为 native sysroot；后两项以零项/单项数组表示未指定/`HostPathCarrier`。这些 host locator 不进入 artifact identity。父进程向子进程传递已解析的 Linux driver/native sysroot，执行环境只恢复该 invocation 保存的 `PATH`、`REALGCC`，以及本次 scratch 目录的 `TMPDIR`；不重新从清空的环境猜测工具链，也不继承任意 caller 环境。子进程按明确 locator 查询实际工具合同，沿已有 C toolchain compatibility 检查消费产物。Darwin 继续由 Xcode 选择 driver/SDK，不伪造 Linux 参数。

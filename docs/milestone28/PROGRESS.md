@@ -77,3 +77,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 新增 `m28-cli-library-toolchain` 正式文件 fixture，在 glibc 和 musl 各完整通过一次冷构建及一次缓存构建：从 core 源码编译，产生 String 与实际 C bridge 的 library，使用不存在的 unwind prefix 仍成功，第二次无子编译器且产物字节相同。fixture runner 已支持两个 Linux target 并只发现适用用例所需工具。24 项协议、7 项子进程、23 项缓存测试及 34 项 Python 公共规则测试通过，workspace fmt/clippy 与 Ruff 0.16.10 通过；缺失 C compiler 和 glibc static 请求返回明确工具链错误。清理过期 codegen 中间产物释放约 109 MiB。正式 ELF executable 仍在下一批接入，不把 library 验收计作运行闭环。
 
 - 共有 startup C 已按平台选择不可变 image array section、`main`/runtime 原生名称与对象 reader。新增测试在 glibc PIE、musl static、musl PIE 中编译并实际执行 startup，C harness 检查 image 顺序、数量及 root 指针，确认 ELF 输入数组的 section/extent；workspace fmt/clippy 通过。正式 `scoop build` 在两 libc 已完成程序 `.slib` 与 runtime 对象构建，目前停在 program-link 仍采用 Darwin 系统 provider 的入口；startup harness 不代表完整 runtime/GC 程序验收。
+
+- ordinary native `.o`/`.a` 输入沿实际 C profile 选择 ELF/Mach-O 索引。ELF 选入时复用已验证格式与 relocation facts，archive 中未被选中的 constructor/common/C++ EH 成员不提前触发执行限制；Mach-O 保留原有最终引用检查。两 libc 的真实 GCC/GNU ar 测试通过，覆盖直接对象、普通 archive、constructor 成员选入拒绝、输入路径替换后的既有字节快照及 thin archive 拒绝。连同既有 ELF 损坏表与 startup 共 6 项 linker 测试、workspace fmt/clippy 通过。ELF DSO/系统 namespace 与最终 executable 仍待接通。
