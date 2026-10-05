@@ -39,7 +39,8 @@ impl Lowerer {
                 continue;
             }
             if let Some(block) = block {
-                let body = self.lower_synthesized_body(function, &ast::FunctionBody::Block(block));
+                let body =
+                    self.lower_synthesized_body(function, |lowerer| lowerer.lower_block(&block));
                 self.functions[function].kind = FunctionKind::User(body);
             }
         }
