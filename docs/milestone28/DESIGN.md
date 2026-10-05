@@ -33,9 +33,11 @@
 
 本文件描述 M28 的目标行为。各功能先按第 10 节修订对应规范，再修改实现；实施记录区分已验证能力与尚待完成的工作。
 
-## 2. 当前实现的差距
+## 2. 实施起点的差距
 
-| 位置 | 当前固定假设 | M28 所需变化 |
+下表记录 M27 结束时的移植起点；M28 当前完成情况见实施记录。
+
+| 位置 | M27 固定假设 | M28 所需变化 |
 | --- | --- | --- |
 | `compiler/toolchain/src/registry.rs` | 唯一 Darwin/AArch64，host 仅检查 arch/OS | 增加两个 Linux target；明确 libc，组成完整的各阶段配置 |
 | `compiler/lir/src/target*.rs`、`target/contract.rs` | 唯一布局、Mach-O 名字前缀 | 增加 amd64 布局和 ELF 符号规则，保留完整 typed target |

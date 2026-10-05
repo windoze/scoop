@@ -1,8 +1,19 @@
 # M28 实施记录
 
-M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设计](DESIGN.md)，本机编译探针见 [调研](INVESTIGATION.md)。
+M28 功能实现和 fixture 平台迁移已完成，正在进行最终三平台验收，尚未宣告里程碑完成。目标与分批顺序见 [设计](DESIGN.md)，本机编译探针见 [调研](INVESTIGATION.md)，复现命令见 [构建说明](BUILDING.md)。
 
-## 当前工作
+## 当前能力与验收状态
+
+- 正式 CLI 支持 glibc amd64 动态 PIE、musl amd64 默认静态程序和显式动态 PIE；包括 core/库产物、独立链接、原生对象/归档/DSO、异常、精确移动 GC、callback、协程与 Context。
+- ELF/Mach-O、OS/VM、架构帧与 libc 工具链分别处理实际差异。glibc/musl 共用 Linux OS、ELF image 和 amd64 runtime；后续 Linux arm64 可复用前三者中的 OS/ELF 部分及共有链接编排，只补 AArch64 ABI/机器码/relocation、入口和目标工具链输入。
+- 两种 libc 的 LLVM libunwind 22.1.2 构建、musl PIE 的索引未命中兼容补丁、三种链接模式的真实异常展开均已验证。
+- 所有适用 Linux fixture 已在迁移批次中运行通过：glibc 2,295 个，musl 2,297 个。最终不更新快照的 `--all` 正在执行；其中 7 份历史 glibc 产物指纹已确认受 imported-storage visibility 修复影响，更新后普通复验全部通过。分批通过不计作最终完成。
+- Linux workspace 首轮 5,317 项通过、1 项假编译器 stdin 读取竞态失败；修复测试 helper 后，所属 `scoop` 的 96 项全部通过。macOS/AArch64 workspace 的 5,290 项全部通过。两个宿主的 fmt/clippy、Python 公共规则 38 项及 Ruff 0.16.10 均已通过。
+- macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 正在执行。
+
+## 分批实施记录
+
+以下按实施顺序保留各批次的能力边界。“尚待接入”等描述指该批次完成时的状态，当前状态以上节及最终验收结果为准。
 
 - 编译器 LLVM 绑定改为优先使用共享库，解决本机 LLVM 22.1.2 安装缺少静态 Polly 时不能链接的问题；保留 llvm-sys 的静态回退。
 - 已提供并运行 LLVM libunwind 两套本地构建脚本，headers/archive 安装到按 target 隔离的私有 prefix；复现步骤见 [构建说明](BUILDING.md)。
@@ -127,3 +138,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 既有 Scoop ABI native companion 已增加 amd64 汇编入口：从 RDI 取得 sret，在 RAX 返回同一地址，按真实栈位置取得 byval 与溢出标量参数，再映射到普通 C storage helper。Darwin 分支保持原指令。glibc/musl 的 extern-Scoop、native boundary 与原生 archive 程序经过普通及移动 GC 运行；未选中归档成员中的 `.linker_option` 仅在 Darwin 发射。
 
 - eager 初始化失败及依赖初始化失败顺序的 fixture 显式调用 C `fflush(NULL)` 保留 trace，再验证 abort；不再依赖 Darwin 的 libc 缓冲清理行为，也不修改 runtime 的异常终止语义。两 libc 与真实 Darwin 的 normal/moving 变体均通过，保留 stdout、完整异常诊断及 SIGABRT 断言。
+
+- 最终 glibc 全量运行发现 7 份产物指纹仍来自 imported-storage visibility 修复前。逐个比较旧缓存与当前 ELF，确认 storage 从默认 visibility 的 GOT 访问改为 hidden 的直接访问；重复构建的归档逐字节相同。IR、链接及运行断言保持，仅更新相应 `program` 指纹；7 个 fixture 的普通复验全部通过，共 44 个进程、86 份快照。
