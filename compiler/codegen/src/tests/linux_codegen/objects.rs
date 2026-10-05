@@ -65,6 +65,14 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                 scoop_slib::verify_object_stackmap_section_v3(&bytes, envelope.sections())
                     .expect("shared ELF stackmap section and function relocations");
                 let file = object::File::parse(bytes.as_slice()).unwrap();
+                for symbol in file.symbols() {
+                    if tls_symbols
+                        .iter()
+                        .any(|name| symbol.name() == Ok(name.as_str()))
+                    {
+                        assert_eq!(symbol.kind(), SymbolKind::Tls, "{}", symbol.name().unwrap());
+                    }
+                }
                 for symbol in file
                     .symbols()
                     .filter(|symbol| symbol.kind() == SymbolKind::Tls && symbol.size() == 8)

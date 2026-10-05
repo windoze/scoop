@@ -93,3 +93,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 已构建优化版 Rust 工具用于后续批量验收。当前 `tests/fixtures/m28-linux` 整组回归：glibc 3 个适用 case、4 个 variant、22 个进程通过，musl 4 个 case、5 个 variant、26 个进程通过；glibc 的 musl PIE case 单列为不适用，未计作通过。其余既有语言/FFI/并发组合的 Linux 覆盖以及 macOS/AArch64 回归仍需继续，M28 尚未完成。
 
 - workspace 回归发现 `scoop` 的依赖发现、图排序及 immutable snapshot 测试仍固定调用 Darwin 工具链。相关请求现使用宿主 target，合成 artifact 显式携带测试所需 target；Darwin 格式与缓存固定向量继续使用原 profile。`scoop` 全部 96 项单元测试通过，workspace fmt/clippy 通过；别名测试继续覆盖宿主 canonical/alias 的同一规范化。完整 workspace 的其余 crate 回归仍在进行。
+
+- 既有 raw globals/TLS fixture 在 GNU ld 暴露 unused hidden TLS 声明被 LLVM 发成 `STT_NOTYPE` 的问题。ELF 发射现只将实际使用的外部声明设为 hidden，未使用声明保持默认 visibility，不再生成这类伪 undefined symbol；真实 TLS 定义和引用保持 `STT_TLS`。两 libc 的对象测试增加符号类型断言，codegen 全部 330 项测试及 workspace fmt/clippy 通过。glibc 的 raw globals、跨 Cone 多线程 TLS/callback 与 Scoop ABI 大值/moving GC 三个正式 fixture 已通过，共 6 个 variant、28 个进程。fixture 的全面平台参数和快照迁移仍在进行，尚未计作整体完成。

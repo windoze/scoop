@@ -7,8 +7,8 @@ use inkwell::GlobalVisibility;
 use inkwell::module::{Linkage, Module};
 use inkwell::values::{AsValueRef, GlobalValue};
 use llvm_sys::core::{
-    LLVMAliasGetAliasee, LLVMGetConstOpcode, LLVMGetNamedGlobalAlias, LLVMGetOperand,
-    LLVMIsAConstantExpr, LLVMIsAGlobalAlias, LLVMIsAGlobalObject,
+    LLVMAliasGetAliasee, LLVMGetConstOpcode, LLVMGetFirstUse, LLVMGetNamedGlobalAlias,
+    LLVMGetOperand, LLVMIsAConstantExpr, LLVMIsAGlobalAlias, LLVMIsAGlobalObject,
 };
 use scoop_lir::{LinkageClass, ObjectSymbolSurfaceV1};
 
@@ -31,6 +31,14 @@ pub(crate) fn prepare(
             let Some(value) = global(llvm, name.as_str())? else {
                 continue;
             };
+            // An unused hidden declaration still emits `.hidden name` in ELF.
+            // Without an actual TLS reference LLVM leaves that symbol NOTYPE,
+            // which conflicts with STT_TLS in the member defining the storage.
+            if value.is_declaration() && unsafe { LLVMGetFirstUse(value.as_value_ref()) }.is_null()
+            {
+                value.set_visibility(GlobalVisibility::Default);
+                continue;
+            }
             value.set_visibility(GlobalVisibility::Hidden);
             if value.is_declaration() {
                 continue;

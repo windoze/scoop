@@ -765,6 +765,9 @@ generated-C 及 runtime requirement 的 relocation 分类使用目标架构的�
 
 共有对象消费使用格式无关的 section/symbol 事实：section ordinal 为非零 32-bit 原生 section 索引，Mach-O 的 nlist ordinal 在读取边界扩宽；ELF 的长 section 名称、符号尺寸/TLS 类型、binding/visibility 与 COMDAT 信息保留实际值。文件头和原始 relocation 使用封闭 Mach-O/ELF 分支，不能给 ELF 填入伪造的 Darwin deployment、nlist flags 或 ARM64 relocation。metadata 中的绝对 64-bit 指针共用符号加 addend 的语义；ELF RELA 的 signed addend 与指令字段原始字节分别保存。
 
+ELF 对象中的 TLS 定义和实际引用必须保持 `STT_TLS`。按 member 发射时，未使用的 LLVM 外部声明不应仅因 hidden visibility 产生无 relocation 的未定义符号；尤其不能把未使用的 TLS 声明变成 `STT_NOTYPE`，导致同一存储在不同成员中出现 TLS/non-TLS 冲突。实际使用的 Scoop 声明及定义继续保留 hidden visibility。此规则不改变源码存储身份或跨 Cone 访问器。
+
+
 atom range 的持久 section ordinal 同样扩宽为非零 u32；CBOR 数值编码保持，Darwin 既有 bytes 不变。section role 新增 tag 13 `ObjectMetadata`，表示符号/字符串/重定位表、COMDAT 表、调试信息与工具链 note，不占用 Scoop definition atom。GCC 的 `.note.gnu.property` 保留给系统链接器处理。LLVM 的 `.data.rel.ro.scoop.*` 与 `.llvm_stackmaps` 在对象物化时设置 `SHF_WRITE`，允许 PIE loader 重定位；最终脚本分别保证动态产物 RELRO 与静态产物只读。
 
 ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol table 而未被引用的 undefined 条目（例如 GCC TLS 代码附带的 `_GLOBAL_OFFSET_TABLE_`）不产生链接需求。Mach-O 既有 producer profile 的 undefined 集合约束保持。
