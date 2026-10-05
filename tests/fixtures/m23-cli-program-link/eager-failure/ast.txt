@@ -1,8 +1,13 @@
 SourceFile
   RootPackage
+    @Extern(name = "fflush")
+  private fun flush(stream: Ptr<Int8>?): Int
   private fun trace(value: Long)
     Call println
       Var value
+    @Unsafe block
+      Call flush
+        Var None
   private fun fail(): Int
     @Unsafe block
       Call trace

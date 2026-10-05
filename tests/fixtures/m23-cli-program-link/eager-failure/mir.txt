@@ -1,9 +1,13 @@
 Module
   global0 first: Int managed initial=zeroed-for-runtime-unit
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 top-level:first eager global0 initializer=@fn3 ensure=@fn4 failure=1 deps=[]
+  init0 top-level:first eager global0 initializer=@fn4 ensure=@fn5 failure=1 deps=[]
+  extern ef0 flush @fflush(Option<Ptr<Int8>>) -> Int <abi=c no-gc>
   enum Option<String>
     Some(_0: String)
+    None()
+  enum Option<Ptr<Int8>>
+    Some(_0: Ptr<Int8>)
     None()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
@@ -15,7 +19,15 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun trace @fn0(value: Long) -> Unit
+  fun flush @fn0(arg0: Option<Ptr<Int8>>) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @fflush direct
+        Type Option<Ptr<Int8>>
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun trace @fn1(value: Long) -> Unit
     bb0 entry
       val $dependency.argument.0: Long
         Type Long
@@ -23,11 +35,20 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type Long
         Local $dependency.parameter.value
+      val $argument.0: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        VariantConstruct Option<Ptr<Int8>> v1
+      val $parameter.stream: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local $argument.0
+      call $call.1: Int = extern0 @fflush direct
+        Type Option<Ptr<Int8>>
+        Local $parameter.stream
       return
-  fun fail @fn1() -> Int
+  fun fail @fn2() -> Int
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -35,7 +56,7 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Long
         Local $parameter.value
       val $default.local.0: String
@@ -60,7 +81,7 @@ Module
       throw
         Type IllegalStateException
         Local $new.1
-  fun main @fn2() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
       val $argument.0: Long
         Type Long
@@ -68,18 +89,18 @@ Module
       val $parameter.value: Long
         Type Long
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Long
         Local $parameter.value
       return
-  fun $init$body$0 @fn3() -> Unit
+  fun $init$body$0 @fn4() -> Unit
     bb0 entry
-      call $call.1: Int = @fn1 direct
+      call $call.1: Int = @fn2 direct
       global_assign first
         Type Int
         Local $call.1
       return
-  fun $init$ensure$0 @fn4() -> Unit
+  fun $init$ensure$0 @fn5() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -124,7 +145,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn3 direct
+      call @fn4 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:first
@@ -177,13 +198,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$first @fn5() -> Int
+  fun $get$first @fn6() -> Int
     bb0 entry
-      call @fn4 direct
+      call @fn5 direct
       return
         Type Int
         GlobalRead first
-  fun println @fn6(value: Long) -> Unit
+  fun println @fn7(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -207,7 +228,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  instance mi0 function=@fn6 <- println
+  instance mi0 function=@fn7 <- println
   str @str0 "illegal state"
   str @str1 "\n"
-  output executable @fn2
+  output executable @fn3

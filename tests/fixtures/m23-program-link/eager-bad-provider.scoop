@@ -1,5 +1,12 @@
 package startup.bad
-private fun trace(value: Long) { println(value) }
+@Extern(name = "fflush")
+private fun flush(stream: Ptr<Int8>?): Int
+
+private fun trace(value: Long) {
+    println(value)
+    // Preserve the initialization trace when the process aborts.
+    @Unsafe { flush(None) }
+}
 private fun initialize(): Long {
     @Unsafe { trace(1L) }
     throw IllegalStateException()
