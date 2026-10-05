@@ -85,11 +85,14 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
                     ..
                 }
             );
-            value.set_section(Some(if zeroed {
-                self.profile.zero_fill_storage_section()
-            } else {
-                self.profile.writable_storage_section()
-            }));
+            crate::metadata_sections::set_section(
+                value,
+                if zeroed {
+                    self.profile.zero_fill_storage_section()
+                } else {
+                    self.profile.writable_storage_section()
+                },
+            );
         }
         if matches!(global.init, GlobalInit::RawStorage { .. }) {
             let definition = self

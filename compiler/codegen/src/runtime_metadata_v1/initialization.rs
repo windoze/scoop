@@ -260,7 +260,7 @@ fn emit_registration<'ctx, D>(
     // The mutable coordinator cell is also a primary definition atom. Keep
     // its zero initializer file-backed so object verification and definition
     // fingerprinting observe canonical bytes rather than a virtual BSS range.
-    cell.set_section(Some(profile.writable_storage_section()));
+    crate::metadata_sections::set_section(cell, profile.writable_storage_section());
     let storage_registration = declare_global(
         llvm,
         plan.storage().registration_symbol(),
@@ -282,7 +282,7 @@ fn emit_registration<'ctx, D>(
     diagnostic.set_linkage(Linkage::Private);
     diagnostic.set_constant(true);
     diagnostic.set_initializer(&diagnostic_initializer);
-    diagnostic.set_section(Some(profile.c_string_section()));
+    crate::metadata_sections::set_section(diagnostic, profile.c_string_section());
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();

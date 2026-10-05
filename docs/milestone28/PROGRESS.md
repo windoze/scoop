@@ -109,3 +109,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 只含静态标量初值的 ELF 程序暴露共享空 relocation 哨兵位于 section 前缀的合法排列。只读数据前缀现要求 canonical zero，保留 relocation 来源必须属于 atom、哨兵范围/对齐/非 atom 区域检查；不放宽代码或可写 section。新增两 libc 的零/非零静态标量及非零前缀损坏测试，原有混合 String/ZST/初始化测试继续覆盖组合形态。codegen 331 项和 slib 600 项测试、workspace fmt/clippy 通过。
 
 - musl 的 managed-callback 强制移动 GC 组合定位到 native helper 的等待错误：主线程只配合一个 GC epoch 就在 native-borrowed 状态阻塞 join，回调的后续收集等待该线程。helper 现在在回调退出前持续经过显式 GC 入口，再 join；不改变 runtime 协议或延长超时。glibc/musl 各两个变体、八个正式进程通过。
+
+- macOS 回归修复两个宿主适配问题：绕过 inkwell 按宿主追加 Mach-O 逗号的 section setter，直接使用目标 profile 的精确 section 名；Darwin OS adapter 显式开启 Darwin 原生声明，兼容设置 POSIX feature macro 的 runtime 测试。Linux codegen 331 项及 M3 上 LLVM 22.1.8 的 codegen 317 项全部通过，两个宿主的 workspace fmt/clippy 通过。远程使用 `~/repos/scoop/target/m28-darwin` 隔离 worktree，主工作区原有改动未覆盖；完整文件 fixture 仍在执行。

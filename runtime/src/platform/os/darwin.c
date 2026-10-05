@@ -1,3 +1,6 @@
+#ifndef _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE
+#endif
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
