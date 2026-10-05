@@ -79,3 +79,9 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 共有 startup C 已按平台选择不可变 image array section、`main`/runtime 原生名称与对象 reader。新增测试在 glibc PIE、musl static、musl PIE 中编译并实际执行 startup，C harness 检查 image 顺序、数量及 root 指针，确认 ELF 输入数组的 section/extent；workspace fmt/clippy 通过。正式 `scoop build` 在两 libc 已完成程序 `.slib` 与 runtime 对象构建，目前停在 program-link 仍采用 Darwin 系统 provider 的入口；startup harness 不代表完整 runtime/GC 程序验收。
 
 - ordinary native `.o`/`.a` 输入沿实际 C profile 选择 ELF/Mach-O 索引。ELF 选入时复用已验证格式与 relocation facts，archive 中未被选中的 constructor/common/C++ EH 成员不提前触发执行限制；Mach-O 保留原有最终引用检查。两 libc 的真实 GCC/GNU ar 测试通过，覆盖直接对象、普通 archive、constructor 成员选入拒绝、输入路径替换后的既有字节快照及 thin archive 拒绝。连同既有 ELF 损坏表与 startup 共 6 项 linker 测试、workspace fmt/clippy 通过。ELF DSO/系统 namespace 与最终 executable 仍待接通。
+
+- 正式 program-link 已拆出 Darwin 与 ELF namespace/链接动作，共用对象收集、静态归档选入和原子发布。ELF 系统符号来自所选 libc/LLVM unwind/GCC builtins 的实际定义，默认版本、IFUNC 与 TLS 种类按 ELF 读取；不带 SONAME 的 musl libc 按链接器实际使用的文件名匹配依赖。startup、String alias 和 stackmap 边界采用 ELF 原生符号。最终检查覆盖目标/模式/loader、系统输入与依赖、未定义动态导入、地址身份、只读 metadata、startup image 数组及 stackmap/EH 保留。ODR stackmap 跟随 COMDAT 合并，已验证的同组重复输入只要求保留一份。
+
+- `m28-cli-program` 在 glibc PIE 与 musl 默认静态模式各通过 debug/release 两个变体（各 8 个正式进程）；`m28-cli-program-musl-pie` 通过显式 musl PIE 变体（4 个进程）。包含 class/String 分配、强制移动 GC、异常抛出/捕获、独立 `scoop-link` 重链接及再次运行。更新后的独立 linker 又在三个模式下重链接旧 `.slib`/runtime index 并运行通过；`scoop-link` 无 libLLVM 动态依赖。真实 ELF 检查确认两个 PIE 的目标 loader/EH/RELRO，以及 musl static 为无动态依赖的 ET_EXEC。该闭环不代表 native DSO 和全部功能组合已验收。
+
+- linker 的共有测试 helper 已适配宿主 C toolchain，Mach-O 格式专属测试留在 macOS 执行。Linux linker 测试全量中 14 项通过；最后一项因测试 C 素材中的 Darwin `.linker_option` 失败，限定该指令的平台后单独重跑通过。新增最终 ELF 损坏测试覆盖动态导入、String alias、startup pointer、RELRO、stackmap 与 interpreter；既有跨 Cone、原生对象/符号链接替换和归档按需选入也通过。workspace fmt/clippy 无警告。原生 `.so`、更广的功能组合和最终 macOS/AArch64 回归仍未完成。

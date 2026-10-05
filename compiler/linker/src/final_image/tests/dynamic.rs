@@ -75,7 +75,15 @@ fn actual_native_dynamic_ordinal_version_and_rpath_corruption_are_rejected() {
     };
 
     let mut bytes = original.clone();
-    let rpath = inputs.providers.rpaths.iter().next().unwrap();
+    let rpath = inputs
+        .namespace
+        .darwin()
+        .unwrap()
+        .providers
+        .rpaths
+        .iter()
+        .next()
+        .unwrap();
     let offset = find(&bytes, rpath.as_bytes());
     bytes[offset + rpath.len() - 1] = b'!';
     reject(&bytes, "final RPATH");

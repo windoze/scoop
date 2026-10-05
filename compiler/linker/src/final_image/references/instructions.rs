@@ -38,7 +38,7 @@ pub(super) fn check(
                 .ok_or_else(|| error("branch overflow"))?;
             let addend = signed(encoded & 0x03ff_ffff, 26) << 2;
             match &target {
-                Expected::Symbol(name) if inputs.dynamic.contains_key(name) => {
+                Expected::Symbol(name) if inputs.namespace.darwin()?.bindings.contains_key(name) => {
                     stub(image, target, address, addend)
                 }
                 _ if target.address(image)?.checked_add_signed(addend) == Some(address) => Ok(()),

@@ -6,6 +6,7 @@ impl FinalImage<'_> {
         profile: &ValidatedFinalLinkProfile,
         inputs: &ProgramInputs<'_>,
     ) -> Result<(), LinkError> {
+        let namespace = inputs.namespace.darwin()?;
         let endian = self.file.endian();
         let mut commands = self.file.macho_load_commands().map_err(error)?;
         let mut entry = None;
@@ -90,11 +91,11 @@ impl FinalImage<'_> {
                         .map_err(error)?
                         .ok_or_else(|| error("invalid final library"))?;
                     let name = command.string(endian, library.dylib.name).map_err(error)?;
-                    let provider = inputs
+                    let provider = namespace
                         .providers
                         .stubs
                         .keys()
-                        .filter_map(|id| inputs.providers.providers.get(id))
+                        .filter_map(|id| namespace.providers.providers.get(id))
                         .find(|provider| provider.install_name.as_bytes() == name)
                         .ok_or_else(|| {
                             error(format!(
@@ -123,7 +124,8 @@ impl FinalImage<'_> {
                         std::str::from_utf8(command.string(endian, path.path).map_err(error)?)
                             .map_err(error)?
                             .to_owned();
-                    if !inputs.providers.rpaths.contains(&value) || !rpaths.insert(value.clone()) {
+                    if !namespace.providers.rpaths.contains(&value) || !rpaths.insert(value.clone())
+                    {
                         return Err(error(format!(
                             "unexpected or duplicate final RPATH {value}"
                         )));
@@ -171,8 +173,8 @@ impl FinalImage<'_> {
         if build.platform.get(endian) != macho::PLATFORM_MACOS
             || build.minos.get(endian) != expected.minimum_os().packed()
             || build.sdk.get(endian) != expected.sdk().packed()
-            || libraries != inputs.providers.stubs.keys().copied().collect()
-            || rpaths != inputs.providers.rpaths
+            || libraries != namespace.providers.stubs.keys().copied().collect()
+            || rpaths != namespace.providers.rpaths
             || self.file.macho_header().flags.get(endian) & macho::MH_TWOLEVEL == 0
             || interpreters != 1
             || self.file.macho_header().flags.get(endian) & macho::MH_PIE == 0

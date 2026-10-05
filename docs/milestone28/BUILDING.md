@@ -62,8 +62,35 @@ python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-library \
   --target x86_64-unknown-linux-musl --work-dir target/m28-fixtures/musl
 ```
 
-最终 ELF executable 链接和运行的完成情况单独记录在 [实施记录](PROGRESS.md)，
-不能由 `.slib` 构建或 native unwind 探针推断已通过程序验收。
+## ELF 程序与独立链接
+
+准备两套 unwind prefix 后，可直接构建本阶段的分配、移动 GC 与异常程序：
+
+```sh
+target/debug/scoop build tests/fixtures/m28-linux/cli-program/program \
+  --target x86_64-unknown-linux-gnu -o target/program-gnu
+target/debug/scoop build tests/fixtures/m28-linux/cli-program/program \
+  --target x86_64-unknown-linux-musl -o target/program-musl
+target/debug/scoop build tests/fixtures/m28-linux/cli-program/program \
+  --target x86_64-unknown-linux-musl --link-mode dynamic -o target/program-musl-pie
+SCOOP_GC_STRESS_MOVE=1 target/program-gnu
+SCOOP_GC_STRESS_MOVE=1 target/program-musl
+SCOOP_GC_STRESS_MOVE=1 target/program-musl-pie
+```
+
+gnu 默认是 PIE；musl 默认是无动态依赖的静态 executable，显式 dynamic 模式使用
+musl loader。两种 libc 的 `.slib` 和 runtime index 分开保存，不能交叉消费。
+程序 fixture 包含 debug/release 构建、运行及 `scoop-link` 对既有 `.slib` 和 runtime
+index 的重链接；重链接进程不需要 LLVM 开发环境：
+
+```sh
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-program \
+  --target x86_64-unknown-linux-gnu --work-dir target/m28-program/gnu
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-program \
+  --target x86_64-unknown-linux-musl --work-dir target/m28-program/musl
+```
+
+其余 native DSO、功能组合及 macOS 回归的完成情况见 [实施记录](PROGRESS.md)。
 
 ## 构建目录管理
 

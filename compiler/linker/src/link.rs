@@ -8,6 +8,8 @@ use scoop_wire::{Digest256, Encoder, WireEncode, domain_separated_cbor_hash, sha
 
 use crate::{LinkError, RuntimeObjectSet, error, program::ProgramInputs, startup::StartupObject};
 
+mod darwin;
+mod elf;
 pub(crate) mod map;
 
 #[cfg(test)]
@@ -67,57 +69,27 @@ fn link_inputs(
         write_new(&path, input.bytes())?;
         paths.push(path);
     }
-    let sdk = directory.path().join("sdk");
-    std::fs::create_dir(&sdk).map_err(error)?;
-    let mut stubs = std::collections::BTreeMap::new();
-    for (id, bytes) in &inputs.providers.stubs {
-        let path = directory.path().join(format!("dynamic-{id}.tbd"));
-        write_new(&path, bytes)?;
-        stubs.insert(path, inputs.providers.providers[id].install_name.clone());
-    }
     let candidate = directory.path().join("program");
     let link_map = directory.path().join("program.map");
-    let mut command = profile
-        .command(&sdk, &candidate, &link_map)
-        .map_err(error)?;
-    command
-        .args(&paths)
-        .arg("-alias")
-        .arg(&inputs.string_target)
-        .arg("_scoop_td_String");
-    for path in &inputs.providers.rpaths {
-        command.arg("-rpath").arg(path);
+    match profile {
+        ValidatedFinalLinkProfile::Darwin(_) => darwin::link(
+            profile,
+            inputs,
+            &startup,
+            directory.path(),
+            &paths,
+            &candidate,
+            &link_map,
+        )?,
+        ValidatedFinalLinkProfile::Linux(linux) => elf::link(
+            linux,
+            inputs,
+            directory.path(),
+            &paths,
+            &candidate,
+            &link_map,
+        )?,
     }
-    command.args(stubs.keys());
-    let result = command
-        .scoop_output()
-        .map_err(|err| error(format!("cannot start system linker: {err}")))?;
-    if !result.status.success() {
-        return Err(error(format!(
-            "system linker failed: {}",
-            String::from_utf8_lossy(&result.stderr)
-        )));
-    }
-    let object_origins = inputs
-        .objects
-        .iter()
-        .zip(&paths[1..])
-        .map(|(input, path)| (path.clone(), input.origin))
-        .collect();
-    let map = map::check(
-        &std::fs::read_to_string(link_map).map_err(error)?,
-        &paths,
-        &stubs,
-        &object_origins,
-    )?;
-    map::trace(
-        std::str::from_utf8(&result.stdout).map_err(error)?,
-        &paths,
-        &stubs,
-    )?;
-    let bytes = std::fs::read(&candidate).map_err(error)?;
-    crate::final_image::verify(&bytes, inputs, &startup, profile, &map)
-        .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
@@ -151,13 +123,7 @@ fn link_inputs(
             .files
             .values()
             .map(|file| file.locator.clone())
-            .chain(
-                inputs
-                    .providers
-                    .providers
-                    .values()
-                    .map(|provider| provider.locator.clone()),
-            )
+            .chain(inputs.namespace.input_paths())
             .collect(),
     })
 }
@@ -208,11 +174,11 @@ impl WireEncode for Plan<'_> {
         e.field(7)?;
         e.array(2)?;
         e.text(&self.inputs.string_target)?;
-        e.text("_scoop_td_String")?;
+        e.text(&self.inputs.symbol("scoop_td_String"))?;
         e.field(8)?;
         self.inputs.native.encode(e)?;
         e.field(9)?;
-        self.inputs.providers.encode(&self.inputs.dynamic, e)?;
+        self.inputs.namespace.encode(e)?;
         Ok(())
     }
 }
@@ -234,15 +200,19 @@ fn dump(
         ));
     }
     text.push_str(&format!(
-        "runtime objects={}\nimages={} root={}\nalias _scoop_td_String -> {}\n",
+        "runtime objects={}\nimages={} root={}\nalias {} -> {}\n",
         runtime.objects().len(),
         inputs.images.len(),
         inputs.root,
+        inputs.symbol("scoop_td_String"),
         inputs.string_target
     ));
-    text.push_str("link inputs: startup, cone/member order, runtime/object order, libSystem\n");
+    text.push_str(match &inputs.namespace {
+        crate::namespace::NativeNamespace::Darwin(_) => "link inputs: startup, cone/member order, runtime/object order, libSystem\n",
+        crate::namespace::NativeNamespace::Elf(_) => "link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind\n",
+    });
     text.push_str(&inputs.native.dump());
-    text.push_str(&inputs.providers.dump(&inputs.dynamic));
+    text.push_str(&inputs.namespace.dump());
     text.push_str("startup object references:\n");
     for symbol in &startup.references {
         text.push_str(&format!("  {symbol}\n"));

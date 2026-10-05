@@ -1,15 +1,14 @@
 use super::*;
 use scoop_identity::{NativeExternAbi, NativeExternalContract, NativeLibraryBinding};
-use scoop_toolchain::SystemExportKind;
 
 use crate::native_input::{NativeContent, NativeObjectId};
 use crate::{NativeSymbolDefinition, NativeSymbolKind};
 
 mod contracts;
-mod declarations;
+pub(super) mod declarations;
 mod selection;
 
-struct Declarations<'a> {
+pub(super) struct Declarations<'a> {
     contract: &'a NativeExternalContract,
     origins: Vec<String>,
     difference: Option<String>,
@@ -17,15 +16,12 @@ struct Declarations<'a> {
 
 pub(super) fn resolve(
     closure: &ProgramLinkClosure,
+    declarations: &BTreeMap<String, Declarations<'_>>,
     runtime: &RuntimeObjectSet,
     profile: &ValidatedFinalLinkProfile,
     library_paths: &[std::path::PathBuf],
     inputs: &mut ProgramInputs<'_>,
 ) -> Result<(), LinkError> {
-    let (declarations, libraries) = declarations::read(closure)?;
-    inputs.native = NativeInputs::read(libraries, library_paths, profile)?;
-    inputs.providers =
-        crate::dynamic::DynamicInputs::read(&mut inputs.native, library_paths, profile)?;
     let direct: Vec<_> = inputs
         .native
         .ordered_files()
@@ -36,15 +32,13 @@ pub(super) fn resolve(
     for id in direct {
         selection::include(inputs, id, "direct input")?;
     }
-    for (symbol, declaration) in &declarations {
+    for (symbol, declaration) in declarations {
         let result = (|| {
             if inputs
                 .definitions
                 .get(symbol)
                 .is_some_and(|owner| matches!(owner, DefinitionOwner::Scoop(_)))
-                || symbol == "_main"
-                || symbol == "_scoop_td_String"
-                || symbol.starts_with("_scoop$")
+                || inputs.compiler_owned(symbol)
             {
                 return Err(error(format!(
                     "source extern {symbol} conflicts with a compiler-owned definition"
@@ -69,10 +63,10 @@ pub(super) fn resolve(
                         NativeExternalContract::ReadOnlyTls { .. }
                             | NativeExternalContract::MutableTls { .. }
                     );
-                    if tls != (binding.interface.kind == SystemExportKind::ThreadLocal) {
+                    if tls != binding.is_tls() {
                         return Err(error(format!("native TLS storage mismatch for {symbol}")));
                     }
-                    if let crate::dynamic::ExportStorage::Definition(definition) = binding.storage {
+                    if let Some(definition) = binding.definition() {
                         check_kind(symbol, declaration.contract, definition)?;
                     }
                 }
@@ -86,10 +80,8 @@ pub(super) fn resolve(
             ))
         })?;
     }
-    selection::resolve(inputs, &declarations)?;
-    inputs
-        .providers
-        .project(&inputs.dynamic, library_paths, profile)?;
+    selection::resolve(inputs, declarations)?;
+    inputs.namespace.project(library_paths, profile)?;
     for file in inputs.native.ordered_files() {
         for (id, _, range) in file.objects() {
             if inputs.native.selected.contains_key(&id) {

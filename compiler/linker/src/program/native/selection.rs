@@ -6,7 +6,7 @@ mod tests;
 pub(super) enum Candidate {
     Definition,
     Object(NativeObjectId),
-    Dynamic(crate::dynamic::DynamicBinding),
+    Dynamic(crate::namespace::NativeBinding),
 }
 
 pub(super) fn candidate(
@@ -42,7 +42,7 @@ pub(super) fn candidate(
     }
     candidates.extend(
         inputs
-            .providers
+            .namespace
             .candidates(&inputs.native, symbol, explicit)?
             .into_iter()
             .map(Candidate::Dynamic),
@@ -72,7 +72,7 @@ pub(super) fn include(
         .check_selected(&file.bytes[range])
         .map_err(|err| error(format!("{diagnostic}: {err}")))?;
     for symbol in index.info.definitions.keys() {
-        if symbol == "_main" || symbol == "_scoop_td_String" || symbol.starts_with("_scoop$") {
+        if inputs.compiler_owned(symbol) {
             return Err(error(format!(
                 "{diagnostic} defines compiler-owned symbol {symbol}"
             )));
@@ -107,7 +107,7 @@ pub(super) fn resolve(
 ) -> Result<(), LinkError> {
     let mut pending = inputs.requirements.clone();
     while let Some(symbol) = pending.pop_first() {
-        if symbol == "_scoop_td_String" {
+        if inputs.linker_defined(&symbol) {
             continue;
         }
         let binding = declarations
@@ -132,15 +132,16 @@ pub(super) fn resolve(
             }
             Candidate::Definition => continue,
             Candidate::Dynamic(binding) => {
-                inputs.dynamic.insert(symbol, binding);
+                inputs.namespace.bind(symbol, binding)?;
             }
         }
     }
     // A member selected for another symbol can add a definition after a
     // dynamic binding was chosen. Revisit only these changed resolutions.
     let changed: Vec<_> = inputs
-        .dynamic
-        .keys()
+        .namespace
+        .bound_symbols()
+        .into_iter()
         .filter(|symbol| inputs.definitions.contains_key(*symbol))
         .cloned()
         .collect();
@@ -163,7 +164,7 @@ pub(super) fn resolve(
                 index.info.definitions[&symbol],
             )?;
         }
-        inputs.dynamic.remove(&symbol);
+        inputs.namespace.unbind(&symbol);
     }
     Ok(())
 }
