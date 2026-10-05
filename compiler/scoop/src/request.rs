@@ -211,7 +211,7 @@ impl BuildGraphRequest {
     ) -> Result<Self, BuildGraphRequestError> {
         artifact_search_roots.sort_by(|left, right| left.as_path().cmp(right.as_path()));
         artifact_search_roots.dedup();
-        let target = ResolvedTargetProfile::resolve(target.canonical_triple())
+        let target = ResolvedTargetProfile::resolve_request(&target)
             .map_err(BuildGraphRequestError::Toolchain)?;
 
         Ok(Self {

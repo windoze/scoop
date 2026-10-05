@@ -7,6 +7,7 @@ use scoop_protocol::{
 pub struct DirectBuildOptions {
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
+    pub c_toolchain: scoop_toolchain::CToolchainOptions,
 }
 
 pub fn normalize_direct_build_request(
@@ -25,11 +26,14 @@ pub fn normalize_direct_build_request(
         .map_err(BuildRequestNormalizationError::Request)?;
     let output =
         SlibOutputDestination::new(output).map_err(BuildRequestNormalizationError::Request)?;
-    let target = match options.target.as_deref() {
-        Some(triple) => ResolvedTargetProfile::resolve(triple),
-        None => ResolvedTargetProfile::resolve_host(),
-    }
-    .map_err(BuildRequestNormalizationError::Target)?;
+    let triple = match options.target.as_deref() {
+        Some(triple) => triple,
+        None => {
+            scoop_toolchain::host_target_triple().map_err(BuildRequestNormalizationError::Target)?
+        }
+    };
+    let target = ResolvedTargetProfile::resolve_with(triple, &options.c_toolchain)
+        .map_err(BuildRequestNormalizationError::Target)?;
     scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::Backend)?;
     let is_core = match &current {
@@ -89,7 +93,7 @@ pub fn normalize_protocol_build_request(
         .map_err(BuildRequestNormalizationError::HostPath)?;
     let output =
         SlibOutputDestination::new(output_path).map_err(BuildRequestNormalizationError::Request)?;
-    let target = ResolvedTargetProfile::resolve(build.target().canonical_triple())
+    let target = ResolvedTargetProfile::resolve_request(build.target())
         .map_err(BuildRequestNormalizationError::Target)?;
     scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::Backend)?;

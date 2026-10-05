@@ -11,13 +11,20 @@ pub struct ArtifactLinkRequest {
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: PathBuf,
     pub target: String,
+    pub c_toolchain: scoop_toolchain::CToolchainOptions,
+    pub final_link: scoop_toolchain::FinalLinkOptions,
     pub library_paths: Vec<PathBuf>,
     pub output: PathBuf,
 }
 
 impl ArtifactLinkRequest {
     pub fn link(&self) -> Result<ProgramLinkOutput, LinkError> {
-        let profile = ValidatedFinalLinkProfile::resolve(&self.target).map_err(error)?;
+        let profile = ValidatedFinalLinkProfile::resolve_with(
+            &self.target,
+            &self.c_toolchain,
+            &self.final_link,
+        )
+        .map_err(error)?;
         let closure = read_program_artifacts(&self.root_slib, &self.dependency_slibs, &profile)?;
         let runtime = RuntimeObjectSet::read_index(
             &self.runtime_index,

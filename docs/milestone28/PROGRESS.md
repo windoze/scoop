@@ -71,3 +71,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 正式 `scoopc build sysroot/lib/scoop.core --target ...` 在两 libc 上暴露 ODR 关联数据被提升为额外 weak 定义的问题。ELF COMDAT 准备现保留原 private/internal storage 的 linkage/default visibility，只将计划中的外部符号与 boundary alias 设为 hidden weak。类型测试增加 ODR descriptor、layout、scan、vtable、itable 分组，继续通过实际 registration/shape fingerprints 及坏关联指针检查。14 项 Linux codegen 测试与 workspace fmt/clippy 通过。修复后两 libc 的完整 core `.slib` 均成功构建，各约 76 MiB。
 
 - 可执行 root entry 使用共有绝对指针/addend 语义，artifact-only 与构建后链接入口传递实际 target，包括依赖 manifest 和默认 core slot。两 libc 均正式构建出消费上述 core 的程序 `.slib`（String、println 与异常分支），并通过 `scoop-link` 的完整 Link reader，随后在刻意未提供的 runtime index 处报错；glibc 程序与 musl core 混用被拒绝。600 项 slib 测试及 workspace fmt/clippy 通过。linker 单测 10 项通过，6 项仍依赖 Darwin `xcrun` 的测试失败，需在平台测试适配与最终 Mac 回归中处理；正式 ELF executable 尚未完成。
+
+- 三个 CLI 已接入 native C 工具链参数，`scoop`/`scoop-link` 另接入 unwind prefix 与 final-link mode。machine protocol 3 传递实际 driver/native sysroot，子进程恢复所选 PATH/REALGCC，并在缓存目录下使用独立 scratch；native driver 继承该 TMPDIR。Linux 默认缓存使用 XDG/HOME 布局。修复缓存记录恒定编码 Darwin 的旧假设，保持三 target 读回一致与 libc 隔离；协议版本进入既有 compile cache key，相关固定向量同步更新。
+
+- 新增 `m28-cli-library-toolchain` 正式文件 fixture，在 glibc 和 musl 各完整通过一次冷构建及一次缓存构建：从 core 源码编译，产生 String 与实际 C bridge 的 library，使用不存在的 unwind prefix 仍成功，第二次无子编译器且产物字节相同。fixture runner 已支持两个 Linux target 并只发现适用用例所需工具。24 项协议、7 项子进程、23 项缓存测试及 34 项 Python 公共规则测试通过，workspace fmt/clippy 与 Ruff 0.16.10 通过；缺失 C compiler 和 glibc static 请求返回明确工具链错误。清理过期 codegen 中间产物释放约 109 MiB。正式 ELF executable 仍在下一批接入，不把 library 验收计作运行闭环。

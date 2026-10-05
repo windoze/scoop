@@ -18,6 +18,18 @@ struct Cli {
     runtime_index: PathBuf,
     #[arg(long)]
     target: String,
+    /// Linux C compiler driver.
+    #[arg(long)]
+    cc: Option<PathBuf>,
+    #[arg(long)]
+    native_sysroot: Option<PathBuf>,
+    /// Scoop sysroot used to locate the default LLVM unwind prefix.
+    #[arg(long)]
+    sysroot: Option<PathBuf>,
+    #[arg(long)]
+    unwind_prefix: Option<PathBuf>,
+    #[arg(long, value_enum)]
+    link_mode: Option<LinkMode>,
     /// Search these explicit roots for libraries required by the artifacts.
     #[arg(long = "library-path")]
     library_paths: Vec<PathBuf>,
@@ -26,6 +38,12 @@ struct Cli {
     /// Print the canonical input order and generated startup source.
     #[arg(long)]
     dump_plan: bool,
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum LinkMode {
+    Static,
+    Dynamic,
 }
 
 fn main() -> ExitCode {
@@ -39,6 +57,18 @@ fn main() -> ExitCode {
         dependency_slibs: cli.dependencies,
         runtime_index: cli.runtime_index,
         target: cli.target,
+        c_toolchain: scoop_toolchain::CToolchainOptions {
+            compiler: cli.cc,
+            native_sysroot: cli.native_sysroot,
+        },
+        final_link: scoop_toolchain::FinalLinkOptions {
+            sysroot: cli.sysroot,
+            unwind_prefix: cli.unwind_prefix,
+            mode: cli.link_mode.map(|mode| match mode {
+                LinkMode::Static => scoop_toolchain::LinkMode::Static,
+                LinkMode::Dynamic => scoop_toolchain::LinkMode::Dynamic,
+            }),
+        },
         library_paths: cli.library_paths,
         output: cli.output,
     };

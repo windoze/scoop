@@ -156,7 +156,10 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
-    let io = ChildIoPlan::new(directory.path().to_path_buf());
+    let io = ChildIoPlan::new(
+        directory.path().to_path_buf(),
+        directory.path().to_path_buf(),
+    );
     fake_compiler(
         &compiler,
         &encode_response_frame(&success([8; 16])).unwrap(),
@@ -181,6 +184,44 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
         .invoke(&tool, &request, &io)
         .unwrap();
     assert!(matches!(response, ScoopcResponseEnvelopeV1::Failure { .. }));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn production_runner_preserves_linux_tools_and_uses_private_scratch() {
+    for triple in ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"] {
+        let target = scoop_toolchain::ResolvedTargetProfile::resolve(triple).unwrap();
+        let selection = target.child_request().unwrap();
+        assert_eq!(
+            selection.compiler().unwrap().to_path_buf().unwrap(),
+            target.c_bridge_toolchain().compiler_driver()
+        );
+        assert_eq!(
+            scoop_toolchain::ResolvedTargetProfile::resolve_request(&selection).unwrap(),
+            target
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let compiler = directory.path().join("scoopc");
+        let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
+        fake_compiler_body(
+            &compiler,
+            &format!(
+                "test -n \"$PATH\" || exit 9\ntest -x \"$REALGCC\" || exit 9\ncase \"$TMPDIR\" in \"$SCOOP_SYSROOT\"/.scoop-child-*) ;; *) exit 9 ;; esac\ntest -d \"$TMPDIR\" || exit 9\n\"$REALGCC\" -dumpmachine >/dev/null || exit 9\nprintf '{response}'"
+            ),
+        );
+        let io = ChildIoPlan::new(directory.path().to_owned(), directory.path().to_owned())
+            .with_toolchain(target.c_bridge_toolchain());
+        ProductionSingleConeCompilerRunner
+            .invoke(&resolve_fake(&compiler), &request([8; 16]), &io)
+            .unwrap();
+        assert!(!std::fs::read_dir(directory.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .as_encoded_bytes()
+                .starts_with(b".scoop-child-")
+        }));
+    }
 }
 
 #[test]
@@ -237,7 +278,10 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
-    let io = ChildIoPlan::new(directory.path().to_path_buf());
+    let io = ChildIoPlan::new(
+        directory.path().to_path_buf(),
+        directory.path().to_path_buf(),
+    );
 
     fake_compiler(
         &compiler,
@@ -293,7 +337,10 @@ fn production_runner_rejects_failure_with_zero_exit_and_human_stdout() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
-    let io = ChildIoPlan::new(directory.path().to_path_buf());
+    let io = ChildIoPlan::new(
+        directory.path().to_path_buf(),
+        directory.path().to_path_buf(),
+    );
 
     fake_compiler(
         &compiler,
@@ -323,7 +370,10 @@ fn production_runner_rejects_signal_and_compiler_mutation() {
     let directory = tempfile::tempdir().unwrap();
     let compiler = directory.path().join("scoopc");
     let request = request([8; 16]);
-    let io = ChildIoPlan::new(directory.path().to_path_buf());
+    let io = ChildIoPlan::new(
+        directory.path().to_path_buf(),
+        directory.path().to_path_buf(),
+    );
 
     fake_compiler_body(&compiler, "/bin/cat >/dev/null\nkill -TERM $$");
     let tool = resolve_fake(&compiler);

@@ -1,0 +1,35 @@
+schema = 1
+name = "m28-cli-library-toolchain"
+root = "library"
+inputs = ["library"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m28", "cli", "cache", "ffi"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${work}/absent-unwind", "-o", "${work}/library.slib", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  { actual = "${build.result.kind}", equals = "library" },
+  { file = "${work}/library.slib", exists = true },
+]
+
+[[steps]]
+name = "cached"
+argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${work}/absent-unwind", "-o", "${work}/cached.slib", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  { actual = "${cached.result.observations.child_invocations.length}", equals = 0 },
+  { file = "${work}/cached.slib", same_as = "${work}/library.slib" },
+]

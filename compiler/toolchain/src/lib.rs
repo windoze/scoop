@@ -12,6 +12,7 @@ mod final_link;
 mod linux_c;
 mod paths;
 mod registry;
+mod request;
 mod runtime;
 mod system_provider;
 mod trusted_core;

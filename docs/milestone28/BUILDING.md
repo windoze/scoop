@@ -33,6 +33,38 @@ LLVM 22.1.2 在本机 musl 动态模式的完整 `_Unwind_Backtrace` 中暴露�
 
 验证脚本默认使用 `gcc`、`musl-gcc`（可用 `--gnu-cc`、`--musl-cc` 覆盖），为 glibc PIE、musl 静态、musl PIE 三种配置运行真实 LLVM cleanup/resume/catch 测试，检查 ELF interpreter、静态程序的动态依赖与 link map 中的 EH provider。它覆盖 personality 和 Level I 展开，不代替完整异常对象生命周期、GC 或语言 fixture。
 
+## 编译器 CLI 与库产物
+
+三个命令需一起重建，父子协议当前为 3：
+
+```sh
+cargo build -p scoop -p scoopc -p scoop-linker --bins
+target/debug/scoopc build sysroot/lib/scoop.core \
+  --target x86_64-unknown-linux-gnu --cc /usr/bin/gcc \
+  --out-slib target/core-gnu.slib
+target/debug/scoopc build sysroot/lib/scoop.core \
+  --target x86_64-unknown-linux-musl --cc /usr/bin/musl-gcc \
+  --out-slib target/core-musl.slib
+```
+
+`scoopc build` 接受 `--cc`、`--native-sysroot`；`scoop build/run/link` 与
+`scoop-link` 还接受 `--unwind-prefix` 和 `--link-mode static|dynamic`。
+`--sysroot` 是 Scoop core 布局，`--native-sysroot` 是 C 开发环境；musl wrapper
+使用已安装的 specs/headers 时无需填写后者。纯 library 构建不读取 unwind archive。
+Linux 未指定 cache 时先取绝对 `XDG_CACHE_HOME/scoop`，其次为 `$HOME/.cache/scoop`。
+
+正式 library fixture 验证从源码构建 core、父子工具选择、C bridge、产物发布及再次命中缓存：
+
+```sh
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-library \
+  --target x86_64-unknown-linux-gnu --work-dir target/m28-fixtures/gnu
+python3 tests/run_fixtures.py --suite tests/fixtures/m28-linux/cli-library \
+  --target x86_64-unknown-linux-musl --work-dir target/m28-fixtures/musl
+```
+
+最终 ELF executable 链接和运行的完成情况单独记录在 [实施记录](PROGRESS.md)，
+不能由 `.slib` 构建或 native unwind 探针推断已通过程序验收。
+
 ## 构建目录管理
 
 开发验证可以设置 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`，减少大型 workspace 的中间产物。使用同一组设置完成一批验证，避免生成多套重复缓存。

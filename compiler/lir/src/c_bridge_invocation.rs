@@ -4,7 +4,7 @@
 //! projection adds the absolute host locators needed to execute that contract.
 //! Host paths are never encoded into LIR metadata or artifact fingerprints.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -130,6 +130,22 @@ impl ValidatedCBridgeToolchainInvocation {
         self.profile.contract().environment()
     }
 
+    pub fn driver_environment(&self) -> impl Iterator<Item = (&'static str, &OsStr)> {
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin { .. } => None,
+            CBridgeCommandParameters::Linux {
+                real_gcc,
+                search_path,
+                ..
+            } => Some([
+                ("PATH", search_path.as_os_str()),
+                ("REALGCC", real_gcc.as_os_str()),
+            ]),
+        }
+        .into_iter()
+        .flatten()
+    }
+
     /// Start another native-driver action with the same resolved environment.
     pub fn driver_command(&self) -> Command {
         let mut command = Command::new(&self.compiler_driver);
@@ -137,7 +153,9 @@ impl ValidatedCBridgeToolchainInvocation {
             .env_clear()
             .env("LC_ALL", "C")
             .env("LANG", "C")
-            .env("TZ", "UTC");
+            .env("TZ", "UTC")
+            .env("TMPDIR", std::env::temp_dir())
+            .envs(self.driver_environment());
         match &self.parameters {
             CBridgeCommandParameters::Darwin {
                 sdk_root,
@@ -149,12 +167,7 @@ impl ValidatedCBridgeToolchainInvocation {
                     .arg(sdk_root)
                     .arg(format!("-mmacosx-version-min={minimum_os}"));
             }
-            CBridgeCommandParameters::Linux {
-                native_sysroot,
-                real_gcc,
-                search_path,
-            } => {
-                command.env("PATH", search_path).env("REALGCC", real_gcc);
+            CBridgeCommandParameters::Linux { native_sysroot, .. } => {
                 if let Some(root) = native_sysroot {
                     command.arg("--sysroot").arg(root);
                 }

@@ -78,16 +78,19 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
                 .map_err(output_error)?;
             return Ok(None);
         }
-        let (runtime, index, runtime_inputs) = runtime_input(&request.runtime, &target, &cache)?;
+        let (runtime, index, runtime_inputs) =
+            runtime_input(&request.runtime, &target, &cache, &request.final_link)?;
         inputs.extend(runtime_inputs);
         inputs.extend(runtime.input_paths().iter().cloned());
         let directory = tempfile::Builder::new()
             .prefix(".scoop-build-")
             .tempdir_in(output.parent())
             .map_err(output_error)?;
-        let final_link = target.final_link().map_err(|error| {
-            BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
-        })?;
+        let final_link = target
+            .final_link_with(&request.final_link)
+            .map_err(|error| {
+                BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
+            })?;
         let linked = link_built_program(
             graph.closure(),
             &runtime,
@@ -126,6 +129,7 @@ fn runtime_input(
     input: &RuntimeInput,
     target: &ResolvedTargetProfile,
     cache: &Path,
+    final_link: &scoop_toolchain::FinalLinkOptions,
 ) -> BuildResult<(RuntimeObjectSet, PathBuf, Vec<PathBuf>)> {
     let failure = |error| {
         BuildFailure::tool(
@@ -145,12 +149,21 @@ fn runtime_input(
             Ok((objects, index.clone(), Vec::new()))
         }
         RuntimeInput::SourceRoot(root) => {
+            let unwind = if target.id() == scoop_lir::TargetProfileId::DarwinAarch64 {
+                final_link.unwind_prefix.clone()
+            } else {
+                Some(scoop_toolchain::selected_unwind_prefix(
+                    target.id(),
+                    final_link.sysroot.as_deref(),
+                    final_link.unwind_prefix.as_deref(),
+                ))
+            };
             let runtime = build_runtime(RuntimeBuildRequest {
                 target,
                 runtime_root: root,
                 cache_root: cache,
                 optimization: Default::default(),
-                unwind_prefix: None,
+                unwind_prefix: unwind.as_deref(),
             })
             .map_err(|error| failure(error.to_string()))?;
             let index = runtime.index().to_owned();

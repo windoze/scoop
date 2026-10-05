@@ -31,6 +31,11 @@ def arguments(argv):
     parser.add_argument("--scoop", type=Path)
     parser.add_argument("--scoopc", type=Path)
     parser.add_argument("--scoop-link", type=Path)
+    parser.add_argument(
+        "--target",
+        choices=["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
+    )
+    parser.add_argument("--cc", type=Path, help="native companion compiler for the selected target")
     args = parser.parse_args(argv)
     if args.jobs < 1:
         parser.error("--jobs must be positive")
@@ -49,11 +54,14 @@ def tool_output(argv):
 
 
 def environment(repo, work, fixtures, args):
-    target = {("Darwin", "arm64"): "aarch64-apple-darwin"}.get(
-        (platform.system(), platform.machine())
-    )
-    if target is None:
-        raise EnvironmentError("this acceptance suite requires the supported Darwin/AArch64 target")
+    host = (platform.system(), platform.machine())
+    supported = {
+        ("Darwin", "arm64"): ["aarch64-apple-darwin"],
+        ("Linux", "x86_64"): ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
+    }.get(host, [])
+    target = args.target or (supported[0] if supported else None)
+    if target not in supported:
+        raise EnvironmentError(f"target {target!r} cannot execute on fixture host {host}")
     common = {
         "repo": str(repo),
         "runtime": str(repo / "runtime"),
@@ -62,7 +70,12 @@ def environment(repo, work, fixtures, args):
         "target": target,
         "python": sys.executable,
     }
-    needed = set().union(*(set(fixture.data.get("tools", ["scoop"])) for fixture in fixtures))
+    applicable = [
+        fixture
+        for fixture in fixtures
+        if not fixture.data.get("targets") or target in fixture.data["targets"]
+    ]
+    needed = set().union(*(set(fixture.data.get("tools", ["scoop"])) for fixture in applicable))
     for name in ("scoop", "scoopc", "scoop-link"):
         configured = getattr(args, name.replace("-", "_")) or os.environ.get(
             "SCOOP_TEST_PAIRED_" + name.upper().replace("-", "_")
@@ -74,13 +87,25 @@ def environment(repo, work, fixtures, args):
     unknown = needed - {"scoop", "scoopc", "scoop-link", "cc", "ar", "python"}
     if unknown:
         raise ConfigurationError(f"unknown required tools: {sorted(unknown)}")
-    if needed & {"cc", "ar"}:
+    if needed & {"cc", "ar"} and target == "aarch64-apple-darwin":
         common.update(
-            cc=tool_output(["/usr/bin/xcrun", "--find", "clang"]),
+            cc=str(args.cc.resolve())
+            if args.cc
+            else tool_output(["/usr/bin/xcrun", "--find", "clang"]),
             ar=tool_output(["/usr/bin/xcrun", "--find", "ar"]),
             sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
             deployment=tool_output(["/usr/bin/sw_vers", "-productVersion"]),
         )
+    elif needed & {"cc", "ar"}:
+        for name, program in {
+            "cc": str(args.cc) if args.cc else "musl-gcc" if target.endswith("musl") else "gcc",
+            "ar": "ar",
+        }.items():
+            if name in needed:
+                located = shutil.which(program)
+                if located is None:
+                    raise EnvironmentError(f"required {target} tool is missing: {program}")
+                common[name] = located
     if not (work / "sysroot").exists():
         shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)
     (work / "cache").mkdir(exist_ok=True)
