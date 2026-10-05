@@ -75,6 +75,7 @@ def environment(repo, work, fixtures, args):
         "cache": str(work / "cache"),
         "sysroot": str(work / "sysroot"),
         "target": target,
+        "llvm_target": target,
         "target_profile": {
             "aarch64-apple-darwin": "darwin-aarch64",
             "x86_64-unknown-linux-gnu": "linux-x86-64-gnu",
@@ -151,6 +152,10 @@ def environment(repo, work, fixtures, args):
                 if located is None:
                     raise EnvironmentError(f"required {target} tool is missing: {program}")
                 common[name] = located
+    if "llc" in needed and target == "aarch64-apple-darwin":
+        if "deployment" not in common:
+            common["deployment"] = tool_output(["/usr/bin/sw_vers", "-productVersion"])
+        common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
     if not (work / "sysroot").exists():
         shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)
     (work / "cache").mkdir(exist_ok=True)

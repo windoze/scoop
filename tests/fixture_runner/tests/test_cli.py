@@ -75,6 +75,7 @@ class EnvironmentTests(unittest.TestCase):
                 locate.assert_called_once_with("/opt/llvm/bin/llc")
                 version.assert_called_once_with(["/opt/llvm/bin/llc", "--version"])
                 self.assertEqual(common["llc"], "/opt/llvm/bin/llc")
+                self.assertEqual(common["llvm_target"], "x86_64-unknown-linux-gnu")
                 version.return_value = "LLVM version 21.1.8"
                 with self.assertRaisesRegex(EnvironmentError, "require LLVM 22.1"):
                     environment(repo, work, fixtures, arguments(["--llc", "/opt/llvm/bin/llc"]))
@@ -92,3 +93,23 @@ class EnvironmentTests(unittest.TestCase):
                 environment(repo, work, fixtures, arguments(["--cc", "missing-gcc"]))
             with self.assertRaisesRegex(EnvironmentError, "cannot execute"):
                 environment(repo, work, fixtures, arguments(["--target", "aarch64-apple-darwin"]))
+
+    @patch("fixture_runner.cli.platform.machine", return_value="arm64")
+    @patch("fixture_runner.cli.platform.system", return_value="Darwin")
+    def test_ir_companion_records_the_darwin_deployment(self, *_):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            with (
+                patch("fixture_runner.cli.shutil.which", return_value="/opt/llvm/bin/llc"),
+                patch(
+                    "fixture_runner.cli.tool_output", side_effect=["LLVM version 22.1.8", "15.4"]
+                ),
+            ):
+                common = environment(
+                    repo,
+                    work,
+                    [SimpleNamespace(data={"tools": ["llc"]})],
+                    arguments(["--llc", "/opt/llvm/bin/llc"]),
+                )
+            self.assertEqual(common["target"], "aarch64-apple-darwin")
+            self.assertEqual(common["llvm_target"], "aarch64-apple-macosx15.4")

@@ -83,6 +83,7 @@ BUILTINS = {
     "variant",
     "variants",
     "target",
+    "llvm_target",
     "target_profile",
     "symbol_prefix",
     "errno_eloop",
