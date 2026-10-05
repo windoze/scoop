@@ -1,0 +1,49 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"sequence decoder assertion ${code}")) }
+}
+
+private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
+    try { Json.decode(text, codec) }
+    catch (error: DecodingException) {
+        check(error.path == path, 90)
+        return
+    }
+    throw IllegalStateException(Some("expected a sequence decoding failure"))
+}
+
+private fun <T> read(text: String, element: Decodable<T>): Array<T> =
+    Json.decode(text, Array<T>.Companion.decoder(element))
+
+fun main() {
+    val integers = Array<Int>.Companion.decoder(Int.Companion)
+    check(Json.decode("[]", integers).size == 0L, 1)
+    val values = Json.decode("[1,-2,2147483647]", integers)
+    check(values.size == 3L && values[1L] == -2 && values[2L] == 2147483647, 2)
+    val strings = read("[\"one\",\"中文\",\"\\uD83D\\uDE42\"]", String.Companion)
+    check(strings[1L] == "中文" && strings[2L] == "🙂", 3)
+    val mutableCodec = MutableArray<Long>.decoder(Long.Companion)
+    val mutable = Json.decode("[3,9223372036854775807]", mutableCodec)
+    mutable[0L] = 4L
+    check(mutable[0L] == 4L && mutable[1L] == 9223372036854775807L, 4)
+    check(Json.decode("[]", mutableCodec).size == 0L, 5)
+    val listCodec = ArrayList<Char>.Companion.decoder(Char.Companion)
+    val list = Json.decode("[\"a\",\"🙂\"]", listCodec)
+    list.add('界')
+    check(list.size == 3L && list[1L] == '🙂' && list[2L] == '界', 6)
+    check(Json.decode("[]", listCodec).size == 0L, 7)
+    val unsigned = read("[18446744073709551615]", ULong.Companion)
+    check(unsigned[0L] == 18446744073709551615uL, 8)
+    val rows = Json.decode("[[1,2],[],[3]]", Array<Array<Int>>.decoder(integers))
+    check(rows.size == 3L && rows[0L][1L] == 2 && rows[1L].size == 0L, 9)
+    reject("{}", integers, "")
+    reject("[1,null]", integers, "/1")
+    reject("[1,2147483648]", integers, "/1")
+    reject("[1.0]", mutableCodec, "/0")
+    reject("[\"ab\"]", listCodec, "/0")
+    reject("[[1],[false]]", Array<Array<Int>>.decoder(integers), "/1/0")
+    val incomplete = Array<Int>.decoder(DecodeFunction<Int>({ _ -> 1 }))
+    reject("[7]", incomplete, "/0")
+    println("sequences-ok")
+}

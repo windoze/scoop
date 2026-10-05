@@ -1,0 +1,46 @@
+import scoop.json.Json
+
+private var reads: Int = 0
+
+private object Counted : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int {
+        reads += 1
+        return Int.Companion.decode(decoder)
+    }
+}
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"option decoder assertion ${code}")) }
+}
+
+private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
+    try { Json.decode(text, codec) }
+    catch (error: DecodingException) {
+        check(error.path == path, 90)
+        return
+    }
+    throw IllegalStateException(Some("expected an Option decoding failure"))
+}
+
+fun main() {
+    val codec = Option<Int>.Companion.decoder(Counted)
+    check(Json.decode("{\"None\":{}}", codec) == None && reads == 0, 1)
+    check(Json.decode("{\"Some\":[42]}", codec)!! == 42 && reads == 1, 2)
+    check(Json.decode("{\"None\":{\"ignored\":[1,null]}}", codec) == None, 3)
+    val nested = Option<Option<Int>>.decoder(codec)
+    check(Json.decode("{\"Some\":[{\"None\":{}}]}", nested)!! == None, 4)
+    check(Json.decode("{\"Some\":[{\"Some\":[7]}]}", nested)!!!! == 7, 5)
+    check(reads == 2, 6)
+    reject("null", codec, "")
+    reject("{}", codec, "")
+    reject("{\"None\":{},\"Some\":[1]}", codec, "")
+    reject("{\"Other\":{}}", codec, "")
+    reject("{\"None\":[]}", codec, "/None")
+    reject("{\"Some\":{}}", codec, "/Some")
+    reject("{\"Some\":[]}", codec, "/Some/0")
+    reject("{\"Some\":[1,2]}", codec, "/Some")
+    reject("{\"Some\":[null]}", codec, "/Some/0")
+    reject("{\"Some\":[2147483648]}", codec, "/Some/0")
+    reject("{\"Some\":[{\"Some\":[false]}]}", nested, "/Some/0/Some/0")
+    println("option-ok")
+}

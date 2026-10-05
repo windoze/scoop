@@ -1,0 +1,62 @@
+import scoop.json.Json
+
+private class OffsetDecoder(private val offset: Int) : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int = Int.Companion.decode(decoder) + offset
+}
+
+public class Value(public val number: Int)
+
+private object ValueDecoder : Decodable<Value> {
+    public override fun decode(decoder: Decoder): Value = Value(Int.Companion.decode(decoder))
+}
+
+public class ElementFailure(public val marker: Value) : Exception(Some("element failure"))
+
+private val marker: Value = Value(99)
+private val failure: ElementFailure = ElementFailure(marker)
+
+private object Failing : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int { throw failure }
+}
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"composition decoder assertion ${code}")
+        throw IllegalStateException(Some(f"composition decoder assertion ${code}"))
+    }
+}
+
+fun main() {
+    val first = Array<Int>.decoder(OffsetDecoder(10))
+    val second = Array<Int>.decoder(OffsetDecoder(100))
+    check(Json.decode("[1]", first)[0L] == 11, 1)
+    check(Json.decode("[1]", second)[0L] == 101, 2)
+    check(Json.decode("[2]", first)[0L] == 12, 3)
+    val values = Json.decode("[3,4]", Array<Value>.decoder(ValueDecoder))
+    check(values[0L].number == 3 && values[1L].number == 4, 4)
+    val inner = Option<Int>.decoder(Int.Companion)
+    val list = ArrayList<Option<Int>>.decoder(inner)
+    val outer = Option<ArrayList<Option<Int>>>.decoder(list)
+    val nested = Json.decode("{\"Some\":[[{\"None\":{}},{\"Some\":[7]}]]}", outer)!!
+    check(nested.size == 2L && nested[0L] == None && nested[1L]!! == 7, 5)
+    val units = Json.decode("[null,null]", MutableArray<Unit>.decoder(UnitDecoder))
+    check(units.size == 2L, 6)
+    val optionalUnit = Json.decode("{\"Some\":[null]}", Option<Unit>.decoder(UnitDecoder))
+    check(when (optionalUnit) { Some(value) -> true; None -> false }, 7)
+    val functions = DecodeFunction<() -> Int>({ decoder ->
+        val number = Int.Companion.decode(decoder)
+        val function: () -> Int = { -> number }
+        function
+    })
+    val thunks = Json.decode("[8,9]", ArrayList<() -> Int>.decoder(functions))
+    check(thunks[0L]() == 8 && thunks[1L]() == 9, 8)
+    check(Json.decode("{\"None\":{}}", Option<Int>.decoder(Failing)) == None, 9)
+    try { Json.decode("[1]", Array<Int>.decoder(Failing)) }
+    catch (error: ElementFailure) {
+        check(error.message == Some("element failure") && error.marker === marker, 10)
+        check(error.marker.number == 99, 11)
+        println("composition-ok")
+        return
+    }
+    throw IllegalStateException(Some("element exception did not propagate"))
+}

@@ -192,3 +192,23 @@ macOS、Linux glibc/musl 各通过 41 个进程、10 份 golden；七份共有 H
 
 本批完成名义类型的自动 encode；自动 decode、核心容器/tuple 的条件组合以及
 完整 workspace/文件 fixture 总验收继续按后续批次实施。
+
+## 核心容器的显式解码器
+
+`Option<T>`、`Array<T>`、`MutableArray<T>` 和 `ArrayList<T>` 的完整宿主 companion
+提供普通 `decoder(element: Decodable<T>)` 方法。每次调用返回持有该元素解码器的
+普通对象，容器自身的 T 保持无 bound，也不把元素策略保存到 singleton。Option
+沿 enum 的单 variant record 格式读取 None/Some；数组沿 unkeyed sequence 读取，
+三个数组实现共用普通库循环，再按结果类型完成正常构造或数组转换。
+
+两个新增核心源码文件分别为 24、22 行；接口调用、泛型模板、异常和 GC 全部沿既有
+编译路径，没有新增编译器协议或 IR/runtime 表示。用户异常保留其具体类型、消息和
+所携带的引用，遵守原 throw/catch 对异常 payload 的复制与物化规则。
+
+新增四个正式 fixture，覆盖空容器、嵌套 Option/数组、整数边界、Unicode、错误路径、
+不完整元素 codec、Unit、无 Encodable 的对象及函数值、独立元素策略、用户异常，
+以及删除 core/JSON/provider/consumer 源码后的产物消费和独立链接运行。macOS、
+Linux glibc/musl 各通过 22 个进程、10 份阶段 golden，包含普通与 moving GC 运行；
+三平台均完成不更新快照的复验，七份共有 HIR/MIR 字节一致，六份 Linux LIR 独立保存。
+两端 workspace 格式化/lint 通过，测试报告保存后清理本批工作目录。自动 decode、
+核心容器/tuple 的条件 Encodable 和完整总验收继续实施。

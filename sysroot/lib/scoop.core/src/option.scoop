@@ -4,4 +4,8 @@
 public enum Option<T> {
     Some(T),
     None
+
+    public companion object {
+        public fun decoder(element: Decodable<T>): Decodable<Option<T>> = OptionDecoder<T>(element)
+    }
 }

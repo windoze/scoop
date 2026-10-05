@@ -79,6 +79,10 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
     }
 
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
+
+    public companion object {
+        public fun decoder(element: Decodable<T>): Decodable<ArrayList<T>> = ArrayListDecoder<T>(element)
+    }
 }
 
 @NoGC
