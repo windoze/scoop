@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-archive-corrupt"
 inputs = ["archive", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "archive", "corruption", "atomic-output"]
 
 [[steps]]
@@ -11,7 +11,7 @@ files = [{"copy" = {"from" = "${fixture}/archive", "to" = "${work}/sources/archi
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/source.c", "-o", "${work}/native/source.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/source.c", "-o", "${work}/native/source.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -23,17 +23,18 @@ exit = 0
 stdout = ""
 stderr = ""
 env = {"ZERO_AR_DATE" = "1"}
-checks = [{"file" = "${work}/native/libm23_math.a", "sha256" = "50089a98476021f36bd30b213c0580181d0c82562d8dae1e89fa351dfdd2d2a0"}]
+# The control step links and runs this archive before corrupting it.
+checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 1}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+checks = [{"actual" = "${build.result.dependencies.length}", "equals" = 1}, {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.${target}.txt"}]
 
 [[steps]]
 name = "control"
@@ -52,12 +53,12 @@ files = [{"write" = {"path" = "${work}/native/libm23_math.a", "data" = "!<thin>\
 
 [[steps]]
 name = "reject_thin"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "thin.json"}
+diagnostics = {"file" = "thin.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/rejected", "equals" = "previous executable"}]
 
@@ -67,12 +68,12 @@ files = [{"copy" = {"from" = "${work}/original.a", "to" = "${work}/native/libm23
 
 [[steps]]
 name = "reject_truncated"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "truncated.json"}
+diagnostics = {"file" = "truncated.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/rejected", "equals" = "previous executable"}]
 
@@ -82,12 +83,12 @@ files = [{"write" = {"path" = "${work}/native/libm23_math.a", "data" = "!<arch>\
 
 [[steps]]
 name = "reject_bad-header"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "bad-header.json"}
+diagnostics = {"file" = "bad-header.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/rejected", "equals" = "previous executable"}]
 
@@ -105,11 +106,11 @@ env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
 name = "reject_nested"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/core.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "nested.json"}
+diagnostics = {"file" = "nested.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/rejected", "equals" = "previous executable"}]

@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use crate::tests::platform_support::native_os_source;
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -23,6 +25,7 @@ fn compile_and_run(
     compile
         .args([
             "-std=c11",
+            "-D_POSIX_C_SOURCE=200809L",
             "-Wall",
             "-Wextra",
             "-Werror",
@@ -63,7 +66,7 @@ fn compile_and_run(
         "runtime/src/thread/roots.c",
         "runtime/src/thread/transitions.c",
         "runtime/src/platform/arch/aarch64.c",
-        "runtime/src/platform/os/darwin.c",
+        native_os_source(),
         "runtime/tests/platform/fake.c",
         test_source,
     ] {
@@ -213,6 +216,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
     let output = Command::new("cc")
         .args([
             "-std=c11",
+            "-D_POSIX_C_SOURCE=200809L",
             "-Wall",
             "-Wextra",
             "-Werror",
@@ -226,7 +230,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
-        .arg(workspace.join("runtime/src/platform/os/darwin.c"))
+        .arg(workspace.join(native_os_source()))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
         .arg(workspace.join("runtime/tests/initialization_coordinator_test.c"))
         .arg("-o")

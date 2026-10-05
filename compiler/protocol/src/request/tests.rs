@@ -119,3 +119,43 @@ fn removed_pathless_core_request_tag_is_rejected() {
     let error = decode_canonical::<DecodedCurrentConeRequestV1>(&[0xa1, 0x00, 0x03]).unwrap_err();
     assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 }
+
+#[test]
+fn target_request_retains_native_tool_paths_and_rejects_the_old_shape() {
+    for (compiler, sysroot) in [
+        (None, None),
+        (Some(path("/opt/musl/bin/musl-gcc")), None),
+        (
+            Some(path("/opt/gcc/bin/gcc")),
+            Some(path("/opt/target sysroot")),
+        ),
+    ] {
+        let request = TargetSelectionRequestV1::new("x86_64-unknown-linux-musl".into())
+            .unwrap()
+            .with_c_toolchain(compiler, sysroot);
+        let decoded =
+            decode_canonical::<DecodedTargetSelectionRequestV1>(&encode(&request).unwrap())
+                .unwrap()
+                .validate()
+                .unwrap();
+        assert_eq!(decoded, request);
+    }
+    let old_shape = [0xa1, 0x01, 0x61, b'x'];
+    let error = decode_canonical::<DecodedTargetSelectionRequestV1>(&old_shape).unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        WireErrorKind::InvalidLength {
+            expected: 3,
+            actual: 1
+        }
+    ));
+    let multiple_drivers = [0xa3, 0x01, 0x61, b'x', 0x02, 0x82, 0, 0, 0x03, 0x80];
+    let error = decode_canonical::<DecodedTargetSelectionRequestV1>(&multiple_drivers).unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        WireErrorKind::InvalidLength {
+            expected: 1,
+            actual: 2
+        }
+    ));
+}

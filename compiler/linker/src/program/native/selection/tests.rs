@@ -34,14 +34,28 @@ fn empty_worklist_extracts_nothing_and_later_work_selects_each_member_once() {
         .definitions
         .retain(|_, owner| !matches!(owner, DefinitionOwner::Native(_)));
     inputs.requirements.clear();
-    inputs.dynamic.clear();
+    for symbol in inputs
+        .namespace
+        .bound_symbols()
+        .into_iter()
+        .cloned()
+        .collect::<Vec<_>>()
+    {
+        inputs.namespace.unbind(&symbol);
+    }
     resolve(&mut inputs, &declarations).unwrap();
     assert!(inputs.native.selected.is_empty());
 
-    inputs.requirements.insert("_m23_final".into());
+    inputs.requirements.insert(inputs.symbol("m23_final"));
     resolve(&mut inputs, &declarations).unwrap();
     assert_eq!(inputs.native.selected.len(), 1);
-    assert_eq!(inputs.native.references.len(), 1);
+    assert_eq!(
+        inputs.native.references.len(),
+        usize::from(matches!(
+            fixture.profile,
+            ValidatedFinalLinkProfile::Darwin(_)
+        ))
+    );
     resolve(&mut inputs, &declarations).unwrap();
     assert_eq!(inputs.native.selected.len(), 1);
     let objects = inputs.native.ordered_files()[0].objects();

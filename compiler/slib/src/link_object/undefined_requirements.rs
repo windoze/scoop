@@ -100,9 +100,7 @@ impl CanonicalUndefinedSymbolRequirementSetV1 {
         &self,
         closure: &super::VerifiedCurrentConeStrongRelocationClosureV1,
     ) -> bool {
-        if self.producer != closure.producer()
-            || self.selection != ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-        {
+        if self.producer != closure.producer() || self.selection.target() != closure.target() {
             return false;
         }
         let expected = closure

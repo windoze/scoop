@@ -35,7 +35,7 @@ impl<'input> PreparedCrossConeLayoutMirSections<'input> {
                     .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
             let plan = link
                 .link_identity_closure_wire()
-                .replay_materializations(&partition)
+                .replay_materializations(self.graph.target_selection().target(), &partition)
                 .map_err(crate::StrongLinkMaterializationError::Closure)?;
             crate::link_decode::object_directory::validate(&mut self.graph, &plan)?;
         }

@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-unused-extern-conflict"
 inputs = ["cone", "../../m23-program-link/native-conflict-root.scoop", "left", "../../m23-program-link/native-conflict-left.scoop", "right", "../../m23-program-link/native-conflict-right.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "native-link", "multi-cone", "negative"]
 
 [[steps]]
@@ -32,17 +32,17 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.${target}.txt"}]
 
 [[steps]]
 name = "build_dependencies"
-checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "left.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "left.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "left.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "left.lir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "right.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "right.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "right.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "right.lir.txt"}]
+checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "left.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "left.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "left.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "left.lir.${target}.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/ast.txt", "snapshot" = "right.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/hir.txt", "snapshot" = "right.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/mir.txt", "snapshot" = "right.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.2.identity}/lir.txt", "snapshot" = "right.lir.${target}.txt"}]
 
 [[steps]]
 name = "restore_conflict"
@@ -51,17 +51,17 @@ checks = []
 
 [[steps]]
 name = "rebuild_right"
-argv = ["${scoop}", "build", "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuild_right", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuild_right", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuild_right", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuild_right", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/ast.txt", "snapshot" = "rebuild_right.ast.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/hir.txt", "snapshot" = "rebuild_right.hir.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/mir.txt", "snapshot" = "rebuild_right.mir.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/lir.txt", "snapshot" = "rebuild_right.lir.txt"}]
+checks = [{"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/ast.txt", "snapshot" = "rebuild_right.ast.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/hir.txt", "snapshot" = "rebuild_right.hir.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/mir.txt", "snapshot" = "rebuild_right.mir.txt"}, {"file" = "${work}/dump-rebuild_right/${rebuild_right.result.root.identity}/lir.txt", "snapshot" = "rebuild_right.lir.${target}.txt"}]
 
 [[steps]]
 name = "recompile"
-argv = ["${scoopc}", "build", "${work}/sources/root", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+argv = ["${scoopc}", "build", "${work}/sources/root", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -83,7 +83,7 @@ checks = []
 
 [[steps]]
 name = "reject_conflict"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""

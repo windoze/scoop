@@ -885,7 +885,12 @@ mod tests {
         );
 
         assert_eq!(
-            definitions::callable_body_associated_atoms(&function, &[], &[]),
+            definitions::callable_body_associated_atoms(
+                &function,
+                &[],
+                &[],
+                crate::LirTargetProfile::DARWIN_AARCH64
+            ),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,
@@ -897,6 +902,20 @@ mod tests {
                 ),
             ]
         );
+
+        for target in [
+            crate::LirTargetProfile::LINUX_X86_64_GNU,
+            crate::LirTargetProfile::LINUX_X86_64_MUSL,
+        ] {
+            let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
+                .into_iter()
+                .map(|(role, _)| role)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                roles,
+                [DefinitionAtomRole::EhFrame, DefinitionAtomRole::Stackmap]
+            );
+        }
 
         let signature = function
             .call_targets
@@ -930,7 +949,12 @@ mod tests {
             });
 
         assert_eq!(
-            definitions::callable_body_associated_atoms(&function, &[], &[]),
+            definitions::callable_body_associated_atoms(
+                &function,
+                &[],
+                &[],
+                crate::LirTargetProfile::DARWIN_AARCH64
+            ),
             vec![
                 (
                     DefinitionAtomRole::CompactUnwind,
@@ -950,6 +974,24 @@ mod tests {
                 ),
             ]
         );
+        for target in [
+            crate::LirTargetProfile::LINUX_X86_64_GNU,
+            crate::LirTargetProfile::LINUX_X86_64_MUSL,
+        ] {
+            let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
+                .into_iter()
+                .map(|(role, _)| role)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                roles,
+                [
+                    DefinitionAtomRole::EhFrame,
+                    DefinitionAtomRole::Stackmap,
+                    DefinitionAtomRole::Lsda,
+                    DefinitionAtomRole::AddressTakenConstant,
+                ]
+            );
+        }
     }
 
     #[test]

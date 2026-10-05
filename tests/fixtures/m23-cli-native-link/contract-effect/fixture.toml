@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-contract-effect"
 inputs = ["cone", "../../m23-native-link/contracts/root.scoop", "../../m23-native-link/contracts/scoop.scoop", "../../m23-native-link/contracts/nogc.scoop", "left", "right", "also-left", "native-sources/compile_m23_contract.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "stage-golden"]
 
 [[steps]]
@@ -45,7 +45,7 @@ checks = []
 
 [[steps]]
 name = "compile_m23_contract"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_contract.c", "-o", "${work}/objects/m23_contract.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_contract.c", "-o", "${work}/objects/m23_contract.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -58,7 +58,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/contracts", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/contracts", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -84,7 +84,7 @@ checks = []
 
 [[steps]]
 name = "rebuild_right"
-argv = ["${scoop}", "build", "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/right-target", "--message-format", "json", "-o", "${work}/right.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/right-target", "--message-format", "json", "-o", "${work}/right.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -93,7 +93,7 @@ diagnostics = []
 
 [[steps]]
 name = "recompile"
-argv = ["${scoopc}", "build", "${work}/sources/contracts", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${build.result.dependencies.2.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+argv = ["${scoopc}", "build", "${work}/sources/contracts", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${build.result.dependencies.2.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -115,7 +115,7 @@ checks = []
 
 [[steps]]
 name = "reject_conflict"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""

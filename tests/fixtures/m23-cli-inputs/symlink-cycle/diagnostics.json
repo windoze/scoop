@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_CLI_CONFIG",
-    "message": "invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error 62)",
+    "message": "invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error ${errno_eloop})",
     "notes": [],
     "origin": {
       "end": null,

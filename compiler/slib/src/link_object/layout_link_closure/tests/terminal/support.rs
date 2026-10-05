@@ -225,6 +225,7 @@ fn owner_set_for_subject(
     let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
     let partition = scoop_lir::ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![CanonicalScoopLirObjectUnitSetV1::new(vec![plan.id()]).unwrap()],
         vec![],
@@ -243,9 +244,12 @@ fn owner_set_for_subject(
         },
         None,
     );
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &symbols).unwrap();
     let relocations = verify_member_object_relocations_v1(definitions).unwrap();

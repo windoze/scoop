@@ -53,7 +53,9 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     let (partition, plan) = materialization_plan();
     let bytes = encoded_link_identity_closure_for_member_plan_test(&plan);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
-    let checked = decoded.validate_materializations(&partition).unwrap();
+    let checked = decoded
+        .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
+        .unwrap();
     assert_eq!(checked.member_plan(), &plan);
 
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
@@ -61,7 +63,7 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     )
     .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(&partition),
+        decoded.validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(_))
     ));
 
@@ -75,7 +77,7 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
         decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&encode(&stale_member).unwrap())
             .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(&partition),
+        decoded.validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition),
         Err(LinkObjectMaterializationValidationError::ProjectionMismatch)
     ));
 }
@@ -91,7 +93,13 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
-    let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
+    let plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &partition,
+        vec![units],
+        Vec::new(),
+    )
+    .unwrap();
     let digest_plan = production.digest_finalization_plan();
     let intent = digest_plan.nodes()[0].patch_intents()[0].id();
     let member = plan
@@ -104,7 +112,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
     let bytes = encoded_link_identity_closure_for_patch_test(&plan, None, intent, member, 144);
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes).unwrap();
     let checked = decoded
-        .validate_materializations(&partition)
+        .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
         .unwrap()
         .validate_digest_patch_inputs(digest_plan)
         .unwrap();
@@ -119,7 +127,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         &encoded_link_identity_closure_for_member_plan_test(&plan),
     )
     .unwrap()
-    .validate_materializations(&partition)
+    .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
     .unwrap();
     assert_eq!(
         missing.validate_digest_patch_inputs(digest_plan),
@@ -141,7 +149,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         &encoded_link_identity_closure_for_patch_test(&plan, None, unknown_intent, member, 144),
     )
     .unwrap()
-    .validate_materializations(&partition)
+    .validate_materializations(scoop_lir::LirTargetProfile::DARWIN_AARCH64, &partition)
     .unwrap();
     assert_eq!(
         unknown.validate_digest_patch_inputs(digest_plan),
@@ -281,7 +289,13 @@ fn materialization_plan() -> (
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
-    let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
+    let plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &partition,
+        vec![units],
+        Vec::new(),
+    )
+    .unwrap();
     (partition, plan)
 }
 

@@ -17,7 +17,14 @@ pub struct DecodedNativeLinkSymbol(Vec<u8>);
 
 impl DecodedNativeLinkSymbol {
     pub fn validate_darwin(self) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
-        NativeLinkSymbol::from_owned_darwin_macho_external(self.0)
+        self.validate_for_target(&TargetProfileWireId::darwin_aarch64())
+    }
+
+    pub fn validate_for_target(
+        self,
+        target: &TargetProfileWireId,
+    ) -> Result<NativeLinkSymbol, NativeLinkValidationError> {
+        NativeLinkSymbol::from_owned_for_target(target, self.0)
     }
 }
 
@@ -41,12 +48,14 @@ pub struct DecodedNativeExternalSymbolKey {
 
 impl DecodedNativeExternalSymbolKey {
     pub fn validate(self) -> Result<NativeExternalSymbolKey, NativeLinkValidationError> {
-        resolve_target_profile(self.target_profile)?;
-        Ok(
-            NativeExternalSymbolKey::from_validated_darwin_macho_external(
-                self.native_link_symbol.validate_darwin()?,
-            ),
-        )
+        let target_profile = resolve_target_profile(self.target_profile)?;
+        let native_link_symbol = self
+            .native_link_symbol
+            .validate_for_target(&target_profile)?;
+        Ok(NativeExternalSymbolKey {
+            target_profile,
+            native_link_symbol,
+        })
     }
 }
 
@@ -158,14 +167,14 @@ pub struct DecodedNativeLinkRequirementKey {
 
 impl DecodedNativeLinkRequirementKey {
     pub fn validate(self) -> Result<NativeLinkRequirementKey, NativeLinkValidationError> {
-        resolve_target_profile(self.target_profile)?;
+        let target = resolve_target_profile(self.target_profile)?;
         let library = self
             .library
             .validate()
             .map_err(NativeLinkValidationError::Library)?;
         let grouping = self.grouping.validate()?;
-        Ok(NativeLinkRequirementKey::for_darwin(
-            library, self.kind, grouping,
+        Ok(NativeLinkRequirementKey::for_target(
+            target, library, self.kind, grouping,
         ))
     }
 }

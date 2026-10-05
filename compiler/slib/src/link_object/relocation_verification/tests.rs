@@ -14,9 +14,12 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
         canonical_value,
         Some((0, primary)),
     );
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
             .unwrap();
@@ -37,11 +40,11 @@ fn assigns_relocations_to_exact_atoms_and_resolves_primary_targets() {
     assert_eq!(relocation.encoded_value(), 0xddcc_bbaa);
     assert_eq!(
         relocation.shape().form(),
-        VerifiedDarwinArm64RelocationFormV1::Branch26
+        VerifiedObjectRelocationFormV1::Branch26
     );
     assert_eq!(
         relocation.shape(),
-        &VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+        &VerifiedObjectRelocationShapeV1::Branch26 {
             target: VerifiedRelocationTargetV1::StrongDefinition {
                 definition: fixture.plan,
             },
@@ -63,16 +66,19 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
         .unwrap();
     let object =
         object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, Some((0, start)));
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
             .unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert!(matches!(
         verified.relocations()[0].shape(),
-        VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+        VerifiedObjectRelocationShapeV1::Branch26 {
             target: VerifiedRelocationTargetV1::LocalDefinition {
                 owner_atom: Some(atom),
                 value: 0,
@@ -92,9 +98,12 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
         .unwrap();
     let object =
         object_for_plan_with_branch_relocation(&fixture.symbols, canonical_value, Some((0, end)));
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
             .unwrap();
@@ -111,9 +120,12 @@ fn accepts_owned_start_boundaries_but_rejects_end_boundaries_and_padding() {
         canonical_value,
         Some((4, primary_role(&fixture.symbols))),
     );
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
             .unwrap();
@@ -136,16 +148,19 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
         Some((0, primary_role(&fixture.symbols))),
     );
     let used_bytes = add_undefined_symbols(object.bytes.clone(), true, &[b"_external"]);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&used_bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &used_bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&used_bytes, sections, &fixture.symbols)
             .unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),
-        &VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+        &VerifiedObjectRelocationShapeV1::Branch26 {
             target: VerifiedRelocationTargetV1::ExternalUndefined {
                 table_index: 3,
                 name: b"_external".to_vec(),
@@ -154,9 +169,12 @@ fn classifies_used_undefined_symbols_and_rejects_unused_entries() {
     );
 
     let unused_bytes = add_undefined_symbols(object.bytes, false, &[b"_external"]);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&unused_bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &unused_bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&unused_bytes, sections, &fixture.symbols)
             .unwrap();
@@ -178,42 +196,48 @@ fn assigns_local_machine_symbols_to_atom_owners() {
         Some((0, primary_role(&fixture.symbols))),
     );
     let local_bytes = add_local_symbol(object.bytes.clone(), 2);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&local_bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &local_bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&local_bytes, sections, &fixture.symbols)
             .unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),
-        &VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+        &VerifiedObjectRelocationShapeV1::Branch26 {
             target: VerifiedRelocationTargetV1::LocalDefinition {
                 table_index: 0,
                 name: b"ltmp0".to_vec(),
                 owner_atom: Some(fixture.atom),
-                section_ordinal: std::num::NonZeroU8::new(1).unwrap(),
+                section_ordinal: std::num::NonZeroU32::new(1).unwrap(),
                 value: 2,
             },
         }
     );
 
     let unowned_bytes = add_local_symbol(object.bytes, 6);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&unowned_bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &unowned_bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(&unowned_bytes, sections, &fixture.symbols)
             .unwrap();
     let verified = verify_member_object_relocations_v1(definitions).unwrap();
     assert_eq!(
         verified.relocations()[0].shape(),
-        &VerifiedDarwinArm64RelocationShapeV1::Branch26 {
+        &VerifiedObjectRelocationShapeV1::Branch26 {
             target: VerifiedRelocationTargetV1::LocalDefinition {
                 table_index: 0,
                 name: b"ltmp0".to_vec(),
                 owner_atom: None,
-                section_ordinal: std::num::NonZeroU8::new(1).unwrap(),
+                section_ordinal: std::num::NonZeroU32::new(1).unwrap(),
                 value: 6,
             },
         }

@@ -258,11 +258,13 @@ void m13_call_context_first(
 typedef struct M13PointerJob {
     M13PointerCallback callback;
     void *context;
+    _Atomic bool completed;
 } M13PointerJob;
 
 static void *m13_pointer_worker(void *raw_job) {
     M13PointerJob *job = (M13PointerJob *)raw_job;
     job->callback(job->context);
+    atomic_store_explicit(&job->completed, true, memory_order_release);
     return NULL;
 }
 
@@ -276,7 +278,9 @@ const ScoopString *m13_borrowed_round_trip(
     ScoopNativeRootFrame frame;
     scoop_rt_push_native_roots(&frame, slots, 1);
 
-    M13PointerJob job = {.callback = callback, .context = context};
+    M13PointerJob job = {
+        .callback = callback, .context = context, .completed = false
+    };
     uint64_t epoch = scoop_rt_thread_debug_gc_epoch();
     pthread_t thread;
     if (pthread_create(&thread, NULL, m13_pointer_worker, &job) != 0) {
@@ -289,7 +293,12 @@ const ScoopString *m13_borrowed_round_trip(
     /* This Scoop-ABI function is executing in native-borrowed mode. The
      * callback's collector cannot proceed until this explicit runtime call
      * parks the original thread and publishes the native root above. */
-    scoop_runtime_gc_collect();
+    do {
+        scoop_runtime_gc_collect();
+        sched_yield();
+    } while (!atomic_load_explicit(&job.completed, memory_order_acquire));
+    /* Stress allocation and the callback body can request distinct GC epochs.
+     * Stay cooperative until the callback has detached before blocking in join. */
     if (pthread_join(thread, NULL) != 0) {
         abort();
     }

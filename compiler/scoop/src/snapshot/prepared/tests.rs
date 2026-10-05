@@ -2,7 +2,6 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
@@ -152,7 +151,8 @@ fn request(root: &Path, workspace: &Path) -> BuildGraphRequest {
         vec![],
         ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
+            .unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
     )
@@ -167,7 +167,8 @@ fn single_file_request(source: &Path, workspace: &Path) -> BuildGraphRequest {
         vec![],
         ArtifactCacheRoot::new(workspace.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
+            .unwrap(),
         PairedScoopcLocator::new(compiler).unwrap(),
         DiagnosticsPolicy::Structured,
     )
@@ -186,8 +187,9 @@ fn prepare(root: &Path, workspace: &Path) -> Result<PreparedBuildGraph, PrepareB
 }
 
 fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let selection = crate::test_artifacts::host_target();
     let seed = crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -209,6 +211,7 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     )
     .unwrap();
     crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "prepare-test",
@@ -219,6 +222,7 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
 
 fn core_manifest_artifact() -> Vec<u8> {
     crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),

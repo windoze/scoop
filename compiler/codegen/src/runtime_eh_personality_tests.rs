@@ -29,6 +29,7 @@ fn scoop_personality_implements_the_closed_two_phase_contract() {
         .arg("-I")
         .arg(workspace.join("runtime/src"))
         .arg(workspace.join("runtime/src/eh_personality.c"))
+        .arg(workspace.join("runtime/src/eh/lsda.c"))
         .arg(workspace.join("runtime/tests/eh_personality_test.c"))
         .arg("-o")
         .arg(&binary)

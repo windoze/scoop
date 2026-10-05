@@ -4,10 +4,9 @@
 
 #define SCOOP_STACKMAP_VERSION 3
 #define SCOOP_STACKMAP_UNKNOWN_SIZE UINT64_MAX
-#define SCOOP_STACK_ALIGNMENT UINT64_C(16)
 
-static bool reserve_records(ScoopStackMapCursor *cursor, ScoopStackMapIndex *index,
-                            size_t additional) {
+static bool reserve_records(ScoopStackMapCursor *cursor,
+                            ScoopStackMapIndex *index, size_t additional) {
     size_t total;
     size_t bytes;
     if (!checked_add_size(index->record_count, additional, &total) ||
@@ -22,12 +21,14 @@ static bool reserve_records(ScoopStackMapCursor *cursor, ScoopStackMapIndex *ind
         return fail(cursor, SCOOP_STACKMAP_OUT_OF_MEMORY);
     }
     index->records = records;
-    memset(&index->records[index->record_count], 0, additional * sizeof *records);
+    memset(&index->records[index->record_count], 0,
+           additional * sizeof *records);
     return true;
 }
 
 static bool read_contribution(const ScoopStackMapImage *image,
-                              ScoopStackMapCursor *cursor, ScoopStackMapIndex *index) {
+                              ScoopStackMapCursor *cursor,
+                              ScoopStackMapIndex *index) {
     uint8_t version;
     uint8_t reserved8;
     uint16_t reserved16;
@@ -36,7 +37,8 @@ static bool read_contribution(const ScoopStackMapImage *image,
     uint32_t record_count;
     if (!read_u8(cursor, &version) || !read_u8(cursor, &reserved8) ||
         !read_u16(cursor, &reserved16) || !read_u32(cursor, &function_count) ||
-        !read_u32(cursor, &constant_count) || !read_u32(cursor, &record_count)) {
+        !read_u32(cursor, &constant_count) ||
+        !read_u32(cursor, &record_count)) {
         return false;
     }
     if (version != SCOOP_STACKMAP_VERSION) {
@@ -85,8 +87,7 @@ static bool read_contribution(const ScoopStackMapImage *image,
             return fail(cursor, SCOOP_STACKMAP_INVALID_FUNCTION_ADDRESS);
         }
         if (functions[index].stack_size == SCOOP_STACKMAP_UNKNOWN_SIZE ||
-            functions[index].stack_size == 0 ||
-            functions[index].stack_size % SCOOP_STACK_ALIGNMENT != 0) {
+            functions[index].stack_size == 0) {
             free(functions);
             free(constants);
             return fail(cursor, SCOOP_STACKMAP_INVALID_STACK_SIZE);
@@ -128,9 +129,9 @@ static bool read_contribution(const ScoopStackMapImage *image,
         for (uint64_t function_record = 0;
              function_record < functions[function_index].record_count;
              function_record++) {
-            if (!scoop_stackmap_read_record(cursor, image, &functions[function_index],
-                                            constants, constant_count,
-                                            &index->records[record_index])) {
+            if (!scoop_stackmap_read_record(
+                    cursor, image, &functions[function_index], constants,
+                    constant_count, &index->records[record_index])) {
                 index->record_count = record_index + 1;
                 free(functions);
                 free(constants);
@@ -146,10 +147,11 @@ static bool read_contribution(const ScoopStackMapImage *image,
     return true;
 }
 
-bool scoop_stackmap_read_image(const ScoopStackMapImage *image, size_t image_index,
-                               ScoopStackMapIndex *index, ScoopStackMapError *error) {
-    if (image->section == NULL || image->section_size == 0 || image->text_start == 0 ||
-        image->text_start >= image->text_end) {
+bool scoop_stackmap_read_image(const ScoopStackMapImage *image,
+                               size_t image_index, ScoopStackMapIndex *index,
+                               ScoopStackMapError *error) {
+    if (image->section == NULL || image->section_size == 0 ||
+        image->text_start == 0 || image->text_start >= image->text_end) {
         error->code = SCOOP_STACKMAP_INVALID_ARGUMENT;
         error->image_index = image_index;
         error->section_offset = 0;

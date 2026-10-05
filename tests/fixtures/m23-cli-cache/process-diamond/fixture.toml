@@ -2,7 +2,7 @@ schema = 1
 name = "cli-process-diamond"
 inputs = ["alpha", "beta", "root"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "cache", "stage-golden", "process-cache"]
 
 [vars]
@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -50,7 +50,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -91,12 +91,12 @@ checks = [
 [[steps]]
 name = "manual_core"
 files = [
-  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "manual"
-argv = ["${scoopc}", "build", "${work}/root", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib", "--direct-slib", "${cold.result.dependencies.2.path}", "--direct-slib", "${cold.result.dependencies.1.path}"]
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${work}/root", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib", "--direct-slib", "${cold.result.dependencies.2.path}", "--direct-slib", "${cold.result.dependencies.1.path}"]
 exit = 0
 stdout = ""
 stderr = ""

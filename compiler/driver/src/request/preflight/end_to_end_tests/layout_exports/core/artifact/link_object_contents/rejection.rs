@@ -70,7 +70,7 @@ pub(super) fn mutation(
                 Error::Objects(slib::BuiltinObjectSetValidationError::ScoopEnvelope {
                     source: slib::ScoopLirObjectEnvelopeValidationError::Envelope(
                         slib::ObjectEnvelopeValidationError::MalformedHeader
-                    ),
+                    ) | slib::ScoopLirObjectEnvelopeValidationError::Elf(_),
                     ..
                 })
             ) | (Failure::CBridgeEnvelope, Error::CBridgeEnvelopes(_))
@@ -127,18 +127,37 @@ pub(super) fn views_and_profile(
             if matches!(*error, slib::LayoutLinkObjectContentsError::CompileView))
         );
     }
-    let compiler = profile.contract().compiler();
-    let wrong = lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
-        profile.contract().deployment().clone(),
-        lir::AppleClangCompilerIdentityV1::new(
-            compiler.version_major() + 1,
-            compiler.version_minor(),
-            compiler.version_patch(),
-            compiler.build(),
+    let wrong = match profile.contract().platform() {
+        lir::CBridgePlatformContractV1::Darwin {
+            deployment,
+            compiler,
+        } => lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
+            deployment.clone(),
+            lir::AppleClangCompilerIdentityV1::new(
+                compiler.version_major() + 1,
+                compiler.version_minor(),
+                compiler.version_patch(),
+                compiler.build(),
+            )
+            .unwrap(),
         )
         .unwrap(),
-    )
-    .unwrap();
+        lir::CBridgePlatformContractV1::Linux { compiler } => {
+            let major = compiler
+                .version()
+                .split('.')
+                .next()
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            lir::CBridgeToolchainProfileV1::new_linux_gcc(
+                artifact.target_selection().target(),
+                lir::GccCompilerIdentityV1::new(&format!("{}.0.0", major + 1), compiler.inputs())
+                    .unwrap(),
+            )
+            .unwrap()
+        }
+    };
     assert_ne!(wrong.fingerprint(), profile.fingerprint());
     let error = reader::read_link(core, artifact)
         .replay_link_object_contents(&wrong)

@@ -2,7 +2,7 @@ schema = 1
 name = "layout-dependencies-core-initialization-combined"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-core-layout-exports/property-initialization-provider.scoop", "../../m23-property-initialization/combined.scoop", "consumer", "downstream"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["layout-dependencies", "core", "m23-property-initialization", "stage-golden"]
 
 [[steps]]
@@ -16,14 +16,14 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "1f5feb7e9e6ced7f40f06ff064e906a81d36a852df6fd65af9f9785b3100c328"},
+
 ]
 
 [[steps]]
@@ -41,14 +41,14 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-library/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "971df7480c0ca45833cc9855d3074433ca4e60c1d6426dfad64aba65dee75e0a"},
+
   {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
@@ -70,7 +70,7 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", "${work}/sources/downstream", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-reader/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/downstream", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/layout-reader/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -89,3 +89,7 @@ name = "remove_downstream_source"
 files = [
   {"remove" = {"path" = "${work}/sources/downstream"}},
 ]
+
+[[steps]]
+name = "artifact-fingerprints"
+checks = [{actual = {"consumer" = "${consumer.result.root.artifact_fingerprint}", "core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

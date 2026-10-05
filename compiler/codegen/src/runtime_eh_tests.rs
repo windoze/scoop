@@ -18,6 +18,7 @@ fn closed_lsda_decoder_accepts_only_the_qualified_profile() {
         .arg("-I")
         .arg(workspace.join("runtime/src"))
         .arg(workspace.join("runtime/src/eh_personality.c"))
+        .arg(workspace.join("runtime/src/eh/lsda.c"))
         .arg(workspace.join("runtime/tests/eh_decoder_test.c"))
         .arg("-o")
         .arg(&binary)

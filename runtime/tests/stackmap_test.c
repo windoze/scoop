@@ -89,8 +89,8 @@ static TestBuffer valid_section(void) {
     write_u32(&buffer, 2); /* records */
 
     write_u64(&buffer, 0x1000); /* function address */
-    write_u64(&buffer, 64); /* stack size */
-    write_u64(&buffer, 2); /* records in function */
+    write_u64(&buffer, 64);     /* stack size */
+    write_u64(&buffer, 2);      /* records in function */
     write_u64(&buffer, UINT64_C(0x1122334455667788));
 
     buffer.first_record = buffer.length;
@@ -170,11 +170,9 @@ static void test_valid_section(void) {
     assert(index.records[0].safepoint_id == 7);
     assert(index.records[0].stack_size == 64);
     assert(index.records[0].root_count == 5);
-    assert(index.records[0].roots[0].base.kind ==
-           SCOOP_STACKMAP_REGISTER);
+    assert(index.records[0].roots[0].base.kind == SCOOP_STACKMAP_REGISTER);
     assert(index.records[0].roots[1].base.kind == SCOOP_STACKMAP_DIRECT);
-    assert(index.records[0].roots[2].base.kind ==
-           SCOOP_STACKMAP_INDIRECT);
+    assert(index.records[0].roots[2].base.kind == SCOOP_STACKMAP_INDIRECT);
     assert(index.records[0].roots[3].base.constant == 42);
     assert(index.records[0].roots[4].base.constant ==
            UINT64_C(0x1122334455667788));
@@ -225,7 +223,7 @@ static void test_corrupt_sections_are_rejected(void) {
     expect_error(buffer, SCOOP_STACKMAP_NONZERO_RESERVED);
 
     buffer = valid_section();
-    set_u64(&buffer, 24, 63);
+    set_u64(&buffer, 24, UINT64_MAX);
     expect_error(buffer, SCOOP_STACKMAP_INVALID_STACK_SIZE);
 
     buffer = valid_section();
@@ -309,8 +307,8 @@ static void test_aarch64_stack_only_profile(void) {
     assert(scoop_darwin_aarch64_managed_frame_ops.frame_from_anchor(
         &anchor, &record, bounds, &frame, &error));
     void **slot;
-    assert(scoop_darwin_aarch64_managed_frame_ops.resolve_root(
-        &frame, 0, &slot, &error));
+    assert(scoop_darwin_aarch64_managed_frame_ops.resolve_root(&frame, 0, &slot,
+                                                               &error));
     assert(slot == (void **)(sp + 16));
 
     uintptr_t next_pc;
@@ -352,6 +350,11 @@ static void test_aarch64_stack_only_profile(void) {
     assert(!scoop_darwin_aarch64_managed_frame_ops.frame_from_anchor(
         &anchor, &record, bounds, &frame, &error));
     assert(error.code == SCOOP_PLATFORM_INVALID_ANCHOR);
+
+    record.stack_size = 63;
+    assert(!scoop_darwin_aarch64_managed_frame_ops.validate_record(&record,
+                                                                   &error));
+    assert(error.code == SCOOP_PLATFORM_INVALID_FRAME);
 }
 
 int main(void) {

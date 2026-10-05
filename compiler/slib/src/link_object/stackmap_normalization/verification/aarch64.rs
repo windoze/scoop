@@ -24,7 +24,7 @@ pub(super) fn validate_stackmap_function_machine_code(
     if primary.section_ordinal() != symbol.section_ordinal() || primary.start() != symbol.value() {
         return Err(DarwinAarch64StackmapMachineCodeError::PrimarySymbolMismatch);
     }
-    let section_index = usize::from(primary.section_ordinal().get()) - 1;
+    let section_index = (primary.section_ordinal().get() as usize) - 1;
     let section_role = sections
         .roles()
         .get(section_index)
@@ -126,12 +126,11 @@ fn text_instruction(
     primary: crate::link_object::VerifiedDefinitionAtomRangeV1,
     pc: u64,
 ) -> Result<u32, DarwinAarch64StackmapMachineCodeError> {
-    let section_index = usize::from(primary.section_ordinal().get()) - 1;
+    let section_index = (primary.section_ordinal().get() as usize) - 1;
     let section = sections
         .envelope()
         .sections()
         .get(section_index)
-        .copied()
         .ok_or(DarwinAarch64StackmapMachineCodeError::MissingTextSection)?;
     let offset_in_section = pc
         .checked_sub(section.virtual_address())

@@ -13,7 +13,7 @@ use scoop_lir::{
 use super::expected::ExpectedBridgeUnit;
 use super::{GeneratedBridgeRelocationSemanticV1, GeneratedCBridgeSemanticValidationError};
 use crate::{
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1,
 };
 
 pub(super) fn classify_binding(
@@ -44,6 +44,7 @@ pub(super) fn classify_binding(
                     StrongRelocationResolutionV1::ExternalCandidate { .. }
                 )
                 && native_relocation_form_matches(
+                    target_support.target(),
                     unit.key,
                     requirement.contract(),
                     binding.relocation_form(),
@@ -60,7 +61,7 @@ pub(super) fn classify_binding(
                     .object_symbol(target_support.target())
                     .as_slice()
             {
-                require_external_call(binding, unit)?;
+                require_external_call(binding, unit, target_support.target())?;
                 return Ok(GeneratedBridgeRelocationSemanticV1::RuntimeCallbackInvoke {
                     contract: runtime_callback.id(),
                 });
@@ -71,15 +72,9 @@ pub(super) fn classify_binding(
                 );
             };
             if resolved_definition(binding) == Some(definition)
-                && matches!(
-                    binding.relocation_form(),
-                    VerifiedDarwinArm64RelocationFormV1::Unsigned64
-                        | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-                        | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-                        | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-                        | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-                        | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
-                )
+                && binding
+                    .relocation_form()
+                    .is_data_address(target_support.target())
             {
                 return Ok(GeneratedBridgeRelocationSemanticV1::SignatureDescriptor { atom });
             }
@@ -125,7 +120,9 @@ pub(super) fn classify_binding(
                 StrongRelocationResolutionV1::ExternalCandidate { .. }
             ) && binding.symbol() == external_symbol.as_bytes();
             if (resolved_definition(binding) == Some(definition) || external)
-                && binding.relocation_form() == VerifiedDarwinArm64RelocationFormV1::Branch26
+                && binding
+                    .relocation_form()
+                    .is_direct_call(target_support.target())
             {
                 return Ok(
                     GeneratedBridgeRelocationSemanticV1::StaticCallbackStorageBridge { body },
@@ -145,7 +142,7 @@ fn target_support_semantic(
     let Some(requirement) = target_support.requirement_for_object_symbol(binding.symbol()) else {
         return Ok(None);
     };
-    require_external_call(binding, unit)?;
+    require_external_call(binding, unit, target_support.target())?;
     Ok(Some(GeneratedBridgeRelocationSemanticV1::TargetSupport {
         contract: requirement.id(),
     }))
@@ -154,11 +151,12 @@ fn target_support_semantic(
 fn require_external_call(
     binding: &StrongRelocationBindingV1,
     unit: &ExpectedBridgeUnit,
+    target: scoop_lir::LirTargetProfile,
 ) -> Result<(), GeneratedCBridgeSemanticValidationError> {
     if !matches!(
         binding.resolution(),
         StrongRelocationResolutionV1::ExternalCandidate { .. }
-    ) || binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Branch26
+    ) || !binding.relocation_form().is_direct_call(target)
     {
         return Err(unexpected_binding(unit, binding));
     }
@@ -196,33 +194,20 @@ pub(super) fn validate_native_contract_kind(
 }
 
 pub(super) fn native_relocation_form_matches(
+    target: scoop_lir::LirTargetProfile,
     key: GeneratedBridgeUnitKey,
     contract: &NativeExternalContract,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> bool {
     match key {
-        GeneratedBridgeUnitKey::OutboundFunction(_) => {
-            form == VerifiedDarwinArm64RelocationFormV1::Branch26
-        }
+        GeneratedBridgeUnitKey::OutboundFunction(_) => form.is_direct_call(target),
         GeneratedBridgeUnitKey::GlobalRead(_)
         | GeneratedBridgeUnitKey::GlobalWrite(_)
         | GeneratedBridgeUnitKey::GlobalAddress(_) => match contract {
             NativeExternalContract::ReadOnlyTls { .. }
-            | NativeExternalContract::MutableTls { .. } => matches!(
-                form,
-                VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
-                    | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
-            ),
+            | NativeExternalContract::MutableTls { .. } => form.is_tls_reference(target),
             NativeExternalContract::ReadOnlyData { .. }
-            | NativeExternalContract::MutableData { .. } => matches!(
-                form,
-                VerifiedDarwinArm64RelocationFormV1::Unsigned64
-                    | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-                    | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-                    | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
-            ),
+            | NativeExternalContract::MutableData { .. } => form.is_data_address(target),
             NativeExternalContract::Function { .. } => false,
         },
         GeneratedBridgeUnitKey::CallbackTrampoline { .. }

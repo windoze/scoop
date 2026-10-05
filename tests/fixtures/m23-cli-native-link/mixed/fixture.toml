@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-mixed"
 inputs = ["mixed-provider", "../../m23-native-link/mixed/provider.scoop", "mixed-left", "../../m23-native-link/mixed/left.scoop", "mixed-right", "../../m23-native-link/mixed/right.scoop", "mixed-root", "../../m23-native-link/mixed/root.scoop", "../../m23-native-link/mixed/archive.c", "../../m23-native-link/mixed/helper.c", "../../m23-native-link/mixed/unused.c", "../../m23-native-link/mixed/dynamic.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
 

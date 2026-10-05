@@ -6,20 +6,20 @@ pub(super) fn descriptor(
     ty: LirType,
     storage: scoop_lir::ValueStorageLayoutV1,
 ) -> scoop_lir::BoxedValueDescriptor {
-    let shape =
-        TypeInstanceShapeV1::boxed_value(scoop_lir::LirTargetProfile::DARWIN_AARCH64, storage)
-            .unwrap();
+    let shape = TypeInstanceShapeV1::boxed_value(meta.target_profile, storage).unwrap();
+    let layout = scoop_lir::LayoutIdentity::managed_value(
+        test_exact_type(name),
+        meta.target_profile,
+        scoop_lir::MaterializationRoot::cone_owned(),
+    )
+    .unwrap();
     let inline_scan = if shape.inline_scan().contains_reference() {
-        scoop_lir::TypeDescriptorInlineScanV1::Defined(
-            layout_identity(name, scoop_identity::RepresentationRole::ManagedValue)
-                .scan_record()
-                .id(),
-        )
+        scoop_lir::TypeDescriptorInlineScanV1::Defined(layout.scan_record().id())
     } else {
         scoop_lir::TypeDescriptorInlineScanV1::Null
     };
     meta.layouts.alloc(Layout {
-        identity: layout_identity(name, scoop_identity::RepresentationRole::ManagedValue),
+        identity: layout,
         name: format!("{name} payload"),
         size: shape.inline_size(),
         align: shape.inline_alignment(),

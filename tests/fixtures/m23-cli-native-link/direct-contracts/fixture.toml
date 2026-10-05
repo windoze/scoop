@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-direct-contracts"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/input_data.c", "native-sources/input_missing.c", "native-sources/input_constructor.c", "native-sources/input_common.c", "native-sources/input_target.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# The wrong-architecture case compiles x86_64 Mach-O and checks Darwin object diagnostics.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "stage-golden"]
 

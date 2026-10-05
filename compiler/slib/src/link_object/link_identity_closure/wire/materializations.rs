@@ -11,6 +11,7 @@ impl DecodedLinkIdentityClosureSectionV1 {
     /// This proves member assignment only, not object contents or Code identity.
     pub fn replay_materializations(
         &self,
+        target: scoop_lir::LirTargetProfile,
         partition: &ProducerUnitPartitionV1,
     ) -> Result<PlannedLinkObjectMemberSetV1, Error> {
         let path = WirePath::root().field(1);
@@ -58,7 +59,7 @@ impl DecodedLinkIdentityClosureSectionV1 {
 
         let actual = encode_canonical_temporary(&WireArray(&self.materializations), &path)?;
 
-        let plan = PlannedLinkObjectMemberSetV1::new(partition, scoop_sets, bridge_sets)
+        let plan = PlannedLinkObjectMemberSetV1::new(target, partition, scoop_sets, bridge_sets)
             .map_err(Error::MemberPlan)?;
         let expected = super::super::materializations(&plan);
         let expected = encode_canonical_temporary(&WireArray(&expected), &path)?;

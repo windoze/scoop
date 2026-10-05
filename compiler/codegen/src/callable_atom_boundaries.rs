@@ -11,6 +11,7 @@ use scoop_lir::{
 pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
 use crate::CodegenError;
 
+mod elf;
 mod macho;
 
 pub(crate) fn materialize_v1(
@@ -26,6 +27,10 @@ pub(crate) fn materialize_v1(
             "definition {} is not the selected callable body {expected_body}",
             plan.definition_plan()
         )));
+    }
+
+    if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
+        return elf::materialize(path, plan);
     }
 
     let mut bytes = std::fs::read(path).map_err(|error| {

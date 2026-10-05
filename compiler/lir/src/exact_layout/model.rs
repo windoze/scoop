@@ -298,7 +298,7 @@ pub struct InstanceRepresentationV1(pub(super) InstanceRepresentation);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum InstanceRepresentation {
-    ClassObject(ClassStorageLayoutV1),
+    ClassObject(Box<ClassStorageLayoutV1>),
     BoxedPayload(ValueLayoutConstituentV1),
     InlineBytes,
     InlineArray {

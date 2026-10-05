@@ -5,6 +5,8 @@ rust-version.workspace = true
 
 [dependencies]
 object.workspace = true
+yaxpeax-x86.workspace = true
+yaxpeax-arch.workspace = true
 scoop-hir.workspace = true
 scoop-identity.workspace = true
 scoop-lir.workspace = true

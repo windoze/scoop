@@ -1,0 +1,39 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone dev.example:generic-odr-conflict-provider:0.1.0 kind=Library objects=1
+cone dev.example:generic-odr-conflict-right:0.1.0 kind=Library objects=3
+cone test:generic-odr-conflicts-strings-conflict-right-program:1.0.0 kind=Executable objects=3
+runtime objects=63
+images=4 root=_scoop$1$re$45eab870f4bb8d7c0982e63f0705fd909c612bc5bd92eac4d3e4560ebf0b8214
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+startup object references:
+  _scoop$1$im$1e2239bc79a3c007ee6d55622e94d97671a0b1daf138a4636a7e7d01aa9b01f2
+  _scoop$1$im$45eab870f4bb8d7c0982e63f0705fd909c612bc5bd92eac4d3e4560ebf0b8214
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$91d47c168743c3bdf5645f9dcca4f20e064b99b28005cc043fe120fc60450ca8
+  _scoop$1$re$45eab870f4bb8d7c0982e63f0705fd909c612bc5bd92eac4d3e4560ebf0b8214
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$1e2239bc79a3c007ee6d55622e94d97671a0b1daf138a4636a7e7d01aa9b01f2");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$91d47c168743c3bdf5645f9dcca4f20e064b99b28005cc043fe120fc60450ca8");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$45eab870f4bb8d7c0982e63f0705fd909c612bc5bd92eac4d3e4560ebf0b8214");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$45eab870f4bb8d7c0982e63f0705fd909c612bc5bd92eac4d3e4560ebf0b8214");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

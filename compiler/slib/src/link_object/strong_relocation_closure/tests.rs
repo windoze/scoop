@@ -32,7 +32,7 @@ fn resolves_cross_member_strong_uses_and_keeps_true_externals_explicit() {
     assert_eq!(binding.offset_within_atom(), 0);
     assert_eq!(
         binding.relocation_form(),
-        VerifiedDarwinArm64RelocationFormV1::Branch26
+        VerifiedObjectRelocationFormV1::Branch26
     );
     assert_eq!(binding.encoded_value(), 0xddcc_bbaa);
     assert_eq!(binding.target_slot(), RelocationTargetSlotV1::Single);
@@ -168,14 +168,14 @@ pub(in crate::link_object) fn verified_member_with_undefined(
     verified_member_with_undefined_form(
         fixture,
         undefined_name,
-        VerifiedDarwinArm64RelocationFormV1::Branch26,
+        VerifiedObjectRelocationFormV1::Branch26,
     )
 }
 
 pub(in crate::link_object) fn verified_member_with_undefined_form(
     fixture: &Fixture,
     undefined_name: &[u8],
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> VerifiedMemberObjectRelocationIndexV1 {
     let object = object_for_plan_with_branch_relocation(
         &fixture.symbols,
@@ -184,11 +184,11 @@ pub(in crate::link_object) fn verified_member_with_undefined_form(
     );
     let bytes = add_undefined_symbols(object.bytes, true, &[undefined_name]);
     let bytes = match form {
-        VerifiedDarwinArm64RelocationFormV1::Branch26 => bytes,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => {
+        VerifiedObjectRelocationFormV1::Branch26 => bytes,
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21 => {
             retag_only_relocation(bytes, true, object::macho::ARM64_RELOC_TLVP_LOAD_PAGE21)
         }
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => {
+        VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => {
             retag_only_relocation(bytes, false, object::macho::ARM64_RELOC_TLVP_LOAD_PAGEOFF12)
         }
         _ => panic!("unsupported test relocation form: {form:?}"),
@@ -226,7 +226,7 @@ pub(in crate::link_object) fn replace_only_binding_resolution(
 pub(in crate::link_object) fn synthetic_binding(
     source_member: SlibMemberId,
     containing_atom: ObjectDefinitionAtomId,
-    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    relocation_form: VerifiedObjectRelocationFormV1,
     symbol: &[u8],
     resolution: StrongRelocationResolutionV1,
 ) -> StrongRelocationBindingV1 {
@@ -246,9 +246,12 @@ pub(in crate::link_object) fn synthetic_binding(
 }
 
 fn verified_member(fixture: &Fixture, bytes: &[u8]) -> VerifiedMemberObjectRelocationIndexV1 {
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        bytes,
+    )
+    .unwrap()
+    .into_sections();
     let definitions =
         verify_member_strong_object_definitions_v1(bytes, sections, &fixture.symbols).unwrap();
     verify_member_object_relocations_v1(definitions).unwrap()

@@ -225,6 +225,12 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 DefinitionAtomRole::CompactUnwind,
                 DefinitionAtomRole::Stackmap,
             ] {
+                if role == DefinitionAtomRole::CompactUnwind
+                    && target.lir_target().native_object_format()
+                        == scoop_lir::NativeObjectFormat::Elf64
+                {
+                    continue;
+                }
                 let changed = scoop_codegen::emit_object_set_v2(
                     &lir,
                     production.clone(),
@@ -433,7 +439,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
             if let Some(other) = outputs[second].get(body) {
                 assert!(
                     records == other,
-                    "shared ODR body {body} differs between consumers {first} and {second}"
+                    "shared ODR body {body} differs between consumers {first} and {second}, record {:?}",
+                    records
+                        .iter()
+                        .zip(other)
+                        .position(|(left, right)| left != right)
                 );
                 shared += 1;
             }

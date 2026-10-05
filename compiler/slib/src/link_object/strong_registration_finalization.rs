@@ -237,13 +237,16 @@ where
             &static_storages,
             &initializations,
         )?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(&bytes)
-            .map_err(|source| StrongRegistrationPatchError::FinalEnvelope { member, source })?;
+        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+            builtins.member_plan().target(),
+            &bytes,
+        )
+        .map_err(|source| StrongRegistrationPatchError::FinalEnvelope { member, source })?;
         let original = verified_member(builtins, member)
             .map_err(StrongRegistrationPatchError::ObjectValidation)?
             .definitions()
             .sections();
-        if !same_macho_shape(original, envelope.sections()) {
+        if !same_object_shape(original, envelope.sections()) {
             return Err(StrongRegistrationPatchError::MachOShapeChanged(member));
         }
         finalized.push(VerifiedStrongRegistrationPatchedScoopLirObjectV1 {
@@ -992,7 +995,7 @@ fn zero_digest_slot(
     zero_digest_slots(bytes, member, [patch])
 }
 
-pub(in crate::link_object) fn same_macho_shape(
+pub(in crate::link_object) fn same_object_shape(
     original: &ValidatedBuiltinObjectSectionInventoryV1,
     final_inventory: &ValidatedBuiltinObjectSectionInventoryV1,
 ) -> bool {
@@ -1001,11 +1004,7 @@ pub(in crate::link_object) fn same_macho_shape(
     original.profile() == final_inventory.profile()
         && original.roles() == final_inventory.roles()
         && original_envelope.byte_length() == final_envelope.byte_length()
-        && original_envelope.load_command_count() == final_envelope.load_command_count()
-        && original_envelope.section_count() == final_envelope.section_count()
-        && original_envelope.symbol_count() == final_envelope.symbol_count()
-        && original_envelope.relocation_count() == final_envelope.relocation_count()
-        && original_envelope.deployment() == final_envelope.deployment()
+        && original_envelope.format() == final_envelope.format()
         && original_envelope.sections() == final_envelope.sections()
         && original_envelope.symbols() == final_envelope.symbols()
         && original_envelope.relocations() == final_envelope.relocations()

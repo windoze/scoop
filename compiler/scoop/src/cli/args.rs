@@ -36,6 +36,8 @@ pub(super) struct BuildOptions {
     pub target: Option<String>,
     #[arg(long)]
     pub sysroot: Option<PathBuf>,
+    #[command(flatten)]
+    pub native: NativeOptions,
     /// Output profile; debug and release currently use the same compiler settings.
     #[arg(long, conflicts_with = "release")]
     pub profile: Option<BuildProfile>,
@@ -120,6 +122,8 @@ pub(super) struct LinkArgs {
     pub sysroot: Option<PathBuf>,
     #[arg(long)]
     pub target: Option<String>,
+    #[command(flatten)]
+    pub native: NativeOptions,
     #[arg(long)]
     pub runtime_objects: PathBuf,
     #[arg(long)]
@@ -130,6 +134,37 @@ pub(super) struct LinkArgs {
     pub dump_plan: bool,
     #[arg(long, default_value = "human")]
     pub message_format: MessageFormat,
+}
+
+#[derive(Args)]
+pub(super) struct NativeOptions {
+    /// Linux C compiler driver.
+    #[arg(long)]
+    pub cc: Option<PathBuf>,
+    /// Target C development sysroot, separate from the Scoop sysroot.
+    #[arg(long)]
+    pub native_sysroot: Option<PathBuf>,
+    /// LLVM unwind headers and archive prefix for the selected target.
+    #[arg(long)]
+    pub unwind_prefix: Option<PathBuf>,
+    /// Executable link mode; Linux gnu defaults to dynamic and musl to static.
+    #[arg(long, value_enum)]
+    pub link_mode: Option<LinkMode>,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+pub(super) enum LinkMode {
+    Static,
+    Dynamic,
+}
+
+impl From<LinkMode> for scoop_toolchain::LinkMode {
+    fn from(value: LinkMode) -> Self {
+        match value {
+            LinkMode::Static => Self::Static,
+            LinkMode::Dynamic => Self::Dynamic,
+        }
+    }
 }
 
 impl Command {

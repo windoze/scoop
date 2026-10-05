@@ -211,7 +211,7 @@ impl BuildGraphRequest {
     ) -> Result<Self, BuildGraphRequestError> {
         artifact_search_roots.sort_by(|left, right| left.as_path().cmp(right.as_path()));
         artifact_search_roots.dedup();
-        let target = ResolvedTargetProfile::resolve(target.canonical_triple())
+        let target = ResolvedTargetProfile::resolve_request(&target)
             .map_err(BuildGraphRequestError::Toolchain)?;
 
         Ok(Self {
@@ -348,8 +348,14 @@ mod tests {
             )
             .unwrap()
         };
-        let first = make("aarch64-apple-darwin", ["z", "a", "a"]);
-        let second = make("arm64-apple-macosx14.0", ["a", "z", "a"]);
+        let canonical = scoop_toolchain::host_target_triple().unwrap();
+        let alias = match crate::test_artifacts::host_target().target().id() {
+            scoop_lir::TargetProfileId::DarwinAarch64 => "arm64-apple-macosx14.0",
+            scoop_lir::TargetProfileId::LinuxX86_64Gnu => "x86_64-linux-gnu",
+            scoop_lir::TargetProfileId::LinuxX86_64Musl => "x86_64-linux-musl",
+        };
+        let first = make(canonical, ["z", "a", "a"]);
+        let second = make(alias, ["a", "z", "a"]);
 
         assert_eq!(first.target(), second.target());
         assert_eq!(

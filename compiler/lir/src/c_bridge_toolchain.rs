@@ -15,495 +15,24 @@ const C_BRIDGE_CANONICAL_FLAGS_DOMAIN: &str = "scoop-c-bridge-canonical-flags-v1
 const GENERATED_C_SOURCE_TEMPLATE_DOMAIN: &str = "scoop-generated-c-source-template-v1";
 const MAXIMUM_COMPILER_BUILD_LENGTH: usize = 127;
 
-/// Darwin's packed `X.Y.Z` version used by `LC_BUILD_VERSION`.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DarwinPackedVersionV1(u32);
+mod darwin;
+mod flags;
+mod linux;
+mod source;
 
-impl DarwinPackedVersionV1 {
-    pub fn new(packed: u32) -> Result<Self, DarwinPackedVersionError> {
-        if packed == 0 {
-            return Err(DarwinPackedVersionError::Zero);
-        }
-        Ok(Self(packed))
-    }
-
-    pub fn from_components(
-        major: u32,
-        minor: u32,
-        patch: u32,
-    ) -> Result<Self, DarwinPackedVersionError> {
-        if major == 0 {
-            return Err(DarwinPackedVersionError::Zero);
-        }
-        if major > u32::from(u16::MAX) {
-            return Err(DarwinPackedVersionError::MajorOutOfRange(major));
-        }
-        if minor > u32::from(u8::MAX) {
-            return Err(DarwinPackedVersionError::MinorOutOfRange(minor));
-        }
-        if patch > u32::from(u8::MAX) {
-            return Err(DarwinPackedVersionError::PatchOutOfRange(patch));
-        }
-        Self::new((major << 16) | (minor << 8) | patch)
-    }
-
-    pub const fn packed(self) -> u32 {
-        self.0
-    }
-
-    pub const fn components(self) -> (u32, u32, u32) {
-        (self.0 >> 16, (self.0 >> 8) & 0xff, self.0 & 0xff)
-    }
-}
-
-impl WireEncode for DarwinPackedVersionV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(u64::from(self.0))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinPackedVersionError {
-    Zero,
-    MajorOutOfRange(u32),
-    MinorOutOfRange(u32),
-    PatchOutOfRange(u32),
-}
-
-impl fmt::Display for DarwinPackedVersionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Darwin packed version: {self:?}")
-    }
-}
-
-impl std::error::Error for DarwinPackedVersionError {}
-
-impl fmt::Display for DarwinPackedVersionV1 {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (major, minor, patch) = self.components();
-        write!(formatter, "{major}.{minor}.{patch}")
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DarwinBuildToolIdV1 {
-    Clang,
-    Ld,
-    Lld,
-}
-
-impl DarwinBuildToolIdV1 {
-    pub const fn macho_value(self) -> u32 {
-        match self {
-            Self::Clang => 1,
-            Self::Ld => 3,
-            Self::Lld => 4,
-        }
-    }
-}
-
-impl WireEncode for DarwinBuildToolIdV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(u64::from(self.macho_value()))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DarwinBuildToolVersionContractV1 {
-    tool: DarwinBuildToolIdV1,
-    version: DarwinPackedVersionV1,
-}
-
-impl DarwinBuildToolVersionContractV1 {
-    pub const fn new(tool: DarwinBuildToolIdV1, version: DarwinPackedVersionV1) -> Self {
-        Self { tool, version }
-    }
-
-    pub const fn tool(self) -> DarwinBuildToolIdV1 {
-        self.tool
-    }
-
-    pub const fn version(self) -> DarwinPackedVersionV1 {
-        self.version
-    }
-}
-
-impl WireEncode for DarwinBuildToolVersionContractV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.tool.encode(encoder)?;
-        encoder.field(2)?;
-        self.version.encode(encoder)
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct DarwinCBridgeDeploymentContractV1 {
-    minimum_os: DarwinPackedVersionV1,
-    sdk: DarwinPackedVersionV1,
-    tools: Vec<DarwinBuildToolVersionContractV1>,
-}
-
-impl DarwinCBridgeDeploymentContractV1 {
-    pub fn new(
-        minimum_os: DarwinPackedVersionV1,
-        sdk: DarwinPackedVersionV1,
-        tools: Vec<DarwinBuildToolVersionContractV1>,
-    ) -> Result<Self, DarwinCBridgeDeploymentContractError> {
-        for (index, tool) in tools.iter().enumerate().skip(1) {
-            let previous = tools[index - 1].tool();
-            if previous >= tool.tool() {
-                return Err(if previous == tool.tool() {
-                    DarwinCBridgeDeploymentContractError::DuplicateTool(tool.tool())
-                } else {
-                    DarwinCBridgeDeploymentContractError::NonCanonicalToolOrder { index }
-                });
-            }
-        }
-        if !tools.is_empty()
-            && !tools
-                .iter()
-                .any(|tool| tool.tool() == DarwinBuildToolIdV1::Clang)
-        {
-            return Err(DarwinCBridgeDeploymentContractError::MissingClang);
-        }
-        Ok(Self {
-            minimum_os,
-            sdk,
-            tools,
-        })
-    }
-
-    pub const fn minimum_os(&self) -> DarwinPackedVersionV1 {
-        self.minimum_os
-    }
-
-    pub const fn sdk(&self) -> DarwinPackedVersionV1 {
-        self.sdk
-    }
-
-    pub fn tools(&self) -> &[DarwinBuildToolVersionContractV1] {
-        &self.tools
-    }
-}
-
-impl WireEncode for DarwinCBridgeDeploymentContractV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        encoder.unsigned(1)?;
-        encoder.field(2)?;
-        self.minimum_os.encode(encoder)?;
-        encoder.field(3)?;
-        self.sdk.encode(encoder)?;
-        encoder.field(4)?;
-        encode_array(encoder, &self.tools)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DarwinCBridgeDeploymentContractError {
-    MissingClang,
-    DuplicateTool(DarwinBuildToolIdV1),
-    NonCanonicalToolOrder { index: usize },
-}
-
-impl fmt::Display for DarwinCBridgeDeploymentContractError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid Darwin generated-C deployment contract: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for DarwinCBridgeDeploymentContractError {}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct AppleClangCompilerIdentityV1 {
-    version_major: u32,
-    version_minor: u32,
-    version_patch: u32,
-    build: String,
-}
-
-impl AppleClangCompilerIdentityV1 {
-    pub fn new(
-        version_major: u32,
-        version_minor: u32,
-        version_patch: u32,
-        build: &str,
-    ) -> Result<Self, AppleClangCompilerIdentityError> {
-        if version_major == 0 {
-            return Err(AppleClangCompilerIdentityError::ZeroMajorVersion);
-        }
-        if build.is_empty() {
-            return Err(AppleClangCompilerIdentityError::EmptyBuild);
-        }
-        if build.len() > MAXIMUM_COMPILER_BUILD_LENGTH {
-            return Err(AppleClangCompilerIdentityError::BuildTooLong);
-        }
-        if !build
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_' | b'+'))
-        {
-            return Err(AppleClangCompilerIdentityError::InvalidBuildCharacter);
-        }
-        Ok(Self {
-            version_major,
-            version_minor,
-            version_patch,
-            build: build.to_owned(),
-        })
-    }
-
-    pub const fn version_major(&self) -> u32 {
-        self.version_major
-    }
-
-    pub const fn version_minor(&self) -> u32 {
-        self.version_minor
-    }
-
-    pub const fn version_patch(&self) -> u32 {
-        self.version_patch
-    }
-
-    pub fn build(&self) -> &str {
-        &self.build
-    }
-}
-
-impl WireEncode for AppleClangCompilerIdentityV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encode_unsigned_field(encoder, 1, self.version_major)?;
-        encode_unsigned_field(encoder, 2, self.version_minor)?;
-        encode_unsigned_field(encoder, 3, self.version_patch)?;
-        encoder.field(4)?;
-        encoder.text(&self.build)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AppleClangCompilerIdentityError {
-    ZeroMajorVersion,
-    EmptyBuild,
-    BuildTooLong,
-    InvalidBuildCharacter,
-}
-
-impl fmt::Display for AppleClangCompilerIdentityError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid Apple Clang compiler identity: {self:?}")
-    }
-}
-
-impl std::error::Error for AppleClangCompilerIdentityError {}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct CanonicalCBridgeFlagContractV1;
-
-impl CanonicalCBridgeFlagContractV1 {
-    pub const CURRENT: Self = Self;
-
-    pub const fn flags(self) -> &'static [CanonicalCBridgeFlagV1] {
-        &CanonicalCBridgeFlagV1::ALL
-    }
-
-    pub fn fingerprint(self) -> Result<CanonicalCBridgeFlagFingerprint, HashError> {
-        domain_separated_cbor_hash(C_BRIDGE_CANONICAL_FLAGS_DOMAIN, &self)
-            .map(|digest| CanonicalCBridgeFlagFingerprint(*digest.as_array()))
-    }
-}
-
-impl WireEncode for CanonicalCBridgeFlagContractV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(CanonicalCBridgeFlagV1::ALL.len() as u64)?;
-        for flag in CanonicalCBridgeFlagV1::ALL {
-            flag.encode(encoder)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum CanonicalCBridgeFlagV1 {
-    ExplicitCanonicalTarget,
-    ExplicitResolvedSdkRoot,
-    ExplicitMinimumDeployment,
-    C11,
-    RelocatableObject,
-    Unoptimized,
-    NoDebugInformation,
-    NoCommonSymbols,
-    OmitCompilerIdentification,
-    NoStackProtector,
-    NoUnwindTables,
-    NoAsynchronousUnwindTables,
-    NoBuiltinSubstitution,
-}
-
-impl CanonicalCBridgeFlagV1 {
-    pub const ALL: [Self; 13] = [
-        Self::ExplicitCanonicalTarget,
-        Self::ExplicitResolvedSdkRoot,
-        Self::ExplicitMinimumDeployment,
-        Self::C11,
-        Self::RelocatableObject,
-        Self::Unoptimized,
-        Self::NoDebugInformation,
-        Self::NoCommonSymbols,
-        Self::OmitCompilerIdentification,
-        Self::NoStackProtector,
-        Self::NoUnwindTables,
-        Self::NoAsynchronousUnwindTables,
-        Self::NoBuiltinSubstitution,
-    ];
-
-    const fn tag(self) -> u32 {
-        match self {
-            Self::ExplicitCanonicalTarget => 1,
-            Self::ExplicitResolvedSdkRoot => 2,
-            Self::ExplicitMinimumDeployment => 3,
-            Self::C11 => 4,
-            Self::RelocatableObject => 5,
-            Self::Unoptimized => 6,
-            Self::NoDebugInformation => 7,
-            Self::NoCommonSymbols => 8,
-            Self::OmitCompilerIdentification => 9,
-            Self::NoStackProtector => 10,
-            Self::NoUnwindTables => 11,
-            Self::NoAsynchronousUnwindTables => 12,
-            Self::NoBuiltinSubstitution => 13,
-        }
-    }
-}
-
-impl WireEncode for CanonicalCBridgeFlagV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(u64::from(self.tag()))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct CanonicalCBridgeFlagFingerprint([u8; 32]);
-
-impl CanonicalCBridgeFlagFingerprint {
-    pub const fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl WireEncode for CanonicalCBridgeFlagFingerprint {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.0)
-    }
-}
-
-impl fmt::Display for CanonicalCBridgeFlagFingerprint {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_hex(formatter, &self.0)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct GeneratedCSourceTemplateContractV1;
-
-impl GeneratedCSourceTemplateContractV1 {
-    pub const CURRENT: Self = Self;
-
-    pub const fn components(self) -> &'static [GeneratedCSourceTemplateComponentV1] {
-        &GeneratedCSourceTemplateComponentV1::ALL
-    }
-
-    pub fn fingerprint(self) -> Result<GeneratedCSourceTemplateFingerprint, HashError> {
-        domain_separated_cbor_hash(GENERATED_C_SOURCE_TEMPLATE_DOMAIN, &self)
-            .map(|digest| GeneratedCSourceTemplateFingerprint(*digest.as_array()))
-    }
-}
-
-impl WireEncode for GeneratedCSourceTemplateContractV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(GeneratedCSourceTemplateComponentV1::ALL.len() as u64)?;
-        for component in GeneratedCSourceTemplateComponentV1::ALL {
-            encoder.map(2)?;
-            encoder.field(1)?;
-            component.encode(encoder)?;
-            encode_unsigned_field(encoder, 2, 1)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum GeneratedCSourceTemplateComponentV1 {
-    TypeRenderer,
-    LayoutAssertions,
-    ExternalDeclarations,
-    OutboundWrappers,
-    NativeGlobalAccessors,
-    CallbackTrampolines,
-    ForeignCallbackTrampolines,
-    UnitObjectPartition,
-    AtomBoundaryMaterialization,
-}
-
-impl GeneratedCSourceTemplateComponentV1 {
-    pub const ALL: [Self; 9] = [
-        Self::TypeRenderer,
-        Self::LayoutAssertions,
-        Self::ExternalDeclarations,
-        Self::OutboundWrappers,
-        Self::NativeGlobalAccessors,
-        Self::CallbackTrampolines,
-        Self::ForeignCallbackTrampolines,
-        Self::UnitObjectPartition,
-        Self::AtomBoundaryMaterialization,
-    ];
-
-    const fn tag(self) -> u32 {
-        match self {
-            Self::TypeRenderer => 1,
-            Self::LayoutAssertions => 2,
-            Self::ExternalDeclarations => 3,
-            Self::OutboundWrappers => 4,
-            Self::NativeGlobalAccessors => 5,
-            Self::CallbackTrampolines => 6,
-            Self::ForeignCallbackTrampolines => 7,
-            Self::UnitObjectPartition => 8,
-            Self::AtomBoundaryMaterialization => 9,
-        }
-    }
-}
-
-impl WireEncode for GeneratedCSourceTemplateComponentV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(u64::from(self.tag()))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct GeneratedCSourceTemplateFingerprint([u8; 32]);
-
-impl GeneratedCSourceTemplateFingerprint {
-    pub const fn as_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl WireEncode for GeneratedCSourceTemplateFingerprint {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.bytes(&self.0)
-    }
-}
-
-impl fmt::Display for GeneratedCSourceTemplateFingerprint {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write_hex(formatter, &self.0)
-    }
-}
+pub use darwin::{
+    AppleClangCompilerIdentityError, AppleClangCompilerIdentityV1, DarwinBuildToolIdV1,
+    DarwinBuildToolVersionContractV1, DarwinCBridgeDeploymentContractError,
+    DarwinCBridgeDeploymentContractV1, DarwinPackedVersionError, DarwinPackedVersionV1,
+};
+pub use flags::{
+    CanonicalCBridgeFlagContractV1, CanonicalCBridgeFlagFingerprint, CanonicalCBridgeFlagV1,
+};
+pub use linux::{GccCompilerIdentityError, GccCompilerIdentityV1};
+pub use source::{
+    GeneratedCSourceTemplateComponentV1, GeneratedCSourceTemplateContractV1,
+    GeneratedCSourceTemplateFingerprint,
+};
 
 /// The generated-C compiler inherits no host environment variables.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -534,12 +63,53 @@ impl WireEncode for CBridgeEnvironmentProjectionV1 {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum CBridgePlatformContractV1 {
+    Darwin {
+        deployment: DarwinCBridgeDeploymentContractV1,
+        compiler: AppleClangCompilerIdentityV1,
+    },
+    Linux {
+        compiler: GccCompilerIdentityV1,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CBridgePlatformError {
+    ExpectedDarwin,
+    ExpectedLinux,
+}
+
+impl fmt::Display for CBridgePlatformError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::ExpectedDarwin => "a Darwin C toolchain is required for Mach-O deployment",
+            Self::ExpectedLinux => "a Linux target is required for the GCC C toolchain",
+        })
+    }
+}
+impl std::error::Error for CBridgePlatformError {}
+
+#[derive(Debug)]
+pub enum CBridgeToolchainBuildError {
+    Platform(CBridgePlatformError),
+    Hash(HashError),
+}
+impl fmt::Display for CBridgeToolchainBuildError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Platform(error) => error.fmt(formatter),
+            Self::Hash(error) => error.fmt(formatter),
+        }
+    }
+}
+impl std::error::Error for CBridgeToolchainBuildError {}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct CBridgeToolchainContractV1 {
     target: TargetProfileWireId,
     target_fingerprint: TargetProfileFingerprint,
     canonical_triple: &'static str,
-    deployment: DarwinCBridgeDeploymentContractV1,
-    compiler: AppleClangCompilerIdentityV1,
+    platform: CBridgePlatformContractV1,
     canonical_flag_fingerprint: CanonicalCBridgeFlagFingerprint,
     source_template_fingerprint: GeneratedCSourceTemplateFingerprint,
     environment: CBridgeEnvironmentProjectionV1,
@@ -555,8 +125,10 @@ impl CBridgeToolchainContractV1 {
             target: target.wire_id(),
             target_fingerprint: target.fingerprint()?,
             canonical_triple: target.contract().canonical_triple(),
-            deployment,
-            compiler,
+            platform: CBridgePlatformContractV1::Darwin {
+                deployment,
+                compiler,
+            },
             canonical_flag_fingerprint: CanonicalCBridgeFlagContractV1::CURRENT.fingerprint()?,
             source_template_fingerprint: GeneratedCSourceTemplateContractV1::CURRENT
                 .fingerprint()?,
@@ -576,12 +148,22 @@ impl CBridgeToolchainContractV1 {
         self.canonical_triple
     }
 
-    pub const fn deployment(&self) -> &DarwinCBridgeDeploymentContractV1 {
-        &self.deployment
+    pub const fn platform(&self) -> &CBridgePlatformContractV1 {
+        &self.platform
     }
 
-    pub const fn compiler(&self) -> &AppleClangCompilerIdentityV1 {
-        &self.compiler
+    pub fn deployment(&self) -> Result<&DarwinCBridgeDeploymentContractV1, CBridgePlatformError> {
+        match &self.platform {
+            CBridgePlatformContractV1::Darwin { deployment, .. } => Ok(deployment),
+            CBridgePlatformContractV1::Linux { .. } => Err(CBridgePlatformError::ExpectedDarwin),
+        }
+    }
+
+    pub fn compiler(&self) -> Result<&AppleClangCompilerIdentityV1, CBridgePlatformError> {
+        match &self.platform {
+            CBridgePlatformContractV1::Darwin { compiler, .. } => Ok(compiler),
+            CBridgePlatformContractV1::Linux { .. } => Err(CBridgePlatformError::ExpectedDarwin),
+        }
     }
 
     pub const fn canonical_flag_fingerprint(&self) -> CanonicalCBridgeFlagFingerprint {
@@ -607,9 +189,23 @@ impl WireEncode for CBridgeToolchainContractV1 {
         encoder.field(3)?;
         encoder.text(self.canonical_triple)?;
         encoder.field(4)?;
-        self.deployment.encode(encoder)?;
-        encoder.field(5)?;
-        self.compiler.encode(encoder)?;
+        match &self.platform {
+            CBridgePlatformContractV1::Darwin {
+                deployment,
+                compiler,
+            } => {
+                deployment.encode(encoder)?;
+                encoder.field(5)?;
+                compiler.encode(encoder)?;
+            }
+            CBridgePlatformContractV1::Linux { compiler } => {
+                encoder.map(1)?;
+                encoder.field(1)?;
+                encoder.unsigned(2)?;
+                encoder.field(5)?;
+                compiler.encode(encoder)?;
+            }
+        }
         encoder.field(6)?;
         self.canonical_flag_fingerprint.encode(encoder)?;
         encoder.field(7)?;
@@ -635,6 +231,44 @@ impl CBridgeToolchainProfileV1 {
         let contract =
             CBridgeToolchainContractV1::darwin_aarch64_apple_clang(deployment, compiler)?;
         let fingerprint = CBridgeToolchainFingerprint::from_parts(&id, &contract)?;
+        Ok(Self {
+            id,
+            contract,
+            fingerprint,
+        })
+    }
+
+    pub fn new_linux_gcc(
+        target: LirTargetProfile,
+        compiler: GccCompilerIdentityV1,
+    ) -> Result<Self, CBridgeToolchainBuildError> {
+        use crate::TargetProfileId;
+        let id = match target.id() {
+            TargetProfileId::LinuxX86_64Gnu => CBridgeToolchainProfileId::linux_x86_64_gnu_gcc(),
+            TargetProfileId::LinuxX86_64Musl => CBridgeToolchainProfileId::linux_x86_64_musl_gcc(),
+            TargetProfileId::DarwinAarch64 => {
+                return Err(CBridgeToolchainBuildError::Platform(
+                    CBridgePlatformError::ExpectedLinux,
+                ));
+            }
+        };
+        let contract = CBridgeToolchainContractV1 {
+            target: target.wire_id(),
+            target_fingerprint: target
+                .fingerprint()
+                .map_err(CBridgeToolchainBuildError::Hash)?,
+            canonical_triple: target.contract().canonical_triple(),
+            platform: CBridgePlatformContractV1::Linux { compiler },
+            canonical_flag_fingerprint: CanonicalCBridgeFlagContractV1::LINUX_GCC
+                .fingerprint()
+                .map_err(CBridgeToolchainBuildError::Hash)?,
+            source_template_fingerprint: GeneratedCSourceTemplateContractV1::CURRENT
+                .fingerprint()
+                .map_err(CBridgeToolchainBuildError::Hash)?,
+            environment: CBridgeEnvironmentProjectionV1::CLEAN_C_LOCALE_UTC,
+        };
+        let fingerprint = CBridgeToolchainFingerprint::from_parts(&id, &contract)
+            .map_err(CBridgeToolchainBuildError::Hash)?;
         Ok(Self {
             id,
             contract,

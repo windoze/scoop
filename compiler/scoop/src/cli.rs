@@ -5,6 +5,7 @@ use scoop::{BuildFailure, BuildFailurePhase};
 
 mod args;
 mod commands;
+mod native;
 mod presentation;
 mod run;
 

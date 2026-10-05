@@ -11,12 +11,13 @@ use crate::{BuildResult, ImmutableInputSnapshot};
 
 pub(super) fn artifacts(
     request: &LinkRequest,
+    selection: ValidatedLirTargetSelection,
 ) -> BuildResult<(LocatedLinkArtifact, Vec<LocatedLinkArtifact>)> {
-    let root = read(&request.root_slib)?;
+    let root = read(&request.root_slib, selection)?;
     let root_id = root.summary.cone().identity();
     let mut artifacts = BTreeMap::new();
     for path in &request.dependency_slibs {
-        let artifact = read(path)?;
+        let artifact = read(path, selection)?;
         let identity = artifact.summary.cone().identity();
         if identity == root_id {
             return Err(failure("root artifact cannot also be a dependency")
@@ -36,7 +37,7 @@ pub(super) fn artifacts(
             continue;
         }
         if !artifacts.contains_key(&edge.identity()) {
-            let artifact = locate(request, edge.coordinate()).map_err(|error| {
+            let artifact = locate(request, edge.coordinate(), selection).map_err(|error| {
                 if !matches!(error.location, crate::BuildFailureLocation::None) {
                     error
                 } else {
@@ -57,20 +58,18 @@ pub(super) fn artifacts(
     Ok((root, artifacts.into_values().collect()))
 }
 
-fn read(path: &Path) -> BuildResult<LocatedLinkArtifact> {
+fn read(path: &Path, selection: ValidatedLirTargetSelection) -> BuildResult<LocatedLinkArtifact> {
     let input = ImmutableInputSnapshot::capture(path)
         .map_err(|error| failure(error).at_artifact(path, "container:$"))?;
     let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
-    let summary = snapshot
-        .manifest_summary(ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1)
-        .map_err(|error| {
-            let member = match &error {
-                ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
-                ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
-                ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
-            };
-            failure(error).at_artifact(path, member)
-        })?;
+    let summary = snapshot.manifest_summary(selection).map_err(|error| {
+        let member = match &error {
+            ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
+            ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+            ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
+        };
+        failure(error).at_artifact(path, member)
+    })?;
     Ok(LocatedLinkArtifact {
         path: input.source_locator().to_owned(),
         snapshot,
@@ -100,7 +99,11 @@ fn insert(
     Ok(())
 }
 
-fn locate(request: &LinkRequest, coordinate: &ConeCoordinate) -> BuildResult<LocatedLinkArtifact> {
+fn locate(
+    request: &LinkRequest,
+    coordinate: &ConeCoordinate,
+    selection: ValidatedLirTargetSelection,
+) -> BuildResult<LocatedLinkArtifact> {
     let mut paths = request
         .cone_paths
         .iter()
@@ -108,12 +111,9 @@ fn locate(request: &LinkRequest, coordinate: &ConeCoordinate) -> BuildResult<Loc
         .collect::<Vec<_>>();
     if coordinate == &ConeCoordinate::reserved_core() {
         paths.push(
-            scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-                &request.sysroot,
-                ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            )
-            .artifact()
-            .to_owned(),
+            scoop_toolchain::TrustedCoreSlotLayoutV1::new(&request.sysroot, selection)
+                .artifact()
+                .to_owned(),
         );
     }
     paths.sort();
@@ -128,7 +128,7 @@ fn locate(request: &LinkRequest, coordinate: &ConeCoordinate) -> BuildResult<Loc
             }
             Ok(_) => {}
         }
-        let artifact = read(&path)?;
+        let artifact = read(&path, selection)?;
         if artifact.summary.cone().coordinate() != coordinate {
             return Err(failure(format!(
                 "artifact {} has coordinate {}, expected {coordinate}",

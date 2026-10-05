@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod linux;
+
 fn runtime_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../runtime")
 }
@@ -14,22 +17,22 @@ fn actual_runtime_objects_roundtrip_and_corrupt_cache_rebuilds() {
             runtime_root: &runtime_root(),
             cache_root: cache.path(),
             optimization: RuntimeOptimization::None,
+            unwind_prefix: None,
         })
         .unwrap()
     };
+    let startup = target
+        .lir_target()
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol("scoop_rt_run_program");
     let first = build();
     assert!(!first.cache_hit());
     assert_eq!(
         first.objects().objects().len(),
         target.runtime_build().runtime_sources().len()
     );
-    assert!(
-        first
-            .objects()
-            .symbols()
-            .definitions
-            .contains_key("_scoop_rt_run_program")
-    );
+    assert!(first.objects().symbols().definitions.contains_key(&startup));
     let second = build();
     assert!(second.cache_hit());
     assert_eq!(
@@ -64,12 +67,7 @@ fn actual_runtime_objects_roundtrip_and_corrupt_cache_rebuilds() {
     let missing_entry = read
         .objects()
         .iter()
-        .filter(|object| {
-            !object
-                .info()
-                .definitions
-                .contains_key("_scoop_rt_run_program")
-        })
+        .filter(|object| !object.info().definitions.contains_key(&startup))
         .map(|object| object.bytes().to_vec())
         .collect();
     assert!(
@@ -136,6 +134,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
         runtime_root: &runtime_root(),
         cache_root: &cache,
         optimization: RuntimeOptimization::None,
+        unwind_prefix: None,
     };
     inputs::Inputs::read(&request)
         .unwrap()
@@ -147,6 +146,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
             runtime_root: &source,
             cache_root: &cache,
             optimization,
+            unwind_prefix: None,
         })
         .unwrap()
     };
@@ -177,45 +177,44 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
 }
 
 #[test]
-fn runtime_cache_checks_sdk_and_compiler_resource_header_contents() {
-    let target = ResolvedTargetProfile::resolve_host().unwrap();
+fn runtime_cache_checks_external_header_contents_and_symlink_changes() {
     let directory = tempfile::tempdir().unwrap();
-    let mut inputs = inputs::Inputs::read(&RuntimeBuildRequest {
-        target: &target,
-        runtime_root: &runtime_root(),
-        cache_root: directory.path(),
-        optimization: RuntimeOptimization::None,
-    })
-    .unwrap();
-    inputs.sdk = directory.path().join("sdk");
-    inputs.resource = Some(directory.path().join("resource"));
-    for root in [&inputs.sdk, inputs.resource.as_ref().unwrap()] {
+    let roots = ["sdk", "resource", "musl-headers"].map(|name| directory.path().join(name));
+    for root in &roots {
         std::fs::create_dir_all(root).unwrap();
         std::fs::write(root.join("header.h"), "#define VALUE 1\n").unwrap();
     }
-    inputs.sdk = std::fs::canonicalize(&inputs.sdk).unwrap();
-    inputs.resource = inputs
-        .resource
-        .map(|path| std::fs::canonicalize(path).unwrap());
     let dependencies = dependencies::Dependencies::collect(
-        &inputs,
         &directory.path().join("runtime"),
         vec![Some(format!(
-            "runtime.o: {}/header.h {}/header.h\n",
-            inputs.sdk.display(),
-            inputs.resource.as_ref().unwrap().display()
+            "runtime.o: {}\n",
+            roots
+                .iter()
+                .map(|root| root.join("header.h").display().to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
         ))],
     );
-    assert!(dependencies.is_current(&inputs));
+    assert!(dependencies.is_current());
     let saved = scoop_wire::encode(&dependencies).unwrap();
     let saved: dependencies::Dependencies = scoop_wire::decode_canonical(&saved).unwrap();
-    for root in [&inputs.sdk, inputs.resource.as_ref().unwrap()] {
+    for root in &roots {
         std::fs::write(root.join("header.h"), "#define VALUE 2\n").unwrap();
-        assert!(!saved.is_current(&inputs));
+        assert!(!saved.is_current());
         std::fs::write(root.join("header.h"), "#define VALUE 1\n").unwrap();
     }
-    assert!(
-        !dependencies::Dependencies::collect(&inputs, directory.path(), vec![None])
-            .is_current(&inputs)
-    );
+    assert!(!dependencies::Dependencies::collect(directory.path(), vec![None]).is_current());
+    #[cfg(unix)]
+    {
+        let alias = directory.path().join("selected.h");
+        std::os::unix::fs::symlink(roots[0].join("header.h"), &alias).unwrap();
+        let dependencies = dependencies::Dependencies::collect(
+            &directory.path().join("runtime"),
+            vec![Some(format!("runtime.o: {}\n", alias.display()))],
+        );
+        std::fs::write(roots[1].join("header.h"), "#define VALUE 3\n").unwrap();
+        std::fs::remove_file(&alias).unwrap();
+        std::os::unix::fs::symlink(roots[1].join("header.h"), alias).unwrap();
+        assert!(!dependencies.is_current());
+    }
 }

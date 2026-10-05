@@ -6,17 +6,24 @@ use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 const BACKEND_PROFILE_DOMAIN: &str = "scoop-backend-profile-contract-v1";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BackendProfile;
+pub enum BackendProfile {
+    Llvm22_1DarwinAarch64,
+    Llvm22_1LinuxX86_64,
+}
 
 impl BackendProfile {
-    pub const LLVM_22_1: Self = Self;
+    pub const LLVM_22_1: Self = Self::Llvm22_1DarwinAarch64;
+    pub const LLVM_22_1_LINUX_X86_64: Self = Self::Llvm22_1LinuxX86_64;
 
     pub fn wire_id(self) -> BackendProfileWireId {
-        BackendProfileWireId::llvm_22_1()
+        match self {
+            Self::Llvm22_1DarwinAarch64 => BackendProfileWireId::llvm_22_1(),
+            Self::Llvm22_1LinuxX86_64 => BackendProfileWireId::llvm_22_1_linux_x86_64(),
+        }
     }
 
     pub const fn contract(self) -> BackendProfileContract {
-        BackendProfileContract
+        BackendProfileContract(self)
     }
 
     pub fn fingerprint(self) -> Result<BackendProfileFingerprint, HashError> {
@@ -25,11 +32,12 @@ impl BackendProfile {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BackendProfileContract;
+pub struct BackendProfileContract(BackendProfile);
 
 impl WireEncode for BackendProfileContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(25)?;
+        let linux_x86_64 = self.0 == BackendProfile::LLVM_22_1_LINUX_X86_64;
+        encoder.map(if linux_x86_64 { 27 } else { 25 })?;
         encode_pair(encoder, 1, 22, 1)?;
         encoder.field(2)?;
         encoder.map(3)?;
@@ -37,24 +45,39 @@ impl WireEncode for BackendProfileContract {
         encode_unsigned_field(encoder, 2, 10)?;
         encode_unsigned_field(encoder, 3, 1)?;
         encoder.field(3)?;
-        encoder.text("generic")?;
+        encoder.text(if linux_x86_64 { "x86-64" } else { "generic" })?;
         encoder.field(4)?;
         encoder.text("")?;
         for field in 5..=10 {
             encode_unsigned_field(encoder, field, 1)?;
         }
         encode_unsigned_field(encoder, 11, 3)?;
-        for field in 12..=21 {
+        for field in 12..=18 {
             encode_unsigned_field(encoder, field, 1)?;
         }
+        encode_unsigned_field(encoder, 19, if linux_x86_64 { 2 } else { 1 })?;
+        encode_unsigned_field(encoder, 20, 1)?;
+        encode_unsigned_field(encoder, 21, 1)?;
         encode_unsigned_field(encoder, 22, 2)?;
         encoder.field(23)?;
-        encoder.map(3)?;
+        encoder.map(if linux_x86_64 { 4 } else { 3 })?;
         encode_unsigned_field(encoder, 1, 0xff)?;
         encode_unsigned_field(encoder, 2, 0x9b)?;
         encode_unsigned_field(encoder, 3, 0x01)?;
-        encode_unsigned_field(encoder, 24, 1)?;
-        encode_unsigned_field(encoder, 25, 1)
+        if linux_x86_64 {
+            encode_unsigned_field(encoder, 4, 0xff)?;
+        }
+        encode_unsigned_field(encoder, 24, if linux_x86_64 { 2 } else { 1 })?;
+        encode_unsigned_field(encoder, 25, if linux_x86_64 { 2 } else { 1 })?;
+        if linux_x86_64 {
+            encode_unsigned_field(encoder, 26, 1)?;
+            encoder.field(27)?;
+            encoder.map(4)?;
+            for (field, value) in [(1, 7), (2, 6), (3, 8), (4, 16)] {
+                encode_unsigned_field(encoder, field, value)?;
+            }
+        }
+        Ok(())
     }
 }
 

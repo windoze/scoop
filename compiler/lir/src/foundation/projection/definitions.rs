@@ -35,7 +35,12 @@ impl CanonicalLirFoundation {
             writer.define(
                 StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableBody,
-                callable_body_associated_atoms(function, &cstrings, runtime_scans.atoms()),
+                callable_body_associated_atoms(
+                    function,
+                    &cstrings,
+                    runtime_scans.atoms(),
+                    module.meta.target_profile,
+                ),
             )?;
             for identity in cstrings {
                 if writer.atoms.get(&identity.atom_record().id()) != Some(identity.atom_record()) {
@@ -117,7 +122,10 @@ impl CanonicalLirFoundation {
             } = &global.init
             {
                 let storage = identity.identity_record().id();
-                let associated = if *thread_local {
+                let associated = if *thread_local
+                    && module.meta.target_profile.native_object_format()
+                        == crate::NativeObjectFormat::MachO64
+                {
                     vec![(
                         DefinitionAtomRole::AddressTakenConstant,
                         DefinitionAtomSubkey::StaticStorage(storage),
@@ -285,6 +293,7 @@ pub(super) fn callable_body_associated_atoms(
     function: &Function,
     cstrings: &[&crate::CallableCStringIdentity],
     runtime_scans: &[crate::StrongCallableRuntimeScanAtomV1],
+    target: crate::LirTargetProfile,
 ) -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
@@ -303,7 +312,11 @@ pub(super) fn callable_body_associated_atoms(
         }));
     }
     if function.callable_body.release_owner().is_none() {
-        associated.push((DefinitionAtomRole::CompactUnwind, subkey()));
+        let role = match target.native_object_format() {
+            crate::NativeObjectFormat::MachO64 => DefinitionAtomRole::CompactUnwind,
+            crate::NativeObjectFormat::Elf64 => DefinitionAtomRole::EhFrame,
+        };
+        associated.push((role, subkey()));
     }
     if !function.safepoints.is_empty() {
         associated.push((DefinitionAtomRole::Stackmap, subkey()));
@@ -315,7 +328,11 @@ pub(super) fn callable_body_associated_atoms(
             .any(|instruction| matches!(instruction, crate::Instruction::Invoke { .. }))
     }) {
         associated.push((DefinitionAtomRole::Lsda, subkey()));
-        associated.push((DefinitionAtomRole::EhFrame, subkey()));
+        if target.native_object_format() == crate::NativeObjectFormat::MachO64 {
+            associated.push((DefinitionAtomRole::EhFrame, subkey()));
+        } else {
+            associated.push((DefinitionAtomRole::AddressTakenConstant, subkey()));
+        }
     }
     associated.extend(cstrings.iter().map(|identity| {
         (

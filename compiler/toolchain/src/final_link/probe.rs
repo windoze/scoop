@@ -2,7 +2,7 @@ use super::*;
 use object::{Architecture, Object, ObjectKind, macho, read::macho::MachOFile64};
 use scoop_process::CommandExt;
 
-pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), ToolchainError> {
+pub(super) fn check(profile: &DarwinFinalLinkProfile) -> Result<(), ToolchainError> {
     for symbol in profile.linker_system_requirements() {
         if !profile.system.exports().contains_key(*symbol) {
             return Err(error(format!(
@@ -36,7 +36,7 @@ pub(super) fn check(profile: &ValidatedFinalLinkProfile) -> Result<(), Toolchain
     let stub = profile.system.write_to(&sdk)?;
     let executable = directory.path().join("program");
     let output = profile
-        .command(&sdk, &executable, &directory.path().join("program.map"))
+        .command(&sdk, &executable, &directory.path().join("program.map"))?
         .arg(&object)
         .arg(stub)
         .scoop_output()

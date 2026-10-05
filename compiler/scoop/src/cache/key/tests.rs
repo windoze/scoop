@@ -77,6 +77,7 @@ fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolch
 fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummaryV1) {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let core = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -90,6 +91,7 @@ fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummary
     let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
     let semantic = core.semantic_fingerprints();
     let dependency = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::new("dev.example", "dependency", "1.0.0").unwrap(),
@@ -176,7 +178,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "c4385d44e74fd85c62809404c85d4a8e571d8a129efc8dc5e98beb6a57c9ad21"
+        "653ff5c01b9c4a79a44644fb60f16f782930634e32c3ebacbaea0b34dadbe18d"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
 }

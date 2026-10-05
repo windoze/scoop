@@ -134,7 +134,7 @@ impl WireEncode for LinkObjectMaterializationV1 {
 pub struct VerifiedDefinitionAtomRangeProjectionV1 {
     atom: ObjectDefinitionAtomId,
     atom_role: DefinitionAtomRole,
-    section_ordinal: u8,
+    section_ordinal: u32,
     start: u64,
     end: u64,
     padding_end: u64,
@@ -149,7 +149,7 @@ impl VerifiedDefinitionAtomRangeProjectionV1 {
         self.atom_role
     }
 
-    pub const fn section_ordinal(self) -> u8 {
+    pub const fn section_ordinal(self) -> u32 {
         self.section_ordinal
     }
 

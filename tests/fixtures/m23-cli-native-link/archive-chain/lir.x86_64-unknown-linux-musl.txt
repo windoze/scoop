@@ -1,0 +1,76 @@
+Module
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$ss$64e049b4358eabeb4f6d375a888bcc06f631d8e9fcef3a57d6b27c789ef3ccba : ptr<managed> scan=refs[0]
+  extern ef0 start @m23_start() -> i32 <c exact=()->Int bridge=@scoop$1$br$811df0fd8986da94c41a27182128704707e7f0a28b140e8f62e75f426c57dd29 gc-leaf nounwind lib=m23_chain>
+  extern ef1 marker @m23_marker() -> i32 <c exact=()->Int bridge=@scoop$1$br$ad10699ae23092dc94d4ea295e22c7508a380a74495ff63ce825303439115a4a gc-leaf nounwind lib=m23_tail>
+  fun @scoop$1$cb$c5b6745c983a07571c7c37e7f2302a41ae35f9627c2dfc4db0677dc9a98e6bbb() -> i32
+    local %0 $call.1: i32
+    local %1 $sc.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
+    store local1 -> local0
+    ret local0
+  fun @scoop$1$cb$555ed0436a192f5994accb9116ba4d44e88aa3dccca6625a3b202762f6776fe4() -> i32
+    local %0 $call.1: i32
+    local %1 $sc.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern1()
+    store local1 -> local0
+    ret local0
+  fun @scoop$1$cb$f48ed7d4a7feb97b2d6d5f299e7a6b29cd470e99ec88c3ec2c8882282d0fb680() -> void
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.value: i32
+    local %4 $sc.1: i32
+    local %5 $sc.2: i32
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
+    store local4 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn3(local1)
+    t0 = aggregate () : {}
+    call native-safe-indirect-target1 sp<native-safe:1> roots=[] local5 = sig=indirect1 (c-storage-pointer i32 size=4 align=4 scan=none) extern1()
+    store local5 -> local2
+    store local2 -> local3
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn3(local3)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn0(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn1(local2)
+    t1 = aggregate () : {}
+    store global0 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$73e76eb1d366b8c83185176e1975d86bcb528dab1982a03ca02750402f073366() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global1, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$f48ed7d4a7feb97b2d6d5f299e7a6b29cd470e99ec88c3ec2c8882282d0fb680

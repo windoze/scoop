@@ -4,8 +4,8 @@
 #include "scoop_rt.h"
 #include <stddef.h>
 
-/* Exact core Option<Char> and Option<(Long, Long)> value storage. The
- * platform entry stubs receive Scoop's indirect result address in x8. */
+/* Exact core Option<Char> and Option<(Long, Long)> value storage. Platform
+ * adapters receive Scoop's indirect result address using the target ABI. */
 typedef struct ScoopStringCharResult {
     uint64_t tag;
     uint32_t value;

@@ -10,7 +10,7 @@ use scoop_lir::{GeneratedBridgeAtomAuthorityRecordV1, GeneratedBridgePlanSetV1};
 use super::GeneratedCBridgeSemanticValidationError;
 use super::classification::ObservedUnitSemantics;
 use crate::{
-    SlibMemberId, VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedDarwinArm64RelocationShapeV1,
+    SlibMemberId, VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedObjectRelocationShapeV1,
     VerifiedRelocationTargetV1,
 };
 
@@ -328,20 +328,19 @@ fn register_expected_atom(
     Ok(())
 }
 
-fn relocation_targets(
-    shape: &VerifiedDarwinArm64RelocationShapeV1,
-) -> Vec<&VerifiedRelocationTargetV1> {
+fn relocation_targets(shape: &VerifiedObjectRelocationShapeV1) -> Vec<&VerifiedRelocationTargetV1> {
     match shape {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Branch26 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Page21 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => vec![target],
-        VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
+        VerifiedObjectRelocationShapeV1::ElfRela { target, .. }
+        | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
+        | VerifiedObjectRelocationShapeV1::Branch26 { target }
+        | VerifiedObjectRelocationShapeV1::Page21 { target, .. }
+        | VerifiedObjectRelocationShapeV1::PageOffset12 { target, .. }
+        | VerifiedObjectRelocationShapeV1::GotLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::GotLoadPageOffset12 { target }
+        | VerifiedObjectRelocationShapeV1::PointerToGot32 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPageOffset12 { target } => vec![target],
+        VerifiedObjectRelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
         } => vec![minuend, subtrahend],

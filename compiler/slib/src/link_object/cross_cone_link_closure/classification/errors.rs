@@ -10,6 +10,10 @@ use crate::link_object::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeStrongRequirementValidationError {
+    TargetMismatch {
+        object: scoop_lir::LirTargetProfile,
+        selection: scoop_lir::LirTargetProfile,
+    },
     ConsumerMismatch {
         object: ConeIdentity,
         bridge: ConeIdentity,

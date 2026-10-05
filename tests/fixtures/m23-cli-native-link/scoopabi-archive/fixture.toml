@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-scoopabi-archive"
 inputs = ["scoopabi-provider", "../../m23-native-link/scoopabi/provider.scoop", "scoopabi-facade", "../../m23-native-link/scoopabi/facade.scoop", "scoopabi-root", "../../m23-native-link/scoopabi/root.scoop", "../../m23-native-link/scoopabi/native.c", "../../m23-native-link/scoopabi/leaf.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -18,7 +18,7 @@ files = [{"copy" = {"from" = "${fixture}/scoopabi-provider", "to" = "${work}/sou
 
 [[steps]]
 name = "compile_0"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-I", "${runtime}/include", "${work}/sources/native/scoopabi/native.c", "-o", "${work}/objects/managed.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-I", "${runtime}/include", "${work}/sources/native/scoopabi/native.c", "-o", "${work}/objects/managed.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +26,7 @@ env = {"PATH" = "/usr/bin:/bin"}
 
 [[steps]]
 name = "compile_1"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/scoopabi/leaf.c", "-o", "${work}/objects/leaf.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/scoopabi/leaf.c", "-o", "${work}/objects/leaf.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -54,7 +54,7 @@ files = [{"remove" = {"path" = "${work}/objects/managed.o"}}, {"remove" = {"path
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/scoopabi-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/scoopabi-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -75,14 +75,14 @@ files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifa
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "run_linked"

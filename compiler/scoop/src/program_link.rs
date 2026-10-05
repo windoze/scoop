@@ -30,7 +30,7 @@ pub fn link_built_program(
     let closure = scoop_slib::read_program_link_closure(
         root.snapshot().as_bytes(),
         &dependencies,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        ValidatedLirTargetSelection::from_id(profile.id()),
         profile.startup_toolchain().profile(),
     )
     .map_err(|error| LinkError(format!("built program Link input: {error}")))?;

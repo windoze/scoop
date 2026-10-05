@@ -6,7 +6,7 @@ use scoop_identity::ConeIdentity;
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOutputPolicyV1, HostPathCarrier, HostPathError,
     ProtocolValidationError, RequestCorrelationId, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-    StageDumpPolicyV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
+    StageDumpPolicyV1, TrustedCoreRequestV1,
 };
 
 use super::{PreparedBuildGraph, PreparedGraphNode};
@@ -51,9 +51,11 @@ impl PreparedBuildGraph {
         completed: &[&CompletedNode],
     ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
         let completed = completed_map(identity, completed)?;
-        let target =
-            TargetSelectionRequestV1::new(self.context.target.canonical_triple().to_owned())
-                .map_err(ChildRequestPlanError::Protocol)?;
+        let target = self
+            .context
+            .target
+            .child_request()
+            .map_err(ChildRequestPlanError::Toolchain)?;
         let (current, direct, support, trusted_core, output_path) = match self.nodes.get(&identity)
         {
             Some(PreparedGraphNode::ManifestSource(node)) => {
@@ -117,7 +119,11 @@ impl PreparedBuildGraph {
             identity,
             request: ScoopcRequestEnvelopeV1::new(request_id, build),
             output_path,
-            io: ChildIoPlan::new(self.context.sysroot.as_path().to_path_buf()),
+            io: ChildIoPlan::new(
+                self.context.sysroot.as_path().to_path_buf(),
+                self.context.cache_root.as_path().to_path_buf(),
+            )
+            .with_toolchain(self.context.target.c_bridge_toolchain()),
         })
     }
 
@@ -216,6 +222,7 @@ pub enum ChildRequestPlanError {
         source: HostPathError,
     },
     Protocol(ProtocolValidationError),
+    Toolchain(scoop_toolchain::ToolchainError),
 }
 
 impl fmt::Display for ChildRequestPlanError {
@@ -261,6 +268,9 @@ impl fmt::Display for ChildRequestPlanError {
                 )
             }
             Self::Protocol(source) => write!(formatter, "invalid child request plan: {source}"),
+            Self::Toolchain(source) => {
+                write!(formatter, "cannot transport compiler selection: {source}")
+            }
         }
     }
 }
@@ -270,6 +280,7 @@ impl std::error::Error for ChildRequestPlanError {
         match self {
             Self::HostPath { source, .. } => Some(source),
             Self::Protocol(source) => Some(source),
+            Self::Toolchain(source) => Some(source),
             _ => None,
         }
     }

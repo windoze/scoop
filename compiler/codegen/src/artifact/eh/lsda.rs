@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::ops::Range;
 
 use crate::CodegenError;
-use crate::target::LsdaEncodingProfile;
+use crate::target::{CodeArchitecture, LsdaEncodingProfile};
 
 use super::cursor::Cursor;
 use super::{EhActionKind, ObservedLsda, ObservedProtectedRange};
@@ -13,7 +13,9 @@ pub(super) fn parse_lsda(
     bytes: &[u8],
     function_size: u64,
     encodings: LsdaEncodingProfile,
+    architecture: CodeArchitecture,
 ) -> Result<ObservedLsda, CodegenError> {
+    let alignment = architecture.instruction_alignment();
     let mut cursor = Cursor::new(bytes, "LSDA");
     let lp_start = cursor.u8("LPStart encoding")?;
     if lp_start != encodings.lp_start {
@@ -23,18 +25,23 @@ pub(super) fn parse_lsda(
         )));
     }
     let type_table = cursor.u8("type-table encoding")?;
-    if type_table != encodings.type_table {
+    let has_type_table = type_table != 0xff;
+    if has_type_table && type_table != encodings.type_table {
         return Err(CodegenError(format!(
             "type-table encoding is {type_table:#04x}, expected {:#04x}",
             encodings.type_table
         )));
     }
-    let type_table_offset = usize::try_from(cursor.uleb("type-table offset")?)
-        .map_err(|_| CodegenError("LSDA type-table offset exceeds usize::MAX".to_string()))?;
-    let type_table_base = cursor
-        .position()
-        .checked_add(type_table_offset)
-        .ok_or_else(|| CodegenError("LSDA type-table address overflows".to_string()))?;
+    let type_table_base = if has_type_table {
+        let offset = usize::try_from(cursor.uleb("type-table offset")?)
+            .map_err(|_| CodegenError("LSDA type-table offset exceeds usize::MAX".to_string()))?;
+        cursor
+            .position()
+            .checked_add(offset)
+            .ok_or_else(|| CodegenError("LSDA type-table address overflows".to_string()))?
+    } else {
+        bytes.len()
+    };
     if type_table_base != bytes.len() {
         return Err(CodegenError(format!(
             "LSDA type-table base is {type_table_base}, expected exact LSDA end {}",
@@ -54,9 +61,11 @@ pub(super) fn parse_lsda(
         .position()
         .checked_add(call_site_length)
         .ok_or_else(|| CodegenError("LSDA call-site table range overflows".to_string()))?;
-    let type_entry_start = type_table_base.checked_sub(4).ok_or_else(|| {
-        CodegenError("LSDA type table cannot contain its catch-all entry".to_string())
-    })?;
+    let type_entry_start = type_table_base
+        .checked_sub(if has_type_table { 4 } else { 0 })
+        .ok_or_else(|| {
+            CodegenError("LSDA type table cannot contain its catch-all entry".to_string())
+        })?;
     if call_site_end > type_entry_start {
         return Err(CodegenError(
             "LSDA call-site table overlaps action/type data".to_string(),
@@ -79,8 +88,8 @@ pub(super) fn parse_lsda(
             .checked_add(length)
             .ok_or_else(|| CodegenError("LSDA call-site function range overflows".to_string()))?;
         if length == 0
-            || start % 4 != 0
-            || length % 4 != 0
+            || start % alignment != 0
+            || length % alignment != 0
             || start < previous_end
             || end > function_size
         {
@@ -88,7 +97,7 @@ pub(super) fn parse_lsda(
                 "LSDA call-site range {start}..{end} is empty, unaligned, overlapping, or outside function size {function_size}"
             )));
         }
-        if landing_pad != 0 && (landing_pad >= function_size || landing_pad % 4 != 0) {
+        if landing_pad != 0 && (landing_pad >= function_size || landing_pad % alignment != 0) {
             return Err(CodegenError(format!(
                 "LSDA landing-pad offset {landing_pad} is outside/alignment-invalid for function size {function_size}"
             )));
@@ -97,6 +106,11 @@ pub(super) fn parse_lsda(
             return Err(CodegenError(format!(
                 "LSDA call-site without a landing pad has action {action}"
             )));
+        }
+        if !has_type_table && action != 0 {
+            return Err(CodegenError(
+                "LSDA without a type table must have zero call-site actions".to_string(),
+            ));
         }
         previous_end = end;
         call_sites.push((start..end, landing_pad, action));
@@ -111,7 +125,7 @@ pub(super) fn parse_lsda(
     let type_entry = bytes
         .get(type_entry_start..type_table_base)
         .ok_or_else(|| CodegenError("LSDA catch-all type entry is truncated".to_string()))?;
-    if type_entry != [0, 0, 0, 0] {
+    if has_type_table && type_entry != [0, 0, 0, 0] {
         return Err(CodegenError(
             "LSDA catch-all type entry is not null".to_string(),
         ));
@@ -164,6 +178,7 @@ pub(super) fn parse_lsda(
         protected_ranges.push(ObservedProtectedRange {
             range,
             action: action_kind,
+            landing_pad,
         });
     }
     if action_offsets.len() > 1 {

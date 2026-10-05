@@ -55,6 +55,40 @@ fn compiler_identity_rejects_ambiguous_build_spelling() {
 }
 
 #[test]
+fn linux_c_profile_separates_libc_and_tracks_consumed_inputs() {
+    let identity =
+        |bytes: &[u8]| GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(bytes)).unwrap();
+    let gnu = CBridgeToolchainProfileV1::new_linux_gcc(
+        LirTargetProfile::LINUX_X86_64_GNU,
+        identity(b"compiler and headers"),
+    )
+    .unwrap();
+    let musl = CBridgeToolchainProfileV1::new_linux_gcc(
+        LirTargetProfile::LINUX_X86_64_MUSL,
+        identity(b"compiler and headers"),
+    )
+    .unwrap();
+    let changed = CBridgeToolchainProfileV1::new_linux_gcc(
+        LirTargetProfile::LINUX_X86_64_GNU,
+        identity(b"changed specs or headers"),
+    )
+    .unwrap();
+    assert_ne!(gnu.fingerprint(), musl.fingerprint());
+    assert_ne!(gnu.fingerprint(), changed.fingerprint());
+    assert!(gnu.contract().deployment().is_err());
+    assert!(
+        CBridgeToolchainProfileV1::new_linux_gcc(
+            LirTargetProfile::DARWIN_AARCH64,
+            identity(b"compiler and headers"),
+        )
+        .is_err()
+    );
+    for version in ["0", "+15", "15.", "15.x", "15.2.0.1"] {
+        assert!(GccCompilerIdentityV1::new(version, scoop_wire::sha256(b"")).is_err());
+    }
+}
+
+#[test]
 fn c_bridge_toolchain_contract_and_fingerprints_match_fixed_vectors() {
     let profile = fixture_profile();
     assert_eq!(

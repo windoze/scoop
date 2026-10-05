@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m28"
+name = "cli-library"
+version = "0.1.0"
+kind = "library"

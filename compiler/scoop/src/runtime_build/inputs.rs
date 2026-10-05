@@ -1,7 +1,5 @@
 use super::*;
-use scoop_process::CommandExt;
 use std::collections::BTreeMap;
-use std::process::Command;
 
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
@@ -10,9 +8,9 @@ pub(super) struct Inputs {
     pub sources: Vec<String>,
     pub flags: Vec<String>,
     pub compiler_digest: Digest256,
-    pub sdk: PathBuf,
-    pub resource: Option<PathBuf>,
     pub base_key: Digest256,
+    pub input_paths: Vec<PathBuf>,
+    pub unwind_include: Option<&'static str>,
 }
 
 impl Inputs {
@@ -30,18 +28,35 @@ impl Inputs {
             );
             sources.push(relative.to_owned());
         }
-        read_headers(&root, Path::new("include"), true, &mut files)?;
-        read_headers(&root, Path::new("src"), false, &mut files)?;
+        let include_dirs = request.target.runtime_build().include_directories();
+        for (index, path) in include_dirs.iter().enumerate() {
+            if include_dirs[..index]
+                .iter()
+                .any(|parent| Path::new(path).starts_with(parent))
+            {
+                continue;
+            }
+            read_headers(&root, Path::new(path), *path == "include", &mut files)?;
+        }
+        let mut input_paths: Vec<_> = files
+            .keys()
+            .map(|path| request.runtime_root.join(path))
+            .collect();
+        let unwind =
+            scoop_toolchain::runtime_unwind_include(request.target.id(), request.unwind_prefix)
+                .map_err(error)?;
+        if let Some(include) = &unwind {
+            let mut headers = BTreeMap::new();
+            read_headers(include, Path::new(""), true, &mut headers)?;
+            input_paths.extend(headers.keys().map(|path| include.join(path)));
+            files.extend(
+                headers
+                    .into_iter()
+                    .map(|(path, bytes)| (format!(".scoop-unwind/{path}"), bytes)),
+            );
+        }
         let invocation = request.target.c_bridge_toolchain();
         let compiler_digest = sha256(&std::fs::read(invocation.compiler_driver()).map_err(error)?);
-        let resource = Command::new(invocation.compiler_driver())
-            .env_clear()
-            .arg("-print-resource-dir")
-            .scoop_output()
-            .ok()
-            .filter(|output| output.status.success())
-            .and_then(|output| String::from_utf8(output.stdout).ok())
-            .and_then(|path| std::fs::canonicalize(path.trim()).ok());
         let mut flags: Vec<String> = request
             .target
             .runtime_build()
@@ -58,8 +73,6 @@ impl Inputs {
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",
                 "-fno-lto",
-                "-Iinclude",
-                "-Isrc",
                 "-ffile-prefix-map=<runtime>=runtime",
                 "-fmacro-prefix-map=<runtime>=runtime",
                 "-MD",
@@ -71,6 +84,11 @@ impl Inputs {
             .into_iter()
             .map(str::to_owned),
         );
+        flags.extend(include_dirs.iter().map(|path| format!("-I{path}")));
+        let unwind_include = unwind.as_ref().map(|_| ".scoop-unwind");
+        if let Some(include) = unwind_include {
+            flags.push(format!("-I{include}"));
+        }
         let toolchain = encode(invocation.profile().contract()).map_err(error)?;
         let base_key = domain_separated_cbor_hash(
             "scoop-runtime-build-inputs-v1",
@@ -88,9 +106,9 @@ impl Inputs {
             sources,
             flags,
             compiler_digest,
-            sdk: invocation.sdk_root().to_owned(),
-            resource,
             base_key,
+            input_paths,
+            unwind_include,
         })
     }
 

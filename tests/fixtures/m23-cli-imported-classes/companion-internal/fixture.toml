@@ -2,7 +2,7 @@ schema = 1
 name = "imported-class-companion-internal"
 inputs = ["../support/stage3_test.scoop", "../../m23-imported-classes/core-provider.scoop", "../../m23-imported-classes/core-cast-direct.scoop", "../../m23-imported-classes/core-arithmetic-direct.scoop", "../../m23-imported-classes/provider.scoop", "../../m23-imported-classes/companion-provider.scoop", "class-provider", "companion-internal", "../../m23-imported-classes/companion-internal.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["imported-classes", "core-rebuild", "negative", "stage-golden"]
 
 [[steps]]
@@ -11,7 +11,7 @@ files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-s
 
 [[steps]]
 name = "original_core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,7 +36,7 @@ files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data"
 
 [[steps]]
 name = "rebuilt_core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -62,7 +62,7 @@ files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/source
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -79,7 +79,7 @@ files = [{"copy" = {"from" = "${fixture}/companion-internal", "to" = "${work}/so
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/companion-internal", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/companion-internal/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/companion-internal", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/companion-internal/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

@@ -135,7 +135,7 @@ fn rejects_a_coordinate_pointer_to_another_support_atom() {
         Err(ConeImageValidationError::RelocationMismatch {
             role: ConeImageAtomRoleV1::CoordinateGroup,
             index: 0,
-            kind: ConeImageRelocationFailureV1::TargetAtom,
+            kind: ConeImageRelocationFailureV1::TargetValue,
         })
     );
 }
@@ -337,6 +337,7 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let bridge_plan = GeneratedBridgePlanSetV1::from_foundation(&foundation).unwrap();
     let partition = ProducerUnitPartitionV1::from_foundation(&foundation).unwrap();
     let member_plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
         &partition,
         vec![
             CanonicalScoopLirObjectUnitSetV1::new(

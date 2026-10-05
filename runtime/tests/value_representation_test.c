@@ -1,3 +1,4 @@
+#include "no_core.h"
 #include <assert.h>
 #include <signal.h>
 #include <stdio.h>
@@ -336,6 +337,7 @@ static void run_mode(bool stress) {
 }
 
 int main(void) {
+    scoop_test_disable_core_dumps();
     for (unsigned mode = 0; mode < 2; mode++) {
         pid_t child = fork();
         assert(child >= 0);

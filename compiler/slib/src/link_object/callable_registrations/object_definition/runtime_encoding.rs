@@ -184,25 +184,35 @@ fn encode_legacy_requirement(
 
 fn encode_relocation_form(
     encoder: &mut RuntimeEncoder,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), RuntimeEncodeError> {
     match form {
-        VerifiedDarwinArm64RelocationFormV1::Unsigned64 => encoder.u32(1),
-        VerifiedDarwinArm64RelocationFormV1::Subtractor64 => encoder.u32(2),
-        VerifiedDarwinArm64RelocationFormV1::Branch26 => encoder.u32(3),
-        VerifiedDarwinArm64RelocationFormV1::Page21 { explicit_addend } => {
+        VerifiedObjectRelocationFormV1::ElfRela {
+            kind,
+            addend,
+            width,
+        } => {
+            encoder.u32(11)?;
+            encoder.u32(kind)?;
+            encoder.u32(u32::from(width))?;
+            encoder.u64(addend as u64)
+        }
+        VerifiedObjectRelocationFormV1::Unsigned64 => encoder.u32(1),
+        VerifiedObjectRelocationFormV1::Subtractor64 => encoder.u32(2),
+        VerifiedObjectRelocationFormV1::Branch26 => encoder.u32(3),
+        VerifiedObjectRelocationFormV1::Page21 { explicit_addend } => {
             encoder.u32(4)?;
             encode_optional_addend(encoder, explicit_addend)
         }
-        VerifiedDarwinArm64RelocationFormV1::PageOffset12 { explicit_addend } => {
+        VerifiedObjectRelocationFormV1::PageOffset12 { explicit_addend } => {
             encoder.u32(5)?;
             encode_optional_addend(encoder, explicit_addend)
         }
-        VerifiedDarwinArm64RelocationFormV1::GotLoadPage21 => encoder.u32(6),
-        VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12 => encoder.u32(7),
-        VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => encoder.u32(8),
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => encoder.u32(9),
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => encoder.u32(10),
+        VerifiedObjectRelocationFormV1::GotLoadPage21 => encoder.u32(6),
+        VerifiedObjectRelocationFormV1::GotLoadPageOffset12 => encoder.u32(7),
+        VerifiedObjectRelocationFormV1::PointerToGot32 => encoder.u32(8),
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21 => encoder.u32(9),
+        VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => encoder.u32(10),
     }
 }
 

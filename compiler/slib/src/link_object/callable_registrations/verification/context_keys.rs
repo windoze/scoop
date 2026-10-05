@@ -2,8 +2,8 @@ use scoop_identity::DefinitionAtomRole;
 use scoop_lir::{CallableContextKeyCellV1, StrongCallableRegistrationPlanV1};
 
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1 as Section, VerifiedDarwinArm64RelocationShapeV1 as Shape,
-    VerifiedDefinitionAtomRangeV1, VerifiedMemberObjectRelocationIndexV1,
+    BuiltinObjectSectionRoleV1 as Section, VerifiedDefinitionAtomRangeV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectRelocationShapeV1 as Shape,
     VerifiedRelocationTargetV1 as Target,
 };
 
@@ -100,27 +100,22 @@ pub(super) fn verify(
 }
 
 fn points_to(shape: &Shape, encoded: u64, range: VerifiedDefinitionAtomRangeV1) -> bool {
-    match shape {
-        Shape::Unsigned64 {
-            target:
-                Target::LocalDefinition {
-                    owner_atom: Some(atom),
-                    section_ordinal,
-                    value,
-                    ..
-                },
-        } => {
+    match shape.absolute64_target() {
+        Some(Target::LocalDefinition {
+            owner_atom: Some(atom),
+            section_ordinal,
+            value,
+            ..
+        }) => {
             *atom == range.atom()
                 && *section_ordinal == range.section_ordinal()
-                && value.checked_add(encoded) == Some(range.start())
+                && shape.form().absolute64_address(encoded, *value) == Some(range.start())
         }
-        Shape::Unsigned64 {
-            target: Target::SectionBase {
-                section_ordinal, ..
-            },
-        } => {
-            section_ordinal.get() == u32::from(range.section_ordinal().get())
-                && encoded == range.start()
+        Some(Target::SectionBase {
+            section_ordinal, ..
+        }) => {
+            section_ordinal.get() == range.section_ordinal().get()
+                && shape.form().absolute64_address(encoded, 0) == Some(range.start())
         }
         _ => false,
     }

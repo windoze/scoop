@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 #[test]
 fn loaded_image_ranges_use_current_vm_permissions() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -87,7 +88,7 @@ fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
         .arg(workspace.join("runtime/src/gc/stackmap/records.c"))
         .arg(workspace.join("runtime/src/gc/stack_roots.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
-        .arg(workspace.join("runtime/src/platform/os/darwin.c"))
+        .arg(workspace.join(super::platform_support::native_os_source()))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
         .arg(workspace.join("runtime/tests/platform/stackmap_fixture.c"))
         .arg(workspace.join("runtime/tests/exact_stack_roots_test.c"))
@@ -227,6 +228,7 @@ fn exception_control_flow_entries_stay_runtime_private() {
     assert!(internal.contains("scoop_eh_personality("));
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 #[test]
 fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

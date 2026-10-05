@@ -5,6 +5,10 @@ use crate::dump::DecodedStageDumpPolicyV1;
 use crate::path::DecodedHostPathCarrier;
 use crate::{HostPathCarrier, PROTOCOL_VERSION, ProtocolValidationError, RequestCorrelationId};
 
+mod target;
+use target::DecodedTargetSelectionRequestV1;
+pub use target::TargetSelectionRequestV1;
+
 const REQUEST_MAGIC: &[u8; 8] = b"SCOOPREQ";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -56,32 +60,6 @@ impl WireEncode for TrustedCoreRequestV1 {
                 encoder.unsigned(2)
             }
         }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TargetSelectionRequestV1 {
-    canonical_triple: String,
-}
-
-impl TargetSelectionRequestV1 {
-    pub fn new(canonical_triple: String) -> Result<Self, ProtocolValidationError> {
-        if !valid_target_triple(&canonical_triple) {
-            return Err(ProtocolValidationError::InvalidTargetTriple);
-        }
-        Ok(Self { canonical_triple })
-    }
-
-    pub fn canonical_triple(&self) -> &str {
-        &self.canonical_triple
-    }
-}
-
-impl WireEncode for TargetSelectionRequestV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
-        encoder.field(1)?;
-        encoder.text(&self.canonical_triple)
     }
 }
 
@@ -366,24 +344,6 @@ impl WireDecode for DecodedTrustedCoreRequestV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedTargetSelectionRequestV1(String);
-
-impl WireEncode for DecodedTargetSelectionRequestV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(1)?;
-        encoder.field(1)?;
-        encoder.text(&self.0)
-    }
-}
-
-impl WireDecode for DecodedTargetSelectionRequestV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(1)?;
-        decoder.field(1, Decoder::owned_text).map(Self)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedScoopcBuildRequestV1 {
     current: DecodedCurrentConeRequestV1,
     direct_slibs: Vec<DecodedHostPathCarrier>,
@@ -401,7 +361,7 @@ impl DecodedScoopcBuildRequestV1 {
         let direct_slibs = validate_paths(self.direct_slibs)?;
         let support_slibs = validate_paths(self.support_slibs)?;
         let trusted_core = self.trusted_core.validate()?;
-        let target = TargetSelectionRequestV1::new(self.target.0)?;
+        let target = self.target.validate()?;
         let out_slib = self
             .out_slib
             .validate()
@@ -541,14 +501,6 @@ fn validate_build_shape(
         }
         _ => Err(ProtocolValidationError::InvalidCurrentCoreCombination),
     }
-}
-
-fn valid_target_triple(triple: &str) -> bool {
-    !triple.is_empty()
-        && triple.len() <= 255
-        && triple
-            .bytes()
-            .all(|byte| byte.is_ascii_graphic() && byte != b'/' && byte != b'\\')
 }
 
 fn validate_paths(

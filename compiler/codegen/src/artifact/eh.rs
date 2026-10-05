@@ -1,4 +1,4 @@
-//! Complete-LIR EH expectations and Darwin/AArch64 object qualification.
+//! Complete-LIR EH expectations and shared LSDA semantics.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -8,15 +8,19 @@ use scoop_lir::{Instruction, Module};
 use crate::CodegenError;
 use crate::target::LsdaEncodingProfile;
 
-use super::aarch64::is_aarch64_call;
 use super::{ObservedSafepoints, TextSection};
 
+mod calls;
 mod cursor;
+mod elf;
+mod elf_frame;
+mod elf_relocations;
+pub(super) use elf::verify_elf_eh;
 mod frame;
 mod lsda;
 
+use calls::verify_lsda;
 use frame::parse_eh_frame;
-use lsda::parse_lsda;
 
 #[cfg(test)]
 mod tests;
@@ -227,6 +231,7 @@ pub(super) struct ObservedLsda {
 pub(super) struct ObservedProtectedRange {
     range: Range<u64>,
     action: EhActionKind,
+    landing_pad: u64,
 }
 
 /// Verify all object EH structures after the Mach-O layer has extracted the
@@ -337,143 +342,15 @@ pub(super) fn verify_sections(
             .expect("section-relative address fits its byte-vector length");
         let end = usize::try_from(next - gcc_except_tab.address)
             .expect("section-relative address fits its byte-vector length");
-        let observed = parse_lsda(
+        verify_lsda(
             &gcc_except_tab.bytes[start..end],
-            fde.function_size,
+            fde,
+            text,
+            expectation,
+            observed_safepoints,
             encodings,
-        )
-        .map_err(|error| {
-            CodegenError(format!(
-                "LSDA for `{}` violates the closed profile: {error}",
-                fde.function_symbol
-            ))
-        })?;
-        let expected_actions = expectation.actions();
-        if observed.actions != expected_actions {
-            return Err(CodegenError(format!(
-                "LSDA actions for `{}` disagree with complete LIR: expected {:?}, observed {:?}",
-                fde.function_symbol, expected_actions, observed.actions
-            )));
-        }
-        validate_protected_calls(&observed, fde, text, expectation, observed_safepoints)?;
-    }
-    Ok(())
-}
-
-fn validate_protected_calls(
-    observed: &ObservedLsda,
-    fde: &Fde,
-    text: &TextSection,
-    expected: &ExpectedEhFunction,
-    observed_safepoints: &ObservedSafepoints,
-) -> Result<(), CodegenError> {
-    let expected_managed = expected
-        .invokes
-        .iter()
-        .filter_map(|invoke| invoke.safepoint.map(|id| (id, invoke)))
-        .collect::<BTreeMap<_, _>>();
-    let mut safepoints_by_pc = BTreeMap::new();
-    for (id, site) in &observed_safepoints.sites {
-        if let Some(previous) = safepoints_by_pc.insert(site.call_pc, (*id, site)) {
-            return Err(CodegenError(format!(
-                "stackmap SafepointIds {} and {id} share call PC {:#x}",
-                previous.0, site.call_pc
-            )));
-        }
-    }
-    let mut seen_managed = BTreeSet::new();
-    let mut observed_no_gc = BTreeMap::<EhActionKind, usize>::new();
-    let function_start = usize::try_from(fde.function_start - text.address)
-        .expect("validated function start fits the __text byte vector");
-    for protected in &observed.protected_ranges {
-        let range = &protected.range;
-        let start = function_start
-            .checked_add(usize::try_from(range.start).expect("call-site offset fits usize"))
-            .ok_or_else(|| CodegenError("protected call-site start overflows usize".to_string()))?;
-        let end = function_start
-            .checked_add(usize::try_from(range.end).expect("call-site offset fits usize"))
-            .ok_or_else(|| CodegenError("protected call-site end overflows usize".to_string()))?;
-        let bytes = text.bytes.get(start..end).ok_or_else(|| {
-            CodegenError(format!(
-                "protected call-site range {:?} for `{}` lies outside __text",
-                range, fde.function_symbol
-            ))
-        })?;
-        let mut call_count = 0usize;
-        for (index, instruction) in bytes.chunks_exact(4).enumerate() {
-            if !is_aarch64_call(u32::from_le_bytes(
-                instruction.try_into().expect("four-byte instruction"),
-            )) {
-                continue;
-            }
-            call_count += 1;
-            let byte_offset = u64::try_from(index)
-                .expect("instruction index fits u64")
-                .checked_mul(4)
-                .ok_or_else(|| CodegenError("protected call offset overflows".to_string()))?;
-            let call_pc = fde
-                .function_start
-                .checked_add(range.start)
-                .and_then(|address| address.checked_add(byte_offset))
-                .ok_or_else(|| CodegenError("protected call PC overflows".to_string()))?;
-            let Some((safepoint, site)) = safepoints_by_pc.get(&call_pc).copied() else {
-                *observed_no_gc.entry(protected.action).or_default() += 1;
-                continue;
-            };
-            let invoke = expected_managed.get(&safepoint).ok_or_else(|| {
-                CodegenError(format!(
-                    "LSDA protects unexpected managed SafepointId {safepoint} at {call_pc:#x}"
-                ))
-            })?;
-            if site.function_symbol != fde.function_symbol {
-                return Err(CodegenError(format!(
-                    "managed invoke SafepointId {safepoint} belongs to `{}`, but its LSDA FDE is `{}`",
-                    site.function_symbol, fde.function_symbol
-                )));
-            }
-            if invoke.action != protected.action {
-                return Err(CodegenError(format!(
-                    "managed invoke SafepointId {safepoint} ({}) expects {:?}, but LSDA records {:?}",
-                    invoke.identity, invoke.action, protected.action
-                )));
-            }
-            if !seen_managed.insert(safepoint) {
-                return Err(CodegenError(format!(
-                    "managed invoke SafepointId {safepoint} is covered by more than one LSDA range"
-                )));
-            }
-        }
-        if call_count == 0 {
-            return Err(CodegenError(format!(
-                "protected call-site range {:?} for `{}` contains no AArch64 bl/blr instruction",
-                range, fde.function_symbol
-            )));
-        }
-    }
-    let missing = expected_managed
-        .keys()
-        .filter(|id| !seen_managed.contains(id))
-        .copied()
-        .collect::<Vec<_>>();
-    if !missing.is_empty() {
-        return Err(CodegenError(format!(
-            "LSDA for `{}` does not cover managed invoke SafepointIds {missing:?}",
-            fde.function_symbol
-        )));
-    }
-    for action in [EhActionKind::Cleanup, EhActionKind::CatchAll] {
-        let expected_count = expected
-            .invokes
-            .iter()
-            .filter(|invoke| invoke.safepoint.is_none() && invoke.action == action)
-            .count();
-        let observed_count = observed_no_gc.get(&action).copied().unwrap_or(0);
-        if observed_count != expected_count {
-            return Err(CodegenError(format!(
-                "LSDA for `{}` covers {observed_count} non-statepoint {:?} calls, complete LIR requires {expected_count}",
-                fde.function_symbol, action
-            )));
-        }
+            crate::target::CodeArchitecture::Aarch64,
+        )?;
     }
     Ok(())
 }

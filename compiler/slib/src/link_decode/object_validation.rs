@@ -60,7 +60,7 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
         let partition = ProducerUnitPartitionV1::from_foundation(&foundations.lir)
             .map_err(StrongLinkMaterializationError::ProducerUnits)?;
         let link_identity_closure = link_identity_closure
-            .validate_materializations(&partition)
+            .validate_materializations(graph.target_selection().target(), &partition)
             .map_err(StrongLinkMaterializationError::Closure)?;
         let (scoop_objects, generated_bridge_objects) =
             object_directory::validate(&mut graph, link_identity_closure.member_plan())?;

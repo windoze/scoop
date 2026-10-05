@@ -1,4 +1,4 @@
-//! Mach-O/LLVM-v3 artifact verification for the fixed M15 backend profile.
+//! LLVM-v3 artifact verification shared by the supported object formats.
 //!
 //! LLVM IR verification proves the typed statepoint plan before instruction
 //! selection. This module checks the machine pipeline's final stack-only
@@ -6,24 +6,26 @@
 
 use crate::CodegenError;
 use crate::statepoint::ExpectedSafepoints;
+use crate::target::CodeArchitecture;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod aarch64;
+mod architecture;
 mod eh;
+mod elf;
 mod macho;
+mod x86_64;
 
-use aarch64::{validate_aarch64_frame_chain, validate_aarch64_return_pc};
 #[cfg(test)]
 pub(crate) use eh::EhActionKind;
 pub(crate) use eh::{ExpectedEh, expectations as eh_expectations};
+pub(crate) use elf::verify_elf_artifact;
 pub(crate) use macho::verify_macho_artifact;
 
 const LOCATION_REGISTER: u8 = 1;
 const LOCATION_INDIRECT: u8 = 3;
 const LOCATION_CONSTANT: u8 = 4;
 const LOCATION_CONSTANT_INDEX: u8 = 5;
-const AARCH64_DWARF_FP: u16 = 29;
-const AARCH64_DWARF_SP: u16 = 31;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct FunctionRelocation {
@@ -196,6 +198,7 @@ fn validate_root(
     stack_size: u64,
     safepoint: u64,
     index: usize,
+    architecture: CodeArchitecture,
 ) -> Result<(), CodegenError> {
     if root != derived {
         return Err(CodegenError(format!(
@@ -204,21 +207,12 @@ fn validate_root(
     }
     if root.kind != LOCATION_INDIRECT
         || root.size != 8
-        || !matches!(root.register, AARCH64_DWARF_SP | AARCH64_DWARF_FP)
+        || architecture
+            .root_offset(root.register, root.offset, stack_size)
+            .is_none()
     {
         return Err(CodegenError(format!(
-            "SafepointId {safepoint} root {index} violates Darwin/AArch64 stack-indirect policy: {root:?}"
-        )));
-    }
-    let base = if root.register == AARCH64_DWARF_SP {
-        0i128
-    } else {
-        i128::from(stack_size) - 16
-    };
-    let frame_offset = base + i128::from(root.offset);
-    if frame_offset < 0 || frame_offset + 8 > i128::from(stack_size) {
-        return Err(CodegenError(format!(
-            "SafepointId {safepoint} root {index} lies outside its {stack_size}-byte frame"
+            "SafepointId {safepoint} root {index} violates {architecture:?} stack-indirect spill policy: {root:?} in {stack_size}-byte frame"
         )));
     }
     Ok(())
@@ -227,9 +221,10 @@ fn validate_root(
 fn parse_stackmaps(
     bytes: &[u8],
     function_relocations: &BTreeMap<u64, FunctionRelocation>,
-    text: &TextSection,
+    text: &BTreeMap<String, TextSection>,
     expected: &ExpectedSafepoints,
     expected_version: u8,
+    architecture: CodeArchitecture,
 ) -> Result<ObservedSafepoints, CodegenError> {
     let mut cursor = Cursor::new(bytes);
     let version = cursor.u8("version")?;
@@ -262,7 +257,7 @@ fn parse_stackmaps(
             .get(&relocation_offset)
             .ok_or_else(|| {
                 CodegenError(format!(
-                    "Mach-O stackmap function record {index} has no function-address relocation"
+                    "LLVM stackmap function record {index} has no function-address relocation"
                 ))
             })?
             .clone();
@@ -271,12 +266,12 @@ fn parse_stackmaps(
         let records = cursor.u64("function record count")?;
         if address != 0 {
             return Err(CodegenError(format!(
-                "Mach-O stackmap function record {index} has a pre-relocated address {address:#x}"
+                "LLVM stackmap function record {index} has a pre-relocated address {address:#x}"
             )));
         }
-        if stack_size < 16 || stack_size == u64::MAX || stack_size % 16 != 0 {
+        if !architecture.valid_stack_size(stack_size) {
             return Err(CodegenError(format!(
-                "Mach-O stackmap function record {index} has invalid stack size {stack_size}"
+                "LLVM stackmap function record {index} has invalid stack size {stack_size}"
             )));
         }
         record_sum = record_sum.checked_add(records).ok_or_else(|| {
@@ -290,7 +285,7 @@ fn parse_stackmaps(
         .collect::<BTreeSet<_>>();
     if observed_relocations != expected_relocations {
         return Err(CodegenError(format!(
-            "Mach-O stackmap function-address relocations disagree with its function table: expected {expected_relocations:?}, observed {observed_relocations:?}"
+            "LLVM stackmap function-address relocations disagree with its function table: expected {expected_relocations:?}, observed {observed_relocations:?}"
         )));
     }
     if record_sum != record_count as u64 {
@@ -306,16 +301,24 @@ fn parse_stackmaps(
 
     let mut observed = BTreeMap::new();
     for (function, stack_size, function_record_count) in function_records {
+        let text = text.get(&function.symbol).ok_or_else(|| {
+            CodegenError(format!(
+                "stackmap function `{}` has no code extent",
+                function.symbol
+            ))
+        })?;
         let mut frame_chain_validated = false;
         for _ in 0..function_record_count {
             let safepoint = cursor.u64("record SafepointId")?;
             let instruction_offset = cursor.u32("record instruction offset")?;
-            let return_pc =
-                validate_aarch64_return_pc(text, &function, instruction_offset, safepoint)?;
-            if !frame_chain_validated {
-                validate_aarch64_frame_chain(text, &function, return_pc)?;
-                frame_chain_validated = true;
-            }
+            let call_pc = architecture.validate_safepoint(
+                text,
+                &function,
+                instruction_offset,
+                safepoint,
+                !frame_chain_validated,
+            )?;
+            frame_chain_validated = true;
             let flags = cursor.u16("record flags")?;
             let location_count = usize::from(cursor.u16("record location count")?);
             if safepoint == 0 || flags != 0 || location_count < 3 {
@@ -323,9 +326,6 @@ fn parse_stackmaps(
                     "invalid stackmap record header for SafepointId {safepoint}"
                 )));
             }
-            let call_pc = return_pc
-                .checked_sub(4)
-                .expect("validated AArch64 return PC follows a call");
             if observed
                 .insert(
                     safepoint,
@@ -337,7 +337,7 @@ fn parse_stackmaps(
                 .is_some()
             {
                 return Err(CodegenError(format!(
-                    "Mach-O stackmap repeats SafepointId {safepoint}"
+                    "LLVM stackmap repeats SafepointId {safepoint}"
                 )));
             }
             let calling_convention = location(&mut cursor, &constants, safepoint)?;
@@ -364,7 +364,7 @@ fn parse_stackmaps(
             let root_count = root_location_count / 2;
             let expected_root_count = expected.root_count(safepoint).ok_or_else(|| {
                 CodegenError(format!(
-                    "Mach-O stackmap contains unexpected SafepointId {safepoint}"
+                    "LLVM stackmap contains unexpected SafepointId {safepoint}"
                 ))
             })?;
             if root_count != expected_root_count {
@@ -375,7 +375,7 @@ fn parse_stackmaps(
             for index in 0..root_count {
                 let root = location(&mut cursor, &constants, safepoint)?;
                 let derived = location(&mut cursor, &constants, safepoint)?;
-                validate_root(root, derived, stack_size, safepoint, index)?;
+                validate_root(root, derived, stack_size, safepoint, index, architecture)?;
             }
             cursor.align(8, "post-location padding")?;
             cursor.zero(2, "pre-live-out padding")?;
@@ -396,7 +396,7 @@ fn parse_stackmaps(
     }
     if observed.len() != expected.site_count() {
         return Err(CodegenError(format!(
-            "Mach-O stackmap has {} SafepointIds, complete LIR requires {}",
+            "LLVM stackmap has {} SafepointIds, complete LIR requires {}",
             observed.len(),
             expected.site_count()
         )));

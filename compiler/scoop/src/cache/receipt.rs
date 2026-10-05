@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use scoop_identity::{ArtifactCapabilityProfileId, CapabilityIdError, DecodedCapabilityId};
-use scoop_lir::ValidatedLirTargetSelection;
+use scoop_lir::{TargetProfileId, ValidatedLirTargetSelection};
 use scoop_protocol::{DiagnosticOriginV1, DiagnosticSeverityV1, StructuredDiagnosticV1};
 use scoop_slib::{
     ArtifactFingerprint, ConeRecord, ConeRecordValidationError, DecodedConeRecord,
@@ -80,11 +80,12 @@ impl CacheTargetSelectionV1 {
 
 impl WireEncode for CacheTargetSelectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        encoder.unsigned(1)?;
-        encoder.field(2)?;
-        encoder.unsigned(1)
+        let (target, backend) = match self.0.target().id() {
+            TargetProfileId::DarwinAarch64 => (1, 1),
+            TargetProfileId::LinuxX86_64Gnu => (2, 2),
+            TargetProfileId::LinuxX86_64Musl => (3, 2),
+        };
+        DecodedCacheTargetSelectionV1 { target, backend }.encode(encoder)
     }
 }
 
@@ -382,14 +383,19 @@ struct DecodedCacheTargetSelectionV1 {
 
 impl DecodedCacheTargetSelectionV1 {
     fn validate(self) -> Result<CacheTargetSelectionV1, CacheReceiptValidationError> {
-        if self.target != 1 || self.backend != 1 {
-            return Err(CacheReceiptValidationError::UnsupportedTargetSelection {
-                target: self.target,
-                backend: self.backend,
-            });
-        }
+        let id = match (self.target, self.backend) {
+            (1, 1) => TargetProfileId::DarwinAarch64,
+            (2, 2) => TargetProfileId::LinuxX86_64Gnu,
+            (3, 2) => TargetProfileId::LinuxX86_64Musl,
+            _ => {
+                return Err(CacheReceiptValidationError::UnsupportedTargetSelection {
+                    target: self.target,
+                    backend: self.backend,
+                });
+            }
+        };
         Ok(CacheTargetSelectionV1::new(
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            ValidatedLirTargetSelection::from_id(id),
         ))
     }
 }

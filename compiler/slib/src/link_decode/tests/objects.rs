@@ -9,7 +9,13 @@ pub(super) fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
         partition.scoop_lir_definition_plans().to_vec(),
     )
     .unwrap();
-    PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap()
+    PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &partition,
+        vec![units],
+        Vec::new(),
+    )
+    .unwrap()
 }
 
 pub(super) struct LinkObjectFixture {

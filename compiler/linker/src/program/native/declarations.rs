@@ -3,7 +3,7 @@ use scoop_identity::{NativeLinkRequirementId, NativeLinkRequirementKey};
 
 type Libraries = BTreeMap<NativeLinkRequirementId, (NativeLinkRequirementKey, Vec<String>)>;
 
-pub(super) fn read(
+pub(in crate::program) fn read(
     closure: &ProgramLinkClosure,
 ) -> Result<(BTreeMap<String, Declarations<'_>>, Libraries), LinkError> {
     let mut declarations: BTreeMap<String, Declarations<'_>> = BTreeMap::new();

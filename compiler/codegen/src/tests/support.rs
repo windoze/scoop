@@ -899,9 +899,18 @@ pub(super) fn plain_scoop_signature(
 }
 
 pub(super) fn string_metadata() -> LirMeta {
+    string_metadata_for(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
+}
+
+pub(super) fn string_metadata_for(target: scoop_lir::LirTargetProfile) -> LirMeta {
     let mut layouts = Arena::new();
     let string_layout = layouts.alloc(Layout {
-        identity: layout_identity("String", scoop_identity::RepresentationRole::ManagedObject),
+        identity: scoop_lir::LayoutIdentity::managed_object(
+            test_exact_type("String"),
+            target,
+            scoop_lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap(),
         name: "String".to_string(),
         size: 24,
         align: 8,
@@ -921,10 +930,7 @@ pub(super) fn string_metadata() -> LirMeta {
         )
         .unwrap(),
         instance_layout: layouts[string_layout].identity.clone(),
-        instance_shape: TypeInstanceShapeV1::inline_bytes(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-        )
-        .unwrap(),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(target).unwrap(),
         inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
         vtable: vtable("String", Vec::new()),
@@ -932,7 +938,7 @@ pub(super) fn string_metadata() -> LirMeta {
     });
     LirMeta {
         exact_types: Vec::new(),
-        target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        target_profile: target,
         canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
         native_externals: scoop_lir::NativeExternalMetadata::default(),
         well_known_type_descriptors: WellKnownTypeDescriptors {

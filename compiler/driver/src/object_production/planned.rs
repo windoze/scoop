@@ -44,6 +44,7 @@ impl PlannedBuiltinObjectProductionV1 {
         }
 
         let bindings = plan_codegen_objects(
+            scoop_lir.target_selection().target(),
             scoop_lir.partition().producer_units(),
             scoop_lir.members(),
             generated_c_bridge,

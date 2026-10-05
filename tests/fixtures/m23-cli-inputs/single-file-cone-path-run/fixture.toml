@@ -2,7 +2,7 @@ schema = 1
 name = "cli-input-single-file-cone-path-run"
 inputs = ["../single-file-isolation/main.scoop"]
 tools = ["scoop"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "single-file", "negative"]
 
 [[steps]]
@@ -13,7 +13,7 @@ files = [
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "run", "${work}/main.scoop", "--cone-path", "${work}/absent-cones", "--scoopc", "${work}/absent/scoopc", "--sysroot", "${work}/absent-sysroot", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/main.scoop", "--cone-path", "${work}/absent-cones", "--scoopc", "${work}/absent/scoopc", "--sysroot", "${work}/absent-sysroot", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

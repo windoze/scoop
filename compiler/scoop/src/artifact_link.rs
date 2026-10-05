@@ -17,6 +17,8 @@ pub struct LinkRequest {
     pub cone_paths: Vec<PathBuf>,
     pub sysroot: PathBuf,
     pub target: String,
+    pub c_toolchain: scoop_toolchain::CToolchainOptions,
+    pub final_link: scoop_toolchain::FinalLinkOptions,
     pub runtime_index: PathBuf,
     pub library_paths: Vec<PathBuf>,
     pub output: PathBuf,
@@ -40,8 +42,14 @@ pub struct LinkOutcome {
 }
 
 pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
-    let profile = ValidatedFinalLinkProfile::resolve(&request.target).map_err(failure)?;
-    let (root, dependencies) = resolve::artifacts(&request)?;
+    let profile = ValidatedFinalLinkProfile::resolve_with(
+        &request.target,
+        &request.c_toolchain,
+        &request.final_link,
+    )
+    .map_err(failure)?;
+    let selection = scoop_lir::ValidatedLirTargetSelection::from_id(profile.id());
+    let (root, dependencies) = resolve::artifacts(&request, selection)?;
     let bytes = dependencies
         .iter()
         .map(|artifact| artifact.snapshot.as_bytes())
@@ -49,7 +57,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     let closure = scoop_slib::read_program_link_closure(
         root.snapshot.as_bytes(),
         &bytes,
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        selection,
         profile.startup_toolchain().profile(),
     )
     .map_err(|error| read_failure(error, &root, &dependencies))?;

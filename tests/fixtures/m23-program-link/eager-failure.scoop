@@ -1,5 +1,11 @@
+@Extern(name = "fflush")
+private fun flush(stream: Ptr<Int8>?): Int
 
-private fun trace(value: Long) { println(value) }
+private fun trace(value: Long) {
+    println(value)
+    // An abort need not flush libc output buffers.
+    @Unsafe { flush(None) }
+}
 
 private fun fail(): Int {
     @Unsafe { trace(11) }

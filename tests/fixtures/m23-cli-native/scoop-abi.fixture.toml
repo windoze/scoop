@@ -2,7 +2,7 @@ schema = 1
 name = "native-scoop-abi-moving-roots"
 inputs = ["../m12-extern-scoop/extern-scoop.scoop", "../m12-extern-scoop/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native", "scoop-abi", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -20,7 +20,7 @@ files = [
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../m12-extern-scoop/native.c", "-o", "${work}/native/objects/scoop-abi.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../m12-extern-scoop/native.c", "-o", "${work}/native/objects/scoop-abi.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -34,7 +34,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${fixture}/../m12-extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../m12-extern-scoop/extern-scoop.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

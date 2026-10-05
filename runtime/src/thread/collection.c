@@ -1,36 +1,41 @@
 #include "internal.h"
 
 void scoop_thread_park_current_locked(ScoopThreadState *state) {
-    ScoopThreadMode from = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode from =
+        atomic_load_explicit(&state->mode, memory_order_acquire);
     if (from != SCOOP_THREAD_MANAGED && from != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_thread_fatal("only managed or native-borrowed threads may park");
     }
     bool pending = from == SCOOP_THREAD_MANAGED &&
                    state->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING;
-    if ((from == SCOOP_THREAD_MANAGED && !pending) != (state->managed_anchor != NULL)) {
+    if ((from == SCOOP_THREAD_MANAGED && !pending) !=
+        (state->managed_anchor != NULL)) {
         scoop_thread_fatal("parked thread has an invalid managed anchor");
     }
     if (from == SCOOP_THREAD_NATIVE_BORROWED &&
-        (state->current_transition == NULL || state->managed_stack_boundary != NULL)) {
+        (state->current_transition == NULL ||
+         state->managed_stack_boundary != NULL)) {
         scoop_thread_fatal("native-borrowed thread has no active transition");
     }
 
     /* These non-atomic fields are the collector's immutable snapshot for the
      * whole parked interval. A condition-variable wait may wake spuriously
-     * while the collector scans outside scoop_thread_world_lock, so never rewrite the
-     * anchor/root chains in the acknowledgement loop below. */
+     * while the collector scans outside scoop_thread_world_lock, so never
+     * rewrite the anchor/root chains in the acknowledgement loop below. */
     state->parked_from = from;
-    while (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) !=
-           SCOOP_WORLD_RUNNING) {
+    while (atomic_load_explicit(&scoop_thread_world_phase,
+                                memory_order_acquire) != SCOOP_WORLD_RUNNING) {
         uint64_t epoch =
             atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
-        atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
-        atomic_store_explicit(&state->mode, SCOOP_THREAD_PARKED, memory_order_release);
+        atomic_store_explicit(&state->observed_gc_epoch, epoch,
+                              memory_order_release);
+        atomic_store_explicit(&state->mode, SCOOP_THREAD_PARKED,
+                              memory_order_release);
         scoop_thread_world_broadcast();
         /* Wait once rather than hiding phase changes in
-         * scoop_thread_wait_for_running_world: a new collector may win the world lock
-         * before an old-epoch parker wakes. The outer loop must then acknowledge the
-         * new epoch while the same spill/SP are still valid. */
+         * scoop_thread_wait_for_running_world: a new collector may win the
+         * world lock before an old-epoch parker wakes. The outer loop must then
+         * acknowledge the new epoch while the same spill/SP are still valid. */
         scoop_thread_world_wait();
     }
 
@@ -47,7 +52,8 @@ void scoop_thread_poll(void) {
     if (state->managed_anchor == NULL) {
         scoop_thread_fatal("managed poll has no published anchor");
     }
-    uint64_t epoch = atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
+    uint64_t epoch =
+        atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire);
     if (atomic_load_explicit(&scoop_thread_world_phase, memory_order_acquire) ==
             SCOOP_WORLD_RUNNING &&
         atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) ==
@@ -70,11 +76,14 @@ void scoop_thread_poll(void) {
 
 void scoop_thread_native_borrowed_entry(void) {
     ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+    ScoopThreadMode mode =
+        atomic_load_explicit(&state->mode, memory_order_acquire);
     if (mode != SCOOP_THREAD_NATIVE_BORROWED) {
-        scoop_thread_fatal("native-borrowed runtime entry from an invalid mode");
+        scoop_thread_fatal(
+            "native-borrowed runtime entry from an invalid mode");
     }
-    if (state->managed_anchor != NULL || state->managed_stack_boundary != NULL ||
+    if (state->managed_anchor != NULL ||
+        state->managed_stack_boundary != NULL ||
         state->current_transition == NULL || state->caller_roots == NULL ||
         state->current_transition->caller_roots != state->caller_roots ||
         state->current_transition->managed_return_pc == 0 ||
@@ -93,14 +102,16 @@ void scoop_thread_native_borrowed_entry(void) {
     scoop_thread_registry_unlock();
 }
 
-void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
+void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
+                                      uintptr_t return_pc,
                                       uintptr_t stack_pointer,
                                       uintptr_t frame_pointer) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
+    uintptr_t boundary = (uintptr_t)state->managed_stack_boundary;
+    scoop_thread_ensure_stack_range(state, stack_pointer, boundary);
     uintptr_t stack_low = (uintptr_t)state->stack_low;
     uintptr_t stack_high = (uintptr_t)state->stack_high;
-    uintptr_t boundary = (uintptr_t)state->managed_stack_boundary;
     if (anchor == NULL || return_pc == 0 || stack_pointer < stack_low ||
         stack_pointer >= boundary || frame_pointer < stack_pointer ||
         frame_pointer >= boundary || boundary > stack_high ||
@@ -116,7 +127,8 @@ void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t retu
     state->managed_anchor = anchor;
 }
 
-void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
+void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor,
+                                        uintptr_t return_pc,
                                         uintptr_t stack_pointer,
                                         uintptr_t frame_pointer) {
     ScoopThreadState *state = scoop_thread_current_required();
@@ -133,7 +145,8 @@ void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t re
         scoop_thread_park_current_locked(state);
     }
     state->managed_segment = SCOOP_MANAGED_SEGMENT_ACTIVE;
-    scoop_thread_push_managed_anchor(anchor, return_pc, stack_pointer, frame_pointer);
+    scoop_thread_push_managed_anchor(anchor, return_pc, stack_pointer,
+                                     frame_pointer);
     atomic_store_explicit(
         &state->observed_gc_epoch,
         atomic_load_explicit(&scoop_thread_gc_epoch, memory_order_acquire),
@@ -144,15 +157,18 @@ void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t re
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
-    if (anchor == NULL || state->managed_anchor != anchor || anchor->previous != NULL) {
-        scoop_thread_fatal("managed entry anchors must be popped in LIFO order");
+    if (anchor == NULL || state->managed_anchor != anchor ||
+        anchor->previous != NULL) {
+        scoop_thread_fatal(
+            "managed entry anchors must be popped in LIFO order");
     }
     state->managed_anchor = NULL;
     *anchor = (ScoopManagedAnchor){0};
 }
 
 static bool all_collection_targets_quiescent(ScoopThreadState *collector,
-                                             uint64_t epoch, uint64_t *parked_count,
+                                             uint64_t epoch,
+                                             uint64_t *parked_count,
                                              uint64_t *native_safe_count) {
     uint64_t parked = 0;
     uint64_t native_safe = 0;
@@ -161,7 +177,8 @@ static bool all_collection_targets_quiescent(ScoopThreadState *collector,
         if (state == collector) {
             continue;
         }
-        ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+        ScoopThreadMode mode =
+            atomic_load_explicit(&state->mode, memory_order_acquire);
         if (mode == SCOOP_THREAD_NATIVE_SAFE) {
             native_safe++;
             continue;
@@ -170,17 +187,19 @@ static bool all_collection_targets_quiescent(ScoopThreadState *collector,
             state->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING) {
             if (state->managed_anchor != NULL ||
                 state->managed_stack_boundary == NULL) {
-                scoop_thread_fatal("pending gateway has an invalid empty segment");
+                scoop_thread_fatal(
+                    "pending gateway has an invalid empty segment");
             }
             continue;
         }
         if (mode == SCOOP_THREAD_PARKED &&
-            atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) ==
-                epoch) {
+            atomic_load_explicit(&state->observed_gc_epoch,
+                                 memory_order_acquire) == epoch) {
             parked++;
             continue;
         }
-        if (mode == SCOOP_THREAD_MANAGED || mode == SCOOP_THREAD_NATIVE_BORROWED ||
+        if (mode == SCOOP_THREAD_MANAGED ||
+            mode == SCOOP_THREAD_NATIVE_BORROWED ||
             mode == SCOOP_THREAD_PARKED) {
             return false;
         }
@@ -200,10 +219,13 @@ bool scoop_thread_begin_collection(void) {
         (requester_mode == SCOOP_THREAD_MANAGED && state->managed_depth == 0)) {
         scoop_thread_fatal("collection requested from an invalid thread mode");
     }
-    if ((requester_mode == SCOOP_THREAD_MANAGED && state->managed_anchor == NULL) ||
+    if ((requester_mode == SCOOP_THREAD_MANAGED &&
+         state->managed_anchor == NULL) ||
         (requester_mode == SCOOP_THREAD_NATIVE_BORROWED &&
-         (state->managed_anchor != NULL || state->current_transition == NULL))) {
-        scoop_thread_fatal("collection requester has no exact root publication");
+         (state->managed_anchor != NULL ||
+          state->current_transition == NULL))) {
+        scoop_thread_fatal(
+            "collection requester has no exact root publication");
     }
 
     scoop_thread_registry_lock();
@@ -218,13 +240,16 @@ bool scoop_thread_begin_collection(void) {
         scoop_thread_fatal("failed to lock the collector");
     }
 
-    uint64_t epoch =
-        atomic_fetch_add_explicit(&scoop_thread_gc_epoch, 1, memory_order_acq_rel) + 1;
+    uint64_t epoch = atomic_fetch_add_explicit(&scoop_thread_gc_epoch, 1,
+                                               memory_order_acq_rel) +
+                     1;
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_STOPPING,
                           memory_order_release);
     state->parked_from = requester_mode;
-    atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
-    atomic_store_explicit(&state->mode, SCOOP_THREAD_COLLECTOR, memory_order_release);
+    atomic_store_explicit(&state->observed_gc_epoch, epoch,
+                          memory_order_release);
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_COLLECTOR,
+                          memory_order_release);
     scoop_thread_world_broadcast();
 
     uint64_t parked_count = 0;
@@ -235,8 +260,8 @@ bool scoop_thread_begin_collection(void) {
     }
     atomic_store_explicit(&scoop_thread_last_gc_parked_count, parked_count,
                           memory_order_release);
-    atomic_store_explicit(&scoop_thread_last_gc_native_safe_count, native_safe_count,
-                          memory_order_release);
+    atomic_store_explicit(&scoop_thread_last_gc_native_safe_count,
+                          native_safe_count, memory_order_release);
     atomic_store_explicit(&scoop_thread_world_phase, SCOOP_WORLD_COLLECTING,
                           memory_order_release);
     scoop_thread_world_broadcast();

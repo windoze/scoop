@@ -7,9 +7,9 @@ use scoop_identity::{
     PersistentCallableBodyId, PersistentSafepointSiteId,
 };
 
-use super::DarwinAarch64StackmapMachineCodeError;
+use super::StackmapMachineCodeError;
 use crate::SlibMemberId;
-use crate::link_object::{DarwinArm64StackmapSectionError, StackmapNormalizationError};
+use crate::link_object::{ObjectStackmapSectionError, StackmapNormalizationError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopLirStackmapValidationError {
@@ -34,7 +34,7 @@ pub enum ScoopLirStackmapValidationError {
     },
     PhysicalSection {
         member: SlibMemberId,
-        source: DarwinArm64StackmapSectionError,
+        source: ObjectStackmapSectionError,
     },
     MissingStackmapSection(SlibMemberId),
     UnexpectedStackmapSection(SlibMemberId),
@@ -93,7 +93,7 @@ pub enum ScoopLirStackmapValidationError {
     MachineCode {
         member: SlibMemberId,
         owner: PersistentCallableBodyId,
-        source: DarwinAarch64StackmapMachineCodeError,
+        source: StackmapMachineCodeError,
     },
     MissingFunctionOwner {
         member: SlibMemberId,

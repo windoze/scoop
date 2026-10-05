@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-callback-tls-dynamic"
 inputs = ["storage-provider", "../../m23-native-link/storage/provider.scoop", "storage-facade", "../../m23-native-link/storage/facade.scoop", "storage-root", "../../m23-native-link/callbacks/tls.scoop", "../../m23-native-link/storage/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "moving-gc", "stage-golden"]
 

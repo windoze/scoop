@@ -1,20 +1,21 @@
+#include "no_core.h"
 #include <assert.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "image_stackmap_fixture.h"
 
 static ScoopImageRegistry *check(ScoopStackmapFixture *fixture) {
-    assert(mprotect(fixture->storage.data, fixture->storage.size, PROT_READ) == 0);
-    ScoopImageRegistry *registry =
-        scoop_image_collect(&fixture->storage.loaded, fixture->storage.data->input, 1,
-                            &fixture->storage.data->root);
+    assert(mprotect(fixture->storage.data, fixture->storage.size, PROT_READ) ==
+           0);
+    ScoopImageRegistry *registry = scoop_image_collect(
+        &fixture->storage.loaded, fixture->storage.data->input, 1,
+        &fixture->storage.data->root);
     scoop_image_validate_code_and_types(registry);
     scoop_image_stackmaps(registry, &scoop_darwin_aarch64_managed_frame_ops);
     return registry;
@@ -27,9 +28,12 @@ static void positive(void) {
     ScoopImageRegistry *registry = check(&fixture);
     assert(registry->stackmaps.record_count == 2);
     uintptr_t pc = (uintptr_t)fixture.storage.data->callables[1].entry + 8;
-    const ScoopStackMapRecord *record = scoop_stackmap_lookup(&registry->stackmaps, pc);
-    assert(record != NULL && record->safepoint_id == 11 && record->root_count == 1);
-    assert(record->live_out_count == 1 && record->live_outs[0].dwarf_register == 19);
+    const ScoopStackMapRecord *record =
+        scoop_stackmap_lookup(&registry->stackmaps, pc);
+    assert(record != NULL && record->safepoint_id == 11 &&
+           record->root_count == 1);
+    assert(record->live_out_count == 1 &&
+           record->live_outs[0].dwarf_register == 19);
     assert(record->live_outs[0].size == 8 && record->instruction_offset == 8);
     assert(record->section_offset == fixture.blobs[0].record);
     assert(scoop_stackmap_lookup(&registry->stackmaps, pc + 1) == NULL);
@@ -70,7 +74,8 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         scoop_test_stackmap_write(fixture, first.live_outs, 20, 2);
         return "normalized fingerprint mismatch";
     case 7:
-        data->sites[0].registration.linkage_kind = SCOOP_REGISTRATION_LINKAGE_STRONG_V1;
+        data->sites[0].registration.linkage_kind =
+            SCOOP_REGISTRATION_LINKAGE_STRONG_V1;
         data->sites[0].registration.odr_group_id = (ScoopDigest256V1){0};
         data->sites[0].registration.odr_member_id = (ScoopDigest256V1){0};
         data->callables[1].registration.linkage_kind =
@@ -83,7 +88,8 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
         return "normalized fingerprint mismatch";
     case 9:
         data->sites[1].owner_callable_id = data->sites[0].owner_callable_id;
-        data->sites[1].registration.linkage_kind = SCOOP_REGISTRATION_LINKAGE_ODR_V1;
+        data->sites[1].registration.linkage_kind =
+            SCOOP_REGISTRATION_LINKAGE_ODR_V1;
         data->sites[1].registration.odr_group_id.bytes[0] = 55;
         data->sites[1].registration.odr_member_id.bytes[0] = 78;
         scoop_test_stackmap_write(fixture, second.start + 16,
@@ -121,8 +127,10 @@ static const char *corrupt(ScoopStackmapFixture *fixture, unsigned test) {
     case 19:
         scoop_test_stackmap_write(fixture, first.locations + 36 + 4, 29, 2);
         scoop_test_stackmap_write(fixture, first.locations + 48 + 4, 29, 2);
-        scoop_test_stackmap_write(fixture, first.locations + 36 + 8, INT32_MAX, 4);
-        scoop_test_stackmap_write(fixture, first.locations + 48 + 8, INT32_MAX, 4);
+        scoop_test_stackmap_write(fixture, first.locations + 36 + 8, INT32_MAX,
+                                  4);
+        scoop_test_stackmap_write(fixture, first.locations + 48 + 8, INT32_MAX,
+                                  4);
         scoop_test_stackmap_write(fixture, first.start + 24,
                                   (uint64_t)INT64_MAX & ~UINT64_C(15), 8);
         return "invalid managed frame or root location";
@@ -143,8 +151,7 @@ static void negative(unsigned test) {
         close(output[0]);
         assert(dup2(output[1], STDERR_FILENO) >= 0);
         close(output[1]);
-        struct rlimit limit = {0, 0};
-        assert(setrlimit(RLIMIT_CORE, &limit) == 0);
+        scoop_test_disable_core_dumps();
         scoop_image_registry_dispose(check(&fixture));
         _exit(0);
     }
@@ -152,15 +159,16 @@ static void negative(unsigned test) {
     char message[2048] = {0};
     size_t used = 0;
     ssize_t amount;
-    while ((amount = read(output[0], message + used, sizeof message - used - 1)) > 0)
+    while ((amount =
+                read(output[0], message + used, sizeof message - used - 1)) > 0)
         used += (size_t)amount;
     close(output[0]);
     int status;
     assert(waitpid(child, &status, 0) == child);
     if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGABRT ||
         strstr(message, expected) == NULL) {
-        fprintf(stderr, "case %u expected %s, status %d: %s", test, expected, status,
-                message);
+        fprintf(stderr, "case %u expected %s, status %d: %s", test, expected,
+                status, message);
         abort();
     }
     scoop_test_storage_dispose(&fixture.storage);

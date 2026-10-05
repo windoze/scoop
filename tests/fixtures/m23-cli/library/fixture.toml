@@ -3,7 +3,7 @@ name = "cli-library-defaults-and-publication"
 root = "cone/Cone.toml"
 inputs = ["cone"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "library", "publication"]
 
 [vars]
@@ -15,7 +15,7 @@ files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
 
 [[steps]]
 name = "default_root"
-argv = ["${scoop}", "build", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, {each = "${options}"}]
 cwd = "${work}/cone"
 exit = 0
 stdout = ""
@@ -30,7 +30,7 @@ checks = [
 
 [[steps]]
 name = "explicit_root"
-argv = ["${scoop}", "build", ".", {each = "${options}"}, "-o", "../published.slib", "--target-dir", "ignored", "--profile", "release"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, ".", {each = "${options}"}, "-o", "../published.slib", "--target-dir", "ignored", "--profile", "release"]
 cwd = "${work}/cone"
 exit = 0
 stdout = ""
@@ -45,7 +45,7 @@ checks = [
 
 [[steps]]
 name = "not_executable"
-argv = ["${scoop}", "run", "${work}/cone", {each = "${options}"}, "--scoopc", "${work}/absent-compiler"]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--scoopc", "${work}/absent-compiler"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -62,7 +62,7 @@ files = [
 
 [[steps]]
 name = "hardlink"
-argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${work}/hardlink.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "-o", "${work}/hardlink.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -72,7 +72,7 @@ checks = [{file = "${work}/cone/src/api.scoop", same_as = "${work}/original.scoo
 
 [[steps]]
 name = "symlink"
-argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${work}/symlink.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "-o", "${work}/symlink.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -82,7 +82,7 @@ checks = [{file = "${work}/symlink.slib", type = "symlink"}]
 
 [[steps]]
 name = "cache_alias"
-argv = ["${scoop}", "build", "${work}/cone", {each = "${options}"}, "-o", "${default_root.result.root.path}"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "-o", "${default_root.result.root.path}"]
 exit = 1
 stdout = ""
 stderr = ""

@@ -15,6 +15,7 @@ use crate::{
 };
 
 mod commands;
+pub(crate) mod elf;
 mod exports;
 mod fixups;
 mod references;
@@ -22,7 +23,7 @@ mod sections;
 mod signature;
 mod startup;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 mod tests;
 
 struct Segment {
@@ -195,11 +196,13 @@ fn check_bindings(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<
     for import in image.file.imports().map_err(error)? {
         let name = std::str::from_utf8(import.name()).map_err(error)?;
         let expected = inputs
-            .dynamic
+            .namespace
+            .darwin()?
+            .bindings
             .get(name)
             .ok_or_else(|| error(format!("unexpected final dynamic import {name}")))?;
         if import.library()
-            != inputs.providers.providers[&expected.owner]
+            != inputs.namespace.darwin()?.providers.providers[&expected.owner]
                 .install_name
                 .as_bytes()
             || inputs.definitions.contains_key(name)
@@ -220,12 +223,17 @@ fn check_bindings(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<
             }
             continue;
         }
-        let expected = inputs.dynamic.get(&binding.symbol).ok_or_else(|| {
-            error(format!(
-                "unexpected final binding {} from ordinal {}",
-                binding.symbol, binding.ordinal
-            ))
-        })?;
+        let expected = inputs
+            .namespace
+            .darwin()?
+            .bindings
+            .get(&binding.symbol)
+            .ok_or_else(|| {
+                error(format!(
+                    "unexpected final binding {} from ordinal {}",
+                    binding.symbol, binding.ordinal
+                ))
+            })?;
         let owner = binding
             .ordinal
             .checked_sub(1)
@@ -242,7 +250,13 @@ fn check_bindings(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<
         }
         seen.insert(binding.symbol.clone());
     }
-    if let Some(symbol) = inputs.dynamic.keys().find(|symbol| !seen.contains(*symbol)) {
+    if let Some(symbol) = inputs
+        .namespace
+        .darwin()?
+        .bindings
+        .keys()
+        .find(|symbol| !seen.contains(*symbol))
+    {
         return Err(error(format!(
             "final image omitted dynamic import {symbol}"
         )));

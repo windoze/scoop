@@ -44,12 +44,16 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
         }
         Command::Link(args) => {
             let cwd = std::env::current_dir().map_err(config)?;
+            let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
+            let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
             let request = scoop::LinkRequest {
                 root_slib: absolute(&cwd, args.root_slib)?,
                 dependency_slibs: paths(&cwd, args.dependency_slib)?,
                 cone_paths: paths(&cwd, args.cone_path)?,
-                sysroot: absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?,
+                sysroot,
                 target: target(args.target)?,
+                c_toolchain,
+                final_link,
                 runtime_index: absolute(&cwd, args.runtime_objects)?,
                 library_paths: paths(&cwd, args.library_path)?,
                 output: absolute(&cwd, args.output)?,
@@ -95,13 +99,10 @@ fn build_request(
     let cache = args
         .cache_dir
         .or_else(|| std::env::var_os("SCOOP_CACHE_DIR").map(PathBuf::from))
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .filter(|home| home.is_absolute())
-                .map(|home| home.join("Library/Caches/Scoop"))
-        })
+        .or_else(super::native::default_cache)
         .ok_or_else(|| config("no usable HOME; provide --cache-dir or SCOOP_CACHE_DIR"))?;
+    let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
+    let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
     let graph = scoop::BuildGraphRequest::new(
         root,
         paths(&cwd, args.cone_path)?
@@ -110,12 +111,8 @@ fn build_request(
             .collect::<Result<_, _>>()
             .map_err(config)?,
         ArtifactCacheRoot::new(absolute(&cwd, cache)?).map_err(config)?,
-        TrustedSysrootRoot::new(absolute(
-            &cwd,
-            scoop_toolchain::configured_sysroot_root(args.sysroot),
-        )?)
-        .map_err(config)?,
-        scoop_protocol::TargetSelectionRequestV1::new(target(args.target)?).map_err(config)?,
+        TrustedSysrootRoot::new(sysroot).map_err(config)?,
+        super::native::target_request(target(args.target)?, &c_toolchain)?,
         PairedScoopcLocator::new(absolute(&cwd, compiler)?).map_err(config)?,
         DiagnosticsPolicy::Structured,
     )
@@ -141,6 +138,7 @@ fn build_request(
             .map(|path| absolute(&cwd, path))
             .transpose()?,
         runtime,
+        final_link,
         library_paths: paths(&cwd, args.library_path)?,
         cwd,
         dumps: None,
@@ -156,7 +154,7 @@ fn target(explicit: Option<String>) -> BuildResult<String> {
             .map_err(config),
     }
 }
-fn absolute(cwd: &Path, path: PathBuf) -> BuildResult<PathBuf> {
+pub(super) fn absolute(cwd: &Path, path: PathBuf) -> BuildResult<PathBuf> {
     if path.as_os_str().is_empty() {
         return Err(config("path must not be empty"));
     }

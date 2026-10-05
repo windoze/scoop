@@ -2,11 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::slice;
 
-use inkwell::llvm_sys::object::LLVMGetSectionName;
-use inkwell::memory_buffer::MemoryBuffer;
-use inkwell::object_file::{LLVMBinaryType, Section};
 use object::read::macho::MachHeader as _;
 use object::{
     Architecture, BinaryFormat, Object, ObjectKind, ObjectSection, ObjectSymbol, RelocationFlags,
@@ -24,26 +20,6 @@ const STACKMAP_SECTION: &str = "__llvm_stackmaps";
 const EH_FRAME_SECTION: &str = "__eh_frame";
 const GCC_EXCEPT_TABLE_SECTION: &str = "__gcc_except_tab";
 
-fn macho_section_name(section: &Section<'_>) -> Result<String, CodegenError> {
-    // Mach-O section names are fixed 16-byte fields. LLVM's C object API does
-    // not provide a length and a full-width name such as `__llvm_stackmaps`
-    // has no in-field NUL, so treating the result as a CStr reads into the
-    // following segment field. The selected profile proves this fixed-width
-    // representation.
-    let (raw, _) = unsafe { section.as_mut_ptr() };
-    let pointer = unsafe { LLVMGetSectionName(raw) };
-    if pointer.is_null() {
-        return Err(CodegenError("Mach-O section has no name".to_string()));
-    }
-    let bytes = unsafe { slice::from_raw_parts(pointer.cast::<u8>(), 16) };
-    let end = bytes
-        .iter()
-        .position(|byte| *byte == 0)
-        .unwrap_or(bytes.len());
-    String::from_utf8(bytes[..end].to_vec())
-        .map_err(|error| CodegenError(format!("Mach-O section name is not UTF-8: {error}")))
-}
-
 pub(crate) fn verify_macho_artifact(
     path: &Path,
     expected_safepoints: &ExpectedSafepoints,
@@ -51,33 +27,24 @@ pub(crate) fn verify_macho_artifact(
     expected_stackmap_version: u8,
     eh_encodings: LsdaEncodingProfile,
 ) -> Result<(), CodegenError> {
-    let memory = MemoryBuffer::create_from_file(path).map_err(|error| {
-        CodegenError(format!(
-            "read emitted object {} for artifact verification: {error}",
-            path.display()
-        ))
+    let bytes = std::fs::read(path).map_err(|error| {
+        CodegenError(format!("read emitted object {}: {error}", path.display()))
     })?;
-    let binary = memory.create_binary_file(None).map_err(|error| {
-        CodegenError(format!(
-            "parse emitted object {} for artifact verification: {error}",
-            path.display()
-        ))
+    let file = object::File::parse(bytes.as_slice()).map_err(|error| {
+        CodegenError(format!("parse emitted object {}: {error}", path.display()))
     })?;
-    if !matches!(
-        binary.get_binary_type(),
-        LLVMBinaryType::LLVMBinaryTypeMachO64L
-    ) {
-        return Err(CodegenError(
-            "Darwin/AArch64 backend emitted a non-Mach-O64LE object".to_string(),
-        ));
-    }
-    let mut sections = binary
-        .get_sections()
-        .ok_or_else(|| CodegenError("emitted Mach-O has no section table".to_string()))?;
+    let ProfileSections {
+        text,
+        eh_frame,
+        gcc_except_tab,
+    } = extract_profile_sections(&file)?;
     let mut stackmap = None;
     let mut section_names = Vec::new();
-    while let Some(section) = sections.next_section() {
-        let name = macho_section_name(&section)?;
+    for section in file.sections() {
+        let name = section
+            .name()
+            .map_err(|error| CodegenError(format!("Mach-O section name: {error}")))?
+            .to_string();
         section_names.push(name.clone());
         if name == STACKMAP_SECTION {
             if stackmap.is_some() {
@@ -85,15 +52,10 @@ pub(crate) fn verify_macho_artifact(
                     "emitted Mach-O contains more than one __llvm_stackmaps section".to_string(),
                 ));
             }
-            stackmap = Some(extract_stackmap(&section)?);
+            stackmap = Some(extract_stackmap(&file, &section)?);
         }
     }
 
-    let ProfileSections {
-        text,
-        eh_frame,
-        gcc_except_tab,
-    } = extract_profile_sections(path)?;
     let observed_safepoints = verify_stackmap(
         stackmap,
         text.as_ref(),
@@ -117,35 +79,51 @@ pub(crate) fn verify_macho_artifact(
 }
 
 fn extract_stackmap(
-    section: &Section<'_>,
+    file: &object::File<'_>,
+    section: &object::Section<'_, '_>,
 ) -> Result<(Vec<u8>, BTreeMap<u64, FunctionRelocation>), CodegenError> {
-    let contents = section.get_contents().to_vec();
+    let contents = section
+        .data()
+        .map_err(|error| CodegenError(format!("Mach-O stackmap contents: {error}")))?
+        .to_vec();
     let mut function_relocations = BTreeMap::new();
-    let mut relocations = section.get_relocations();
-    while let Some(relocation) = relocations.next_relocation() {
-        let (kind, name) = relocation.get_type();
-        let name = name.to_string();
-        if kind != 0 || name != "ARM64_RELOC_UNSIGNED" {
-            return Err(CodegenError(format!(
-                "__llvm_stackmaps carries unsupported relocation {name} ({kind}) at offset {}",
-                relocation.get_offset()
-            )));
-        }
-        let symbol = relocation.get_symbol();
-        let function = FunctionRelocation {
-            symbol: symbol
-                .get_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "<unnamed>".to_string()),
-            address: symbol.get_address(),
-        };
-        if function_relocations
-            .insert(relocation.get_offset(), function)
-            .is_some()
+    for (offset, relocation) in section.relocations() {
+        if relocation.flags()
+            != (RelocationFlags::MachO {
+                r_type: macho::ARM64_RELOC_UNSIGNED,
+                r_pcrel: false,
+                r_length: 3,
+            })
         {
             return Err(CodegenError(format!(
-                "__llvm_stackmaps repeats relocation offset {}",
-                relocation.get_offset()
+                "__llvm_stackmaps carries unsupported relocation {:?} at offset {offset}",
+                relocation.flags()
+            )));
+        }
+        let RelocationTarget::Symbol(index) = relocation.target() else {
+            return Err(CodegenError(
+                "Mach-O stackmap has a non-symbol relocation".into(),
+            ));
+        };
+        let symbol = file
+            .symbol_by_index(index)
+            .map_err(|error| CodegenError(format!("Mach-O stackmap function symbol: {error}")))?;
+        if symbol.kind() != SymbolKind::Text || !symbol.is_definition() || relocation.addend() != 0
+        {
+            return Err(CodegenError(
+                "Mach-O stackmap relocation does not address a defined function".into(),
+            ));
+        }
+        let function = FunctionRelocation {
+            symbol: symbol
+                .name()
+                .map_err(|error| CodegenError(format!("Mach-O stackmap function name: {error}")))?
+                .to_string(),
+            address: symbol.address(),
+        };
+        if function_relocations.insert(offset, function).is_some() {
+            return Err(CodegenError(format!(
+                "__llvm_stackmaps repeats relocation offset {offset}"
             )));
         }
     }
@@ -158,19 +136,7 @@ struct ProfileSections {
     gcc_except_tab: Option<EhSection>,
 }
 
-fn extract_profile_sections(path: &Path) -> Result<ProfileSections, CodegenError> {
-    let bytes = std::fs::read(path).map_err(|error| {
-        CodegenError(format!(
-            "read emitted object {} for EH relocation verification: {error}",
-            path.display()
-        ))
-    })?;
-    let file = object::File::parse(bytes.as_slice()).map_err(|error| {
-        CodegenError(format!(
-            "parse emitted object {} for EH relocation verification: {error}",
-            path.display()
-        ))
-    })?;
+fn extract_profile_sections(file: &object::File<'_>) -> Result<ProfileSections, CodegenError> {
     if file.format() != BinaryFormat::MachO
         || file.architecture() != Architecture::Aarch64
         || !file.is_little_endian()
@@ -363,7 +329,19 @@ fn verify_stackmap(
     }
     let text =
         text.ok_or_else(|| CodegenError("emitted Mach-O has no __text section".to_string()))?;
-    parse_stackmaps(&contents, &relocations, text, expected, expected_version).map_err(|error| {
+    let text = relocations
+        .values()
+        .map(|function| (function.symbol.clone(), text.clone()))
+        .collect();
+    parse_stackmaps(
+        &contents,
+        &relocations,
+        &text,
+        expected,
+        expected_version,
+        crate::target::CodeArchitecture::Aarch64,
+    )
+    .map_err(|error| {
         CodegenError(format!(
             "LLVM 22.1 Darwin/AArch64 stackmap invariant failed: {error}"
         ))

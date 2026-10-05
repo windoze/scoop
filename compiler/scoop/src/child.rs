@@ -22,11 +22,28 @@ pub(crate) struct ProductionSingleConeCompilerRunner;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildIoPlan {
     trusted_sysroot: PathBuf,
+    temporary_root: PathBuf,
+    compiler_environment: Vec<(&'static str, std::ffi::OsString)>,
 }
 
 impl ChildIoPlan {
-    pub(crate) fn new(trusted_sysroot: PathBuf) -> Self {
-        Self { trusted_sysroot }
+    pub(crate) fn new(trusted_sysroot: PathBuf, temporary_root: PathBuf) -> Self {
+        Self {
+            trusted_sysroot,
+            temporary_root,
+            compiler_environment: Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_toolchain(
+        mut self,
+        invocation: &scoop_lir::ValidatedCBridgeToolchainInvocation,
+    ) -> Self {
+        self.compiler_environment = invocation
+            .driver_environment()
+            .map(|(name, value)| (name, value.to_owned()))
+            .collect();
+        self
     }
 
     pub(crate) fn trusted_sysroot(&self) -> &std::path::Path {
@@ -58,11 +75,21 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
                 path: tool.executable_path().to_path_buf(),
             }
         })?;
+        let temporary = tempfile::Builder::new()
+            .prefix(".scoop-child-")
+            .tempdir_in(&io.temporary_root)
+            .map_err(ChildTransportError::TemporaryDirectory)?;
         let mut child = Command::new(tool.executable_path())
             .arg("__child-protocol")
             .arg(tool.protocol().protocol_version().to_string())
             .env_clear()
             .env("SCOOP_SYSROOT", io.trusted_sysroot())
+            .env("TMPDIR", temporary.path())
+            .envs(
+                io.compiler_environment
+                    .iter()
+                    .map(|(name, value)| (*name, value)),
+            )
             .current_dir(working_directory)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -309,6 +336,7 @@ pub enum ChildResponseKind {
 pub enum ChildTransportError {
     CompilerChanged(PairedCompilerError),
     Request(ProtocolWriteError),
+    TemporaryDirectory(std::io::Error),
     MissingExecutableParent {
         path: PathBuf,
     },
@@ -351,6 +379,10 @@ impl fmt::Display for ChildTransportError {
                 )
             }
             Self::Request(source) => write!(formatter, "cannot encode child request: {source}"),
+            Self::TemporaryDirectory(source) => write!(
+                formatter,
+                "cannot create compiler scratch directory: {source}"
+            ),
             Self::MissingExecutableParent { path } => write!(
                 formatter,
                 "paired compiler {} has no parent directory",
@@ -403,6 +435,7 @@ impl std::error::Error for ChildTransportError {
             Self::CompilerChanged(source) => Some(source),
             Self::Request(source) => Some(source),
             Self::Spawn { source, .. }
+            | Self::TemporaryDirectory(source)
             | Self::WriteRequest(source)
             | Self::Wait(source)
             | Self::ReadStream { source, .. } => Some(source),

@@ -36,7 +36,13 @@ fn fixture() -> (
     let units =
         CanonicalScoopLirObjectUnitSetV1::new(partition.scoop_lir_definition_plans().to_vec())
             .unwrap();
-    let plan = PlannedLinkObjectMemberSetV1::new(&partition, vec![units], Vec::new()).unwrap();
+    let plan = PlannedLinkObjectMemberSetV1::new(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &partition,
+        vec![units],
+        Vec::new(),
+    )
+    .unwrap();
     let digest = production.digest_finalization_plan().clone();
     let patch = &digest.nodes()[0].patch_intents()[0];
     let member = plan

@@ -6,7 +6,15 @@
 
 #include "../../src/platform/platform.h"
 
+#if defined(__linux__)
+extern const ScoopThreadVmOps scoop_linux_thread_vm_ops;
+#define TEST_THREAD_VM_OPS scoop_linux_thread_vm_ops
+#else
 extern const ScoopThreadVmOps scoop_darwin_thread_vm_ops;
+#define TEST_THREAD_VM_OPS scoop_darwin_thread_vm_ops
+#endif
+/* The fixture uses synthetic AArch64 frames on every host. Its OS component
+ * operates on real host threads and mappings. */
 extern const ScoopManagedFrameOps scoop_darwin_aarch64_managed_frame_ops;
 
 static uint8_t fake_stackmaps[160];
@@ -116,7 +124,7 @@ static const ScoopMetadataImageOps fake_metadata_ops = {
 
 static const ScoopPlatformBundle fake_bundle = {
     .metadata_images = &fake_metadata_ops,
-    .thread_vm = &scoop_darwin_thread_vm_ops,
+    .thread_vm = &TEST_THREAD_VM_OPS,
     .managed_frames = &scoop_darwin_aarch64_managed_frame_ops,
 };
 

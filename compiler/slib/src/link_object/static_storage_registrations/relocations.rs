@@ -1,3 +1,7 @@
+mod local;
+pub(super) use local::sentinel_target_key;
+use local::{validate_local_atom_target, validate_sentinel_target};
+
 use scoop_identity::{
     DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolRequest,
@@ -16,9 +20,8 @@ use super::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1, VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 const STORAGE_POINTER_OFFSET: u64 = 160;
@@ -108,7 +111,10 @@ pub(super) fn verify_relocations(
         plan.semantic().value_layout(),
         scoop_lir::StaticStorageLayout::External(_)
     ) {
-        let expected = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+        let expected = patch_sites
+            .builtins()
+            .member_plan()
+            .target()
             .contract()
             .native_symbol_normalization()
             .compiler_generated_object_symbol(plan.scan_symbol().symbol().as_str())
@@ -422,7 +428,10 @@ fn validate_strong_target(
             return relocation_error(plan, relocation_role, Failure::TargetDefinition);
         }
     };
-    let normalization = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+    let normalization = patch_sites
+        .builtins()
+        .member_plan()
+        .target()
         .contract()
         .native_symbol_normalization();
     let requested_symbol = normalization
@@ -445,160 +454,6 @@ fn validate_strong_target(
     Ok(())
 }
 
-fn validate_local_atom_target(
-    relocation: &VerifiedRelocationUseV1,
-    expected_atom: ObjectDefinitionAtomId,
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongStaticStorageRegistrationPlanV1,
-    role: StaticStorageRelocationRoleV1,
-) -> Result<(), StrongStaticStorageRegistrationValidationError> {
-    if relocation.encoded_value() != 0 {
-        return relocation_error(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::EncodedValue,
-        );
-    }
-    match relocation.shape() {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::LocalDefinition {
-                    owner_atom: Some(owner_atom),
-                    section_ordinal,
-                    ..
-                },
-        } => {
-            if *owner_atom != expected_atom {
-                return relocation_error(
-                    plan,
-                    role,
-                    StaticStorageRegistrationRelocationFailureV1::TargetAtom,
-                );
-            }
-            let section_index = usize::from(section_ordinal.get()) - 1;
-            if member.definitions().sections().roles().get(section_index)
-                != Some(&BuiltinObjectSectionRoleV1::ReadOnlyData)
-            {
-                return relocation_error(
-                    plan,
-                    role,
-                    StaticStorageRegistrationRelocationFailureV1::TargetSection,
-                );
-            }
-            Ok(())
-        }
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => relocation_error(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::TargetKind,
-        ),
-        _ => relocation_error(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::Form,
-        ),
-    }
-}
-
-fn validate_sentinel_target(
-    relocation: &VerifiedRelocationUseV1,
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongStaticStorageRegistrationPlanV1,
-    role: StaticStorageRelocationRoleV1,
-) -> Result<(), StrongStaticStorageRegistrationValidationError> {
-    let (section_index, target) = match relocation.shape() {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::SectionBase {
-                    section_ordinal,
-                    section_role: BuiltinObjectSectionRoleV1::ReadOnlyData,
-                },
-        } => {
-            let index = usize::try_from(section_ordinal.get()).unwrap() - 1;
-            let section = member.definitions().sections().envelope().sections()[index];
-            (index, section.virtual_address())
-        }
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::LocalDefinition {
-                    owner_atom: None,
-                    section_ordinal,
-                    value,
-                    ..
-                },
-        } => (usize::from(section_ordinal.get()) - 1, *value),
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => {
-            return relocation_error(
-                plan,
-                role,
-                StaticStorageRegistrationRelocationFailureV1::TargetKind,
-            );
-        }
-        _ => {
-            return relocation_error(
-                plan,
-                role,
-                StaticStorageRegistrationRelocationFailureV1::Form,
-            );
-        }
-    };
-    let sections = member.definitions().sections();
-    if sections.roles().get(section_index) != Some(&BuiltinObjectSectionRoleV1::ReadOnlyData) {
-        return relocation_error(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::TargetSection,
-        );
-    }
-    let section = sections.envelope().sections()[section_index];
-    let target = target
-        .checked_add(relocation.encoded_value())
-        .ok_or_else(|| {
-            relocation_error_value(
-                plan,
-                role,
-                StaticStorageRegistrationRelocationFailureV1::EncodedValue,
-            )
-        })?;
-    let (extent, alignment) = match role {
-        StaticStorageRelocationRoleV1::InitialTemplatePointer => (1, 1),
-        StaticStorageRelocationRoleV1::InitialRelocationTablePointer => (16, 8),
-        _ => unreachable!("only initial-state pointers may target sentinels"),
-    };
-    let target_end = target.checked_add(extent).ok_or_else(|| {
-        relocation_error_value(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::TargetSection,
-        )
-    })?;
-    let section_end = section
-        .virtual_address()
-        .checked_add(section.byte_size())
-        .expect("validated section range cannot overflow");
-    if target < section.virtual_address()
-        || target_end > section_end
-        || target % alignment != 0
-        || member
-            .definitions()
-            .definitions()
-            .iter()
-            .flat_map(|definition| definition.atoms())
-            .any(|atom| {
-                atom.section_ordinal().get() as usize == section_index + 1
-                    && atom.start() < target_end
-                    && target < atom.end()
-            })
-    {
-        return relocation_error(
-            plan,
-            role,
-            StaticStorageRegistrationRelocationFailureV1::TargetSection,
-        );
-    }
-    Ok(())
-}
-
 fn validate_use_shape(
     relocation: &VerifiedRelocationUseV1,
     atom: ObjectDefinitionAtomId,
@@ -617,7 +472,7 @@ fn validate_use_shape(
         Some(Failure::MissingOffset)
     } else if relocation.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if relocation.shape().form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if !relocation.shape().form().is_absolute64() {
         Some(Failure::Form)
     } else {
         None
@@ -626,46 +481,6 @@ fn validate_use_shape(
         return relocation_error(plan, role, failure);
     }
     Ok(())
-}
-
-pub(super) fn sentinel_target_key(
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    relocation: &VerifiedRelocationUseV1,
-) -> Option<(crate::SlibMemberId, u32, u64)> {
-    let (section, base) = match relocation.shape() {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::SectionBase {
-                    section_ordinal, ..
-                },
-        } => {
-            let index = usize::try_from(section_ordinal.get())
-                .ok()?
-                .checked_sub(1)?;
-            let section_record = member
-                .definitions()
-                .sections()
-                .envelope()
-                .sections()
-                .get(index)?;
-            (section_ordinal.get(), section_record.virtual_address())
-        }
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::LocalDefinition {
-                    owner_atom: None,
-                    section_ordinal,
-                    value,
-                    ..
-                },
-        } => (u32::from(section_ordinal.get()), *value),
-        _ => return None,
-    };
-    Some((
-        member.member(),
-        section,
-        base.checked_add(relocation.encoded_value())?,
-    ))
 }
 
 fn validate_binding_shape(
@@ -698,9 +513,13 @@ fn validate_binding_shape(
         Some(Failure::MissingOffset)
     } else if binding.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if !binding.relocation_form().is_absolute64() {
         Some(Failure::Form)
-    } else if binding.encoded_value() != 0 {
+    } else if binding
+        .relocation_form()
+        .absolute64_addend(binding.encoded_value())
+        != Some(0)
+    {
         Some(Failure::EncodedValue)
     } else if binding.target_slot() != RelocationTargetSlotV1::Single {
         Some(Failure::TargetSlot)

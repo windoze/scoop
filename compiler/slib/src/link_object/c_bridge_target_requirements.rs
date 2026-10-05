@@ -243,21 +243,37 @@ pub fn verify_c_bridge_target_support_requirements_v1(
     }
 
     for binding in runtime_and_eh.remaining_external_candidates() {
-        if binding.section_role() == super::BuiltinObjectSectionRoleV1::ThreadLocalVariables
+        let Some(requirement) = bridge_semantics
+            .target_support()
+            .requirement_for_object_symbol(binding.symbol())
+        else {
+            continue;
+        };
+        let valid_form = match requirement.support() {
+            scoop_lir::CBridgeTargetSupportV1::TlvBootstrap => {
+                binding.section_role() == super::BuiltinObjectSectionRoleV1::ThreadLocalVariables
+                    && binding.offset_within_atom() == 0
+                    && binding.relocation_form()
+                        == super::VerifiedObjectRelocationFormV1::Unsigned64
+            }
+            scoop_lir::CBridgeTargetSupportV1::TlsGetAddr
+            | scoop_lir::CBridgeTargetSupportV1::Memcpy => {
+                binding.section_role() == super::BuiltinObjectSectionRoleV1::Text
+                    && binding
+                        .relocation_form()
+                        .is_direct_call(runtime_and_eh.selection().target())
+            }
+        };
+        if valid_form
             && binding.containing_atom_role() == scoop_identity::DefinitionAtomRole::Primary
-            && binding.offset_within_atom() == 0
-            && binding.relocation_form() == super::VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            && let Some(requirement) = bridge_semantics
-                .target_support()
-                .requirement_for_object_symbol(binding.symbol())
-            && requirement.support() == scoop_lir::CBridgeTargetSupportV1::TlvBootstrap
         {
             let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-            target_support_keys.insert(use_key(&use_site));
-            target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
-                use_site,
-                requirement: requirement.clone(),
-            });
+            if target_support_keys.insert(use_key(&use_site)) {
+                target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
+                    use_site,
+                    requirement: requirement.clone(),
+                });
+            }
         }
     }
 

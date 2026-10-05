@@ -2,8 +2,8 @@
 use super::*;
 use scoop_identity::{DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId};
 use scoop_slib::{
-    PlannedStrongObjectSymbolRoleV1 as SymbolRole, VerifiedDarwinArm64RelocationShapeV1 as Shape,
-    VerifiedDefinitionAtomRangeV1, VerifiedMemberObjectRelocationIndexV1,
+    PlannedStrongObjectSymbolRoleV1 as SymbolRole, VerifiedDefinitionAtomRangeV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectRelocationShapeV1 as Shape,
     VerifiedRelocationTargetV1 as Target,
 };
 
@@ -187,7 +187,8 @@ fn controlled(shape: &Shape) -> bool {
         )
     };
     match shape {
-        Shape::Unsigned64 { target }
+        Shape::ElfRela { target, .. }
+        | Shape::Unsigned64 { target }
         | Shape::Branch26 { target }
         | Shape::Page21 { target, .. }
         | Shape::PageOffset12 { target, .. }

@@ -2,7 +2,7 @@ schema = 1
 name = "release-blocks-generic-reject-signature"
 inputs = ["consumer", "../../cross-cone/provider"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m24", "release-blocks", "negative", "canonical-diagnostics"]
 
 [[steps]]
@@ -16,7 +16,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -29,7 +29,7 @@ files = [{remove = {path = "${work}/core-source"}}]
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "${work}/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/release-generic-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -42,7 +42,7 @@ files = [{remove = {path = "${work}/provider"}}]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
 exit = 1
 stdout = ""
 stderr = ""

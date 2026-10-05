@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "StaleDependency: Cone 13c670f095b65798fb4c12f209f74b3a5411e4d02db950bfdfb3d4dec4ad7df2 requires dev.programlink:library:0.1.0 (164c9bccccad6e96ec261f10d5fdca35668152e226750c0416c64e6f904575c6); recorded HIR/MIR/LIR a003630c02eb20da9f6d7df4987a0c0e3446509809a0eb522bbd3c7c4037d88d/eed04ad0fedb7e557c5f31bc0a43f5f2c2517d4e0b33228721a2cddffdeecd08/061d456c89e6bfb60ab8c851218c8c51274ba49dcf1d0e256709c09f9860b899, actual e112875fd1082f4cdea37a59525e62fb82fdd3adea45b8e16cb49e3fa60d50a7/eed04ad0fedb7e557c5f31bc0a43f5f2c2517d4e0b33228721a2cddffdeecd08/d0ae408193a46b5c5d545fa1478fe06d67f0e03572eaa99287100f43e457ca79",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${work}/artifacts/root.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

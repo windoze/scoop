@@ -23,7 +23,7 @@ use super::*;
 use crate::{
     GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
     PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
+    StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1,
     verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
     verify_scoop_lir_digest_patch_sites_v1,
 };
@@ -181,29 +181,34 @@ fn validates_each_global_bridge_against_its_data_mutability_contract() {
     assert!(validate_native_contract_kind(write_id, write, &mutable_data).is_ok());
     assert!(validate_native_contract_kind(write_id, write, &mutable_tls).is_ok());
     assert!(native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_data,
-        VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+        VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_data,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
-        VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+        VerifiedObjectRelocationFormV1::Unsigned64,
     ));
     assert!(!native_relocation_form_matches(
+        LirTargetProfile::DARWIN_AARCH64,
         write,
         &mutable_tls,
-        VerifiedDarwinArm64RelocationFormV1::Branch26,
+        VerifiedObjectRelocationFormV1::Branch26,
     ));
 }
 
@@ -258,7 +263,7 @@ fn classifies_managed_callback_gateway_and_signature_descriptor_separately() {
     let runtime_binding = synthetic_binding(
         source.symbols.member(),
         source.atom,
-        VerifiedDarwinArm64RelocationFormV1::Branch26,
+        VerifiedObjectRelocationFormV1::Branch26,
         &runtime.object_symbol(LirTargetProfile::DARWIN_AARCH64),
         StrongRelocationResolutionV1::ExternalCandidate {
             object_symbol_table_index: 3,
@@ -267,7 +272,7 @@ fn classifies_managed_callback_gateway_and_signature_descriptor_separately() {
     let descriptor_binding = synthetic_binding(
         source.symbols.member(),
         source.atom,
-        VerifiedDarwinArm64RelocationFormV1::Page21 {
+        VerifiedObjectRelocationFormV1::Page21 {
             explicit_addend: None,
         },
         b"_descriptor",
@@ -339,7 +344,7 @@ fn classifies_static_callback_only_to_its_typed_storage_bridge() {
     let binding = synthetic_binding(
         source.symbols.member(),
         source.atom,
-        VerifiedDarwinArm64RelocationFormV1::Branch26,
+        VerifiedObjectRelocationFormV1::Branch26,
         b"_storage_bridge",
         StrongRelocationResolutionV1::ObjectLocalStrong {
             target_member: source.symbols.member(),

@@ -2,7 +2,7 @@ schema = 1
 name = "cli-derived-equality-provider-reexport"
 inputs = ["local.scoop", "provider", "facade", "direct", "reexport", "bad-field.scoop", "bad-no-gc.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "equality", "reexport", "generics", "moving-gc", "stage-golden"]
 
 [vars]
@@ -27,7 +27,7 @@ files = [
 
 [[steps]]
 name = "local"
-argv = ["${scoop}", "build", "${fixture}/local.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-local"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/local.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-local"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -49,7 +49,7 @@ stderr = ""
 
 [[steps]]
 name = "direct"
-argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-direct"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/direct", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-direct"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -71,7 +71,7 @@ stderr = ""
 
 [[steps]]
 name = "reexport"
-argv = ["${scoop}", "build", "${work}/source/reexport", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-reexport"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/reexport", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump-reexport"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -97,7 +97,7 @@ files = [{copy = {from = "${fixture}/bad-field.scoop", to = "${work}/source/dire
 
 [[steps]]
 name = "bad_field"
-argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/direct", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -110,7 +110,7 @@ files = [{copy = {from = "${fixture}/bad-no-gc.scoop", to = "${work}/source/dire
 
 [[steps]]
 name = "bad_no_gc"
-argv = ["${scoop}", "build", "${work}/source/direct", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/direct", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -129,7 +129,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${reexport.result.root.path}", {each = "${reexport.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${reexport.result.runtime_index}", "--sysroot", "${work}/sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${reexport.result.root.path}", {each = "${reexport.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${reexport.result.runtime_index}", "--sysroot", "${work}/sysroot", "-o", "${work}/relinked", "--message-format", "json"]
 env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 exit = 0
 stdout = ""

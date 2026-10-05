@@ -3,6 +3,7 @@
 use super::*;
 
 pub(in crate::object_production) fn plan_codegen_objects(
+    target: LirTargetProfile,
     producer_units: &ProducerUnitPartitionV1,
     members: &[scoop_codegen::EmittedConeObjectMemberV1],
     generated_c_bridge: &EmittedGeneratedCBridgeObjectSetV1,
@@ -49,6 +50,7 @@ pub(in crate::object_production) fn plan_codegen_objects(
     }
 
     let bindings = plan_objects(
+        target,
         producer_units,
         scoop_lir_sources,
         generated_c_bridge_sources,

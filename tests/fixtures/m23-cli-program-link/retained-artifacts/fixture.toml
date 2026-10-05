@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-retained-artifacts"
 inputs = ["cone", "../../m23-program-link/read-println.scoop", "explicit.toml"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "retained-artifacts", "concurrency", "moving-gc"]
 
 [[steps]]
@@ -12,7 +12,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/orchestrated", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,7 +32,7 @@ checks = []
 
 [[steps]]
 name = "prime"
-argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -54,7 +54,7 @@ stderr = ""
 
 [[steps]]
 name = "retained"
-argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}.fifo", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}.fifo", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -95,14 +95,14 @@ files = [{"remove" = {"path" = "${build.result.runtime_index}.fifo"}}]
 
 [[steps]]
 name = "disk_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}, {"actual" = "${disk_link.result.link_plan}", "snapshot" = "link.plan"}]
+checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}, {"actual" = "${disk_link.result.link_plan}", "snapshot" = "link.${target}.plan"}]
 
 [[steps]]
 name = "memory"

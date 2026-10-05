@@ -187,7 +187,7 @@ codegen artifact qualification 必须锁定 LLVM 22.1 当前实际输出的子�
 | LSDA 项 | 允许值 |
 |---|---|
 | LPStart encoding | `DW_EH_PE_omit` |
-| TType encoding | `DW_EH_PE_pcrel | DW_EH_PE_sdata4 | DW_EH_PE_indirect`（`0x9b`） |
+| TType encoding | catch-all 为 `DW_EH_PE_pcrel | DW_EH_PE_sdata4 | DW_EH_PE_indirect`（`0x9b`）；纯 cleanup 为 `DW_EH_PE_omit`（`0xff`），不含 type-table offset（M28 修订，见 runtime spec 5.2） |
 | call-site encoding | `DW_EH_PE_uleb128`（`0x01`） |
 | action | cleanup 的 `0`，或指向单一 catch-all type entry 的正值 |
 | type entry | LLVM `catch ptr null` 对应的 null entry |
