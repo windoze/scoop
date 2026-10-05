@@ -112,6 +112,32 @@ class PreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(ConfigurationError, "diagnostics expectation"):
                 discover(base)
 
+    def test_target_diagnostic_files_are_validated_before_execution(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            (base / "fixture.toml").write_text(
+                "schema=1\nname='target-diagnostic'\ninputs=[]\ntargets=['first','second']\n"
+                "[[steps]]\nname='reject'\nargv=['${scoop}']\nexit=1\nstdout=''\nstderr=''\n"
+                "json='stderr'\ndiagnostics={file='diagnostics.${target}.json'}\n"
+            )
+            for target in ("first", "second"):
+                (base / f"diagnostics.{target}.json").write_text(
+                    json.dumps([{"message": target + " at ${work}"}])
+                )
+            for target, expected in ((None, "first"), ("second", "second"), ("other", "first")):
+                found = discover(base, target=target)[0]
+                self.assertEqual(
+                    found.data["steps"][0]["diagnostics"], [{"message": expected + " at ${work}"}]
+                )
+            (base / "diagnostics.second.json").write_text(
+                json.dumps([{"message": "${future.result.output}"}])
+            )
+            with self.assertRaisesRegex(ConfigurationError, "forward reference future"):
+                discover(base, target="second")
+            (base / "diagnostics.second.json").unlink()
+            with self.assertRaisesRegex(ConfigurationError, "diagnostics expectation"):
+                discover(base, target="second")
+
     def test_variable_initializers_cannot_reference_later_bindings(self):
         data = criteria()
         data["vars"] = {"option": "${missing}"}

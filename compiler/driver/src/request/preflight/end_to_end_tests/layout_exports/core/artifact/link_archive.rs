@@ -1,27 +1,25 @@
 //! Rehash one intentional Link mutation without changing shared semantics.
 
 use super::*;
-use object::read::macho::MachHeader as _;
-use object::{Endianness, macho};
+use object::{Object, ObjectSymbol};
 use scoop_slib as slib;
 
 mod manifest;
 pub(super) use manifest::rewrite_production;
 
 pub(super) fn symbol_offset(bytes: &[u8], index: u32) -> usize {
-    let header = macho::MachHeader64::<Endianness>::parse(bytes, 0).unwrap();
-    let endian = header.endian().unwrap();
-    let mut commands = header.load_commands(endian, bytes, 0).unwrap();
-    while let Some(command) = commands.next().unwrap() {
-        if let Some(table) = command.symtab().unwrap() {
-            let symbols = table
-                .symbols::<macho::MachHeader64<Endianness>, _>(endian, bytes)
-                .unwrap();
-            let symbol = symbols.iter().nth(index as usize).unwrap();
-            return table.stroff.get(endian) as usize + symbol.n_strx.get(endian) as usize;
-        }
-    }
-    panic!("verified object has a symbol table");
+    let object = object::File::parse(bytes).unwrap();
+    let symbol = object
+        .symbol_by_index(object::SymbolIndex(index as usize))
+        .unwrap();
+    let name = symbol.name_bytes().unwrap();
+    assert!(!name.is_empty());
+    // Object's string table reader borrows the name from the input bytes.
+    let offset = (name.as_ptr() as usize)
+        .checked_sub(bytes.as_ptr() as usize)
+        .unwrap();
+    assert_eq!(&bytes[offset..offset + name.len()], name);
+    offset
 }
 
 pub(super) enum Rewrite {

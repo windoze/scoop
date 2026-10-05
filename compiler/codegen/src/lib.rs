@@ -75,6 +75,8 @@ mod callable_atom_boundaries;
 mod callable_runtime_scans;
 mod dataflow;
 mod declarations;
+mod elf_llvm;
+mod elf_object;
 mod emission;
 mod function;
 mod generated_c_atom_boundaries;

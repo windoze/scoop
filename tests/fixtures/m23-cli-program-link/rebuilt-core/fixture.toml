@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-rebuilt-core"
 inputs = ["cone", "../../m23-program-link/read-println.scoop", "relocated-string.scoop", "../../m23-program-link/rebuilt-core-native.scoop", "ordinary-string", "../../m23-program-link/shadow-string-library.scoop", "root", "../../m23-program-link/rebuilt-core-root.scoop", "string-declaration.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "core", "multi-cone", "moving-gc"]
 
 [[steps]]
@@ -12,7 +12,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -27,14 +27,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "prepare_core"
@@ -43,7 +43,7 @@ checks = []
 
 [[steps]]
 name = "compile_core"
-argv = ["${scoopc}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--out-slib", "${work}/rebuilt-core.slib"]
+argv = ["${scoopc}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", {each = "${compile_args}"}, "--out-slib", "${work}/rebuilt-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -65,7 +65,7 @@ checks = []
 
 [[steps]]
 name = "rebuilt"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuilt", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-rebuilt", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -99,18 +99,18 @@ checks = []
 
 [[steps]]
 name = "rebuilt_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/rebuilt-artifacts/root.slib", "--dependency-slib", "${work}/rebuilt-artifacts/1.slib", "--dependency-slib", "${work}/rebuilt-artifacts/0.slib", "--runtime-objects", "${rebuilt.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/rebuilt-artifacts/root.slib", "--dependency-slib", "${work}/rebuilt-artifacts/1.slib", "--dependency-slib", "${work}/rebuilt-artifacts/0.slib", "--runtime-objects", "${rebuilt.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "snapshot" = "rebuilt.plan"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
+checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "snapshot" = "rebuilt.${target}.plan"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
 
 [[steps]]
 name = "actual_string_owner"
-checks = [{"actual" = "${rebuilt_link.result.link_plan}", "contains" = "alias _scoop_td_String -> _scoop$1$td$0245432d5c318ba49a6d2061c5c93ed1a5ba0828b5207170631cc670db031b91"}]
+checks = [{"actual" = "${rebuilt_link.result.link_plan}", "contains" = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$1$td$0245432d5c318ba49a6d2061c5c93ed1a5ba0828b5207170631cc670db031b91"}]
 
 [[steps]]
 name = "run_linked"

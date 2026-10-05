@@ -11,7 +11,7 @@ pub(crate) fn replay<'input>(
         .map_err(crate::StrongLinkMaterializationError::ProducerUnits)?;
     let wire = link.link_identity_closure_wire();
     let plan = wire
-        .replay_materializations(&partition)
+        .replay_materializations(graph.target_selection().target(), &partition)
         .map_err(crate::StrongLinkMaterializationError::Closure)?;
     let (scoop, generated) = crate::link_decode::object_directory::validate(graph, &plan)?;
     let target = graph.target_selection().target();

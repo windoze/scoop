@@ -6,6 +6,9 @@ use std::process::{Child, Command, ExitStatus, Output, Stdio};
 #[cfg(unix)]
 mod signals;
 
+mod depfile;
+pub use depfile::parse_make_dependencies;
+
 pub fn initialize() -> io::Result<()> {
     #[cfg(unix)]
     signals::initialize()?;

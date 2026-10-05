@@ -2,7 +2,7 @@ schema = 1
 name = "generic-delegate-references-reference-nested"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../m23-generic-delegate-references/provider.scoop", "delegate-reference-nested", "../../m23-generic-delegate-references/reference-nested.scoop", "delegate-downstream-reference-nested", "../../m23-generic-delegate-references/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["generics", "generic_delegate_initializer_references_republish_and_execute", "stage-golden"]
 
 [[steps]]
@@ -15,7 +15,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,7 +38,7 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -67,7 +67,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/delegate-reference-nested", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-reference-nested/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-reference-nested", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-reference-nested/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -97,7 +97,7 @@ files = [
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", "${work}/sources/delegate-downstream-reference-nested", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-downstream-reference-nested/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/delegate-downstream-reference-nested", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-downstream-reference-nested/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -121,13 +121,13 @@ files = [
 name = "prepare_metadata"
 files = [
   {"copy" = {"from" = "${fixture}/../support/metadata.c", "to" = "${work}/native/metadata.c"}},
-  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "PROVIDER_IMAGE", "new" = "_scoop$1$im$$${provider.result.root.identity}"}},
-  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "CONSUMER_IMAGE", "new" = "_scoop$1$im$$${consumer.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "PROVIDER_IMAGE", "new" = "${symbol_prefix}scoop$1$im$$${provider.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "CONSUMER_IMAGE", "new" = "${symbol_prefix}scoop$1$im$$${consumer.result.root.identity}"}},
 ]
 
 [[steps]]
 name = "compile_metadata"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-DM23_EXPECTED_UNITS=1", "-DM23_STORAGE_KIND=0", "-c", "${work}/native/metadata.c", "-o", "${work}/native/metadata.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-DM23_EXPECTED_UNITS=1", "-DM23_STORAGE_KIND=0", "-c", "${work}/native/metadata.c", "-o", "${work}/native/metadata.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -156,7 +156,7 @@ files = [
 
 [[steps]]
 name = "compile_gc"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -178,7 +178,7 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -196,7 +196,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -206,7 +206,7 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
   {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
 ]
 
 [[steps]]
@@ -228,12 +228,12 @@ env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 name = "symbols"
 argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "${work}/program"]
 exit = 0
-stdout = {"file" = "symbols.txt"}
+stdout = {snapshot = "symbols.${target}.txt"}
 stderr = ""
 
 [[steps]]
 name = "strong_symbols"
 argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${work}/program"]
 exit = 0
-stdout = {"file" = "strong_symbols.txt"}
+stdout = {snapshot = "strong_symbols.${target}.txt"}
 stderr = ""

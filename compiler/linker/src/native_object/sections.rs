@@ -4,7 +4,7 @@ use scoop_slib::{
     ObservedMachORelocationV1,
 };
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
 mod tests;
 
 pub(super) fn check(

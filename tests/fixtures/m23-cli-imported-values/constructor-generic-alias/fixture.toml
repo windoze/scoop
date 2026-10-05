@@ -2,7 +2,7 @@ schema = 1
 name = "imported-constructor-generic-alias"
 inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-constructors/provider.scoop", "constructor-provider", "../../m23-imported-constructors/generic-alias.scoop", "generic-alias"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["imported-values", "constructor", "negative"]
 
 [[steps]]
@@ -15,7 +15,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,7 +38,7 @@ files = [
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "${work}/sources/constructor-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/constructor-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -61,7 +61,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/generic-alias", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-alias/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/generic-alias", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-alias/0.1.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""

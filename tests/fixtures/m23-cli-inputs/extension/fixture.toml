@@ -2,7 +2,7 @@ schema = 1
 name = "cli-input-extension"
 inputs = []
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "negative"]
 
 [vars]
@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "public"
-argv = ["${scoop}", "build", "${work}/main.txt", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/main.txt", "-o", "${work}/previous.slib", {"each" = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -40,7 +40,7 @@ checks = [
 
 [[steps]]
 name = "human"
-argv = ["${scoop}", "build", "${work}/main.txt", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/main.txt", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
 stderr = "${work}/main.txt: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/main.txt: regular file must be named Cone.toml or have exact .scoop extension\n"

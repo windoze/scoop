@@ -14,20 +14,7 @@ pub use contract::{
     TargetProfileContract, TargetProfileFingerprint,
 };
 
-/// Stable identity of one complete executable target profile.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum TargetProfileId {
-    DarwinAarch64,
-}
-
-impl TargetProfileId {
-    /// Canonical spelling used by diagnostics and target metadata.
-    pub const fn canonical_name(self) -> &'static str {
-        match self {
-            Self::DarwinAarch64 => "darwin-aarch64",
-        }
-    }
-}
+pub use scoop_identity::TargetProfileId;
 
 /// LLVM scalar storage classes needed by LIR layout.
 ///
@@ -150,54 +137,38 @@ impl PointerRepresentation {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct LirTargetProfile {
     id: TargetProfileId,
-    canonical_llvm_data_layout: &'static str,
-    i1: ScalarLayout,
-    i8: ScalarLayout,
-    i16: ScalarLayout,
-    i32: ScalarLayout,
-    i64: ScalarLayout,
-    managed_pointer_layout: ScalarLayout,
-    data_pointer: PointerRepresentation,
-    code_pointer: PointerRepresentation,
-    metadata_pointer_layout: ScalarLayout,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum NativeObjectFormat {
+    MachO64,
+    Elf64,
 }
 
 impl LirTargetProfile {
-    /// The sole executable profile currently qualified by Scoop.
-    pub const DARWIN_AARCH64: Self = {
-        const BYTE: ScalarLayout = ScalarLayout::new(1, 1);
-        const WORD16: ScalarLayout = ScalarLayout::new(2, 2);
-        const WORD32: ScalarLayout = ScalarLayout::new(4, 4);
-        const WORD64: ScalarLayout = ScalarLayout::new(8, 8);
-        const QUALIFIED_POINTER: PointerRepresentation = PointerRepresentation::new(
-            WORD64,
-            PointerNullEncoding::AllZeroBits,
-            InternalPointerCarrier::BitPreservingU64,
-        );
+    pub const DARWIN_AARCH64: Self = Self::from_id(TargetProfileId::DarwinAarch64);
+    pub const LINUX_X86_64_GNU: Self = Self::from_id(TargetProfileId::LinuxX86_64Gnu);
+    pub const LINUX_X86_64_MUSL: Self = Self::from_id(TargetProfileId::LinuxX86_64Musl);
 
-        Self {
-            id: TargetProfileId::DarwinAarch64,
-            canonical_llvm_data_layout: "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32",
-            i1: BYTE,
-            i8: BYTE,
-            i16: WORD16,
-            i32: WORD32,
-            i64: WORD64,
-            managed_pointer_layout: WORD64,
-            data_pointer: QUALIFIED_POINTER,
-            code_pointer: QUALIFIED_POINTER,
-            metadata_pointer_layout: WORD64,
-        }
-    };
+    pub const fn from_id(id: TargetProfileId) -> Self {
+        Self { id }
+    }
 
     pub const fn id(self) -> TargetProfileId {
         self.id
     }
 
-    pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {
+    pub const fn native_object_format(self) -> NativeObjectFormat {
         match self.id {
-            TargetProfileId::DarwinAarch64 => scoop_identity::TargetProfileWireId::darwin_aarch64(),
+            TargetProfileId::DarwinAarch64 => NativeObjectFormat::MachO64,
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                NativeObjectFormat::Elf64
+            }
         }
+    }
+
+    pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {
+        scoop_identity::TargetProfileWireId::new(self.id)
     }
 
     pub const fn contract(self) -> TargetProfileContract {
@@ -209,18 +180,25 @@ impl LirTargetProfile {
     }
 
     pub const fn canonical_llvm_data_layout(self) -> &'static str {
-        self.canonical_llvm_data_layout
+        match self.id {
+            TargetProfileId::DarwinAarch64 => {
+                "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+            }
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+            }
+        }
     }
 
     /// Total lookup of the physical layout for every backend integer scalar
     /// admitted into LIR.
     pub const fn scalar_layout(self, kind: BackendScalarKind) -> ScalarLayout {
         match kind {
-            BackendScalarKind::I1 => self.i1,
-            BackendScalarKind::I8 => self.i8,
-            BackendScalarKind::I16 => self.i16,
-            BackendScalarKind::I32 => self.i32,
-            BackendScalarKind::I64 => self.i64,
+            BackendScalarKind::I1 => ScalarLayout::new(1, 1),
+            BackendScalarKind::I8 => ScalarLayout::new(1, 1),
+            BackendScalarKind::I16 => ScalarLayout::new(2, 2),
+            BackendScalarKind::I32 => ScalarLayout::new(4, 4),
+            BackendScalarKind::I64 => ScalarLayout::new(8, 8),
         }
     }
 
@@ -229,19 +207,27 @@ impl LirTargetProfile {
     }
 
     pub const fn managed_pointer_layout(self) -> ScalarLayout {
-        self.managed_pointer_layout
+        ScalarLayout::new(8, 8)
     }
 
     pub const fn data_pointer(self) -> PointerRepresentation {
-        self.data_pointer
+        PointerRepresentation::new(
+            ScalarLayout::new(8, 8),
+            PointerNullEncoding::AllZeroBits,
+            InternalPointerCarrier::BitPreservingU64,
+        )
     }
 
     pub const fn code_pointer(self) -> PointerRepresentation {
-        self.code_pointer
+        PointerRepresentation::new(
+            ScalarLayout::new(8, 8),
+            PointerNullEncoding::AllZeroBits,
+            InternalPointerCarrier::BitPreservingU64,
+        )
     }
 
     pub const fn metadata_pointer_layout(self) -> ScalarLayout {
-        self.metadata_pointer_layout
+        ScalarLayout::new(8, 8)
     }
 
     /// Total physical-layout lookup for the provenance-preserving LIR pointer
@@ -249,10 +235,10 @@ impl LirTargetProfile {
     /// width without acquiring its source-level construction capability.
     pub const fn pointer_layout(self, kind: PointerKind) -> ScalarLayout {
         match kind {
-            PointerKind::Managed => self.managed_pointer_layout,
-            PointerKind::Raw => self.data_pointer.layout,
-            PointerKind::Code => self.code_pointer.layout,
-            PointerKind::Metadata => self.metadata_pointer_layout,
+            PointerKind::Managed => self.managed_pointer_layout(),
+            PointerKind::Raw => self.data_pointer().layout,
+            PointerKind::Code => self.code_pointer().layout,
+            PointerKind::Metadata => self.metadata_pointer_layout(),
         }
     }
 
@@ -262,11 +248,9 @@ impl LirTargetProfile {
     /// in typed LIR and consumed by definitions, every caller, dispatch, and
     /// Scoop extern declarations.
     pub const fn classify_scoop_abi_value(self, shape: ScoopAbiValueShape) -> ScoopAbiPassing {
-        match self.id {
-            TargetProfileId::DarwinAarch64 => match shape {
-                ScoopAbiValueShape::Scalar => ScoopAbiPassing::Direct,
-                ScoopAbiValueShape::Aggregate => ScoopAbiPassing::Indirect,
-            },
+        match shape {
+            ScoopAbiValueShape::Scalar => ScoopAbiPassing::Direct,
+            ScoopAbiValueShape::Aggregate => ScoopAbiPassing::Indirect,
         }
     }
 }

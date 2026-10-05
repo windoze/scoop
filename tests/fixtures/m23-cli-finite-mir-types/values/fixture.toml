@@ -2,7 +2,7 @@ schema = 1
 name = "finite-mir-types-values"
 inputs = ["program.scoop", "../../m23-finite-mir-types/values.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["finite-mir-types", "modified-core", "single-file", "stage-golden", "moving-gc"]
 
 [[steps]]
@@ -16,14 +16,14 @@ checks = []
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/core"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "221a3d52fe48da16afc75814869a8ffff60424613a47749714f102fba2415063"},
+
   {"file" = "${work}/dump/core/${core.result.root.identity}/ast.txt", "snapshot" = "core.ast.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
@@ -33,7 +33,7 @@ checks = [
 [[steps]]
 name = "prepare_program"
 files = [
-  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/empty-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/empty-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
   {"remove" = {"path" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/program.scoop", "to" = "${work}/sources/program.scoop"}},
 ]
@@ -41,14 +41,14 @@ checks = []
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", "${work}/sources/program.scoop", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/program.scoop", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "eeea2460f1dee85ebc09d5313596d31490fa5f7eb5047d39da507b293272333d"},
+
   {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
@@ -67,7 +67,7 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -77,7 +77,7 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.dependencies.length}", "equals" = 1},
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
 ]
 
 [[steps]]
@@ -96,3 +96,7 @@ stdout = ""
 stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 checks = []
+
+[[steps]]
+name = "artifact-fingerprints"
+checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}", "program" = "${program.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

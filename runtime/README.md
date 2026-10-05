@@ -23,24 +23,30 @@ runtime-owned exception ABI:
   debug queries;
 - `src/eh.c` owns `ScoopExceptionRecord`, the per-thread caught stack,
   throw/begin/end/rethrow, and stable external-root lifetime;
-- `src/eh_personality.c` owns the bounded LSDA decoder and the Scoop
-  personality for the qualified LLVM 22.1 Darwin/AArch64 catch-all/cleanup
-  profile;
+- `src/eh_personality.c` owns the Scoop personality; `src/eh/` contains
+  the bounded LLVM 22.1 catch-all/cleanup LSDA decoder, including tables
+  that omit TType for cleanup-only functions;
 - `src/platform/` provides the target-selected image, OS/VM and frame/ABI
-  components. M15 currently supports Darwin/AArch64 only.
+  components for Darwin/AArch64 and Linux/amd64 with glibc or musl. OS/image
+  code and architecture-specific frame/entry code are separate components.
 
-`scoopc` compiles the complete source set carried by the selected target
-profile into `target/scoop-rt/libscoop_rt.a` and links it into each Scoop
-program. Runtime behavior is covered by `cargo test --workspace`, including
-the fake-platform stack-map tests and executable fixture suite. The complete
+`scoop build` compiles the complete runtime source set carried by the selected
+target profile and caches its objects and runtime index for final linking.
+`scoop-link` can consume that index and existing `.slib` artifacts without
+compiler stages. Runtime behavior is covered by `cargo test --workspace` and
+`python3 tests/run_fixtures.py --all`, including real moving-GC programs in
+addition to the fake-platform stack-map tests. The complete
 contracts live in `docs/specs/SCOOP-RUNTIME-SPEC.md` and
 `docs/milestone15/DESIGN.md`; the exception migration and its object/link
-qualification gates are specified in `docs/milestone25/DESIGN.md`.
+qualification gates are specified in `docs/milestone25/DESIGN.md`. Linux
+toolchain preparation and verification are documented in
+[`docs/milestone28/BUILDING.md`](../docs/milestone28/BUILDING.md).
 
 Generated Scoop programs use only the closed set of Itanium Level-I
-`_Unwind_*` entries supplied by Darwin `libSystem`. They neither expose the EH
-control-flow entries through the public C FFI header nor link `libc++abi` or an
-explicit `libunwind`.
+`_Unwind_*` entries supplied by Darwin `libSystem` or the selected Linux LLVM
+libunwind archive. Linux builds keep separate glibc and musl unwind prefixes.
+Programs do not expose EH control-flow entries through the public C FFI
+header or link `libc++abi`; one provider supplies the Level-I unwind ABI.
 
 `SCOOP_GC_STRESS_MOVE=1` enables the M15 runtime-only relocation test mode:
 every mutator-visible allocation first performs a full moving collection,

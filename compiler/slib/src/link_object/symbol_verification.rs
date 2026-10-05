@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::num::NonZeroU8;
+use std::num::NonZeroU32;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
@@ -11,11 +11,14 @@ use scoop_identity::{
 use scoop_wire::sha256;
 
 use super::{
-    BuiltinObjectSectionRoleV1, DarwinArm64SymbolKindV1, ObservedMachOSymbolV1,
+    BuiltinObjectSectionRoleV1, ObjectSymbolKindV1, ObservedObjectSymbolV1,
     PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
     ValidatedBuiltinObjectSectionInventoryV1,
 };
 use crate::SlibMemberId;
+
+mod padding;
+use padding::validate_and_assign_zero_padding;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongDefinitionSymbolV1 {
@@ -23,7 +26,7 @@ pub struct VerifiedStrongDefinitionSymbolV1 {
     definition_owner: ObjectDefinitionPlanOwner,
     macho_name: Vec<u8>,
     table_index: u32,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     value: u64,
     no_dead_strip: bool,
     private_external: bool,
@@ -46,7 +49,7 @@ impl VerifiedStrongDefinitionSymbolV1 {
         self.table_index
     }
 
-    pub const fn section_ordinal(&self) -> NonZeroU8 {
+    pub const fn section_ordinal(&self) -> NonZeroU32 {
         self.section_ordinal
     }
 
@@ -67,7 +70,7 @@ impl VerifiedStrongDefinitionSymbolV1 {
 pub struct VerifiedDefinitionAtomRangeV1 {
     atom: ObjectDefinitionAtomId,
     atom_role: DefinitionAtomRole,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     start: u64,
     end: u64,
     padding_end: u64,
@@ -82,7 +85,7 @@ impl VerifiedDefinitionAtomRangeV1 {
         self.atom_role
     }
 
-    pub const fn section_ordinal(self) -> NonZeroU8 {
+    pub const fn section_ordinal(self) -> NonZeroU32 {
         self.section_ordinal
     }
 
@@ -191,12 +194,12 @@ pub fn verify_member_strong_object_definitions_v1(
         .iter()
         .map(|symbol| (symbol.macho_name().to_vec(), symbol))
         .collect::<BTreeMap<_, _>>();
-    let mut actual = BTreeMap::<Vec<u8>, &ObservedMachOSymbolV1>::new();
+    let mut actual = BTreeMap::<Vec<u8>, &ObservedObjectSymbolV1>::new();
     for symbol in sections.envelope().symbols().iter().filter(|symbol| {
         matches!(
             symbol.kind(),
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition
-                | DarwinArm64SymbolKindV1::ExternalWeakDefinition
+            ObjectSymbolKindV1::ExternalStrongDefinition
+                | ObjectSymbolKindV1::ExternalWeakDefinition
         )
     }) {
         if actual.insert(symbol.name().to_vec(), symbol).is_some() {
@@ -227,7 +230,7 @@ pub fn verify_member_strong_object_definitions_v1(
     for (name, planned) in expected {
         let observed = actual[&name];
         let expected_weak = planned.request().linkage() == LinkageClass::OdrWeak;
-        let actual_weak = observed.kind() == DarwinArm64SymbolKindV1::ExternalWeakDefinition;
+        let actual_weak = observed.kind() == ObjectSymbolKindV1::ExternalWeakDefinition;
         if expected_weak != actual_weak {
             return Err(
                 StrongObjectDefinitionValidationError::DefinitionLinkageMismatch {
@@ -281,7 +284,7 @@ pub fn verify_member_strong_object_definitions_v1(
 #[derive(Clone, Copy)]
 struct SymbolLocation {
     table_index: u32,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     value: u64,
 }
 
@@ -455,156 +458,12 @@ fn validate_disjoint_atom_ranges(
     Ok(())
 }
 
-fn validate_and_assign_zero_padding(
-    bytes: &[u8],
-    sections: &ValidatedBuiltinObjectSectionInventoryV1,
-    definitions: &mut [VerifiedStrongObjectDefinitionV1],
-) -> Result<(), StrongObjectDefinitionValidationError> {
-    let mut ranges_by_section = BTreeMap::<NonZeroU8, Vec<VerifiedDefinitionAtomRangeV1>>::new();
-    for range in definitions
-        .iter()
-        .flat_map(|definition| definition.atoms.iter().copied())
-    {
-        ranges_by_section
-            .entry(range.section_ordinal)
-            .or_default()
-            .push(range);
-    }
-    let mut padding_ends = BTreeMap::new();
-    for (index, section) in sections.envelope().sections().iter().enumerate() {
-        let ordinal_index = index + 1;
-        let ordinal = u8::try_from(ordinal_index)
-            .ok()
-            .and_then(NonZeroU8::new)
-            .ok_or(
-                StrongObjectDefinitionValidationError::UnsupportedSectionOrdinal {
-                    index: u32::try_from(ordinal_index).unwrap_or(u32::MAX),
-                },
-            )?;
-        let section_end = section
-            .virtual_address()
-            .checked_add(section.byte_size())
-            .ok_or(
-                StrongObjectDefinitionValidationError::InvalidSectionByteRange { section: ordinal },
-            )?;
-        let Some(ranges) = ranges_by_section.get_mut(&ordinal) else {
-            if section.byte_size() != 0 {
-                return Err(StrongObjectDefinitionValidationError::UnownedSection {
-                    section: ordinal,
-                    role: sections.roles()[index],
-                    segment_name: section.segment_name().to_vec(),
-                    section_name: section.section_name().to_vec(),
-                    symbols: sections
-                        .envelope()
-                        .symbols()
-                        .iter()
-                        .filter(|symbol| symbol.section_ordinal() == Some(ordinal))
-                        .map(|symbol| (symbol.name().to_vec(), symbol.value()))
-                        .collect(),
-                });
-            }
-            continue;
-        };
-        ranges.sort_unstable_by_key(|range| (range.start, range.end, range.atom));
-        if ranges[0].start != section.virtual_address() {
-            return Err(
-                StrongObjectDefinitionValidationError::UnownedSectionPrefix {
-                    section: ordinal,
-                    section_start: section.virtual_address(),
-                    first_atom_start: ranges[0].start,
-                },
-            );
-        }
-        for range_index in 0..ranges.len() {
-            let range = ranges[range_index];
-            let padding_end = ranges
-                .get(range_index + 1)
-                .map_or(section_end, |next| next.start);
-            validate_zero_padding(bytes, *section, range, padding_end)?;
-            padding_ends.insert(range.atom, padding_end);
-        }
-    }
-    if padding_ends.len()
-        != definitions
-            .iter()
-            .map(|definition| definition.atoms.len())
-            .sum::<usize>()
-    {
-        return Err(StrongObjectDefinitionValidationError::InvalidPlannedSymbolSet);
-    }
-    for atom in definitions
-        .iter_mut()
-        .flat_map(|definition| definition.atoms.iter_mut())
-    {
-        atom.padding_end = padding_ends[&atom.atom];
-    }
-    Ok(())
-}
-
-fn validate_zero_padding(
-    bytes: &[u8],
-    section: super::ObservedMachOSectionV1,
-    range: VerifiedDefinitionAtomRangeV1,
-    padding_end: u64,
-) -> Result<(), StrongObjectDefinitionValidationError> {
-    let Some(file_offset) = section.file_offset() else {
-        return Ok(());
-    };
-    let padding_start_in_section = range.end.checked_sub(section.virtual_address()).ok_or(
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        },
-    )?;
-    let padding_end_in_section = padding_end.checked_sub(section.virtual_address()).ok_or(
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        },
-    )?;
-    let start = file_offset.checked_add(padding_start_in_section).ok_or(
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        },
-    )?;
-    let end = file_offset.checked_add(padding_end_in_section).ok_or(
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        },
-    )?;
-    let start = usize::try_from(start).map_err(|_| {
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        }
-    })?;
-    let end = usize::try_from(end).map_err(|_| {
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        }
-    })?;
-    let padding = bytes.get(start..end).ok_or(
-        StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-            section: range.section_ordinal,
-        },
-    )?;
-    if let Some(offset) = padding.iter().position(|byte| *byte != 0) {
-        let address = range.end.checked_add(offset as u64).ok_or(
-            StrongObjectDefinitionValidationError::InvalidSectionByteRange {
-                section: range.section_ordinal,
-            },
-        )?;
-        return Err(StrongObjectDefinitionValidationError::NonzeroAtomPadding {
-            atom: range.atom,
-            address,
-        });
-    }
-    Ok(())
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongObjectDefinitionValidationError {
     DefinitionLinkageMismatch {
         name: Vec<u8>,
         expected: LinkageClass,
-        actual: DarwinArm64SymbolKindV1,
+        actual: ObjectSymbolKindV1,
     },
     ObjectBytesMismatch,
     DuplicateExternalStrongDefinition {
@@ -622,8 +481,8 @@ pub enum StrongObjectDefinitionValidationError {
     InvalidPlannedSymbolSet,
     AtomBoundarySectionMismatch {
         atom: ObjectDefinitionAtomId,
-        start: NonZeroU8,
-        end: NonZeroU8,
+        start: NonZeroU32,
+        end: NonZeroU32,
     },
     InvalidAtomRange {
         atom: ObjectDefinitionAtomId,
@@ -642,17 +501,17 @@ pub enum StrongObjectDefinitionValidationError {
         index: u32,
     },
     InvalidSectionByteRange {
-        section: NonZeroU8,
+        section: NonZeroU32,
     },
     UnownedSection {
-        section: NonZeroU8,
+        section: NonZeroU32,
         role: BuiltinObjectSectionRoleV1,
         segment_name: Vec<u8>,
         section_name: Vec<u8>,
         symbols: Vec<(Vec<u8>, u64)>,
     },
     UnownedSectionPrefix {
-        section: NonZeroU8,
+        section: NonZeroU32,
         section_start: u64,
         first_atom_start: u64,
     },

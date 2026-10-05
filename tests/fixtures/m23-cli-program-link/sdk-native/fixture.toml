@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-sdk-native"
 inputs = ["cone", "../../m23-program-link/native-root.scoop", "native-library", "../../m23-program-link/native-library.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "native-link", "sdk", "multi-cone", "moving-gc"]
 
 [[steps]]
@@ -22,7 +22,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/native-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/native-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,7 +32,7 @@ checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", 
 
 [[steps]]
 name = "build_dependencies"
-checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "native-library.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "native-library.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "native-library.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "native-library.lir.txt"}]
+checks = [{"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/ast.txt", "snapshot" = "native-library.ast.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/hir.txt", "snapshot" = "native-library.hir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/mir.txt", "snapshot" = "native-library.mir.txt"}, {"file" = "${work}/dump-build/${build.result.dependencies.1.identity}/lir.txt", "snapshot" = "native-library.lir.${target}.txt"}]
 
 [[steps]]
 name = "run_built"
@@ -56,14 +56,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "run_linked"

@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-reject-callbacks-bad-missing-signature"
 inputs = ["source-error", "../../m23-native-link/callbacks/bad-missing-signature.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "negative", "canonical-diagnostics"]
 
 [[steps]]
@@ -11,7 +11,7 @@ files = [{"copy" = {"from" = "${fixture}/source-error", "to" = "${work}/sources/
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "${work}/sources/source-error", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/source-error", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""

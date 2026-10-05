@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-archive-conflicts"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/first_missing.c", "native-sources/second_missing.c", "native-sources/first_strong.c", "native-sources/second_strong.c", "native-sources/first_weak.c", "native-sources/second_weak.c", "native-sources/first_constructor.c", "native-sources/second_constructor.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "stage-golden"]
 
 [[steps]]
@@ -17,7 +17,7 @@ checks = []
 
 [[steps]]
 name = "compile_good"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/good.c", "-o", "${work}/objects/good.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/good.c", "-o", "${work}/objects/good.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -33,13 +33,13 @@ env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.${target}.txt"}]
 
 [[steps]]
 name = "isolate"
@@ -53,7 +53,7 @@ checks = []
 
 [[steps]]
 name = "first_missing"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -66,7 +66,7 @@ checks = []
 
 [[steps]]
 name = "second_missing"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -92,12 +92,12 @@ checks = []
 
 [[steps]]
 name = "reject_missing"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_missing.json"}
+diagnostics = {"file" = "reject_missing.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
@@ -108,7 +108,7 @@ checks = []
 
 [[steps]]
 name = "first_strong"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -121,7 +121,7 @@ checks = []
 
 [[steps]]
 name = "second_strong"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -147,12 +147,12 @@ checks = []
 
 [[steps]]
 name = "reject_strong"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_strong.json"}
+diagnostics = {"file" = "reject_strong.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
@@ -163,7 +163,7 @@ checks = []
 
 [[steps]]
 name = "first_weak"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -176,7 +176,7 @@ checks = []
 
 [[steps]]
 name = "second_weak"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -202,12 +202,12 @@ checks = []
 
 [[steps]]
 name = "reject_weak"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_weak.json"}
+diagnostics = {"file" = "reject_weak.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
@@ -218,7 +218,7 @@ checks = []
 
 [[steps]]
 name = "first_constructor"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/first.c", "-o", "${work}/objects/first.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -231,7 +231,7 @@ checks = []
 
 [[steps]]
 name = "second_constructor"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/second.c", "-o", "${work}/objects/second.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -257,11 +257,11 @@ checks = []
 
 [[steps]]
 name = "reject_constructor"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_constructor.json"}
+diagnostics = {"file" = "reject_constructor.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

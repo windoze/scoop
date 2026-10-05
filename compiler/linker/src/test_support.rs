@@ -72,15 +72,21 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         &[&library],
         root_fixture,
     );
-    let target = ResolvedTargetProfile::resolve("aarch64-apple-darwin").unwrap();
+    let triple = if cfg!(target_os = "linux") {
+        "x86_64-unknown-linux-gnu"
+    } else {
+        "aarch64-apple-darwin"
+    };
+    let target = ResolvedTargetProfile::resolve(triple).unwrap();
     let runtime_build = build_runtime(RuntimeBuildRequest {
         target: &target,
         runtime_root: &workspace.join("runtime"),
         cache_root: &path.join("runtime"),
         optimization: RuntimeOptimization::Optimized,
+        unwind_prefix: None,
     })
     .unwrap();
-    let profile = ValidatedFinalLinkProfile::resolve("aarch64-apple-darwin").unwrap();
+    let profile = ValidatedFinalLinkProfile::resolve(triple).unwrap();
     let runtime = RuntimeObjectSet::read_index(
         runtime_build.index(),
         profile.target(),
@@ -169,20 +175,9 @@ fn checked(command: &mut Command) {
 }
 
 pub(crate) fn compile_native(profile: &ValidatedFinalLinkProfile, source: &Path, output: &Path) {
-    let toolchain = profile.startup_toolchain();
     checked(
-        Command::new(toolchain.compiler_driver())
-            .env_clear()
-            .env("PATH", "/usr/bin:/bin")
-            .args(["-target", "arm64-apple-macos", "-isysroot"])
-            .arg(toolchain.sdk_root())
-            .arg(format!(
-                "-mmacosx-version-min={}",
-                toolchain.profile().contract().deployment().minimum_os()
-            ))
-            .args(["-O0", "-Wall", "-Wextra", "-Werror", "-c"])
-            .arg(source)
-            .arg("-o")
-            .arg(output),
+        &mut profile
+            .startup_toolchain()
+            .object_compilation_command(source, output),
     );
 }

@@ -82,6 +82,33 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 }
 
 #[test]
+fn receipt_preserves_each_target_and_rejects_mixed_backend_tags() {
+    let mut fingerprints = std::collections::BTreeSet::new();
+    for id in [
+        TargetProfileId::DarwinAarch64,
+        TargetProfileId::LinuxX86_64Gnu,
+        TargetProfileId::LinuxX86_64Musl,
+    ] {
+        let mut body = receipt_with_warnings(Vec::new()).body().clone();
+        body.target_selection =
+            CacheTargetSelectionV1::new(ValidatedLirTargetSelection::from_id(id));
+        let receipt = CacheReceiptV1::new(body).unwrap();
+        assert_eq!(
+            decode_cache_receipt_v1(&encode(&receipt).unwrap()).unwrap(),
+            receipt
+        );
+        assert!(fingerprints.insert(receipt.fingerprint()));
+    }
+    for (target, backend) in [(1, 2), (2, 1), (3, 1), (4, 2)] {
+        assert!(
+            DecodedCacheTargetSelectionV1 { target, backend }
+                .validate()
+                .is_err()
+        );
+    }
+}
+
+#[test]
 fn receipt_rejects_retired_layout_profile_with_its_original_fingerprint() {
     let receipt = receipt_with_warnings(vec![
         warning("SCOOPC_Z_WARNING", "z warning"),

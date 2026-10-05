@@ -2,5 +2,5 @@ use super::*;
 
 mod barriers;
 mod descriptors;
-mod qualification;
+pub(super) mod qualification;
 mod relocation;

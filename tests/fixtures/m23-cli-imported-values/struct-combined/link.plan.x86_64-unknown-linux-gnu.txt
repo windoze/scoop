@@ -1,0 +1,47 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=389
+cone dev.example:struct-provider:0.1.0 kind=Library objects=32
+cone dev.example:struct-combined:0.1.0 kind=Library objects=13
+cone dev.example:downstream-combined:0.1.0 kind=Library objects=3
+cone dev.example:value-runtime-struct-combined:0.1.0 kind=Executable objects=5
+runtime objects=65
+images=5 root=scoop$1$re$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725
+alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
+native library m23_struct_abi requirement=02bef276926bd4a34e2475fa5f116721453a8d0028bb0c05c52d0a524b96764c input=f0831fca4e5c2036f5426e7b3648d6d1a032c60137b4208c9f88bc1a6fafe6dc origins=dev.example:value-runtime-struct-combined:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([20, 153, 163, 69, 155, 20, 86, 35, 222, 246, 62, 3, 247, 123, 242, 216, 239, 169, 113, 81, 60, 128, 86, 175, 43, 164, 76, 97, 42, 230, 203, 79])])
+native archive f0831fca4e5c2036f5426e7b3648d6d1a032c60137b4208c9f88bc1a6fafe6dc members=1
+  member 0 header=8 payload=68..1948 name="abi.o" digest=5b9f7e73812963281c67fca00d075d17c46b135b5da0f851c2b51123e1f1feb6 selected=true
+ELF system imports=49
+startup object references:
+  scoop$1$im$13aa13ff953ff1a4b1ce525340a2b36a9fe8e5cb1a982dcdc1340e0f958b9c66
+  scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  scoop$1$im$74500c21af3a1f82b61c32bbbcdc199677e5b05278ffdb58c22bffaf17bf42be
+  scoop$1$im$7c9630fff83cd1178dee334d87b329ba763ec78b50ef525e167d7feaf3f5e707
+  scoop$1$im$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725
+  scoop$1$re$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725
+  scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("scoop$1$im$7c9630fff83cd1178dee334d87b329ba763ec78b50ef525e167d7feaf3f5e707");
+extern const ScoopImageDescriptorV1 image_2 __asm__("scoop$1$im$13aa13ff953ff1a4b1ce525340a2b36a9fe8e5cb1a982dcdc1340e0f958b9c66");
+extern const ScoopImageDescriptorV1 image_3 __asm__("scoop$1$im$74500c21af3a1f82b61c32bbbcdc199677e5b05278ffdb58c22bffaf17bf42be");
+extern const ScoopImageDescriptorV1 image_4 __asm__("scoop$1$im$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("scoop$1$re$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section(".data.rel.ro.scoop.startup")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+    &image_4,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

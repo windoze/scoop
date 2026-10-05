@@ -1,6 +1,6 @@
 use super::*;
 
-fn foreign_callback_adapter(symbol: &str) -> Function {
+pub(super) fn foreign_callback_adapter(symbol: &str) -> Function {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
@@ -190,7 +190,7 @@ fn c_nullable_function_pointer(
     }
 }
 
-fn c_opaque_pointer() -> scoop_lir::CType {
+pub(super) fn c_opaque_pointer() -> scoop_lir::CType {
     scoop_lir::CType::DataPointer {
         pointee: scoop_lir::CDataPointee::OpaqueVoid,
         storage: scoop_lir::CDataPointerStorage::Direct,
@@ -216,7 +216,7 @@ fn c_struct(structs: &scoop_lir::StructDefs, id: scoop_lir::StructDefId) -> scoo
     scoop_lir::CType::Struct(structs.c_ref(id).expect("test C struct"))
 }
 
-fn c_value(ty: scoop_lir::CType) -> scoop_lir::CReturnType {
+pub(super) fn c_value(ty: scoop_lir::CType) -> scoop_lir::CReturnType {
     scoop_lir::CReturnType::Value(Box::new(ty))
 }
 

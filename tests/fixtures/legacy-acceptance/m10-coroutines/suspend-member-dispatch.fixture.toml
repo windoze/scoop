@@ -3,12 +3,12 @@ name = "legacy-m10-coroutines-suspend-member-dispatch"
 root = "../../m10-coroutines/suspend-member-dispatch.scoop"
 inputs = ["../../m10-coroutines/suspend-member-dispatch.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["legacy", "m10-coroutines", "single-file", "run"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

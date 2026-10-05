@@ -2,7 +2,7 @@ schema = 1
 name = "visibility-property-setter-slots"
 inputs = ["program", "../../m21-visibility/property-setter-slots.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["visibility", "stage-golden", "moving-gc"]
 
 [[steps]]
@@ -14,7 +14,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,7 +31,7 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-program", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump", "--runtime-root", "${runtime}"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-program", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -55,7 +55,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -65,7 +65,7 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
   {"actual" = "${link.result.dependencies.length}", "equals" = 1},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
 ]
 
 [[steps]]

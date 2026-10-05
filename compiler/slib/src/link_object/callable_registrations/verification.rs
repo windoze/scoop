@@ -10,8 +10,7 @@ use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId, DigestSemanticFieldRole,
@@ -444,9 +443,13 @@ fn verify_entry_relocation(
         Some(Failure::OffsetWithinAtom)
     } else if binding.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if !binding.relocation_form().is_absolute64() {
         Some(Failure::Form)
-    } else if binding.encoded_value() != 0 {
+    } else if binding
+        .relocation_form()
+        .absolute64_addend(binding.encoded_value())
+        != Some(0)
+    {
         Some(Failure::EncodedValue)
     } else if binding.target_slot() != RelocationTargetSlotV1::Single {
         Some(Failure::TargetSlot)

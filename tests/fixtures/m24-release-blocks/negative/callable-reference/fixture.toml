@@ -3,12 +3,12 @@ name = "release-blocks-reject-callable-reference"
 root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m24", "release-blocks", "negative", "canonical-diagnostics"]
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
 exit = 1
 stdout = ""
 stderr = ""

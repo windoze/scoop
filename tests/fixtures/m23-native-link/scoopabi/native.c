@@ -59,9 +59,8 @@ void m23_aggregate_storage(Aggregate *result, Aggregate *value) {
     scoop_rt_pop_native_roots(&frame);
 }
 
-/* Scoop's AArch64 indirect result is in x8, while the 24-byte byval
- * argument is at the incoming stack pointer. This shim exposes both
- * storage locations to C without relying on Clang's aggregate classifier. */
+/* Expose Scoop's result and byval storage without using the C classifier. */
+#if defined(__APPLE__) && defined(__aarch64__)
 __asm__(
     ".text\n"
     ".globl _m23_aggregate\n"
@@ -70,3 +69,28 @@ __asm__(
     "mov x1, sp\n"
     "mov x0, x8\n"
     "b _m23_aggregate_storage\n");
+#elif defined(__linux__) && defined(__x86_64__)
+__asm__(
+    ".text\n"
+    ".globl m23_aggregate\n"
+    ".type m23_aggregate,@function\n"
+    "m23_aggregate:\n"
+    ".cfi_startproc\n"
+    "push %rbp\n"
+    ".cfi_def_cfa_offset 16\n"
+    ".cfi_offset %rbp,-16\n"
+    "mov %rsp,%rbp\n"
+    ".cfi_def_cfa_register %rbp\n"
+    "push %rdi\n"
+    "sub $8,%rsp\n"
+    "lea 16(%rbp),%rsi\n"
+    "call m23_aggregate_storage\n"
+    "mov -8(%rbp),%rax\n"
+    "leave\n"
+    ".cfi_def_cfa %rsp,8\n"
+    "ret\n"
+    ".cfi_endproc\n"
+    ".size m23_aggregate,.-m23_aggregate\n");
+#else
+#error "Scoop ABI fixture requires a supported target"
+#endif

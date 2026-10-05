@@ -2,7 +2,7 @@ schema = 1
 name = "cli-input-symlink-cycle"
 inputs = []
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "negative"]
 
 [vars]
@@ -19,7 +19,7 @@ files = [
 
 [[steps]]
 name = "public"
-argv = ["${scoop}", "build", "${work}/left.scoop", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/left.scoop", "-o", "${work}/previous.slib", {"each" = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -34,17 +34,17 @@ name = "producer"
 argv = ["${scoopc}", "build", "${work}/left.scoop", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
 exit = 1
 stdout = ""
-stderr = "error: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error 62)\n"
+stderr = "error: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error ${errno_eloop})\n"
 checks = [
   {"file" = "${work}/producer.slib", "exists" = false},
 ]
 
 [[steps]]
 name = "human"
-argv = ["${scoop}", "build", "${work}/left.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/left.scoop", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
 exit = 1
 stdout = ""
-stderr = "${work}/left.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error 62)\n"
+stderr = "${work}/left.scoop: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/left.scoop: cannot inspect: Too many levels of symbolic links (os error ${errno_eloop})\n"
 checks = [
   {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
 ]

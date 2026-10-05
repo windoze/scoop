@@ -67,6 +67,7 @@ pub(super) fn dependency(
             let path = profile
                 .startup_toolchain()
                 .sdk_root()
+                .map_err(error)?
                 .join(name.trim_start_matches('/'));
             add(path.with_extension("tbd"), true);
         }

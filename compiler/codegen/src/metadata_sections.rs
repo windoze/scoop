@@ -1,6 +1,11 @@
 //! Relocatable metadata becomes read-only after the platform loader fixes it up.
 
-use inkwell::{module::Module, values::BasicValueEnum};
+use std::ffi::CString;
+
+use inkwell::{
+    module::Module,
+    values::{AsValueRef, BasicValueEnum, GlobalValue},
+};
 
 use crate::target::ValidatedBackendProfile;
 
@@ -16,6 +21,13 @@ pub(crate) fn place_immutable_metadata(llvm: &Module<'_>, profile: ValidatedBack
         {
             continue;
         }
-        global.set_section(Some(profile.read_only_metadata_section()));
+        set_section(global, profile.read_only_metadata_section());
     }
+}
+
+pub(crate) fn set_section(global: GlobalValue<'_>, section: &str) {
+    let section = CString::new(section).expect("target section names contain no NUL");
+    // Inkwell adds a Mach-O segment separator on macOS hosts, even for ELF
+    // target modules. The backend profile already supplies the exact spelling.
+    unsafe { llvm_sys::core::LLVMSetSection(global.as_value_ref(), section.as_ptr()) };
 }

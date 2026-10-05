@@ -15,6 +15,7 @@ fn cone(coordinate: ConeCoordinate) -> ConeRecord {
 
 fn artifact_summary(producer: &str) -> scoop_slib::ArtifactManifestSummaryV1 {
     let archive = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone(ConeCoordinate::reserved_core()),
         producer,

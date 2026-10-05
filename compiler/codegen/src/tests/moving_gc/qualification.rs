@@ -1,6 +1,6 @@
 use super::*;
 
-fn stackmap_qualification_module() -> Module {
+pub(in crate::tests) fn stackmap_qualification_module() -> Module {
     fn poll_function(
         symbol: &str,
         safepoint: u64,
@@ -105,49 +105,6 @@ fn stackmap_qualification_module() -> Module {
     }
 }
 
-fn assert_aarch64_frame_disassembly(
-    object: &std::path::Path,
-    optimization: &str,
-    functions: &[Function],
-) {
-    let output = std::process::Command::new("otool")
-        .arg("-tvV")
-        .arg(object)
-        .output()
-        .expect("disassemble qualification object");
-    assert!(
-        output.status.success(),
-        "{optimization}: otool failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let disassembly = String::from_utf8_lossy(&output.stdout);
-    for symbol in functions[..3]
-        .iter()
-        .map(|function| format!("_{}:", function.symbol()))
-    {
-        let start = disassembly
-            .find(&symbol)
-            .unwrap_or_else(|| panic!("{optimization}: missing {symbol}:\n{disassembly}"));
-        let body = &disassembly[start..];
-        let end = body[1..]
-            .find("\n_")
-            .map_or(body.len(), |offset| offset + 1);
-        let body = &body[..end];
-        assert!(
-            body.contains("stp\tx29, x30, [sp"),
-            "{optimization}: {symbol} does not save the frame record:\n{body}"
-        );
-        assert!(
-            body.contains("add\tx29, sp") || body.contains("mov\tx29, sp"),
-            "{optimization}: {symbol} does not establish the x29 frame chain:\n{body}"
-        );
-        assert!(
-            body.lines().any(|line| line.contains("\tbl\t")),
-            "{optimization}: {symbol} has no managed call instruction:\n{body}"
-        );
-    }
-}
-
 #[test]
 fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
     let module = stackmap_qualification_module();
@@ -200,7 +157,7 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
         profile
             .verify_object(&output, &expected, &expected_eh)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
-        assert_aarch64_frame_disassembly(&output, name, &module.functions);
+        // verify_object checks the saved frame chain and exact call/return PCs.
         std::fs::remove_file(&output).ok();
     }
 }

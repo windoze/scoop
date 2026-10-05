@@ -43,6 +43,7 @@ impl ResolvedShape {
     ) -> Result<Self, LinkError> {
         use Shape as Input;
         Ok(match shape {
+            Input::ElfRela { .. } => return Err(error("ELF relocation in a Mach-O image input")),
             Input::Unsigned64 { target: value } => Self::Unsigned64 {
                 target: target(value)?,
             },

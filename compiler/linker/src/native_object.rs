@@ -1,14 +1,15 @@
-//! Ordinary Mach-O object checks shared by runtime and startup inputs.
+//! Ordinary target object checks shared by runtime and startup inputs.
 use std::collections::{BTreeMap, BTreeSet};
 
 use object::{
     Architecture, Object, ObjectKind, ObjectSection, ObjectSymbol, SymbolKind, macho,
     read::macho::MachOFile64,
 };
-use scoop_lir::DarwinCBridgeDeploymentContractV1;
+use scoop_lir::{CBridgeToolchainProfileV1, DarwinCBridgeDeploymentContractV1, TargetProfileId};
 
 use crate::{LinkError, error};
 
+mod elf;
 mod references;
 mod sections;
 mod selected;
@@ -37,11 +38,34 @@ pub struct NativeObjectInfo {
 
 pub(crate) struct NativeObjectIndex {
     pub info: NativeObjectInfo,
-    common: BTreeSet<String>,
-    implicit_inputs: Vec<u32>,
+    selection: NativeSelectionChecks,
+}
+
+enum NativeSelectionChecks {
+    Darwin {
+        common: BTreeSet<String>,
+        implicit_inputs: Vec<u32>,
+    },
+    Elf {
+        rejection: Option<String>,
+    },
 }
 
 impl NativeObjectInfo {
+    pub fn read_with_toolchain(
+        bytes: &[u8],
+        toolchain: &CBridgeToolchainProfileV1,
+    ) -> Result<Self, LinkError> {
+        match toolchain.contract().target().id() {
+            TargetProfileId::DarwinAarch64 => {
+                Self::read(bytes, toolchain.contract().deployment().map_err(error)?)
+            }
+            target @ (TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl) => {
+                elf::read(bytes, target)
+            }
+        }
+    }
+
     pub fn read(
         bytes: &[u8],
         deployment: &DarwinCBridgeDeploymentContractV1,
@@ -53,6 +77,20 @@ impl NativeObjectInfo {
 }
 
 impl NativeObjectIndex {
+    pub fn read_with_toolchain(
+        bytes: &[u8],
+        toolchain: &CBridgeToolchainProfileV1,
+    ) -> Result<Self, LinkError> {
+        match toolchain.contract().target().id() {
+            TargetProfileId::DarwinAarch64 => {
+                Self::read(bytes, toolchain.contract().deployment().map_err(error)?)
+            }
+            target @ (TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl) => {
+                elf::index(bytes, target)
+            }
+        }
+    }
+
     pub fn read(
         bytes: &[u8],
         deployment: &DarwinCBridgeDeploymentContractV1,
@@ -144,8 +182,10 @@ impl NativeObjectIndex {
                 definitions,
                 requirements,
             },
-            common,
-            implicit_inputs,
+            selection: NativeSelectionChecks::Darwin {
+                common,
+                implicit_inputs,
+            },
         })
     }
 }

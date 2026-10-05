@@ -108,6 +108,7 @@ fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
         [],
     );
     let archive = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "retained-snapshot",

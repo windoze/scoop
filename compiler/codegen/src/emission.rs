@@ -525,6 +525,25 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             )?;
         }
     }
+    if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
+        crate::elf_llvm::prepare(&llvm, surface)?;
+        for global in external_type_tds {
+            crate::elf_llvm::apply_visibility(global);
+        }
+        for ((_, global), emitted) in module.globals.iter().zip(&globals) {
+            if matches!(global.init, GlobalInit::ImportedStorage { .. }) {
+                crate::elf_llvm::apply_visibility(
+                    emitted.expect("imported storage has an LLVM global"),
+                );
+            }
+        }
+        for (_, callable) in module.meta.external_callables.iter() {
+            if let Some(function) = llvm.get_function(callable.expected_symbol().symbol().as_str())
+            {
+                crate::elf_llvm::apply_visibility(function.as_global_value());
+            }
+        }
+    }
     Ok((llvm, runtime_metadata))
 }
 

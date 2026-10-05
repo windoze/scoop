@@ -2,6 +2,7 @@ schema = 1
 name = "program-link-optional-members"
 inputs = ["cone", "../../m23-program-link/read-println.scoop", "vectors"]
 tools = ["scoop", "scoopc"]
+# The archive assembly vectors embed Mach-O member sizes and manifest digests.
 targets = ["aarch64-apple-darwin"]
 tags = ["program-link", "stage-golden", "opaque-members", "corruption", "moving-gc"]
 
@@ -12,7 +13,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -31,14 +32,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "extraction_directory"
@@ -124,14 +125,14 @@ checks = [{"file" = "${work}/artifacts/root.slib", "sha256" = "b4aa9cbe52303ea3d
 
 [[steps]]
 name = "optional_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${optional_link.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${optional_link.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"file" = "${work}/artifacts/root.slib", "different_from" = "${build.result.root.path}"}, {"actual" = "${optional_link.result.link_plan}", "snapshot" = "optional_link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${optional_link.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${optional_link.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"file" = "${work}/artifacts/root.slib", "different_from" = "${build.result.root.path}"}, {"actual" = "${optional_link.result.link_plan}", "snapshot" = "optional_link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "run_optional"
@@ -200,7 +201,7 @@ checks = []
 
 [[steps]]
 name = "required_link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""

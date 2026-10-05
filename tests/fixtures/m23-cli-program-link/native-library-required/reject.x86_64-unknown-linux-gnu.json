@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "missing native library \"additional\"; searched explicit roots []; requirement 74ad7fe3f8b3c7b969fe755be958cde428bf9bd8eed693982a3c80ffcfb91dd2; origins: dev.programlink:native-library-required:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([187, 90, 129, 87, 233, 248, 200, 88, 96, 120, 82, 148, 140, 178, 227, 155, 68, 219, 219, 101, 36, 79, 33, 27, 108, 43, 191, 9, 49, 162, 112, 47])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -36,6 +36,12 @@ enum Command {
         /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
         #[arg(long)]
         sysroot: Option<PathBuf>,
+        /// Linux C compiler driver used for generated native bridges.
+        #[arg(long)]
+        cc: Option<PathBuf>,
+        /// Target C development sysroot, separate from the Scoop sysroot.
+        #[arg(long)]
+        native_sysroot: Option<PathBuf>,
         /// Print pipeline stage dumps from this compilation to stdout.
         #[arg(long, value_enum)]
         emit: Option<Emit>,
@@ -72,13 +78,22 @@ fn main() -> ExitCode {
             emit,
             target,
             sysroot,
+            cc,
+            native_sysroot,
         } => build(
             input,
             direct_slibs,
             support_slibs,
             out_slib,
             emit,
-            scoopc::DirectBuildOptions { target, sysroot },
+            scoopc::DirectBuildOptions {
+                target,
+                sysroot,
+                c_toolchain: scoop_toolchain::CToolchainOptions {
+                    compiler: cc,
+                    native_sysroot,
+                },
+            },
         ),
         Command::MachineCapability => write_machine_capability(),
         Command::ChildProtocol { version } => child_protocol::run(version),
@@ -195,6 +210,7 @@ mod tests {
             emit,
             target,
             sysroot,
+            ..
         } = cli.command
         else {
             panic!("expected build command");

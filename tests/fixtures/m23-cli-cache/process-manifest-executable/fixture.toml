@@ -2,7 +2,7 @@ schema = 1
 name = "cli-process-manifest-executable"
 inputs = ["executable"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "cache", "stage-golden", "process-cache"]
 
 [vars]
@@ -16,7 +16,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -41,7 +41,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/executable", {"each" = "${options}"}, "-o", "${work}/published"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -69,12 +69,12 @@ checks = [
 [[steps]]
 name = "manual_core"
 files = [
-  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "manual"
-argv = ["${scoopc}", "build", "${work}/executable", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib"]
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${work}/executable", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib"]
 exit = 0
 stdout = ""
 stderr = ""

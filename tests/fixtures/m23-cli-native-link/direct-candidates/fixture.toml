@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-direct-candidates"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/different.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native-link", "program-link", "stage-golden"]
 
 [[steps]]
@@ -17,7 +17,7 @@ checks = []
 
 [[steps]]
 name = "compile_m23_math"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -30,13 +30,13 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/direct", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/direct", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.${target}.txt"}]
 
 [[steps]]
 name = "isolate"
@@ -50,14 +50,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "run_linked"
@@ -76,14 +76,14 @@ env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
 name = "duplicate"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/alternate", "--library-path", "${work}/native", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/alternate", "--library-path", "${work}/native", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${duplicate.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${duplicate.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${duplicate.result.link_plan}", "snapshot" = "duplicate.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${duplicate.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${duplicate.result.link_plan_fingerprint}", "equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${duplicate.result.link_plan}", "snapshot" = "duplicate.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "prepare_different"
@@ -92,7 +92,7 @@ checks = []
 
 [[steps]]
 name = "different"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -110,18 +110,18 @@ checks = []
 
 [[steps]]
 name = "ambiguous"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/alternate", "--library-path", "${work}/native"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/alternate", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "ambiguous.json"}
+diagnostics = {"file" = "ambiguous.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
 
 [[steps]]
 name = "corrupt_candidate"
-files = [{"write" = {"path" = "${work}/alternate/m23_math.o", "data" = "invalid Mach-O"}}]
+files = [{"write" = {"path" = "${work}/alternate/m23_math.o", "data" = "invalid native object"}}]
 checks = []
 
 [[steps]]
@@ -131,11 +131,11 @@ checks = []
 
 [[steps]]
 name = "corrupt"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--library-path", "${work}/alternate"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--library-path", "${work}/alternate"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "corrupt.json"}
+diagnostics = {"file" = "corrupt.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

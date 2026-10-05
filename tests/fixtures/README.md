@@ -19,6 +19,10 @@
 # 完整发现与验收；存在未归属源码会报配置错误。
 python3 tests/run_fixtures.py --all
 
+# Linux amd64 的两个 libc 目标分别验收；先按 M28 构建说明准备 unwind。
+python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-gnu
+python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-musl
+
 # 开发时选择已迁移的历史端到端用例。
 python3 tests/run_fixtures.py --suite tests/fixtures/legacy-acceptance
 
@@ -29,3 +33,7 @@ python3 tests/run_fixtures.py --suite tests/fixtures/legacy-acceptance \
 
 `--all` 禁止过滤和更新期望。`cargo test` 只验证保留的 Rust 单元测试，
 不能代替文件测试的正式 CLI 验收。并行度用 `--jobs` 控制；步骤和变体内部保持有序。
+target 不适用项单列，不计为通过。平台专属的 Mach-O/dyld 测试保留 Darwin 条件；
+共有语言、ABI、GC 和 CLI 用例在三个目标运行。目标相关的 LIR、链接计划、符号表与
+产物指纹保存独立快照，其余 stage golden 共用。工具配置见 runner README，Linux
+环境准备见 [M28 构建说明](../../docs/milestone28/BUILDING.md)。

@@ -1,0 +1,34 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone dev.programlink:final:0.1.0 kind=Executable objects=6
+runtime objects=65
+images=2 root=scoop$1$re$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab
+alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
+native library m23_final requirement=a813ceccf175e1391dbf086c8ea0b12a648253ca81e3440fa8923fbec1708948 input=4911260c28d30f0f370e7c63ac57a073823f407bd8e398f2a4e998f8e0207b84 origins=dev.programlink:final:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([29, 80, 20, 221, 77, 51, 186, 63, 166, 249, 69, 28, 155, 136, 179, 233, 246, 26, 153, 91, 166, 23, 47, 107, 121, 50, 176, 141, 58, 63, 206, 7])])
+native object 4911260c28d30f0f370e7c63ac57a073823f407bd8e398f2a4e998f8e0207b84 slice=0..1952
+ELF system imports=49
+startup object references:
+  scoop$1$im$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab
+  scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  scoop$1$re$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab
+  scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("scoop$1$im$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("scoop$1$re$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section(".data.rel.ro.scoop.startup")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

@@ -3,10 +3,7 @@
 use std::fmt;
 use std::num::NonZeroU32;
 
-use scoop_identity::{
-    CapabilityId, GeneratedBridgeUnitId, ObjectDefinitionPlanId, ObjectFormatId,
-    TargetProfileWireId,
-};
+use scoop_identity::{CapabilityId, GeneratedBridgeUnitId, ObjectDefinitionPlanId};
 use scoop_wire::{
     Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode, WireError,
     domain_separated_cbor_hash, encode,
@@ -132,6 +129,19 @@ pub use link_identity_closure::*;
 mod macho;
 pub use macho::*;
 
+mod object_sections;
+pub use object_sections::*;
+mod object_profiles;
+pub use object_profiles::*;
+
+mod object_envelope;
+pub use object_envelope::*;
+
+mod elf;
+pub use elf::{
+    ElfObjectError, ElfRelocation, ValidatedElfObject, validate_linux_elf_object_envelope_v1,
+};
+
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -238,6 +248,7 @@ pub struct PlannedScoopLirObjectMemberV1 {
 impl PlannedScoopLirObjectMemberV1 {
     pub fn new(
         cone: scoop_identity::ConeIdentity,
+        target: scoop_lir::LirTargetProfile,
         units: CanonicalScoopLirObjectUnitSetV1,
     ) -> Result<Self, LinkObjectMemberPlanError> {
         let stable_key = units
@@ -249,7 +260,7 @@ impl PlannedScoopLirObjectMemberV1 {
         Ok(Self {
             member_id,
             stable_key,
-            role: units.logical_key().member_role(),
+            role: units.logical_key().member_role(target),
             units,
         })
     }
@@ -282,6 +293,7 @@ pub struct PlannedGeneratedBridgeObjectMemberV1 {
 impl PlannedGeneratedBridgeObjectMemberV1 {
     pub fn new(
         cone: scoop_identity::ConeIdentity,
+        target: scoop_lir::LirTargetProfile,
         units: CanonicalGeneratedBridgeObjectUnitSetV1,
     ) -> Result<Self, LinkObjectMemberPlanError> {
         let stable_key = units
@@ -293,7 +305,7 @@ impl PlannedGeneratedBridgeObjectMemberV1 {
         Ok(Self {
             member_id,
             stable_key,
-            role: units.logical_key().member_role(),
+            role: units.logical_key().member_role(target),
             units,
         })
     }
@@ -337,8 +349,8 @@ impl ScoopLirObjectLogicalKeyV1 {
         })
     }
 
-    pub fn member_role(self) -> SlibMemberRole {
-        link_object_role(scoop_lir_link_object_capability())
+    pub fn member_role(self, target: scoop_lir::LirTargetProfile) -> SlibMemberRole {
+        link_object_role(target, scoop_lir_link_object_capability())
     }
 }
 
@@ -370,8 +382,8 @@ impl GeneratedBridgeObjectLogicalKeyV1 {
         })
     }
 
-    pub fn member_role(self) -> SlibMemberRole {
-        link_object_role(generated_c_bridge_link_object_capability())
+    pub fn member_role(self, target: scoop_lir::LirTargetProfile) -> SlibMemberRole {
+        link_object_role(target, generated_c_bridge_link_object_capability())
     }
 }
 
@@ -463,10 +475,13 @@ pub fn generated_c_bridge_link_object_capability() -> CapabilityId {
         .expect("built-in generated C bridge object capability is valid")
 }
 
-fn link_object_role(verifier_capability: CapabilityId) -> SlibMemberRole {
+fn link_object_role(
+    target: scoop_lir::LirTargetProfile,
+    verifier_capability: CapabilityId,
+) -> SlibMemberRole {
     SlibMemberRole::LinkObject {
-        target_profile: TargetProfileWireId::darwin_aarch64(),
-        object_format: ObjectFormatId::macho_relocatable(),
+        target_profile: target.wire_id(),
+        object_format: target.id().object_format(),
         verifier_capability,
     }
 }

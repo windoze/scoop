@@ -7,26 +7,59 @@ pub(super) fn library(
     profile: &ValidatedFinalLinkProfile,
 ) -> Result<NativeFile, LinkError> {
     let name = key.library().as_str();
-    let suffixes = match key.kind() {
-        NativeLibraryKind::TargetDefault => vec![
-            (format!("{name}.o"), NativeFileKind::Object),
-            (format!("lib{name}.a"), NativeFileKind::Archive),
-            (format!("lib{name}.dylib"), NativeFileKind::Dylib),
-            (format!("lib{name}.tbd"), NativeFileKind::TextStub),
-            (
+    let linux = matches!(profile, ValidatedFinalLinkProfile::Linux(_));
+    let dynamic = matches!(profile, ValidatedFinalLinkProfile::Linux(p) if p.mode() == scoop_toolchain::LinkMode::Dynamic);
+    let suffixes = if linux {
+        match key.kind() {
+            NativeLibraryKind::TargetDefault => {
+                let mut files = vec![
+                    (format!("{name}.o"), NativeFileKind::Object),
+                    (format!("lib{name}.a"), NativeFileKind::Archive),
+                ];
+                if dynamic {
+                    files.push((format!("lib{name}.so"), NativeFileKind::SharedObject));
+                }
+                files
+            }
+            NativeLibraryKind::StaticArchive => {
+                vec![(format!("lib{name}.a"), NativeFileKind::Archive)]
+            }
+            NativeLibraryKind::Dynamic if dynamic => {
+                vec![(format!("lib{name}.so"), NativeFileKind::SharedObject)]
+            }
+            NativeLibraryKind::Dynamic => {
+                return Err(error("ELF shared library requires --link-mode dynamic"));
+            }
+            NativeLibraryKind::Framework => {
+                return Err(error(
+                    "framework libraries are not supported by the Linux target",
+                ));
+            }
+        }
+    } else {
+        match key.kind() {
+            NativeLibraryKind::TargetDefault => vec![
+                (format!("{name}.o"), NativeFileKind::Object),
+                (format!("lib{name}.a"), NativeFileKind::Archive),
+                (format!("lib{name}.dylib"), NativeFileKind::Dylib),
+                (format!("lib{name}.tbd"), NativeFileKind::TextStub),
+                (
+                    format!("{name}.framework/{name}"),
+                    NativeFileKind::Framework,
+                ),
+            ],
+            NativeLibraryKind::StaticArchive => {
+                vec![(format!("lib{name}.a"), NativeFileKind::Archive)]
+            }
+            NativeLibraryKind::Dynamic => vec![
+                (format!("lib{name}.dylib"), NativeFileKind::Dylib),
+                (format!("lib{name}.tbd"), NativeFileKind::TextStub),
+            ],
+            NativeLibraryKind::Framework => vec![(
                 format!("{name}.framework/{name}"),
                 NativeFileKind::Framework,
-            ),
-        ],
-        NativeLibraryKind::StaticArchive => vec![(format!("lib{name}.a"), NativeFileKind::Archive)],
-        NativeLibraryKind::Dynamic => vec![
-            (format!("lib{name}.dylib"), NativeFileKind::Dylib),
-            (format!("lib{name}.tbd"), NativeFileKind::TextStub),
-        ],
-        NativeLibraryKind::Framework => vec![(
-            format!("{name}.framework/{name}"),
-            NativeFileKind::Framework,
-        )],
+            )],
+        }
     };
     let paths: BTreeMap<_, _> = roots
         .iter()
@@ -89,16 +122,15 @@ pub(crate) fn read(
             NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
         }
         NativeFileKind::Object => {
-            let index = NativeObjectIndex::read(
+            let index = NativeObjectIndex::read_with_toolchain(
                 &bytes[slice.clone()],
-                profile
-                    .startup_toolchain()
-                    .profile()
-                    .contract()
-                    .deployment(),
+                profile.startup_toolchain().profile(),
             )?;
             NativeContent::Object(index)
         }
+        NativeFileKind::SharedObject => NativeContent::ElfDynamic(Arc::new(
+            elf_dynamic::ElfDynamic::read(&bytes[slice.clone()], profile.id())?,
+        )),
         NativeFileKind::Dylib | NativeFileKind::TextStub | NativeFileKind::Framework => {
             let records = crate::dynamic::read(
                 &bytes[slice.clone()],

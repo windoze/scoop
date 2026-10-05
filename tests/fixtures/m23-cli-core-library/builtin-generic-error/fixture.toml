@@ -2,7 +2,7 @@ schema = 1
 name = "core-library-builtin-generic-error"
 inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/abi.scoop", "../../core-library/type-aliases.scoop", "../../core-library/integer-defaults.scoop", "../../core-library/default-data-flow.scoop", "../../m23-reference-source-fields/standalone.scoop", "../../m23-reference-source-fields/combined.scoop", "../../core-library/builtin-generic-error.scoop", "consumer"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["core-library", "negative"]
 
 [[steps]]
@@ -22,14 +22,14 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "99545c2f82a8a6967464cbc75cf1f79b758b00d517bff50506d91caa224f921a"},
+
 ]
 
 [[steps]]
@@ -42,7 +42,7 @@ files = [
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -51,3 +51,7 @@ diagnostics = {"file" = "diagnostics.json"}
 checks = [
   {"file" = "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib", "exists" = false},
 ]
+
+[[steps]]
+name = "artifact-fingerprints"
+checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

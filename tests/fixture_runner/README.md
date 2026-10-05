@@ -6,6 +6,26 @@
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
+Linux amd64 默认选择 glibc；用 `--target x86_64-unknown-linux-musl` 运行 musl 用例，
+fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分别为 GCC / musl-gcc，
+可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
+共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
+使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
+Linux 的链接参数包含仓库 `sysroot/native/<target>/unwind`，因此移除 fixture 私有
+sysroot 源码后仍能执行 artifact-only link。显式 `--cc` 也传给 Linux Scoop 工具。
+native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
+SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
+`${target_profile}` 是 core artifact 的目录名；`${symbol_prefix}` 是 C/编译器逻辑名字
+在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
+平台相关的 LIR、link plan 和 artifact 指纹使用 `${target}` 选择独立快照；不变的
+AST/HIR/MIR/LIR 继续共用原文件，比较时不抹去 ABI 或符号差异。
+手写 LLVM IR companion 声明 `tools = ["llc", ...]`，使用 `${llc}` 加
+`-mtriple=${llvm_target} -filetype=obj -relocation-model=pic` 生成目标对象。
+ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment，以产生
+原生对象需要的 `LC_BUILD_VERSION`。Scoop 命令仍使用 canonical `${target}`。
+工具依次使用 `--llc`、`SCOOP_TEST_PAIRED_LLC`、`LLVM_SYS_221_PREFIX/bin/llc`，
+否则查找 `llc-22` / `llc`；实际版本必须为 LLVM 22.1。
+只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
 未完成项标记 `interrupted`，退出码为 130。
 
@@ -48,7 +68,7 @@ stderr = ""
 `${cache}` 与 `${sysroot}`。例如 `env = { SCOOP_GC_STRESS_MOVE = "1" }` 只影响该变体。
 多 Cone 提交真实 `Cone.toml`，按普通 `copy` 步骤布置，runner 不合成入口或 manifest。
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
-`-isysroot ${sdk}`、`-mmacosx-version-min=${deployment}` 和输出；随后传 `--library-path`。
+`{each = "${cc_args}"}` 和输出；随后传 `--library-path`。
 
 `${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；三个 Scoop
 工具默认从 `target/debug` 取得，可用 CLI 参数或 `SCOOP_TEST_PAIRED_*` 指定。
@@ -67,6 +87,8 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 120 秒。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
+stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
+更新规则；正常验收仍比较完整原始字节。用于按目标保存实际对象/程序符号表。
 `json = "stderr"` 解析 Scoop schema 1 前缀，遇到成功结果即停止，后续字节归程序。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
@@ -96,7 +118,7 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 所有后台步骤必须有 wait。失败或中断时 runner 清理自己启动的进程并收割。
 wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完成后才可用。
 变量按每个变体分别校验，不能借用其他变体才声明的变量。
-长诊断 JSON 文件在发现时加载和校验引用，避免启动编译后才发现配置错误。
+长诊断 JSON 文件在发现时加载和校验引用，避免启动编译后才发现配置错误。文件名可含 `${target}`，按当前目标加载；fixture 必须声明 `targets`。未指定目标或目标不适用时用其首个声明目标校验格式，诊断内容仍完整比较且不受 snapshot 更新影响。
 不允许逐 case Python/shell 编排脚本、动态 predicate 或专用注册表。
 
 报告单列用例、变体、进程和 golden 数量，不将支持文件或目标不适用项计作通过。

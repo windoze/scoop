@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
     ProvisionalLlvmStackmapRecordHeaderV3, ProvisionalLlvmStackmapRecordV3,
-    VerifiedDarwinArm64StackmapSectionV3, VerifiedNormalizedStackmapRecordV1,
-    normalize_darwin_aarch64_stackmap_record_v1, verify_darwin_arm64_stackmap_section_v3,
+    VerifiedNormalizedStackmapRecordV1, VerifiedObjectStackmapSectionV3,
+    normalize_stackmap_record_v1, verify_object_stackmap_section_v3,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -19,7 +19,11 @@ use crate::link_object::{
 
 mod aarch64;
 pub use aarch64::DarwinAarch64StackmapMachineCodeError;
-use aarch64::validate_stackmap_function_machine_code;
+mod machine;
+pub use machine::StackmapMachineCodeError;
+use machine::validate_stackmap_function_machine_code;
+mod x86_64;
+pub use x86_64::X86_64StackmapMachineCodeError;
 
 mod error;
 pub use error::ScoopLirStackmapValidationError;
@@ -92,14 +96,12 @@ pub fn verify_scoop_lir_stackmaps_v1(
     let mut records = Vec::with_capacity(semantic_plan.sites().len());
     for object in scoop_objects {
         let member = verified_member(&builtins, object.member())?;
-        let section = verify_darwin_arm64_stackmap_section_v3(
-            object.bytes(),
-            member.definitions().sections(),
-        )
-        .map_err(|source| ScoopLirStackmapValidationError::PhysicalSection {
-            member: object.member(),
-            source,
-        })?;
+        let section =
+            verify_object_stackmap_section_v3(object.bytes(), member.definitions().sections())
+                .map_err(|source| ScoopLirStackmapValidationError::PhysicalSection {
+                    member: object.member(),
+                    source,
+                })?;
         let expected = expected_by_member
             .get(&object.member())
             .map(Vec::as_slice)
@@ -245,7 +247,7 @@ fn verified_member(
 fn verify_member_records(
     object_bytes: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
-    section: Option<VerifiedDarwinArm64StackmapSectionV3>,
+    section: Option<VerifiedObjectStackmapSectionV3>,
     expected: &[StrongSafepointSemanticPlanV1],
 ) -> Result<Vec<VerifiedScoopLirStackmapRecordV1>, ScoopLirStackmapValidationError> {
     let Some(section) = section else {
@@ -375,13 +377,17 @@ fn verify_member_records(
                 parsed.locations().to_vec(),
                 parsed.live_outs().to_vec(),
             );
-            let normalized =
-                normalize_darwin_aarch64_stackmap_record_v1(plan, section.constants(), provisional)
-                    .map_err(|source| ScoopLirStackmapValidationError::Normalization {
-                        member: member.member(),
-                        safepoint_id: parsed.safepoint_id(),
-                        source,
-                    })?;
+            let normalized = normalize_stackmap_record_v1(
+                member.definitions().sections().envelope().target(),
+                plan,
+                section.constants(),
+                provisional,
+            )
+            .map_err(|source| ScoopLirStackmapValidationError::Normalization {
+                member: member.member(),
+                safepoint_id: parsed.safepoint_id(),
+                source,
+            })?;
             if !seen_sites.insert(normalized.canonical().site()) {
                 return Err(ScoopLirStackmapValidationError::DuplicateSite(
                     normalized.canonical().site(),
@@ -419,14 +425,14 @@ fn verify_member_records(
 
 fn validate_stackmap_atom_roles(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    section: &VerifiedDarwinArm64StackmapSectionV3,
+    section: &VerifiedObjectStackmapSectionV3,
 ) -> Result<(), ScoopLirStackmapValidationError> {
     for atom in member
         .definitions()
         .definitions()
         .iter()
         .flat_map(|definition| definition.atoms())
-        .filter(|atom| u32::from(atom.section_ordinal().get()) == section.section_ordinal().get())
+        .filter(|atom| atom.section_ordinal().get() == section.section_ordinal().get())
     {
         if atom.atom_role() != DefinitionAtomRole::Stackmap {
             return Err(ScoopLirStackmapValidationError::NonStackmapAtomInSection {

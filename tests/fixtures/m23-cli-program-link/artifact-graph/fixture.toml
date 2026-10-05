@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-artifact-graph"
 inputs = ["cone", "../../m23-program-link/basic-root.scoop", "library", "../../m23-program-link/basic-library.scoop", "extra", "other", "../../m23-program-link/empty.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "stage-golden", "artifact-graph", "multi-cone", "negative", "moving-gc"]
 
 [[steps]]
@@ -22,7 +22,7 @@ checks = []
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -41,7 +41,7 @@ checks = []
 
 [[steps]]
 name = "extra"
-argv = ["${scoop}", "build", "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-extra", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/extra", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-extra", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-extra", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -56,7 +56,7 @@ checks = []
 
 [[steps]]
 name = "other"
-argv = ["${scoop}", "build", "${work}/sources/other", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-other", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-other", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/other", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-other", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-other", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -71,7 +71,7 @@ checks = []
 
 [[steps]]
 name = "version"
-argv = ["${scoop}", "build", "${work}/sources/version", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-version", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-version", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/version", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-version", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-version", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -86,7 +86,7 @@ checks = []
 
 [[steps]]
 name = "changed"
-argv = ["${scoop}", "build", "${work}/sources/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-changed", "--dump-scope", "sources"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-changed", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-changed", "--dump-scope", "sources"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -105,7 +105,7 @@ checks = []
 
 [[steps]]
 name = "compile_unresolved"
-argv = ["${scoopc}", "build", "${work}/sources/root", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--out-slib", "${work}/unresolved.slib"]
+argv = ["${scoopc}", "build", "${work}/sources/root", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--out-slib", "${work}/unresolved.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -122,14 +122,14 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
 
 [[steps]]
 name = "keep_program"
@@ -138,7 +138,7 @@ checks = []
 
 [[steps]]
 name = "library_root"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -149,7 +149,7 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "missing_library"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -160,18 +160,18 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "stale_library"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "stale_library.json"}
+diagnostics = {"file" = "stale_library.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "conflicting_library"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -182,7 +182,7 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "unreachable_extra"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/extra.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/extra.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -193,7 +193,7 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "executable_provider"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/other.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/other.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -204,7 +204,7 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "multiple_versions"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/version.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/version.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -215,12 +215,12 @@ checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
 name = "stale_before_native"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/unresolved.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/unresolved.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/changed.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "stale_before_native.json"}
+diagnostics = {"file" = "stale_before_native.${target}.json"}
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 

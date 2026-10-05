@@ -11,8 +11,8 @@ use scoop_lir::{
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedCrossConeStrongRequirementClosureV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedExternalShapeRequirementClosureV1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedExternalShapeRequirementClosureV1,
+    VerifiedObjectRelocationFormV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -131,15 +131,17 @@ fn verify_source_external_requirements_from_candidates_v1(
     let mut remaining_external_candidates = Vec::new();
     for binding in candidates {
         if let Some(requirement) = requirements.get(binding.symbol()) {
-            if is_tlvp_relocation(binding.relocation_form())
-                && !matches!(
+            if binding
+                .relocation_form()
+                .is_tls_reference(native_requirements.target())
+                != matches!(
                     requirement.contract(),
                     scoop_identity::NativeExternalContract::ReadOnlyTls { .. }
                         | scoop_identity::NativeExternalContract::MutableTls { .. }
                 )
             {
                 return Err(
-                    SourceExternalRequirementValidationError::TlvpRelocationRequiresTlsContract {
+                    SourceExternalRequirementValidationError::TlsRelocationContractMismatch {
                         contract: requirement.fingerprint(),
                         form: binding.relocation_form(),
                     },
@@ -162,14 +164,6 @@ fn verify_source_external_requirements_from_candidates_v1(
     })
 }
 
-const fn is_tlvp_relocation(form: VerifiedDarwinArm64RelocationFormV1) -> bool {
-    matches!(
-        form,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
-            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
-    )
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceExternalRequirementValidationError {
     ProducerMismatch {
@@ -180,9 +174,9 @@ pub enum SourceExternalRequirementValidationError {
         object: LirTargetProfile,
         native: LirTargetProfile,
     },
-    TlvpRelocationRequiresTlsContract {
+    TlsRelocationContractMismatch {
         contract: scoop_identity::NativeExternalContractFingerprint,
-        form: VerifiedDarwinArm64RelocationFormV1,
+        form: VerifiedObjectRelocationFormV1,
     },
 }
 

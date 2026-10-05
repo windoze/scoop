@@ -9,6 +9,7 @@ use render::{CBridgeTypeSurface, CTypeRenderer};
 
 pub(crate) const GENERATED_BRIDGE_SIGNATURE_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_sig");
 pub(crate) const GENERATED_BRIDGE_CONTEXT_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_ctx");
+pub(crate) const ELF_BRIDGE_SIGNATURE_SECTION: &str = ".rodata.scoop_sig";
 
 /// One canonical generated-C translation unit and the bridge unit whose
 /// physical object it must produce.
@@ -426,8 +427,12 @@ fn render_foreign_callback(
         "extern uint32_t {}(void *context, const void *signature, void *result, const void *const *arguments);\n\n",
         scoop_lir::RuntimeAbiSymbolV1::CallbackInvoke.logical_symbol()
     ));
+    let section = match module.meta.target_profile.native_object_format() {
+        scoop_lir::NativeObjectFormat::MachO64 => "__TEXT,__scoop_sig",
+        scoop_lir::NativeObjectFormat::Elf64 => ELF_BRIDGE_SIGNATURE_SECTION,
+    };
     out.push_str(&format!(
-        "const unsigned char {} __attribute__((section(\"__TEXT,__scoop_sig\"))) = 0;\n",
+        "const unsigned char {} __attribute__((section(\"{section}\"))) = 0;\n",
         callback.trampoline.signature_descriptor_symbol()
     ));
     let parameters = render_named_parameters(&renderer, &callback.params)?;

@@ -3,7 +3,7 @@ name = "cli-input-single-file-isolation"
 root = "main.scoop"
 inputs = ["main.scoop", "neighbors"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "input", "single-file", "moving"]
 
 [vars]
@@ -21,7 +21,7 @@ files = [
 
 [[steps]]
 name = "baseline"
-argv = ["${scoop}", "build", "${work}/clean/main.scoop", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/clean/main.scoop", "--emit", "all", "--dump-dir", "${work}/dump", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -39,7 +39,7 @@ checks = [
 
 [[steps]]
 name = "neighboring_files"
-argv = ["${scoop}", "build", "main.scoop", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "main.scoop", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -55,7 +55,7 @@ checks = [
 
 [[steps]]
 name = "absolute_file"
-argv = ["${scoop}", "build", "${work}/noisy/main.scoop", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/noisy/main.scoop", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -71,7 +71,7 @@ checks = [
 
 [[steps]]
 name = "file_symlink"
-argv = ["${scoop}", "build", "${work}/alias.scoop", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/alias.scoop", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -87,7 +87,7 @@ checks = [
 
 [[steps]]
 name = "unicode_file"
-argv = ["${scoop}", "build", "${work}/中文 空格/源 文件.scoop", "-o", "${work}/unicode-program", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/中文 空格/源 文件.scoop", "-o", "${work}/unicode-program", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

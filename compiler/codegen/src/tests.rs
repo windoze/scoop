@@ -53,10 +53,14 @@ mod exceptions;
 mod external_type_descriptors;
 mod image;
 mod initialization;
+mod linux_codegen;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod linux_runtime;
 mod moving_gc;
 mod object_partition;
 mod objects;
 mod platform;
+pub(crate) mod platform_support;
 mod pointers;
 mod scoop_abi;
 mod smoke;

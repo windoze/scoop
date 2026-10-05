@@ -28,17 +28,12 @@ struct _Unwind_Context {
 
 static const uint8_t cleanup_lsda[] = {
     SCOOP_EH_DW_PE_OMIT,
-    SCOOP_EH_DW_PE_PCREL_SDATA4_INDIRECT,
-    10,
+    SCOOP_EH_DW_PE_OMIT,
     SCOOP_EH_DW_PE_ULEB128,
     4,
     0,
     4,
     32,
-    0,
-    0,
-    0,
-    0,
     0,
 };
 
@@ -77,9 +72,12 @@ uintptr_t _Unwind_GetRegionStart(struct _Unwind_Context *context) {
     return context->region_start;
 }
 
-uintptr_t
+/* GCC declares a pointer here; LLVM's header declares uintptr_t. */
+typedef __typeof__(_Unwind_GetLanguageSpecificData(NULL)) TestLsdaAddress;
+
+TestLsdaAddress
 _Unwind_GetLanguageSpecificData(struct _Unwind_Context *context) {
-    return (uintptr_t)context->lsda;
+    return (TestLsdaAddress)context->lsda;
 }
 
 uintptr_t _Unwind_GetIP(struct _Unwind_Context *context) {
@@ -110,12 +108,12 @@ static struct _Unwind_Context make_context(const uint8_t *lsda) {
     };
 }
 
-static _Unwind_Reason_Code run_personality(
-    _Unwind_Action actions, struct _Unwind_Exception *exception,
-    struct _Unwind_Context *context) {
+static _Unwind_Reason_Code run_personality(_Unwind_Action actions,
+                                           struct _Unwind_Exception *exception,
+                                           struct _Unwind_Context *context) {
     return scoop_eh_personality(1, actions,
-                               (_Unwind_Exception_Class)SCOOP_EXCEPTION_CLASS,
-                               exception, context);
+                                (_Unwind_Exception_Class)SCOOP_EXCEPTION_CLASS,
+                                exception, context);
 }
 
 static void check_no_context_install(const struct _Unwind_Context *context) {
@@ -125,12 +123,11 @@ static void check_no_context_install(const struct _Unwind_Context *context) {
 
 static void check_context_install(const struct _Unwind_Context *context,
                                   const struct _Unwind_Exception *exception,
-                                  uintptr_t landing_pad,
-                                  uintptr_t selector) {
+                                  uintptr_t landing_pad, uintptr_t selector) {
     CHECK(context->register_write_count == 2);
-    CHECK(context->written_registers[0] == 0);
+    CHECK(context->written_registers[0] == __builtin_eh_return_data_regno(0));
     CHECK(context->register_values[0] == (uintptr_t)exception);
-    CHECK(context->written_registers[1] == 1);
+    CHECK(context->written_registers[1] == __builtin_eh_return_data_regno(1));
     CHECK(context->register_values[1] == selector);
     CHECK(context->ip_write_count == 1);
     CHECK(context->installed_ip == landing_pad);
@@ -194,12 +191,12 @@ static void run_fatal_case(FatalCase fatal_case) {
         break;
     case FATAL_PHASE_MISMATCH:
         context.lsda = cleanup_lsda;
-        (void)run_personality(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME,
-                              &exception, &context);
+        (void)run_personality(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME, &exception,
+                              &context);
         break;
     case FATAL_FORCED_UNWIND:
-        (void)run_personality(_UA_CLEANUP_PHASE | _UA_FORCE_UNWIND,
-                              &exception, &context);
+        (void)run_personality(_UA_CLEANUP_PHASE | _UA_FORCE_UNWIND, &exception,
+                              &context);
         break;
     }
     _exit(90);
@@ -222,8 +219,8 @@ static void expect_fatal(FatalCase fatal_case, const char *expected_stderr) {
     size_t length = 0;
     for (;;) {
         CHECK(length < sizeof output - 1);
-        ssize_t count = read(stderr_pipe[0], output + length,
-                             sizeof output - 1 - length);
+        ssize_t count =
+            read(stderr_pipe[0], output + length, sizeof output - 1 - length);
         if (count > 0) {
             length += (size_t)count;
             continue;

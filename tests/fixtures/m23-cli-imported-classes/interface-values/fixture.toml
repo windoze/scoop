@@ -2,7 +2,7 @@ schema = 1
 name = "imported-class-interface-values"
 inputs = ["../support/stage3_test.scoop", "../../m23-imported-classes/core-provider.scoop", "../../m23-imported-classes/core-cast-direct.scoop", "../../m23-imported-classes/core-arithmetic-direct.scoop", "../../m23-imported-classes/provider.scoop", "class-provider", "classes-interface-values", "../../m23-imported-classes/interface-values.scoop", "class-downstream-interface-values", "../../m23-imported-classes/downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["imported-classes", "core-rebuild", "moving-gc", "stage-golden"]
 
 [[steps]]
@@ -11,7 +11,7 @@ files = [{"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-s
 
 [[steps]]
 name = "original_core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-original_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/original-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -36,7 +36,7 @@ files = [{"write" = {"path" = "${work}/core-source/src/user_class.scoop", "data"
 
 [[steps]]
 name = "rebuilt_core"
-argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -58,7 +58,7 @@ files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/source
 
 [[steps]]
 name = "provider"
-argv = ["${scoop}", "build", "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -75,7 +75,7 @@ files = [{"copy" = {"from" = "${fixture}/classes-interface-values", "to" = "${wo
 
 [[steps]]
 name = "consumer"
-argv = ["${scoop}", "build", "${work}/sources/classes-interface-values", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-interface-values/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/classes-interface-values", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-interface-values/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -93,7 +93,7 @@ files = [{"copy" = {"from" = "${fixture}/class-downstream-interface-values", "to
 
 [[steps]]
 name = "downstream"
-argv = ["${scoop}", "build", "${work}/sources/class-downstream-interface-values", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-interface-values/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/class-downstream-interface-values", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-interface-values/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -118,7 +118,7 @@ files = [{"mkdir" = {"path" = "${work}/native"}}, {"copy" = {"from" = "${fixture
 
 [[steps]]
 name = "compile_gc"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/sources/gc.c", "-o", "${work}/native/gc.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/sources/gc.c", "-o", "${work}/native/gc.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -133,7 +133,7 @@ env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -146,14 +146,14 @@ files = [{"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/arti
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}, {"actual" = "${link.result.link_plan}", "contains" = "images=5 "}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}, {"actual" = "${link.result.link_plan}", "contains" = "images=5 "}]
 
 [[steps]]
 name = "run"

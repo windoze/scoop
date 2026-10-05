@@ -39,7 +39,7 @@ typedef struct ScoopExceptionRecord {
 
 _Static_assert(CHAR_BIT == 8, "the Scoop EH ABI requires 8-bit bytes");
 _Static_assert(sizeof(uintptr_t) == sizeof(uint64_t),
-               "the Darwin/AArch64 EH profile requires 64-bit uintptr_t");
+               "the Scoop EH profile requires 64-bit uintptr_t");
 _Static_assert(sizeof(_Unwind_Exception_Class) == sizeof(uint64_t),
                "the Scoop exception class must be exactly 64 bits");
 _Static_assert(_Alignof(ScoopExceptionRecord) >=
@@ -54,7 +54,7 @@ _Static_assert(offsetof(ScoopExceptionRecord, unwind) +
                    sizeof(ScoopExceptionRecord),
                "the unwind container conversion is invalid");
 
-/* LLVM 22.1 Darwin/AArch64 LSDA encodings accepted by the Scoop personality.
+/* LLVM 22.1 LSDA encodings accepted by the Scoop personality.
  * Keep this profile closed: adding an encoding requires target qualification
  * before the decoder is extended. */
 enum {

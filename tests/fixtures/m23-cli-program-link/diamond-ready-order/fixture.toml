@@ -2,7 +2,7 @@ schema = 1
 name = "program-link-diamond-ready-order"
 inputs = ["a-base", "../../m23-program-link/schedule-a-base.scoop", "b-next", "../../m23-program-link/schedule-b-next.scoop", "c-peer", "../../m23-program-link/schedule-c-peer.scoop", "d-join", "../../m23-program-link/schedule-d-join.scoop", "root", "../../m23-program-link/schedule-root.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["program-link", "multi-cone", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -18,7 +18,7 @@ files = [{"copy" = {"from" = "${fixture}/a-base", "to" = "${work}/sources/a-base
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -39,14 +39,14 @@ files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifa
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/4.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/4.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan"}, {"actual" = "${link.result.link_plan}", "contains" = "images=6 "}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan"}, {"actual" = "${link.result.link_plan}", "contains" = "images=6 "}]
 
 [[steps]]
 name = "run_linked"
@@ -61,7 +61,7 @@ files = [{"move" = {"from" = "${work}/artifacts", "to" = "${work}/elsewhere"}}]
 
 [[steps]]
 name = "relink"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/elsewhere/root.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--dependency-slib", "${work}/elsewhere/1.slib", "--dependency-slib", "${work}/elsewhere/2.slib", "--dependency-slib", "${work}/elsewhere/3.slib", "--dependency-slib", "${work}/elsewhere/4.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "-o", "${work}/elsewhere/program", "--message-format", "json", "--dump-plan"]
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/elsewhere/root.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--dependency-slib", "${work}/elsewhere/1.slib", "--dependency-slib", "${work}/elsewhere/2.slib", "--dependency-slib", "${work}/elsewhere/3.slib", "--dependency-slib", "${work}/elsewhere/4.slib", "--dependency-slib", "${work}/elsewhere/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "-o", "${work}/elsewhere/program", "--message-format", "json", "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""

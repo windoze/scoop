@@ -10,8 +10,7 @@ use crate::link_object::type_registrations::versioned::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedRelocationTargetV1,
-    VerifiedStrongTypeRegistrationV1,
+    VerifiedRelocationTargetV1, VerifiedStrongTypeRegistrationV1,
 };
 
 pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 152;
@@ -165,13 +164,26 @@ where
         if relocation.containing_atom_role() != DefinitionAtomRole::Primary
             || relocation.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData
             || relocation.width_bytes() != 8
-            || relocation.encoded_value() != 0
         {
             return descriptor_relocation_error(plan.exact_type(), offset);
         }
-        let target = match relocation.shape() {
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target } => target,
-            _ => return descriptor_relocation_error(plan.exact_type(), offset),
+        // These local pointers were resolved against their exact atom above.
+        if offset == 112 && relocation == descriptor.diagnostic_relocation()
+            || offset == 96
+                && descriptor.itable_directory().descriptor_relocation() == Some(relocation)
+        {
+            continue;
+        }
+        if relocation
+            .shape()
+            .form()
+            .absolute64_addend(relocation.encoded_value())
+            != Some(0)
+        {
+            return descriptor_relocation_error(plan.exact_type(), offset);
+        }
+        let Some(target) = relocation.shape().absolute64_target() else {
+            return descriptor_relocation_error(plan.exact_type(), offset);
         };
         let target_matches = match offset {
             64 => matches!(
@@ -201,9 +213,11 @@ where
                     StrongDefinitionEntity::exact_type(exact),
                     StrongDefinitionRole::TypeDescriptor,
                 ),
-                Some(DescriptorReferenceKind::External(exact)) => {
-                    external_target_matches(target, PersistentSymbolKey::TypeDescriptor(exact))
-                }
+                Some(DescriptorReferenceKind::External(exact)) => external_target_matches(
+                    builtins.member_plan().target(),
+                    target,
+                    PersistentSymbolKey::TypeDescriptor(exact),
+                ),
                 None => false,
             },
             112 => relocation == descriptor.diagnostic_relocation(),
@@ -213,7 +227,11 @@ where
                     definitions,
                     StrongDefinitionEntity::callable_body(*hook),
                     StrongDefinitionRole::CallableBody,
-                ) || external_target_matches(target, PersistentSymbolKey::CallableBody(*hook))
+                ) || external_target_matches(
+                    builtins.member_plan().target(),
+                    target,
+                    PersistentSymbolKey::CallableBody(*hook),
+                )
             }),
             offset if offset == 136 || offset >= 152 => {
                 let function = plan.semantic().relations();
@@ -233,9 +251,11 @@ where
                         StrongDefinitionEntity::exact_type(exact),
                         StrongDefinitionRole::TypeDescriptor,
                     ),
-                    Some(DescriptorReferenceKind::External(exact)) => {
-                        external_target_matches(target, PersistentSymbolKey::TypeDescriptor(exact))
-                    }
+                    Some(DescriptorReferenceKind::External(exact)) => external_target_matches(
+                        builtins.member_plan().target(),
+                        target,
+                        PersistentSymbolKey::TypeDescriptor(exact),
+                    ),
                     None => false,
                 }
             }
@@ -262,11 +282,12 @@ fn definition_target_matches(
 }
 
 fn external_target_matches(
+    profile: scoop_lir::LirTargetProfile,
     target: &VerifiedRelocationTargetV1,
     symbol: PersistentSymbolKey,
 ) -> bool {
     let symbol = scoop_identity::MangledSymbol::from_key(&symbol);
-    let expected = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+    let expected = profile
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(symbol.as_str());

@@ -4,6 +4,7 @@
 //! projection adds the absolute host locators needed to execute that contract.
 //! Host paths are never encoded into LIR metadata or artifact fingerprints.
 
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -17,7 +18,20 @@ use crate::{
 pub struct ValidatedCBridgeToolchainInvocation {
     profile: CBridgeToolchainProfileV1,
     compiler_driver: PathBuf,
-    sdk_root: PathBuf,
+    parameters: CBridgeCommandParameters,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum CBridgeCommandParameters {
+    Darwin {
+        sdk_root: PathBuf,
+        minimum_os: crate::DarwinPackedVersionV1,
+    },
+    Linux {
+        native_sysroot: Option<PathBuf>,
+        real_gcc: PathBuf,
+        search_path: OsString,
+    },
 }
 
 impl ValidatedCBridgeToolchainInvocation {
@@ -33,10 +47,18 @@ impl ValidatedCBridgeToolchainInvocation {
         if !sdk_root.is_absolute() {
             return Err(CBridgeToolchainInvocationError::RelativeSdkRoot);
         }
+        let minimum_os = profile
+            .contract()
+            .deployment()
+            .map_err(CBridgeToolchainInvocationError::Platform)?
+            .minimum_os();
         let value = Self {
             profile,
             compiler_driver,
-            sdk_root,
+            parameters: CBridgeCommandParameters::Darwin {
+                sdk_root,
+                minimum_os,
+            },
         };
         value.validate_target(target)?;
         Ok(value)
@@ -50,12 +72,108 @@ impl ValidatedCBridgeToolchainInvocation {
         &self.compiler_driver
     }
 
-    pub fn sdk_root(&self) -> &Path {
-        &self.sdk_root
+    pub fn sdk_root(&self) -> Result<&Path, crate::CBridgePlatformError> {
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin { sdk_root, .. } => Ok(sdk_root),
+            CBridgeCommandParameters::Linux { .. } => {
+                Err(crate::CBridgePlatformError::ExpectedDarwin)
+            }
+        }
+    }
+
+    pub fn new_linux(
+        target: LirTargetProfile,
+        profile: CBridgeToolchainProfileV1,
+        compiler_driver: PathBuf,
+        native_sysroot: Option<PathBuf>,
+        real_gcc: PathBuf,
+        search_path: OsString,
+    ) -> Result<Self, CBridgeToolchainInvocationError> {
+        if !compiler_driver.is_absolute() || !real_gcc.is_absolute() {
+            return Err(CBridgeToolchainInvocationError::RelativeCompilerDriver);
+        }
+        if native_sysroot
+            .as_ref()
+            .is_some_and(|path| !path.is_absolute())
+        {
+            return Err(CBridgeToolchainInvocationError::RelativeNativeSysroot);
+        }
+        if !matches!(
+            profile.contract().platform(),
+            crate::CBridgePlatformContractV1::Linux { .. }
+        ) {
+            return Err(CBridgeToolchainInvocationError::Platform(
+                crate::CBridgePlatformError::ExpectedLinux,
+            ));
+        }
+        let value = Self {
+            profile,
+            compiler_driver,
+            parameters: CBridgeCommandParameters::Linux {
+                native_sysroot,
+                real_gcc,
+                search_path,
+            },
+        };
+        value.validate_target(target)?;
+        Ok(value)
+    }
+
+    pub fn native_sysroot(&self) -> Option<&Path> {
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin { sdk_root, .. } => Some(sdk_root),
+            CBridgeCommandParameters::Linux { native_sysroot, .. } => native_sysroot.as_deref(),
+        }
     }
 
     pub const fn environment(&self) -> CBridgeEnvironmentProjectionV1 {
         self.profile.contract().environment()
+    }
+
+    pub fn driver_environment(&self) -> impl Iterator<Item = (&'static str, &OsStr)> {
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin { .. } => None,
+            CBridgeCommandParameters::Linux {
+                real_gcc,
+                search_path,
+                ..
+            } => Some([
+                ("PATH", search_path.as_os_str()),
+                ("REALGCC", real_gcc.as_os_str()),
+            ]),
+        }
+        .into_iter()
+        .flatten()
+    }
+
+    /// Start another native-driver action with the same resolved environment.
+    pub fn driver_command(&self) -> Command {
+        let mut command = Command::new(&self.compiler_driver);
+        command
+            .env_clear()
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("TZ", "UTC")
+            .env("TMPDIR", std::env::temp_dir())
+            .envs(self.driver_environment());
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin {
+                sdk_root,
+                minimum_os,
+            } => {
+                command
+                    .args(["-target", self.profile.contract().canonical_triple()])
+                    .arg("-isysroot")
+                    .arg(sdk_root)
+                    .arg(format!("-mmacosx-version-min={minimum_os}"));
+            }
+            CBridgeCommandParameters::Linux { native_sysroot, .. } => {
+                if let Some(root) = native_sysroot {
+                    command.arg("--sysroot").arg(root);
+                }
+            }
+        }
+        command
     }
 
     pub fn validate_target(
@@ -76,16 +194,49 @@ impl ValidatedCBridgeToolchainInvocation {
     }
 
     pub fn object_compilation_command(&self, source: &Path, object: &Path) -> Command {
-        let contract = self.profile.contract();
-        canonical_object_compilation_command(
-            &self.compiler_driver,
-            &self.sdk_root,
-            contract.canonical_triple(),
-            contract.deployment().minimum_os().to_string(),
-            contract.environment(),
-            source,
-            object,
-        )
+        let mut command = match &self.parameters {
+            CBridgeCommandParameters::Darwin {
+                sdk_root,
+                minimum_os,
+            } => canonical_object_compilation_command(
+                &self.compiler_driver,
+                sdk_root,
+                self.profile.contract().canonical_triple(),
+                minimum_os.to_string(),
+                self.environment(),
+                source,
+                object,
+            ),
+            CBridgeCommandParameters::Linux { .. } => {
+                let mut command = self.driver_command();
+                command
+                    .arg("-std=c11")
+                    .arg("-c")
+                    .arg(source)
+                    .arg("-o")
+                    .arg(object)
+                    .args([
+                        "-O0",
+                        "-g0",
+                        "-fno-common",
+                        "-fno-ident",
+                        "-fno-stack-protector",
+                        "-fno-unwind-tables",
+                        "-fno-asynchronous-unwind-tables",
+                        "-fno-builtin",
+                        "-fPIC",
+                    ]);
+                command
+            }
+        };
+        command.env(
+            "TMPDIR",
+            object
+                .parent()
+                .filter(|path| !path.as_os_str().is_empty())
+                .unwrap_or(Path::new(".")),
+        );
+        command
     }
 }
 
@@ -145,6 +296,9 @@ fn canonical_object_compilation_command(
             CanonicalCBridgeFlagV1::NoBuiltinSubstitution => {
                 command.arg("-fno-builtin");
             }
+            CanonicalCBridgeFlagV1::PositionIndependent => {
+                command.arg("-fPIC");
+            }
         }
     }
     command
@@ -154,6 +308,8 @@ fn canonical_object_compilation_command(
 pub enum CBridgeToolchainInvocationError {
     RelativeCompilerDriver,
     RelativeSdkRoot,
+    RelativeNativeSysroot,
+    Platform(crate::CBridgePlatformError),
     TargetFingerprint(scoop_wire::HashError),
     TargetMismatch,
 }
@@ -165,6 +321,10 @@ impl fmt::Display for CBridgeToolchainInvocationError {
                 formatter.write_str("generated-C compiler driver must be absolute")
             }
             Self::RelativeSdkRoot => formatter.write_str("generated-C SDK root must be absolute"),
+            Self::RelativeNativeSysroot => {
+                formatter.write_str("generated-C native sysroot must be absolute")
+            }
+            Self::Platform(error) => error.fmt(formatter),
             Self::TargetFingerprint(error) => {
                 write!(formatter, "cannot fingerprint generated-C target: {error}")
             }
@@ -178,7 +338,11 @@ impl std::error::Error for CBridgeToolchainInvocationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::TargetFingerprint(error) => Some(error),
-            Self::RelativeCompilerDriver | Self::RelativeSdkRoot | Self::TargetMismatch => None,
+            Self::Platform(error) => Some(error),
+            Self::RelativeCompilerDriver
+            | Self::RelativeSdkRoot
+            | Self::RelativeNativeSysroot
+            | Self::TargetMismatch => None,
         }
     }
 }

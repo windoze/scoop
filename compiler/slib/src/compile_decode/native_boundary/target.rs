@@ -212,15 +212,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         source: &SourceNativeExternalContractRecord,
     ) -> Result<NativeExternalContractRecord, NativeBoundaryCompileError> {
         let (symbol, source_library) = source_target(source.contract());
-        let symbol = match self.target.id() {
-            scoop_lir::TargetProfileId::DarwinAarch64 => {
-                NativeExternalSymbolKey::darwin_macho_external_length(symbol)
-                    .map_err(NativeBoundaryTargetError::NativeSymbol)?;
-
-                NativeExternalSymbolKey::darwin_macho_external(symbol)
-                    .map_err(NativeBoundaryTargetError::NativeSymbol)?
-            }
-        };
+        let symbol = NativeExternalSymbolKey::for_target(self.target.wire_id(), symbol)
+            .map_err(NativeBoundaryTargetError::NativeSymbol)?;
         let library = self.library(source_library)?;
         let contract = match source.contract() {
             SourceNativeExternalContract::Function { abi, .. } => match abi {
@@ -285,7 +278,12 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     .map_err(NativeBoundaryCompileError::Resource)?,
                 )
                 .map_err(NativeBoundaryTargetError::NativeName)?;
-                let key = NativeLinkRequirementKey::target_default(name);
+                let key = NativeLinkRequirementKey::for_target(
+                    self.target.wire_id(),
+                    name,
+                    scoop_identity::NativeLibraryKind::TargetDefault,
+                    scoop_identity::NativeLibraryGrouping::Independent,
+                );
 
                 let record =
                     CborIdentityRecord::from_key(key).map_err(NativeBoundaryTargetError::Hash)?;

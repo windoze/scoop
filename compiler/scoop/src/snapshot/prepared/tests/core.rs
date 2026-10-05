@@ -155,7 +155,7 @@ fn core_child_plan_uses_the_common_manifest_snapshot_request() {
     assert_eq!(plan.request().build().emit(), &StageDumpPolicyV1::None);
     assert_eq!(
         plan.request().build().target().canonical_triple(),
-        "aarch64-apple-darwin"
+        scoop_toolchain::host_target_triple().unwrap()
     );
     prepared.source_inputs.remove(&ConeIdentity::CORE).unwrap();
     assert!(matches!(

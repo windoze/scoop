@@ -76,7 +76,11 @@ def process_values(step):
         signal_value(step["signal"], "signal")
     for stream in ("stdin", "stdout", "stderr"):
         if stream in step:
-            byte_value(step[stream], stream)
+            value = step[stream]
+            if stream != "stdin" and isinstance(value, dict) and set(value) == {"snapshot"}:
+                string(value["snapshot"], f"{stream} snapshot", nonempty=True)
+            else:
+                byte_value(value, stream)
     if "env" in step:
         environment(step["env"], "env")
     if "cwd" in step:

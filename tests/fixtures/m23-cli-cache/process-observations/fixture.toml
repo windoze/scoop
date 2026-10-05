@@ -2,7 +2,7 @@ schema = 1
 name = "cli-process-source-observations"
 inputs = ["dependency", "root", "runner", "warning.scoop", "broken.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "cache", "diagnostics", "stage-golden", "process-cache"]
 
 [vars]
@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -40,7 +40,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -68,7 +68,7 @@ checks = [
 
 [[steps]]
 name = "observed"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -109,7 +109,7 @@ files = [
 
 [[steps]]
 name = "program"
-argv = ["${scoop}", "build", "${work}/runner", {"each" = "${options}"}, "--cone-path", "${work}/artifacts", "-o", "${work}/program"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/runner", {"each" = "${options}"}, "--cone-path", "${work}/artifacts", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -146,7 +146,7 @@ files = [
 
 [[steps]]
 name = "failed"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""
@@ -161,7 +161,7 @@ checks = [
 
 [[steps]]
 name = "failed_warm"
-argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {"each" = "${options}"}, "--runtime-root", "${work}/absent-runtime", "-o", "${work}/library.slib"]
 exit = 1
 stdout = ""
 stderr = ""

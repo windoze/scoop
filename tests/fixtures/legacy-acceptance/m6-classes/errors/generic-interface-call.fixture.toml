@@ -3,12 +3,12 @@ name = "legacy-m6-classes-errors-generic-interface-call"
 root = "../../../m6-classes/errors/generic-interface-call.scoop"
 inputs = ["../../../m6-classes/errors/generic-interface-call.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["legacy", "m6-classes", "single-file", "negative"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""

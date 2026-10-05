@@ -85,14 +85,17 @@ impl RuntimeObjectSet {
         configuration: RuntimeBuildConfiguration,
         objects: Vec<Vec<u8>>,
     ) -> Result<Self, LinkError> {
-        if target != LirTargetProfile::DARWIN_AARCH64 || objects.is_empty() {
+        if objects.is_empty() {
+            return Err(error("runtime requires a nonempty object collection"));
+        }
+        if toolchain.contract().target() != &target.wire_id() {
             return Err(error(
-                "runtime requires a nonempty Darwin/AArch64 object collection",
+                "runtime C toolchain and selected target do not match",
             ));
         }
         let mut inputs = Vec::with_capacity(objects.len());
         for bytes in objects {
-            let info = NativeObjectInfo::read(&bytes, toolchain.contract().deployment())?;
+            let info = NativeObjectInfo::read_with_toolchain(&bytes, toolchain)?;
             let digest = sha256(&bytes);
             let id = RuntimeObjectId(
                 domain_separated_cbor_hash(
@@ -135,11 +138,16 @@ impl RuntimeObjectSet {
             definitions: BTreeMap::new(),
             requirements: BTreeSet::new(),
         };
+        let normalization = target.contract().native_symbol_normalization();
+        let native_name = |name| normalization.compiler_generated_object_symbol(name);
+        let main = native_name("main");
+        let string_descriptor = native_name("scoop_td_String");
+        let generated_prefix = native_name("scoop$");
         for object in &objects {
             for (symbol, definition) in &object.info.definitions {
-                if symbol == "_main"
-                    || symbol == "_scoop_td_String"
-                    || symbol.starts_with("_scoop$")
+                if symbol == &main
+                    || symbol == &string_descriptor
+                    || symbol.starts_with(&generated_prefix)
                 {
                     return Err(error(format!(
                         "runtime object {} defines program-owned symbol {symbol}",
@@ -226,14 +234,21 @@ fn check_exports(target: LirTargetProfile, merged: &NativeObjectInfo) -> Result<
             )));
         }
     }
+    let startup = target
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol("scoop_rt_run_program");
     if !merged
         .definitions
-        .get("_scoop_rt_run_program")
+        .get(&startup)
         .is_some_and(|definition| definition.kind == NativeSymbolKind::Function && !definition.weak)
     {
-        return Err(error(
-            "runtime is missing the program startup entry _scoop_rt_run_program",
-        ));
+        return Err(error(format!(
+            "runtime is missing the program startup entry {startup}"
+        )));
     }
     Ok(())
 }
+
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod tests;

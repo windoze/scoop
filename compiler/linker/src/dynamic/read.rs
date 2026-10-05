@@ -19,6 +19,7 @@ pub(crate) fn read(
                 .profile()
                 .contract()
                 .deployment()
+                .map_err(error)?
                 .minimum_os(),
             system,
         )

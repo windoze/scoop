@@ -32,6 +32,7 @@ pub struct BuildRequest {
     pub output: Option<PathBuf>,
     pub target_dir: Option<PathBuf>,
     pub runtime: RuntimeInput,
+    pub final_link: scoop_toolchain::FinalLinkOptions,
     pub library_paths: Vec<PathBuf>,
     pub dumps: Option<BuildDumpRequest>,
     pub keep_for_run: bool,

@@ -1,16 +1,13 @@
 //! Closed target/backend profiles accepted by Scoop codegen.
 //!
-//! M15 deliberately supports one profile.  Keeping every backend choice in
-//! this module prevents target details and LLVM defaults from leaking through
-//! the mechanical LIR-to-LLVM lowering.
+//! Target choices stay in this projection; mechanical LIR lowering does not
+//! discover a host platform or silently inherit LLVM defaults.
 
 use std::fmt;
 use std::path::Path;
 
 use inkwell::llvm_sys::core::LLVMGetVersion;
-use inkwell::targets::{
-    CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
-};
+use inkwell::targets::{CodeModel, RelocMode, Target, TargetMachine, TargetTriple};
 use inkwell::{AddressSpace, OptimizationLevel};
 pub use scoop_lir::TargetProfileId;
 use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
@@ -18,7 +15,11 @@ use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
 use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
 
+mod eh;
 mod qualification;
+#[cfg(test)]
+use eh::{EhArtifactInspection, PersonalityAbi, UnwindModel, UnwindProvider};
+pub(crate) use eh::{EhProfile, LsdaEncodingProfile};
 
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
@@ -37,80 +38,19 @@ impl fmt::Display for LlvmVersion {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ObjectFormat {
-    MachO64,
-}
-
-/// Complete exception-handling contract qualified for one target/backend
-/// profile.  These are capabilities rather than loosely related flags: a
-/// target cannot reach codegen without selecting every part of its unwind,
-/// LSDA and artifact-inspection ABI.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct EhProfile {
-    unwind_model: UnwindModel,
-    personality_abi: PersonalityAbi,
-    exception_data_registers: u8,
-    encodings: LsdaEncodingProfile,
-    unwind_provider: UnwindProvider,
-    artifact_inspection: EhArtifactInspection,
-}
+use scoop_lir::NativeObjectFormat as ObjectFormat;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum UnwindModel {
-    ItaniumDwarf,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PersonalityAbi {
-    ScoopLsdaSubset,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct LsdaEncodingProfile {
-    pub(crate) lp_start: u8,
-    pub(crate) type_table: u8,
-    pub(crate) call_site: u8,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum UnwindProvider {
-    DarwinLibSystem,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EhArtifactInspection {
-    MachO,
-}
-
-impl EhProfile {
-    const DARWIN_AARCH64: Self = Self {
-        unwind_model: UnwindModel::ItaniumDwarf,
-        personality_abi: PersonalityAbi::ScoopLsdaSubset,
-        exception_data_registers: 2,
-        encodings: LsdaEncodingProfile {
-            lp_start: 0xff,
-            type_table: 0x9b,
-            call_site: 0x01,
-        },
-        unwind_provider: UnwindProvider::DarwinLibSystem,
-        artifact_inspection: EhArtifactInspection::MachO,
-    };
-
-    pub(crate) fn encodings(self) -> LsdaEncodingProfile {
-        self.encodings
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LlvmTargetBackend {
+pub(crate) enum CodeArchitecture {
     Aarch64,
+    X86_64,
 }
 
-impl LlvmTargetBackend {
+impl CodeArchitecture {
     fn initialize(self) {
         match self {
-            Self::Aarch64 => Target::initialize_aarch64(&InitializationConfig::default()),
+            Self::Aarch64 => Target::initialize_aarch64(&Default::default()),
+            Self::X86_64 => Target::initialize_x86(&Default::default()),
         }
     }
 }
@@ -205,7 +145,7 @@ pub struct ValidatedBackendProfile {
     zero_fill_storage_section: &'static str,
     c_string_section: &'static str,
     eh: EhProfile,
-    llvm_target_backend: LlvmTargetBackend,
+    llvm_target_backend: CodeArchitecture,
     machine_pipeline: MachinePipeline,
     managed_address_space: ManagedAddressSpace,
     stack_map_version: u8,
@@ -228,7 +168,7 @@ impl ValidatedBackendProfile {
         zero_fill_storage_section: "__DATA,__bss",
         c_string_section: "__TEXT,__cstring,cstring_literals",
         eh: EhProfile::DARWIN_AARCH64,
-        llvm_target_backend: LlvmTargetBackend::Aarch64,
+        llvm_target_backend: CodeArchitecture::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
         managed_address_space: ManagedAddressSpace::MOVING_GC,
         stack_map_version: 3,
@@ -239,13 +179,21 @@ impl ValidatedBackendProfile {
 
     pub fn from_selection(selection: ValidatedLirTargetSelection) -> Result<Self, CodegenError> {
         validate_linked_llvm()?;
-        if selection == ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1 {
-            Ok(Self::DARWIN_AARCH64)
-        } else {
-            Err(CodegenError(
-                "the selected LIR/backend profile is not qualified by this codegen".to_owned(),
-            ))
-        }
+        Ok(match selection.target().id() {
+            TargetProfileId::DarwinAarch64 => Self::DARWIN_AARCH64,
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => Self {
+                lir_target_selection: selection,
+                canonical_triple: selection.target().id().canonical_triple(),
+                cpu: "x86-64",
+                object_format: ObjectFormat::Elf64,
+                writable_storage_section: ".data",
+                zero_fill_storage_section: ".bss",
+                c_string_section: ".rodata.str1.1",
+                eh: EhProfile::LINUX_X86_64,
+                llvm_target_backend: CodeArchitecture::X86_64,
+                ..Self::DARWIN_AARCH64
+            },
+        })
     }
 
     pub fn id(self) -> TargetProfileId {
@@ -292,6 +240,7 @@ impl ValidatedBackendProfile {
     pub(crate) const fn read_only_metadata_section(self) -> &'static str {
         match self.object_format {
             ObjectFormat::MachO64 => "__DATA_CONST,__const",
+            ObjectFormat::Elf64 => ".data.rel.ro.scoop.metadata",
         }
     }
 
@@ -306,9 +255,16 @@ impl ValidatedBackendProfile {
         Self::DARWIN_AARCH64
     }
 
-    #[cfg(test)]
     pub(crate) fn eh_profile(self) -> EhProfile {
         self.eh
+    }
+
+    pub(crate) fn architecture(self) -> CodeArchitecture {
+        self.llvm_target_backend
+    }
+
+    pub(crate) fn disable_red_zone(self) -> bool {
+        self.llvm_target_backend == CodeArchitecture::X86_64
     }
 
     pub(crate) fn frame_pointer_attribute(self) -> &'static str {
@@ -369,6 +325,9 @@ impl ValidatedBackendProfile {
                     self.stack_map_version,
                     self.eh.encodings(),
                 )
+            }
+            (ObjectFormat::Elf64, StatepointRootPolicy::StackIndirectOnly) => {
+                artifact::verify_elf_artifact(path, expected_safepoints, expected_eh, self)
             }
         }
     }

@@ -1,0 +1,144 @@
+# M28 实施记录
+
+M28 已完成，三平台的所有适用用例均已验证通过，具体原始结果与复验说明见 [验收记录](ACCEPTANCE.md)。目标与分批顺序见 [设计](DESIGN.md)，本机编译探针见 [调研](INVESTIGATION.md)，复现命令见 [构建说明](BUILDING.md)。
+
+## 当前能力与验收状态
+
+- 正式 CLI 支持 glibc amd64 动态 PIE、musl amd64 默认静态程序和显式动态 PIE；包括 core/库产物、独立链接、原生对象/归档/DSO、异常、精确移动 GC、callback、协程与 Context。
+- ELF/Mach-O、OS/VM、架构帧与 libc 工具链分别处理实际差异。glibc/musl 共用 Linux OS、ELF image 和 amd64 runtime；后续 Linux arm64 可复用 OS/ELF 与共有链接编排，补充 AArch64 ABI/机器码/relocation、入口和目标工具链输入。
+- 两种 libc 的 LLVM libunwind 22.1.2 构建、musl PIE 的索引未命中兼容补丁、三种链接模式的真实异常展开均已验证。
+- 最终普通 `--all` 已完整执行：glibc 首轮 2,287 个通过、8 份历史产物指纹不匹配；确认受 imported-storage visibility 修复影响后，仅更新对应指纹，8 个用例普通复验全部通过，适用集合共 2,295 个。musl 的 2,297 个适用用例在完整运行中全部通过。通过集合和不适用集合均与当前声明逐项核对。
+- Linux workspace 首轮 5,317 项通过、1 项假编译器 stdin 读取竞态失败；修复测试 helper 后，所属 `scoop` 的 96 项全部通过。macOS/AArch64 workspace 的 5,290 项全部通过。两个宿主的 fmt/clippy、Python 公共规则 38 项及 Ruff 0.16.10 均已通过。
+- macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 全部通过：2,314 个用例、2,404 个变体、12,076 个进程、12,305 份快照，另有 6 个 Linux 专用用例不适用。
+
+## 分批实施记录
+
+以下按实施顺序保留各批次的能力边界。“尚待接入”等描述指该批次完成时的状态，当前状态以上节及最终验收结果为准。
+
+- 编译器 LLVM 绑定改为优先使用共享库，解决本机 LLVM 22.1.2 安装缺少静态 Polly 时不能链接的问题；保留 llvm-sys 的静态回退。
+- 已提供并运行 LLVM libunwind 两套本地构建脚本，headers/archive 安装到按 target 隔离的私有 prefix；复现步骤见 [构建说明](BUILDING.md)。
+- LLVM cleanup-only LSDA 已实现：对象 reader 和 runtime 跳过不存在的 TType offset，拒绝无 type table 的 catch action；runtime 分成 personality、bounded LSDA decoder 和 byte reader，最长文件 475 行。
+- identity/LIR 已加入两个 Linux target、ELF symbol normalization 和独立 amd64 backend 合同；原生符号与 library requirement 的生产和读取保留 libc 目标。闭合 target 以小型枚举保存，完整布局通过已知 profile 查询，避免为每份 IR 复制相同配置。此批尚未开放 Linux 正式 CLI，接下来接入 C 工具链和 ELF/codegen。
+- C bridge 已拆成 Darwin/Apple Clang 与 Linux/GCC 平台合同；Linux discovery 选择实际 GCC、musl wrapper/specs 和 headers，并以真实 ELF64/PIC/TLS 编译验证 libc。invocation 保存显式 PATH/REALGCC/native sysroot，不携带伪造的 macOS SDK/deployment。Darwin 持久合同 bytes/fingerprint 保持；Linux 正式 CLI 与 ELF bridge reader 接入仍在后续批次。
+- 已实现 Linux thread/VM、amd64 精确 frame adapter、18 个 managed entry 汇编入口和 String sret adapter。共有 stackmap decoder 不再硬编码 AArch64 的 frame-size 对齐。线程在 boundary/anchor/native transition 范围 miss 时重新查询当前 OS 栈范围，并沿原有 world/park 协议发布；musl 主线程的深栈不会继续使用 attach 时的过小范围。runtime build 接入和完整 moving collector 闭环尚待后续完成。
+- Linux platform bundle 已完整组合 ELF image、Linux thread/VM、amd64 frame。ELF adapter 读取加载后的 program headers 和实际 VM permissions，按 hidden linker bounds 取得 stackmaps；已提供动态 RELRO 与静态只读段两套 metadata scripts。共有 callable 范围检查不再硬编码 4-byte 指令。Linux SHA-256 使用最小配置的 Mbed TLS 3.6.6 模块，保留上游文件/许可证并隔离嵌入符号；Darwin 继续 CommonCrypto。
+- runtime 构建配置已拆成共有源文件与封闭平台组合，并提供各自的 include/编译参数。target resolution 不再提前解析最终链接工具。runtime cache schema 2 按实际 depfile 跟踪外部头文件内容和 include locator，适用于 SDK、GCC、musl 与 LLVM unwind headers；安装路径只留在本地失效检查中，不进入 artifact 输入 identity。正式 Linux runtime index 与最终链接接入仍在后续批次。
+- 共有 ELF64 对象 reader 已加入 slib，格式边界/group/symbol 读取与 amd64 relocation 宽度分开。runtime/native object 入口按真实 target 分派，Linux runtime index 沿用现有格式与 ABI registry，正确读取 ELF TLS；程序入口和 String binding 使用 target 的符号规则。正式 Linux target resolution/runtime 构建入口以及 compiler-generated `.slib` 对象尚需接入。
+- shared target registry 已能解析 Linux amd64 两 libc 和 native C override，并按宿主 libc 选择默认 target。正式 runtime build API 已接入两个 Linux source profile、ELF index、所选 LLVM unwind headers 的私有快照与缓存；runtime 对象编译不要求 unwind archive。最终工具链拆成完整 Darwin/Linux 分支，Linux 使用 GCC/musl driver、GNU ld、明确的 CRT/系统库/LLVM unwind 和三种链接配置。源码 CLI 的参数/protocol、Linux codegen 与正式 Scoop executable 链接仍在后续批次。
+- 实际最终链接测试发现 LLVM 22.1.2 在 musl PIE 中回溯至缺少 CFI 的 libc 启动帧时，FDE 索引未命中后无界扫描 `.eh_frame`，造成 SIGSEGV。本机 musl 该 section 没有零终止，后面是 `.note.package`。已在私有 libunwind 构建副本应用索引未命中即停止的局部修复；原 LLVM 源码不修改，公开 unwind ABI 不变。脚本和补丁已提供，见 [构建说明](BUILDING.md)。
+- LLVM codegen 已选择 X86 通用基线，应用全部 frame pointer、managed 禁 tail call 和 amd64 `noredzone`，并提供 ELF metadata section。对象边界共用 LLVM v3 字段和 LSDA action 校验；架构层分别处理精确 SP/FP spill 范围、帧大小与指令边界。amd64 调用和 landing pad 使用现有 LLVM 解码器，ELF EH 按 section/offset、RELA、真实函数 extent 和 personality 间接引用读取，支持普通及 COMDAT 分段。此批完成原始 LLVM 对象发射/校验，`.slib` atom 物化/消费与正式 executable 链接仍待接入。
+- 正式 LLVM 对象分区现已物化 ELF atom 边界和 metadata 指纹补丁位置。LIR 物理 atom 按对象格式选择 EH/compact-unwind 与 TLS；ELF label 使用真实 extent，end size 为零，stackmap 输入允许 relocation。现有 typed symbol plan 决定 hidden visibility 和 COMDAT，同 member 的 backend contributions 加入实际 callable group；ELF 编辑保留旧 section/symbol 索引，不重建 RELA、TLS 或 merge-entry 格式。Linux backend 的 CPU 字段同步为实际 `x86-64`。`.slib` 的 builtin ELF reader/finalizer、generated-C 边界与最终 executable 仍在后续批次。
+- 后续按设计完成 target/toolchain、ELF/codegen/runtime、正式 CLI 与多 Cone，再进行三种 Linux 链接配置及 macOS/AArch64 回归。
+- generated-C 的共有 typed bridge plan 现按 ELF/Mach-O 分派边界物化；ELF 使用实际函数 extent、hidden strong symbols 和只读的一字节 callback signature marker，Darwin 发射形式保持。正式 C invocation 已能编译两 libc 的 outbound、TLS accessor 和 managed callback trampoline；builtin `.slib` ELF 消费接入仍待完成。
+- builtin `.slib` member 规划及 materialization replay 已显式携带实际 target，正确设置两个 Linux target 的 ELF role；driver 两种对象生产入口与 Compile/Link reader 均传递原选择，symbol plan 拒绝与 member plan 混用 target。member 身份及 logical-key bytes 保持既有规则。
+- builtin 对象消费已抽出共有 section/symbol/relocation facts，并按 target 分派 ELF 与 Mach-O producer profile；ELF 保留实际长名称、u32 section 索引、TLS 尺寸、COMDAT、visibility、RELA signed addend 和原始字段字节。generated-C 实际对象已通过 slib 的 definition/relocation 读取，LLVM 对象已通过共有 envelope 与栈图 section 读取；完整 Scoop metadata finalizer 与 amd64 栈图机器合同仍待后续接入。LLVM metadata 在物化时统一设为可重定位的 writable input，最终只读属性由已有链接脚本保证。
+- 共有 C runtime 测试按宿主选择 OS/profile，synthetic AArch64 frame fixture 继续测试相同数值规则；Linux amd64 真机帧仍由已有 Linux 测试负责。实际 Mach-O loaded-image 与 Darwin entry 汇编测试限定在 macOS 执行，最终 Mac 回归仍保留。AArch64 产物测试在 Linux 继续执行，复用正式 object verifier 的帧链/精确 PC 检查，不再额外调用 `otool` 重验同一事实。
+- 独立 slib stackmap reader 已按架构选择 amd64 帧/root 规则与机器码校验，保留共有 LLVM v3 解析、语义匹配和 canonical encoding。仅解码功能的 [yaxpeax-x86 2.2.0](https://docs.rs/crate/yaxpeax-x86/2.2.0) 用于变长指令边界，无 LLVM 依赖；上游该版于 2026-07-05 发布，维护与 API 已核对。实际调用和 RBP 建帧从函数起点解码，root 排除 red zone、saved RBP 和 return address。Darwin canonical 向量保持；完整 ELF registration/digest finalizer 仍待接入。
+- 共有 metadata reader 已提供绝对 64-bit pointer 的 target/addend/address 读取，区分 Mach-O 字段内 addend 与 ELF RELA signed addend；callable entry 和 Context key pointer 使用该语义。实际 Linux callable、safepoint registration 及 digest patch site 读取已接通，其余 metadata 与完整 digest finalizer 仍待后续完成。
+- 类型 registration、诊断字符串和 itable directory 已接入 ELF 绝对指针及 section symbol + addend 读取；关联 atom 以实际 section/address 核对，外部类型/释放 hook 符号使用所选 target。较长的 descriptor reader 拆为描述符、诊断与 itable 三个模块。完整对象指纹 finalizer 的 Linux 验收仍在后续批次。
+- immortal、static storage 和 initialization registration 已接入 ELF pointer/addend 与 target 符号规则；模板和诊断引用核对实际 atom 起点，空哨兵继续检查范围、对齐与非 atom 区域。LLVM 保留独立地址的只读字符串不必带 merge flags。零尺寸 encoded storage 的地址 token 修正为 file-backed writable data，运行时初始化的 token 继续使用 zero-fill。初始化诊断和静态本地指针规则分别拆入小模块。
+- Cone image 的支持 atom、坐标字符串和各类 registration 数组已接入 ELF 绝对指针读取；长 verification 文件按 atom bytes 与 relocation 检查拆分。原本报错为不同 atom 的无效坐标引用现在按实际地址诊断为错误 target value，拒绝行为保持。
+- LLVM ELF personality 间接指针已纳入 callable 的既有 `AddressTakenConstant` 关联 atom；helper 符号重命名为该 atom 的边界，独立 group 退役，指针 section 使用 `.data.rel.ro.scoop.personality`。ODR 指针及 RELA 随所属函数 group 合并。物化保留全部原生索引，兼容 LLVM 共用 section/symbol string table 的形式，不增加语言实体、wire tag 或 runtime ABI。
+
+每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
+
+## 已执行验证
+
+- `cargo fmt --all`、`cargo clippy --workspace --all-targets` 通过。
+- `cargo test -p scoop-codegen --lib lsda`：11 项通过，实际链接本机共享 LLVM 22.1.2。包括 catch-all、cleanup-only、损坏表诊断和 C decoder。
+- `runtime_eh_personality_tests` 与 `selected_profile_creates_the_canonical_aarch64_machine` 各 1 项通过；覆盖两阶段 personality 行为及共享 LLVM 中原有 AArch64 后端。
+- `scripts/check_linux_unwind.py`：glibc PIE、musl 静态、musl PIE 均经过真实 LLVM 22.1 生成的纯 cleanup 中间函数，最终 catch 并删除异常。分别链接本机新建的 LLVM libunwind 静态库，检查实际 interpreter、静态输出无动态依赖，以及 link map 未引入 libgcc EH provider。
+- 本机 Rust 验证设置 `LLVM_SYS_221_PREFIX=/usr/lib/llvm-22`、`TMPDIR=$PWD/target/tmp`，关闭 incremental 和 dev/test debuginfo，以控制构建目录体积。
+- target/identity 变更后，workspace clippy 无警告；identity、LIR、LIR-lower、slib 共 1,554 项单元测试通过，Darwin 已有 canonical bytes/fingerprint 向量保持。另用本机 LLVM 22.1.2 输出 MIR，核对 amd64 data layout 与声明一致。
+- 已清理两套完成验证的 `target/llvm-unwind` 中间目录，保留安装后的 headers/archive。
+- C 工具链变更：全 workspace fmt/clippy 通过；3 项 Linux discovery 测试、15 项 LIR C bridge 测试，以及公共 GCC/Clang depfile 转义测试通过。测试包含 glibc/musl 交叉误选、缺失 driver/sysroot、TLS section/尺寸及原 Darwin 固定向量。`object::ObjectSymbol::is_definition()` 不涵盖 ELF `STT_TLS`，TLS 定义使用类型和实际 section 判定。
+- Linux runtime 组件：`linux_runtime` 的实际 LLVM 22.1 statepoint 测试在 glibc PIE、musl static、musl PIE 各运行 O0/O2，验证 0～3 个显式参数、精确 PC、root slot 回写后 `gc.relocate` 读到新地址、两层帧遍历、String 两种 sret 结果和 main/pthread 栈及 VM 操作。此测试只验证真实机器帧与 root 回写，不冒充完整 collector 验收。
+- 线程栈增长测试在相同 6 种配置下通过，约 4 MiB 深栈依次触发 managed boundary、anchor、native-safe 和 callback 发布；musl 实际确认 4 次栈范围扩展。共有 v3 parser 的现有损坏表测试及 AArch64 frame adapter 数值测试也在 Linux 上通过；完整 Darwin 执行回归仍需真实 macOS。
+- ELF image 测试在 glibc PIE、musl static/PIE 下验证完整 platform bundle、load bias、stackmap relocation、metadata 实际只读、无 `DT_TEXTREL`；移除 ELF section table locator 后仍通过。将 stackmap 页临时改为可写时，adapter 正确拒绝，恢复只读后成功。SHA-256 的空串、短串、多 block、百万 byte 向量在三个配置均通过。
+- 原有 4 项 runtime image/registration 测试已在 Linux 运行，通过 canonical stackmap 的 Rust/C 共用向量及全部损坏 metadata 负例。迁移时发现 Linux piped core handler 会忽略 `RLIMIT_CORE`，现仅在预期 abort 的测试子进程关闭 dumpability；这组测试由约 114 秒恢复为不到 1 秒，生产 runtime 无此设置。Linux runtime 组件共 5 项 Rust 测试通过，全 workspace fmt/clippy 无警告。
+- 新 runtime 构建配置分别通过 glibc、musl 的全部 C/汇编源文件编译（GCC、O2、Wall/Wextra/Werror、对应 LLVM unwind headers），检查完整 runtime ABI 的函数/数据/TLS 定义、重复定义和 SHA 符号隔离。外部头文件缓存测试覆盖三个 header root、内容变化、缺失 depfile 和 symlink 改指向；全 workspace fmt/clippy 通过。该批是完整 runtime 对象编译，尚非正式 Scoop 程序链接/运行验收。
+- 完整 runtime 对象测试现位于 linker，进一步覆盖两 libc 的 index 写入/读取、symbol records/fingerprint 一致、目标混用拒绝和对象损坏拒绝。4 项真实 GCC/assembler ELF 测试覆盖普通函数/数据/TLS、weak、debug relocation、32/64-bit 写入宽度、COMDAT，以及坏 machine、坏 symbol index/extent、坏 group member、common storage、constructor 和 C++ EH 依赖诊断；全 workspace fmt/clippy 通过。
+- glibc runtime 正式构建/索引/缓存测试通过，包含源码和 header candidate 变化、O0/O2、重排对象、缺入口、重复对象、缓存对象损坏后重建。musl 正式构建使用只含 headers 的临时 unwind prefix，通过 cache hit 与 header 内容变化失效测试，证实不会误要求 archive。
+- 最终链接配置测试在 glibc PIE、musl static、musl PIE 下实际执行 `_Unwind_Backtrace`，修复后均正常返回；同时检查实际 ELF 模式/loader/EH header、无第二套 GCC EH provider、稳定 final-link fingerprint，以及缺少 unwind headers、glibc static 请求的诊断。重建两套 LLVM libunwind 后，原有真实 LLVM cleanup/resume/catch/delete 测试三种模式全部通过。Rust workspace fmt/clippy 与固定 ruff 0.16.10 format/check 通过；完整 Scoop 语言验收仍未完成。
+- LLVM ELF 对象：3 项新增测试通过，两 libc × O0/O2 × 普通/COMDAT 分段 × GC/异常两组真实 LIR，共 16 份对象；涵盖零/单/aggregate 根、`byval`/`sret`、直接/间接 invoke、catch/cleanup，以及坏 frame size、EH pointer addend/relocation 和缺少 `noredzone` 的诊断。共有 artifact 19 项、statepoint 14 项和 Darwin 异常实际对象 2 项回归通过。Darwin O2 验证暴露旧 LLVM C API relocation 名称读取的多余字节问题，现统一通过 `object` 的数值字段读取并复用一次文件解析；实际 Mac 执行回归仍在总验收阶段。workspace fmt/clippy 通过。
+- ELF 物化经过两 libc × 普通/ODR 正式 `emit_object_set` 测试，检查全部 planned boundaries、零初始化与非零初始化 TLS、hidden symbol、真实 COMDAT membership、可重定位 stackmap flags 及所有零值指纹槽。GNU ld 对同一份 ODR callable member 输入两次后，合并对象仍通过同一 stackmap/EH 检查。Linux codegen 4 项、LIR 479 项、Darwin 对象分区 6 项测试通过，workspace fmt/clippy 通过。清理完成的 codegen 探针及失败测试遗留，Rust target/debug 保持约 1.3 GiB。
+- generated-C ELF 新增实际编译/链接/运行测试：通过正式 `emit_c_bridge_object_set` 在 glibc 与 musl 各产生 5 个成员，检查 planned boundaries、符号尺寸/visibility、无 C unwind table；运行 outbound 参数与返回、native TLS 读写/取址，以及 signature/context/argument/result callback 传递。callback 测试使用 C harness 的 runtime gateway stub，只验证 C bridge ABI，不代表完整 managed callback/GC 验收。原有 C layout/bridge 32 项测试与 workspace fmt/clippy 均通过。
+- member target 传递变更通过 slib 全部 593 项单元测试和 driver 的 3 项对象规划测试，新增三 target 的 Scoop/generated-C role 矩阵与 Linux materialization replay 检查；Darwin 原有 canonical logical-key 向量保持。workspace fmt/clippy 通过。
+- 共有对象 facts 变更通过 slib 全部 595 项测试及两 libc 的 5 项真实 codegen 测试。新增实际 GCC 对象覆盖超过 255 的 section ordinal、长名称、TLS、COMDAT、PC-relative 负 addend 与绝对指针正 addend；RELA wire 含固定 bytes 和 signed 边界值。generated-C 的 5 类成员经过共有 definition/relocation reader 后继续链接运行。workspace fmt/clippy 通过。另执行 codegen 全量：308 项通过，15 项失败均涉及尚写死 Darwin 平台源文件、汇编或 `xcrun` 的测试入口，后续需适配宿主工具与平台测试分派；本次未跳过或删去它们。
+- 上述测试入口已适配：`cargo test -p scoop-codegen --lib` 在 Linux 上 321 项全部通过，2 项实际 Darwin 平台测试留待 macOS 执行。共有 C 用例包含真实 moving collector、并发初始化、Context、gateway、release、数组/boxing 与损坏 scan graph；其合成机器帧不等于正式 Scoop CLI 的 amd64 collector 闭环。workspace fmt/clippy 通过。
+- amd64 slib stackmap 接入通过全部 598 项 slib 测试（其中 stackmap 24 项），workspace fmt/clippy 通过。新增两 libc 的正式 LLVM member → definition/relocation reader → stackmap reader 集成测试，覆盖零/单/双 root 及破坏 RBP 保存的真实对象负例；解码测试检查直接、register-indirect、memory-indirect call，拒绝指令中间 PC、immediate 内的伪 opcode、缺失/反序建帧和越界/未对齐 root。
+- metadata pointer 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实 callable/safepoint registration 集成测试；把实际 entry RELA addend 从零改为八、保持 pointer 字段为零时 reader 正确拒绝。共有数值测试覆盖 signed addend、地址上下溢和 PC-relative/GOT/TLS relocation 拒绝；Context key 的既有 Darwin 测试通过，Linux Context 全流程仍在后续验收范围。
+- 类型 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实对象 reader 集成测试。对象包含 String、接口、父类、子类、vtable 和 itable；本批验证 registration、descriptor 诊断及 itable 关联指针，分别把诊断和 directory 的 RELA addend 改到相邻字节时均拒绝。外部 parent/release hook 的符号比较单测覆盖三个 target；完整类型与对象 fingerprint 链尚未作为 Linux 已完成项。
+- 存储/初始化 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy、8 项既有初始化回归及两 libc 的实际组合对象测试。组合对象含两个 immortal String、整数/引用/ZST encoded storage、两组惰性初始化存储与 failure root；immortal/static registration object fingerprints 计算通过，损坏模板或诊断 RELA addend 时 reader 拒绝。该测试读取实际初始化记录，不执行初始化算法；eager gateway 的 EH 与完整 finalizer 仍需后续接入。
+- Cone image 接入通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc × 空/非空存储与初始化表的真实对象测试；完整读取十个支持指针和 registration 数组，损坏 local pointer 或把 registration pointer 改到其内部时均拒绝。尚未将正式 executable final-link 或整体 image fingerprint 闭环计为完成。
+- personality contribution 变更通过 479 项 LIR 测试、10 项 Linux codegen 测试及 workspace fmt/clippy。两 libc × Strong/ODR 的真实异常成员经过完整发射与 LLVM EH 校验、slib definitions/relocations/stackmaps 读取；GNU ld 对 ODR member 重复输入后仅保留一份代码与间接指针，合并对象再次通过正式 EH/stackmap 检查。后续仍需完整对象指纹、requirement closure 和 executable 链接。
+
+- requirement closure 与 code fingerprint 已改为消费实际对象 target：同 Cone 成员拒绝 glibc/musl 混用，dependency 选择、undefined partition 和 native requirement surface 不再默认 Darwin。两 libc 的真实类对象完成外部符号分类、descriptor/layout/registration fingerprints；类型集合含 String、接口、父类、子类和 itable。新增混合 libc 成员与错误 requirement target 负例。全部 599 项 slib 测试、11 项 Linux codegen 测试及 workspace fmt/clippy 通过；函数体与整份产物的最终指纹仍需继续接入。
+
+- ELF raw atom relocation 的 section-symbol 基址现规范化为当前定义所属 atom，RELA kind/width/signed addend 保留。两 libc 的普通 GC 函数及 Strong/ODR 异常函数完成 body/definition/registration 指纹计算，涵盖 EH frame、LSDA、stackmap 与 personality 指针。真实对象将 section target 改写为等址 atom boundary 后指纹一致，改变 EH RELA addend 后指纹改变。599 项 slib 测试、12 项 Linux codegen 测试（含修正后的局部重绑定测试）及 workspace fmt/clippy 通过。
+
+- 生成代码的 runtime/native/bridge requirement 已接通 amd64 调用、data/GOT 地址和 ELF TLS 分类，并按实际 target 选择平台支持符号。Linux 的 `__tls_get_addr` 以既有 target-support 的新 tag 3 保存，Darwin memcpy/TLV 合同与 wire 向量保持。LLVM 分配路径的 allocation-context TLS 和平台 resolver 分别归属 runtime 与 target-support；GCC outbound、TLS read/write/address、managed callback 的五类实际成员完成完整 requirement closure。共有 test helper 现可同时消费 Scoop 与 generated-C 对象。480 项 LIR、600 项 slib、330 项 codegen 测试及 workspace fmt/clippy 通过，包含两 libc 的堆分配/boxing 函数指纹与桥接运行；这些测试尚不代表正式 executable CLI 已完成。
+
+- 正式 `scoopc build sysroot/lib/scoop.core --target ...` 在两 libc 上暴露 ODR 关联数据被提升为额外 weak 定义的问题。ELF COMDAT 准备现保留原 private/internal storage 的 linkage/default visibility，只将计划中的外部符号与 boundary alias 设为 hidden weak。类型测试增加 ODR descriptor、layout、scan、vtable、itable 分组，继续通过实际 registration/shape fingerprints 及坏关联指针检查。14 项 Linux codegen 测试与 workspace fmt/clippy 通过。修复后两 libc 的完整 core `.slib` 均成功构建，各约 76 MiB。
+
+- 可执行 root entry 使用共有绝对指针/addend 语义，artifact-only 与构建后链接入口传递实际 target，包括依赖 manifest 和默认 core slot。两 libc 均正式构建出消费上述 core 的程序 `.slib`（String、println 与异常分支），并通过 `scoop-link` 的完整 Link reader，随后在刻意未提供的 runtime index 处报错；glibc 程序与 musl core 混用被拒绝。600 项 slib 测试及 workspace fmt/clippy 通过。linker 单测 10 项通过，6 项仍依赖 Darwin `xcrun` 的测试失败，需在平台测试适配与最终 Mac 回归中处理；正式 ELF executable 尚未完成。
+
+- 三个 CLI 已接入 native C 工具链参数，`scoop`/`scoop-link` 另接入 unwind prefix 与 final-link mode。machine protocol 3 传递实际 driver/native sysroot，子进程恢复所选 PATH/REALGCC，并在缓存目录下使用独立 scratch；native driver 继承该 TMPDIR。Linux 默认缓存使用 XDG/HOME 布局。修复缓存记录恒定编码 Darwin 的旧假设，保持三 target 读回一致与 libc 隔离；协议版本进入既有 compile cache key，相关固定向量同步更新。
+
+- 新增 `m28-cli-library-toolchain` 正式文件 fixture，在 glibc 和 musl 各完整通过一次冷构建及一次缓存构建：从 core 源码编译，产生 String 与实际 C bridge 的 library，使用不存在的 unwind prefix 仍成功，第二次无子编译器且产物字节相同。fixture runner 已支持两个 Linux target 并只发现适用用例所需工具。24 项协议、7 项子进程、23 项缓存测试及 34 项 Python 公共规则测试通过，workspace fmt/clippy 与 Ruff 0.16.10 通过；缺失 C compiler 和 glibc static 请求返回明确工具链错误。清理过期 codegen 中间产物释放约 109 MiB。正式 ELF executable 仍在下一批接入，不把 library 验收计作运行闭环。
+
+- 共有 startup C 已按平台选择不可变 image array section、`main`/runtime 原生名称与对象 reader。新增测试在 glibc PIE、musl static、musl PIE 中编译并实际执行 startup，C harness 检查 image 顺序、数量及 root 指针，确认 ELF 输入数组的 section/extent；workspace fmt/clippy 通过。正式 `scoop build` 在两 libc 已完成程序 `.slib` 与 runtime 对象构建，目前停在 program-link 仍采用 Darwin 系统 provider 的入口；startup harness 不代表完整 runtime/GC 程序验收。
+
+- ordinary native `.o`/`.a` 输入沿实际 C profile 选择 ELF/Mach-O 索引。ELF 选入时复用已验证格式与 relocation facts，archive 中未被选中的 constructor/common/C++ EH 成员不提前触发执行限制；Mach-O 保留原有最终引用检查。两 libc 的真实 GCC/GNU ar 测试通过，覆盖直接对象、普通 archive、constructor 成员选入拒绝、输入路径替换后的既有字节快照及 thin archive 拒绝。连同既有 ELF 损坏表与 startup 共 6 项 linker 测试、workspace fmt/clippy 通过。ELF DSO/系统 namespace 与最终 executable 仍待接通。
+
+- 正式 program-link 已拆出 Darwin 与 ELF namespace/链接动作，共用对象收集、静态归档选入和原子发布。ELF 系统符号来自所选 libc/LLVM unwind/GCC builtins 的实际定义，默认版本、IFUNC 与 TLS 种类按 ELF 读取；不带 SONAME 的 musl libc 按链接器实际使用的文件名匹配依赖。startup、String alias 和 stackmap 边界采用 ELF 原生符号。最终检查覆盖目标/模式/loader、系统输入与依赖、未定义动态导入、地址身份、只读 metadata、startup image 数组及 stackmap/EH 保留。ODR stackmap 跟随 COMDAT 合并，已验证的同组重复输入只要求保留一份。
+
+- `m28-cli-program` 在 glibc PIE 与 musl 默认静态模式各通过 debug/release 两个变体（各 8 个正式进程）；`m28-cli-program-musl-pie` 通过显式 musl PIE 变体（4 个进程）。包含 class/String 分配、强制移动 GC、异常抛出/捕获、独立 `scoop-link` 重链接及再次运行。更新后的独立 linker 又在三个模式下重链接旧 `.slib`/runtime index 并运行通过；`scoop-link` 无 libLLVM 动态依赖。真实 ELF 检查确认两个 PIE 的目标 loader/EH/RELRO，以及 musl static 为无动态依赖的 ET_EXEC。该闭环不代表 native DSO 和全部功能组合已验收。
+
+- linker 的共有测试 helper 已适配宿主 C toolchain，Mach-O 格式专属测试留在 macOS 执行。Linux linker 测试全量中 14 项通过；最后一项因测试 C 素材中的 Darwin `.linker_option` 失败，限定该指令的平台后单独重跑通过。新增最终 ELF 损坏测试覆盖动态导入、String alias、startup pointer、RELRO、stackmap 与 interpreter；既有跨 Cone、原生对象/符号链接替换和归档按需选入也通过。workspace fmt/clippy 无警告。原生 `.so`、更广的功能组合和最终 macOS/AArch64 回归仍未完成。
+
+- ordinary ELF `.so` 已接入实际 library 查找、默认/非默认版本、SONAME/无 SONAME、DT_NEEDED、RPATH/RUNPATH 与 TLS 接口。动态输入按已读字节写入私有链接目录，运行时名称和原库目录保留在普通 DT_NEEDED/RUNPATH 中；不生成 Mach-O stub 或 ordinal。ELF 平坦查找顺序无法同时实现的显式库绑定报符号冲突。已选 DSO 的普通未解析强引用继续推动原生 archive 选入；GNU ld 为无版本 GLOBAL/WEAK undefined symbol 使用版本索引 0 时，也保留其引用。最终检查包含实际库依赖、导入版本与运行路径。
+
+- `m28-native-dso` 在两 libc 各通过 12 个正式进程，覆盖两版本函数的默认选择、版本化子库、constructor、动态 TLS 读写、无 SONAME 库、DSO 调用按需抽取的 C archive 成员、artifact-only 重链接、错误依赖版本诊断，以及失败不覆盖旧输出。18 项 linker 测试全部通过，随后 typed target reader 的两项接口测试再次通过；包含截短版本表、错架构、PIE 冒充 DSO、ELF 同名导出冲突和原文件替换后仍用已读版本/字节链接。workspace fmt/clippy 无警告。
+
+- 已构建优化版 Rust 工具用于后续批量验收。当前 `tests/fixtures/m28-linux` 整组回归：glibc 3 个适用 case、4 个 variant、22 个进程通过，musl 4 个 case、5 个 variant、26 个进程通过；glibc 的 musl PIE case 单列为不适用，未计作通过。其余既有语言/FFI/并发组合的 Linux 覆盖以及 macOS/AArch64 回归仍需继续，M28 尚未完成。
+
+- workspace 回归发现 `scoop` 的依赖发现、图排序及 immutable snapshot 测试仍固定调用 Darwin 工具链。相关请求现使用宿主 target，合成 artifact 显式携带测试所需 target；Darwin 格式与缓存固定向量继续使用原 profile。`scoop` 全部 96 项单元测试通过，workspace fmt/clippy 通过；别名测试继续覆盖宿主 canonical/alias 的同一规范化。完整 workspace 的其余 crate 回归仍在进行。
+
+- 既有 raw globals/TLS fixture 在 GNU ld 暴露 unused hidden TLS 声明被 LLVM 发成 `STT_NOTYPE` 的问题。ELF 发射现只将实际使用的外部声明设为 hidden，未使用声明保持默认 visibility，不再生成这类伪 undefined symbol；真实 TLS 定义和引用保持 `STT_TLS`。两 libc 的对象测试增加符号类型断言，codegen 全部 330 项测试及 workspace fmt/clippy 通过。glibc 的 raw globals、跨 Cone 多线程 TLS/callback 与 Scoop ABI 大值/moving GC 三个正式 fixture 已通过，共 6 个 variant、28 个进程。fixture 的全面平台参数和快照迁移仍在进行，尚未计作整体完成。
+
+- fixture runner 提供共有编译、链接、native companion 参数及目标目录名、符号前缀、宿主 ELOOP 常量，沿用 schema 1 的参数展开；平台相关快照按实际 target 分开。新增 deep-frames 正式程序：2,048 层递归中传递 ZST、16 字节对齐的 64-byte 值和八个标量，经函数值间接调用并跨移动 GC 保留引用；600 层异常 cleanup 验证上层根和执行次数。glibc 的 debug/release 两个变体及 musl 静态 debug/release、PIE release 三个变体全部通过，共 10 个正式进程。Python 公共规则 34 项及 Ruff 0.16.10 通过。既有 fixture 的大批迁移尚未完成全部目标验收。
+
+- 手写 LLVM IR companion 的工具入口支持显式 `llc`，检查实际 LLVM 22.1 版本并按目标发射 PIC 对象。stdout/stderr 可显式声明 snapshot，以保存完整的目标符号表；普通输出和完整诊断仍不受 snapshot 更新影响。Python 公共规则扩展为 36 项，全部通过，Ruff 0.16.10 通过。已移植的 glibc 实参推断/数组用例开始通过包括完整符号表的验收；全部旧 fixture 的两 libc 验收仍在进行。
+
+- driver 的跨 Cone 泛型测试发现未使用的外来 TD/callable 声明仍生成额外 hidden undefined symbol，使相同 ODR body 的原始对象字节随 consumer 的其它导入改变。这些声明现复用 ELF visibility 处理，实际引用仍为 hidden。原测试保持对象字节、canonical LIR、body/registration/safepoint 指纹一致性及关联 atom 变更检查；对象固定向量按 ELF/Mach-O 分开，ELF 不要求 Compact Unwind。该泛型测试与全部 330 项 codegen 测试通过，workspace fmt/clippy 无警告，三个正式工具重建成功。driver 的对象损坏负例适配与全面 fixture 验收继续进行。
+
+- CLI 进程 fixture 的 native helper 在 Linux 从 `/proc/self/cmdline` 读取真实参数，Darwin 保留 `_NSGetArgv`。两 libc 各通过 10 个正式进程，涵盖空/非 UTF-8 参数、工作目录、环境和 stdin/stderr、退出码、信号、取消后子进程回收，以及执行中重新构建同一路径。符号链接循环用例的 JSON、producer 和人类可读诊断统一使用宿主 ELOOP，glibc 三个诊断入口通过。runtime/fixture README 同步当前构建与目标入口。
+
+- driver 的 Link 对象负例改用共有对象 reader 定位符号名称，ELF relocation 损坏修改实际 RELA kind，stackmap section 名称及错误、C compiler profile 变更按平台处理。完整 driver 回归此前 83 项通过；修正后剩余的 property-initialization 组合负例单独通过，包含实际产物读回及各类对象/registration 损坏。workspace fmt/clippy 通过。最终完整 workspace/三平台 fixture 报告尚待完成。
+
+- 只含静态标量初值的 ELF 程序暴露共享空 relocation 哨兵位于 section 前缀的合法排列。只读数据前缀现要求 canonical zero，保留 relocation 来源必须属于 atom、哨兵范围/对齐/非 atom 区域检查；不放宽代码或可写 section。新增两 libc 的零/非零静态标量及非零前缀损坏测试，原有混合 String/ZST/初始化测试继续覆盖组合形态。codegen 331 项和 slib 600 项测试、workspace fmt/clippy 通过。
+
+- musl 的 managed-callback 强制移动 GC 组合定位到 native helper 的等待错误：主线程只配合一个 GC epoch 就在 native-borrowed 状态阻塞 join，回调的后续收集等待该线程。helper 现在在回调退出前持续经过显式 GC 入口，再 join；不改变 runtime 协议或延长超时。glibc/musl 各两个变体、八个正式进程通过。
+
+- macOS 回归修复两个宿主适配问题：绕过 inkwell 按宿主追加 Mach-O 逗号的 section setter，直接使用目标 profile 的精确 section 名；Darwin OS adapter 显式开启 Darwin 原生声明，兼容设置 POSIX feature macro 的 runtime 测试。Linux codegen 331 项及 M3 上 LLVM 22.1.8 的 codegen 317 项全部通过，两个宿主的 workspace fmt/clippy 通过。远程使用 `~/repos/scoop/target/m28-darwin` 隔离 worktree，主工作区原有改动未覆盖；完整文件 fixture 仍在执行。
+
+- 同一泛型 callable 同时出现在 storage 定义 Cone 和其下游时，导入 storage 的默认 ELF visibility 曾使下游生成 GOT 间接访问，与本地直接访问的机器码不一致。导入 Scoop storage 现复用实际使用声明的 hidden visibility，未使用声明仍不产生额外符号。正式 demanded-initialization 独立/跨 Cone 两个程序已通过；原有 ODR 对象/LIR/ABI/stackmap 指纹一致性检查保持。
+
+- 完整诊断的 JSON 期望文件可按 `${target}` 选择，仍在发现阶段加载并检查引用，且不参与 snapshot 自动更新；用于精确比较不同目标的 LIR fingerprint 与原生格式诊断。runner 公共规则 37 项和 Ruff 0.16.10 通过。
+
+- ELF 原生输入与最终 image 区分 C++ EH 和 libc 退出清理，允许 `__cxa_finalize`/`__cxa_atexit`，继续拒绝 C++ throw/personality。真实 C `atexit` handler 在 glibc PIE、musl 静态与 musl PIE 的 LLVM unwinder 测试中执行；linker 19 项、toolchain 15 项及 workspace fmt/clippy 通过。
+
+- 手写 LLVM IR companion 使用目标专属 `${llvm_target}`：Darwin 带 deployment 以生成原生对象的 `LC_BUILD_VERSION`，Linux 保留 canonical ELF triple。runner 公共规则 38 项及 Ruff 0.16.10 通过；Scoop 自身仍使用 canonical `${target}`。旧归档列表按目标保存完整成员名，原有 Darwin 结果保留。
+
+- 全 workspace 并行回归发现 Linux child-environment 测试的假编译器未读取 stdin 就退出，导致偶发 `BrokenPipe`。测试 helper 现先读完请求再检查环境并响应，与已有协议测试一致；不修改生产 transport。`scoop` 96 项单元测试全部通过，workspace fmt/clippy 通过。
+
+- C ABI 的嵌套 packed/aligned companion 显式抑制 GCC 对有意欠对齐成员的局部警告，保留全部大小、对齐与字段 offset 的静态断言。两 libc 的 object、archive、packed 三种正式用例均通过，包含聚合参数/结果、callback 及移动 GC 组合。
+
+- 既有 Scoop ABI native companion 已增加 amd64 汇编入口：从 RDI 取得 sret，在 RAX 返回同一地址，按真实栈位置取得 byval 与溢出标量参数，再映射到普通 C storage helper。Darwin 分支保持原指令。glibc/musl 的 extern-Scoop、native boundary 与原生 archive 程序经过普通及移动 GC 运行；未选中归档成员中的 `.linker_option` 仅在 Darwin 发射。
+
+- eager 初始化失败及依赖初始化失败顺序的 fixture 显式调用 C `fflush(NULL)` 保留 trace，再验证 abort；不再依赖 Darwin 的 libc 缓冲清理行为，也不修改 runtime 的异常终止语义。两 libc 与真实 Darwin 的 normal/moving 变体均通过，保留 stdout、完整异常诊断及 SIGABRT 断言。
+
+- 最终 glibc 全量运行发现 7 份产物指纹仍来自 imported-storage visibility 修复前。逐个比较旧缓存与当前 ELF，确认 storage 从默认 visibility 的 GOT 访问改为 hidden 的直接访问；重复构建的归档逐字节相同。IR、链接及运行断言保持，仅更新相应 `program` 指纹；7 个 fixture 的普通复验全部通过，共 44 个进程、86 份快照。
+
+- 后续 `heap-zst-combined` 同样保留了旧 storage visibility 的产物指纹。旧缓存对比确认同一原因，更新该 `program` 指纹后普通复验通过，包含 6 个进程和 10 份快照。

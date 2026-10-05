@@ -2,7 +2,7 @@ schema = 1
 name = "native-tls-cross-cone-callback-threads"
 inputs = ["provider", "facade", "consumer", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["native", "tls", "callback", "threads", "reexport", "moving-gc", "stage-golden"]
 
 [[variants]]
@@ -23,7 +23,7 @@ files = [
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native/objects/raw-globals.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-Wall", "-Wextra", "-Werror", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native/objects/raw-globals.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -37,7 +37,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}/native/lib", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -47,7 +47,7 @@ checks = [
   {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "raw-globals.ast.txt"},
   {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "raw-globals.hir.txt"},
   {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "raw-globals.mir.txt"},
-  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "raw-globals.lir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "raw-globals.${target}.lir.txt"},
 ]
 
 [[steps]]
@@ -67,7 +67,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native/lib", "-o", "${work}/relinked", "--message-format", "json"]
 env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 exit = 0
 stdout = ""

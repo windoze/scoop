@@ -29,13 +29,15 @@ edition = "2024"
 rust-version = "1.85"
 
 [workspace.dependencies]
-# LLVM 22.1（与当前 Rust 工具链自带的 LLVM 版本一致）
-inkwell = { version = "0.10", features = ["llvm22-1"] }
+# External LLVM 22.1; independent of the Rust toolchain LLVM version.
+inkwell = { version = "0.10", features = ["llvm22-1-prefer-dynamic"] }
 llvm-sys = "221"
 clap = { version = "4", features = ["derive"] }
 insta = { version = "1" }
 la-arena = { version = "0.3" }
 object = { version = "0.37", default-features = false, features = ["read"] }
+yaxpeax-x86 = { version = "2.2.0", default-features = false }
+yaxpeax-arch = { version = "0.3.2", default-features = false }
 cc = { version = "1" }
 toml = { version = "0.8" }
 toml_edit = { version = "0.22" }

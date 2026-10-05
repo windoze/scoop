@@ -3,9 +3,7 @@ use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentImmortalObjectId,
     StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_lir::{
-    ImmortalObjectTypeRegistrationRefV1, LirTargetProfile, StrongImmortalObjectRegistrationPlanV1,
-};
+use scoop_lir::{ImmortalObjectTypeRegistrationRefV1, StrongImmortalObjectRegistrationPlanV1};
 
 use super::physical::verified_member;
 use super::verification::required_scoop_member;
@@ -14,8 +12,8 @@ use super::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 const OBJECT_POINTER_OFFSET: u64 = 152;
@@ -228,7 +226,10 @@ pub(super) fn verify_type_registration_relocation(
             ) {
                 return type_relocation_error(plan.object(), Failure::TargetDefinition);
             }
-            let normalization = LirTargetProfile::DARWIN_AARCH64
+            let normalization = patch_sites
+                .builtins()
+                .member_plan()
+                .target()
                 .contract()
                 .native_symbol_normalization();
             let expected = normalization.compiler_generated_object_symbol(
@@ -259,9 +260,13 @@ fn validate_relocation_shape(
         Err(Failure::MissingOffset)
     } else if binding.width_bytes() != 8 {
         Err(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if !binding.relocation_form().is_absolute64() {
         Err(Failure::Form)
-    } else if binding.encoded_value() != 0 {
+    } else if binding
+        .relocation_form()
+        .absolute64_addend(binding.encoded_value())
+        != Some(0)
+    {
         Err(Failure::EncodedValue)
     } else if binding.target_slot() != RelocationTargetSlotV1::Single {
         Err(Failure::TargetSlot)

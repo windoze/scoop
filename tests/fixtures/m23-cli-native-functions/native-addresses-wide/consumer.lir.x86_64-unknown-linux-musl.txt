@@ -1,0 +1,54 @@
+Module
+  c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
+  extern ef0 nativeWide @m23_call_wide(ptr<code>) -> i64 <c exact=(code-ptr<(c-struct0)->c-struct0,direct>)->Long bridge=@scoop$1$br$09a03362bc7f0e197ee83b011f89d25fbccb63f1790483a0d963cb430b079f8b gc-leaf nounwind lib=m23_native_calls>
+  callback cb0 Function(PersistentFunctionId([127, 117, 232, 80, 17, 55, 228, 212, 123, 217, 74, 84, 149, 32, 91, 182, 3, 93, 90, 202, 57, 97, 129, 42, 29, 161, 113, 37, 180, 80, 238, 181])) @scoop$1$cb$9fbbf7e6bd0f68223133c7f0eac1fbab710c064e9466d0a44610fdfb733fee55 -> @scoop$1$br$8b63590e6c465d6beec2f021460365468b38e5a90643802a473fa95ea5eb80fb c=(c-struct0)->c-struct0
+  fun @scoop$1$cb$14013cb42a03f28e3751f286ce1478262badb7f8e5ff65e3ecebed66e5cee031(ptr<code>) -> i64
+    local %0 $call.1: i64
+    local %1 $sc.1: ptr<code>
+    local %2 $sc.2: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
+    store local2 -> local0
+    ret local0
+  fun @scoop$1$cb$97ee04ccf5cc40209d5ff8f9e5f91cb5fa797d52ff4d6b24cffc99868db912cd(ptr<code>) -> i64
+    local %0 $argument.0: ptr<code>
+    local %1 $parameter.callback: ptr<code>
+    local %2 $call.1: i64
+    local %3 $sc.1: ptr<code>
+    local %4 $sc.2: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    store local1 -> local3
+    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local3))
+    store local4 -> local2
+    ret local2
+  fun @scoop$1$cb$b2e1200b825891d008efaf85ab7cf059c629d4a0226939a26019f5d6d5c59e5f() -> i64
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn3(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$98c09baaab271d36a0d1d64cca0f4c5b5a11165ad4b63eac77b985ce99ddc5e3(i32) -> i64
+    local %0 callback: ptr<code>
+    local %1 $argument.0: ptr<code>
+    local %2 $parameter.callback: ptr<code>
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = function_address @scoop$1$br$8b63590e6c465d6beec2f021460365468b38e5a90643802a473fa95ea5eb80fb : ptr
+    store t0 -> local0
+    store local0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 local-fn1(local2)
+    store t1 -> local3
+    ret local3
+  output library

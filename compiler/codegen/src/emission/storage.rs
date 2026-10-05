@@ -78,19 +78,21 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
         };
         value.set_initializer(&initializer);
         if !thread_local {
-            let zeroed = size == 0
-                || matches!(
-                    &global.init,
-                    GlobalInit::Storage {
-                        initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-                        ..
-                    }
-                );
-            value.set_section(Some(if zeroed {
-                self.profile.zero_fill_storage_section()
-            } else {
-                self.profile.writable_storage_section()
-            }));
+            let zeroed = matches!(
+                &global.init,
+                GlobalInit::Storage {
+                    initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+                    ..
+                }
+            );
+            crate::metadata_sections::set_section(
+                value,
+                if zeroed {
+                    self.profile.zero_fill_storage_section()
+                } else {
+                    self.profile.writable_storage_section()
+                },
+            );
         }
         if matches!(global.init, GlobalInit::RawStorage { .. }) {
             let definition = self
@@ -111,7 +113,13 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
                     ))
                 })?;
             if thread_local {
-                tls::boundaries(self.llvm, definition, global.symbol(), size.max(1))?;
+                tls::boundaries(
+                    self.llvm,
+                    definition,
+                    global.symbol(),
+                    size.max(1),
+                    self.module.meta.target_profile,
+                )?;
             } else {
                 atom_boundaries::emit_global_atom_boundaries_v1(
                     self.llvm,

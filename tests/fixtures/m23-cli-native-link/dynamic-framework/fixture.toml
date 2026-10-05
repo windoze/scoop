@@ -2,6 +2,7 @@ schema = 1
 name = "native-link-dynamic-framework"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c", "native-sources/compile_Math.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link", "stage-golden"]
 

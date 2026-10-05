@@ -110,14 +110,13 @@ pub(super) fn atom_range(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: VerifiedDefinitionAtomRangeV1,
 ) -> Result<StaticStorageAtomRangeV1, StaticStorageAtomRangeFailureV1> {
-    let index = usize::from(atom.section_ordinal().get()) - 1;
+    let index = (atom.section_ordinal().get() as usize) - 1;
     let section = member
         .definitions()
         .sections()
         .envelope()
         .sections()
         .get(index)
-        .copied()
         .ok_or(StaticStorageAtomRangeFailureV1::MissingSection)?;
     let role = *member
         .definitions()

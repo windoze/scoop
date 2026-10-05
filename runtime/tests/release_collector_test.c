@@ -1,3 +1,4 @@
+#include "no_core.h"
 #include <assert.h>
 #include <signal.h>
 #include <stddef.h>
@@ -221,8 +222,7 @@ static void child_case(bool large, bool stress, bool bad_header) {
         close(output[0]);
         assert(dup2(output[1], STDERR_FILENO) >= 0);
         close(output[1]);
-        struct rlimit limit = {0, 0};
-        assert(setrlimit(RLIMIT_CORE, &limit) == 0);
+        scoop_test_disable_core_dumps();
         run(large, stress, bad_header);
         _exit(0);
     }
@@ -244,6 +244,7 @@ static void child_case(bool large, bool stress, bool bad_header) {
 }
 
 int main(void) {
+    scoop_test_disable_core_dumps();
     for (unsigned large = 0; large < 2; large++) {
         for (unsigned stress = 0; stress < 2; stress++) {
             child_case(large, stress, false);

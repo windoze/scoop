@@ -206,12 +206,8 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         &self,
         symbol: &identity::SourceNativeSymbol,
     ) -> identity::NativeExternalSymbolKey {
-        match self.target_profile.id() {
-            lir::TargetProfileId::DarwinAarch64 => {
-                identity::NativeExternalSymbolKey::darwin_macho_external(symbol)
-                    .expect("validated source native symbols normalize for Mach-O")
-            }
-        }
+        identity::NativeExternalSymbolKey::for_target(self.target_profile.wire_id(), symbol)
+            .expect("validated source native symbols normalize for the selected target")
     }
 
     fn library_binding(
@@ -224,7 +220,12 @@ impl<'module> CanonicalCAbiBuilder<'module> {
             }
             identity::SourceNativeLibraryBinding::LogicalLibrary(name) => {
                 let record = NativeLinkRequirementRecord::from_key(
-                    identity::NativeLinkRequirementKey::target_default(name.clone()),
+                    identity::NativeLinkRequirementKey::for_target(
+                        self.target_profile.wire_id(),
+                        name.clone(),
+                        identity::NativeLibraryKind::TargetDefault,
+                        identity::NativeLibraryGrouping::Independent,
+                    ),
                 )
                 .expect("validated native library names have encodable requirements");
                 self.link_requirements.push(record.clone());

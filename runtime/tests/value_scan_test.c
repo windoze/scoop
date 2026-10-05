@@ -1,3 +1,4 @@
+#include "no_core.h"
 #include <assert.h>
 #include <signal.h>
 #include <stdio.h>
@@ -66,6 +67,7 @@ static void rejects_invalid_scan(bool cycle) {
 }
 
 int main(void) {
+    scoop_test_disable_core_dumps();
     shared_dag();
     large_reference_leaf();
     rejects_invalid_scan(true);

@@ -43,8 +43,8 @@ pub(crate) struct ProgramInputs<'a> {
     pub definitions: BTreeMap<String, DefinitionOwner>,
     pub requirements: BTreeSet<String>,
     pub requirement_origins: BTreeMap<String, Vec<String>>,
-    pub dynamic: BTreeMap<String, crate::dynamic::DynamicBinding>,
-    pub providers: crate::dynamic::DynamicInputs,
+    pub namespace: crate::namespace::NativeNamespace,
+    pub target: scoop_lir::LirTargetProfile,
     pub images: Vec<String>,
     pub root: String,
     pub string_target: String,
@@ -188,28 +188,68 @@ impl<'a> ProgramInputs<'a> {
         let string_target = string_target
             .ok_or_else(|| error("executable closure has no typed runtime String alias"))?;
         requirements.extend(images.iter().cloned());
-        requirements.extend([root.clone(), "_scoop_rt_run_program".to_owned()]);
+        requirements.extend([
+            root.clone(),
+            profile
+                .target()
+                .contract()
+                .native_symbol_normalization()
+                .compiler_generated_object_symbol("scoop_rt_run_program"),
+        ]);
         requirements.extend(
             profile
                 .linker_system_requirements()
                 .iter()
                 .map(|symbol| (*symbol).to_owned()),
         );
+        let (declarations, libraries) = native::declarations::read(closure)?;
+        let mut native = NativeInputs::read(libraries, library_paths, profile)?;
+        let namespace =
+            crate::namespace::NativeNamespace::read(&mut native, library_paths, profile)?;
         let mut result = Self {
             objects,
             definitions,
             requirements,
             requirement_origins,
-            dynamic: BTreeMap::new(),
-            providers: crate::dynamic::DynamicInputs::default(),
+            namespace,
+            target: profile.target(),
             images,
             root,
             string_target,
             strong_relocations,
-            native: NativeInputs::default(),
+            native,
         };
-        native::resolve(closure, runtime, profile, library_paths, &mut result)?;
+        native::resolve(
+            closure,
+            &declarations,
+            runtime,
+            profile,
+            library_paths,
+            &mut result,
+        )?;
         Ok(result)
+    }
+
+    pub fn symbol(&self, logical: &str) -> String {
+        self.target
+            .contract()
+            .native_symbol_normalization()
+            .compiler_generated_object_symbol(logical)
+    }
+
+    pub fn compiler_owned(&self, symbol: &str) -> bool {
+        symbol == self.symbol("main")
+            || symbol == self.symbol("scoop_td_String")
+            || symbol.starts_with(&self.symbol("scoop$"))
+    }
+
+    pub fn linker_defined(&self, symbol: &str) -> bool {
+        symbol == self.symbol("scoop_td_String")
+            || (self.target.id() != scoop_lir::TargetProfileId::DarwinAarch64
+                && matches!(
+                    symbol,
+                    "_GLOBAL_OFFSET_TABLE_" | "__scoop_stackmaps_start" | "__scoop_stackmaps_end"
+                ))
     }
 }
 

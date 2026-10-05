@@ -3,7 +3,7 @@ name = "legacy-m17-vararg-extern-scoop"
 root = "../../m17-vararg/extern-scoop.scoop"
 inputs = ["../../m17-vararg/extern-scoop.scoop", "../../m17-vararg/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["legacy", "m17-vararg", "single-file", "run", "native"]
 
 [[steps]]
@@ -12,7 +12,7 @@ files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "
 
 [[steps]]
 name = "compile_native_0"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../m17-vararg/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../m17-vararg/native.c", "-o", "${work}/native/objects/fixture_native.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +26,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

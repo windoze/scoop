@@ -7,48 +7,7 @@ use object::macho;
 
 use super::ValidatedDarwinArm64ObjectEnvelopeV1;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BuiltinLinkObjectSectionProfileV1 {
-    ScoopLir,
-    GeneratedCBridge,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum BuiltinObjectSectionRoleV1 {
-    Text,
-    ReadOnlyData,
-    CString,
-    WritableData,
-    ZeroFill,
-    GccExceptionTable,
-    LlvmStackmaps,
-    CompactUnwind,
-    EhFrame,
-    ThreadLocalData,
-    ThreadLocalZeroFill,
-    ThreadLocalVariables,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ValidatedBuiltinObjectSectionInventoryV1 {
-    envelope: ValidatedDarwinArm64ObjectEnvelopeV1,
-    profile: BuiltinLinkObjectSectionProfileV1,
-    roles: Vec<BuiltinObjectSectionRoleV1>,
-}
-
-impl ValidatedBuiltinObjectSectionInventoryV1 {
-    pub const fn envelope(&self) -> &ValidatedDarwinArm64ObjectEnvelopeV1 {
-        &self.envelope
-    }
-
-    pub const fn profile(&self) -> BuiltinLinkObjectSectionProfileV1 {
-        self.profile
-    }
-
-    pub fn roles(&self) -> &[BuiltinObjectSectionRoleV1] {
-        &self.roles
-    }
-}
+use crate::link_object::object_sections::*;
 
 pub fn validate_builtin_object_section_inventory_v1(
     envelope: ValidatedDarwinArm64ObjectEnvelopeV1,
@@ -103,7 +62,7 @@ pub fn validate_builtin_object_section_inventory_v1(
         return Err(BuiltinObjectSectionValidationError::MissingGeneratedBridgeText);
     }
     Ok(ValidatedBuiltinObjectSectionInventoryV1 {
-        envelope,
+        envelope: envelope.into(),
         profile,
         roles,
     })

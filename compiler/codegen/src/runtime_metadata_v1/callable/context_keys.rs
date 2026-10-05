@@ -53,7 +53,7 @@ pub(super) fn emit<'ctx>(
         let global = llvm.add_global(i64, None, name.as_str());
         global.set_initializer(&i64.const_zero());
         global.set_alignment(8);
-        global.set_section(Some(profile.writable_storage_section()));
+        crate::metadata_sections::set_section(global, profile.writable_storage_section());
         crate::emission::apply_persistent_linkage(&global, symbol, true)?;
         atoms.push(GlobalAtomMaterializationV1::new(cell.atom, global));
         entries.push(

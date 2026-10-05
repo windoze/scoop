@@ -1,11 +1,21 @@
+use crate::runtime::ValidatedRuntimeBuildProfile;
+use std::path::PathBuf;
+
 use scoop_lir::{
     BackendProfile, LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation,
     ValidatedLirTargetSelection,
 };
 
 use crate::{
-    ToolchainError, ValidatedFinalLinkProfile, c_bridge::resolve_system_c_bridge_toolchain,
+    FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile,
+    c_bridge::resolve_system_c_bridge_toolchain,
 };
+
+#[derive(Clone, Debug, Default)]
+pub struct CToolchainOptions {
+    pub compiler: Option<PathBuf>,
+    pub native_sysroot: Option<PathBuf>,
+}
 
 /// Complete target selection resolved atomically by the shared registry.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -14,105 +24,38 @@ pub struct ResolvedTargetProfile {
     backend: BackendProfile,
     c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     runtime_build: ValidatedRuntimeBuildProfile,
-    final_link: ValidatedFinalLinkProfile,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedRuntimeBuildProfile {
-    canonical_triple: &'static str,
-    runtime_sources: &'static [&'static str],
-    runtime_c_flags: &'static [&'static str],
 }
 
 impl ResolvedTargetProfile {
-    fn darwin_aarch64(
-        c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
-    ) -> Result<Self, ToolchainError> {
-        let lir_target = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        let final_link = ValidatedFinalLinkProfile::from_startup(c_bridge_toolchain.clone())?;
+    /// Resolves all mutually compatible projections as one value.
+    pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
+        Self::resolve_with(triple, &CToolchainOptions::default())
+    }
+
+    pub fn resolve_with(triple: &str, options: &CToolchainOptions) -> Result<Self, ToolchainError> {
+        let target = validate_target(triple)?;
+        let c_bridge_toolchain = match target.id() {
+            TargetProfileId::DarwinAarch64 => {
+                if options.compiler.is_some() || options.native_sysroot.is_some() {
+                    return Err(ToolchainError("--cc and --native-sysroot apply to Linux targets; Darwin uses the selected Xcode toolchain".into()));
+                }
+                resolve_system_c_bridge_toolchain()?
+            }
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                crate::resolve_linux_c_toolchain(
+                    target,
+                    options.compiler.as_deref(),
+                    options.native_sysroot.as_deref(),
+                )?
+            }
+        };
+        let lir_target = ValidatedLirTargetSelection::from_id(target.id());
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile {
-                canonical_triple: "aarch64-apple-darwin",
-                runtime_sources: &[
-                    "runtime/src/rt.c",
-                    "runtime/src/characters.c",
-                    "runtime/src/strings.c",
-                    "runtime/src/string_parts.c",
-                    "runtime/src/utf8.c",
-                    "runtime/src/startup.c",
-                    "runtime/src/startup/failure.c",
-                    "runtime/src/startup/gateway.c",
-                    "runtime/src/boxing.c",
-                    "runtime/src/arrays.c",
-                    "runtime/src/task_context.c",
-                    "runtime/src/value_shape.c",
-                    "runtime/src/value_scan.c",
-                    "runtime/src/eh.c",
-                    "runtime/src/eh_personality.c",
-                    "runtime/src/initialization.c",
-                    "runtime/src/image/ranges.c",
-                    "runtime/src/image/checks.c",
-                    "runtime/src/image/dependencies.c",
-                    "runtime/src/image/records.c",
-                    "runtime/src/image/registry.c",
-                    "runtime/src/image/lookup.c",
-                    "runtime/src/image/active.c",
-                    "runtime/src/image/scan_ranges.c",
-                    "runtime/src/image/types.c",
-                    "runtime/src/image/context_keys.c",
-                    "runtime/src/image/type_relations.c",
-                    "runtime/src/image/storage.c",
-                    "runtime/src/image/immortals.c",
-                    "runtime/src/image/static_values.c",
-                    "runtime/src/image/units.c",
-                    "runtime/src/image/allocation_ranges.c",
-                    "runtime/src/image/stackmaps.c",
-                    "runtime/src/gc.c",
-                    "runtime/src/gc/allocation.c",
-                    "runtime/src/gc/collector.c",
-                    "runtime/src/gc/evacuation.c",
-                    "runtime/src/gc/reclamation.c",
-                    "runtime/src/gc/heap.c",
-                    "runtime/src/gc/heap_objects.c",
-                    "runtime/src/gc/handles.c",
-                    "runtime/src/gc/root_frames.c",
-                    "runtime/src/gc/roots.c",
-                    "runtime/src/gc/stackmap.c",
-                    "runtime/src/gc/stackmap/parser.c",
-                    "runtime/src/gc/stackmap/records.c",
-                    "runtime/src/gc/stackmap/fingerprint.c",
-                    "runtime/src/gc/stack_roots.c",
-                    "runtime/src/thread.c",
-                    "runtime/src/thread/collection.c",
-                    "runtime/src/thread/debug.c",
-                    "runtime/src/thread/roots.c",
-                    "runtime/src/thread/transitions.c",
-                    "runtime/src/callback.c",
-                    "runtime/src/platform/profiles/darwin_aarch64.c",
-                    "runtime/src/platform/image/macho.c",
-                    "runtime/src/platform/image/darwin_sha256.c",
-                    "runtime/src/platform/arch/aarch64.c",
-                    "runtime/src/platform/arch/aarch64_anchor.S",
-                    "runtime/src/platform/arch/aarch64_strings.S",
-                    "runtime/src/platform/os/darwin.c",
-                ],
-                runtime_c_flags: &[
-                    "-pthread",
-                    "-fno-omit-frame-pointer",
-                    "-fno-optimize-sibling-calls",
-                ],
-            },
-            final_link,
+            runtime_build: ValidatedRuntimeBuildProfile::for_target(target),
         })
-    }
-
-    /// Resolves all mutually compatible projections as one value.
-    pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
-        validate_target(triple)?;
-        Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?)
     }
 
     /// Resolves the current host through the same closed registry.
@@ -126,7 +69,7 @@ impl ResolvedTargetProfile {
 
     /// Returns the unique target spelling transported to the paired compiler.
     pub const fn canonical_triple(&self) -> &'static str {
-        self.runtime_build.canonical_triple
+        self.runtime_build.canonical_triple()
     }
 
     pub const fn lir_target(&self) -> LirTargetProfile {
@@ -149,35 +92,39 @@ impl ResolvedTargetProfile {
         self.runtime_build
     }
 
-    pub const fn final_link(&self) -> &ValidatedFinalLinkProfile {
-        &self.final_link
+    pub fn final_link(&self) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        self.final_link_with(&FinalLinkOptions::default())
+    }
+
+    pub fn final_link_with(
+        &self,
+        options: &FinalLinkOptions,
+    ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options)
     }
 }
 
 pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
     match (std::env::consts::ARCH, std::env::consts::OS) {
         ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
+        ("x86_64", "linux") if cfg!(target_env = "musl") => Ok("x86_64-unknown-linux-musl"),
+        ("x86_64", "linux") => Ok("x86_64-unknown-linux-gnu"),
         (arch, os) => Err(ToolchainError(format!(
-            "unsupported host {arch}-{os}; M23 supports only macOS/AArch64"
+            "unsupported host {arch}-{os}; M28 supports macOS/AArch64 and Linux/amd64"
         ))),
     }
 }
 
-impl ValidatedRuntimeBuildProfile {
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
+pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, ToolchainError> {
+    match triple {
+        "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
+            return Ok(LirTargetProfile::LINUX_X86_64_GNU);
+        }
+        "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
+            return Ok(LirTargetProfile::LINUX_X86_64_MUSL);
+        }
+        _ => {}
     }
-
-    pub const fn runtime_sources(self) -> &'static [&'static str] {
-        self.runtime_sources
-    }
-
-    pub const fn runtime_c_flags(self) -> &'static [&'static str] {
-        self.runtime_c_flags
-    }
-}
-
-pub(crate) fn validate_target(triple: &str) -> Result<(), ToolchainError> {
     let mut components = triple.split('-');
     let arch = components.next().unwrap_or_default();
     let vendor = components.next().unwrap_or_default();
@@ -189,10 +136,10 @@ pub(crate) fn validate_target(triple: &str) -> Result<(), ToolchainError> {
         && supported_os
         && !has_extra_identity
     {
-        Ok(())
+        Ok(LirTargetProfile::DARWIN_AARCH64)
     } else {
         Err(ToolchainError(format!(
-            "unsupported target {triple:?}; M23 supports only macOS/AArch64 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
+            "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
         )))
     }
 }
@@ -212,6 +159,7 @@ fn versioned_component(component: &str, prefix: &str) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     #[test]
     fn aliases_resolve_to_one_complete_profile() {
         let expected = ResolvedTargetProfile::resolve("aarch64-apple-darwin").unwrap();
@@ -246,23 +194,26 @@ mod tests {
                     "-fno-optimize-sibling-calls",
                 ]
             );
-            assert!(profile.final_link().linker_driver().is_absolute());
+            assert!(profile.final_link().unwrap().linker_driver().is_absolute());
             assert!(
                 profile
                     .final_link()
+                    .unwrap()
                     .linker_args()
                     .contains(&"-no_deduplicate")
             );
             assert!(
                 profile
                     .final_link()
+                    .unwrap()
                     .system_provider()
+                    .unwrap()
                     .exports()
                     .contains_key("_getpagesize")
             );
             assert_eq!(
-                profile.final_link().fingerprint().unwrap(),
-                expected.final_link().fingerprint().unwrap()
+                profile.final_link().unwrap().fingerprint().unwrap(),
+                expected.final_link().unwrap().fingerprint().unwrap()
             );
         }
     }

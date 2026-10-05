@@ -2,7 +2,7 @@ schema = 1
 name = "release-blocks-cache-invalidation"
 inputs = ["provider", "consumer", "native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m24", "release-blocks", "cache", "stage-golden"]
 
 [vars]
@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "compile_native"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${fixture}/native.c", "-o", "${work}/native/trace.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${fixture}/native.c", "-o", "${work}/native/trace.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -33,7 +33,7 @@ env = {ZERO_AR_DATE = "1"}
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -43,12 +43,12 @@ checks = [
   {actual = "${cold.result.observations.child_invocations}", equals = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
   {file = "${work}/dumps/cold/${cold.result.root.identity}/hir.txt", snapshot = "cold.hir.txt"},
   {file = "${work}/dumps/cold/${cold.result.root.identity}/mir.txt", snapshot = "cold.mir.txt"},
-  {file = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", snapshot = "cold.lir.txt"},
+  {file = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", snapshot = "cold.${target}.lir.txt"},
 ]
 
 [[steps]]
 name = "cold_warm"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -82,7 +82,7 @@ files = [
 
 [[steps]]
 name = "body"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/body"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/body"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -95,12 +95,12 @@ checks = [
   {actual = "${body.result.dependencies.0.artifact_fingerprint}", equals = "${cold.result.dependencies.0.artifact_fingerprint}"},
   {file = "${work}/dumps/body/${body.result.root.identity}/hir.txt", snapshot = "body.hir.txt"},
   {file = "${work}/dumps/body/${body.result.root.identity}/mir.txt", snapshot = "body.mir.txt"},
-  {file = "${work}/dumps/body/${body.result.root.identity}/lir.txt", snapshot = "body.lir.txt"},
+  {file = "${work}/dumps/body/${body.result.root.identity}/lir.txt", snapshot = "body.${target}.lir.txt"},
 ]
 
 [[steps]]
 name = "body_warm"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -134,7 +134,7 @@ files = [
 
 [[steps]]
 name = "field"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/field"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/field"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -147,12 +147,12 @@ checks = [
   {actual = "${field.result.dependencies.0.artifact_fingerprint}", equals = "${body.result.dependencies.0.artifact_fingerprint}"},
   {file = "${work}/dumps/field/${field.result.root.identity}/hir.txt", snapshot = "field.hir.txt"},
   {file = "${work}/dumps/field/${field.result.root.identity}/mir.txt", snapshot = "field.mir.txt"},
-  {file = "${work}/dumps/field/${field.result.root.identity}/lir.txt", snapshot = "field.lir.txt"},
+  {file = "${work}/dumps/field/${field.result.root.identity}/lir.txt", snapshot = "field.${target}.lir.txt"},
 ]
 
 [[steps]]
 name = "field_warm"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -186,7 +186,7 @@ files = [
 
 [[steps]]
 name = "helper"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/helper"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/helper"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -199,12 +199,12 @@ checks = [
   {actual = "${helper.result.dependencies.0.artifact_fingerprint}", equals = "${field.result.dependencies.0.artifact_fingerprint}"},
   {file = "${work}/dumps/helper/${helper.result.root.identity}/hir.txt", snapshot = "helper.hir.txt"},
   {file = "${work}/dumps/helper/${helper.result.root.identity}/mir.txt", snapshot = "helper.mir.txt"},
-  {file = "${work}/dumps/helper/${helper.result.root.identity}/lir.txt", snapshot = "helper.lir.txt"},
+  {file = "${work}/dumps/helper/${helper.result.root.identity}/lir.txt", snapshot = "helper.${target}.lir.txt"},
 ]
 
 [[steps]]
 name = "helper_warm"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -239,7 +239,7 @@ files = [
 
 [[steps]]
 name = "effect"
-argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""

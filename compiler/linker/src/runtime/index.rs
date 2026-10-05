@@ -37,6 +37,7 @@ impl RuntimeObjectSet {
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || index.toolchain != encode(toolchain.contract()).map_err(error)?
+            || toolchain.contract().target() != &target.wire_id()
         {
             return Err(error(
                 "runtime index schema, target, ABI or C toolchain is incompatible; rebuild runtime",
@@ -75,7 +76,7 @@ impl RuntimeObjectSet {
                     record.id
                 )));
             }
-            let info = NativeObjectInfo::read(&bytes, toolchain.contract().deployment())
+            let info = NativeObjectInfo::read_with_toolchain(&bytes, toolchain)
                 .map_err(|err| error(format!("runtime object {}: {err}", record.id)))?;
             let id = domain_separated_cbor_hash(
                 "scoop-runtime-object-v1",

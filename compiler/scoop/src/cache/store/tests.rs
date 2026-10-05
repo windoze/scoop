@@ -25,6 +25,7 @@ fn fixture(root: &Path, key: ConeCompileCacheKeyV1, producer: &str) -> Fixture {
     )
     .unwrap();
     let archive = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone.clone(),
         producer,

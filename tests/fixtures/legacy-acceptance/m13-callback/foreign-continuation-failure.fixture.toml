@@ -3,7 +3,7 @@ name = "legacy-m13-callback-foreign-continuation-failure"
 root = "../../m13-callback/foreign-continuation-failure.scoop"
 inputs = ["../../m13-callback/foreign-continuation-failure.scoop", "../../m13-callback/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["legacy", "m13-callback", "single-file", "run", "native"]
 
 [[steps]]
@@ -12,7 +12,7 @@ files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "
 
 [[steps]]
 name = "compile_native_0"
-argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/objects/fixture_native.o"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,13 +26,13 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "foreign-continuation-failure.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "foreign-continuation-failure.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "foreign-continuation-failure.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "foreign-continuation-failure.lir.txt"}]
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "foreign-continuation-failure.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "foreign-continuation-failure.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "foreign-continuation-failure.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "foreign-continuation-failure.${target}.lir.txt"}]
 
 [[steps]]
 name = "run"

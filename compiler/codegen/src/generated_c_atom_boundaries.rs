@@ -1,4 +1,4 @@
-//! Materialize exact generated-C atom boundaries in canonical Mach-O objects.
+//! Materialize exact generated-C atom boundaries in native objects.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -10,8 +10,8 @@ use scoop_lir::{
 };
 
 use crate::CodegenError;
-use crate::c_bridge::{GENERATED_BRIDGE_CONTEXT_SECTION, GENERATED_BRIDGE_SIGNATURE_SECTION};
-use crate::callable_atom_boundaries::{BoundaryDefinitionV1, MachOLayout};
+mod elf;
+mod macho;
 
 pub(crate) fn materialize_v1(
     path: &Path,
@@ -46,15 +46,7 @@ pub(crate) fn materialize_v1(
         )));
     }
 
-    let mut bytes = std::fs::read(path).map_err(|error| {
-        CodegenError(format!(
-            "cannot read generated-C object {} for atom boundary materialization: {error}",
-            path.display()
-        ))
-    })?;
-    let layout = MachOLayout::parse(&bytes)?;
-    let normalization = target.contract().native_symbol_normalization();
-    let mut additions = Vec::with_capacity(expected.len() * 2);
+    let mut atoms = Vec::with_capacity(expected.len());
     for (atom, authority) in expected {
         let definition = definitions[&atom];
         let [boundary] = definition.atom_boundaries() else {
@@ -66,83 +58,47 @@ pub(crate) fn materialize_v1(
         {
             return Err(invalid_definition(unit, atom));
         }
-
-        let primary_name = normalization
-            .compiler_generated_object_symbol(definition.primary_symbol().symbol().as_str())
-            .into_bytes();
-        let primary = layout.require_external_definition(&primary_name)?;
-        let section = layout.require_section_ordinal(primary.section_ordinal())?;
-        let expected_section = match authority.key().atom() {
+        let kind = match authority.key().atom() {
             GeneratedBridgeAtomRoleKey::PrimaryEntry { unit: owner } if owner == unit.unit() => {
-                (b"__TEXT".as_slice(), b"__text".as_slice())
+                BridgeAtomKind::Entry
             }
             GeneratedBridgeAtomRoleKey::SignatureDescriptor { unit: owner, .. }
                 if owner == unit.unit() =>
             {
-                GENERATED_BRIDGE_SIGNATURE_SECTION
+                BridgeAtomKind::Signature
             }
             GeneratedBridgeAtomRoleKey::ContextDescriptor { unit: owner, .. }
                 if owner == unit.unit() =>
             {
-                GENERATED_BRIDGE_CONTEXT_SECTION
+                BridgeAtomKind::Context
             }
-            GeneratedBridgeAtomRoleKey::PrimaryEntry { .. }
-            | GeneratedBridgeAtomRoleKey::SignatureDescriptor { .. }
-            | GeneratedBridgeAtomRoleKey::ContextDescriptor { .. }
-            | GeneratedBridgeAtomRoleKey::StaticAssertSupport { .. } => {
-                return Err(CodegenError(format!(
-                    "generated-C unit {} contains non-materializable or foreign atom {atom}",
-                    unit.unit()
-                )));
-            }
+            _ => return Err(invalid_definition(unit, atom)),
         };
-        let canonical_section = layout.require_section(expected_section.0, expected_section.1)?;
-        if section.ordinal() != canonical_section.ordinal()
-            || primary.value() != canonical_section.address()
-        {
-            return Err(CodegenError(format!(
-                "generated-C bridge atom {atom} does not start its canonical section {},{}",
-                String::from_utf8_lossy(expected_section.0),
-                String::from_utf8_lossy(expected_section.1)
-            )));
-        }
-        let end = canonical_section.checked_end()?;
-        if !matches!(
-            authority.key().atom(),
-            GeneratedBridgeAtomRoleKey::PrimaryEntry { .. }
-        ) && end != canonical_section.address() + 1
-        {
-            return Err(CodegenError(format!(
-                "generated-C descriptor atom {atom} is not an isolated one-byte section"
-            )));
-        }
-
-        let start_name = normalization
-            .compiler_generated_object_symbol(boundary.start().symbol().as_str())
-            .into_bytes();
-        let end_name = normalization
-            .compiler_generated_object_symbol(boundary.end().symbol().as_str())
-            .into_bytes();
-        additions.push(BoundaryDefinitionV1::new(
-            start_name,
-            canonical_section.ordinal(),
-            canonical_section.address(),
-            scoop_lir::LinkageClass::ConeStrong,
-        ));
-        additions.push(BoundaryDefinitionV1::new(
-            end_name,
-            canonical_section.ordinal(),
-            end,
-            scoop_lir::LinkageClass::ConeStrong,
-        ));
+        atoms.push((kind, definition));
     }
-    layout.add_external_definitions(&mut bytes, additions)?;
-    std::fs::write(path, bytes).map_err(|error| {
+    let bytes = std::fs::read(path).map_err(|error| {
         CodegenError(format!(
-            "cannot write generated-C atom boundaries to {}: {error}",
+            "cannot read generated-C object {}: {error}",
+            path.display()
+        ))
+    })?;
+    let output = match target.native_object_format() {
+        scoop_lir::NativeObjectFormat::MachO64 => macho::materialize(bytes, target, &atoms)?,
+        scoop_lir::NativeObjectFormat::Elf64 => elf::materialize(&bytes, &atoms)?,
+    };
+    std::fs::write(path, output).map_err(|error| {
+        CodegenError(format!(
+            "cannot write generated-C boundaries to {}: {error}",
             path.display()
         ))
     })
+}
+
+#[derive(Clone, Copy)]
+enum BridgeAtomKind {
+    Entry,
+    Signature,
+    Context,
 }
 
 fn invalid_definition(

@@ -59,21 +59,21 @@ fn selected_profile_creates_the_canonical_aarch64_machine() {
 }
 
 #[test]
-fn darwin_aarch64_c_pointer_representations_are_qualified() {
+fn native_c_pointer_representations_are_qualified() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)
         .expect("codegen crate is nested below the workspace root");
 
-    let profile_source = workspace.join("runtime/src/platform/profiles/darwin_aarch64.c");
+    let profile_source = workspace.join(crate::tests::platform_support::native_profile_source());
     let profile = std::process::Command::new("cc")
         .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
         .arg(&profile_source)
         .output()
-        .expect("compile Darwin/AArch64 runtime profile qualification");
+        .expect("compile native runtime profile qualification");
     assert!(
         profile.status.success(),
-        "Darwin/AArch64 runtime target assertions must compile cleanly:\n{}",
+        "native runtime target assertions must compile cleanly:\n{}",
         String::from_utf8_lossy(&profile.stderr)
     );
 

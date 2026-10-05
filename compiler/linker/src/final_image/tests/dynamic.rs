@@ -12,10 +12,15 @@ fn actual_native_dynamic_ordinal_version_and_rpath_corruption_are_rejected() {
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
         .args(["-target", "arm64-apple-macos", "-dynamiclib", "-isysroot"])
-        .arg(toolchain.sdk_root())
+        .arg(toolchain.sdk_root().expect("Darwin test toolchain"))
         .arg(format!(
             "-mmacosx-version-min={}",
-            toolchain.profile().contract().deployment().minimum_os()
+            toolchain
+                .profile()
+                .contract()
+                .deployment()
+                .expect("Darwin test toolchain")
+                .minimum_os()
         ))
         .args([
             "-install_name",
@@ -70,7 +75,15 @@ fn actual_native_dynamic_ordinal_version_and_rpath_corruption_are_rejected() {
     };
 
     let mut bytes = original.clone();
-    let rpath = inputs.providers.rpaths.iter().next().unwrap();
+    let rpath = inputs
+        .namespace
+        .darwin()
+        .unwrap()
+        .providers
+        .rpaths
+        .iter()
+        .next()
+        .unwrap();
     let offset = find(&bytes, rpath.as_bytes());
     bytes[offset + rpath.len() - 1] = b'!';
     reject(&bytes, "final RPATH");

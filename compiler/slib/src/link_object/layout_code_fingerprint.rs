@@ -3,10 +3,7 @@
 use std::fmt;
 
 use scoop_identity::ConeIdentity;
-use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1, LirTargetProfile,
-    ValidatedLirTargetSelection,
-};
+use scoop_lir::{CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1};
 use scoop_wire::HashError;
 
 use super::{
@@ -192,15 +189,23 @@ fn compute(
     undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
 ) -> Result<VerifiedCodeFingerprintV2, LayoutCodeFingerprintError> {
     let producer = production.link_objects().producer();
+    let target = production
+        .link_objects()
+        .final_objects()
+        .entry()
+        .patch_sites()
+        .builtins()
+        .strong_relocations()
+        .target();
     if native_requirements.producer() != producer {
         return Err(LayoutCodeFingerprintError::NativeProducerMismatch {
             expected: producer,
             actual: native_requirements.producer(),
         });
     }
-    if native_requirements.target() != LirTargetProfile::DARWIN_AARCH64
+    if native_requirements.target() != target
         || undefined_symbols.producer() != producer
-        || undefined_symbols.selection() != ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+        || undefined_symbols.selection().target() != target
     {
         return Err(LayoutCodeFingerprintError::TargetMismatch);
     }

@@ -2,7 +2,7 @@ schema = 1
 name = "cli-invalid-declarations-retain-language-diagnostics"
 inputs = ["../../m7-overload/errors/duplicate-signature.scoop", "../../m7-overload/errors/duplicate-return-only.scoop", "../../m13-callback/errors/direct-construction.scoop", "callback-alias.scoop", "shadow.scoop"]
 tools = ["scoop", "scoopc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "diagnostics", "negative", "callback"]
 
 [vars]
@@ -10,7 +10,7 @@ options = ["--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir",
 
 [[steps]]
 name = "duplicate"
-argv = ["${scoop}", "build", "${fixture}/../../m7-overload/errors/duplicate-signature.scoop", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../../m7-overload/errors/duplicate-signature.scoop", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -19,7 +19,7 @@ diagnostics = {file = "duplicate.json"}
 
 [[steps]]
 name = "duplicate_return"
-argv = ["${scoop}", "build", "${fixture}/../../m7-overload/errors/duplicate-return-only.scoop", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../../m7-overload/errors/duplicate-return-only.scoop", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -28,7 +28,7 @@ diagnostics = {file = "duplicate_return.json"}
 
 [[steps]]
 name = "callback"
-argv = ["${scoop}", "build", "${fixture}/../../m13-callback/errors/direct-construction.scoop", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/../../m13-callback/errors/direct-construction.scoop", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -37,7 +37,7 @@ diagnostics = {file = "callback.json"}
 
 [[steps]]
 name = "alias"
-argv = ["${scoop}", "build", "${fixture}/callback-alias.scoop", {each = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/callback-alias.scoop", {each = "${options}"}]
 exit = 1
 stdout = ""
 stderr = ""
@@ -46,7 +46,7 @@ diagnostics = {file = "alias.json"}
 
 [[steps]]
 name = "shadow"
-argv = ["${scoop}", "build", "${fixture}/shadow.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/shadow.scoop", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

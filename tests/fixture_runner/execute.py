@@ -103,5 +103,7 @@ def execute_variant(fixture, context, environment, update, result, interrupted):
 
 def finish(name, process, fixture, context, update, result, interrupted):
     context[name] = process.finish(interrupted)
-    process_expectations(process.step, context[name], context, fixture.base)
+    result.snapshots += process_expectations(
+        process.step, context[name], context, fixture.base, update
+    )
     result.snapshots += check_all(process.step.get("checks", []), context, fixture.base, update)

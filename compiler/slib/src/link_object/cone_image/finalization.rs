@@ -5,7 +5,7 @@ use super::record::{IMAGE_DESCRIPTOR_SIZE, expected_final_image_record};
 use crate::SlibMemberId;
 use crate::link_object::{
     ScoopLirObjectEnvelopeValidationError, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, same_macho_shape,
+    VerifiedMaterializedPatchSiteV1, same_object_shape,
     validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
@@ -123,9 +123,12 @@ where
             return Err(RuntimeImagePatchError::ObjectOrderMismatch);
         }
         verify_only_image_slot_changed(member, &bytes, source.bytes(), image_member, image_patch)?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(&bytes)
-            .map_err(|source| RuntimeImagePatchError::FinalEnvelope { member, source })?;
-        if !same_macho_shape(source.envelope().sections(), envelope.sections()) {
+        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+            scoop_lir::LirTargetProfile::from_id(source.envelope().sections().envelope().target()),
+            &bytes,
+        )
+        .map_err(|source| RuntimeImagePatchError::FinalEnvelope { member, source })?;
+        if !same_object_shape(source.envelope().sections(), envelope.sections()) {
             return Err(RuntimeImagePatchError::MachOShapeChanged(member));
         }
         finalized.push(VerifiedRuntimeImagePatchedScoopLirObjectV1 {

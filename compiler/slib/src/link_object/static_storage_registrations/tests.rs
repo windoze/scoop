@@ -67,7 +67,7 @@ fn verifies_zeroed_runtime_storage_with_shared_sentinels() {
     assert!(registration.initial_target_relocations().is_empty());
     assert!(matches!(
         registration.template_relocation().shape(),
-        crate::link_object::VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+        crate::link_object::VerifiedObjectRelocationShapeV1::Unsigned64 {
             target: crate::link_object::VerifiedRelocationTargetV1::LocalDefinition {
                 owner_atom: None,
                 ..
@@ -135,7 +135,7 @@ fn verifies_encoded_null_storage_with_an_empty_relocation_sentinel() {
     assert!(registration.initial_target_relocations().is_empty());
     assert!(matches!(
         registration.template_relocation().shape(),
-        crate::link_object::VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+        crate::link_object::VerifiedObjectRelocationShapeV1::Unsigned64 {
             target: crate::link_object::VerifiedRelocationTargetV1::LocalDefinition {
                 owner_atom: Some(_),
                 ..
@@ -144,7 +144,7 @@ fn verifies_encoded_null_storage_with_an_empty_relocation_sentinel() {
     ));
     assert!(matches!(
         registration.relocation_table_relocation().shape(),
-        crate::link_object::VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+        crate::link_object::VerifiedObjectRelocationShapeV1::Unsigned64 {
             target: crate::link_object::VerifiedRelocationTargetV1::LocalDefinition {
                 owner_atom: None,
                 ..

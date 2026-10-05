@@ -18,17 +18,19 @@ typedef enum ScoopThreadMode {
     SCOOP_THREAD_DETACHING,
 } ScoopThreadMode;
 
-_Static_assert(SCOOP_THREAD_NATIVE_SAFE == SCOOP_THREAD_DEBUG_NATIVE_SAFE,
+_Static_assert((int)SCOOP_THREAD_NATIVE_SAFE ==
+                   (int)SCOOP_THREAD_DEBUG_NATIVE_SAFE,
                "public native-safe debug value drifted");
-_Static_assert(SCOOP_THREAD_MANAGED == SCOOP_THREAD_DEBUG_MANAGED,
+_Static_assert((int)SCOOP_THREAD_MANAGED == (int)SCOOP_THREAD_DEBUG_MANAGED,
                "public managed debug value drifted");
-_Static_assert(SCOOP_THREAD_NATIVE_BORROWED == SCOOP_THREAD_DEBUG_NATIVE_BORROWED,
+_Static_assert((int)SCOOP_THREAD_NATIVE_BORROWED ==
+                   (int)SCOOP_THREAD_DEBUG_NATIVE_BORROWED,
                "public native-borrowed debug value drifted");
-_Static_assert(SCOOP_THREAD_PARKED == SCOOP_THREAD_DEBUG_PARKED,
+_Static_assert((int)SCOOP_THREAD_PARKED == (int)SCOOP_THREAD_DEBUG_PARKED,
                "public parked debug value drifted");
-_Static_assert(SCOOP_THREAD_COLLECTOR == SCOOP_THREAD_DEBUG_COLLECTOR,
+_Static_assert((int)SCOOP_THREAD_COLLECTOR == (int)SCOOP_THREAD_DEBUG_COLLECTOR,
                "public collector debug value drifted");
-_Static_assert(SCOOP_THREAD_DETACHING == SCOOP_THREAD_DEBUG_DETACHING,
+_Static_assert((int)SCOOP_THREAD_DETACHING == (int)SCOOP_THREAD_DEBUG_DETACHING,
                "public detaching debug value drifted");
 
 typedef enum ScoopThreadAttachmentKind {
@@ -100,18 +102,24 @@ ScoopThreadState *scoop_thread_current_required(void);
 void scoop_thread_require_managed(void);
 void scoop_thread_poll(void);
 void scoop_thread_native_borrowed_entry(void);
-void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
-                                      uintptr_t stack_pointer, uintptr_t frame_pointer);
+void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
+                                      uintptr_t return_pc,
+                                      uintptr_t stack_pointer,
+                                      uintptr_t frame_pointer);
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
-void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
+void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor,
+                                        uintptr_t return_pc,
                                         uintptr_t stack_pointer,
                                         uintptr_t frame_pointer);
 void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
-                                     uintptr_t managed_stack_low, uintptr_t return_pc,
-                                     uintptr_t stack_pointer, uintptr_t frame_pointer);
+                                     uintptr_t managed_stack_low,
+                                     uintptr_t return_pc,
+                                     uintptr_t stack_pointer,
+                                     uintptr_t frame_pointer);
 void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
                                          uintptr_t managed_stack_low,
-                                         uintptr_t return_pc, uintptr_t stack_pointer,
+                                         uintptr_t return_pc,
+                                         uintptr_t stack_pointer,
                                          uintptr_t frame_pointer);
 
 /* Collection coordinator. begin returns false when this request joined an

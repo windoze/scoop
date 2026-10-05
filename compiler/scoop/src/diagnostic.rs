@@ -496,6 +496,7 @@ impl ClassifyBuildFailure for ChildTransportError {
                 BuildDiagnosticCode::CHILD_EXIT,
             ),
             Self::MissingExecutableParent { .. }
+            | Self::TemporaryDirectory(_)
             | Self::Spawn { .. }
             | Self::MissingPipe(_)
             | Self::WriteRequest(_)
