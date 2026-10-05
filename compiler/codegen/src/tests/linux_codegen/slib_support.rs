@@ -139,6 +139,14 @@ impl SlibObjects {
         &self,
         objects: &[(SlibMemberId, Vec<u8>)],
     ) -> VerifiedBuiltinObjectStrongRelocationSetV1 {
+        self.try_builtins(objects)
+            .expect("real ELF definitions and relocations")
+    }
+
+    pub fn try_builtins(
+        &self,
+        objects: &[(SlibMemberId, Vec<u8>)],
+    ) -> Result<VerifiedBuiltinObjectStrongRelocationSetV1, BuiltinObjectSetValidationError> {
         verify_builtin_object_strong_relocations_v1(
             &self.plans,
             &self.symbols,
@@ -146,7 +154,6 @@ impl SlibObjects {
             self.bridge_objects.clone(),
             &c_candidates(&self.c_objects),
         )
-        .expect("real ELF definitions and relocations")
     }
 
     pub fn sites(

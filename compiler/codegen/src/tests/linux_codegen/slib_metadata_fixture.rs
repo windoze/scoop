@@ -46,6 +46,22 @@ pub(super) fn module(target: TargetProfileId) -> Module {
     module
 }
 
+pub(super) fn encoded_only(target: TargetProfileId, initial: u64) -> Module {
+    let mut module = for_target(values_module(), target);
+    module.globals = Arena::default();
+    module.functions.clear();
+    add_storage(
+        &mut module,
+        "encodedOnly",
+        LirType::I64,
+        RefScan::None,
+        LirStaticInitialState::EncodedStaticValue {
+            payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(initial)),
+        },
+    );
+    module
+}
+
 fn module_empty_struct(module: &mut Module) -> scoop_lir::StructDefId {
     module.structs.alloc_scoop(
         test_physical_exact("EmptyStatic", scoop_identity::SourceNominalKind::Struct),

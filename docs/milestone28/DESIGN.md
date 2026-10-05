@@ -186,6 +186,8 @@ LLVM 原始 stackmap 含函数地址 relocation。PIE 不能把它作为只读�
 
 ELF atom boundary 优先使用真实 symbol/section extent 和现有 typed definition，必要边界标签由 ELF 发射模块提供。不要复制 Mach-O 的 nlist 重写、underscore 拼接及固定 TLV extent。对象物化、指纹补丁之后按最终字节检查一次相关对象事实；后续 consumer 复用读取结果。
 
+只读数据 section 可以在第一个 atom 之前包含 canonical zero 字节，供共享空 template/relocation 哨兵使用；不能假定 LLVM 总把哨兵排在已命名 atom 后面。前缀逐字节检查为零，不能包含 relocation 来源；普通 atom 仍不重叠，哨兵引用仍按实际范围、对齐和非 atom 区域验证。可写数据与代码 section 继续要求从已归属 atom 开始。
+
 ### 6.3 ODR
 
 保持 M23 的 exact type/body/storage identity 和已有 ODR 内容一致性语义。ELF 使用 `weak_odr` 和按实际 definition member 组织的 COMDAT；不新增 ODR 身份，也不假定一个跨对象语义 group 必须变成一个跨对象物理 COMDAT。

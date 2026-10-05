@@ -105,3 +105,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - CLI 进程 fixture 的 native helper 在 Linux 从 `/proc/self/cmdline` 读取真实参数，Darwin 保留 `_NSGetArgv`。两 libc 各通过 10 个正式进程，涵盖空/非 UTF-8 参数、工作目录、环境和 stdin/stderr、退出码、信号、取消后子进程回收，以及执行中重新构建同一路径。符号链接循环用例的 JSON、producer 和人类可读诊断统一使用宿主 ELOOP，glibc 三个诊断入口通过。runtime/fixture README 同步当前构建与目标入口。
 
 - driver 的 Link 对象负例改用共有对象 reader 定位符号名称，ELF relocation 损坏修改实际 RELA kind，stackmap section 名称及错误、C compiler profile 变更按平台处理。完整 driver 回归此前 83 项通过；修正后剩余的 property-initialization 组合负例单独通过，包含实际产物读回及各类对象/registration 损坏。workspace fmt/clippy 通过。最终完整 workspace/三平台 fixture 报告尚待完成。
+
+- 只含静态标量初值的 ELF 程序暴露共享空 relocation 哨兵位于 section 前缀的合法排列。只读数据前缀现要求 canonical zero，保留 relocation 来源必须属于 atom、哨兵范围/对齐/非 atom 区域检查；不放宽代码或可写 section。新增两 libc 的零/非零静态标量及非零前缀损坏测试，原有混合 String/ZST/初始化测试继续覆盖组合形态。codegen 331 项和 slib 600 项测试、workspace fmt/clippy 通过。

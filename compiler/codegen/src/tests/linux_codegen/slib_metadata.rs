@@ -1,5 +1,6 @@
 use super::slib_support::{SlibObjects, candidates, set_rela_addend};
 use super::*;
+use object::ObjectSymbol;
 use scoop_slib::*;
 
 #[test]
@@ -92,5 +93,71 @@ fn elf_static_immortal_and_initialization_registrations() {
             )
             .is_err()
         );
+    }
+}
+
+#[test]
+fn elf_encoded_storage_accepts_only_zero_sentinel_prefixes() {
+    let directory = tempfile::tempdir().unwrap();
+    for target in [
+        TargetProfileId::LinuxX86_64Gnu,
+        TargetProfileId::LinuxX86_64Musl,
+    ] {
+        for initial in [0, 42] {
+            let fixture = SlibObjects::new(
+                super::slib_metadata_fixture::encoded_only(target, initial),
+                directory.path(),
+            );
+            let sites = fixture.sites(fixture.builtins(&fixture.objects), &fixture.objects);
+            let storages = verify_strong_static_storage_registrations_v1(
+                sites,
+                fixture
+                    .emitted
+                    .production()
+                    .registration_production()
+                    .static_storages()
+                    .clone(),
+                &candidates(&fixture.objects),
+            )
+            .expect("a static scalar needs no immortal or initialization unit");
+            assert_eq!(storages.registrations().len(), 1);
+            compute_strong_static_storage_registration_object_fingerprints_v1(
+                storages,
+                &candidates(&fixture.objects),
+            )
+            .expect("the empty relocation sentinel has a canonical fingerprint");
+            let mut damaged = fixture.objects.clone();
+            let (bytes, offset) = damaged
+                .iter_mut()
+                .find_map(|(_, bytes)| {
+                    let file = object::File::parse(bytes.as_slice()).unwrap();
+                    let offset = file.sections().find_map(|section| {
+                        if section.name() != Ok(".data.rel.ro.scoop.metadata") {
+                            return None;
+                        }
+                        let first_atom = file
+                            .symbols()
+                            .filter(|symbol| {
+                                symbol.section_index() == Some(section.index())
+                                    && symbol
+                                        .name()
+                                        .is_ok_and(|name| name.starts_with("scoop$1$bs$"))
+                            })
+                            .map(|symbol| symbol.address())
+                            .min()?;
+                        (first_atom > 0).then(|| section.file_range().unwrap().0 as usize)
+                    })?;
+                    Some((bytes, offset))
+                })
+                .expect("LLVM emits a shared empty sentinel before named metadata atoms");
+            bytes[offset] = 1;
+            assert!(matches!(
+                fixture.try_builtins(&damaged),
+                Err(BuiltinObjectSetValidationError::StrongDefinitions {
+                    source: StrongObjectDefinitionValidationError::UnownedSectionPrefix { .. },
+                    ..
+                })
+            ));
+        }
     }
 }
