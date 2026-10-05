@@ -19,20 +19,33 @@ impl StartupObject {
         profile: &ValidatedFinalLinkProfile,
         directory: &Path,
     ) -> Result<Self, LinkError> {
+        Self::build_for_symbols(&inputs.images, &inputs.root, profile, directory)
+    }
+
+    fn build_for_symbols(
+        images: &[String],
+        root: &str,
+        profile: &ValidatedFinalLinkProfile,
+        directory: &Path,
+    ) -> Result<Self, LinkError> {
         let mut source = String::from(
             "#include <stdint.h>\n\ntypedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;\ntypedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;\n\n",
         );
-        for (index, image) in inputs.images.iter().enumerate() {
+        for (index, image) in images.iter().enumerate() {
             source.push_str(&format!(
                 "extern const ScoopImageDescriptorV1 image_{index} __asm__(\"{image}\");\n"
             ));
         }
         source.push_str(&format!(
             "extern const ScoopRootEntryDescriptorV1 root_entry __asm__(\"{}\");\n",
-            inputs.root
+            root
         ));
-        source.push_str("extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);\n\n__attribute__((used, section(\"__DATA_CONST,__const\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {\n");
-        for index in 0..inputs.images.len() {
+        let section = match profile {
+            ValidatedFinalLinkProfile::Darwin(_) => "__DATA_CONST,__const",
+            ValidatedFinalLinkProfile::Linux(_) => ".data.rel.ro.scoop.startup",
+        };
+        source.push_str(&format!("extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
+        for index in 0..images.len() {
             source.push_str(&format!("    &image_{index},\n"));
         }
         source.push_str("};\n\nint main(void) {\n    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);\n}\n");
@@ -51,20 +64,22 @@ impl StartupObject {
             )));
         }
         let bytes = std::fs::read(object).map_err(error)?;
-        let info = NativeObjectInfo::read(
-            &bytes,
-            profile
-                .startup_toolchain()
-                .profile()
-                .contract()
-                .deployment()
-                .map_err(error)?,
-        )?;
-        let mut expected: BTreeSet<_> = inputs.images.iter().cloned().collect();
-        expected.extend([inputs.root.clone(), "_scoop_rt_run_program".to_owned()]);
+        let mut info =
+            NativeObjectInfo::read_with_toolchain(&bytes, profile.startup_toolchain().profile())?;
+        if matches!(profile, ValidatedFinalLinkProfile::Linux(_)) {
+            // GNU as may retain this implicit linker symbol without a use.
+            info.requirements.remove("_GLOBAL_OFFSET_TABLE_");
+        }
+        let normalization = profile.target().contract().native_symbol_normalization();
+        let main = normalization.compiler_generated_object_symbol("main");
+        let mut expected: BTreeSet<_> = images.iter().cloned().collect();
+        expected.extend([
+            root.to_owned(),
+            normalization.compiler_generated_object_symbol("scoop_rt_run_program"),
+        ]);
         if info.requirements != expected
             || info.definitions.len() != 1
-            || !info.definitions.get("_main").is_some_and(|definition| {
+            || !info.definitions.get(&main).is_some_and(|definition| {
                 definition.kind == NativeSymbolKind::Function && !definition.weak
             })
         {
@@ -79,3 +94,6 @@ impl StartupObject {
         })
     }
 }
+
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod tests;
