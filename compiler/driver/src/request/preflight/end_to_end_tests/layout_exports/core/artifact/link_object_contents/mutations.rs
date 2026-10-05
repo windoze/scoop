@@ -59,20 +59,20 @@ pub(super) fn cases(proof: &slib::ReplayedLayoutLinkObjectContentsV1) -> Vec<(Fa
         symbol_offset(object.final_bytes(), symbol.table_index()) + symbol.macho_name().len() - 1;
     cases.push((Failure::Symbols, byte(object.member(), offset as u64)));
     for object in proof.objects().objects() {
-        if let Some(offset) = relocation_offset(object.final_bytes()) {
+        if let Some(offset) = relocation_field(object.final_bytes()) {
             cases.push((
                 Failure::Relocations,
                 Mutation::Object {
                     member: object.member(),
-                    offset: offset + 7,
-                    value: object.final_bytes()[offset + 7] | 0xf0,
+                    offset,
+                    value: object.final_bytes()[offset] | 0xf0,
                 },
             ));
         }
         let parsed = object::File::parse(object.final_bytes()).unwrap();
         if let Some(section) = parsed
             .sections()
-            .find(|section| section.name() == Ok("__llvm_stackmaps"))
+            .find(|section| matches!(section.name(), Ok("__llvm_stackmaps" | ".llvm_stackmaps")))
         {
             cases.push((
                 Failure::Stackmaps,
@@ -83,7 +83,19 @@ pub(super) fn cases(proof: &slib::ReplayedLayoutLinkObjectContentsV1) -> Vec<(Fa
     cases
 }
 
-fn relocation_offset(bytes: &[u8]) -> Option<usize> {
+fn relocation_field(bytes: &[u8]) -> Option<usize> {
+    if object::FileKind::parse(bytes).unwrap() == object::FileKind::Elf64 {
+        use object::read::elf::SectionHeader;
+        let file = object::read::elf::ElfFile64::<Endianness>::parse(bytes).unwrap();
+        let endian = file.endian();
+        return file
+            .elf_section_table()
+            .enumerate()
+            .find_map(|(_, section)| {
+                (section.sh_type(endian) == object::elf::SHT_RELA && section.sh_size(endian) != 0)
+                    .then(|| section.sh_offset(endian) as usize + 8)
+            });
+    }
     let header = macho::MachHeader64::<Endianness>::parse(bytes, 0).unwrap();
     let endian = header.endian().unwrap();
     let mut commands = header.load_commands(endian, bytes, 0).unwrap();
@@ -91,7 +103,7 @@ fn relocation_offset(bytes: &[u8]) -> Option<usize> {
         if let Some((segment, section_bytes)) = command.segment_64().unwrap() {
             for section in segment.sections(endian, section_bytes).unwrap() {
                 if section.nreloc.get(endian) > 0 {
-                    return Some(section.reloff.get(endian) as usize);
+                    return Some(section.reloff.get(endian) as usize + 7);
                 }
             }
         }
