@@ -771,6 +771,8 @@ ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol 
 
 当前 Cone 的 strong relocation closure 保存从已验证对象 envelope 取得的实际 target，并拒绝成员之间的 target 混用。后续 dependency、undefined requirement 与 code fingerprint 使用该 target 比较已有选择和 native requirement surface，不默认指定 Darwin，也不重新解析未变化的对象。glibc 与 musl 即使采用相同 ELF machine 和 relocation，也保持不同 target。
 
+可执行产物的 root entry 记录同样使用绝对八字节指针语义，failure-root 与 gateway 引用的有效 addend 必须为零。构建后链接与 artifact-only 链接均把已选择 final-link profile 的 target 传给 manifest/Link reader 和默认 core slot 定位；不能在入口或依赖查找中回退到 Darwin。
+
 共有 metadata pointer reader 以绝对 64-bit relocation 的语义读取引用：Mach-O `UNSIGNED` 的 addend 来自原始八字节字段，amd64 ELF `R_X86_64_64` 的 addend 来自 RELA 的 signed 字段；两者都必须先确认实际 write width 为八字节。原始字段字节与 native relocation form 仍独立保留。要求指向 symbol 起点的 registration 检查有效 addend 为零；指向 associated atom 的 pointer 则按 section/symbol base 加 addend 核对实际 atom 地址。不能因 ELF 原始字段为零而忽略非零 RELA addend，也不能把 PC-relative/GOT/TLS relocation 当作 metadata 绝对指针。
 
 ELF 的 `.rodata.str*` 接受两种只读字符串输入：普通 `SHF_ALLOC`，以及 `SHF_ALLOC | SHF_MERGE | SHF_STRINGS`。Scoop 需要保留独立地址的诊断 atom 可由 LLVM 以第一种形式发射；section 名称不能代替实际 merge 属性。其余 write/execute/TLS 属性仍按所属 section role 检查。

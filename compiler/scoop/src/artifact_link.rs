@@ -41,7 +41,8 @@ pub struct LinkOutcome {
 
 pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     let profile = ValidatedFinalLinkProfile::resolve(&request.target).map_err(failure)?;
-    let (root, dependencies) = resolve::artifacts(&request)?;
+    let selection = scoop_lir::ValidatedLirTargetSelection::from_id(profile.id());
+    let (root, dependencies) = resolve::artifacts(&request, selection)?;
     let bytes = dependencies
         .iter()
         .map(|artifact| artifact.snapshot.as_bytes())
@@ -49,7 +50,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
     let closure = scoop_slib::read_program_link_closure(
         root.snapshot.as_bytes(),
         &bytes,
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        selection,
         profile.startup_toolchain().profile(),
     )
     .map_err(|error| read_failure(error, &root, &dependencies))?;

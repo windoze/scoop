@@ -51,7 +51,7 @@ pub fn read_program_artifacts(
     scoop_slib::read_program_link_closure(
         &root_bytes,
         &dependencies,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        ValidatedLirTargetSelection::from_id(profile.id()),
         profile.startup_toolchain().profile(),
     )
     .map_err(|err| error(format!("program Link input {}: {err}", root.display())))
