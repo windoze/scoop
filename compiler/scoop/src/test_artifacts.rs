@@ -9,6 +9,7 @@ use scoop_slib::{
 };
 
 pub(crate) fn manifest_archive(
+    selection: ValidatedLirTargetSelection,
     profile: ArtifactCapabilityProfile,
     cone: ConeRecord,
     producer: &str,
@@ -24,11 +25,7 @@ pub(crate) fn manifest_archive(
         SlibMember::new(cone.identity(), key, role, b"opaque metadata".to_vec()).unwrap()
     })
     .collect::<Vec<_>>();
-    let compatibility = CompatibilityRecord::new(
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        profile,
-    )
-    .unwrap();
+    let compatibility = CompatibilityRecord::new(selection, profile).unwrap();
     let compile = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
         &dependencies,
@@ -55,4 +52,13 @@ pub(crate) fn manifest_archive(
     )
     .unwrap();
     CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap()
+}
+
+pub(crate) fn host_target() -> ValidatedLirTargetSelection {
+    static TARGET: std::sync::OnceLock<ValidatedLirTargetSelection> = std::sync::OnceLock::new();
+    *TARGET.get_or_init(|| {
+        scoop_toolchain::ResolvedTargetProfile::resolve_host()
+            .unwrap()
+            .lir_target_selection()
+    })
 }

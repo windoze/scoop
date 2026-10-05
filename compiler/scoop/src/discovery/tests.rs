@@ -34,7 +34,8 @@ fn request(
         search_roots,
         ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
+            .unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
     )
@@ -44,6 +45,7 @@ fn request(
 fn manifest_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
     let cone = ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap();
     crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         cone,
         producer,

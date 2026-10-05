@@ -77,6 +77,7 @@ fn c_bridge_fingerprint(minimum: u32, sdk: u32, compiler: &str) -> CBridgeToolch
 fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummaryV1) {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let core = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -90,6 +91,7 @@ fn dependency_summaries() -> (ArtifactManifestSummaryV1, ArtifactManifestSummary
     let core = read_artifact_manifest_summary(core.as_bytes(), selection).unwrap();
     let semantic = core.semantic_fingerprints();
     let dependency = crate::test_artifacts::manifest_archive(
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::new("dev.example", "dependency", "1.0.0").unwrap(),

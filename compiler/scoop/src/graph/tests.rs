@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_slib::{
@@ -42,7 +41,8 @@ fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
         vec![],
         ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
         TrustedSysrootRoot::new(sysroot).unwrap(),
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
+            .unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
     )
@@ -54,8 +54,9 @@ fn coordinate(name: &str, version: &str) -> ConeCoordinate {
 }
 
 fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
-    let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    let selection = crate::test_artifacts::host_target();
     let seed = crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(
             ConeCoordinate::reserved_core(),
@@ -77,6 +78,7 @@ fn manifest_artifact_with_core(coordinate: ConeCoordinate) -> Vec<u8> {
     )
     .unwrap();
     crate::test_artifacts::manifest_archive(
+        crate::test_artifacts::host_target(),
         scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
         "graph-test",
@@ -318,7 +320,8 @@ fn executable_root_and_single_file_are_valid_roots_only() {
         vec![],
         ArtifactCacheRoot::new(sysroot.join("cache")).unwrap(),
         TrustedSysrootRoot::new(&sysroot).unwrap(),
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+        TargetSelectionRequestV1::new(scoop_toolchain::host_target_triple().unwrap().into())
+            .unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
     )
