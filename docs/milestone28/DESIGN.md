@@ -1,6 +1,6 @@
 # M28：Linux glibc / musl amd64 支持
 
-状态：实施中，完成情况见 [实施记录](PROGRESS.md)。调研日期：2026-10-05。
+状态：已完成，验证结果见 [验收记录](ACCEPTANCE.md)，分批实现见 [实施记录](PROGRESS.md)。调研日期：2026-10-05。
 
 本阶段新增 `x86_64-unknown-linux-gnu` 和 `x86_64-unknown-linux-musl`，保持现有 Darwin/AArch64。`amd64` 与 `x86_64` 在本文中指同一架构；CLI/LLVM canonical triple 统一使用 `x86_64`。profile name 遵循现有不含下划线的标识符规则，使用 `x86-64`；后续 Linux arm64 的 canonical triple 使用 `aarch64`。
 
@@ -68,7 +68,7 @@
 
 这些维度用于内部组合，不允许用户任意拼出一个“看似支持”的 target。registry 只返回已实现的三个平台组合；Linux AArch64 请求仍给出明确的 target 不支持诊断。
 
-推荐在现有 crate 内形成如下边界，按实际文件规模拆分：
+实现沿用现有 crate，按以下职责边界拆分；下面为结构示意，实际入口见下文：
 
 ```text
 toolchain: registry + c_driver + linux/darwin tool discovery + final_link

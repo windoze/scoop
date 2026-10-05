@@ -1,13 +1,13 @@
 # M28 实施记录
 
-M28 功能实现和 fixture 平台迁移已完成，正在进行最终三平台验收，尚未宣告里程碑完成。目标与分批顺序见 [设计](DESIGN.md)，本机编译探针见 [调研](INVESTIGATION.md)，复现命令见 [构建说明](BUILDING.md)。
+M28 已完成，三平台的所有适用用例均已验证通过，具体原始结果与复验说明见 [验收记录](ACCEPTANCE.md)。目标与分批顺序见 [设计](DESIGN.md)，本机编译探针见 [调研](INVESTIGATION.md)，复现命令见 [构建说明](BUILDING.md)。
 
 ## 当前能力与验收状态
 
 - 正式 CLI 支持 glibc amd64 动态 PIE、musl amd64 默认静态程序和显式动态 PIE；包括 core/库产物、独立链接、原生对象/归档/DSO、异常、精确移动 GC、callback、协程与 Context。
-- ELF/Mach-O、OS/VM、架构帧与 libc 工具链分别处理实际差异。glibc/musl 共用 Linux OS、ELF image 和 amd64 runtime；后续 Linux arm64 可复用前三者中的 OS/ELF 部分及共有链接编排，只补 AArch64 ABI/机器码/relocation、入口和目标工具链输入。
+- ELF/Mach-O、OS/VM、架构帧与 libc 工具链分别处理实际差异。glibc/musl 共用 Linux OS、ELF image 和 amd64 runtime；后续 Linux arm64 可复用 OS/ELF 与共有链接编排，补充 AArch64 ABI/机器码/relocation、入口和目标工具链输入。
 - 两种 libc 的 LLVM libunwind 22.1.2 构建、musl PIE 的索引未命中兼容补丁、三种链接模式的真实异常展开均已验证。
-- 所有适用 Linux fixture 已在迁移批次中运行通过：glibc 2,295 个，musl 2,297 个。最终不更新快照的 `--all` 正在执行；其中 8 份历史 glibc 产物指纹已确认受 imported-storage visibility 修复影响，更新后普通复验全部通过。分批通过不计作最终完成。
+- 最终普通 `--all` 已完整执行：glibc 首轮 2,287 个通过、8 份历史产物指纹不匹配；确认受 imported-storage visibility 修复影响后，仅更新对应指纹，8 个用例普通复验全部通过，适用集合共 2,295 个。musl 的 2,297 个适用用例在完整运行中全部通过。通过集合和不适用集合均与当前声明逐项核对。
 - Linux workspace 首轮 5,317 项通过、1 项假编译器 stdin 读取竞态失败；修复测试 helper 后，所属 `scoop` 的 96 项全部通过。macOS/AArch64 workspace 的 5,290 项全部通过。两个宿主的 fmt/clippy、Python 公共规则 38 项及 Ruff 0.16.10 均已通过。
 - macOS 的完整文件 fixture 使用 M3 上的隔离 worktree 和 LLVM 22.1.8。已修复实际目标 section、Darwin API 声明、LLVM IR companion deployment 及 runtime 对象数快照；最终普通 `--all` 全部通过：2,314 个用例、2,404 个变体、12,076 个进程、12,305 份快照，另有 6 个 Linux 专用用例不适用。
 

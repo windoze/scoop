@@ -1,6 +1,6 @@
 # M28 本机构建与验证
 
-本文给出 LLVM libunwind 准备、三个 Linux 链接模式和三平台 fixture 的复现命令，均从仓库根目录运行。当前验收状态见 [实施记录](PROGRESS.md)。
+本文给出 LLVM libunwind 准备、三个 Linux 链接模式和三平台 fixture 的复现命令，均从仓库根目录运行。正式结果见 [验收记录](ACCEPTANCE.md)，分批实现见 [实施记录](PROGRESS.md)。
 
 ## LLVM 与 unwind 准备
 
