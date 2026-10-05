@@ -123,3 +123,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 全 workspace 并行回归发现 Linux child-environment 测试的假编译器未读取 stdin 就退出，导致偶发 `BrokenPipe`。测试 helper 现先读完请求再检查环境并响应，与已有协议测试一致；不修改生产 transport。`scoop` 96 项单元测试全部通过，workspace fmt/clippy 通过。
 
 - C ABI 的嵌套 packed/aligned companion 显式抑制 GCC 对有意欠对齐成员的局部警告，保留全部大小、对齐与字段 offset 的静态断言。两 libc 的 object、archive、packed 三种正式用例均通过，包含聚合参数/结果、callback 及移动 GC 组合。
+
+- 既有 Scoop ABI native companion 已增加 amd64 汇编入口：从 RDI 取得 sret，在 RAX 返回同一地址，按真实栈位置取得 byval 与溢出标量参数，再映射到普通 C storage helper。Darwin 分支保持原指令。glibc/musl 的 extern-Scoop、native boundary 与原生 archive 程序经过普通及移动 GC 运行；未选中归档成员中的 `.linker_option` 仅在 Darwin 发射。

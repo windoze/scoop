@@ -27,8 +27,8 @@ void native_mixed_storage(int8_t i8, int16_t i16, int32_t i32, int64_t i64,
 }
 void verify_finished(void) { verify(calls == 3); }
 
-/* The Scoop byval aggregate occupies 24 bytes at the incoming SP; the
- * eight scalar arguments occupy x0-x7. Expose its storage as C argument 9. */
+/* Expose the Scoop byval storage as C argument 9. */
+#if defined(__APPLE__) && defined(__aarch64__)
 __asm__(
     ".text\n"
     ".globl _native_mixed\n"
@@ -43,3 +43,33 @@ __asm__(
     "ldp x29, x30, [sp, #16]\n"
     "add sp, sp, #32\n"
     "ret\n");
+#elif defined(__linux__) && defined(__x86_64__)
+/* The first parameter is byval. Six scalars use registers, and the final
+ * two scalars follow its 24-byte stack copy. */
+__asm__(
+    ".text\n"
+    ".globl native_mixed\n"
+    ".type native_mixed,@function\n"
+    "native_mixed:\n"
+    ".cfi_startproc\n"
+    "push %rbp\n"
+    ".cfi_def_cfa_offset 16\n"
+    ".cfi_offset %rbp,-16\n"
+    "mov %rsp,%rbp\n"
+    ".cfi_def_cfa_register %rbp\n"
+    "sub $32,%rsp\n"
+    "mov 40(%rbp),%rax\n"
+    "mov %rax,(%rsp)\n"
+    "mov 48(%rbp),%rax\n"
+    "mov %rax,8(%rsp)\n"
+    "lea 16(%rbp),%rax\n"
+    "mov %rax,16(%rsp)\n"
+    "call native_mixed_storage\n"
+    "leave\n"
+    ".cfi_def_cfa %rsp,8\n"
+    "ret\n"
+    ".cfi_endproc\n"
+    ".size native_mixed,.-native_mixed\n");
+#else
+#error "Scoop ABI fixture requires a supported target"
+#endif

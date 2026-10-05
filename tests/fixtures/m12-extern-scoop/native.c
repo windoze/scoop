@@ -78,11 +78,9 @@ static bool exact_bytes_are_poisoned(const void *object, size_t size) {
 
 /*
  * The Scoop ABI entry below is deliberately not expressed as a C
- * struct-by-value function. On Darwin/AArch64 Scoop passes an indirect result
- * in x8 and materializes this 24-byte byval argument at the incoming stack
- * pointer; the assembly shim maps those storage locations onto this ordinary C
- * helper's x0/x1 parameters. This keeps the fixture independent of Clang's C
- * aggregate classifier.
+ * struct-by-value function. The assembly shim maps Scoop's indirect result and
+ * stack byval argument onto this ordinary C helper's two pointer parameters.
+ * This keeps the fixture independent of the C aggregate classifier.
  */
 void native_aggregate_round_trip_storage(ManagedAggregate *result,
                                          ManagedAggregate *value) {
@@ -121,6 +119,7 @@ void native_aggregate_round_trip_storage(ManagedAggregate *result,
     assert(valid && "native aggregate result must survive collection");
 }
 
+#if defined(__APPLE__) && defined(__aarch64__)
 __asm__(
     ".text\n"
     ".globl _native_aggregate_round_trip\n"
@@ -129,6 +128,31 @@ __asm__(
     "mov x1, sp\n"
     "mov x0, x8\n"
     "b _native_aggregate_round_trip_storage\n");
+#elif defined(__linux__) && defined(__x86_64__)
+__asm__(
+    ".text\n"
+    ".globl native_aggregate_round_trip\n"
+    ".type native_aggregate_round_trip,@function\n"
+    "native_aggregate_round_trip:\n"
+    ".cfi_startproc\n"
+    "push %rbp\n"
+    ".cfi_def_cfa_offset 16\n"
+    ".cfi_offset %rbp,-16\n"
+    "mov %rsp,%rbp\n"
+    ".cfi_def_cfa_register %rbp\n"
+    "push %rdi\n"
+    "sub $8,%rsp\n"
+    "lea 16(%rbp),%rsi\n"
+    "call native_aggregate_round_trip_storage\n"
+    "mov -8(%rbp),%rax\n"
+    "leave\n"
+    ".cfi_def_cfa %rsp,8\n"
+    "ret\n"
+    ".cfi_endproc\n"
+    ".size native_aggregate_round_trip,.-native_aggregate_round_trip\n");
+#else
+#error "Scoop ABI fixture requires a supported target"
+#endif
 
 const ScoopString *native_root_round_trip(const ScoopString *message,
                                           const NativeNode *prototype) {
