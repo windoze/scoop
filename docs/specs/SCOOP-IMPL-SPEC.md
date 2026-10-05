@@ -755,6 +755,8 @@ M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每�
 
 物理 definition atom 清单按目标对象格式投影。Darwin 保持既有 compact-unwind、必要 EH-frame 和 TLV descriptor/template 分离；ELF 的非 release callable 使用 EH-frame，不产生 CompactUnwind atom，含 invoke 时另有 LSDA。ELF raw TLS 的 primary atom 是实际 TLS storage，不另造 Darwin template atom。ELF 边界符号使用实际 section 和 symbol extent，end label 的 symbol size 为零；新增符号及 section flags 不改变已有 relocation/symbol 索引。ODR definition 和同 member 的 associated LLVM globals 使用同一 COMDAT，后端生成的 callable stackmap/EH section 在对象物化时关联到其实际 group。stackmap 输入可写以允许 PIE relocation，最终按 §2.8 的脚本进入只读区域。Linux backend contract 的 CPU 字段明确为 `x86-64`；Darwin 的 `generic` 字段与既有 fingerprint 保持。
 
+ELF COMDAT 中原本私有的关联 storage（例如 TypeDescriptor 的诊断字符串、itable directory）保持 private/internal linkage 与默认 visibility；其计划中的 boundary aliases 使用 hidden weak 定义。加入 COMDAT 不把私有 storage 名称提升成额外的外部定义。只有原本属于 object symbol surface 的定义才按计划设置 weak linkage。
+
 generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF primary entry 使用实际 `STT_FUNC` 的 section-relative offset/size；一字节 signature/context 标记分别位于 `.rodata.scoop_sig` / `.rodata.scoop_ctx`，无指针 relocation。bridge 定义及边界采用 hidden strong linkage；外来 C 函数与 TLS 引用保留平台 ABI。Darwin 的 section 名称和发射形式保持。generated-C 编译沿既有 profile 禁用独立 unwind tables，不把 C bridge 当成含 Scoop stackmap 的 managed callable。
 
 generated-C 及 runtime requirement 的 relocation 分类使用目标架构的调用、普通地址与 TLS 引用语义。amd64 的直接调用采用四字节 PC-relative/PLT relocation，并要求指向函数起点的 `-4` addend；普通 data/GOT 地址与 TLS 引用不能互换。Linux target-support 在既有枚举追加 `__tls_get_addr`（tag 3），合同为 native pointer 参数、pointer 返回的 leaf helper；Linux registry 包含 memcpy 与该 TLS resolver，Darwin 保持 memcpy 与 `_tlv_bootstrap`。LLVM 发射的 Scoop TLS resolver 与 memcpy 调用沿同一个 target-support requirement 分类，不能把它列为 Scoop runtime ABI，也不能不经分类直接忽略。既有 Darwin 编码与 registry 不变。

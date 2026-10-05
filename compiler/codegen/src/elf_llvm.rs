@@ -36,12 +36,19 @@ pub(crate) fn prepare(
                 continue;
             }
             let owner = definition_owner(value)?;
-            owner.set_visibility(GlobalVisibility::Hidden);
+            let local_owner = matches!(owner.get_linkage(), Linkage::Private | Linkage::Internal);
+            owner.set_visibility(if local_owner {
+                GlobalVisibility::Default
+            } else {
+                GlobalVisibility::Hidden
+            });
             if request.linkage() != LinkageClass::OdrWeak {
                 continue;
             }
             value.set_linkage(Linkage::WeakODR);
-            owner.set_linkage(Linkage::WeakODR);
+            if !local_owner {
+                owner.set_linkage(Linkage::WeakODR);
+            }
             if let Some(previous) = owners.insert(owner.as_value_ref() as usize, group_name.clone())
                 && previous != group_name
             {
