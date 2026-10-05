@@ -528,14 +528,12 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         crate::elf_llvm::prepare(&llvm, surface)?;
         for global in external_type_tds {
-            global.set_visibility(inkwell::GlobalVisibility::Hidden);
+            crate::elf_llvm::apply_visibility(global);
         }
         for (_, callable) in module.meta.external_callables.iter() {
             if let Some(function) = llvm.get_function(callable.expected_symbol().symbol().as_str())
             {
-                function
-                    .as_global_value()
-                    .set_visibility(inkwell::GlobalVisibility::Hidden);
+                crate::elf_llvm::apply_visibility(function.as_global_value());
             }
         }
     }

@@ -31,15 +31,7 @@ pub(crate) fn prepare(
             let Some(value) = global(llvm, name.as_str())? else {
                 continue;
             };
-            // An unused hidden declaration still emits `.hidden name` in ELF.
-            // Without an actual TLS reference LLVM leaves that symbol NOTYPE,
-            // which conflicts with STT_TLS in the member defining the storage.
-            if value.is_declaration() && unsafe { LLVMGetFirstUse(value.as_value_ref()) }.is_null()
-            {
-                value.set_visibility(GlobalVisibility::Default);
-                continue;
-            }
-            value.set_visibility(GlobalVisibility::Hidden);
+            apply_visibility(value);
             if value.is_declaration() {
                 continue;
             }
@@ -68,6 +60,19 @@ pub(crate) fn prepare(
         }
     }
     Ok(())
+}
+
+pub(crate) fn apply_visibility(value: GlobalValue<'_>) {
+    // Unused hidden declarations emit NOTYPE symbols even without relocations.
+    // Besides conflicting with TLS definitions, those symbols make a shared
+    // ODR body depend on unrelated declarations in its consumer's module.
+    let unused =
+        value.is_declaration() && unsafe { LLVMGetFirstUse(value.as_value_ref()) }.is_null();
+    value.set_visibility(if unused {
+        GlobalVisibility::Default
+    } else {
+        GlobalVisibility::Hidden
+    });
 }
 
 fn global<'ctx>(
