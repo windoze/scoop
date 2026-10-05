@@ -117,3 +117,23 @@ workspace 完整回归及四个修正包的复跑共验证 5299 项 Rust/文档�
 import 和 enum（97 个变体、139 个进程、152 份 golden）。HIR/MIR/LIR 快照同步保留新增
 核心编码协议及内部引用索引；原有运行行为与 negative 诊断均按预期完成。
 统一静态 shape 查询、构造/default 关联和编码/解码方法合成仍待后续功能批次。
+
+
+## class 主构造参数与 property 关联
+
+共有名义声明现在保存 class 主构造的实际 constructor identity，以及按参数序排列的
+logical property identity；普通参数保留空项，无主构造与零参数主构造明确区分。
+名称、类型、可见性和 default 沿原 callable/source parameter 数据读取，computed
+property、类体存储及继承字段不会混入主构造参数映射。没有复制 default 正文或布局图。
+
+producer 从原 class 字段的 primary parameter 关系投影；reader 在已有名义声明边界
+检查构造归属、参数数量、property 与普通 backing field 的类型关联。新增数据位于
+`NominalDeclarationDetailsV1` field 11，共有接口兼容版本升至 `/53`，其余 section
+及 runtime ABI 不变。格式固定向量和旧版本拒绝断言已同步。
+
+新增两个正式 fixture，分别覆盖本地编译和删除 core/provider/consumer 源码后的
+产物消费、独立链接、普通及 moving GC 运行。泛型 class 的普通参数、`val`/`var`、
+private 存储、computed property、继承、次构造器、空主构造及仅次构造 class 均覆盖。
+macOS、Linux glibc/musl 各通过 10 个进程和 4 份 stage golden；HIR/MIR 跨平台一致，
+LIR 分别保留三平台快照。相关 HIR、HIR lowering 和 slib 共 2810 项 Rust 测试通过，
+workspace 格式化/lint 通过。统一静态 shape 查询及编码/解码方法合成继续在后续批次实施。

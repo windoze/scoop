@@ -90,6 +90,7 @@ mod m24_release_effects;
 mod m24_release_generics;
 mod m27_context;
 mod m29_annotations;
+mod m29_class_shapes;
 mod m29_companions;
 mod m3;
 mod m4;

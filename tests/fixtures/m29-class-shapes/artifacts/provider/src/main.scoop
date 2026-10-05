@@ -1,0 +1,22 @@
+package shape
+
+public annotation class Doc(val text: String)
+public open class Base public constructor(public val inherited: Int)
+
+public class Row<T> public constructor(
+    seed: Int,
+    @Doc("payload") public val value: T,
+    public var count: Int = seed
+) : Base(seed) {
+    @Doc("stored") private val cached: String = "cache"
+    @Doc("computed") public val size: Long get() = cached.length + count.toInt64()
+    public constructor(value: T) : this(3, value) {}
+}
+
+public class Empty public constructor()
+public class Secondary {
+    public constructor(number: Int) {
+        if (number < 0) { throw Throwable() }
+    }
+}
+public class Store<T> public constructor(@Doc("row") public val row: Row<T>)

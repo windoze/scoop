@@ -1718,6 +1718,15 @@ field 14 保存注解声明及其有序应用。两者分别将 `identity-founda
 引用；外部标量类型和注解声明复用原外部引用表，以 `AnnotationDependency`（tag 11）
 记录实际依赖。后续阶段直接使用已解析事实，不重新执行注解源码或常量求值。
 
+class 的主构造关系复用原 `NominalDeclarationDetailsV1`，在 field 11 保存可选的
+主构造记录：实际 `PersistentConstructorId`，以及按该构造参数顺序排列的可选
+`PersistentPropertyId`。普通参数对应空项，`val`/`var` 参数对应其原 logical property；
+无主构造的 class 没有该记录。名称、参数类型和 default 继续从原 callable/source
+parameter 记录读取，不复制表达式或另造构造器。class 的普通存储、委托存储及 accessor
+形式仍由原字段键和 property 数据区分。reader 在名义声明边界核对构造归属、参数数量、
+property 的类型及存储关联，后续查询直接借用已解析关系。该字段将共有 HIR
+`cross-cone-interface` 升至 `/53`，其余 section 和 runtime ABI 不变。
+
 **companion作用域与物化。** companion继承直接宿主的类型参数环境和bound，不继承宿主实例或primary参数值；普通static nested声明仍隔断外层参数环境。成员字段、base/interface、default、initializer和body使用同一组宿主binder，方法自有参数另用typed身份，完整调用实参按宿主在前、方法在后保存。裸generic宿主只可作声明命名空间限定；类型别名、命名companion别名、转发和跨Cone查询必须保留同一完整宿主application。
 
 companion声明、带宿主实参的application与concrete实体沿名义类型模型分别表示。object declaration的value记录表示原声明，不能用它代替已应用singleton的身份；具体对象同时保留其完整exact类型。隐藏backing class的模板键引用实际generic companion声明，语言类型及签名仍使用companion自身的名义application；MIR中该application使用普通final class表示及原backing字段身份，不为模板另造一个参数自由的物理类型。初始化模板和具体application分别保存键，具体cell、failure root及published root按原声明与完整实参派生，复用既有nominal ODR组。初始化依赖保留被访问application的实参，具体化后复用已解析的依赖unit，不能只按声明id折叠不同application。

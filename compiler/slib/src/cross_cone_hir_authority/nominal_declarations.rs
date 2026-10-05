@@ -2,6 +2,8 @@ use super::*;
 use scoop_hir::{DeclaredVisibilityV1, NestedSourceMemberRefV1, NominalInterfaceRecordV1};
 use scoop_identity::DefinitionOriginSubject;
 
+mod class_primary;
+
 type Error = CrossConeHirNominalAuthorityError;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
@@ -94,6 +96,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 ));
             }
         }
+        self.validate_class_primary_constructor(record)?;
         for member in details.members().values() {
             if self.member_owner(public_member(*member))? != expected {
                 return Err(invalid(

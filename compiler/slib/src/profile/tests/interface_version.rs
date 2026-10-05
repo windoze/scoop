@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v52_retains_annotations() {
+fn source_interface_v53_retains_class_primary_mapping() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        52,
+        53,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

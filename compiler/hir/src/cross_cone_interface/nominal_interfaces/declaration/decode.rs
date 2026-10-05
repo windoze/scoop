@@ -15,6 +15,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     primary_value_constructor: Option<DecodedPersistentId<PersistentConstructorId>>,
     instantiation_conditions: DecodedNominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
+    class_primary_constructor: Option<DecodedClassPrimaryConstructorV1>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -62,13 +63,17 @@ impl DecodedNominalDeclarationDetailsV1 {
                 .resolve(resolver)
                 .map_err(Error::InstantiationConditions)?,
             self.release_policy,
+            self.class_primary_constructor
+                .map(|primary| primary.resolve(resolver))
+                .transpose()
+                .map_err(Error::ClassPrimary)?,
         ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -97,6 +102,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
             instantiation_conditions: decoder
                 .field(9, DecodedNominalInstantiationConditionsV1::decode)?,
             release_policy: decoder.field(10, NominalReleasePolicyV1::decode)?,
+            class_primary_constructor: decoder.field(11, super::class_primary::wire::optional)?,
         };
 
         Ok(value)
@@ -105,7 +111,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -134,12 +140,19 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
         encoder.field(9)?;
         self.instantiation_conditions.encode(encoder)?;
         encoder.field(10)?;
-        self.release_policy.encode(encoder)
+        self.release_policy.encode(encoder)?;
+        encoder.field(11)?;
+        encoder.array(u64::from(self.class_primary_constructor.is_some()))?;
+        if let Some(primary) = &self.class_primary_constructor {
+            primary.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 pub enum NominalDeclarationDetailsResolutionError<E> {
+    ClassPrimary(ClassPrimaryConstructorResolutionError<E>),
     InstantiationConditions(crate::BinderUseListValidationError<E>),
     DispatchOrder(NominalDispatchOrderResolutionError<E>),
     DispatchSelections(NominalDispatchSelectionResolutionError<E>),
@@ -152,6 +165,7 @@ impl<E: std::fmt::Display> std::fmt::Display for NominalDeclarationDetailsResolu
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InstantiationConditions(e) => e.fmt(f),
+            Self::ClassPrimary(e) => e.fmt(f),
             Self::DispatchOrder(e) => e.fmt(f),
             Self::DispatchSelections(e) => e.fmt(f),
             Self::Constructors(e) => e.fmt(f),

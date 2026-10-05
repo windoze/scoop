@@ -26,6 +26,7 @@ pub enum NominalInterfaceRecordBuildError {
     UndeclaredConstructor(PersistentConstructorId),
     MissingPrimaryValueConstructor,
     PrimaryValueConstructorKind(PublicNominalKindV1),
+    PrimaryClassConstructorKind(PublicNominalKindV1),
     UndeclaredMember(crate::PublicMemberRefV1),
     IntrinsicBinders(crate::NominalIntrinsicBinderError),
     SourceShapeKind {
@@ -65,6 +66,10 @@ impl fmt::Display for NominalInterfaceRecordBuildError {
             Self::PrimaryValueConstructorKind(kind) => write!(
                 formatter,
                 "{kind:?} cannot declare a primary value constructor"
+            ),
+            Self::PrimaryClassConstructorKind(kind) => write!(
+                formatter,
+                "{kind:?} cannot declare a class primary constructor"
             ),
             Self::UndeclaredConstructor(id) => write!(
                 formatter,

@@ -68,6 +68,7 @@ pub(super) fn project(
         primary,
         instantiation_conditions(export, local, parameters)?,
         release_policy(export, local, parameters)?,
+        class_primary::project(export, local)?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,

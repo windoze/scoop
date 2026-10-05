@@ -223,7 +223,7 @@ M23-7 的固定动态 invoke 将 runtime metadata ABI 升至 2。`ScoopTypeDescr
 
 跨 Cone singleton 访问调用对应完整singleton identity的同一个ensure入口，再读取其已登记的published root。参数自由object/companion复用定义方的Strong记录；M29的generic companion按完整宿主application物化并沿既有ODR合并，多个consumer不能各自保留独立状态。对象引用离开读取点后遵守普通GC root规则；失败缓存、循环检测、发布顺序及C调用约定沿用本节契约。
 
-**M29 后续修订，待实现。** 每个实际使用的generic companion application拥有独立的cell、initializer/ensure、published root、failure root及initialization registration。`Box<Int>.Companion`初始化成功或失败不改变`Box<String>.Companion`的状态，二者只有显式代码依赖才互相ensure；同一application跨Cone和image只初始化一次。即使T未出现在成员布局中，状态也不能按相同布局或函数正文合并。直接宿主application与companion声明共同决定这些记录的typed identity；未具体化模板没有对象、cell或初始化执行。
+**M29 泛型 companion 修订。** 每个实际使用的generic companion application拥有独立的cell、initializer/ensure、published root、failure root及initialization registration。`Box<Int>.Companion`初始化成功或失败不改变`Box<String>.Companion`的状态，二者只有显式代码依赖才互相ensure；同一application跨Cone和image只初始化一次。即使T未出现在成员布局中，状态也不能按相同布局或函数正文合并。直接宿主application与companion声明共同决定这些记录的typed identity；未具体化模板没有对象、cell或初始化执行。
 
 同一generic companion application的对象类型、初始化支持和可变状态按普通ODR归属一致物化。多个image的引用必须由linker合并到相同记录与地址，registration及root按原规则只登记一次。runtime直接消费编译器生成的普通exact type和unit记录，不根据类型名或类型参数构造singleton，也不增加运行期泛型对象工厂。宿主实例构造、类型查询和const读取不隐式初始化companion，实际非const访问才进入本节lazy gate。
 

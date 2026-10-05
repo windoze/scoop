@@ -996,7 +996,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化
 
-**M29 后续修订，待实现。** 本节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 中“不捕获宿主类型参数、所有宿主 application 共享一个 companion”的选择；历史设计保留原文。普通 static nested declaration 的作用域规则不在本次修订之内。
+**M29 泛型 companion 修订。** 本节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 中“不捕获宿主类型参数、所有宿主 application 共享一个 companion”的选择；历史设计保留原文。普通 static nested declaration 的作用域规则不在本次修订之内。
 
 - `object O`同时声明一个nominal ref type与singleton value，二者identity类型化且不同。object不能自行声明type parameter或primary/secondary constructor，可以继承一个class并实现interface；base constructor后按9.1.1执行property/delegate/`init`。普通top-level/static nested object只有一个singleton；companion按下述完整宿主application区分singleton。`O`不是普通constructor，`O()`非法；
 - 依赖 Cone 中的 object 遵守同一规则：类型位置引用原 nominal，值位置引用原 singleton value；二者来自同一声明/application时不构成值查找歧义。每次值访问先确保对应初始化单元成功，再读取其已发布根。转导出、默认参数展开、成员访问和下游再次发布都保留原实体身份；同一companion application跨Cone只对应一个逻辑对象，普通泛型物化及ODR必须合并其状态和初始化支持；
