@@ -1,0 +1,31 @@
+public interface Encodable {
+    public fun encode(encoder: Encoder): Unit
+}
+
+public interface Encoder {
+    public val path: String
+    public fun keyed(): KeyedEncodingContainer
+    public fun unkeyed(): UnkeyedEncodingContainer
+    public fun singleValue(): SingleValueEncodingContainer
+}
+
+public interface KeyedEncodingContainer {
+    public fun field(name: String): Encoder
+    public fun end(): Unit
+}
+
+public interface UnkeyedEncodingContainer {
+    public fun element(): Encoder
+    public fun end(): Unit
+}
+
+public interface SingleValueEncodingContainer {
+    public fun writeBoolean(value: Boolean): Unit
+    public fun writeLong(value: Long): Unit
+    public fun writeULong(value: ULong): Unit
+    public fun writeString(value: String): Unit
+    public fun writeNull(): Unit
+}
+
+public class EncodingException public constructor(public val path: String, message: String)
+    : Exception(Some(message))

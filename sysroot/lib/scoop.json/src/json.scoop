@@ -1,0 +1,39 @@
+package scoop.json
+
+public object Json {
+    public fun <T : Encodable> encode(value: T): String {
+        val encoder = JsonEncoder("")
+        value.encode(encoder)
+        return renderJson(encoder.result())
+    }
+
+    public fun <T> decode(text: String, codec: Decodable<T>): T {
+        val decoder = JsonDecoder(JsonParser(text).parse(), "")
+        val result = codec.decode(decoder)
+        decoder.requireComplete()
+        return result
+    }
+}
+
+internal enum JsonValue {
+    Null,
+    BooleanValue(Boolean),
+    Number(String),
+    Text(String),
+    Record(ArrayList<JsonMember>),
+    Sequence(ArrayList<JsonValue>)
+}
+
+internal struct JsonMember(val name: String, val value: JsonValue)
+
+internal fun childPath(path: String, name: String): String {
+    val result = StringBuilder().add(path).add("/")
+    for (character in name) {
+        when (character) {
+            '~' -> { result.add("~0") }
+            '/' -> { result.add("~1") }
+            else -> { result.add(character) }
+        }
+    }
+    return result.build()
+}

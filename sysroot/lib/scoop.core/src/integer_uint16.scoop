@@ -1,0 +1,124 @@
+@Intrinsic("core_uint16")
+public struct UInt16 : ToString, Hash, Encodable {
+    @NoGC
+    @Intrinsic("uint16_equals")
+    public operator fun equals(other: UInt16): Boolean
+
+    @NoGC
+    @Intrinsic("uint16_unary_plus")
+    public operator fun unaryPlus(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_unary_minus")
+    public operator fun unaryMinus(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_inc")
+    public operator fun inc(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_dec")
+    public operator fun dec(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_add")
+    public operator fun plus(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_sub")
+    public operator fun minus(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_mul")
+    public operator fun times(other: UInt16): UInt16
+
+    @Intrinsic("uint16_div")
+    public operator fun div(other: UInt16): UInt16
+
+    @Intrinsic("uint16_rem")
+    public operator fun rem(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_compare_to")
+    public operator fun compareTo(other: UInt16): Long
+
+    @NoGC
+    @Intrinsic("uint16_and")
+    public infix fun and(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_or")
+    public infix fun or(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_xor")
+    public infix fun xor(other: UInt16): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_inv")
+    public fun inv(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_shl")
+    public infix fun shl(count: Long): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_shr")
+    public infix fun shr(count: Long): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_to_int8")
+    public fun toInt8(): Int8
+
+    @NoGC
+    @Intrinsic("uint16_to_int16")
+    public fun toInt16(): Int16
+
+    @NoGC
+    @Intrinsic("uint16_to_int")
+    public fun toInt32(): Int
+
+    @NoGC
+    @Intrinsic("uint16_to_long")
+    public fun toInt64(): Long
+
+    @NoGC
+    @Intrinsic("uint16_to_uint8")
+    public fun toUInt8(): UInt8
+
+    @NoGC
+    @Intrinsic("uint16_to_uint16")
+    public fun toUInt16(): UInt16
+
+    @NoGC
+    @Intrinsic("uint16_to_uint")
+    public fun toUInt32(): UInt
+
+    @NoGC
+    @Intrinsic("uint16_to_ulong")
+    public fun toUInt64(): ULong
+
+    public operator fun rangeTo(endpoint: UInt16): UIntRange =
+        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, true)
+
+    public operator fun rangeUntil(endpoint: UInt16): UIntRange =
+        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, false)
+
+    public infix fun until(endpoint: UInt16): UIntRange =
+        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, false)
+
+    public infix fun downTo(endpoint: UInt16): UIntRange =
+        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, true, true)
+
+    public override fun toString(): String = coreULongToString(this.toUInt64())
+
+    public override fun hash(): Long = coreULongHash(this.toUInt64())
+
+    public override fun encode(encoder: Encoder): Unit =
+        encoder.singleValue().writeULong(this.toUInt64())
+
+    public companion object : Decodable<UInt16> {
+        public override fun decode(decoder: Decoder): UInt16 =
+            decodeUnsigned(decoder, 65535UL).toUInt16()
+    }
+}

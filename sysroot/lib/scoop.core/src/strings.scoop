@@ -1,5 +1,5 @@
 @Intrinsic("core_string")
-public class String : ToString, Hash, Iterable<Char> {
+public class String : ToString, Hash, Iterable<Char>, Encodable {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
@@ -39,7 +39,13 @@ public class String : ToString, Hash, Iterable<Char> {
         return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
 
-    public companion object {
+    public override fun encode(encoder: Encoder): Unit =
+        encoder.singleValue().writeString(this)
+
+    public companion object : Decodable<String> {
+        public override fun decode(decoder: Decoder): String =
+            decoder.singleValue().readString()
+
         public fun fromChars(chars: List<Char>): String = coreStringFromChars(chars.toArray())
 
         @Unsafe

@@ -458,7 +458,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 验收覆盖正式 CLI、跨 Cone/ODR、artifact-only、FFI/TLS/异常、moving GC、Context/协程及缓存目标隔离，已完成 Linux 三种链接配置及真实 macOS/AArch64 回归。
 - 全部适用文件 fixture 验证通过：glibc 2,295 个、musl 2,297 个、Darwin 2,314 个；glibc 全量中的 8 份旧产物指纹修正后普通复验通过。Linux workspace 5,318 项、Darwin workspace 5,290 项及 Python runner 38 项通过，原始运行与修复说明见验收记录。
 
-### M29 静态类型描述与序列化基础设施（设计完成，待实现，[设计](milestone29/DESIGN.md)）
+### M29 静态类型描述与序列化基础设施（实施中，[设计](milestone29/DESIGN.md)，[实施记录](milestone29/PROGRESS.md)）
 
 - 为每个类型提供编译期结构描述，统一源码与`.slib`中的字段名称、类型、annotation、variant及构造关系。复用共有HIR及typed identity，不建立运行期反射表或扩展runtime TypeDescriptor；通用源码编译期查询/遍历语法后续单独设计。
 - 增加编译期annotation class及字段/variant/property注解；SerialName和Transient提供默认编码的最小定制，其余用户注解保留为静态数据。
@@ -466,7 +466,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - companion按完整宿主application分别具有类型、singleton状态及exactly-once初始化；可直接使用宿主类型参数与bound，同一application跨Cone沿ODR共享状态，不同实参各自独立。此项修订M21的共享companion选择，普通static nested作用域保持；历史milestone设计保留原文。
 - 泛型编码使用显式Encodable bound，泛型解码显式传入`Decodable<T>`对象。`Box<T>.Companion`的方法可使用宿主T，并把元素codec传给普通解码器helper；按宿主具体化不自动提供裸T的解码能力。完成struct、enum、tuple及构造映射明确的final class，核心容器保持原无bound用途。
 - keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，decode入口显式接收codec。不依赖Any map、反射类型名或工厂注册表，不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
-- 按设计第9节分批实施，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、companion初始化、普通接口调用、异常与moving GC；当前仅完成设计和规范，没有实现或验收结果。
+- 按设计第9节分批实施，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、companion初始化、普通接口调用、异常与moving GC；普通协议、标量codec及JSON库已建立手写codec闭环，其余能力和正式总验收按实施记录推进。
 
 ## 3. 备注
 

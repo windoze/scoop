@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`decode` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 62,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 56
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Wrong` does not implement interface method `Decodable<Long>.decode`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 100,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  }
+]

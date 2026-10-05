@@ -1,0 +1,124 @@
+package scoop.json
+
+internal class JsonDecoder(private val value: JsonValue, public override val path: String)
+    : Decoder, SingleValueDecodingContainer {
+    private var selected: Boolean = false
+    private var scalar: Boolean = false
+    private var completed: Boolean = false
+
+    private fun select(single: Boolean) {
+        if (selected) { throw DecodingException(path, "a value already has a container") }
+        selected = true
+        scalar = single
+    }
+
+    internal fun finish() {
+        if (completed) { throw DecodingException(path, "a value was consumed twice") }
+        completed = true
+    }
+
+    internal fun requireComplete() {
+        if (!completed) { throw DecodingException(path, "a value was not fully consumed") }
+    }
+
+    public override fun keyed(): KeyedDecodingContainer {
+        select(false)
+        return when (value) {
+            JsonValue.Record(members) -> JsonKeyedDecoder(this, members)
+            else -> { throw DecodingException(path, "expected an object") }
+        }
+    }
+
+    public override fun unkeyed(): UnkeyedDecodingContainer {
+        select(false)
+        return when (value) {
+            JsonValue.Sequence(elements) -> JsonUnkeyedDecoder(this, elements)
+            else -> { throw DecodingException(path, "expected an array") }
+        }
+    }
+
+    public override fun singleValue(): SingleValueDecodingContainer {
+        select(true)
+        return this
+    }
+
+    private fun read() {
+        if (!scalar) { throw DecodingException(path, "a single-value container was not selected") }
+        finish()
+    }
+
+    public override fun readBoolean(): Boolean {
+        read()
+        return when (value) {
+            JsonValue.BooleanValue(result) -> result
+            else -> { throw DecodingException(path, "expected a Boolean") }
+        }
+    }
+
+    public override fun readString(): String {
+        read()
+        return when (value) {
+            JsonValue.Text(result) -> result
+            else -> { throw DecodingException(path, "expected a String") }
+        }
+    }
+
+    public override fun readNull() {
+        read()
+        when (value) {
+            JsonValue.Null -> { return }
+            else -> { throw DecodingException(path, "expected null") }
+        }
+    }
+
+    private fun number(): String {
+        read()
+        return when (value) {
+            JsonValue.Number(text) -> text
+            else -> { throw DecodingException(path, "expected an integer") }
+        }
+    }
+
+    public override fun readLong(): Long {
+        val text = number()
+        val negative = text[0L] == '-'
+        val magnitude = integerMagnitude(text, negative, path)
+        if (negative) {
+            if (magnitude > 9223372036854775808UL) {
+                throw DecodingException(path, "integer is out of range")
+            }
+            return -magnitude.toInt64()
+        }
+        if (magnitude > 9223372036854775807UL) {
+            throw DecodingException(path, "integer is out of range")
+        }
+        return magnitude.toInt64()
+    }
+
+    public override fun readULong(): ULong {
+        val text = number()
+        if (text[0L] == '-') { throw DecodingException(path, "expected an unsigned integer") }
+        return integerMagnitude(text, false, path)
+    }
+}
+
+internal fun integerMagnitude(text: String, negative: Boolean, path: String): ULong {
+    var result: ULong = 0UL
+    var first: Boolean = true
+    for (character in text) {
+        if (first && negative) {
+            first = false
+            continue
+        }
+        first = false
+        if (character < '0' || character > '9') {
+            throw DecodingException(path, "expected an integer without fraction or exponent")
+        }
+        val digit = (character.code - 48).toUInt64()
+        if (result > (18446744073709551615UL - digit) / 10UL) {
+            throw DecodingException(path, "integer is out of range")
+        }
+        result = result * 10UL + digit
+    }
+    return result
+}

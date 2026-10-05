@@ -23,9 +23,24 @@ impl<'a> MetadataTypes<'a, '_> {
 
     pub(crate) fn key(self, exact: PersistentExactTypeId) -> Result<Arc<ExactTypeKey>, Error> {
         Ok(self
-            .current
-            .identities
+            .identity_graph(exact)
             .canonical_key::<PersistentExactTypeId, ExactTypeKey>(exact)?)
+    }
+
+    /// Dependency inheritance may mention applications absent from the root's
+    /// own uses. Read the original checked key from the same semantic world.
+    pub(super) fn identity_graph<I: scoop_identity::PersistentId>(
+        self,
+        id: I,
+    ) -> &'a ValidatedIdentityGraph {
+        std::iter::once(self.current.identities)
+            .chain(
+                self.dependencies
+                    .iter()
+                    .map(|source| source.metadata.identities),
+            )
+            .find(|graph| graph.contains_resolved_identity(id))
+            .unwrap_or(self.current.identities)
     }
 
     pub(crate) fn nominal_key(
@@ -33,8 +48,7 @@ impl<'a> MetadataTypes<'a, '_> {
         owner: PersistentTypeId,
     ) -> Result<Arc<SourceDeclarationKey>, Error> {
         Ok(self
-            .current
-            .identities
+            .identity_graph(owner)
             .canonical_key::<PersistentTypeId, SourceDeclarationKey>(owner)?)
     }
 
@@ -52,8 +66,7 @@ impl<'a> MetadataTypes<'a, '_> {
         let origin = match owner {
             SourceNominalId::Concrete(owner) => self.nominal_key(owner)?.origin(),
             SourceNominalId::GenericTemplate(owner) => self
-                .current
-                .identities
+                .identity_graph(owner)
                 .canonical_key::<_, SourceDeclarationKey>(owner)?
                 .origin(),
         };

@@ -1,0 +1,126 @@
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("container codec assertion failed")) }
+}
+
+fun <T> reject(text: String, codec: Decodable<T>, path: String) {
+    var rejected: Boolean = false
+    try { val result = Json.decode(text, codec) }
+    catch (error: DecodingException) {
+        check(error.path == path)
+        rejected = true
+    }
+    check(rejected)
+}
+
+public struct User(val id: Long, val name: String) : Encodable {
+    public override fun encode(encoder: Encoder) {
+        val fields = encoder.keyed()
+        id.encode(fields.field("id/~"))
+        name.encode(fields.field("name"))
+        fields.end()
+    }
+
+    public companion object : Decodable<User> {
+        public override fun decode(decoder: Decoder): User {
+            val fields = decoder.keyed()
+            val id = Long.decode(fields.required("id/~"))
+            val name = when (fields.optional("name")) {
+                Some(source) -> String.decode(source)
+                None -> "anonymous"
+            }
+            fields.end()
+            return User(id, name)
+        }
+    }
+}
+
+public struct Numbers(val elements: Array<Long>) : Encodable {
+    public override fun encode(encoder: Encoder) {
+        val sequence = encoder.unkeyed()
+        for (element in elements) { element.encode(sequence.element()) }
+        sequence.end()
+    }
+
+    public companion object : Decodable<Numbers> {
+        public override fun decode(decoder: Decoder): Numbers {
+            val sequence = decoder.unkeyed()
+            val elements = ArrayList<Long>()
+            while (sequence.hasNext) { elements.add(Long.decode(sequence.element())) }
+            sequence.end()
+            return Numbers(elements.toArray())
+        }
+    }
+}
+
+object UnitValue : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeNull() }
+}
+
+object Unread : Decodable<Long> {
+    public override fun decode(decoder: Decoder): Long = 42L
+}
+
+object Incomplete : Encodable {
+    public override fun encode(encoder: Encoder) { val fields = encoder.keyed() }
+}
+
+object ExtraElement : Decodable<Long> {
+    public override fun decode(decoder: Decoder): Long {
+        val elements = decoder.unkeyed()
+        val value = Long.decode(elements.element())
+        elements.end()
+        return value
+    }
+}
+
+object WrongEncoderContainer : Encodable {
+    public override fun encode(encoder: Encoder) {
+        val fields = encoder.keyed()
+        (encoder as SingleValueEncodingContainer).writeLong(1L)
+        fields.end()
+    }
+}
+
+object WrongDecoderContainer : Decodable<Long> {
+    public override fun decode(decoder: Decoder): Long =
+        (decoder as SingleValueDecodingContainer).readLong()
+}
+
+fun <T : Encodable> rejectEncoding(value: T) {
+    var rejected: Boolean = false
+    try { val result = Json.encode(value) }
+    catch (error: EncodingException) {
+        check(error.path == "")
+        rejected = true
+    }
+    check(rejected)
+}
+
+fun main() {
+    check(Json.encode(User(7L, "雪")) == "{\"id/~\":7,\"name\":\"雪\"}")
+    val user = Json.decode("{\"name\":\"雪\",\"id/~\":7}", User.Companion)
+    check(user == User(7L, "雪"))
+    val missing = Json.decode("{\"unknown\":[null,true,{\"a\":-12.3e+4}],\"id/~\":8}", User.Companion)
+    check(missing == User(8L, "anonymous"))
+    check(Json.encode(Numbers([1L, -2L, 3L])) == "[1,-2,3]")
+    val numbers = Json.decode(" [ 4 , 5 , 6 ] ", Numbers.Companion)
+    check(numbers.elements.size == 3L && numbers.elements[1L] == 5L)
+    check(Json.encode(Json.decode("[]", Numbers.Companion)) == "[]")
+    check(Json.encode(UnitValue) == "null")
+    reject("{}", User.Companion, "/id~1~0")
+    reject("{\"id/~\":null}", User.Companion, "/id~1~0")
+    reject("{\"id/~\":1,\"name\":null}", User.Companion, "/name")
+    reject("{\"id/~\":1,\"id\\u002f~\":2}", User.Companion, "/id~1~0")
+    reject("{\"id/~\":1,\"unknown\":[1,]}", User.Companion, "/unknown/1")
+    reject("{\"id/~\":1,}", User.Companion, "")
+    reject("[1,null]", Numbers.Companion, "/1")
+    reject("[]", ExtraElement, "/0")
+    reject("[1,2]", ExtraElement, "")
+    reject("42", Unread, "")
+    reject("42", WrongDecoderContainer, "")
+    rejectEncoding(Incomplete)
+    rejectEncoding(WrongEncoderContainer)
+    println("containers-ok")
+}

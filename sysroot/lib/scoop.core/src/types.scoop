@@ -16,7 +16,7 @@ public typealias UInt32 = UInt
 public typealias UInt64 = ULong
 
 @Intrinsic("core_boolean")
-public struct Boolean : ToString, Hash {
+public struct Boolean : ToString, Hash, Encodable {
     public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
     @Intrinsic("boolean_not")
@@ -25,6 +25,14 @@ public struct Boolean : ToString, Hash {
     public override fun toString(): String = coreBooleanToString(this)
 
     public override fun hash(): Long = coreBooleanHash(this)
+
+    public override fun encode(encoder: Encoder): Unit =
+        encoder.singleValue().writeBoolean(this)
+
+    public companion object : Decodable<Boolean> {
+        public override fun decode(decoder: Decoder): Boolean =
+            decoder.singleValue().readBoolean()
+    }
 }
 
 // Representation-level fallbacks used by ordinary source methods. Integer
