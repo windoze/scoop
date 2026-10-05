@@ -66,8 +66,13 @@ fn actual_generic_library_emits_shared_odr_objects() {
         .unwrap();
         let request = loaded.validate().unwrap();
         let parsed = request.parse_current_sources().unwrap();
+        let world = request
+            .dependencies()
+            .semantic()
+            .imported_semantic_world()
+            .unwrap();
         let hir = parsed
-            .lower_hir(RequestedConeKind::Library, request.protocols())
+            .lower_hir(RequestedConeKind::Library, request.protocols(), &world)
             .unwrap();
         let closure = request.dependencies().semantic();
         let selected = closure

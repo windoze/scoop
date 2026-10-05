@@ -137,3 +137,31 @@ private 存储、computed property、继承、次构造器、空主构造及仅�
 macOS、Linux glibc/musl 各通过 10 个进程和 4 份 stage golden；HIR/MIR 跨平台一致，
 LIR 分别保留三平台快照。相关 HIR、HIR lowering 和 slib 共 2810 项 Rust 测试通过，
 workspace 格式化/lint 通过。统一静态 shape 查询及编码/解码方法合成继续在后续批次实施。
+
+## 统一静态 shape 查询与 HIR dump
+
+共有 HIR 提供借用式静态查询，覆盖名义类型、核心 intrinsic、tuple、Unit、函数、
+指针及带原始 bound 的类型参数。字段、variant、logical property、annotation 和
+主构造参数/default 均沿原 typed identity 与声明关系读取；class 基类不扁平化，
+enum payload 保留分支层级，companion 保留完整宿主实参及自身存储。
+
+泛型字段复用原签名映射执行一次参数替换，开放实参保留调用方 binder，递归字段只
+返回类型引用。尚未载入类型 arena 的核心父接口直接借用依赖产物的共有签名。
+导入字段保留普通字段、property backing、delegate 与生成字段类别；object backing
+字段名称从原 property 声明读取。查询不扩张源码访问域、不触发初始化或机器物化，
+不新增 wire 版本、runtime metadata 或类型/布局图。
+
+`--emit=hir` 的原 HIR dump 增加 Static Shapes 区段，展示字段类型与身份、注解、
+variant、父类型、property 存储类别，以及原主构造/default 关系。driver 复用本次
+编译已建立的依赖上下文。签名映射中的 nominal 辅助函数拆分为子模块，新查询实现
+按名义类型、字段、property、注解、构造和参数划分；新增源码模块最长为 219 行。
+
+六项查询测试分别走本地多文件与独立产物路径；相关 HIR、HIR lowering、slib 共
+2816 项 Rust 测试通过，两端 workspace lint 通过。新增两个正式 fixture，覆盖
+泛型/递归字段、scalar/intrinsic、函数与指针、委托 property、接口、companion、
+缺省构造和注解；删除 core/provider/consumer 源码后独立链接并普通/移动 GC 运行。
+macOS、Linux glibc/musl 各通过 10 个进程、5 份 golden；共有 HIR/MIR 完全一致，
+三平台 LIR 分别保存。已有 63 个 M29 fixture 回归通过（115 个进程、23 份 golden）。
+
+两端已清理调试增量缓存，保留当前 CLI 和既有 worktree。编码/解码方法合成、核心
+条件组合 codec，以及完整 workspace/文件 fixture 总验收仍在后续批次实施。

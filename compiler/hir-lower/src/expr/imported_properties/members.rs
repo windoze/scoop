@@ -92,7 +92,7 @@ impl Lowerer {
                         [&self.class_applications[*application].template];
                     class.declaration.field_sources.iter().enumerate().find_map(
                         |(index, source)| {
-                            (source.backing_property == Some(property)).then_some(
+                            (source.storage.backing_property() == Some(property)).then_some(
                                 hir::FieldRef::ClassField {
                                     owner,
                                     field: class.field_identity(index),

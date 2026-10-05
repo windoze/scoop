@@ -1704,6 +1704,15 @@ M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启
 
 共有查询为每种类型提供完整shape，dump能展示名称/类型/annotation，必要内容进入Export HIR。未使用类型不因此成为LIR物化根；没有运行期TypeInfo对象或通用CTFE。外来类型沿同一查询，字段及构造信息不扩大源码可见性。
 
+查询视图借用当前 HIR 的原声明及已载入依赖声明，字段和 variant 保留原 typed identity；
+泛型字段类型用同一声明参数到 application 实参的替换关系，沿已有签名类型映射取得
+完整类型表达式。递归类型只返回该表达式，不继续展开其字段。导入字段的显示资料
+保留原字段键的普通字段、property backing、property delegate 或生成字段类别，
+不能把缺少普通 backing property 的 delegate 字段误当成独立业务字段。注解和
+constructor/default 仍从其所属原表借用；查询不触发物化、可见性扩张或初始化。
+尚未载入本地类型 arena 的核心父接口直接借用依赖产物中的共有签名类型，
+不为了 shape 查询或 dump 额外载入类型声明。
+
 annotation 声明复用已有 `SourceDeclarationKind::AnnotationClass` 源码键，并使用独立的
 `PersistentAnnotationId`；它与可出现在运行期签名中的 nominal type 分开。注解名称参与
 普通类型名称域的冲突、限定路径、import alias 和访问检查，绑定的 target/role 明确为

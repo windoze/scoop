@@ -8,6 +8,7 @@ use super::HirTypeIdentityInputs;
 use crate::{HirNominalIdentity, HirSourceNominalIdentity, ObjectId, Type, TypeId, TypeParamId};
 
 mod error;
+mod nominals;
 pub use error::HirSignatureTypeMappingError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -15,6 +16,11 @@ pub struct HirSignatureBinder {
     pub parameter: TypeParamId,
     pub depth: u32,
     pub index: u32,
+}
+
+struct ParameterEnvironment<'a> {
+    binders: &'a [HirSignatureBinder],
+    substitutions: &'a [(TypeParamId, TypeId)],
 }
 
 /// Maps a complete HIR type tree to the source duplicate-signature schema.
@@ -32,13 +38,31 @@ impl<'a> HirSignatureTypeMapper<'a> {
         ty: TypeId,
         binders: &[HirSignatureBinder],
     ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
-        self.map_inner(ty, binders, &mut HashSet::new())
+        self.map_substituted(ty, binders, &[])
+    }
+
+    /// Substitutes declaration parameters once. Replacement types belong to
+    /// the caller's binder scope and are mapped without reapplying the relation.
+    pub fn map_substituted(
+        &self,
+        ty: TypeId,
+        binders: &[HirSignatureBinder],
+        substitutions: &[(TypeParamId, TypeId)],
+    ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
+        self.map_inner(
+            ty,
+            &ParameterEnvironment {
+                binders,
+                substitutions,
+            },
+            &mut HashSet::new(),
+        )
     }
 
     fn map_inner(
         &self,
         ty: TypeId,
-        binders: &[HirSignatureBinder],
+        binders: &ParameterEnvironment<'_>,
         visiting: &mut HashSet<TypeId>,
     ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
         if local_index(ty) >= self.inputs.types.len() {
@@ -222,142 +246,29 @@ impl<'a> HirSignatureTypeMapper<'a> {
                 )?
             }
             Type::Param(parameter) => {
-                let binder = binders
+                if let Some((_, replacement)) = binders
+                    .substitutions
                     .iter()
-                    .find(|binder| binder.parameter == *parameter)
-                    .ok_or_else(|| {
-                        HirSignatureTypeMappingError::UnknownBinder(parameter.identity_raw())
-                    })?;
-                SignatureTypeKey::Binder {
-                    depth: binder.depth,
-                    index: binder.index,
+                    .find(|(source, _)| source == parameter)
+                {
+                    self.map(*replacement, binders.binders)?
+                } else {
+                    let binder = binders
+                        .binders
+                        .iter()
+                        .find(|binder| binder.parameter == *parameter)
+                        .ok_or_else(|| {
+                            HirSignatureTypeMappingError::UnknownBinder(parameter.identity_raw())
+                        })?;
+                    SignatureTypeKey::Binder {
+                        depth: binder.depth,
+                        index: binder.index,
+                    }
                 }
             }
         };
         visiting.remove(&ty);
         Ok(key)
-    }
-
-    fn map_struct(
-        &self,
-        owner: crate::StructId,
-        arguments: &[TypeId],
-        binders: &[HirSignatureBinder],
-        visiting: &mut HashSet<TypeId>,
-    ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
-        if local_index(owner) >= self.inputs.structs.len() {
-            return Err(HirSignatureTypeMappingError::UnknownNominal(raw_index(
-                owner,
-            )));
-        }
-        self.map_nominal(
-            &self.inputs.nominal_identities[owner],
-            self.inputs.structs[owner].type_params.len(),
-            arguments,
-            binders,
-            visiting,
-        )
-    }
-
-    fn map_class(
-        &self,
-        owner: crate::ClassId,
-        arguments: &[TypeId],
-        binders: &[HirSignatureBinder],
-        visiting: &mut HashSet<TypeId>,
-    ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
-        if local_index(owner) >= self.inputs.classes.len() {
-            return Err(HirSignatureTypeMappingError::UnknownNominal(raw_index(
-                owner,
-            )));
-        }
-        let mut objects = self
-            .inputs
-            .objects
-            .iter()
-            .filter_map(|(object, declaration)| {
-                (declaration.backing_class == owner).then_some(object)
-            });
-        let object = objects.next();
-        if objects.next().is_some() {
-            return Err(HirSignatureTypeMappingError::DuplicateObjectBackingClass(
-                raw_index(owner),
-            ));
-        }
-        let (identity, arity) = match object {
-            Some(object) => (
-                self.object_identity(object)?,
-                self.inputs.classes[owner].type_params.len(),
-            ),
-            None => (
-                &self.inputs.nominal_identities[owner],
-                self.inputs.classes[owner].type_params.len(),
-            ),
-        };
-        self.map_nominal(identity, arity, arguments, binders, visiting)
-    }
-
-    fn object_identity(
-        &self,
-        object: ObjectId,
-    ) -> Result<&HirNominalIdentity, HirSignatureTypeMappingError> {
-        if local_index(object) >= self.inputs.objects.len() {
-            return Err(HirSignatureTypeMappingError::UnknownNominal(raw_index(
-                object,
-            )));
-        }
-        Ok(&self.inputs.nominal_identities[object])
-    }
-
-    fn map_nominal(
-        &self,
-        identity: &HirNominalIdentity,
-        arity: usize,
-        arguments: &[TypeId],
-        binders: &[HirSignatureBinder],
-        visiting: &mut HashSet<TypeId>,
-    ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
-        if arguments.len() != arity {
-            return Err(HirSignatureTypeMappingError::NominalArity {
-                expected: arity,
-                actual: arguments.len(),
-            });
-        }
-        let Some(source) = identity.source() else {
-            return Err(HirSignatureTypeMappingError::GeneratedNominal);
-        };
-        match source {
-            HirSourceNominalIdentity::Concrete(record) => {
-                if arity == 0 {
-                    Ok(SignatureTypeKey::Nominal(record.id()))
-                } else {
-                    Err(HirSignatureTypeMappingError::NominalIdentityKind)
-                }
-            }
-            HirSourceNominalIdentity::Generic(record) => {
-                if arity == 0 {
-                    return Err(HirSignatureTypeMappingError::NominalIdentityKind);
-                }
-                let arguments = NonEmptyVec::new(self.map_all(arguments, binders, visiting)?)
-                    .expect("a generic nominal with positive arity has arguments");
-                Ok(SignatureTypeKey::NominalApplication {
-                    origin: record.id(),
-                    arguments,
-                })
-            }
-        }
-    }
-
-    fn map_all(
-        &self,
-        types: &[TypeId],
-        binders: &[HirSignatureBinder],
-        visiting: &mut HashSet<TypeId>,
-    ) -> Result<Vec<SignatureTypeKey>, HirSignatureTypeMappingError> {
-        types
-            .iter()
-            .map(|ty| self.map_inner(*ty, binders, visiting))
-            .collect()
     }
 
     fn function(

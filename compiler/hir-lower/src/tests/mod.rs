@@ -92,6 +92,7 @@ mod m27_context;
 mod m29_annotations;
 mod m29_class_shapes;
 mod m29_companions;
+mod m29_static_shapes;
 mod m3;
 mod m4;
 mod m5;

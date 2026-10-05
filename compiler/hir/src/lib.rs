@@ -62,6 +62,8 @@ pub use context::*;
 
 mod types;
 pub use types::*;
+mod static_shape;
+pub use static_shape::*;
 
 mod integer;
 pub use integer::*;
@@ -173,7 +175,7 @@ mod source_interfaces;
 pub use source_interfaces::*;
 
 mod dump;
-pub use dump::{dump, dump_cross_cone, dump_local, dump_module, dump_pattern};
+pub use dump::{dump, dump_cross_cone, dump_local, dump_module, dump_pattern, dump_static_shapes};
 
 #[cfg(test)]
 mod nominal_interface_fixture;
