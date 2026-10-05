@@ -101,3 +101,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 手写 LLVM IR companion 的工具入口支持显式 `llc`，检查实际 LLVM 22.1 版本并按目标发射 PIC 对象。stdout/stderr 可显式声明 snapshot，以保存完整的目标符号表；普通输出和完整诊断仍不受 snapshot 更新影响。Python 公共规则扩展为 36 项，全部通过，Ruff 0.16.10 通过。已移植的 glibc 实参推断/数组用例开始通过包括完整符号表的验收；全部旧 fixture 的两 libc 验收仍在进行。
 
 - driver 的跨 Cone 泛型测试发现未使用的外来 TD/callable 声明仍生成额外 hidden undefined symbol，使相同 ODR body 的原始对象字节随 consumer 的其它导入改变。这些声明现复用 ELF visibility 处理，实际引用仍为 hidden。原测试保持对象字节、canonical LIR、body/registration/safepoint 指纹一致性及关联 atom 变更检查；对象固定向量按 ELF/Mach-O 分开，ELF 不要求 Compact Unwind。该泛型测试与全部 330 项 codegen 测试通过，workspace fmt/clippy 无警告，三个正式工具重建成功。driver 的对象损坏负例适配与全面 fixture 验收继续进行。
+
+- CLI 进程 fixture 的 native helper 在 Linux 从 `/proc/self/cmdline` 读取真实参数，Darwin 保留 `_NSGetArgv`。两 libc 各通过 10 个正式进程，涵盖空/非 UTF-8 参数、工作目录、环境和 stdin/stderr、退出码、信号、取消后子进程回收，以及执行中重新构建同一路径。符号链接循环用例的 JSON、producer 和人类可读诊断统一使用宿主 ELOOP，glibc 三个诊断入口通过。runtime/fixture README 同步当前构建与目标入口。

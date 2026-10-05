@@ -3,7 +3,7 @@ name = "cli-run-process-contract"
 root = "process.scoop"
 inputs = ["process.scoop", "replacement.scoop", "native.c"]
 tools = ["scoop", "scoopc", "cc"]
-targets = ["aarch64-apple-darwin"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["cli", "native", "signal", "concurrency"]
 
 [vars]
@@ -15,14 +15,14 @@ files = [{mkdir = {path = "${work}/native"}}]
 
 [[steps]]
 name = "native"
-argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-c", "${fixture}/native.c", "-o", "${work}/native/fixture_native.o"]
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${fixture}/native.c", "-o", "${work}/native/fixture_native.o"]
 exit = 0
 stdout = ""
 stderr = ""
 
 [[steps]]
 name = "arguments"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}, "--", "", "two words", "--", "-o", {hex = "ff"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}, "--", "", "two words", "--", "-o", {hex = "ff"}]
 env = {CLI_PAYLOAD = "inherited value"}
 stdin = "stdin bytes\n"
 exit = 0
@@ -34,7 +34,7 @@ checks = [{glob = "${work}/target/${target}/debug/.scoop-run-*", equals = []}]
 
 [[steps]]
 name = "exit37"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}]
 env = {CLI_MODE = "exit"}
 exit = 37
 stdout = ""
@@ -44,7 +44,7 @@ diagnostics = []
 
 [[steps]]
 name = "abort"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}]
 env = {CLI_MODE = "abort"}
 signal = "SIGABRT"
 stdout = ""
@@ -54,7 +54,7 @@ diagnostics = []
 
 [[steps]]
 name = "term"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}]
 env = {CLI_MODE = "term"}
 signal = "SIGTERM"
 stdout = ""
@@ -64,7 +64,7 @@ diagnostics = []
 
 [[steps]]
 name = "interrupted"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}]
 env = {CLI_MODE = "interrupt", CLI_READY = "${work}/ready"}
 background = true
 signal = "SIGTERM"
@@ -99,7 +99,7 @@ stderr = ""
 
 [[steps]]
 name = "held"
-argv = ["${scoop}", "run", "${root}", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", {each = "${options}"}]
 env = {CLI_MODE = "hold", CLI_READY = "${work}/held-ready", CLI_RELEASE = "${work}/release"}
 background = true
 exit = 0
@@ -118,7 +118,7 @@ files = [{copy = {from = "${fixture}/replacement.scoop", to = "${work}/other/pro
 
 [[steps]]
 name = "replacement"
-argv = ["${scoop}", "run", "${work}/other/process.scoop", {each = "${options}"}]
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/other/process.scoop", {each = "${options}"}]
 exit = 0
 stdout = "replacement\n"
 stderr = ""
