@@ -37,22 +37,33 @@ def signal_number(value):
     return int(value) if isinstance(value, int) else int(getattr(signal, value))
 
 
-def process_expectations(step, result, context, base):
+def process_expectations(step, result, context, base, update=False):
     expected = step.get("exit") if "exit" in step else -signal_number(step["signal"])
     equal(
         result["returncode"],
         expected,
         f"{step['name']} exit/signal (stderr: {result['raw_stderr'][:8000]!r})",
     )
+    snapshots = 0
     for stream in ("stdout", "stderr"):
-        equal(
-            result[stream],
-            byte_value(expand(step[stream], context), base),
-            f"{step['name']} {stream}",
-        )
+        criterion = step[stream]
+        if isinstance(criterion, dict) and set(criterion) == {"snapshot"}:
+            snapshots += check_all(
+                [{"actual": result[stream], "snapshot": criterion["snapshot"]}],
+                context,
+                base,
+                update,
+            )
+        else:
+            equal(
+                result[stream],
+                byte_value(expand(criterion, context), base),
+                f"{step['name']} {stream}",
+            )
     if "diagnostics" in step:
         expected = expand(json_value(step["diagnostics"], base), context)
         equal(result["diagnostics"], expected, f"{step['name']} complete diagnostics")
+    return snapshots
 
 
 def normalize(data, rules, context):

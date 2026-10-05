@@ -25,7 +25,9 @@ class EnvironmentTests(unittest.TestCase):
     @patch("fixture_runner.cli.platform.system", return_value="Linux")
     def test_musl_companion_and_inapplicable_darwin_tools(self, *_):
         fixtures = [
-            SimpleNamespace(data={"targets": ["aarch64-apple-darwin"], "tools": ["scoop", "ar"]}),
+            SimpleNamespace(
+                data={"targets": ["aarch64-apple-darwin"], "tools": ["scoop", "ar", "llc"]}
+            ),
             SimpleNamespace(data={"targets": ["x86_64-unknown-linux-musl"], "tools": ["cc"]}),
         ]
         with tempfile.TemporaryDirectory() as directory:
@@ -52,6 +54,30 @@ class EnvironmentTests(unittest.TestCase):
             )
             self.assertNotIn("sdk", common)
             self.assertNotIn("ar", common)
+
+    @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
+    @patch("fixture_runner.cli.platform.system", return_value="Linux")
+    def test_ir_companion_requires_the_selected_llvm_version(self, *_):
+        fixtures = [SimpleNamespace(data={"tools": ["llc"]})]
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            with (
+                patch(
+                    "fixture_runner.cli.shutil.which", return_value="/opt/llvm/bin/llc"
+                ) as locate,
+                patch(
+                    "fixture_runner.cli.tool_output", return_value="LLVM version 22.1.2"
+                ) as version,
+            ):
+                common = environment(
+                    repo, work, fixtures, arguments(["--llc", "/opt/llvm/bin/llc"])
+                )
+                locate.assert_called_once_with("/opt/llvm/bin/llc")
+                version.assert_called_once_with(["/opt/llvm/bin/llc", "--version"])
+                self.assertEqual(common["llc"], "/opt/llvm/bin/llc")
+                version.return_value = "LLVM version 21.1.8"
+                with self.assertRaisesRegex(EnvironmentError, "require LLVM 22.1"):
+                    environment(repo, work, fixtures, arguments(["--llc", "/opt/llvm/bin/llc"]))
 
     @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
     @patch("fixture_runner.cli.platform.system", return_value="Linux")

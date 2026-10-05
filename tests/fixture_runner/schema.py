@@ -76,6 +76,7 @@ BUILTINS = {
     "compile_args",
     "link_args",
     "ar",
+    "llc",
     "sdk",
     "deployment",
     "runtime",

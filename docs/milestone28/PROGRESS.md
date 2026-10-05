@@ -97,3 +97,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 既有 raw globals/TLS fixture 在 GNU ld 暴露 unused hidden TLS 声明被 LLVM 发成 `STT_NOTYPE` 的问题。ELF 发射现只将实际使用的外部声明设为 hidden，未使用声明保持默认 visibility，不再生成这类伪 undefined symbol；真实 TLS 定义和引用保持 `STT_TLS`。两 libc 的对象测试增加符号类型断言，codegen 全部 330 项测试及 workspace fmt/clippy 通过。glibc 的 raw globals、跨 Cone 多线程 TLS/callback 与 Scoop ABI 大值/moving GC 三个正式 fixture 已通过，共 6 个 variant、28 个进程。fixture 的全面平台参数和快照迁移仍在进行，尚未计作整体完成。
 
 - fixture runner 提供共有编译、链接、native companion 参数及目标目录名、符号前缀、宿主 ELOOP 常量，沿用 schema 1 的参数展开；平台相关快照按实际 target 分开。新增 deep-frames 正式程序：2,048 层递归中传递 ZST、16 字节对齐的 64-byte 值和八个标量，经函数值间接调用并跨移动 GC 保留引用；600 层异常 cleanup 验证上层根和执行次数。glibc 的 debug/release 两个变体及 musl 静态 debug/release、PIE release 三个变体全部通过，共 10 个正式进程。Python 公共规则 34 项及 Ruff 0.16.10 通过。既有 fixture 的大批迁移尚未完成全部目标验收。
+
+- 手写 LLVM IR companion 的工具入口支持显式 `llc`，检查实际 LLVM 22.1 版本并按目标发射 PIC 对象。stdout/stderr 可显式声明 snapshot，以保存完整的目标符号表；普通输出和完整诊断仍不受 snapshot 更新影响。Python 公共规则扩展为 36 项，全部通过，Ruff 0.16.10 通过。已移植的 glibc 实参推断/数组用例开始通过包括完整符号表的验收；全部旧 fixture 的两 libc 验收仍在进行。

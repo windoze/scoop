@@ -19,6 +19,10 @@ SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和�
 在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
 平台相关的 LIR、link plan 和 artifact 指纹使用 `${target}` 选择独立快照；不变的
 AST/HIR/MIR/LIR 继续共用原文件，比较时不抹去 ABI 或符号差异。
+手写 LLVM IR companion 声明 `tools = ["llc", ...]`，使用 `${llc}` 加
+`-mtriple=${target} -filetype=obj -relocation-model=pic` 生成目标对象。
+工具依次使用 `--llc`、`SCOOP_TEST_PAIRED_LLC`、`LLVM_SYS_221_PREFIX/bin/llc`，
+否则查找 `llc-22` / `llc`；实际版本必须为 LLVM 22.1。
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
 每个用例的步骤与变体保持有序；报告按发现顺序保存。中断时清理运行中的进程，
 未完成项标记 `interrupted`，退出码为 130。
@@ -81,6 +85,8 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 120 秒。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
+stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
+更新规则；正常验收仍比较完整原始字节。用于按目标保存实际对象/程序符号表。
 `json = "stderr"` 解析 Scoop schema 1 前缀，遇到成功结果即停止，后续字节归程序。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。

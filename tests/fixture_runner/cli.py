@@ -7,6 +7,7 @@ import fnmatch
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,7 @@ def arguments(argv):
         choices=["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
     )
     parser.add_argument("--cc", type=Path, help="native companion compiler for the selected target")
+    parser.add_argument("--llc", type=Path, help="LLVM 22.1 compiler for IR companions")
     args = parser.parse_args(argv)
     if args.jobs < 1:
         parser.error("--jobs must be positive")
@@ -99,9 +101,25 @@ def environment(repo, work, fixtures, args):
         common[name] = str(binary.resolve())
         if name in needed and (not binary.is_file() or not os.access(binary, os.X_OK)):
             raise EnvironmentError(f"required executable is missing: {binary}")
-    unknown = needed - {"scoop", "scoopc", "scoop-link", "cc", "ar", "python"}
+    unknown = needed - {"scoop", "scoopc", "scoop-link", "cc", "ar", "llc", "python"}
     if unknown:
         raise ConfigurationError(f"unknown required tools: {sorted(unknown)}")
+    if "llc" in needed:
+        configured = args.llc or os.environ.get("SCOOP_TEST_PAIRED_LLC")
+        prefix = os.environ.get("LLVM_SYS_221_PREFIX")
+        program = (
+            str(configured)
+            if configured
+            else str(Path(prefix) / "bin/llc")
+            if prefix
+            else shutil.which("llc-22") or "llc"
+        )
+        located = shutil.which(program)
+        if located is None:
+            raise EnvironmentError(f"required LLVM 22.1 tool is missing: {program}")
+        if not re.search(r"\bversion 22\.1(?:\.|\b)", tool_output([located, "--version"])):
+            raise EnvironmentError(f"IR companions require LLVM 22.1: {located}")
+        common["llc"] = located
     if needed & {"cc", "ar"} and target == "aarch64-apple-darwin":
         common.update(
             cc=str(args.cc.resolve())
