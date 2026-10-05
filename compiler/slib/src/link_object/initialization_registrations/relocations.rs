@@ -1,3 +1,6 @@
+mod diagnostic;
+use diagnostic::{expected_diagnostic_target, validate_diagnostic_target};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -19,7 +22,6 @@ use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedObjectRelocationFormV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
     VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
@@ -30,14 +32,6 @@ const REGISTRATION_FAILURE_OFFSET: u64 = 192;
 const REGISTRATION_INITIALIZER_OFFSET: u64 = 264;
 const REGISTRATION_ENSURE_OFFSET: u64 = 272;
 const REGISTRATION_GATEWAY_OFFSET: u64 = 344;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct DiagnosticTargetV1 {
-    member: SlibMemberId,
-    atom: ObjectDefinitionAtomId,
-    section_ordinal: u32,
-    value: u64,
-}
 
 pub(super) struct VerifiedInitializationRelocationsV1 {
     pub(super) registration_diagnostic: VerifiedRelocationUseV1,
@@ -223,10 +217,8 @@ fn validate_use_shape<D>(
         Some(Failure::MissingOffset)
     } else if relocation.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if relocation.shape().form() != VerifiedObjectRelocationFormV1::Unsigned64 {
+    } else if !relocation.shape().form().is_absolute64() {
         Some(Failure::Form)
-    } else if relocation.encoded_value() != 0 {
-        Some(Failure::EncodedValue)
     } else {
         None
     };
@@ -234,165 +226,6 @@ fn validate_use_shape<D>(
         return relocation_error(plan, role, failure);
     }
     Ok(())
-}
-
-fn validate_diagnostic_target<D>(
-    objects: &BTreeMap<SlibMemberId, &[u8]>,
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    relocation: &VerifiedRelocationUseV1,
-    expected_target: DiagnosticTargetV1,
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-    role: InitializationRelocationRoleV1,
-) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
-    let (section_ordinal, value) = match relocation.shape() {
-        VerifiedObjectRelocationShapeV1::Unsigned64 {
-            target:
-                VerifiedRelocationTargetV1::LocalDefinition {
-                    owner_atom: Some(owner_atom),
-                    section_ordinal,
-                    value,
-                    ..
-                },
-        } if *owner_atom == expected_target.atom => (*section_ordinal, *value),
-        VerifiedObjectRelocationShapeV1::Unsigned64 { .. } => {
-            return relocation_error(plan, role, InitializationRelocationFailureV1::TargetKind);
-        }
-        _ => return relocation_error(plan, role, InitializationRelocationFailureV1::Form),
-    };
-    let section_index = (section_ordinal.get() as usize) - 1;
-    let sections = member.definitions().sections();
-    if sections.roles().get(section_index) != Some(&BuiltinObjectSectionRoleV1::CString) {
-        return relocation_error(
-            plan,
-            role,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        );
-    }
-    let section = sections
-        .envelope()
-        .sections()
-        .get(section_index)
-        .ok_or_else(|| {
-            relocation_error_value(
-                plan,
-                role,
-                InitializationRelocationFailureV1::DiagnosticTarget,
-            )
-        })?;
-    let expected = plan
-        .semantic()
-        .diagnostic_path()
-        .as_bytes()
-        .iter()
-        .copied()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>();
-    let target_end = value
-        .checked_add(u64::try_from(expected.len()).unwrap())
-        .ok_or_else(|| {
-            relocation_error_value(
-                plan,
-                role,
-                InitializationRelocationFailureV1::DiagnosticTarget,
-            )
-        })?;
-    let section_end = section
-        .virtual_address()
-        .checked_add(section.byte_size())
-        .expect("verified section range cannot overflow");
-    if member.member() != expected_target.member
-        || section_ordinal.get() != expected_target.section_ordinal
-        || value != expected_target.value
-        || value < section.virtual_address()
-        || target_end > section_end
-    {
-        return relocation_error(
-            plan,
-            role,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        );
-    }
-    let file_start = section
-        .file_offset()
-        .and_then(|offset| {
-            value
-                .checked_sub(section.virtual_address())
-                .and_then(|relative| offset.checked_add(relative))
-        })
-        .and_then(|offset| usize::try_from(offset).ok())
-        .ok_or_else(|| {
-            relocation_error_value(
-                plan,
-                role,
-                InitializationRelocationFailureV1::DiagnosticTarget,
-            )
-        })?;
-    let file_end = file_start.checked_add(expected.len()).ok_or_else(|| {
-        relocation_error_value(
-            plan,
-            role,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        )
-    })?;
-    if objects
-        .get(&member.member())
-        .and_then(|object| object.get(file_start..file_end))
-        != Some(expected.as_slice())
-    {
-        return relocation_error(
-            plan,
-            role,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        );
-    }
-    Ok(DiagnosticTargetV1 {
-        member: member.member(),
-        atom: expected_target.atom,
-        section_ordinal: section_ordinal.get(),
-        value,
-    })
-}
-
-fn expected_diagnostic_target<D>(
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
-    let definition = member
-        .definitions()
-        .definition(plan.registration_definition_plan())
-        .ok_or(
-            StrongInitializationRegistrationValidationError::MissingVerifiedDefinition {
-                unit: plan.semantic().unit(),
-                definition: plan.registration_definition_plan(),
-            },
-        )?;
-    let atom = definition
-        .atoms()
-        .iter()
-        .find(|atom| atom.atom() == plan.diagnostic_atom())
-        .copied()
-        .ok_or(
-            StrongInitializationRegistrationValidationError::MissingDiagnosticAtom {
-                unit: plan.semantic().unit(),
-                atom: plan.diagnostic_atom(),
-            },
-        )?;
-    let section_index = (atom.section_ordinal().get() as usize) - 1;
-    if member.definitions().sections().roles().get(section_index)
-        != Some(&BuiltinObjectSectionRoleV1::CString)
-    {
-        return relocation_error(
-            plan,
-            InitializationRelocationRoleV1::RegistrationDiagnostic,
-            InitializationRelocationFailureV1::DiagnosticTarget,
-        );
-    }
-    Ok(DiagnosticTargetV1 {
-        member: member.member(),
-        atom: atom.atom(),
-        section_ordinal: atom.section_ordinal().get(),
-        value: atom.start(),
-    })
 }
 
 #[derive(Clone, Copy)]
@@ -473,9 +306,13 @@ fn validate_binding_shape<D>(
         Some(Failure::MissingOffset)
     } else if binding.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
+    } else if !binding.relocation_form().is_absolute64() {
         Some(Failure::Form)
-    } else if binding.encoded_value() != 0 {
+    } else if binding
+        .relocation_form()
+        .absolute64_addend(binding.encoded_value())
+        != Some(0)
+    {
         Some(Failure::EncodedValue)
     } else if binding.target_slot() != RelocationTargetSlotV1::Single {
         Some(Failure::TargetSlot)
@@ -532,7 +369,10 @@ fn validate_strong_target<D>(
             return relocation_error(plan, role, Failure::TargetKind);
         }
     };
-    let requested_symbol = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+    let requested_symbol = patch_sites
+        .builtins()
+        .member_plan()
+        .target()
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(expected.symbol.symbol().as_str())

@@ -17,7 +17,7 @@ use crate::link_object::{
     ImmortalObjectRegistrationRelocationFailureV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
     VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedObjectDefinitionRequirementSetV1, VerifiedObjectRelocationFormV1,
+    VerifiedObjectDefinitionRequirementSetV1,
 };
 
 pub(super) struct ValidatedImmortalObject<'a> {
@@ -198,10 +198,14 @@ fn validate_descriptor_relocation(
     if binding.width_bytes() != 8 {
         return relocation_error(plan, Failure::Width);
     }
-    if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
+    if !binding.relocation_form().is_absolute64() {
         return relocation_error(plan, Failure::Form);
     }
-    if binding.encoded_value() != 0 {
+    if binding
+        .relocation_form()
+        .absolute64_addend(binding.encoded_value())
+        != Some(0)
+    {
         return relocation_error(plan, Failure::EncodedValue);
     }
     if binding.target_slot() != RelocationTargetSlotV1::Single {
@@ -218,7 +222,13 @@ fn validate_descriptor_relocation(
             validate_local_descriptor_target(builtins, requirements, plan, binding, owner)
         }
         ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, .. } => {
-            validate_external_descriptor_target(requirements, plan, binding, provider)
+            validate_external_descriptor_target(
+                builtins.member_plan().target(),
+                requirements,
+                plan,
+                binding,
+                provider,
+            )
         }
     }
 }
@@ -312,6 +322,7 @@ fn validate_local_descriptor_target(
 }
 
 fn validate_external_descriptor_target(
+    target: LirTargetProfile,
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
     binding: &StrongRelocationBindingV1,
@@ -335,7 +346,7 @@ fn validate_external_descriptor_target(
             source,
         },
     )?;
-    let expected_symbol = LirTargetProfile::DARWIN_AARCH64
+    let expected_symbol = target
         .contract()
         .native_symbol_normalization()
         .compiler_generated_object_symbol(request.symbol().as_str());

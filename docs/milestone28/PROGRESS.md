@@ -25,6 +25,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 独立 slib stackmap reader 已按架构选择 amd64 帧/root 规则与机器码校验，保留共有 LLVM v3 解析、语义匹配和 canonical encoding。仅解码功能的 [yaxpeax-x86 2.2.0](https://docs.rs/crate/yaxpeax-x86/2.2.0) 用于变长指令边界，无 LLVM 依赖；上游该版于 2026-07-05 发布，维护与 API 已核对。实际调用和 RBP 建帧从函数起点解码，root 排除 red zone、saved RBP 和 return address。Darwin canonical 向量保持；完整 ELF registration/digest finalizer 仍待接入。
 - 共有 metadata reader 已提供绝对 64-bit pointer 的 target/addend/address 读取，区分 Mach-O 字段内 addend 与 ELF RELA signed addend；callable entry 和 Context key pointer 使用该语义。实际 Linux callable、safepoint registration 及 digest patch site 读取已接通，其余 metadata 与完整 digest finalizer 仍待后续完成。
 - 类型 registration、诊断字符串和 itable directory 已接入 ELF 绝对指针及 section symbol + addend 读取；关联 atom 以实际 section/address 核对，外部类型/释放 hook 符号使用所选 target。较长的 descriptor reader 拆为描述符、诊断与 itable 三个模块。完整对象指纹 finalizer 的 Linux 验收仍在后续批次。
+- immortal、static storage 和 initialization registration 已接入 ELF pointer/addend 与 target 符号规则；模板和诊断引用核对实际 atom 起点，空哨兵继续检查范围、对齐与非 atom 区域。LLVM 保留独立地址的只读字符串不必带 merge flags。零尺寸 encoded storage 的地址 token 修正为 file-backed writable data，运行时初始化的 token 继续使用 zero-fill。初始化诊断和静态本地指针规则分别拆入小模块。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
 
@@ -55,3 +56,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - amd64 slib stackmap 接入通过全部 598 项 slib 测试（其中 stackmap 24 项），workspace fmt/clippy 通过。新增两 libc 的正式 LLVM member → definition/relocation reader → stackmap reader 集成测试，覆盖零/单/双 root 及破坏 RBP 保存的真实对象负例；解码测试检查直接、register-indirect、memory-indirect call，拒绝指令中间 PC、immediate 内的伪 opcode、缺失/反序建帧和越界/未对齐 root。
 - metadata pointer 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实 callable/safepoint registration 集成测试；把实际 entry RELA addend 从零改为八、保持 pointer 字段为零时 reader 正确拒绝。共有数值测试覆盖 signed addend、地址上下溢和 PC-relative/GOT/TLS relocation 拒绝；Context key 的既有 Darwin 测试通过，Linux Context 全流程仍在后续验收范围。
 - 类型 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实对象 reader 集成测试。对象包含 String、接口、父类、子类、vtable 和 itable；本批验证 registration、descriptor 诊断及 itable 关联指针，分别把诊断和 directory 的 RELA addend 改到相邻字节时均拒绝。外部 parent/release hook 的符号比较单测覆盖三个 target；完整类型与对象 fingerprint 链尚未作为 Linux 已完成项。
+- 存储/初始化 metadata 变更通过全部 599 项 slib 测试、workspace fmt/clippy、8 项既有初始化回归及两 libc 的实际组合对象测试。组合对象含两个 immortal String、整数/引用/ZST encoded storage、两组惰性初始化存储与 failure root；immortal/static registration object fingerprints 计算通过，损坏模板或诊断 RELA addend 时 reader 拒绝。该测试读取实际初始化记录，不执行初始化算法；eager gateway 的 EH 与完整 finalizer 仍需后续接入。

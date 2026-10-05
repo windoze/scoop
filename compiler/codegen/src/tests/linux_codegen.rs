@@ -9,6 +9,10 @@ use super::*;
 mod bridges;
 mod objects;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod slib_metadata;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod slib_metadata_fixture;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod slib_stackmaps;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod slib_support;

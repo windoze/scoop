@@ -78,14 +78,13 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
         };
         value.set_initializer(&initializer);
         if !thread_local {
-            let zeroed = size == 0
-                || matches!(
-                    &global.init,
-                    GlobalInit::Storage {
-                        initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
-                        ..
-                    }
-                );
+            let zeroed = matches!(
+                &global.init,
+                GlobalInit::Storage {
+                    initial_state: LirStaticInitialState::ZeroedForRuntimeUnit,
+                    ..
+                }
+            );
             value.set_section(Some(if zeroed {
                 self.profile.zero_fill_storage_section()
             } else {

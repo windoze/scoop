@@ -66,7 +66,13 @@ fn classify(name: &[u8], kind: u32, flags: u64) -> Result<Role, ElfObjectError> 
     let (role, required) = if name == b".text" || name.starts_with(b".text.") {
         (Role::Text, SHF_ALLOC | SHF_EXECINSTR)
     } else if name.starts_with(b".rodata.str") {
-        (Role::CString, SHF_ALLOC | SHF_MERGE | SHF_STRINGS)
+        let strings = SHF_MERGE | SHF_STRINGS;
+        let required = if flags & u64::from(strings) == 0 {
+            SHF_ALLOC
+        } else {
+            SHF_ALLOC | strings
+        };
+        (Role::CString, required)
     } else if name == b".rodata" || name.starts_with(b".rodata.") {
         (Role::ReadOnlyData, SHF_ALLOC)
     } else if name.starts_with(b".data.rel.ro.") {
