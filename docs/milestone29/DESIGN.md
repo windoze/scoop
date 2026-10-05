@@ -340,7 +340,7 @@ public enum Message : Encodable {
 | `Message.Text("hello")` | `{"text":{"value":"hello"}}` |
 | `Message.Point(3L, 4L)` | `{"point":[3,4]}` |
 
-encode 是对当前 variant 的普通 when：写一个外层 key，然后编码该 variant 的 record 或 sequence payload。decode 先检查外层恰好一个 key，再按编译期已知的 wire 名分支；读取并检查 payload、补 default、结束容器，最后直接调用 `Message.Text(...)` 或 `Message.Point(...)`。未知 variant 抛包含 decoder.path 的 DecodingException。
+encode 是对当前 variant 的普通 when：写一个外层 key，然后编码该 variant 的 record 或 sequence payload。decode 先检查外层恰好一个 key，再按编译期已知的 wire 名分支；读取并检查 payload、结束内外层容器，再按参数序补 default，最后直接调用 `Message.Text(...)` 或 `Message.Point(...)`。未知 variant 抛包含 decoder.path 的 DecodingException。
 
 变体的 ordinal、内存 tag、niche 与 payload offset 不进入格式。源码顺序只影响编码器生成的分支顺序，不改变选中分支的 wire 名。位置 payload 和 tuple 必须恰好消费声明数量的元素；命名 payload 沿 record 的 default/未知 key 规则处理。
 

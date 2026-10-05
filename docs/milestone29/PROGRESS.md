@@ -212,3 +212,40 @@ Linux glibc/musl 各通过 22 个进程、10 份阶段 golden，包含普通与 
 三平台均完成不更新快照的复验，七份共有 HIR/MIR 字节一致，六份 Linux LIR 独立保存。
 两端 workspace 格式化/lint 通过，测试报告保存后清理本批工作目录。自动 decode、
 核心容器/tuple 的条件 Encodable 和完整总验收继续实施。
+
+
+## 名义类型、tuple 与组合字段的自动解码
+
+companion 或普通 class/struct/object 对 `Decodable<R>` 的缺失实现现在生成普通
+`decode` 方法。合法手写、继承和 interface default 仍优先；无关 overload 不阻止
+合成，非法 override 和额外 requirement 保留原诊断。结果 R 的普通 struct、enum、
+tuple 和合格 final class 按实际 shape 展开，singleton 明确拒绝自动构造。
+
+字段解码器在定义处按 primary val 依赖、递归 this、完整 companion application、
+核心容器或 tuple 组合选择，并保存实际 typed 引用。两个 binder 具体化成同一类型后
+仍使用原依赖；tuple 闭包沿普通 lambda 的参数、捕获、词法来源和正文登记流程，
+共享实现抽取为独立模块。合成方法登记与 encode 共用现有成员签名建立流程。
+没有新增 IR 指令、跨阶段解码计划、wire 格式或 runtime ABI。
+
+生成代码先读取所有提供的字段，并结束该层容器，再按构造参数序补 default 和
+Transient 参数；缺失字段不求值其 codec。enum 在补 default 前同时完成外层检查，
+unit variant 直接构造普通值。正常 primary/variant 构造、访问域、泛型替换、vararg
+整数组及 default 模板路径共用原实现；class 完整初始化后才返回。
+
+共有依赖数据支持消费方为导入类型合成方法，保留字段/annotation、主构造关联及
+原 default 绑定。独立产物用例删除 core、JSON、两个 provider 和 consumer 源码后
+链接运行，并区分两个 Cone 中具有相同 FQN 的类型、companion 和构造器。
+
+新增解码模块最长 186 行，共享 lambda 主模块由 347 行缩为 268 行，参数处理
+单列为 112 行模块。八项新语义测试与全部 1354 项 HIR lowering 测试通过；后续
+unit variant 和 singleton 修复在两端通过全部 16 项自动编解码语义回归。
+
+新增 43 个正式 fixture，其中 34 项核对精确错误位置和信息，9 项覆盖源码与组合运行。
+涵盖四种 enum variant、嵌套 Option/数组/tuple、泛型依赖、原始及缺省 vararg、普通
+接口分派、companion 惰性初始化、default/constructor/codec 异常、动态 Context、
+独立产物和 moving GC。macOS、Linux glibc/musl 各通过 82 个进程、28 份阶段 golden；
+三平台又分别通过全部 9 项 stage fixture 的不更新快照复验。19 份共有 HIR/MIR
+字节一致，18 份 Linux LIR 独立保存。两端 workspace 格式化/lint 通过。
+
+本批完成自动 decode；核心容器与 tuple 的条件 Encodable，以及完整 workspace/
+文件 fixture 总验收继续实施。报告已归档，完成的测试工作目录按批清理。

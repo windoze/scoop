@@ -539,6 +539,7 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         self.lower_derived_encoding_bodies();
+        self.lower_derived_decoding_bodies();
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
         if self.diagnostics.is_empty()

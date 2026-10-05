@@ -1,0 +1,50 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"variant decode assertion ${code}")
+        throw IllegalStateException(Some(f"variant decode assertion ${code}"))
+    }
+}
+
+public enum Choice : Encodable {
+    @SerialName("none/~") Empty,
+    Pair(String, Int),
+    Named(@SerialName("v/~") val value: Int = 5, @Transient val ignored: Int = value + 1),
+    Record { value: String, count: Int }
+    public companion object : Decodable<Choice>
+}
+
+private object TupleDecoder : Decodable<(Int, String, (Long, Char), Unit)>
+
+private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
+    try { Json.decode(text, codec) }
+    catch (error: DecodingException) { check(error.path == path, 90); return }
+    throw IllegalStateException(Some("expected a variant or tuple decoding error"))
+}
+
+fun main() {
+    val empty = Json.decode("{\"none/~\":{\"skipped\":[null,{}]}}", Choice.Companion)
+    check(Json.encode(empty) == "{\"none/~\":{}}", 1)
+    val pair = Json.decode("{\"Pair\":[\"pair\",2]}", Choice.Companion)
+    check(Json.encode(pair) == "{\"Pair\":[\"pair\",2]}", 2)
+    val named = Json.decode("{\"Named\":{}}", Choice.Companion)
+    check(when (named) { Choice.Named(value, ignored) -> value == 5 && ignored == 6; else -> false }, 3)
+    check(Json.encode(named) == "{\"Named\":{\"v/~\":5}}", 4)
+    val record = Json.decode("{\"Record\":{\"count\":4,\"value\":\"record\"}}", Choice.Companion)
+    check(Json.encode(record) == "{\"Record\":{\"value\":\"record\",\"count\":4}}", 5)
+    val tuple = Json.decode("[1,\"two\",[9223372036854775807,\"😀\"],null]", TupleDecoder)
+    check(tuple._1 == 1 && tuple._2 == "two" && tuple._3._1 == 9223372036854775807L, 6)
+    check(tuple._3._2 == '😀', 7)
+    reject("{}", Choice.Companion, "")
+    reject("{\"Pair\":[\"a\",1],\"Record\":{}}", Choice.Companion, "")
+    reject("{\"unknown\":{}}", Choice.Companion, "")
+    reject("{\"none/~\":[]}", Choice.Companion, "/none~1~0")
+    reject("{\"Pair\":[\"a\"]}", Choice.Companion, "/Pair/1")
+    reject("{\"Pair\":[\"a\",1,2]}", Choice.Companion, "/Pair")
+    reject("{\"Named\":{\"v/~\":null}}", Choice.Companion, "/Named/v~1~0")
+    reject("[1,\"a\",[2,\"x\"],null,5]", TupleDecoder, "")
+    reject("[1,\"a\",[2,\"xy\"],null]", TupleDecoder, "/2/1")
+    reject("[1,\"a\",[2],null]", TupleDecoder, "/2/1")
+    println("variants-ok")
+}

@@ -24,8 +24,8 @@ impl Lowerer {
             let source = hir::StructFieldRef::checked(&self.structs, structure, index as u32)
                 .expect("the shape iterates this declaration's fields");
             let span = self.struct_field_spans[&source];
-            let Some(name) =
-                self.encoding_wire_name(hir::SourceAnnotationTarget::Field(source), &field.name)
+            let Some(name) = self
+                .serialization_wire_name(hir::SourceAnnotationTarget::Field(source), &field.name)
             else {
                 continue;
             };
@@ -81,8 +81,8 @@ impl Lowerer {
             if !stored {
                 continue;
             }
-            let Some(name) =
-                self.encoding_wire_name(hir::SourceAnnotationTarget::Property(id), &property.name)
+            let Some(name) = self
+                .serialization_wire_name(hir::SourceAnnotationTarget::Property(id), &property.name)
             else {
                 continue;
             };
@@ -109,7 +109,7 @@ impl Lowerer {
         ))
     }
 
-    pub(super) fn encoding_wire_name(
+    pub(in crate::class) fn serialization_wire_name(
         &self,
         target: hir::SourceAnnotationTarget,
         source_name: &str,

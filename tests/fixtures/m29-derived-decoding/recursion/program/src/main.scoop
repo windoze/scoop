@@ -1,0 +1,44 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"recursive decode assertion ${code}")
+        throw IllegalStateException(Some(f"recursive decode assertion ${code}"))
+    }
+}
+
+public class Node public constructor(public val value: Int, public val next: Option<Node>)
+public class NodeDecoder(private val element: Decodable<Int>) : Decodable<Node>
+private class Offset(private val amount: Int) : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int = Int.Companion.decode(decoder) + amount
+}
+
+public enum Tree {
+    Leaf,
+    Branch(val node: TreeNode)
+    public companion object : Decodable<Tree>
+}
+public class TreeNode public constructor(public val child: Tree) {
+    public companion object : Decodable<TreeNode>
+}
+
+fun main() {
+    val text = "{\"value\":1,\"next\":{\"Some\":[{\"value\":2,\"next\":{\"Some\":[{\"value\":3,\"next\":{\"None\":{}}}]}}]}}"
+    val codec = NodeDecoder(Offset(10))
+    val root = Json.decode(text, codec)
+    check(root.value == 11 && root.next!!.value == 12 && root.next!!.next!!.value == 13, 1)
+    check(when (root.next!!.next!!.next) { None -> true; Some(value) -> false }, 2)
+    val other = Json.decode(text, NodeDecoder(Offset(100)))
+    check(other.value == 101 && other.next!!.value == 102, 3)
+    val again = Json.decode(text, codec)
+    check(again !== root && again.next!! !== root.next!! && again.next!!.value == 12, 4)
+    val tree = Json.decode("{\"Branch\":{\"node\":{\"child\":{\"Branch\":{\"node\":{\"child\":{\"Leaf\":{}}}}}}}}", Tree.Companion)
+    check(when (tree) {
+        Tree.Branch(node) -> when (node.child) {
+            Tree.Branch(inner) -> when (inner.child) { Tree.Leaf -> true; else -> false }
+            else -> false
+        }
+        else -> false
+    }, 5)
+    println("recursion-ok")
+}

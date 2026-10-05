@@ -4,8 +4,7 @@
 use super::interfaces::InterfaceMemberInstance;
 use super::*;
 use ast::Span;
-use hir::{Function, FunctionKind};
-use la_arena::Arena;
+use hir::FunctionKind;
 
 mod declarations;
 mod fields;

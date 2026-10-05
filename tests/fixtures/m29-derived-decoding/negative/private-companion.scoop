@@ -1,0 +1,7 @@
+public struct Element(val value: Int) {
+    private companion object : Decodable<Element>
+}
+public struct Item(val value: Element)
+public object Reader : Decodable<Item>
+
+fun main() {}

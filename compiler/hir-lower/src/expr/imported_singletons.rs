@@ -66,7 +66,7 @@ impl Lowerer {
         })
     }
 
-    pub(in crate::expr) fn lower_imported_singleton_type(
+    pub(crate) fn lower_imported_singleton_type(
         &mut self,
         ty: TypeId,
         span: Span,

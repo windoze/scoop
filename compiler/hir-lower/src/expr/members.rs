@@ -357,7 +357,7 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::expr) fn member_property_read(
+    pub(crate) fn member_property_read(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,

@@ -15,7 +15,10 @@ impl Lowerer {
                 .expect("the shape iterates this enum's variants");
             let variant_span = self.enum_variant_spans[&source];
             let name = self
-                .encoding_wire_name(hir::SourceAnnotationTarget::Variant(source), &variant.name)
+                .serialization_wire_name(
+                    hir::SourceAnnotationTarget::Variant(source),
+                    &variant.name,
+                )
                 .expect("Transient is not a variant annotation");
             if !names.insert(name.clone()) {
                 self.error(
@@ -37,7 +40,7 @@ impl Lowerer {
                     hir::EnumVariantFieldRef::checked(&self.enums, source, field_index as u32)
                         .expect("the shape iterates this variant's fields");
                 let span = self.enum_variant_field_spans[&source];
-                if let Some(name) = self.encoding_wire_name(
+                if let Some(name) = self.serialization_wire_name(
                     hir::SourceAnnotationTarget::VariantField(source),
                     &field.name,
                 ) {

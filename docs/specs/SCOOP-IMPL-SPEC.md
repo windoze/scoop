@@ -1768,6 +1768,10 @@ HIR lowering 内存在，不为派生增加独立 callable 类别或跨阶段的
 及 default 模板实例化入口；不得把这些引用转回 FQN 后重新查找。生成的临时值、
 条件分支和最终构造均进入普通 HIR，缺失字段的 default 只放在实际缺失分支中执行。
 
+tuple 的组合解码闭包共用源码 lambda 的参数、词法来源、捕获和正文登记流程。
+生成器只提供普通 typed 语句和值；捕获的解码器 receiver 仍由原 binding identity
+关联，不为合成闭包另建名义类型、执行指令或跨阶段计划。
+
 encode归数据类型，decode归实际companion/解码器。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同解码器即使返回同一个R也保持不同声明；同一provider application才沿原ODR合并。构造调用的求值来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
 
 **核心类型与格式库。** scalar数据值实现Encodable，其普通companion实现具体`Decodable<Scalar>`；Unit使用普通UnitDecoder。Option/Array/MutableArray/ArrayList和tuple按11.13的封闭规则提供结构型Encodable，不给数据类型追加Decodable conformance。generic核心类型的companion随宿主具体化，其普通decoder方法使用宿主T、显式接收`Decodable<T>`并构造持有该依赖的常规helper；每次传入的codec不写入singleton状态。方法的普通声明身份由已有core协议关系引用，不以同名用户声明替代。核心类型的原泛型范围保持不变。

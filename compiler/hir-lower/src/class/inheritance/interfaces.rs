@@ -188,12 +188,22 @@ impl Lowerer {
                             self.conformance_target(&declaration, span)
                         }
                         InterfaceDefaultSelection::Obligation(_) => {
-                            if let Some(function) = self.derive_missing_encoding(
-                                owner,
-                                &member,
-                                &all_interfaces,
-                                &candidates,
-                            ) {
+                            if let Some(function) = self
+                                .derive_missing_encoding(
+                                    owner,
+                                    &member,
+                                    &all_interfaces,
+                                    &candidates,
+                                )
+                                .or_else(|| {
+                                    self.derive_missing_decoding(
+                                        owner,
+                                        &member,
+                                        &all_interfaces,
+                                        &candidates,
+                                    )
+                                })
+                            {
                                 candidates
                                     .push(crate::CallableCandidate::method(function, own_owner));
                                 Some(hir::InterfaceImplementationTarget::Method(

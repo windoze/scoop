@@ -1,0 +1,4 @@
+public enum Item { @SerialName("same") A, @SerialName("same") B }
+public object Reader : Decodable<Item>
+
+fun main() {}

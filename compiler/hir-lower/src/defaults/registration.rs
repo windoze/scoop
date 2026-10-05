@@ -35,6 +35,10 @@ impl Lowerer {
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
+        for (function, _) in self.derived_decoding_methods.clone() {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
         for &(structure, declaration, file) in structs {
             self.current_file = file;
             if matches!(

@@ -1,0 +1,4 @@
+public struct Item(val value: FunPtr<(Int) -> Int>)
+public object Reader : Decodable<Item>
+
+fun main() {}

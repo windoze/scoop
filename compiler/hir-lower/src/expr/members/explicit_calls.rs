@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(in crate::expr) fn lower_explicit_named_call(
+    pub(crate) fn lower_explicit_named_call(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
