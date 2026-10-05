@@ -20,7 +20,9 @@ SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和�
 平台相关的 LIR、link plan 和 artifact 指纹使用 `${target}` 选择独立快照；不变的
 AST/HIR/MIR/LIR 继续共用原文件，比较时不抹去 ABI 或符号差异。
 手写 LLVM IR companion 声明 `tools = ["llc", ...]`，使用 `${llc}` 加
-`-mtriple=${target} -filetype=obj -relocation-model=pic` 生成目标对象。
+`-mtriple=${llvm_target} -filetype=obj -relocation-model=pic` 生成目标对象。
+ELF 的 `${llvm_target}` 与 `${target}` 相同；Darwin 包含当前 deployment，以产生
+原生对象需要的 `LC_BUILD_VERSION`。Scoop 命令仍使用 canonical `${target}`。
 工具依次使用 `--llc`、`SCOOP_TEST_PAIRED_LLC`、`LLVM_SYS_221_PREFIX/bin/llc`，
 否则查找 `llc-22` / `llc`；实际版本必须为 LLVM 22.1。
 只为适用 target 的用例发现工具，目标不适用项仍单列，不计为通过。
@@ -66,7 +68,7 @@ stderr = ""
 `${cache}` 与 `${sysroot}`。例如 `env = { SCOOP_GC_STRESS_MOVE = "1" }` 只影响该变体。
 多 Cone 提交真实 `Cone.toml`，按普通 `copy` 步骤布置，runner 不合成入口或 manifest。
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
-`-isysroot ${sdk}`、`-mmacosx-version-min=${deployment}` 和输出；随后传 `--library-path`。
+`{each = "${cc_args}"}` 和输出；随后传 `--library-path`。
 
 `${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；三个 Scoop
 工具默认从 `target/debug` 取得，可用 CLI 参数或 `SCOOP_TEST_PAIRED_*` 指定。
@@ -121,5 +123,3 @@ wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完
 
 报告单列用例、变体、进程和 golden 数量，不将支持文件或目标不适用项计作通过。
 `--work-dir` 或失败时保留 report 与工作区，`--keep` 也可用于审阅成功运行。
-
-手写 LLVM IR companion 使用 `${llc}` 和 `-mtriple=${llvm_target}`：ELF 的 LLVM triple 与 `${target}` 相同；Darwin triple 包含当前 deployment，以产生原生对象需要的 `LC_BUILD_VERSION`。Scoop 命令仍使用 canonical `${target}`。

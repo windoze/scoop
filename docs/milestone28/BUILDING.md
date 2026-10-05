@@ -113,6 +113,43 @@ Linux 的同名导出遵循 ELF 平坦命名空间；不能同时实现的显式
 这只优化 Rust 编译器工具自身，与被测 Scoop 程序的 debug/release 选择分开。
 更广的功能组合及 macOS 回归状态见 [实施记录](PROGRESS.md)。
 
+## 完整文件 fixture 验收
+
+两种 libc 使用不同的工作目录，正式验收不带 `--update-snapshots`：
+
+```sh
+python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-gnu \
+  --scoop target/release/scoop --scoopc target/release/scoopc \
+  --scoop-link target/release/scoop-link --llc "$LLVM_SYS_221_PREFIX/bin/llc" \
+  --work-dir target/m28-final-gnu
+python3 tests/run_fixtures.py --all --target x86_64-unknown-linux-musl \
+  --scoop target/release/scoop --scoopc target/release/scoopc \
+  --scoop-link target/release/scoop-link --llc "$LLVM_SYS_221_PREFIX/bin/llc" \
+  --work-dir target/m28-final-musl
+```
+
+当前共声明 2,320 个 fixture：glibc 适用 2,295 个，musl 适用 2,297 个，
+Darwin/AArch64 适用 2,314 个。这是适用范围，实际通过数见实施记录。
+glibc 的两项额外不适用是显式 musl PIE 用例；六项 M28 Linux 专用用例不在 Darwin 执行。
+
+23 个既有 fixture 保留 Darwin 条件：16 个测试 Mach-O dylib/framework、
+two-level namespace 或 Darwin loader；另外 7 个使用 Mach-O 对象字段、归档布局或
+损坏向量（direct-contracts、formats-relocations、formats-tls、archive-toc、
+program-link optional-members/artifact-corruption，以及 generic-delegate-consumption-consumer）。
+它们不能只替换 triple 就成为 ELF 测试。ELF 的对象/归档损坏由 slib、driver 和 linker
+的实际对象测试覆盖；普通 `.o`/`.a`、generic delegate 和独立链接继续运行共有 fixture，
+`.so`/版本/TLS/loader 由 `m28-native-dso` 验收。报告单列不适用项。
+
+目标相关 LIR、链接计划、符号表、归档成员列表和完整诊断保存各自快照。
+AST/HIR/MIR 保留共有结果；`hir-global-default-read` 的 imported identity 分配顺序受
+目标影响，单独保留该 HIR 的三个目标结果。诊断文件仍完整比较，不自动更新。
+LLVM IR companion 必须使用 `${llvm_target}`，Darwin 需要包含 deployment 的 triple。
+
+macOS 回归在独立的 `~/repos/scoop/target/m28-darwin` worktree 中构建三个工具，
+设置该仓库下的 `TMPDIR`，运行 workspace tests 和同一个 runner 的普通 `--all`。
+构建新工具时不要覆盖正在被 fixture 使用的二进制；需要并行工作时先复制配套的三个
+工具到独立目录，并把它们的路径一起传给 runner。
+
 ## 构建目录管理
 
 开发验证可以设置 `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`，减少大型 workspace 的中间产物。使用同一组设置完成一批验证，避免生成多套重复缓存。
