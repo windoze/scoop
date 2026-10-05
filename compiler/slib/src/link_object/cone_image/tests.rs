@@ -135,7 +135,7 @@ fn rejects_a_coordinate_pointer_to_another_support_atom() {
         Err(ConeImageValidationError::RelocationMismatch {
             role: ConeImageAtomRoleV1::CoordinateGroup,
             index: 0,
-            kind: ConeImageRelocationFailureV1::TargetAtom,
+            kind: ConeImageRelocationFailureV1::TargetValue,
         })
     );
 }

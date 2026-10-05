@@ -46,11 +46,20 @@ pub(super) fn verify_registration_table(
             Some(ConeImageRelocationFailureV1::SectionRole)
         } else if relocation.width_bytes() != 8 || binding.width_bytes() != 8 {
             Some(ConeImageRelocationFailureV1::Width)
-        } else if relocation.shape().form() != VerifiedObjectRelocationFormV1::Unsigned64
-            || binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64
+        } else if !relocation.shape().form().is_absolute64()
+            || !binding.relocation_form().is_absolute64()
         {
             Some(ConeImageRelocationFailureV1::Form)
-        } else if relocation.encoded_value() != 0 || binding.encoded_value() != 0 {
+        } else if relocation
+            .shape()
+            .form()
+            .absolute64_addend(relocation.encoded_value())
+            != Some(0)
+            || binding
+                .relocation_form()
+                .absolute64_addend(binding.encoded_value())
+                != Some(0)
+        {
             Some(ConeImageRelocationFailureV1::EncodedValue)
         } else if binding.target_slot() != RelocationTargetSlotV1::Single {
             Some(ConeImageRelocationFailureV1::TargetSlot)
