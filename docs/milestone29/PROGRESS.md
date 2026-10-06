@@ -3,6 +3,18 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：产物依赖图回归
+
+产物依赖图用例的两处 StaleDependency 诊断同步实际 HIR/MIR/LIR 摘要，保持
+同一依赖 Cone、库身份、诊断位置和拒绝顺序。干净目录的普通模式通过全部
+17 个进程与 25 次 golden 检查，包含先拒绝旧依赖、再查询 native 库，以及保留
+已有可执行文件的普通/移动 GC 运行。报告保存为
+`/tmp/scoop-m29-saved-reports/m29-revised-graph-darwin-check.json`。
+
+Darwin 其余快照更新轮已完成，除六个已修复的旧向量/摘要用例外，仅
+shared-bounds-context 暴露泛型 Unit 装箱缺少实际声明的问题；该问题正在修复，
+没有将更新轮计为普通全量通过。报告归档后清理约 58.55 GiB 的完成工作目录。
+
 ## 2026-10-06：依赖失效的实际摘要回归
 
 两个 generic ODR 冲突用例同步新 core 的产物及 HIR/MIR/LIR 摘要，继续以同一
