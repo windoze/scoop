@@ -6,9 +6,9 @@ runtime objects=65
 images=3 root=scoop$1$re$03108936c26c5e31c6696c25c9225cca572dad8d314861487c9a54a9a24c918b
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_runtime_images requirement=453f09278a8bf953e368c5c520694e3dd22cf2e1dd05e7245892bba49c11aab9 input=ec4029188a9885c075ce969cd020fc645bacbf50dcc5dbcde4e53a06d40dbb8f origins=dev.example:lazy-failure-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 14, 22, 121, 133, 176, 173, 213, 120, 105, 227, 40, 97, 53, 184, 24, 68, 22, 11, 251, 31, 10, 9, 101, 106, 94, 88, 135, 95, 164, 125, 88])]), dev.example:lazy-failure-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([202, 228, 102, 109, 127, 171, 166, 172, 113, 37, 176, 36, 30, 6, 153, 203, 239, 63, 14, 171, 132, 182, 11, 188, 238, 155, 244, 109, 179, 195, 210, 62])])
-native archive ec4029188a9885c075ce969cd020fc645bacbf50dcc5dbcde4e53a06d40dbb8f members=1
-  member 0 header=8 payload=68..1748 name="trace.o" digest=172a5e4f869d26b6235871184ef8a8096e940edfd3bf1187bef58c77c6ebe557 selected=true
+native library m23_runtime_images requirement=453f09278a8bf953e368c5c520694e3dd22cf2e1dd05e7245892bba49c11aab9 input=$NATIVE_INPUT_0 origins=dev.example:lazy-failure-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 14, 22, 121, 133, 176, 173, 213, 120, 105, 227, 40, 97, 53, 184, 24, 68, 22, 11, 251, 31, 10, 9, 101, 106, 94, 88, 135, 95, 164, 125, 88])]), dev.example:lazy-failure-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([202, 228, 102, 109, 127, 171, 166, 172, 113, 37, 176, 36, 30, 6, 153, 203, 239, 63, 14, 171, 132, 182, 11, 188, 238, 155, 244, 109, 179, 195, 210, 62])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1748 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
 ELF system imports=51
 startup object references:
   scoop$1$im$03108936c26c5e31c6696c25c9225cca572dad8d314861487c9a54a9a24c918b

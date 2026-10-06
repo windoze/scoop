@@ -103,7 +103,14 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 每一步的 `checks` 选择 `actual`（JSON 引用）、`file` 或 `glob`（排序后的路径数组），并选择一个比较：
 `equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、`sha256`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
-只有 `normalize = ["paths", "newlines"]` 两种公共非语义规则。显式
+`normalize` 的公共规则为 `paths`、`newlines` 和 `native-digests`。后者仅用于链接计划：
+将 `native library` 的 `input`、`native object/archive` 的内容 ID、归档 member 的
+`digest`、`dynamic provider` 及其 load/re-export 引用替换为按首次出现编号的标记。
+同值共用标记，不同值使用不同标记；保留逻辑库、requirement、源码声明身份、符号、
+成员名称／顺序／范围、选择状态、动态库路径和绑定关系。它不处理普通 IR ID 或任意哈希。
+native 诊断中的 `native object` 引用及 `NativeInputId(Digest256(...))` 可通过进程步骤的
+`diagnostics_normalize = ["native-digests"]` 使用同一规则；完整诊断的其他字段仍精确比较。
+摘要本身是被测行为的确定性或编码测试不启用此规则。显式
 `--update-snapshots` 仅更新选中的 snapshot 文件，不改 exit/signal、诊断和普通输出期望。
 
 文件准备步骤使用 `files = [{copy = {from = "...", to = "..."}}]`。

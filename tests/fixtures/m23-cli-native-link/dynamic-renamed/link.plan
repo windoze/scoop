@@ -5,12 +5,12 @@ runtime objects=63
 images=2 root=_scoop$1$re$870bc51e6a7ba0c40fcf333aef5714824d7b40cd342093f94bd6099347d5471a
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_facade requirement=cfa2901226585d292a557f0be8754a70bc6333b4fdd9b1adbf72f7a61add18f5 input=ae7a298a18db20c7f11754a50549439d30068405c66b97273eab450fa4d23702 origins=dev.programlink:renamed:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([31, 162, 23, 67, 146, 235, 185, 135, 224, 203, 210, 82, 196, 4, 194, 82, 172, 24, 5, 211, 28, 54, 5, 210, 27, 126, 203, 97, 41, 152, 217, 219])])
-dynamic provider 5e728daa1ebfa46bfb89a71a3ef0a07f30cf3ff3ee945ff7e2cf740efafff725 install="@rpath/libm23_facade.dylib" imports=1
-  re-export "@rpath/libm23_leaf.dylib" -> 5f6299deb43ac3ba6d6bb6f9d755f98fdf5c447f25d2004b4a7051239178ed0c
-  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
-dynamic provider 5f6299deb43ac3ba6d6bb6f9d755f98fdf5c447f25d2004b4a7051239178ed0c install="@rpath/libm23_leaf.dylib" imports=0
-  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
+native library m23_facade requirement=cfa2901226585d292a557f0be8754a70bc6333b4fdd9b1adbf72f7a61add18f5 input=$NATIVE_INPUT_0 origins=dev.programlink:renamed:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([31, 162, 23, 67, 146, 235, 185, 135, 224, 203, 210, 82, 196, 4, 194, 82, 172, 24, 5, 211, 28, 54, 5, 210, 27, 126, 203, 97, 41, 152, 217, 219])])
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_facade.dylib" imports=1
+  re-export "@rpath/libm23_leaf.dylib" -> $NATIVE_PROVIDER_1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_2
+dynamic provider $NATIVE_PROVIDER_1 install="@rpath/libm23_leaf.dylib" imports=0
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_2
 dynamic binding _m23_renamed -> "@rpath/libm23_facade.dylib" source="@rpath/libm23_leaf.dylib":_m23_add kind=Symbol weak=false
 rpath "$WORK/native"
 startup object references:

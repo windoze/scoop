@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 4cfb404ebe13bbe2823a5340cc8157f94fc5b0b1c76048e0f6457276c9080f97 selected by direct input (${work}/native/m23_final.o): native TLV descriptor does not reference a TLS template",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_final.o): native TLV descriptor does not reference a TLS template",
     "notes": [],
     "origin": {
       "kind": "none"

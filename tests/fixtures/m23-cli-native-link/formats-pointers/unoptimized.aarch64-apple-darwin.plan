@@ -5,8 +5,8 @@ runtime objects=63
 images=2 root=_scoop$1$re$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_final requirement=224d6339223c6b4d444cd0297a7510a0c75a78782e60d2dc0709f1f8e553918e input=77fc9b6f5148d42dbaf03d898b87768847bfcda24038aaecb4b7c39e74fae196 origins=dev.programlink:final:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([29, 80, 20, 221, 77, 51, 186, 63, 166, 249, 69, 28, 155, 136, 179, 233, 246, 26, 153, 91, 166, 23, 47, 107, 121, 50, 176, 141, 58, 63, 206, 7])])
-native object 77fc9b6f5148d42dbaf03d898b87768847bfcda24038aaecb4b7c39e74fae196 slice=0..1008
+native library m23_final requirement=224d6339223c6b4d444cd0297a7510a0c75a78782e60d2dc0709f1f8e553918e input=$NATIVE_INPUT_0 origins=dev.programlink:final:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([29, 80, 20, 221, 77, 51, 186, 63, 166, 249, 69, 28, 155, 136, 179, 233, 246, 26, 153, 91, 166, 23, 47, 107, 121, 50, 176, 141, 58, 63, 206, 7])])
+native object $NATIVE_INPUT_0 slice=0..1008
 startup object references:
   _scoop$1$im$3edc81d317ffe4cacd1d9f1e47c779fae493ec3fa575ef1b3466064e8b1384ab
   _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

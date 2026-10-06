@@ -87,7 +87,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "contains" = "dynamic binding _m23_add -> \"@rpath/Math.framework/Math\""}, {"actual" = "${link.result.link_plan}", "contains" = "re-export \"@rpath/libm23_leaf.dylib\""}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "contains" = "dynamic binding _m23_add -> \"@rpath/Math.framework/Math\""}, {"actual" = "${link.result.link_plan}", "contains" = "re-export \"@rpath/libm23_leaf.dylib\""}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests"]}]
 
 [[steps]]
 name = "run_linked"

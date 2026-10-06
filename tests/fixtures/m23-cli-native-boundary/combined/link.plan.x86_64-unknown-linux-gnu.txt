@@ -6,9 +6,9 @@ runtime objects=65
 images=3 root=scoop$1$re$0bd32866fa262e8c342da1b73a00307099f7ef31b548a5b73c1cf13cc0544297
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_native_boundary requirement=6c23561944befce99f4874bb66d43d6b0084463d7b61865de9d3ffd5725473eb input=08db0ca20d95ef1705732f913877092aa096b8d517af27f265fc3c7a796653f6 origins=test:scoop-hir-lower:0.0.0 (native declarations [PersistentSourceNativeExternalContractId([130, 193, 59, 186, 186, 172, 41, 206, 119, 102, 252, 58, 216, 180, 124, 155, 54, 234, 162, 69, 114, 98, 137, 253, 75, 41, 217, 100, 77, 158, 108, 156])]), test:scoop-hir-lower:0.0.0 (native declarations [PersistentSourceNativeExternalContractId([10, 223, 88, 175, 240, 44, 135, 120, 248, 164, 138, 107, 203, 110, 151, 23, 141, 134, 2, 236, 206, 168, 196, 157, 123, 139, 128, 199, 38, 140, 62, 77])])
-native archive 08db0ca20d95ef1705732f913877092aa096b8d517af27f265fc3c7a796653f6 members=1
-  member 0 header=8 payload=68..2444 name="boundary.o" digest=2f62469c2927348ba6f85f6be05d5a2ad97970ea0bd411ef0eb554776181c6a0 selected=true
+native library m23_native_boundary requirement=6c23561944befce99f4874bb66d43d6b0084463d7b61865de9d3ffd5725473eb input=$NATIVE_INPUT_0 origins=test:scoop-hir-lower:0.0.0 (native declarations [PersistentSourceNativeExternalContractId([130, 193, 59, 186, 186, 172, 41, 206, 119, 102, 252, 58, 216, 180, 124, 155, 54, 234, 162, 69, 114, 98, 137, 253, 75, 41, 217, 100, 77, 158, 108, 156])]), test:scoop-hir-lower:0.0.0 (native declarations [PersistentSourceNativeExternalContractId([10, 223, 88, 175, 240, 44, 135, 120, 248, 164, 138, 107, 203, 110, 151, 23, 141, 134, 2, 236, 206, 168, 196, 157, 123, 139, 128, 199, 38, 140, 62, 77])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..2444 name="boundary.o" digest=$NATIVE_MEMBER_0 selected=true
 ELF system imports=50
 startup object references:
   scoop$1$im$0bd32866fa262e8c342da1b73a00307099f7ef31b548a5b73c1cf13cc0544297

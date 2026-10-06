@@ -31,6 +31,7 @@ PROCESS = {
     "stderr",
     "json",
     "diagnostics",
+    "diagnostics_normalize",
     "timeout",
     "background",
 }
@@ -252,6 +253,8 @@ def validate_step(step):
             )
         if "diagnostics" in step and step.get("json") != "stderr":
             raise ConfigurationError("diagnostics requires json = 'stderr'")
+        if "diagnostics_normalize" in step and "diagnostics" not in step:
+            raise ConfigurationError("diagnostics_normalize requires diagnostics")
         values.process_values(step)
     elif action == "files":
         values.require(isinstance(step["files"], list), "files must be an array")
@@ -277,8 +280,6 @@ def validate_step(step):
         if len(set(check) & {"actual", "file", "glob"}) != 1 or len(set(check) & COMPARISONS) != 1:
             raise ConfigurationError("check requires one subject and one comparison")
         values.check_values(check)
-        if any(rule not in {"paths", "newlines"} for rule in check.get("normalize", [])):
-            raise ConfigurationError("unknown normalization rule")
         if (
             set(check) & {"same_as", "different_from", "exists", "type", "sha256"}
             and "file" not in check

@@ -8,12 +8,12 @@ runtime objects=65
 images=5 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_delegate_metadata requirement=80c6c0d2abde5119ea0b81a49d363af7a0137af4a250a5e642482792b9605c93 input=1a384c81066fc032c14df22c0a356b6a461788e474cb88b65b057be8c8036099 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([40, 255, 238, 35, 203, 172, 194, 98, 51, 160, 6, 253, 135, 245, 25, 178, 157, 37, 119, 188, 125, 187, 225, 106, 159, 33, 132, 201, 222, 140, 136, 64])])
-native library m23_class_gc requirement=a7ce8b9d7dc93e74170fe9fa03bcddea03656186d365cf21e9287aa42f22288c input=41bad1167a04465c15356cb53e776569991f037bdd66b96cc05c88d97c0c9593 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
-native archive 1a384c81066fc032c14df22c0a356b6a461788e474cb88b65b057be8c8036099 members=1
-  member 0 header=8 payload=68..2108 name="metadata.o" digest=abff624cb258de393c92a34d989d26b349b72d4030f55ffde9c1be4d942a8dfa selected=true
-native archive 41bad1167a04465c15356cb53e776569991f037bdd66b96cc05c88d97c0c9593 members=1
-  member 0 header=8 payload=68..1684 name="gc.o" digest=27f6b414cb9442facbe20ff5a9429eab6901415804e10c5132e48e194d0c7a43 selected=true
+native library m23_delegate_metadata requirement=80c6c0d2abde5119ea0b81a49d363af7a0137af4a250a5e642482792b9605c93 input=$NATIVE_INPUT_0 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([40, 255, 238, 35, 203, 172, 194, 98, 51, 160, 6, 253, 135, 245, 25, 178, 157, 37, 119, 188, 125, 187, 225, 106, 159, 33, 132, 201, 222, 140, 136, 64])])
+native library m23_class_gc requirement=a7ce8b9d7dc93e74170fe9fa03bcddea03656186d365cf21e9287aa42f22288c input=$NATIVE_INPUT_1 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..2108 name="metadata.o" digest=$NATIVE_MEMBER_0 selected=true
+native archive $NATIVE_INPUT_1 members=1
+  member 0 header=8 payload=68..1684 name="gc.o" digest=$NATIVE_MEMBER_1 selected=true
 ELF system imports=49
 startup object references:
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

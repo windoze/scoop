@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object ff35ecdecfcbf6bdc0bbf139218928038898010d2fd83e24d2f6d107afa38372 selected by direct input (${work}/native/m23_final.o): native section __text: invalid Darwin/AArch64 object relocation inventory: SymbolTargetOutOfBounds { index: 16777215 }",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_final.o): native section __text: invalid Darwin/AArch64 object relocation inventory: SymbolTargetOutOfBounds { index: 16777215 }",
     "notes": [],
     "origin": {
       "kind": "none"

@@ -6,9 +6,9 @@ runtime objects=65
 images=3 root=scoop$1$re$50032b120e95d823c1642a8f5edb38cc05ac519be858856d6a5aaf5db0de8dde
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_lifecycle requirement=86838ec7531b9b6efe27b54184e2eeee99de0b6ffe82b81f7c7b723cbc5fd323 input=ac5d3baf09624648674da6d5a077f728889ae9dc20ea640fe41cc7c1a28d826f origins=dev.example:empty:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([122, 230, 158, 1, 16, 130, 93, 124, 86, 85, 6, 1, 184, 51, 229, 76, 26, 170, 194, 235, 119, 23, 188, 173, 223, 61, 14, 155, 114, 79, 99, 92])])
-native archive ac5d3baf09624648674da6d5a077f728889ae9dc20ea640fe41cc7c1a28d826f members=1
-  member 0 header=8 payload=68..1796 name="trace.o" digest=35b8517eaeee42c0237591d31b3ea09864efb55f9f62b7010e4c536410c83f72 selected=true
+native library m23_lifecycle requirement=86838ec7531b9b6efe27b54184e2eeee99de0b6ffe82b81f7c7b723cbc5fd323 input=$NATIVE_INPUT_0 origins=dev.example:empty:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([122, 230, 158, 1, 16, 130, 93, 124, 86, 85, 6, 1, 184, 51, 229, 76, 26, 170, 194, 235, 119, 23, 188, 173, 223, 61, 14, 155, 114, 79, 99, 92])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1796 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
 ELF system imports=48
 startup object references:
   scoop$1$im$50032b120e95d823c1642a8f5edb38cc05ac519be858856d6a5aaf5db0de8dde

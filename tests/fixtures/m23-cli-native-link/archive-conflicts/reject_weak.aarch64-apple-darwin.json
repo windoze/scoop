@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 6131e1e88bad519d5df5a45b19b89c0784b735908dedc93f37c4def9f1617a3c-member-1-668 selected by _helper <- native object 6131e1e88bad519d5df5a45b19b89c0784b735908dedc93f37c4def9f1617a3c-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a) conflicts with Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([97, 49, 225, 232, 139, 173, 81, 157, 93, 245, 164, 91, 25, 184, 156, 7, 132, 183, 53, 144, 141, 237, 201, 63, 55, 196, 222, 249, 241, 97, 122, 60])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 600 })) at _m23_add",
+    "message": "native object $NATIVE_INPUT_0-member-1-668 selected by _helper <- native object $NATIVE_INPUT_0-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a) conflicts with Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([$NATIVE_INPUT_0])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 600 })) at _m23_add",
     "notes": [],
     "origin": {
       "kind": "none"

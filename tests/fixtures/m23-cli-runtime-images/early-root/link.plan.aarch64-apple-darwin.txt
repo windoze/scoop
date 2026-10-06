@@ -6,9 +6,9 @@ runtime objects=63
 images=3 root=_scoop$1$re$b12af8bcf41d5a47cb2b42cd06f605792a887c31ba123284c47be1a5dfda8c1d
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_runtime_images requirement=331726f0f5ed55603122c8e710df5bdc9f6558be251c3e7640598c24626c8a69 input=8850e662cabfc9da4336898ce908f99219fac2934dbac223ed1f1e366c576aac origins=dev.example:early-chain:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([239, 183, 88, 233, 169, 194, 160, 49, 115, 162, 244, 151, 219, 165, 176, 212, 134, 205, 16, 201, 207, 43, 42, 216, 176, 173, 117, 21, 157, 59, 43, 60])]), dev.example:early-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([41, 12, 129, 58, 217, 21, 120, 170, 115, 151, 140, 80, 170, 99, 148, 183, 154, 254, 14, 17, 141, 33, 56, 183, 31, 39, 155, 31, 118, 247, 215, 23])])
-native archive 8850e662cabfc9da4336898ce908f99219fac2934dbac223ed1f1e366c576aac members=1
-  member 0 header=8 payload=68..900 name="trace.o" digest=5b26770f9e1e978b44cb6e02704782ec70f6f37914a4fe39c359ffefcb08fa16 selected=true
+native library m23_runtime_images requirement=331726f0f5ed55603122c8e710df5bdc9f6558be251c3e7640598c24626c8a69 input=$NATIVE_INPUT_0 origins=dev.example:early-chain:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([239, 183, 88, 233, 169, 194, 160, 49, 115, 162, 244, 151, 219, 165, 176, 212, 134, 205, 16, 201, 207, 43, 42, 216, 176, 173, 117, 21, 157, 59, 43, 60])]), dev.example:early-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([41, 12, 129, 58, 217, 21, 120, 170, 115, 151, 140, 80, 170, 99, 148, 183, 154, 254, 14, 17, 141, 33, 56, 183, 31, 39, 155, 31, 118, 247, 215, 23])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..900 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
 startup object references:
   _scoop$1$im$4f28a6957cfdd171816dd12fe89e17f3aedc6f1fc8e0db58b536b2f0fd42a0eb
   _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

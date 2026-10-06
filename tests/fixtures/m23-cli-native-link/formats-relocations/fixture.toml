@@ -65,6 +65,7 @@ checks = []
 
 [[steps]]
 name = "reject_debug-symbol"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -86,6 +87,7 @@ checks = []
 
 [[steps]]
 name = "reject_load-command"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -107,6 +109,7 @@ checks = []
 
 [[steps]]
 name = "reject_relocation-table"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -128,6 +131,7 @@ checks = []
 
 [[steps]]
 name = "reject_site"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -149,6 +153,7 @@ checks = []
 
 [[steps]]
 name = "reject_scattered"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -170,6 +175,7 @@ checks = []
 
 [[steps]]
 name = "reject_symbol-index"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -191,6 +197,7 @@ checks = []
 
 [[steps]]
 name = "reject_kind"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -212,6 +219,7 @@ checks = []
 
 [[steps]]
 name = "reject_fields"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -233,6 +241,7 @@ checks = []
 
 [[steps]]
 name = "reject_pair"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -254,6 +263,7 @@ checks = []
 
 [[steps]]
 name = "reject_duplicate"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -275,6 +285,7 @@ checks = []
 
 [[steps]]
 name = "reject_unwind"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""

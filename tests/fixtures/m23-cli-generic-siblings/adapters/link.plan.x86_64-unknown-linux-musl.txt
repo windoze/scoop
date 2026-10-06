@@ -9,12 +9,12 @@ runtime objects=65
 images=6 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_union requirement=756725fa8400b2d01d4a20bcba089d506c3dc8300c770d9a279945621a68d51e input=9905d6e2630de0f19380c31e424c7f14a8a3fccfa4f0857195b00c3de0e941c1 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([248, 123, 196, 235, 119, 117, 147, 228, 60, 137, 62, 251, 229, 116, 208, 252, 4, 218, 232, 143, 135, 29, 99, 203, 108, 157, 59, 66, 147, 210, 188, 192])])
-native library m23_class_gc requirement=c0c9c1d2116c29291f460665240175006335909846a5ccd7d9e78692c05e6c4e input=b16fb24fc8809cdaf0e3ce520d91200904d32c3a828a154933527f735d904cf1 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
-native archive 9905d6e2630de0f19380c31e424c7f14a8a3fccfa4f0857195b00c3de0e941c1 members=1
-  member 0 header=8 payload=68..2916 name="addresses.o" digest=efeaaff215d653d522174a8f384b23a8de5f9cbfd09167de5ba10cfeb009a3e3 selected=true
-native archive b16fb24fc8809cdaf0e3ce520d91200904d32c3a828a154933527f735d904cf1 members=1
-  member 0 header=8 payload=68..1684 name="gc.o" digest=27f6b414cb9442facbe20ff5a9429eab6901415804e10c5132e48e194d0c7a43 selected=true
+native library m23_union requirement=756725fa8400b2d01d4a20bcba089d506c3dc8300c770d9a279945621a68d51e input=$NATIVE_INPUT_0 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([248, 123, 196, 235, 119, 117, 147, 228, 60, 137, 62, 251, 229, 116, 208, 252, 4, 218, 232, 143, 135, 29, 99, 203, 108, 157, 59, 66, 147, 210, 188, 192])])
+native library m23_class_gc requirement=c0c9c1d2116c29291f460665240175006335909846a5ccd7d9e78692c05e6c4e input=$NATIVE_INPUT_1 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..2916 name="addresses.o" digest=$NATIVE_MEMBER_0 selected=true
+native archive $NATIVE_INPUT_1 members=1
+  member 0 header=8 payload=68..1684 name="gc.o" digest=$NATIVE_MEMBER_1 selected=true
 ELF system imports=48
 startup object references:
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

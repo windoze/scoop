@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native library Some(NativeInputId(Digest256([98, 112, 137, 199, 102, 64, 247, 222, 99, 88, 88, 16, 154, 73, 80, 92, 11, 197, 235, 72, 37, 74, 150, 32, 157, 159, 44, 192, 88, 198, 83, 99]))) cannot bind _m23_a, already defined by Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([35, 25, 232, 230, 209, 162, 243, 112, 24, 236, 171, 188, 243, 96, 253, 84, 155, 22, 137, 23, 54, 49, 228, 110, 30, 226, 77, 67, 169, 8, 169, 135])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 584 })); origins: dev.programlink:late:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([120, 121, 88, 106, 24, 108, 85, 130, 112, 122, 249, 158, 85, 144, 223, 211, 189, 13, 2, 65, 90, 101, 172, 190, 231, 161, 220, 74, 108, 128, 155, 188])])",
+    "message": "native library Some(NativeInputId(Digest256([$NATIVE_INPUT_0]))) cannot bind _m23_a, already defined by Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([$NATIVE_INPUT_1])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 584 })); origins: dev.programlink:late:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([120, 121, 88, 106, 24, 108, 85, 130, 112, 122, 249, 158, 85, 144, 223, 211, 189, 13, 2, 65, 90, 101, 172, 190, 231, 161, 220, 74, 108, 128, 155, 188])])",
     "notes": [],
     "origin": {
       "kind": "none"

@@ -97,6 +97,8 @@ def process_values(step):
                 isinstance(value, list) and all(isinstance(item, dict) for item in value),
                 "diagnostics must be an array of complete records",
             )
+    if "diagnostics_normalize" in step:
+        normalization_rules(step["diagnostics_normalize"], {"native-digests"})
 
 
 def timeout(step):
@@ -149,8 +151,12 @@ def check_values(check):
             REFERENCE.fullmatch(value) or re.fullmatch(r"[0-9a-f]{64}", value),
             "sha256 must be a lowercase hexadecimal digest",
         )
-    rules = check.get("normalize", [])
+    normalization_rules(check.get("normalize", []), {"paths", "newlines", "native-digests"})
+
+
+def normalization_rules(rules, allowed):
     require(
         isinstance(rules, list) and all(isinstance(rule, str) for rule in rules),
         "normalize must be an array of rule names",
     )
+    require(all(rule in allowed for rule in rules), "unknown normalization rule")
