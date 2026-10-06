@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
-cone dev.example:lazy-cycle-provider:0.1.0 kind=Library objects=21
-cone dev.example:lazy-cycle-root:0.1.0 kind=Executable objects=6
+cone scoop:scoop.core:0.1.0 kind=Library objects=640
+cone dev.example:lazy-cycle-provider:0.1.0 kind=Library objects=25
+cone dev.example:lazy-cycle-root:0.1.0 kind=Executable objects=10
 runtime objects=65
 images=3 root=scoop$1$re$11e3e3806b3436bba48837fef206641b02153ffbc27a267ef0308d60020736d9
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

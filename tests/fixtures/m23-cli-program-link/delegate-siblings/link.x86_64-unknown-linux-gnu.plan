@@ -1,8 +1,8 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
-cone dev.programlink:provider:0.1.0 kind=Library objects=30
-cone dev.programlink:left:0.1.0 kind=Library objects=18
-cone dev.programlink:right:0.1.0 kind=Library objects=41
+cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone dev.programlink:provider:0.1.0 kind=Library objects=34
+cone dev.programlink:left:0.1.0 kind=Library objects=22
+cone dev.programlink:right:0.1.0 kind=Library objects=45
 cone dev.programlink:root:0.1.0 kind=Executable objects=5
 runtime objects=65
 images=5 root=scoop$1$re$13c670f095b65798fb4c12f209f74b3a5411e4d02db950bfdfb3d4dec4ad7df2
