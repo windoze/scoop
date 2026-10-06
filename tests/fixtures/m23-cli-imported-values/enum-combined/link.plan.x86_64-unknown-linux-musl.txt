@@ -1,9 +1,9 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
-cone dev.example:enum-provider:0.1.0 kind=Library objects=51
-cone dev.example:enums-combined:0.1.0 kind=Library objects=13
+cone scoop:scoop.core:0.1.0 kind=Library objects=640
+cone dev.example:enum-provider:0.1.0 kind=Library objects=55
+cone dev.example:enums-combined:0.1.0 kind=Library objects=17
 cone dev.example:downstream-combined:0.1.0 kind=Library objects=3
-cone dev.example:value-runtime-enum-combined:0.1.0 kind=Executable objects=3
+cone dev.example:value-runtime-enum-combined:0.1.0 kind=Executable objects=7
 runtime objects=65
 images=5 root=scoop$1$re$bbd1acc68896d48fb03cabd704043ea865cd5436d4e43ba319079a0dba7944ac
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
