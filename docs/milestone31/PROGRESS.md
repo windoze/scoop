@@ -18,3 +18,10 @@
 - 已读取设计与对应规范；工作区原有 M31 文档作为实施基准保存。
 - Linux `nuc12:~/repos/scoop` 留有 M30 测试变更；Linux 验证将使用独立目录，保留原目录内容。
 - 尚未完成 M31 功能；后续在此记录每批实际改动、版本与验证结果。
+
+## 性能基线与构建清理
+
+- 从 `6e62514da` 重建 release 配套命令，连同 M30 runtime/core 保存到 `/tmp/scoop-m31-baseline/`，可在后续变更后独立复跑。
+- 新增六个普通 Scoop 性能程序与 100 行内的 CLI 测量脚本。Darwin 每项运行五次，核对确定输出，记录冷/热构建时间、执行时间、可执行文件和 `.slib` 大小；数据见 [M30-DARWIN.json](M30-DARWIN.json)。旧 runtime 没有完整 GC 统计，不填造分配/扫描/停顿数据。
+- Python 按 Ruff 0.16.10 格式化与 lint；六项真实编译、链接及运行通过。用例准备阶段的 `gc.collect()` 改用现有公开测试入口 `gcCollect()` 后，相关四项重新执行，报告仅保留成功运行。
+- 清理闲置 `target/debug/incremental` 与 M28/M29 专用目录约 11 GB；保留配套 release 命令与可复用依赖。
