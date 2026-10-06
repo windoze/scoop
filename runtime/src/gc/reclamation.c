@@ -110,7 +110,7 @@ static void quarantine_block(uint32_t index) {
         memset(head->line_live, 0,
                GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
         memset(head->size_units, 0,
-               GC_WORDS_PER_BLOCK * sizeof(uint8_t));
+               GC_WORDS_PER_BLOCK * sizeof(uint16_t));
     }
     for (uint32_t offset = 0; offset < span; offset++) {
         ScoopGcBlockMeta *block = &blocks[index + offset];

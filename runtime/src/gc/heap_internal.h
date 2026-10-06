@@ -15,7 +15,7 @@
 #define GC_WORDS_PER_BLOCK (GC_BLOCK_SIZE / sizeof(uint64_t))
 #define GC_BITMAP_WORDS (GC_WORDS_PER_BLOCK / 64)
 #define GC_LINE_BITMAP_WORDS (GC_LINES_PER_BLOCK / 64)
-#define GC_SMALL_MAX (GC_LINE_SIZE / 2)
+#define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
 #define GC_ARENA_SIZE ((size_t)1 << 30)
 #define GC_BLOCK_COUNT (GC_ARENA_SIZE / GC_BLOCK_SIZE)
@@ -54,7 +54,7 @@ typedef struct ScoopGcBlockMeta {
     uint64_t *scanned;
     uint64_t *line_occupied;
     uint64_t *line_live;
-    uint8_t *size_units;
+    uint16_t *size_units;
     void **forwarding;
     size_t exact_size;
     size_t live_bytes;

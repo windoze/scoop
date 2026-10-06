@@ -10,6 +10,8 @@
 
 _Static_assert(GC_LINE_SIZE % SCOOP_MAXIMUM_MANAGED_ALIGNMENT == 0,
                "GC line starts must satisfy every managed alignment");
+_Static_assert(GC_REGULAR_MAX / sizeof(uint64_t) <= UINT16_MAX,
+               "regular object sizes must fit exact side metadata");
 
 static void *tlab_allocate(ScoopThreadState *thread, size_t size, size_t alignment) {
     char *cursor = thread->allocation.cursor;
@@ -17,21 +19,24 @@ static void *tlab_allocate(ScoopThreadState *thread, size_t size, size_t alignme
         return NULL;
     }
     cursor = (char *)scoop_shape_align((uintptr_t)cursor, alignment);
-    char *line_end =
-        (char *)(((uintptr_t)cursor & ~(uintptr_t)(GC_LINE_SIZE - 1)) + GC_LINE_SIZE);
-    char *candidate = cursor + size <= line_end ? cursor : line_end;
-    if (candidate + size > thread->allocation.limit) {
+    if (cursor > thread->allocation.limit ||
+        size > (size_t)(thread->allocation.limit - cursor)) {
         return NULL;
     }
-    thread->allocation.cursor = candidate + size;
-    return candidate;
+    thread->allocation.cursor = cursor + size;
+    return cursor;
 }
 
-static bool refill_tlab(ScoopThreadState *thread) {
+static bool refill_tlab(ScoopThreadState *thread, size_t size) {
     lock_heap();
-    ScoopGcFreeRun *run = free_runs;
+    ScoopGcFreeRun **available = &free_runs;
+    while (*available != NULL &&
+           (size_t)(*available)->line_count * GC_LINE_SIZE < size) {
+        available = &(*available)->next;
+    }
+    ScoopGcFreeRun *run = *available;
     if (run != NULL) {
-        free_runs = run->next;
+        *available = run->next;
         thread->allocation.cursor = (char *)block_base(run->block_index) +
                                     (size_t)run->first_line * GC_LINE_SIZE;
         thread->allocation.limit =
@@ -62,7 +67,7 @@ static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignm
         }
         thread->allocation.cursor = NULL;
         thread->allocation.limit = NULL;
-        if (refill_tlab(thread)) {
+        if (refill_tlab(thread, size)) {
             continue;
         }
         if (collected) {
@@ -127,7 +132,7 @@ static void *allocate_large_stress(size_t size, uint32_t *block_index) {
 static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td,
                                     size_t size) {
     uint32_t block_index;
-    if (object == NULL || td == NULL || size > GC_SMALL_MAX ||
+    if (object == NULL || td == NULL || size > GC_REGULAR_MAX ||
         (uintptr_t)object % td->instance_shape.instance_alignment != 0 ||
         !pointer_block_index(object, &block_index)) {
         heap_fatal("invalid inline TLAB allocation");
@@ -163,7 +168,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             heap_fatal("stress collection published a mutator TLAB");
         }
     }
-    if (size <= GC_SMALL_MAX) {
+    if (size <= GC_REGULAR_MAX) {
         void *object =
             stress ? allocate_small_stress(size)
                    : allocate_small(thread, size,

@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-2026-10-07，M31 设计已制定、待实现，见 [M31 设计](../milestone31/DESIGN.md)。本次只更新文档，当前实现基线仍为 M30 的单代 moving Immix。M31 的 nursery／minor GC 见 3.9，写屏障见 3.6，ODR 与最终 image 选择见 2.8；历史版本记录不代表这些目标已经实现。
+2026-10-07，M31 实施中，见 [M31 设计](../milestone31/DESIGN.md)和[实施记录](../milestone31/PROGRESS.md)。M31 的 nursery／minor GC 见 3.9，写屏障见 3.6，ODR 与最终 image 选择见 2.8；历史版本记录不代表待完成项目已经实现。
 
 2026-10-07，M30 已实现并通过验收：binary32/binary64 标量、线程浮点环境、字符串转换和必要的数学后备复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备，128 位类型仅作调研。契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。
 
@@ -395,6 +395,8 @@ M30 的单代 collector 尚不消费 card table；M31 的 minor GC 必须消费�
 
 编译器的字段、含引用 value/enum/array 写入，runtime 的 Context、array/box clone/copy，以及 Scoop ABI native 的 managed heap 引用写入遵守同一范围语义。native 提供一个不分配、不 GC、不 park 的范围屏障入口；root registration、pin 或“刚分配”均不能替代它。构造器和复制操作中途可发生 GC，只有现有控制流能证明写入前目标一直在 nursery 且尚未发布时，才可省略该次屏障。
 
+范围入口为 `void scoop_rt_gc_write_barrier(const void *destination, size_t bytes)`：写入完成后调用，非空范围必须完整落在现有 arena 内；零长度直接返回且不访问地址。入口以 relaxed atomic OR 标记范围内每张 512-byte card，不分配、不获取 heap lock、不参与 world handshake。编译器单个引用槽保持内联 monotonic OR，含多个引用槽的完整 value store 可保守标记首末引用之间的连续范围。此分配与屏障批次将 runtime ABI contract 6 升为 7，旧产物重建；其公共函数机器签名进入普通 runtime symbol registry。
+
 多个 mutator 标记同一卡必须使用 atomic monotonic store/RMW；Context 的普通 byte store 必须迁移。引用写入与标记之间不得插入 safepoint，屏障不能被优化移到可能 park 或发布之后。STW handshake 建立 collector 读取引用与脏位的可见性；collector 在所有 mutator 停止后消费和清理脏位。脏卡通过 object-start、精确 size 与 scan metadata 找到所有相交对象中的引用槽，正确处理跨 card/line 的对象及大数组；根表和 stable external region 仍直接按精确 root 扫描，不伪装为 heap card。
 
 ### 3.7 moving collection与side metadata
@@ -440,6 +442,8 @@ best effort 不保证何时再次 GC、对象间顺序、执行线程、native r
 nursery 使用现有 arena 中独立标记的一组 block，每个 mutator 的 TLAB 从 nursery 取得；代龄、object-start、精确 size、forwarding 与脏区索引都保存在 arena 外。它不增加 managed reference tag、对象头字段或 GC stackmap 格式。分配返回前完成清零、头部与精确 allocation metadata 发布，原 GC-leaf fast path 契约保持。
 
 普通中小对象进入 nursery；能放入普通 block 的对象不能继续仅因超过旧 `GC_SMALL_MAX == 64` 就各占一个 large span。普通分配与旧代晋升均须支持跨 line 的中小对象、准确标记占用 line 和完整 size metadata。无法放入普通 block 的大对象直接进入旧代 large-object 路径。带 release hook 的对象首版直接在旧代分配，沿 3.8 的 ready/reclaim 规则释放；不能因重置 nursery 漏掉 hook。
+
+M31 的普通 block 保持 32768 bytes，前 128 bytes 不用于对象；普通 allocation 上限为 32640 bytes，按 descriptor alignment 对齐后跨 line 连续 bump。精确大小使用 `uint16_t` 的 8-byte units，覆盖单 block 中每个合法对象；对象起点的发布与全部相交 line 的占用标记支持同一 block 中不同 mutator 的独立 free run。TLAB refill 选择能容纳当前请求的连续 run，不能消耗过短的空闲 run。evacuation 与后续晋升使用相同大小、对齐及 line 占用规则。
 
 minor 在现有 STW 协议内执行：
 

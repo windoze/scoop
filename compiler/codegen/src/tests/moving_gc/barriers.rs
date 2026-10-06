@@ -1,7 +1,6 @@
 use super::*;
 
-/// An M9-shaped module: a HeapStore and an ArraySet (both carry
-/// the write-barrier card mark) in the entry block, then a
+/// A scalar HeapStore and ArraySet in the entry block, then a
 /// `while`-shaped loop (header ← body back edge) for the loop
 /// safepoint poll.
 fn barrier_module() -> Module {
@@ -198,8 +197,22 @@ fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
 }
 
 #[test]
-fn heap_stores_mark_the_write_barrier_card() {
+fn scalar_stores_do_not_mark_cards() {
     let ir = ir_of(&barrier_module());
+    assert!(!ir.contains("@scoop_gc_card_table"));
+    assert!(!ir.contains("@scoop_rt_gc_write_barrier"));
+}
+
+#[test]
+fn reference_store_marks_its_card() {
+    let mut module = barrier_module();
+    let function = &mut module.functions[0];
+    let Instruction::HeapStore { value, .. } = &mut function.blocks[function.entry].instructions[2]
+    else {
+        unreachable!();
+    };
+    *value = Value::Param(1);
+    let ir = ir_of(&module);
     // The card table is a pointer variable: load the (pre-biased)
     // base, then GEP by the card index.
     assert!(
@@ -211,10 +224,9 @@ fn heap_stores_mark_the_write_barrier_card() {
         "card table base load missing:\n{ir}"
     );
     assert!(ir.contains("lshr i64"), "card index shift missing:\n{ir}");
-    // One monotonic atomic card mark per heap store: the HeapStore and
-    // the ArraySet element store.
+    // Only the reference store marks a card; the integer array store does not.
     let marks = ir.matches(" = atomicrmw or ptr ").count();
-    assert_eq!(marks, 2, "one card mark per heap store:\n{ir}");
+    assert_eq!(marks, 1, "one card mark per reference store:\n{ir}");
 }
 
 #[test]

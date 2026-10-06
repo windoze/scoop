@@ -13,6 +13,22 @@
 #include "../platform/platform.h"
 
 unsigned char *scoop_gc_card_table;
+
+void scoop_rt_gc_write_barrier(const void *destination, size_t bytes) {
+    if (bytes == 0) {
+        return;
+    }
+    uintptr_t address = (uintptr_t)destination;
+    if (!arena_ready || address < arena_base || address >= (uintptr_t)arena_end ||
+        bytes > (uintptr_t)arena_end - address) {
+        heap_fatal("write barrier range lies outside the GC arena");
+    }
+    size_t first = (address - arena_base) >> GC_CARD_SHIFT;
+    size_t last = (address - arena_base + bytes - 1) >> GC_CARD_SHIFT;
+    for (size_t card = first; card <= last; card++) {
+        (void)__atomic_fetch_or(&card_table_storage[card], 1, __ATOMIC_RELAXED);
+    }
+}
 #undef collection_threshold
 #undef evacuation_block
 ScoopGcHeapState scoop_gc_heap_state = {
@@ -141,7 +157,7 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
             calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->line_live =
             calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint8_t));
+        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint16_t));
         if (block->starts == NULL || block->marks == NULL ||
             block->pins == NULL || block->scanned == NULL ||
             block->line_occupied == NULL || block->line_live == NULL ||
@@ -161,7 +177,7 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
            GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0,
            GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint8_t));
+    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));
     free(block->forwarding);
     block->forwarding = NULL;
 }

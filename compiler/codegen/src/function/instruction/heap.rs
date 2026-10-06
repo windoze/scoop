@@ -205,8 +205,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol()
                         ))
                     })?;
-                // M9 write barrier: mark the stored-to address's card.
-                self.card_mark(field_ptr)?;
+                self.heap_value_barrier(field_ptr, &value_ty)?;
             }
             Instruction::MachineHeapStore {
                 kind,
@@ -237,7 +236,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol()
                         ))
                     })?;
-                self.card_mark(field_ptr)?;
             }
             Instruction::AtomicStore {
                 kind,

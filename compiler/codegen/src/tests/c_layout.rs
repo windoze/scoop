@@ -844,8 +844,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         )) && ir.contains(&format!(
             "@scoop_runtime_alloc_slow(ptr @\"{array_outer_symbol}\", i64 64)"
         )) && ir.contains("%alloc_size_plus_align = add i64 64, %allocation_alignment_mask")
-            && ir.contains("%alloc_is_small = icmp ule i64 %alloc_size, 64"),
-        "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
+            && ir.contains("%alloc_is_regular = icmp ule i64 %alloc_size, 32640"),
+        "one 32-byte element plus the aligned 32-byte header must flow through the regular TLAB check:\n{ir}"
     );
 }
 

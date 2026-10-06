@@ -1,0 +1,18 @@
+class Medium(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+
+fun main() {
+    val values = MutableArray<Medium>(40L) { i ->
+        Medium(i, i + 1L, i + 2L, i + 3L, i + 4L, i + 5L, i + 6L, i + 7L)
+    }
+    gcCollect()
+    var sum = 0L
+    var index = 0L
+    while (index < 40L) {
+        sum = sum + values[index].a
+        index = index + 1L
+    }
+    gcCollect()
+    println(sum)
+    println(values[0L].a + values[39L].h)
+}

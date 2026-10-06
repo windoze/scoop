@@ -169,6 +169,25 @@ fn fake_platform_drives_the_real_moving_collector() {
 }
 
 #[test]
+fn regular_allocations_and_range_barriers_cover_line_and_card_boundaries() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "allocation_barrier_test",
+        "runtime/tests/allocation_barrier_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"regular allocation and range barrier tests passed\n"
+    );
+}
+
+#[test]
 fn release_hooks_run_once_before_dead_storage_is_retired() {
     let output = compile_and_run(
         &workspace_root(),

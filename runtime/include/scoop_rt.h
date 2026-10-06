@@ -78,6 +78,11 @@ typedef struct ScoopArray {
  * above. The native caller must already have published caller/native roots. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
+/* After writing references into managed heap storage, mark the complete
+ * destination range before parking or publishing it. This is a GC leaf:
+ * no allocation, lock or handshake. Empty ranges never access destination. */
+void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
+
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 

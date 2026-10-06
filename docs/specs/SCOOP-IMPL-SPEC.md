@@ -1906,9 +1906,9 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 浮点 pattern 为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。
 
-### 2.19 M31：首批优化、ODR 合并与 nursery（设计已制定，待实现）
+### 2.19 M31：首批优化、ODR 合并与 nursery（实施中）
 
-本节与 [M31 设计](../milestone31/DESIGN.md)、语言规范 12.3/12.5/14.3、运行时规范 2.8/3.6/3.9 同步；当前实现基线仍为 M30。本轮不实现编译器或 runtime。M23～M30 的历史 wire、摘要与行为记录在本节明确替代的范围内不再作为后续要求。
+本节与 [M31 设计](../milestone31/DESIGN.md)、语言规范 12.3/12.5/14.3、运行时规范 2.8/3.6/3.9 同步；各实现批次与验证结果见 [实施记录](../milestone31/PROGRESS.md)。M23～M30 的历史 wire、摘要与行为记录在本节明确替代的范围内不再作为后续要求。
 
 **构建配置与首批优化。** 保留公开 debug/release，使用实际生效的 typed optimization 配置贯通 umbrella、single-Cone child 协议、scoopc、MIR/LIR 优化和各 producer。debug 保留当前 Scoop 机器 O0 与必要 SSA/GC lowering；release 使用 LLVM machine O2 与经过精确 GC/EH 验证的函数内 IR pass 组合。IR 优化和 machine O2 分别验收，不将裸 `default<O2>` 作为既有 statepoint 合同下自动安全的开关。generated-C 的 O0/O2 与必要 ABI、`-fno-builtin` 等约束一并进入实际 producer 配置；runtime 当前默认已经 O2，首版两个 build profile 沿用相同 runtime 优化设置，独立记录其实际构建键。
 

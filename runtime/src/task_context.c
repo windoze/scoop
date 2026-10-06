@@ -7,11 +7,7 @@
 #include "thread.h"
 #include "value_shape.h"
 
-enum { CONTEXT_MAX_HEIGHT = 16, CONTEXT_CARD_SHIFT = 9 };
-
-static void context_barrier(const void *object) {
-    scoop_gc_card_table[(uintptr_t)object >> CONTEXT_CARD_SHIFT] = 1;
-}
+enum { CONTEXT_MAX_HEIGHT = 16 };
 
 static uint32_t context_slot(const uint64_t *cell) {
     uint64_t encoded = *cell;
@@ -86,11 +82,11 @@ void *scoop_rt_context_push_impl(const uint64_t *cell, void *value,
             memcpy(node->slots, path[level]->slots, sizeof node->slots);
         }
         node->slots[(slot >> (2 * level)) & 3] = level == 0 ? value : child;
-        context_barrier(node);
+        scoop_rt_gc_write_barrier(node->slots, sizeof node->slots);
         child = node;
     }
     owner->root = child;
-    context_barrier(owner);
+    scoop_rt_gc_write_barrier(&owner->root, sizeof owner->root);
     scoop_rt_pop_native_roots(&roots);
     scoop_thread_pop_managed_anchor(&anchor);
     return previous;
@@ -99,7 +95,7 @@ void *scoop_rt_context_push_impl(const uint64_t *cell, void *value,
 void scoop_rt_context_restore(void *raw_owner, void *previous) {
     ScoopTaskContext *owner = raw_owner;
     owner->root = previous;
-    context_barrier(owner);
+    scoop_rt_gc_write_barrier(&owner->root, sizeof owner->root);
 }
 
 void *scoop_rt_context_fork_impl(void *root, const ScoopTypeDescriptor *task_td,
@@ -113,7 +109,7 @@ void *scoop_rt_context_fork_impl(void *root, const ScoopTypeDescriptor *task_td,
     scoop_thread_poll();
     ScoopTaskContext *task = scoop_gc_alloc_internal(task_td, sizeof *task);
     task->root = root;
-    context_barrier(task);
+    scoop_rt_gc_write_barrier(&task->root, sizeof task->root);
     scoop_rt_pop_native_roots(&roots);
     scoop_thread_pop_managed_anchor(&anchor);
     return task;

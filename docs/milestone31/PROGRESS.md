@@ -46,3 +46,11 @@
 - 扩展原有局部布尔清理，传播 typed integer 常量与复制，并折叠 `IntegerCompare`、语言比较 lowering 使用的 `IntegerCompareTo`。按声明宽度及有无符号解释边界值，沿原取址和调用失效规则处理；不新增跨过程分析。
 - 已知条件的死边在 poll、root plan 和 site identity 定稿前删除，修复 release 删除不可能的异常路径后站点清单仍残留的问题。
 - 定向边界与复制测试 2 项通过；独立整数条件 fixture 在三 target 的 debug/release 下均通过，实际运行启用 full-moving，HIR/MIR/LIR 快照锁定删除死分支后的结构。数组长度与跨卡复制作为组合覆盖。完整 M31-3 的 LLVM pass 和最终 GC 发射计划仍待完成。
+
+## M31-4：普通分配与范围屏障
+
+- 普通对象上限改为 32640 bytes，TLAB 和 evacuation 连续跨 line bump；精确 size 使用 uint16 的 8-byte units，相交 line 全部标记。refill 保留放不下当前对象的短 free run，对不同 mutator 共用 side bitmap 的位操作使用 atomic。
+- GC-free/scalar heap store 不再标卡；单个引用保留内联 atomic OR，多引用 value、enum、数组初始化/组装/复制、box 和 Context 使用完整目标引用范围。新增 GC-leaf `scoop_rt_gc_write_barrier`，runtime ABI contract 6→7，更新必要的编码向量。
+- 分配、屏障及既有运行时组合定向测试 46 项通过；后补数组初始化/组装屏障的 codegen 14 项、runtime ABI 4 项、compatibility 4 项通过。C 使用严格告警语法检查，Rust fmt/clippy 通过。
+- 两个正式 CLI 用例在 Darwin、glibc、musl 各通过 debug、release、full-moving，合计 18 个运行变体。覆盖 80-byte 连续对象、跨 card 的 528-byte value/enum、引用数组、array clone、box/unbox 和 full GC 后内容保持。
+- 本批尚未消费 remembered set；其真实 old→young 存活性由后续 nursery 批次验收。再次清理约 10 GB 的 debug 增量产物，后续构建关闭增量编译。

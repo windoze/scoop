@@ -50,6 +50,10 @@ const void *scoop_rt_array_clone_impl(const void *object,
         memcpy((char *)copy + target_shape->inline_offset,
                (const char *)source + source_shape->inline_offset,
                (size_t)(count * target_shape->inline_stride));
+        if (target_shape->inline_scan != NULL) {
+            scoop_rt_gc_write_barrier((char *)copy + target_shape->inline_offset,
+                                       (size_t)(count * target_shape->inline_stride));
+        }
     }
     scoop_rt_pop_native_roots(&roots);
     scoop_thread_pop_managed_anchor(&anchor);

@@ -67,12 +67,9 @@ static void *evacuate_allocate_small(size_t size, size_t alignment,
         if (evacuation_cursor != NULL) {
             evacuation_cursor =
                 (char *)scoop_shape_align((uintptr_t)evacuation_cursor, alignment);
-            char *line_end = (char *)(((uintptr_t)evacuation_cursor &
-                                       ~(uintptr_t)(GC_LINE_SIZE - 1)) +
-                                      GC_LINE_SIZE);
-            char *candidate =
-                evacuation_cursor + size <= line_end ? evacuation_cursor : line_end;
-            if (candidate + size <= evacuation_limit) {
+            char *candidate = evacuation_cursor;
+            if (candidate <= evacuation_limit &&
+                size <= (size_t)(evacuation_limit - candidate)) {
                 evacuation_cursor = candidate + size;
                 *block_index = evacuation_block;
                 return candidate;
@@ -91,7 +88,7 @@ static void *evacuate_allocate_small(size_t size, size_t alignment,
 }
 
 static void *evacuate_allocate(size_t size, size_t alignment, uint32_t *block_index) {
-    if (size <= GC_SMALL_MAX) {
+    if (size <= GC_REGULAR_MAX) {
         return evacuate_allocate_small(size, alignment, block_index);
     }
     uint32_t index = activate_large_block(size, SCOOP_BLOCK_EVACUATION_TARGET);
@@ -133,7 +130,7 @@ void *scoop_gc_forward_object_locked(void *object) {
     forwarded = evacuate_allocate(size, (size_t)td->instance_shape.instance_alignment,
                                   &target_index);
     memcpy(forwarded, object, size);
-    if (size <= GC_SMALL_MAX) {
+    if (size <= GC_REGULAR_MAX) {
         record_small_object(target_index, forwarded, size, true);
     } else {
         publish_large_object(target_index, true);
