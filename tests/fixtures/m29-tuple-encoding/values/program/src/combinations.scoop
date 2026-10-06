@@ -1,28 +1,35 @@
 import scoop.json.Json
 
 private var visits: Int = 0
-private struct Element(val value: Int) : Encodable {
-    public override fun encode(encoder: Encoder) {
-        visits += 1
-        if (value < 0) { throw IllegalStateException(Some("tuple element")) }
-        value.encode(encoder)
+private struct Element(val value: Int) {
+    public companion object : Encodable<Element> {
+        public override fun encode(value: Element, encoder: Encoder) {
+            visits += 1
+            if (value.value < 0) { throw IllegalStateException(Some("tuple element")) }
+            Int.encode(value.value, encoder)
+        }
     }
 }
-private class Captured(private val write: (Encoder) -> Unit) : Encodable {
-    public override fun encode(encoder: Encoder) { write(encoder) }
+private class Captured<T>(private val write: (T, Encoder) -> Unit) : Encodable<T> {
+    public override fun encode(value: T, encoder: Encoder) { write(value, encoder) }
 }
-private fun <T : Encodable> capture(value: (T, Unit)): (Encoder) -> Unit = value::encode
-private fun <T : Encodable> encodeBound(value: T): String = Json.encode(value)
+private object Triple : Encodable<(Element, Element, Element)>
+private fun <T> capture(element: Encodable<T>): ((T, Unit), Encoder) -> Unit {
+    val codec = PairEncoder(element, UnitEncoder)
+    return codec::encode
+}
+private fun <T> encodeBound(value: T, codec: Encodable<T>): String = Json.encode(value, codec)
 
 fun combinedCases() {
     val value = (Element(1), Element(2))
-    check(encodeBound(value) == "[1,2]", 40)
-    val bound = value::encode
-    check(Json.encode(Captured(bound)) == "[1,2]", 41)
-    check(Json.encode(Captured(capture((Element(3), Unit)))) == "[3,null]", 42)
+    val codec = PairEncoder(Element.Companion, Element.Companion)
+    check(encodeBound(value, codec) == "[1,2]", 40)
+    val bound = codec::encode
+    check(Json.encode(value, Captured(bound)) == "[1,2]", 41)
+    check(Json.encode((Element(3), Unit), Captured(capture(Element.Companion))) == "[3,null]", 42)
     check(visits == 5, 43)
     try {
-        Json.encode((Element(4), Element(-1), Element(5)))
+        Json.encode((Element(4), Element(-1), Element(5)), Triple)
         check(false, 44)
     } catch (error: IllegalStateException) {
         check(error.message == Some("tuple element"), 45)
@@ -31,5 +38,8 @@ fun combinedCases() {
     val mutable = MutableArray<(Int, Unit)>(1L) { _ -> (6, Unit) }
     val list = ArrayList<(Int, Unit)>()
     list.add((7, Unit))
-    check(Json.encode((mutable, list)) == "[[[6,null]],[[7,null]]]", 47)
+    val element = PairEncoder(Int.Companion, UnitEncoder)
+    val mutableCodec = MutableArray<(Int, Unit)>.encoder(element)
+    val listCodec = ArrayList<(Int, Unit)>.encoder(element)
+    check(Json.encode((mutable, list), PairEncoder(mutableCodec, listCodec)) == "[[[6,null]],[[7,null]]]", 47)
 }

@@ -1,2 +1,2 @@
-fun encode(value: (Int, List<Int>), encoder: Encoder) { value.encode(encoder) }
+object Coding : Encodable<(Int, List<Int>)>
 fun main() {}

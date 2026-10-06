@@ -1,4 +1,4 @@
 struct Opaque()
-fun <T : Encodable> accept(value: T) {}
+fun <T : Encodable<(Int, Opaque)>> accept(value: T) {}
 fun use() { accept((1, Opaque())) }
 fun main() {}

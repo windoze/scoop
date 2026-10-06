@@ -1,2 +1,2 @@
-fun encode(value: (Int, Any), encoder: Encoder) { value.encode(encoder) }
+object Coding : Encodable<(Int, Any)>
 fun main() {}

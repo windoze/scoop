@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：tuple 的普通 codec 组合
+
+tuple 的独立及跨 Cone fixture 迁移到普通 Encodable<tuple>，generic PairEncoder
+显式保存两个元素依赖，绑定引用捕获 codec 并接收独立数据参数。覆盖单元素与
+12 元素 tuple、Unit、重复具体实参、嵌套数组/Option、递归 class、接口 default、
+元素异常中断、Any 装箱以及普通/移动 GC；跨库删除源码后的链接继续通过。
+八个负例分别检查缺少字段 codec、非法实例引用和普通 generic bound。
+
+macOS 全部 10 项正式 fixture 以不更新快照方式通过，共 21 个进程、8 份 golden；
+格式化与 workspace clippy 已通过。报告保存到
+`/tmp/scoop-m29-saved-reports/m29-tuple-codecs-darwin.json`，完成目录已清理。
+生产实现只使用既有普通方法、闭包和显式依赖，没有恢复 tuple 专用编码记录。
+
 ## 2026-10-06：generic companion 的普通宿主 bound
 
 宿主 bound 负例改用普通 Required interface，避免把已移除的数据 Encodable

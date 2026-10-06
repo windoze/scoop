@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "type `(Int, List<Int>)` has no method `encode`",
+    "message": "automatic encode has no Encodable<List<Int>> field codec; provide a primary val dependency, a conforming companion, or an explicit encode implementation",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 68,
+      "end": 43,
       "kind": "source",
       "path": "main.scoop",
-      "start": 62
+      "start": 0
     },
     "severity": "error"
   }
