@@ -111,6 +111,18 @@ impl EmittedStrongRuntimeMetadataV1 {
     pub fn patch_locations(&self) -> &[ProvisionalStrongDigestPatchLocationV1] {
         &self.patch_locations
     }
+
+    pub(crate) fn select_definitions(&self, definitions: &[ObjectDefinitionPlanId]) -> Self {
+        Self {
+            producer: self.producer,
+            patch_locations: self
+                .patch_locations
+                .iter()
+                .copied()
+                .filter(|patch| definitions.binary_search(&patch.definition).is_ok())
+                .collect(),
+        }
+    }
 }
 
 /// Emit the complete runtime-metadata surface described by one closed strong

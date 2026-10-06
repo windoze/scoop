@@ -51,6 +51,7 @@ impl ScoopLirObjectPartitionV1 {
         let producer_units = ProducerUnitPartitionV1::from_foundation(input.foundation())
             .map_err(ScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
+        let mut independent = Vec::new();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
         let site_owners = input
             .module()
@@ -104,18 +105,25 @@ impl ScoopLirObjectPartitionV1 {
                         .or_default()
                         .push(*definition);
                 }
+                _ if plan.definition_role() == StrongDefinitionRole::ImageDescriptor
+                    || plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak =>
+                {
+                    independent.push(ScoopLirObjectUnitSetV1 {
+                        kind: ScoopLirObjectKindV1::NonCallable,
+                        definition_plans: vec![*definition],
+                    });
+                }
                 _ => non_callable.push(*definition),
             }
         }
-        if non_callable.is_empty() {
-            return Err(ScoopLirObjectPartitionError::EmptyNonCallableObject);
+        let mut objects = Vec::with_capacity(1 + independent.len() + callables.len());
+        if !non_callable.is_empty() {
+            objects.push(ScoopLirObjectUnitSetV1 {
+                kind: ScoopLirObjectKindV1::NonCallable,
+                definition_plans: non_callable,
+            });
         }
-
-        let mut objects = Vec::with_capacity(1 + callables.len());
-        objects.push(ScoopLirObjectUnitSetV1 {
-            kind: ScoopLirObjectKindV1::NonCallable,
-            definition_plans: non_callable,
-        });
+        objects.extend(independent);
         objects.extend(callables.into_iter().map(|(body, definition)| {
             let mut definition_plans = vec![definition];
             definition_plans.extend(body_registrations.remove(&body).into_iter().flatten());
@@ -159,7 +167,6 @@ pub enum ScoopLirObjectPartitionError {
         first: ObjectDefinitionPlanId,
         second: ObjectDefinitionPlanId,
     },
-    EmptyNonCallableObject,
 }
 
 impl fmt::Display for ScoopLirObjectPartitionError {

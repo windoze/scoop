@@ -1922,7 +1922,7 @@ LLVM 为大值 `byval` 参数生成的标准 `memcpy` 不展开异常，也不�
 
 **ODR 与依赖。** 普通依赖图确认模板 origin、完整 application 与 exact arguments 对应同一定义后，重复 ODR member 只比较完整 typed key 与共享 ABI。ABI 包括调用约定、参数/返回表示、GC 调用契约、共享 layout/alignment/scan/dispatch；不包含优化后的 LIR、机器码、私有帧、EH 或 stackmap。删除 `OdrDefinitionFingerprint` 及只服务正文相等的计算、leaf、补丁和测试，不另建“优化前语义正文摘要”。导出的模板、默认值、const、类型和调用合同仍由普通 HIR/MIR/LIR semantic projection 覆盖；优化设置与私有实现变化进入编译、Code/Artifact 及链接缓存。后端的兼容契约与 producer 优化设置分开，不能因 profile 或 pass 改变而错误报告 stale edge。
 
-program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。
+program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。候选 image descriptor 及其六类表具有独立物理成员，供 program-link 整体替换；非 callable 的独立 ODR definition 与自身 associated atoms 各成一个可选择成员。
 
 `.slib` 保留候选 image/registration 数据与物理 owner，program-link 在选择后通过现有 native-object 输出路径生成最终 image descriptor 和六类 pointer 表，不启动 LLVM/Scoop codegen、不读取源码或 runtime header，也不修改已发布 artifact。落选正文及其站点/EH/Context 数据不进入最终对象集合；所有引用指向唯一 TD、storage/cell、callable 和登记。最终 image fingerprint 根据实际表计算并进入既有 link plan，普通 eager 初始化顺序和 lazy unit 的 exactly-once 语义保持。Mach-O 不能依赖独立 weak coalesce 模拟这项关联选择；ELF 采用相同显式规则，不把平台 COMDAT 能力变为另一套语义。
 

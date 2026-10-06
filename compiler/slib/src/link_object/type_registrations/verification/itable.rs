@@ -89,8 +89,9 @@ where
         relocation_index += 1;
         validate_itable_relocation_shape(plan, entry_index, interface)?;
         if !interface_target_matches(
-            builtins.member_plan().target(),
-            interface.shape(),
+            builtins,
+            member.member(),
+            interface,
             itable.interface(),
             plans_by_exact,
         ) {
@@ -109,10 +110,7 @@ where
                         Failure::DispatchDefinitionIdentity,
                     )
                 })?;
-            if !matches!(
-                slots.shape().absolute64_target(),
-                Some(VerifiedRelocationTargetV1::StrongDefinition { definition }) if *definition == expected
-            ) {
+            if !definition_target_matches(builtins, member.member(), slots, expected) {
                 return itable_directory_error(plan, Some(entry_index), Failure::SlotsTarget);
             }
         }
@@ -184,8 +182,9 @@ where
 }
 
 fn interface_target_matches<D, C>(
-    target: scoop_lir::LirTargetProfile,
-    shape: &VerifiedObjectRelocationShapeV1,
+    builtins: &crate::VerifiedBuiltinObjectStrongRelocationSetV1,
+    source_member: SlibMemberId,
+    relocation: &VerifiedRelocationUseV1,
     interface: D,
     plans_by_exact: &BTreeMap<PersistentExactTypeId, &StrongTypeRegistrationPlan<D, C>>,
 ) -> bool
@@ -197,19 +196,31 @@ where
             let Some(expected) = plans_by_exact.get(&exact_type) else {
                 return false;
             };
-            matches!(
-                shape.absolute64_target(),
-                Some(VerifiedRelocationTargetV1::StrongDefinition { definition }) if *definition == expected.descriptor_definition_plan()
+            definition_target_matches(
+                builtins,
+                source_member,
+                relocation,
+                expected.descriptor_definition_plan(),
             )
         }
         DescriptorReferenceKind::External(exact_type) => {
-            let expected = expected_type_descriptor_symbol(target, exact_type);
+            let expected =
+                expected_type_descriptor_symbol(builtins.member_plan().target(), exact_type);
             matches!(
-                shape.absolute64_target(),
+                relocation.shape().absolute64_target(),
                 Some(VerifiedRelocationTargetV1::ExternalUndefined { name, .. }) if name == &expected
             )
         }
     }
+}
+
+fn definition_target_matches(
+    builtins: &crate::VerifiedBuiltinObjectStrongRelocationSetV1,
+    source_member: SlibMemberId,
+    relocation: &VerifiedRelocationUseV1,
+    expected: ObjectDefinitionPlanId,
+) -> bool {
+    super::super::targets::local_definition(builtins, source_member, relocation) == Some(expected)
 }
 
 fn dispatch_definition(

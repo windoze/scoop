@@ -1,5 +1,6 @@
 use super::*;
 
+mod metadata_partition;
 mod objects;
 mod storage;
 pub use objects::*;

@@ -1,5 +1,8 @@
 use super::*;
 
+mod render;
+pub use render::render_llvm_ir_members;
+
 /// One verified provisional Scoop object and its exact producer units.
 #[derive(Debug)]
 pub struct EmittedConeObjectMemberV1 {
@@ -210,6 +213,20 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
                 temporary_parent.display()
             ))
         })?;
+    let metadata_context = Context::create();
+    let (metadata_llvm, metadata) = prepare_non_callable_strong_llvm_module(
+        &metadata_context,
+        module,
+        &production,
+        &machine,
+        profile,
+        &expected_safepoints.without_body_sites(),
+    )?;
+    let metadata = metadata_partition::MetadataModule::new(
+        metadata_llvm,
+        metadata,
+        production.canonical_definitions(),
+    )?;
     let mut members = Vec::with_capacity(partition.objects().len());
     for units in partition.objects() {
         let path = backing
@@ -220,14 +237,8 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
             ScoopLirObjectKindV1::NonCallable => {
                 let selected_safepoints = expected_safepoints.without_body_sites();
                 let selected_eh = expected_eh.without_body_metadata();
-                let (llvm, runtime_metadata) = prepare_non_callable_strong_llvm_module(
-                    &context,
-                    module,
-                    &production,
-                    &machine,
-                    profile,
-                    &selected_safepoints,
-                )?;
+                let (llvm, runtime_metadata) =
+                    metadata.project(&machine, profile, units.definition_plans())?;
                 write_object(&machine, &llvm, &path)?;
                 atom_boundaries::materialize_global_linkages_v1(
                     &path,
@@ -355,72 +366,4 @@ fn validate_object_set_input(
         validation::validate_executable_entry(input.module(), entry)?;
     }
     Ok(())
-}
-
-/// Render every physical strong object module without writing artifacts.
-pub fn render_llvm_ir_members(
-    input: &scoop_lir::ConeLirOutput,
-    coordinate: &scoop_lir::ConeCoordinate,
-    direct_dependencies: &[scoop_lir::ConeIdentity],
-    entry_source: scoop_lir::EntryProductionSourceV1,
-    profile: ValidatedBackendProfile,
-) -> Result<Vec<RenderedConeObjectModuleV1>, CodegenError> {
-    validate_object_set_input(input, profile)?;
-    let module = input.module();
-    let production = input
-        .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
-        .map_err(|error| {
-            CodegenError(format!("cannot build strong production section: {error}"))
-        })?;
-    let partition =
-        ScoopLirObjectPartitionV1::from_input(input, production.canonical_definitions())
-            .map_err(|error| CodegenError(error.to_string()))?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    partition
-        .objects()
-        .iter()
-        .map(|units| {
-            let context = Context::create();
-            let llvm = match units.kind() {
-                ScoopLirObjectKindV1::NonCallable => {
-                    let selected = expected_safepoints.without_body_sites();
-                    prepare_non_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                    )?
-                    .0
-                }
-                ScoopLirObjectKindV1::CallableBody(body) => {
-                    let function = module
-                        .callable_bodies()
-                        .find(|function| function.callable_body.id() == body)
-                        .ok_or_else(|| {
-                            CodegenError(format!(
-                                "strong object partition selected missing callable body {body}"
-                            ))
-                        })?;
-                    let selected = expected_safepoints.for_function(function.symbol())?;
-                    prepare_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                        body,
-                    )?
-                    .0
-                }
-            };
-            Ok(RenderedConeObjectModuleV1 {
-                units: units.clone(),
-                llvm_ir: llvm.print_to_string().to_string(),
-            })
-        })
-        .collect()
 }

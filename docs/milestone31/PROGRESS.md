@@ -17,7 +17,7 @@
 
 - 已读取设计与对应规范；工作区原有 M31 文档作为实施基准保存。
 - Linux `nuc12:~/repos/scoop` 留有 M30 测试变更；Linux 验证将使用独立目录，保留原目录内容。
-- M31-1 已完成；ODR/image、完整优化和 nursery 尚在实施。各批实际改动、版本与验证结果记录如下。
+- M31-1、M31-4 已完成；nursery 已实现并通过 Darwin 验证，Linux 待补。ODR/image 与完整优化继续实施。各批实际改动、版本与验证结果记录如下。
 
 ## 性能基线与构建清理
 
@@ -71,3 +71,11 @@
 - 分区直接使用已有 typed body/site owner，保持所有 definition 的完整、不重叠覆盖；未增加新身份或分组框架。原 Context 专用发射模块改为统一正文登记发射，公共发射代码减少。
 - Rust fmt 与 workspace clippy 通过；真实 object、NoGC、登记、patch 侧表定向 15 项通过。Darwin nursery 的 debug/release/normal 三变体、跨 Cone Context 的 artifact-only link/run 与九份阶段快照通过，合计 19 个正式进程。
 - 本批仅建立可同选的正文物理边界；独立 ODR 数据分区、显式 primary 选择、最终 image 和 definition 字段删除继续实施。
+
+## M31-2 物理边界：独立 metadata 与候选 image
+
+- 候选 image 及六类表独占一个对象；非 callable 的 ODR 定义各自与 associated atoms 成组，普通 Strong metadata 继续共用对象。统一发射一次 metadata LLVM，再按已有 definition/atom 索引投影；分区复用索引，不增加新的后端或对象解析框架。
+- 跨分区的类型描述、interface 和派发表引用复用已经解析的当前 Cone typed relocation binding，不再要求目标恰好位于同一 native member。保留实际身份、角色与范围检查。
+- Rust fmt 与 workspace clippy 通过；codegen 物理分区 6 项、reader 类型登记与引用闭包 26 项通过。Darwin 跨 Cone Context 的 artifact-only link/run 与九份快照通过；TLS 的 normal/full-moving 两变体、源码移除后独立链接与运行、八份快照通过，合计 22 个正式进程。
+- TLS 的 Darwin LIR 快照同步已实现的整数条件清理，只删除已知非零除数对应的不可达除零分支。Linux 快照留待实际目标运行更新，未以 Darwin 结果代替。
+- Context 用例拆分后的首轮耗时约 58 秒，复用符号索引后约 48 秒；前一批约 27 秒。这是物理分区的实际编译开销，后续性能报告继续记录。清理新增的约 0.90 GiB debug 增量目录，保留可复用依赖与 release 命令。

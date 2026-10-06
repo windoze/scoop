@@ -20,8 +20,8 @@ use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
-    VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedMaterializedPatchSiteV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole, MangledSymbol,
