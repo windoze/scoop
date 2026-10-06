@@ -78,6 +78,11 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 传作 argv 时先在 vars 中声明 `raw_hex = "${work.hex}2fff"`，再写 `{hex = "${raw_hex}"}`；
 静态 hex 或完整引用使用相同的预检和执行规则。
 `${variants.normal.build.result.root.artifact_fingerprint}` 可比较前一变体。
+普通功能 fixture 不额外保存整份产物、core 或 native 输入的固定指纹快照。
+缓存命中／失效、确定性、产物读写和源码构建／artifact-only 消费一致性，应使用
+`equals`／`not_equals` 或 `same_as`／`different_from` 比较本次实际产生的值。
+固定摘要仅用于输入严格受控、需要锁定编码或指纹规则的专门测试；结构、诊断、
+ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一化隐藏这些差异。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。

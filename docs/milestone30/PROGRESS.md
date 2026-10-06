@@ -116,3 +116,9 @@ Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixt
 定向复验通过 codegen 317 项、HIR 877 项、HIR lowering 1375 项、slib 602 项，以及 driver 原先失败的 4 项；GC 链接参数最终调整后，其 11 项 runtime collector 测试再次通过。格式化和 workspace clippy 通过；正式文件 runner 的 38 项公共规则单元测试也通过。CLI 全量及其快照迁移继续进行。
 
 随后在 Linux/glibc 复验同一组 11 项 runtime collector 测试，全部通过。旧 core 可见性负例的 Int 声明副本补齐两种浮点转换及 hidden package 中的显式 import，保持原有错误规则；其 Darwin 产物指纹更新后，普通 runner 模式的 2 个进程与 1 份快照通过，精确诊断未放宽。确认本机无活动 Rust 构建后，清理本轮约 23 GiB 的 debug incremental 缓存。
+
+## G1：删除普通功能用例的固定产物指纹
+
+按新的测试清理要求，先修订实现规范、路线图与 runner 约定，再删除 345 个普通功能 fixture 的独立 `artifact-fingerprints` 步骤，以及三个目标合计 1035 份仅含整份产物摘要的 golden。逐份解析比较确认，其余全部步骤、输入、诊断、IR、符号、运行及同次结果相等／失效断言完全保留。之前考虑的 Darwin archiver 替换未提交，已撤回；无需为这些无关快照改变工具选择。
+
+Ruff 格式化与检查、runner 的 38 项公共测试及全部 2551 个 fixture 的发现检查通过。定向普通运行中，构造器、core 布局、core 声明负例和默认可见性共 5 项通过；另外 3 项仍停在已知的旧 HIR golden，继续纳入 M30 结构快照迁移，不计作通过。Linux 前一轮的 25 项只读文件准备失败已在全新目录中全部通过，保留此前成功结果。

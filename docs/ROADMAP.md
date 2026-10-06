@@ -480,6 +480,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
+- 普通功能 fixture 不附加无关的产物、core 或 native 输入固定指纹；缓存、确定性及产物消费一致性优先比较本次产生的值。结构快照只对明确的易变摘要字段做保留引用关系的归一化，完整类型、ABI、GC、相关符号和运行断言继续保留；规则见实现规范第 1 节及 fixture runner 说明。
 - 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为当前规则；M29完整实现与实际验证见[验收记录](milestone29/ACCEPTANCE.md)。
 - 2026-10-06 M29后续修订：`Encodable<T>`与`Decodable<T>`统一由companion/普通codec对象实现，数据类型继承不决定编码策略。移除旧实例编码、编码bound及容器/tuple条件接口，采用显式codec组合；当前语言9.5/11.13、runtime 2.2、impl 2.17与[M29设计](milestone29/DESIGN.md)同步，旧实施记录保留，修订后的实现与验证已完成。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。

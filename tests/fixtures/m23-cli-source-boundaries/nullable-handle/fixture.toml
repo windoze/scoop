@@ -49,7 +49,3 @@ stderr = ""
 json = "stderr"
 diagnostics = {"file" = "diagnostics.json"}
 checks = []
-
-[[steps]]
-name = "artifact-fingerprints"
-checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

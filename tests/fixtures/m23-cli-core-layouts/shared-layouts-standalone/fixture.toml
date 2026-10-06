@@ -65,7 +65,3 @@ name = "remove_consumer_source"
 files = [
   {"remove" = {"path" = "${work}/consumer"}},
 ]
-
-[[steps]]
-name = "artifact-fingerprints"
-checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

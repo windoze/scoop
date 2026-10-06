@@ -181,6 +181,8 @@ MIR 的有限 generated nominal 从既有 source exact 关系和 ExactOwnerRoot 
 
 MIR section 从同次 LocalConcrete 初始化单元读取两个生成函数的完整逻辑签名和 GC effect，并使用已有 typed materialization 对应 MIR 实现。type bridge 的 source initialization 表只导出参数自由 Strong 单元；泛型委托 application 的实际单元、callable body 和存储保留在本次 MIR materialization 与 LIR registration 中，由完整 reader 核对 application identity 与 declaration role。外部类型用途取实际经过 HIR→MIR 转置的 source-exact 关系及实际 provider；外部 callable 复用完整 ordinary selected 的 provider、declaration、implementation 和 signature，其余 nominal 成员进入 type bridge。初始化服务已经属于普通 callable，不重复加入 nominal-member 分区。section 直接保留本次 lowering 产生的完整导出与选择，不借来源适配器重建预期表或完整重放；外部产物在 reader 边界检查必要的格式、引用与跨层一致性。
 
+普通功能 fixture 验证诊断、IR 结构、类型、ABI、GC、相关符号和链接运行，不锁定与被测行为无关的整份产物、core 或 native 输入摘要。缓存命中与失效、构建确定性、产物读写及源码构建与 artifact-only 消费的一致性，优先比较同次测试中的摘要或字节是否相等／变化。固定摘要只用于输入严格受控、确实锁定编码或指纹规则的专门测试。结构快照需要处理易变内容摘要时，只按明确字段归一化并保留相等与引用关系；typed identity、符号、成员顺序、布局与引用结构不能笼统隐藏。此测试约定不改变生产指纹语义，也不能掩盖同等构建条件下的非确定性。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。
