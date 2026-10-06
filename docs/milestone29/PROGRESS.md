@@ -3,6 +3,18 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：保留产物用例的并发清理
+
+全仓库更新中，retained-artifacts 的递归 chmod 与后台构建删除 staging 目录
+发生竞争。用例改为通过既有文件动作删除原始源码、显式依赖与实际发布的根产物，
+不遍历编译器自管的临时目录；保留根路径消失、相同链接计划、artifact-only 链接
+和普通/移动 GC 运行断言，没有改变编译器实现或接受/拒绝规则。
+
+格式化与 workspace clippy 通过。该用例在干净目录以普通模式通过，共 10 个
+进程、5 次 golden 检查；报告为
+`/tmp/scoop-m29-saved-reports/m29-retained-artifacts-darwin-check.json`。
+原更新轮的失败保留，最终普通全量仍须覆盖此修复。
+
 ## 2026-10-06：声明保留后的产物回归与 workspace
 
 泛型 primitive 声明保留使部分 Export HIR dump 增加实际 ToString/Hash 声明，
