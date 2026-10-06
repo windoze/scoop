@@ -92,3 +92,11 @@ SingleValueEncodingContainer／SingleValueDecodingContainer 增加 Float 与 Dou
 Darwin 的格式化、workspace clippy、严格 C 告警检查和 release CLI 构建通过。四个新 fixture 共 14 进程、7 份阶段 golden 通过：独立格式保留 NaN payload／Infinity，JSON 只编码有限数，检查直接 F32 舍入、nearest-even 两侧、边界及抽样位型往返、负零、subnormal／underflow、overflow、411 位数字和逗号 locale 下解析；派生 record／enum、泛型 codec、Option、Array、ArrayList 和嵌套错误 path 均经普通／移动 GC 运行。两个负例锁定缺失 Float／Double 单值方法的精确诊断。旧序列化容器与派生依赖两项回归另有 10 进程、3 份 golden 通过；手写 encoder 的快照同步新增方法、浮点类型和相关函数编号。
 
 Linux/glibc 动态与 musl 静态均已通过这四个新 fixture，各为 14 进程、7 份 golden，包含两种 GC 模式；共有 AST/HIR/MIR 无变化，分别保存目标 LIR。两套 libc 的 strtof_l／strtod_l 均通过直接舍入和边界检查。F 批开始前再次清理了约 1.8 GiB 的闲置 debug incremental 缓存。
+
+## F1：跨 Cone、独立产物与优化后舍入
+
+跨 Cone 用例发现并补齐 annotation 产物参数校验对 Float／Double 的遗漏；校验仍在既有单一边界执行，不增加重复检查。C storage wire 的既有 round-trip 测试补入两种浮点形状，并把 unknown-tag 负例移到当前未分配的 tag。
+
+Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixture 以 release 模式编译 core、JSON、provider、facade、consumer，逐个删除源码，最后在无 LLVM 的 PATH 下只凭 .slib 与 runtime index 重新链接并运行。覆盖公开 alias、重导出、浮点 annotation／const／默认表达式、跨 Cone 泛型实例 ODR、派生 codec、fmodf／fmod 依赖，以及异常展开中的 NaN 位型；普通／移动 GC 均通过，共 10 进程、4 份 golden。
+
+独立 rounding fixture 在 debug 与 release 两种模式下通过 10 进程、8 份 golden；用普通 C 输入阻止常量折叠，验证乘加保持两次舍入、溢出算术不重结合、NaN 不被优化成自反相等和负零保留。musl 的动态 artifact 变体与最终集中验收继续进行，本节不提前记录其结果。
