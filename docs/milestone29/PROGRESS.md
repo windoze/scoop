@@ -3,6 +3,20 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：Darwin 的新协议 M29 统一验收
+
+全部 176 个 M29 fixture 已在干净工作目录以普通模式通过，共 363 个进程、
+113 份 stage golden；覆盖当前所有协议、annotation/shape、companion、容器、
+tuple、双向派生、JSON、跨 Cone、Context 与移动 GC。旧实例协议相关源码、
+条件关系和 tuple 专用记录均已撤销，剩余静态 shape/annotation 用例同步新 core
+的普通产物输出。设计、路线图及三份 spec 的实施状态同步为正式总验收中。
+
+本轮未使用更新快照选项。正式报告保存为
+`/tmp/scoop-m29-saved-reports/m29-revised-all-darwin.json`，此前 175 项更新轮及
+新增 Context 的独立报告分别保留，已清理对应工作目录。全 workspace 回归发现
+少数仍按旧实例编码计算对象/类型依赖的断言，正在核对；全仓库 fixture 及 Linux
+两目标仍需完成，因此本节不表示整个 M29 已完成。
+
 ## 2026-10-06：编码执行时的 Context 解析
 
 新增独立组合 fixture：在 Context 外创建持有元素 codec 的 generic ItemEncoder，

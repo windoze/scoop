@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core 和 JSON 入口已迁移，自动派生及其验收继续实施。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已迁移，三平台正式总验收继续进行。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 

@@ -1,6 +1,6 @@
 # M29 设计：静态类型描述与序列化基础设施
 
-状态：实施中，2026-10-06 codec 协议修订正在迁移；进度和实际验证见 [PROGRESS.md](PROGRESS.md)。此前实例编码和条件 conformance 的验收不代表本次修订已实现。
+状态：实施中，2026-10-06 codec 协议修订已迁移至实现，正式总验收进行中；进度和实际验证见 [PROGRESS.md](PROGRESS.md)。此前实例编码和条件 conformance 的验收不代表本次修订已实现。
 
 日期：2026-10-06。
 
@@ -596,11 +596,11 @@ encode 的 value 使用普通参数复制与 ABI，只有 codec 自身是值类�
 
 HIR golden 展示 resolved annotation、完整 shape、companion 的宿主 binder/application、普通 interface 及两个方向的 codec 绑定、已展开字段/构造调用；MIR/LIR golden 区分 codec receiver 与数据参数，展示普通调用/控制流/ABI及按 application 区分的初始化支持。产物只发射实际需要的 body、常量及普通类型/初始化记录，不再带容器/tuple 条件编码和 TupleEncoding callable，也不加字段枚举表或 codec registry；不把 runtime 现有 GC TypeDescriptor 的存在误报为反射。
 
-实现完成后运行仓库要求的格式化/lint、`cargo test --workspace`、公共 fixture runner 单测及 `python3 tests/run_fixtures.py --all`。届时另记录实际验收结果；本文编写阶段只验证文档一致性、链接和 diff，不填写预期通过数或假定已完成的测试结果。
+完整验收包括仓库要求的格式化/lint、`cargo test --workspace`、公共 fixture runner 单测及 `python3 tests/run_fixtures.py --all`。实际结果和对应提交记录在 [PROGRESS.md](PROGRESS.md)；部分用例通过或快照更新不替代普通模式的正式总验收。
 
 ### 9.3 2026-10-06 协议迁移
 
-本次文档修订替换原实例编码设计，未修改编译器、core、JSON 或 fixture。实施记录中的旧提交和测试保留为历史，不能作为新协议的验收。后续按功能逐项迁移并提交：
+2026-10-06 的文档修订先替换原实例编码设计，再按下列功能批次迁移实现并提交。实施记录中的旧提交和测试保留为历史，不能作为新协议的验收；当前实现与验证进度见 PROGRESS.md。
 
 1. 将核心协议、scalar companion、UnitEncoder、Json.encode 及手写用例改为显式数据参数与 codec；两个方向均验证普通直接/接口调用。
 2. 将派生 encode 的 owner 改为 codec，目标取 `Encodable<R>` 的 R；复用两个方向所需的字段依赖选择、普通访问检查与 body 构造，补齐泛型、递归及父子 codec 独立用例。

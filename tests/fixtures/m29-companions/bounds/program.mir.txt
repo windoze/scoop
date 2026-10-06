@@ -14,13 +14,13 @@ Module
   global12 $init$failure$4: Any managed initial=zeroed-for-runtime-unit
   global13 $init$failure$5: Any managed initial=zeroed-for-runtime-unit
   global14 $init$failure$6: Any managed initial=zeroed-for-runtime-unit
-  init0 companion:Packet.Companion singleton lazy global1 initializer=@fn22 ensure=@fn23 failure=8 deps=[]
-  init1 companion:Choice.Companion singleton lazy global2 initializer=@fn24 ensure=@fn25 failure=9 deps=[]
-  init2 companion:Reader.Companion singleton lazy global3 initializer=@fn26 ensure=@fn27 failure=10 deps=[]
-  init3 companion:ObjectPacket.Companion singleton lazy global4 initializer=@fn28 ensure=@fn29 failure=11 deps=[]
-  init4 companion:Inline.Companion singleton lazy global5 initializer=@fn30 ensure=@fn31 failure=12 deps=[]
-  init5 companion:Reference.Companion singleton lazy global6 initializer=@fn32 ensure=@fn33 failure=13 deps=[]
-  init6 companion:FBound.Companion singleton lazy global7 initializer=@fn34 ensure=@fn35 failure=14 deps=[]
+  init0 companion:Packet.Companion singleton lazy global1 initializer=@fn21 ensure=@fn22 failure=8 deps=[]
+  init1 companion:Choice.Companion singleton lazy global2 initializer=@fn23 ensure=@fn24 failure=9 deps=[]
+  init2 companion:Reader.Companion singleton lazy global3 initializer=@fn25 ensure=@fn26 failure=10 deps=[]
+  init3 companion:ObjectPacket.Companion singleton lazy global4 initializer=@fn27 ensure=@fn28 failure=11 deps=[]
+  init4 companion:Inline.Companion singleton lazy global5 initializer=@fn29 ensure=@fn30 failure=12 deps=[]
+  init5 companion:Reference.Companion singleton lazy global6 initializer=@fn31 ensure=@fn32 failure=13 deps=[]
+  init6 companion:FBound.Companion singleton lazy global7 initializer=@fn33 ensure=@fn34 failure=14 deps=[]
   struct Sample (number: Int)
   struct Recursive (number: Int)
   struct Packet<Sample> (item: Sample)
@@ -86,11 +86,6 @@ Module
   class box<Recursive> vtable=0 itables=1
   interface Readable
   interface SelfRead<Recursive>
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Factory<Sample>
   interface ToString
   interface Hash
@@ -128,13 +123,13 @@ Module
   generated_exact_type get14 location=class15 nominal_id=c0bae9a9164b497ec4d5d38c9eaa35c75b61095288dfed7b084387ca0fe83127 exact_id=d8d0bcb24ad7208562d4d42b02a9d1e359164ef6fff57db8df94ea1c7cd631c7
   generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get16 location=enum8 nominal_id=d56ffa52d2f6f233d667b8a887a8fe1591f67b89f603716059b61d579a9ca277 exact_id=f3dc91ad8a78b490ba8750a918eb1295a8dcf4fb5bf5f262354fd5785151554e
-  generated_callable gc0 function=@fn80 id=0f5ee4f3e28e310e1c7d3dfb620861f99648bf98f5b1d8a38eda3450615f2f3e
-  generated_callable gc1 function=@fn84 id=180f22a0da85eb39c6f3b9ebc705275b23a1ef23c2049e6c497fa118e85fd713
-  generated_callable gc2 function=@fn79 id=3549588a2351e10e8adf2a70f5aac62cad30146960f42625cd23bfe8192e7f59
-  generated_callable gc3 function=@fn82 id=5e787c57cd0301c26fe695e82367395d752790a9ce3e957ada4e1efa4fede97e
-  generated_callable gc4 function=@fn83 id=a72191472b3575f066882583275fc998f837c2ee184afe93c0016c738ed39613
-  generated_callable gc5 function=@fn85 id=edabbccae855a0d91f15752262ad82bc3a9def84f50d718fa5cbba46638382c3
-  generated_callable gc6 function=@fn81 id=f9dbb539d2c6c3a75b0b5098534bbeb1b818a37a466ff5972ab85253a1e5901a
+  generated_callable gc0 function=@fn76 id=0f5ee4f3e28e310e1c7d3dfb620861f99648bf98f5b1d8a38eda3450615f2f3e
+  generated_callable gc1 function=@fn80 id=180f22a0da85eb39c6f3b9ebc705275b23a1ef23c2049e6c497fa118e85fd713
+  generated_callable gc2 function=@fn75 id=3549588a2351e10e8adf2a70f5aac62cad30146960f42625cd23bfe8192e7f59
+  generated_callable gc3 function=@fn78 id=5e787c57cd0301c26fe695e82367395d752790a9ce3e957ada4e1efa4fede97e
+  generated_callable gc4 function=@fn79 id=a72191472b3575f066882583275fc998f837c2ee184afe93c0016c738ed39613
+  generated_callable gc5 function=@fn81 id=edabbccae855a0d91f15752262ad82bc3a9def84f50d718fa5cbba46638382c3
+  generated_callable gc6 function=@fn77 id=f9dbb539d2c6c3a75b0b5098534bbeb1b818a37a466ff5972ab85253a1e5901a
   fun Sample.read @fn0(this: Sample) -> Int
     bb0 entry
       return
@@ -250,7 +245,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn23 direct
+      call @fn22 direct
       val factory: Factory<Sample>
         Type Factory<Sample>
         Retype Factory<Sample>
@@ -271,8 +266,8 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb1 if.then.1
-      call @fn23 direct
-      call $dependency.receiver: Int = @fn10 direct
+      call @fn22 direct
+      call $dependency.receiver: Int = @fn9 direct
         Type Packet.Companion<Sample>
         GlobalRead $singleton$Companion
       val $dependency.argument.0: Int
@@ -313,13 +308,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $argument.0: Sample = @fn73 direct
+      call $argument.0: Sample = @fn69 direct
         Type Int
         Local $parameter.number
       val $parameter.value: Sample
         Type Sample
         Local $argument.0
-      call $call.1: Packet<Sample> = @fn62 interface Factory<Sample>[0]
+      call $call.1: Packet<Sample> = @fn58 interface Factory<Sample>[0]
         Type Factory<Sample>
         Local $receiver
         Type Sample
@@ -352,11 +347,11 @@ Module
         Type Boolean
         Local $parameter.condition
       call @scoop_rt_gc_collect direct
-      call @fn23 direct
+      call @fn22 direct
       val $receiver: Packet.Companion<Sample>
         Type Packet.Companion<Sample>
         GlobalRead $singleton$Companion
-      call $opt.1: Option<Packet<Sample>> = @fn11 direct
+      call $opt.1: Option<Packet<Sample>> = @fn10 direct
         Type Packet.Companion<Sample>
         Local $receiver
       branch bb4 bb5
@@ -375,7 +370,7 @@ Module
       assign $new.2
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external13 direct
+      call external5 direct
         Type UnwrapException
         Local $new.2
       throw
@@ -387,7 +382,7 @@ Module
         FieldAccess 0
           Type Packet<Sample>
           Local $uw.2
-      call $dependency.receiver: Int = @fn12 direct
+      call $dependency.receiver: Int = @fn11 direct
         Type Packet.Companion<Sample>
         Local $receiver
         Type Sample
@@ -411,8 +406,8 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn23 direct
-      call @fn23 direct
+      call @fn22 direct
+      call @fn22 direct
       branch bb7 bb8
         Type Boolean
         Binary RefEq
@@ -451,7 +446,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn25 direct
+      call @fn24 direct
       val $receiver: Choice.Companion<Sample>
         Type Choice.Companion<Sample>
         GlobalRead $singleton$Companion
@@ -461,13 +456,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $argument.0: Sample = @fn73 direct
+      call $argument.0: Sample = @fn69 direct
         Type Int
         Local $parameter.number
       val $parameter.value: Sample
         Type Sample
         Local $argument.0
-      call choice: Choice<Sample> = @fn13 direct
+      call choice: Choice<Sample> = @fn12 direct
         Type Choice.Companion<Sample>
         Local $receiver
         Type Sample
@@ -521,7 +516,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn27 direct
+      call @fn26 direct
       val $receiver: Reader.Companion<Sample>
         Type Reader.Companion<Sample>
         GlobalRead $singleton$Companion
@@ -531,13 +526,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $argument.0: Sample = @fn73 direct
+      call $argument.0: Sample = @fn69 direct
         Type Int
         Local $parameter.number
       val $parameter.value: Sample
         Type Sample
         Local $argument.0
-      call $dependency.receiver: Int = @fn14 direct
+      call $dependency.receiver: Int = @fn13 direct
         Type Reader.Companion<Sample>
         Local $receiver
         Type Sample
@@ -561,7 +556,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn29 direct
+      call @fn28 direct
       val $receiver: ObjectPacket.Companion<Child>
         Type ObjectPacket.Companion<Child>
         GlobalRead $singleton$Companion
@@ -574,7 +569,7 @@ Module
       assign $new.3
         Type Child
         ClassAlloc Child
-      call @fn64 direct
+      call @fn60 direct
         Type Child
         Local $new.3
         Type Int
@@ -585,12 +580,12 @@ Module
       val $parameter.value: Child
         Type Child
         Local $argument.0
-      call objectPacket: ObjectPacket<Child> = @fn15 direct
+      call objectPacket: ObjectPacket<Child> = @fn14 direct
         Type ObjectPacket.Companion<Child>
         Local $receiver
         Type Child
         Local $parameter.value
-      call @fn29 direct
+      call @fn28 direct
       val $receiver: ObjectPacket.Companion<Child>
         Type ObjectPacket.Companion<Child>
         GlobalRead $singleton$Companion
@@ -602,7 +597,7 @@ Module
       val $parameter.value: Child
         Type Child
         Local $argument.0
-      call $dependency.receiver: Int = @fn16 direct
+      call $dependency.receiver: Int = @fn15 direct
         Type ObjectPacket.Companion<Child>
         Local $receiver
         Type Child
@@ -626,7 +621,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn31 direct
+      call @fn30 direct
       val $receiver: Inline.Companion<Int>
         Type Inline.Companion<Int>
         GlobalRead $singleton$Companion
@@ -636,7 +631,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.4: Inline<Int> = @fn17 direct
+      call $call.4: Inline<Int> = @fn16 direct
         Type Inline.Companion<Int>
         Local $receiver
         Type Int
@@ -665,7 +660,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn33 direct
+      call @fn32 direct
       val $receiver: Reference.Companion<String>
         Type Reference.Companion<String>
         GlobalRead $singleton$Companion
@@ -675,7 +670,7 @@ Module
       val $parameter.value: String
         Type String
         Local $argument.0
-      call $call.5: Reference<String> = @fn18 direct
+      call $call.5: Reference<String> = @fn17 direct
         Type Reference.Companion<String>
         Local $receiver
         Type String
@@ -691,7 +686,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external2 direct
+      call $argument.0: Boolean = external1 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -702,7 +697,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn35 direct
+      call @fn34 direct
       val $receiver: FBound.Companion<Recursive>
         Type FBound.Companion<Recursive>
         GlobalRead $singleton$Companion
@@ -712,13 +707,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $argument.0: Recursive = @fn74 direct
+      call $argument.0: Recursive = @fn70 direct
         Type Int
         Local $parameter.number
       val $parameter.value: Recursive
         Type Recursive
         Local $argument.0
-      call $call.6: FBound<Recursive> = @fn19 direct
+      call $call.6: FBound<Recursive> = @fn18 direct
         Type FBound.Companion<Recursive>
         Local $receiver
         Type Recursive
@@ -749,7 +744,7 @@ Module
       call @fn4 direct
         Type Boolean
         Local $parameter.condition
-      call @fn35 direct
+      call @fn34 direct
       val $receiver: FBound.Companion<Recursive>
         Type FBound.Companion<Recursive>
         GlobalRead $singleton$Companion
@@ -759,13 +754,13 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call $argument.0: Recursive = @fn74 direct
+      call $argument.0: Recursive = @fn70 direct
         Type Int
         Local $parameter.number
       val $parameter.value: Recursive
         Type Recursive
         Local $argument.0
-      call $dependency.receiver: Int = @fn20 direct
+      call $dependency.receiver: Int = @fn19 direct
         Type FBound.Companion<Recursive>
         Local $receiver
         Type Recursive
@@ -795,7 +790,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn20 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -810,27 +805,7 @@ Module
         Type Int
         Local value
       return
-  fun encode @fn8(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn36 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun Packet.Companion.make @fn9(this: Packet.Companion<Sample>, value: Sample) -> Packet<Sample>
+  fun Packet.Companion.make @fn8(this: Packet.Companion<Sample>, value: Sample) -> Packet<Sample>
     bb0 entry
       val $argument.0: Sample
         Type Sample
@@ -838,7 +813,7 @@ Module
       val $parameter.item: Sample
         Type Sample
         Local $argument.0
-      call result: Packet<Sample> = @fn75 direct
+      call result: Packet<Sample> = @fn71 direct
         Type Sample
         Local $parameter.item
       val $dependency.argument.0: Packet<Sample>
@@ -847,7 +822,7 @@ Module
       val $dependency.parameter._1: Packet<Sample>
         Type Packet<Sample>
         Local $dependency.argument.0
-      call @fn37 direct
+      call @fn35 direct
         Type Packet.Companion<Sample>
         Local this
         Type Option<Packet<Sample>>
@@ -857,21 +832,21 @@ Module
       return
         Type Packet<Sample>
         Local result
-  fun Packet.Companion.$get$ordinal @fn10(this: Packet.Companion<Sample>) -> Int
+  fun Packet.Companion.$get$ordinal @fn9(this: Packet.Companion<Sample>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Packet.Companion<Sample>
           Local this
-  fun Packet.Companion.$get$cached @fn11(this: Packet.Companion<Sample>) -> Option<Packet<Sample>>
+  fun Packet.Companion.$get$cached @fn10(this: Packet.Companion<Sample>) -> Option<Packet<Sample>>
     bb0 entry
       return
         Type Option<Packet<Sample>>
         FieldAccess 1
           Type Packet.Companion<Sample>
           Local this
-  fun Packet.Companion.read @fn12(this: Packet.Companion<Sample>, value: Sample) -> Int
+  fun Packet.Companion.read @fn11(this: Packet.Companion<Sample>, value: Sample) -> Int
     bb0 entry
       val $receiver: Sample
         Type Sample
@@ -882,7 +857,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun Choice.Companion.make @fn13(this: Choice.Companion<Sample>, value: Sample) -> Choice<Sample>
+  fun Choice.Companion.make @fn12(this: Choice.Companion<Sample>, value: Sample) -> Choice<Sample>
     bb0 entry
       val $argument.0: Sample
         Type Sample
@@ -895,7 +870,7 @@ Module
         VariantConstruct Choice<Sample> v0
           Type Sample
           Local $parameter._1
-  fun Reader.Companion.read @fn14(this: Reader.Companion<Sample>, value: Sample) -> Int
+  fun Reader.Companion.read @fn13(this: Reader.Companion<Sample>, value: Sample) -> Int
     bb0 entry
       val $receiver: Sample
         Type Sample
@@ -906,7 +881,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun ObjectPacket.Companion.make @fn15(this: ObjectPacket.Companion<Child>, value: Child) -> ObjectPacket<Child>
+  fun ObjectPacket.Companion.make @fn14(this: ObjectPacket.Companion<Child>, value: Child) -> ObjectPacket<Child>
     bb0 entry
       val $argument.0: Child
         Type Child
@@ -917,7 +892,7 @@ Module
       assign $new.1
         Type ObjectPacket<Child>
         ClassAlloc ObjectPacket<Child>
-      call @fn65 direct
+      call @fn61 direct
         Type ObjectPacket<Child>
         Local $new.1
         Type Child
@@ -925,14 +900,14 @@ Module
       return
         Type ObjectPacket<Child>
         Local $new.1
-  fun ObjectPacket.Companion.read @fn16(this: ObjectPacket.Companion<Child>, value: Child) -> Int
+  fun ObjectPacket.Companion.read @fn15(this: ObjectPacket.Companion<Child>, value: Child) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Child
           Local value
-  fun Inline.Companion.make @fn17(this: Inline.Companion<Int>, value: Int) -> Inline<Int>
+  fun Inline.Companion.make @fn16(this: Inline.Companion<Int>, value: Int) -> Inline<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -940,13 +915,13 @@ Module
       val $parameter.item: Int
         Type Int
         Local $argument.0
-      call $call.1: Inline<Int> = @fn76 direct
+      call $call.1: Inline<Int> = @fn72 direct
         Type Int
         Local $parameter.item
       return
         Type Inline<Int>
         Local $call.1
-  fun Reference.Companion.make @fn18(this: Reference.Companion<String>, value: String) -> Reference<String>
+  fun Reference.Companion.make @fn17(this: Reference.Companion<String>, value: String) -> Reference<String>
     bb0 entry
       val $argument.0: String
         Type String
@@ -954,13 +929,13 @@ Module
       val $parameter.item: String
         Type String
         Local $argument.0
-      call $call.1: Reference<String> = @fn77 direct
+      call $call.1: Reference<String> = @fn73 direct
         Type String
         Local $parameter.item
       return
         Type Reference<String>
         Local $call.1
-  fun FBound.Companion.make @fn19(this: FBound.Companion<Recursive>, value: Recursive) -> FBound<Recursive>
+  fun FBound.Companion.make @fn18(this: FBound.Companion<Recursive>, value: Recursive) -> FBound<Recursive>
     bb0 entry
       val $argument.0: Recursive
         Type Recursive
@@ -968,13 +943,13 @@ Module
       val $parameter.item: Recursive
         Type Recursive
         Local $argument.0
-      call $call.1: FBound<Recursive> = @fn78 direct
+      call $call.1: FBound<Recursive> = @fn74 direct
         Type Recursive
         Local $parameter.item
       return
         Type FBound<Recursive>
         Local $call.1
-  fun FBound.Companion.read @fn20(this: FBound.Companion<Recursive>, value: Recursive) -> Int
+  fun FBound.Companion.read @fn19(this: FBound.Companion<Recursive>, value: Recursive) -> Int
     bb0 entry
       val $receiver: Recursive
         Type Recursive
@@ -993,18 +968,18 @@ Module
       return
         Type Int
         Local $call.1
-  fun println @fn21(value: String) -> Unit
+  fun println @fn20(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external3 direct
+      call $dependency.local.2: String = external2 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external5 direct
+      call external3 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1013,23 +988,23 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external5 direct
+      call external3 direct
         Type String
         Local $dependency.local.5
       return
-  fun $init$body$0 @fn22() -> Unit
+  fun $init$body$0 @fn21() -> Unit
     bb0 entry
       assign $new.1
         Type Packet.Companion<Sample>
         ClassAlloc Packet.Companion<Sample>
-      call @fn66 direct
+      call @fn62 direct
         Type Packet.Companion<Sample>
         Local $new.1
       global_assign $singleton$Companion
         Type Packet.Companion<Sample>
         Local $new.1
       return
-  fun $init$ensure$0 @fn23() -> Unit
+  fun $init$ensure$0 @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1074,7 +1049,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn22 direct
+      call @fn21 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Packet.Companion
@@ -1121,25 +1096,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Packet.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$4 @fn24() -> Unit
+  fun $init$body$4 @fn23() -> Unit
     bb0 entry
       assign $new.1
         Type Choice.Companion<Sample>
         ClassAlloc Choice.Companion<Sample>
-      call @fn67 direct
+      call @fn63 direct
         Type Choice.Companion<Sample>
         Local $new.1
       global_assign $singleton$Companion
         Type Choice.Companion<Sample>
         Local $new.1
       return
-  fun $init$ensure$4 @fn25() -> Unit
+  fun $init$ensure$4 @fn24() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1184,7 +1159,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn24 direct
+      call @fn23 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:Choice.Companion
@@ -1231,25 +1206,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:Choice.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$6 @fn26() -> Unit
+  fun $init$body$6 @fn25() -> Unit
     bb0 entry
       assign $new.1
         Type Reader.Companion<Sample>
         ClassAlloc Reader.Companion<Sample>
-      call @fn68 direct
+      call @fn64 direct
         Type Reader.Companion<Sample>
         Local $new.1
       global_assign $singleton$Companion
         Type Reader.Companion<Sample>
         Local $new.1
       return
-  fun $init$ensure$6 @fn27() -> Unit
+  fun $init$ensure$6 @fn26() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1294,7 +1269,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn26 direct
+      call @fn25 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:Reader.Companion
@@ -1341,25 +1316,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:Reader.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$5 @fn28() -> Unit
+  fun $init$body$5 @fn27() -> Unit
     bb0 entry
       assign $new.1
         Type ObjectPacket.Companion<Child>
         ClassAlloc ObjectPacket.Companion<Child>
-      call @fn69 direct
+      call @fn65 direct
         Type ObjectPacket.Companion<Child>
         Local $new.1
       global_assign $singleton$Companion
         Type ObjectPacket.Companion<Child>
         Local $new.1
       return
-  fun $init$ensure$5 @fn29() -> Unit
+  fun $init$ensure$5 @fn28() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1404,7 +1379,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn28 direct
+      call @fn27 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:ObjectPacket.Companion
@@ -1451,25 +1426,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:ObjectPacket.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$1 @fn30() -> Unit
+  fun $init$body$1 @fn29() -> Unit
     bb0 entry
       assign $new.1
         Type Inline.Companion<Int>
         ClassAlloc Inline.Companion<Int>
-      call @fn70 direct
+      call @fn66 direct
         Type Inline.Companion<Int>
         Local $new.1
       global_assign $singleton$Companion
         Type Inline.Companion<Int>
         Local $new.1
       return
-  fun $init$ensure$1 @fn31() -> Unit
+  fun $init$ensure$1 @fn30() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1514,7 +1489,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn30 direct
+      call @fn29 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:Inline.Companion
@@ -1561,25 +1536,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:Inline.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$2 @fn32() -> Unit
+  fun $init$body$2 @fn31() -> Unit
     bb0 entry
       assign $new.1
         Type Reference.Companion<String>
         ClassAlloc Reference.Companion<String>
-      call @fn71 direct
+      call @fn67 direct
         Type Reference.Companion<String>
         Local $new.1
       global_assign $singleton$Companion
         Type Reference.Companion<String>
         Local $new.1
       return
-  fun $init$ensure$2 @fn33() -> Unit
+  fun $init$ensure$2 @fn32() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1624,7 +1599,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn32 direct
+      call @fn31 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Reference.Companion
@@ -1671,25 +1646,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:Reference.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$3 @fn34() -> Unit
+  fun $init$body$3 @fn33() -> Unit
     bb0 entry
       assign $new.1
         Type FBound.Companion<Recursive>
         ClassAlloc FBound.Companion<Recursive>
-      call @fn72 direct
+      call @fn68 direct
         Type FBound.Companion<Recursive>
         Local $new.1
       global_assign $singleton$Companion
         Type FBound.Companion<Recursive>
         Local $new.1
       return
-  fun $init$ensure$3 @fn35() -> Unit
+  fun $init$ensure$3 @fn34() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1734,7 +1709,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn34 direct
+      call @fn33 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:FBound.Companion
@@ -1781,122 +1756,13 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:FBound.Companion
-      call external12 direct
+      call external4 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun encodeOption @fn36(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str5
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str6
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external4 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external11 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun Packet.Companion.$set$cached @fn37(this: Packet.Companion<Sample>, value: Option<Packet<Sample>>) -> Unit
+  fun Packet.Companion.$set$cached @fn35(this: Packet.Companion<Sample>, value: Option<Packet<Sample>>) -> Unit
     bb0 entry
       field_set 1
         Type Packet.Companion<Sample>
@@ -1904,136 +1770,7 @@ Module
         Type Option<Packet<Sample>>
         Local value
       return
-  fun encode @fn38(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn39 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn39(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str7
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str8
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external1 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external11 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun mark @fn40() -> Int
+  fun mark @fn36() -> Int
     bb0 entry
       call $old.0: Int = @fn6 direct
       val $dependency.receiver: Int
@@ -2056,73 +1793,73 @@ Module
       return
         Type Int
         Local $call.1
-  fun Continuation.resume @fn41(this: Continuation<Sample>, value: Sample) -> Unit
+  fun Continuation.resume @fn37(this: Continuation<Sample>, value: Sample) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn42(this: Continuation<Sample>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn38(this: Continuation<Sample>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn43(this: SuspendTask<Sample>, $completion: Continuation<Sample>) -> CoroutineStep<Sample>
+  fun SuspendTask.run @fn39(this: SuspendTask<Sample>, $completion: Continuation<Sample>) -> CoroutineStep<Sample>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn44(this: SuspendRegistration<Sample>, continuation: Continuation<Sample>) -> Unit
+  fun SuspendRegistration.register @fn40(this: SuspendRegistration<Sample>, continuation: Continuation<Sample>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn45(this: Continuation<Readable>, value: Readable) -> Unit
+  fun Continuation.resume @fn41(this: Continuation<Readable>, value: Readable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn46(this: Continuation<Readable>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn42(this: Continuation<Readable>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn47(this: SuspendTask<Readable>, $completion: Continuation<Readable>) -> CoroutineStep<Readable>
+  fun SuspendTask.run @fn43(this: SuspendTask<Readable>, $completion: Continuation<Readable>) -> CoroutineStep<Readable>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn48(this: SuspendRegistration<Readable>, continuation: Continuation<Readable>) -> Unit
+  fun SuspendRegistration.register @fn44(this: SuspendRegistration<Readable>, continuation: Continuation<Readable>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn49(this: Continuation<Recursive>, value: Recursive) -> Unit
+  fun Continuation.resume @fn45(this: Continuation<Recursive>, value: Recursive) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn50(this: Continuation<Recursive>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn46(this: Continuation<Recursive>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn51(this: SuspendTask<Recursive>, $completion: Continuation<Recursive>) -> CoroutineStep<Recursive>
+  fun SuspendTask.run @fn47(this: SuspendTask<Recursive>, $completion: Continuation<Recursive>) -> CoroutineStep<Recursive>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn52(this: SuspendRegistration<Recursive>, continuation: Continuation<Recursive>) -> Unit
+  fun SuspendRegistration.register @fn48(this: SuspendRegistration<Recursive>, continuation: Continuation<Recursive>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn53(this: Continuation<Base>, value: Base) -> Unit
+  fun Continuation.resume @fn49(this: Continuation<Base>, value: Base) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn54(this: Continuation<Base>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn50(this: Continuation<Base>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn55(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
+  fun SuspendTask.run @fn51(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn56(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
+  fun SuspendRegistration.register @fn52(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn57(this: Continuation<Child>, value: Child) -> Unit
+  fun Continuation.resume @fn53(this: Continuation<Child>, value: Child) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn58(this: Continuation<Child>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn54(this: Continuation<Child>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn59(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
+  fun SuspendTask.run @fn55(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn60(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
+  fun SuspendRegistration.register @fn56(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Readable.read @fn61(this: Readable) -> Int
+  fun Readable.read @fn57(this: Readable) -> Int
     bb0 entry
       trap "call to abstract method `Readable.read`"
-  fun Factory.make @fn62(this: Factory<Sample>, value: Sample) -> Packet<Sample>
+  fun Factory.make @fn58(this: Factory<Sample>, value: Sample) -> Packet<Sample>
     bb0 entry
       trap "call to abstract method `Factory.make`"
-  fun init.Base.$c0 @fn63(this: Base, number: Int) -> Unit
+  fun init.Base.$c0 @fn59(this: Base, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -2130,7 +1867,7 @@ Module
         Type Int
         Local number
       return
-  fun init.Child.$c1 @fn64(this: Child, value: Int) -> Unit
+  fun init.Child.$c1 @fn60(this: Child, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -2138,7 +1875,7 @@ Module
       val $parameter.number: Int
         Type Int
         Local $argument.0
-      call @fn63 direct
+      call @fn59 direct
         Type Base
         Retype Base
           Type Child
@@ -2146,7 +1883,7 @@ Module
         Type Int
         Local $parameter.number
       return
-  fun init.ObjectPacket.$c2 @fn65(this: ObjectPacket<Child>, item: Child) -> Unit
+  fun init.ObjectPacket.$c2 @fn61(this: ObjectPacket<Child>, item: Child) -> Unit
     bb0 entry
       field_set 0
         Type ObjectPacket<Child>
@@ -2154,9 +1891,9 @@ Module
         Type Child
         Local item
       return
-  fun init.Packet.Companion.$c3 @fn66(this: Packet.Companion<Sample>) -> Unit
+  fun init.Packet.Companion.$c3 @fn62(this: Packet.Companion<Sample>) -> Unit
     bb0 entry
-      call $call.1: Int = @fn40 direct
+      call $call.1: Int = @fn36 direct
       field_set 0
         Type Packet.Companion<Sample>
         Local this
@@ -2168,67 +1905,67 @@ Module
         Type Option<Packet<Sample>>
         VariantConstruct Option<Packet<Sample>> v1
       return
-  fun init.Choice.Companion.$c7 @fn67(this: Choice.Companion<Sample>) -> Unit
+  fun init.Choice.Companion.$c7 @fn63(this: Choice.Companion<Sample>) -> Unit
     bb0 entry
       return
-  fun init.Reader.Companion.$c9 @fn68(this: Reader.Companion<Sample>) -> Unit
+  fun init.Reader.Companion.$c9 @fn64(this: Reader.Companion<Sample>) -> Unit
     bb0 entry
       return
-  fun init.ObjectPacket.Companion.$c8 @fn69(this: ObjectPacket.Companion<Child>) -> Unit
+  fun init.ObjectPacket.Companion.$c8 @fn65(this: ObjectPacket.Companion<Child>) -> Unit
     bb0 entry
       return
-  fun init.Inline.Companion.$c4 @fn70(this: Inline.Companion<Int>) -> Unit
+  fun init.Inline.Companion.$c4 @fn66(this: Inline.Companion<Int>) -> Unit
     bb0 entry
       return
-  fun init.Reference.Companion.$c5 @fn71(this: Reference.Companion<String>) -> Unit
+  fun init.Reference.Companion.$c5 @fn67(this: Reference.Companion<String>) -> Unit
     bb0 entry
       return
-  fun init.FBound.Companion.$c6 @fn72(this: FBound.Companion<Recursive>) -> Unit
+  fun init.FBound.Companion.$c6 @fn68(this: FBound.Companion<Recursive>) -> Unit
     bb0 entry
       return
-  fun ctor.Sample.$c0 @fn73(number: Int) -> Sample <no-gc>
+  fun ctor.Sample.$c0 @fn69(number: Int) -> Sample <no-gc>
     bb0 entry
       return
         Type Sample
         StructInit Sample
           Type Int
           Local number
-  fun ctor.Recursive.$c4 @fn74(number: Int) -> Recursive <no-gc>
+  fun ctor.Recursive.$c4 @fn70(number: Int) -> Recursive <no-gc>
     bb0 entry
       return
         Type Recursive
         StructInit Recursive
           Type Int
           Local number
-  fun ctor.Packet.$c1 @fn75(item: Sample) -> Packet<Sample> <no-gc>
+  fun ctor.Packet.$c1 @fn71(item: Sample) -> Packet<Sample> <no-gc>
     bb0 entry
       return
         Type Packet<Sample>
         StructInit Packet<Sample>
           Type Sample
           Local item
-  fun ctor.Inline.$c2 @fn76(item: Int) -> Inline<Int> <no-gc>
+  fun ctor.Inline.$c2 @fn72(item: Int) -> Inline<Int> <no-gc>
     bb0 entry
       return
         Type Inline<Int>
         StructInit Inline<Int>
           Type Int
           Local item
-  fun ctor.Reference.$c3 @fn77(item: String) -> Reference<String> <no-gc>
+  fun ctor.Reference.$c3 @fn73(item: String) -> Reference<String> <no-gc>
     bb0 entry
       return
         Type Reference<String>
         StructInit Reference<String>
           Type String
           Local item
-  fun ctor.FBound.$c5 @fn78(item: Recursive) -> FBound<Recursive> <no-gc>
+  fun ctor.FBound.$c5 @fn74(item: Recursive) -> FBound<Recursive> <no-gc>
     bb0 entry
       return
         Type FBound<Recursive>
         StructInit FBound<Recursive>
           Type Recursive
           Local item
-  fun startCoroutine<Child> @fn79(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+  fun startCoroutine<Child> @fn75(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2251,7 +1988,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn57 interface Continuation<Child>[0]
+      call @fn53 interface Continuation<Child>[0]
         Type Continuation<Child>
         Local completion
         Type Child
@@ -2264,7 +2001,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn58 interface Continuation<Child>[1]
+      call @fn54 interface Continuation<Child>[1]
         Type Continuation<Child>
         Local completion
         Type Throwable
@@ -2283,7 +2020,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Child> = @fn59 interface SuspendTask<Child>[0]
+      call $step: CoroutineStep<Child> = @fn55 interface SuspendTask<Child>[0]
         Type SuspendTask<Child>
         Local task
         Type Continuation<Child>
@@ -2309,7 +2046,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Readable> @fn80(task: SuspendTask<Readable>, completion: Continuation<Readable>) -> Unit
+  fun startCoroutine<Readable> @fn76(task: SuspendTask<Readable>, completion: Continuation<Readable>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2332,7 +2069,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn45 interface Continuation<Readable>[0]
+      call @fn41 interface Continuation<Readable>[0]
         Type Continuation<Readable>
         Local completion
         Type Readable
@@ -2345,7 +2082,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn46 interface Continuation<Readable>[1]
+      call @fn42 interface Continuation<Readable>[1]
         Type Continuation<Readable>
         Local completion
         Type Throwable
@@ -2364,7 +2101,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Readable> = @fn47 interface SuspendTask<Readable>[0]
+      call $step: CoroutineStep<Readable> = @fn43 interface SuspendTask<Readable>[0]
         Type SuspendTask<Readable>
         Local task
         Type Continuation<Readable>
@@ -2390,7 +2127,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Sample> @fn81(task: SuspendTask<Sample>, completion: Continuation<Sample>) -> Unit
+  fun startCoroutine<Sample> @fn77(task: SuspendTask<Sample>, completion: Continuation<Sample>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2413,7 +2150,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn41 interface Continuation<Sample>[0]
+      call @fn37 interface Continuation<Sample>[0]
         Type Continuation<Sample>
         Local completion
         Type Sample
@@ -2426,7 +2163,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn42 interface Continuation<Sample>[1]
+      call @fn38 interface Continuation<Sample>[1]
         Type Continuation<Sample>
         Local completion
         Type Throwable
@@ -2445,7 +2182,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Sample> = @fn43 interface SuspendTask<Sample>[0]
+      call $step: CoroutineStep<Sample> = @fn39 interface SuspendTask<Sample>[0]
         Type SuspendTask<Sample>
         Local task
         Type Continuation<Sample>
@@ -2471,7 +2208,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Recursive> @fn82(task: SuspendTask<Recursive>, completion: Continuation<Recursive>) -> Unit
+  fun startCoroutine<Recursive> @fn78(task: SuspendTask<Recursive>, completion: Continuation<Recursive>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2494,7 +2231,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn49 interface Continuation<Recursive>[0]
+      call @fn45 interface Continuation<Recursive>[0]
         Type Continuation<Recursive>
         Local completion
         Type Recursive
@@ -2507,7 +2244,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn50 interface Continuation<Recursive>[1]
+      call @fn46 interface Continuation<Recursive>[1]
         Type Continuation<Recursive>
         Local completion
         Type Throwable
@@ -2526,7 +2263,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Recursive> = @fn51 interface SuspendTask<Recursive>[0]
+      call $step: CoroutineStep<Recursive> = @fn47 interface SuspendTask<Recursive>[0]
         Type SuspendTask<Recursive>
         Local task
         Type Continuation<Recursive>
@@ -2552,7 +2289,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Base> @fn83(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
+  fun startCoroutine<Base> @fn79(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2575,7 +2312,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn53 interface Continuation<Base>[0]
+      call @fn49 interface Continuation<Base>[0]
         Type Continuation<Base>
         Local completion
         Type Base
@@ -2588,7 +2325,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn54 interface Continuation<Base>[1]
+      call @fn50 interface Continuation<Base>[1]
         Type Continuation<Base>
         Local completion
         Type Throwable
@@ -2607,7 +2344,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Base> = @fn55 interface SuspendTask<Base>[0]
+      call $step: CoroutineStep<Base> = @fn51 interface SuspendTask<Base>[0]
         Type SuspendTask<Base>
         Local task
         Type Continuation<Base>
@@ -2633,7 +2370,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Sample> Readable.read() @fn84(this: Readable) -> Int
+  fun thunk<Sample> Readable.read() @fn80(this: Readable) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Sample
@@ -2643,7 +2380,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<Recursive> SelfRead.read(Recursive) @fn85(this: SelfRead<Recursive>, value: Recursive) -> Int
+  fun thunk<Recursive> SelfRead.read(Recursive) @fn81(this: SelfRead<Recursive>, value: Recursive) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Recursive
@@ -2665,49 +2402,49 @@ Module
   coroutine_slot cl2 CoroutineSlot<Sample> value=Sample
   coroutine_slot cl3 CoroutineSlot<Recursive> value=Recursive
   coroutine_slot cl4 CoroutineSlot<Base> value=Base
-  coroutine_start ct0 result=Child function=fn79
-  coroutine_start ct1 result=Readable function=fn80
-  coroutine_start ct2 result=Sample function=fn81
-  coroutine_start ct3 result=Recursive function=fn82
-  coroutine_start ct4 result=Base function=fn83
-  coroutine_fn cf0 @fn43 source_return=Sample step=cs2 immediate
-  coroutine_fn cf1 @fn47 source_return=Readable step=cs1 immediate
-  coroutine_fn cf2 @fn51 source_return=Recursive step=cs3 immediate
-  coroutine_fn cf3 @fn55 source_return=Base step=cs4 immediate
-  coroutine_fn cf4 @fn59 source_return=Child step=cs0 immediate
-  instance mi0 function=@fn8 <- encode
-  instance mi1 function=@fn9 <- Packet.Companion.make
-  instance mi2 function=@fn10 <- Packet.Companion.$get$ordinal
-  instance mi3 function=@fn11 <- Packet.Companion.$get$cached
-  instance mi4 function=@fn12 <- Packet.Companion.read
-  instance mi5 function=@fn13 <- Choice.Companion.make
-  instance mi6 function=@fn14 <- Reader.Companion.read
-  instance mi7 function=@fn15 <- ObjectPacket.Companion.make
-  instance mi8 function=@fn16 <- ObjectPacket.Companion.read
-  instance mi9 function=@fn17 <- Inline.Companion.make
-  instance mi10 function=@fn18 <- Reference.Companion.make
-  instance mi11 function=@fn19 <- FBound.Companion.make
-  instance mi12 function=@fn20 <- FBound.Companion.read
-  instance mi13 function=@fn21 <- println
-  instance mi14 function=@fn22 <- $init$body$0
-  instance mi15 function=@fn23 <- $init$ensure$0
-  instance mi16 function=@fn24 <- $init$body$4
-  instance mi17 function=@fn25 <- $init$ensure$4
-  instance mi18 function=@fn26 <- $init$body$6
-  instance mi19 function=@fn27 <- $init$ensure$6
-  instance mi20 function=@fn28 <- $init$body$5
-  instance mi21 function=@fn29 <- $init$ensure$5
-  instance mi22 function=@fn30 <- $init$body$1
-  instance mi23 function=@fn31 <- $init$ensure$1
-  instance mi24 function=@fn32 <- $init$body$2
-  instance mi25 function=@fn33 <- $init$ensure$2
-  instance mi26 function=@fn34 <- $init$body$3
-  instance mi27 function=@fn35 <- $init$ensure$3
-  instance mi28 function=@fn36 <- encodeOption
-  instance mi29 function=@fn37 <- Packet.Companion.$set$cached
-  instance mi30 function=@fn38 <- encode
-  instance mi31 function=@fn39 <- encodeOption
-  instance mi32 function=@fn40 <- mark
+  coroutine_start ct0 result=Child function=fn75
+  coroutine_start ct1 result=Readable function=fn76
+  coroutine_start ct2 result=Sample function=fn77
+  coroutine_start ct3 result=Recursive function=fn78
+  coroutine_start ct4 result=Base function=fn79
+  coroutine_fn cf0 @fn39 source_return=Sample step=cs2 immediate
+  coroutine_fn cf1 @fn43 source_return=Readable step=cs1 immediate
+  coroutine_fn cf2 @fn47 source_return=Recursive step=cs3 immediate
+  coroutine_fn cf3 @fn51 source_return=Base step=cs4 immediate
+  coroutine_fn cf4 @fn55 source_return=Child step=cs0 immediate
+  instance mi0 function=@fn8 <- Packet.Companion.make
+  instance mi1 function=@fn9 <- Packet.Companion.$get$ordinal
+  instance mi2 function=@fn10 <- Packet.Companion.$get$cached
+  instance mi3 function=@fn11 <- Packet.Companion.read
+  instance mi4 function=@fn12 <- Choice.Companion.make
+  instance mi5 function=@fn13 <- Reader.Companion.read
+  instance mi6 function=@fn14 <- ObjectPacket.Companion.make
+  instance mi7 function=@fn15 <- ObjectPacket.Companion.read
+  instance mi8 function=@fn16 <- Inline.Companion.make
+  instance mi9 function=@fn17 <- Reference.Companion.make
+  instance mi10 function=@fn18 <- FBound.Companion.make
+  instance mi11 function=@fn19 <- FBound.Companion.read
+  instance mi12 function=@fn20 <- println
+  instance mi13 function=@fn21 <- $init$body$0
+  instance mi14 function=@fn22 <- $init$ensure$0
+  instance mi15 function=@fn23 <- $init$body$4
+  instance mi16 function=@fn24 <- $init$ensure$4
+  instance mi17 function=@fn25 <- $init$body$6
+  instance mi18 function=@fn26 <- $init$ensure$6
+  instance mi19 function=@fn27 <- $init$body$5
+  instance mi20 function=@fn28 <- $init$ensure$5
+  instance mi21 function=@fn29 <- $init$body$1
+  instance mi22 function=@fn30 <- $init$ensure$1
+  instance mi23 function=@fn31 <- $init$body$2
+  instance mi24 function=@fn32 <- $init$ensure$2
+  instance mi25 function=@fn33 <- $init$body$3
+  instance mi26 function=@fn34 <- $init$ensure$3
+  instance mi27 function=@fn35 <- Packet.Companion.$set$cached
+  instance mi28 function=@fn36 <- mark
+  instance mi29 function=@fn37 <- Continuation.resume
+  instance mi30 function=@fn38 <- Continuation.resumeWithException
+  instance mi31 function=@fn39 <- SuspendTask.run
+  instance mi32 function=@fn40 <- SuspendRegistration.register
   instance mi33 function=@fn41 <- Continuation.resume
   instance mi34 function=@fn42 <- Continuation.resumeWithException
   instance mi35 function=@fn43 <- SuspendTask.run
@@ -2724,18 +2461,10 @@ Module
   instance mi46 function=@fn54 <- Continuation.resumeWithException
   instance mi47 function=@fn55 <- SuspendTask.run
   instance mi48 function=@fn56 <- SuspendRegistration.register
-  instance mi49 function=@fn57 <- Continuation.resume
-  instance mi50 function=@fn58 <- Continuation.resumeWithException
-  instance mi51 function=@fn59 <- SuspendTask.run
-  instance mi52 function=@fn60 <- SuspendRegistration.register
-  instance mi53 function=@fn62 <- Factory.make
+  instance mi49 function=@fn58 <- Factory.make
   str @str0 "companion bound assertion failed"
   str @str1 "ref"
   str @str2 "ref"
   str @str3 "companion-bounds-ok"
   str @str4 "\n"
-  str @str5 "None"
-  str @str6 "Some"
-  str @str7 "None"
-  str @str8 "Some"
   output executable @fn5

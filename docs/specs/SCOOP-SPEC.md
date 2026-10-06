@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 companion 的泛型规则：每个完整宿主类型各有自己的 companion 类型与 singleton，companion 可使用宿主类型参数，见 9.1.3、9.5 和 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21 及后续历史 milestone 设计保留原文，其中“泛型宿主共享非 generic companion”的规则由本次修订取代。
 
-2026-10-06，M29 将编码协议修订为 `Encodable<T>.encode(value: T, encoder: Encoder)`，与 `Decodable<T>` 一样由 companion 或普通 codec 对象实现。数据类型不因 codec 的存在获得接口；泛型、容器和 tuple 的两个方向均使用显式 codec 组合，见 9.5、11.13。Unit 使用独立的 UnitEncoder / UnitDecoder，固定类型身份、零大小值布局与返回 ABI 不变。本次文档修订先于实现迁移；协议、core 和 JSON 入口已迁移，自动派生及其验收继续实施。既有实例编码和条件 conformance 的验收不计作新协议验收；实际进度见 [M29 实施记录](../milestone29/PROGRESS.md)。
+2026-10-06，M29 将编码协议修订为 `Encodable<T>.encode(value: T, encoder: Encoder)`，与 `Decodable<T>` 一样由 companion 或普通 codec 对象实现。数据类型不因 codec 的存在获得接口；泛型、容器和 tuple 的两个方向均使用显式 codec 组合，见 9.5、11.13。Unit 使用独立的 UnitEncoder / UnitDecoder，固定类型身份、零大小值布局与返回 ABI 不变。本次文档修订先于实现迁移；协议、core、JSON 入口和双向自动派生已迁移，三平台正式总验收继续进行。既有实例编码和条件 conformance 的验收不计作新协议验收；实际进度见 [M29 实施记录](../milestone29/PROGRESS.md)。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1719,7 +1719,7 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ### 11.13 编码、解码与缺省实现（M29）
 
-本节规定2026-10-06修订后的M29目标语义，现有实例编码实现仍待迁移；范围、合成示例和验收见[M29设计](../milestone29/DESIGN.md)及其实施记录。核心库在`scoop.core`提供：
+本节规定2026-10-06修订后的M29语义；范围、合成示例和实际验收进度见[M29设计](../milestone29/DESIGN.md)及其实施记录。核心库在`scoop.core`提供：
 
 ```scoop
 public interface Encodable<T> {
