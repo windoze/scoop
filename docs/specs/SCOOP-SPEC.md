@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-2026-10-06，M30 设计加入 `Float` / `Float32` 与 `Double` / `Float64`：普通比较遵守 IEEE 754，另以 `isTotallyOrdered(belowOrEqualTo = ...)` 提供包含 NaN 的全序比较；两种浮点类型不实现 `Hash`。本次为设计先行，尚未实施，见 11.2.2 与 [M30 设计](../milestone30/DESIGN.md)。Int128 / UInt128、Float128 仅作调研，不属于本次实现范围。
+2026-10-07，M30 已实现并通过验收：`Float` / `Float32` 与 `Double` / `Float64` 的普通比较遵守 IEEE 754，另以 `isTotallyOrdered(belowOrEqualTo = ...)` 提供包含 NaN 的全序比较；两种浮点类型不实现 `Hash`。语言规则见 11.2.2 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。Int128 / UInt128、Float128 仅作调研，不属于本次实现范围。
 
 2026-10-05，M29 设计修订 companion 的泛型规则：每个完整宿主类型各有自己的 companion 类型与 singleton，companion 可使用宿主类型参数，见 9.1.3、9.5 和 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21 及后续历史 milestone 设计保留原文，其中“泛型宿主共享非 generic companion”的规则由本次修订取代。
 
@@ -1764,7 +1764,7 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ### 11.13 编码、解码与缺省实现（M29；M30 增加浮点标量）
 
-本节以2026-10-06修订后的M29语义为基础，加入尚待实施的M30浮点单值协议与JSON规则；范围、合成示例和实际验收进度分别见[M29设计](../milestone29/DESIGN.md)及其实施记录、[M30设计](../milestone30/DESIGN.md)。核心库在`scoop.core`提供：
+本节以2026-10-06修订后的M29语义为基础，加入M30已实现的浮点单值协议与JSON规则；范围、合成示例和实际验收进度分别见[M29设计](../milestone29/DESIGN.md)及其实施记录、[M30设计](../milestone30/DESIGN.md)。核心库在`scoop.core`提供：
 
 ```scoop
 public interface Encodable<T> {

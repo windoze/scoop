@@ -1,10 +1,10 @@
 # Scoop 实现大纲
 
-2026-10-06，M30 设计增加 Float/Double 的 typed representation、常量和运算，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。当前仅完成设计同步，尚未修改实现；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
+2026-10-07，M30 已实现并通过验收：Float/Double 的 typed representation、常量、运算、codec 与完整产物消费贯通，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。删除旧条件关系和 tuple 编码生成键后，该批次格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1870,7 +1870,7 @@ MIR降级普通方法/companion调用、构造、控制流、closure与异常；
 
 语言行为见语言规范11.2.2与9.3.2，runtime契约见运行时规范6.1，分批实现及验收见[M30设计](../milestone30/DESIGN.md)。M30只实例化F32/F64两种表示；Float32/Float64沿透明alias展开，不增加第二套nominal identity。
 
-**parser与HIR。** lexer识别小数、指数和f/F后缀，保留十进制原值而非宿主浮点近似；与整数、range和member access消歧。HIR沿8.6的candidate-local约束选定实际Float/Double owner和目标精度；无上下文默认Double，f/F固定Float，不把一般整数token加入浮点候选域。literal与const从目标精度直接求值，完成时以封闭sum保存`F32(u32)`或`F64(u64)`原始位型及非可选的实际类型。采用独立于LLVM的目标浮点求值库，例如经版本审查的`rustc_apfloat`；不使HIR依赖codegen或LLVM，也不自建任意精度计算框架。
+**parser与HIR。** lexer识别小数、指数和f/F后缀，保留十进制原值而非宿主浮点近似；与整数、range和member access消歧。HIR沿8.6的candidate-local约束选定实际Float/Double owner和目标精度；无上下文默认Double，f/F固定Float，不把一般整数token加入浮点候选域。literal与const从目标精度直接求值，完成时以封闭sum保存`F32(u32)`或`F64(u64)`原始位型及非可选的实际类型。采用独立于LLVM的`rustc_apfloat 0.2.3`进行目标浮点求值；不使HIR依赖codegen或LLVM，也不自建任意精度计算框架。
 
 算术/equals/分类/totalOrder/转换在入口验证实际typed intrinsic声明及完整签名，保存所属表示和source/target kind。四种浮点关系由已解析representation正规化为专用typed comparison，不生成`compareTo(): Long`调用，不借操作名称或FQN猜测行为。const使用同一封闭操作集合、目标舍入和语言规定的NaN结果；用户同名call不获得const能力。annotation、默认值、literal pattern、Export HIR和下游具体化都复用这些类型与bits。
 
@@ -1886,17 +1886,19 @@ integer→float按source signedness使用`sitofp/uitofp`并直接产生目标精
 
 **core与JSON。** Float/Double显式adopt ToString，Hash registry/conformance不因primitive kind自动扩充。各自companion实现普通Encodable/Decodable；single-value协议增加两个精度的read/write方法，JSON从原始数字文本直接解析目标精度，有限值按规定格式输出，非有限值按JSON规则报错。普通合成codec继续按实际字段类型选定companion，泛型使用显式codec组合；编译器不增加JSON builtin。native字符串后备与解析Option的Scoop ABI沿运行时规范6.1。
 
-**产物。** HIR/MIR/LIR的type、constant、intrinsic、C storage及实际ABI记录按kind完整编码；metadata的Eq/Hash、去重及fingerprint按raw bits工作，这是编译器数据比较，不是Scoop浮点`==`或Hash conformance。已知负零和NaN位型不得在跨Cone传递、缓存或ODR时消失。更新实际受影响的section/profile兼容版本并重建旧产物，新增single-value接口方法后相关实现与itable一并重编；实现时再分配wire字段/tag，不在设计中预占编号。reader只验证必要的格式、typed引用、kind/位宽与ABI，后续stage复用已经验证的数据。不为仅调研的128位类型加入成功IR节点、runtime字段或占位实现。
+**产物。** HIR/MIR/LIR的type、constant、intrinsic、C storage及实际ABI记录按kind完整编码；metadata的Eq/Hash、去重及fingerprint按raw bits工作，这是编译器数据比较，不是Scoop浮点`==`或Hash conformance。已知负零和NaN位型不得在跨Cone传递、缓存或ODR时消失。更新实际受影响的section/profile兼容版本并重建旧产物，新增single-value接口方法后相关实现与itable一并重编；实际wire字段/tag与格式版本见下文。reader只验证必要的格式、typed引用、kind/位宽与ABI，后续stage复用已经验证的数据。不为仅调研的128位类型加入成功IR节点、runtime字段或占位实现。
 
-M30 标量批次使用 HIR `core-bootstrap-interface/10`、`cross-cone-interface/58`、`cross-cone-type-semantics/22`，MIR `cross-cone-type-bridge/15`，LIR `identity-foundation/5`、`cross-cone-layout-abi/9`、`strong-production/19` 与 `cone-production/8`。required inventory 和 profile fingerprint 随实际 section 版本更新，旧产物与缓存重建；runtime metadata ABI 4 保持。
+M30 当前格式为 HIR `core-bootstrap-interface/11`、`cross-cone-interface/60`、`cross-cone-type-semantics/22`，MIR `cross-cone-type-bridge/15`，LIR `identity-foundation/5`、`cross-cone-layout-abi/9`、`strong-production/19`、`cone-production/8` 与 `link-identity-closure/14`。required inventory 和 profile fingerprint 随实际 section 版本更新，旧产物与缓存重建；runtime metadata ABI 4 保持。
 
 `FloatKind` 编码为 unsigned 32 或 64；常量为两字段 map，field 1 保存 kind，field 2 保存同宽 raw bits，F32 超出 32 bits 拒绝。新增 HIR literal tag 67、nominal representation tag 10、canonical const tag 5，MIR intrinsic representation tag 6，LIR scalar representation tag 4、canonical type tag 13/14、canonical value tag 14、canonical shape representation tag 8；canonical C storage 与 LIR C type 使用 tag 6。上述 tag 均追加到各自封闭域，原有编号保持，core fundamental 表在 Char 后追加 Float 与 Double。
 
 Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8` 与 `__literal16` 常量池作为普通只读数据，分别要求 `S_4BYTE_LITERALS`、`S_8BYTE_LITERALS` 与 `S_16BYTE_LITERALS`。现有对象范围、重定位与内容摘要规则继续适用；16-byte 池可保存后端合并的标量常量，不表示支持 Float128。
 
-后端局部常量池没有源码实体，不要求事前创建 Strong symbol 或 definition atom。对象读取边界保存已验证的池内容，实际引用按重定位目标读取对应常量字节；canonical object relocation target 新增 tag 15，保存 byte span，池地址和局部标签不进入语义摘要。ELF 的 `.rodata.cst4/8/16` 同样使用现有只读数据通道及 `SHF_MERGE`。LIR `link-identity-closure` 升至 `/13`，旧对象摘要与缓存重建；不新增来源认证、独立凭证或第二套产物消费路径。
+后端局部常量池没有源码实体，不要求事前创建 Strong symbol 或 definition atom。对象读取边界保存已验证的池内容，实际引用按重定位目标读取对应常量字节；canonical object relocation target 使用新增的 tag 15 保存 byte span，池地址和局部标签不进入语义摘要。ELF 的 `.rodata.cst4/8/16` 同样使用现有只读数据通道及 `SHF_MERGE`。旧对象摘要与缓存按上述版本重建，不新增来源认证、独立凭证或第二套产物消费路径。
 
-浮点运算批次追加 HIR intrinsic tag 22，以及共享表达式 tag 68/69/70，分别保存完整 unary、binary 与 conversion 操作。操作只实例化两种浮点表示及现有八种整数；关系比较直接由浮点表示产生 typed binary 节点，不要求源码 `compareTo`。HIR `core-bootstrap-interface/11` 与 `cross-cone-interface/59` 取代标量批次版本。LIR canonical instruction 追加 tag 71/72/73，分别编码浮点 unary/binary/conversion。现有 target support 表追加 `fmodf`/`fmod`（tag 4/5），机器契约分别为 `(F32,F32)->F32` 与 `(F64,F64)->F64`、NoGC；它们使用现有平台 native 链接闭包，`link-identity-closure` 升至 `/14`。其他未改变的记录沿用原版本。
+浮点运算使用新增的 HIR intrinsic tag 22，以及共享表达式 tag 68/69/70，分别保存完整 unary、binary 与 conversion 操作。操作只实例化两种浮点表示及现有八种整数；关系比较直接由浮点表示产生 typed binary 节点，不要求源码 `compareTo`。LIR canonical instruction 的 tag 71/72/73 分别编码浮点 unary/binary/conversion。现有 target support 表包含 `fmodf`/`fmod`（新增 tag 4/5），机器契约分别为 `(F32,F32)->F32` 与 `(F64,F64)->F64`、NoGC；它们使用现有平台 native 链接闭包。其他未改变的记录沿用原版本。
+
+浮点 pattern 为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。
 
 ## 3. 待明确事项
 
@@ -1904,5 +1906,3 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 2. **后续 GC 演进**：M15基线为macOS/AArch64上的单代、STW、单线程moving Immix与精确stackmap；其他target adapter、分代/晋升及parallel/concurrent collector仍需另行设计，并与runtime spec 3.6的屏障契约同步。
 3. **off-heap ByteBuffer 与外部内存反馈**：已移出 M26，后续单独设计增长、borrow/view、close、失败原子性、external-memory pressure accounting 与 managed 侧 GC 反馈；它不改变 M24 release hook 的 best-effort 时机。
 4. **Windows 异常**（catchpad）与调试信息（line table 等）留待后续。
-
-浮点 pattern 批次为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。

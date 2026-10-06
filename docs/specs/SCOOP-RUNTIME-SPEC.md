@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-2026-10-06，M30 的 Float/Double 设计契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)：增加 binary32/binary64 标量、字符串转换和必要的数学后备，复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备。此项尚未实施，128 位类型仅作调研。
+2026-10-07，M30 已实现并通过验收：binary32/binary64 标量、线程浮点环境、字符串转换和必要的数学后备复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备，128 位类型仅作调研。契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。
 
 2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
 
