@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v57_distinguishes_implicit_storage_bodies() {
+fn source_interface_v60_retains_floating_patterns() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        57,
+        60,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v57_distinguishes_implicit_storage_bodies() {
 }
 
 #[test]
-fn type_semantics_v21_removes_tuple_encoding_relations() {
+fn type_semantics_v22_retains_floating_representation() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        21,
+        22,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v14_uses_only_declared_box_dispatch() {
+fn mir_type_bridge_v15_retains_floating_representation() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        14,
+        15,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,20 +48,20 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v8_retains_character_scalars() {
+fn lir_layout_abi_v9_retains_floating_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        8,
+        9,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn compiler_protocol_v9_retains_intrinsic_unit_declaration() {
+fn compiler_protocol_v11_retains_floating_operations() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        9,
+        11,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

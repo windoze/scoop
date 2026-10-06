@@ -958,7 +958,7 @@ fn const_rejects_invalid_declarations_and_non_constant_expressions() {
         )
     );
     assert!(messages.contains(
-        &"const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls"
+        &"const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls"
             .to_string()
     ));
 }
@@ -1043,7 +1043,7 @@ fn const_short_circuit_rhs_is_still_validated_as_a_constant_expression() {
             || message == &"boolean const operator requires Boolean operands"
     }));
     assert!(messages.iter().any(|message| {
-        message == &"const initializer must contain only literals, const references, built-in primitive operators, and exact core integer intrinsic calls"
+        message == &"const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls"
     }));
     assert_eq!(
         messages

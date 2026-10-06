@@ -1,0 +1,1323 @@
+Module
+  struct Cell<Float> (value: Float)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Float>
+    Some(_0: Float)
+    None()
+  class ListIterator<Float> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Float> vtable=0 itables=0
+  interface ToString
+  interface List<Float> : Iterable<Float>
+  interface Iterable<Float>
+  interface Iterator<Float>
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn22 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=class5 nominal_id=eaca4dc37715ad1f78cf6cd36c21e55a2a2d824cd1a7a77eaabc6c57eee021f7 exact_id=5dc4260661c5a026586bfdc89df330646e485f6d2d290bb39a2f365c840cf8ea
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn22 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  fun pick @fn0(value: Float) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun pick @fn1(value: Double) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun reversed @fn2(value: Double) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun reversed @fn3(value: Float) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str3
+  fun first @fn4(values: Array<Float>) -> Float
+    bb0 entry
+      val $dependency.receiver: Array<Float>
+        Type Array<Float>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.1: Float = @fn10 direct
+        Type Array<Float>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      return
+        Type Float
+        Local $call.1
+  fun defaults @fn5(value: Float) -> Float
+    bb0 entry
+      return
+        Type Float
+        Local value
+  fun result @fn6() -> Float
+    bb0 entry
+      return
+        Type Float
+        FloatLiteral f32(0x3f800001)
+  fun consume @fn7(action: () -> Float) -> Float
+    bb0 entry
+      call $call.1: Float = <closure:function_type0> closure[function_type0]
+        Type () -> Float
+        Local action
+      return
+        Type Float
+        Local $call.1
+  fun main @fn8() -> Unit
+    bb0 entry
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3fb999999999999a)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: String = @fn1 direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3fb999999999999a)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: String = @fn2 direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.0: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3dcccccd)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: String = @fn0 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x483d6329f1c35ca5)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: String = @fn1 direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.2: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb7 bb8
+        Type Boolean
+        Local $call.2
+    bb7 if.then.7
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x483d6329f1c35ca5)
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: String = @fn2 direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.2: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val fixed: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        Local fixed
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val operator: Float
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        Local fixed
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val member: Float
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val expected: Float
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.receiver: Float
+        Type Float
+        Local operator
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb10 if.then.10
+      val $dependency.receiver: Float
+        Type Float
+        Local member
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      val $dependency.receiver: Float
+        Type Float
+        Local expected
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      branch bb16 bb17
+        Type Boolean
+        FloatBinary F32 Greater
+          Type Float
+          FloatLiteral f32(0x3f800001)
+          Type Float
+          FloatLiteral f32(0x3f800000)
+    bb16 if.then.16
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.5
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.belowOrEqualTo: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F32 TotalOrder
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.belowOrEqualTo
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000010000000)
+      val $dependency.receiver: Float
+        Type Float
+        FloatConversion BetweenFloats { source: F64, target: F32 }
+          Type Double
+          Local $dependency.receiver
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $argument.1: Float
+        Type Float
+        Local fixed
+      val $parameter.first: Float
+        Type Float
+        Local $argument.0
+      val $parameter.second: Float
+        Type Float
+        Local $argument.1
+      call generic: Float = @fn13 direct
+        Type Float
+        Local $parameter.first
+        Type Float
+        Local $parameter.second
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $argument.0: Cell<Float> = @fn21 direct
+        Type Float
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        Local fixed
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $argument.1: Cell<Float> = @fn21 direct
+        Type Float
+        Local $parameter.value
+      val $parameter.first: Cell<Float>
+        Type Cell<Float>
+        Local $argument.0
+      val $parameter.second: Cell<Float>
+        Type Cell<Float>
+        Local $argument.1
+      call nested: Cell<Float> = @fn14 direct
+        Type Cell<Float>
+        Local $parameter.first
+        Type Cell<Float>
+        Local $parameter.second
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call nominal: Cell<Float> = @fn21 direct
+        Type Float
+        Local $parameter.value
+      val $argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3fb999999999999a)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3fc999999999999a)
+      val $parameter.first: Double
+        Type Double
+        Local $argument.0
+      val $parameter.second: Double
+        Type Double
+        Local $argument.1
+      call unbound: Double = @fn15 direct
+        Type Double
+        Local $parameter.first
+        Type Double
+        Local $parameter.second
+      val $dependency.receiver: Float
+        Type Float
+        Local generic
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb19 bb20
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb19 if.then.19
+      val $dependency.receiver: Float
+        Type Float
+        FieldAccess 0
+          Type Cell<Float>
+          Local nested
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.6
+    bb22 if.then.22
+      val $dependency.receiver: Float
+        Type Float
+        FieldAccess 0
+          Type Cell<Float>
+          Local nominal
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb24
+    bb23 if.else.23
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 if.merge.24
+      branch bb25 bb26
+        Type Boolean
+        Local $shortCircuit.7
+    bb25 if.then.25
+      val $argument.0: Double
+        Type Double
+        Local unbound
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: String = @fn1 direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.8: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb27
+    bb26 if.else.26
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 if.merge.27
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.8
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val array: Array<Float>
+        Type Array<Float>
+        ArrayLiteral Array<Float>
+          Type Float
+          FloatLiteral f32(0x3f800001)
+          Type Float
+          Local fixed
+      branch bb28 bb29
+        Type Boolean
+        BoolLiteral true
+    bb28 if.then.28
+      assign $result.9
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      goto bb30
+    bb29 if.else.29
+      assign $result.9
+        Type Float
+        Local fixed
+      goto bb30
+    bb30 if.merge.30
+      val branch: Float
+        Type Float
+        Local $result.9
+      val tuple: (Float, Double)
+        Type (Float, Double)
+        TupleLiteral
+          Type Float
+          FloatLiteral f32(0x3f800001)
+          Type Double
+          FloatLiteral f64(0x3fb999999999999a)
+      val $dependency.receiver: Array<Float>
+        Type Array<Float>
+        Local array
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Float = @fn10 direct
+        Type Array<Float>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb31 bb32
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb31 if.then.31
+      val $dependency.receiver: Float
+        Type Float
+        Local branch
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb33
+    bb32 if.else.32
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb33 if.merge.33
+      branch bb34 bb35
+        Type Boolean
+        Local $shortCircuit.10
+    bb34 if.then.34
+      val $dependency.receiver: Float
+        Type Float
+        FieldAccess 0
+          Type (Float, Double)
+          Local tuple
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb36
+    bb35 if.else.35
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb36 if.merge.36
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.11
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $argument.1: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $parameter.values: Array<Float>
+        Type Array<Float>
+        ArrayAssembly Array<Float>
+          Element
+            Type Float
+            Local $argument.0
+          Element
+            Type Float
+            Local $argument.1
+      call $dependency.receiver: Float = @fn4 direct
+        Type Array<Float>
+        Local $parameter.values
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb37 bb38
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb37 if.then.37
+      val $parameter.value: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      call $dependency.receiver: Float = @fn5 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb39
+    bb38 if.else.38
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb39
+    bb39 if.merge.39
+      branch bb40 bb41
+        Type Boolean
+        Local $shortCircuit.12
+    bb40 if.then.40
+      call $dependency.receiver: Float = @fn6 direct
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.13: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb42
+    bb41 if.else.41
+      val $shortCircuit.13: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb42
+    bb42 if.merge.42
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.13
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: () -> Float
+        Type () -> Float
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.action: () -> Float
+        Type () -> Float
+        Local $argument.0
+      call $dependency.receiver: Float = @fn7 direct
+        Type () -> Float
+        Local $parameter.action
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb43 bb44
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb43 if.then.43
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb45
+    bb44 if.else.44
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb45
+    bb45 if.merge.45
+      branch bb46 bb47
+        Type Boolean
+        Local $shortCircuit.14
+    bb46 if.then.46
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb48
+    bb47 if.else.47
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb48
+    bb48 if.merge.48
+      branch bb49 bb50
+        Type Boolean
+        Local $shortCircuit.15
+    bb49 logic.rhs.49
+      assign $logic.3
+        Type Boolean
+        BoolLiteral true
+      goto bb51
+    bb50 logic.short.50
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb51
+    bb51 logic.merge.51
+      branch bb52 bb53
+        Type Boolean
+        Local $logic.3
+    bb52 logic.rhs.52
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb54
+    bb53 logic.short.53
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb54
+    bb54 logic.merge.54
+      branch bb55 bb56
+        Type Boolean
+        Local $logic.4
+    bb55 if.then.55
+      val $dependency.receiver: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      goto bb57
+    bb56 if.else.56
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb57
+    bb57 if.merge.57
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.16
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun iterator @fn9(this: Array<Float>) -> Iterator<Float>
+    bb0 entry
+      val $dependency.local.1: List<Float>
+        Type List<Float>
+        Retype List<Float>
+          Type Array<Float>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Float>
+        Type List<Float>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Float>
+        ClassAlloc ListIterator<Float>
+      call @fn20 direct
+        Type ListIterator<Float>
+        Local $new.1
+        Type List<Float>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Float>
+        Retype Iterator<Float>
+          Type ListIterator<Float>
+          Local $new.1
+  fun get @fn10(this: Array<Float>, index: Long) -> Float
+    bb0 entry
+      val $dependency.local.2: Array<Float>
+        Type Array<Float>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Float>
+        Type Array<Float>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Float>
+            Type Array<Float>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external3 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Float
+        ArrayGet Array<Float>
+          Type Array<Float>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn11(this: Array<Float>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Float>
+        Type Array<Float>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Float>
+          Type Array<Float>
+          Local $dependency.local.1
+  fun println @fn12(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str10
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun same @fn13(first: Float, second: Float) -> Float
+    bb0 entry
+      return
+        Type Float
+        Local first
+  fun same @fn14(first: Cell<Float>, second: Cell<Float>) -> Cell<Float>
+    bb0 entry
+      return
+        Type Cell<Float>
+        Local first
+  fun same @fn15(first: Double, second: Double) -> Double
+    bb0 entry
+      return
+        Type Double
+        Local first
+  fun $lambda.0 @fn16($closure: () -> Float) -> Float
+    bb0 entry
+      return
+        Type Float
+        FloatLiteral f32(0x3f800001)
+  fun next @fn17(this: ListIterator<Float>) -> Option<Float>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Float>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Float>
+        VariantConstruct Option<Float> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Float>
+          Local this
+      call $dependency.local.3: Long = @fn18 interface List<Float>[2]
+        Type List<Float>
+        FieldAccess 0
+          Type ListIterator<Float>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Float>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Float>
+        VariantConstruct Option<Float> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Float>
+        Type List<Float>
+        FieldAccess 0
+          Type ListIterator<Float>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Float>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Float = @fn19 interface List<Float>[1]
+        Type List<Float>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Float>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Float>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Float
+        Type Float
+        Local $dependency.local.1
+      val $dependency.local.12: Float
+        Type Float
+        Local $dependency.local.11
+      return
+        Type Option<Float>
+        VariantConstruct Option<Float> v0
+          Type Float
+          Local $dependency.local.12
+  fun List.$get$size @fn18(this: List<Float>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn19(this: List<Float>, index: Long) -> Float
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn20(this: ListIterator<Float>, source: List<Float>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Float>
+        Local this
+        Type List<Float>
+        Local source
+      field_set 1
+        Type ListIterator<Float>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Float>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun ctor.Cell.$c0 @fn21(value: Float) -> Cell<Float> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Float>
+        StructInit Cell<Float>
+          Type Float
+          Local value
+  fun function_bridge.$Closure$lambda0.() -> Any @fn22($source: () -> Float) -> Any
+    bb0 entry
+      call $call.1: Float = <closure:function_type0> closure[function_type0]
+        Type () -> Float
+        Local $source
+      return
+        Type Any
+        Box
+          Type Float
+          Local $call.1
+  instance mi0 function=@fn9 <- iterator
+  instance mi1 function=@fn10 <- get
+  instance mi2 function=@fn11 <- size
+  instance mi3 function=@fn12 <- println
+  instance mi4 function=@fn13 <- same
+  instance mi5 function=@fn14 <- same
+  instance mi6 function=@fn15 <- same
+  instance mi7 function=@fn17 <- next
+  instance mi8 function=@fn18 <- List.$get$size
+  instance mi9 function=@fn19 <- List.get
+  str @str0 "Float"
+  str @str1 "Double"
+  str @str2 "Double"
+  str @str3 "Float"
+  str @str4 "Double"
+  str @str5 "Double"
+  str @str6 "Float"
+  str @str7 "Double"
+  str @str8 "Double"
+  str @str9 "Double"
+  str @str10 "\n"
+  output executable @fn8

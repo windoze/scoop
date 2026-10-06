@@ -1,0 +1,180 @@
+SourceFile
+  RootPackage
+  struct Cell<T>
+    field value: T
+  struct Pair
+    field small: Float
+    field wide: Double
+  enum Reading
+    Value(Cell<Float>, (Double, Boolean))
+    Empty
+  fun classify(value: Float): Int
+    =
+      WhenExpression
+        Var value
+        arm -0.0
+          IntLiteral 1
+        arm 0.0f
+          IntLiteral 2
+        arm -1.5
+          IntLiteral 3
+        arm 1.000000059604644775390625000001
+          IntLiteral 4
+        arm 1.0000001f
+          IntLiteral 5
+        arm _
+          IntLiteral 6
+  fun nested(value: Reading): Int
+    =
+      WhenExpression
+        Var value
+        arm Value({value: -1.5}, (0.0, false))
+          IntLiteral 1
+        arm Value(_, (_, false))
+          IntLiteral 2
+        arm Value(_, (_, true))
+          IntLiteral 3
+        arm Empty
+          IntLiteral 4
+  fun defaults(value: Float = <expr>): Float
+    =
+      Var value
+  fun main()
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call classify
+              FloatLiteral 0f
+            IntLiteral 1
+          Binary Eq
+            Call classify
+              Unary Neg
+                FloatLiteral 0f
+            IntLiteral 1
+        Binary Eq
+          Call classify
+            Unary Neg
+              FloatLiteral 1.5f
+          IntLiteral 3
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call classify
+              FloatLiteral 1.0000001f
+            IntLiteral 4
+          Binary Eq
+            Call classify
+              FieldAccess NaN
+                Var Float
+            IntLiteral 6
+        Binary Eq
+          Call classify
+            FieldAccess POSITIVE_INFINITY
+              Var Float
+          IntLiteral 6
+    Call println
+      Binary And
+        Binary Eq
+          Call nested
+            MethodCall Value
+              Var Reading
+              Call Cell
+                Unary Neg
+                  FloatLiteral 1.5f
+              TupleLiteral
+                Unary Neg
+                  FloatLiteral 0.0
+                BoolLiteral false
+          IntLiteral 1
+        Binary Eq
+          Call nested
+            MethodCall Value
+              Var Reading
+              Call Cell
+                FieldAccess NaN
+                  Var Float
+              TupleLiteral
+                FieldAccess NaN
+                  Var Double
+                BoolLiteral true
+          IntLiteral 3
+    val nan
+      Call Pair
+        FieldAccess NaN
+          Var Float
+        FieldAccess NaN
+          Var Double
+    val generic
+      Call Cell
+        FieldAccess NaN
+          Var Float
+    val tuple
+      TupleLiteral
+        FieldAccess NaN
+          Var Float
+        FloatLiteral 0.0
+    val variant
+      MethodCall Value
+        Var Reading
+        Call Cell
+          FieldAccess NaN
+            Var Float
+        TupleLiteral
+          FieldAccess NaN
+            Var Double
+          BoolLiteral false
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Ne
+              Var nan
+              Var nan
+            Binary Ne
+              Var generic
+              Var generic
+          Binary Ne
+            Var tuple
+            Var tuple
+        Binary Ne
+          Var variant
+          Var variant
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call Pair
+              Unary Neg
+                FloatLiteral 0f
+              Unary Neg
+                FloatLiteral 0.0
+            Call Pair
+              FloatLiteral 0f
+              FloatLiteral 0.0
+          Binary Eq
+            Call Cell
+              Unary Neg
+                FloatLiteral 0f
+            Call Cell
+              FloatLiteral 0f
+        Binary Eq
+          Call Some
+            Unary Neg
+              FloatLiteral 0f
+          Call Some
+            FloatLiteral 0f
+    Call gcCollect
+    Call println
+      Binary And
+        Binary Eq
+          Call defaults
+          FloatLiteral 1.5f
+        Binary Ne
+          Call Some
+            FieldAccess NaN
+              Var Float
+          Call Some
+            FieldAccess NaN
+              Var Float

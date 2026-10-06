@@ -114,13 +114,18 @@ impl NamedFunctionLikeProbe {
             Self::IntrinsicStruct(_) => false,
         }
     }
-    fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
+    fn source_argument_numeric(
+        &self,
+        index: usize,
+    ) -> Option<super::specificity::NumericLiteralKind> {
         match self {
-            Self::Callable(probe) => probe.source_argument_integer(index),
-            Self::ImportedDependency(probe) => probe.source_argument_integer(index),
+            Self::Callable(probe) => probe.source_argument_numeric(index),
+            Self::ImportedDependency(probe) => probe.source_argument_numeric(index),
             Self::ImportedDependencyProperty(_) => None,
-            Self::Nominal(probe) => probe.source_argument_integer(index),
-            Self::IntrinsicStruct(_) => Some(hir::IntegerKind::UNSIGNED_64),
+            Self::Nominal(probe) => probe.source_argument_numeric(index),
+            Self::IntrinsicStruct(_) => Some(super::specificity::NumericLiteralKind::Integer(
+                hir::IntegerKind::UNSIGNED_64,
+            )),
         }
     }
     fn signature(&self, state: &Lowerer, name: &str) -> String {
@@ -214,7 +219,7 @@ impl Lowerer {
             pool = super::specificity::prefer_literal_defaults(
                 &pool,
                 arguments,
-                |candidate, index| probes[candidate].source_argument_integer(index),
+                |candidate, index| probes[candidate].source_argument_numeric(index),
             );
         }
         if let [winner] = pool.as_slice() {

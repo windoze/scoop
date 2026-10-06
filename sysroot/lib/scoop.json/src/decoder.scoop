@@ -71,16 +71,16 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
         }
     }
 
-    private fun number(): String {
+    private fun number(expected: String): String {
         read()
         return when (value) {
             JsonValue.Number(text) -> text
-            else -> { throw DecodingException(path, "expected an integer") }
+            else -> { throw DecodingException(path, expected) }
         }
     }
 
     public override fun readLong(): Long {
-        val text = number()
+        val text = number("expected an integer")
         val negative = text[0L] == '-'
         val magnitude = integerMagnitude(text, negative, path)
         if (negative) {
@@ -96,9 +96,23 @@ internal class JsonDecoder(private val value: JsonValue, public override val pat
     }
 
     public override fun readULong(): ULong {
-        val text = number()
+        val text = number("expected an integer")
         if (text[0L] == '-') { throw DecodingException(path, "expected an unsigned integer") }
         return integerMagnitude(text, false, path)
+    }
+
+    public override fun readFloat(): Float {
+        return when (parseFloat(number("expected a number"))) {
+            Some(result) -> result
+            None -> { throw DecodingException(path, "Float is out of range") }
+        }
+    }
+
+    public override fun readDouble(): Double {
+        return when (parseDouble(number("expected a number"))) {
+            Some(result) -> result
+            None -> { throw DecodingException(path, "Double is out of range") }
+        }
     }
 }
 

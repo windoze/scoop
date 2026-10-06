@@ -1,0 +1,146 @@
+SourceFile
+  RootPackage
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun fromFloatBits(value: UInt): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun fromDoubleBits(value: ULong): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): ULong
+  fun multiplyAdd(a: Float, b: Float, c: Float): Float
+    =
+      Binary Add
+        Binary Mul
+          Var a
+          Var b
+        Var c
+  fun multiplyAdd(a: Double, b: Double, c: Double): Double
+    =
+      Binary Add
+        Binary Mul
+          Var a
+          Var b
+        Var c
+  fun addThenSubtract(a: Float, b: Float): Float
+    =
+      Binary Sub
+        Binary Add
+          Var a
+          Var b
+        Var b
+  fun addThenSubtract(a: Double, b: Double): Double
+    =
+      Binary Sub
+        Binary Add
+          Var a
+          Var b
+        Var b
+  fun reflexive(value: Float): Boolean
+    =
+      Binary Eq
+        Var value
+        Var value
+  fun reflexive(value: Double): Boolean
+    =
+      Binary Eq
+        Var value
+        Var value
+    @Unsafe
+  fun main()
+    val single
+      Call multiplyAdd
+        Call fromFloatBits
+          IntLiteral 0x3f800001u
+        Call fromFloatBits
+          IntLiteral 0x3f7ffffeu
+        Unary Neg
+          FloatLiteral 1f
+    val wide
+      Call multiplyAdd
+        Call fromDoubleBits
+          IntLiteral 0x3ff0000000000001uL
+        Call fromDoubleBits
+          IntLiteral 0x3feffffffffffffeuL
+        Unary Neg
+          FloatLiteral 1.0
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            Var single
+          IntLiteral 0u
+        Binary Ne
+          Call doubleBits
+            Var wide
+          IntLiteral 0uL
+      Call println
+        StringLiteral "fused"
+      return
+    val largeSingle
+      Call fromFloatBits
+        IntLiteral 0x7f7fffffu
+    val largeWide
+      Call fromDoubleBits
+        IntLiteral 0x7fefffffffffffffuL
+    if
+      Binary Or
+        Unary Not
+          MethodCall isInfinite
+            Call addThenSubtract
+              Var largeSingle
+              Var largeSingle
+        Unary Not
+          MethodCall isInfinite
+            Call addThenSubtract
+              Var largeWide
+              Var largeWide
+      Call println
+        StringLiteral "reassociated"
+      return
+    val quietSingle
+      Call fromFloatBits
+        IntLiteral 0x7fc00042u
+    val quietWide
+      Call fromDoubleBits
+        IntLiteral 0x7ff8000000000042uL
+    if
+      Binary Or
+        Call reflexive
+          Var quietSingle
+        Call reflexive
+          Var quietWide
+      Call println
+        StringLiteral "nan"
+      return
+    val negativeSingle
+      Call fromFloatBits
+        IntLiteral 0x80000000u
+    val negativeWide
+      Call fromDoubleBits
+        IntLiteral 0x8000000000000000uL
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            Call multiplyAdd
+              Var negativeSingle
+              FloatLiteral 1f
+              Var negativeSingle
+          IntLiteral 0x80000000u
+        Binary Ne
+          Call doubleBits
+            Call multiplyAdd
+              Var negativeWide
+              FloatLiteral 1.0
+              Var negativeWide
+          IntLiteral 0x8000000000000000uL
+      Call println
+        StringLiteral "zero"
+      return
+    Call println
+      StringLiteral "rounding-ok"

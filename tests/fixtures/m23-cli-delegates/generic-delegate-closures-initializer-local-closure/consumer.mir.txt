@@ -231,36 +231,36 @@ Module
         BoolLiteral true
     bb1 if.then.1
       call external5 direct
-      val $dependency.local.3: TraceMore
+      val $dependency.local.1: TraceMore
         Type TraceMore
         GlobalRead $singleton$fe35bdb595f00ecd37544603e244cd6f4d633824079c387c9c2d69d2c7623d18
-      call $dependency.local.4: Int = external0 direct
+      call $dependency.local.2: Int = external0 direct
         Type TraceMore
-        Local $dependency.local.3
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      val $dependency.local.6: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.7: Int
-        Type Int
-        Local $dependency.local.6
       call external3 direct
         Type TraceMore
-        Local $dependency.local.3
+        Local $dependency.local.1
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.5
+          Local $dependency.local.3
           Type Int
-          Local $dependency.local.7
-      val $dependency.local.8: Int
+          Local $dependency.local.5
+      val $dependency.local.6: Int
         Type Int
         IntegerLiteral Int value=21 bits=0x00000015
-      val $dependency.local.9: Int
+      val $dependency.local.7: Int
         Type Int
-        Local $dependency.local.8
+        Local $dependency.local.6
       assign $new.1
         Type Payload
         ClassAlloc Payload
@@ -268,16 +268,16 @@ Module
         Type Payload
         Local $new.1
         Type Int
-        Local $dependency.local.9
+        Local $dependency.local.7
       val $dependency.local.0: Payload
         Type Payload
         Local $new.1
-      call $dependency.local.10: () -> Int = @fn6 direct
+      call $dependency.local.8: () -> Int = @fn6 direct
         Type Payload
         Local $dependency.local.0
-      val $dependency.local.11: () -> Int
+      val $dependency.local.9: () -> Int
         Type () -> Int
-        Local $dependency.local.10
+        Local $dependency.local.8
       assign $new.2
         Type ReaderSlot<Int>
         ClassAlloc ReaderSlot<Int>
@@ -285,18 +285,18 @@ Module
         Type ReaderSlot<Int>
         Local $new.2
         Type () -> Int
-        Local $dependency.local.11
+        Local $dependency.local.9
       assign $dependency.local.12
         Type ReaderSlot<Int>
         Local $new.2
       goto bb3
     bb2 if.else.2
-      val $dependency.local.1: () -> Int
+      val $dependency.local.10: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-      val $dependency.local.2: () -> Int
+      val $dependency.local.11: () -> Int
         Type () -> Int
-        Local $dependency.local.1
+        Local $dependency.local.10
       assign $new.3
         Type ReaderSlot<Int>
         ClassAlloc ReaderSlot<Int>
@@ -304,7 +304,7 @@ Module
         Type ReaderSlot<Int>
         Local $new.3
         Type () -> Int
-        Local $dependency.local.2
+        Local $dependency.local.11
       assign $dependency.local.12
         Type ReaderSlot<Int>
         Local $new.3

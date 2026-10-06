@@ -165,7 +165,8 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "stale_library.${target}.json"}
+diagnostics = {"file" = "stale_library.json"}
+diagnostics_normalize = ["dependency-digests"]
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
@@ -220,7 +221,8 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "stale_before_native.${target}.json"}
+diagnostics = {"file" = "stale_before_native.json"}
+diagnostics_normalize = ["dependency-digests"]
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 

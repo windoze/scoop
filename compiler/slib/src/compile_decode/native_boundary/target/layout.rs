@@ -29,6 +29,10 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                         bit_width,
                     })
                 }
+                scoop_hir::IntrinsicTypeKind::Float(kind) => Ok(CanonicalCStorageType::Float {
+                    exact_type: exact,
+                    kind,
+                }),
                 scoop_hir::IntrinsicTypeKind::Char => Ok(CanonicalCStorageType::Integer {
                     exact_type: exact,
                     signedness: scoop_identity::Signedness::Unsigned,
@@ -159,6 +163,10 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         match storage {
             CanonicalCStorageType::Integer { bit_width, .. } => {
                 let layout = self.target.scalar_layout(integer_scalar_kind(bit_width));
+                Ok((layout.size_bytes(), layout.alignment_bytes()))
+            }
+            CanonicalCStorageType::Float { kind, .. } => {
+                let layout = self.target.float_layout(kind);
                 Ok((layout.size_bytes(), layout.alignment_bytes()))
             }
             CanonicalCStorageType::Boolean { .. } => {

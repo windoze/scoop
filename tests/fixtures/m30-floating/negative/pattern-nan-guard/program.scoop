@@ -1,0 +1,2 @@
+fun classify(value: Float): Int = when (value) { 0.0 -> 1; x if (x.isNaN()) -> 2 }
+fun main() {}

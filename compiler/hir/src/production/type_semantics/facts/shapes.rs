@@ -37,6 +37,7 @@ impl FactProjector<'_> {
                                 ExactTypeFactShapeV1::Unit
                             }
                             concrete::IntrinsicTypeRepresentation::Integer(_)
+                            | concrete::IntrinsicTypeRepresentation::Float(_)
                             | concrete::IntrinsicTypeRepresentation::Char
                             | concrete::IntrinsicTypeRepresentation::Boolean => {
                                 ExactTypeFactShapeV1::Scalar

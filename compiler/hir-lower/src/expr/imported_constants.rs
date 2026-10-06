@@ -16,6 +16,34 @@ pub(crate) struct ImportedDependencyConstantValue {
 }
 
 impl Lowerer {
+    pub(crate) fn lower_imported_const_reference(
+        &mut self,
+        access: &scoop_ast::FieldAccess,
+        expected: Option<hir::TypeId>,
+    ) -> Result<Option<(hir::ConstPropertyValue, hir::TypeId)>, ()> {
+        let Some(owner) = self.resolve_imported_nominal_qualifier(&access.receiver)? else {
+            return Ok(None);
+        };
+        let expression = self
+            .lower_imported_qualified_field(owner, access, expected)
+            .ok_or(())?;
+        let value = match expression.kind {
+            hir::ExprKind::IntegerLiteral(value) => hir::ConstPropertyValue::Integer(value),
+            hir::ExprKind::FloatLiteral(value) => hir::ConstPropertyValue::Float(value),
+            hir::ExprKind::CharLiteral(value) => hir::ConstPropertyValue::Char(value),
+            hir::ExprKind::BoolLiteral(value) => hir::ConstPropertyValue::Boolean(value),
+            hir::ExprKind::StringLiteral { value, .. } => hir::ConstPropertyValue::String(value),
+            _ => {
+                self.error(
+                    access.span,
+                    "const initializer may only reference const properties".into(),
+                );
+                return Err(());
+            }
+        };
+        Ok(Some((value, expression.ty)))
+    }
+
     pub(crate) fn select_imported_dependency_constant(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,
@@ -105,6 +133,7 @@ impl Lowerer {
         let constant = self.select_imported_dependency_constant(binding, usage_span)?;
         let kind = match constant.value {
             hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntegerLiteral(value),
+            hir::ConstPropertyValue::Float(value) => hir::ExprKind::FloatLiteral(value),
             hir::ConstPropertyValue::Char(value) => hir::ExprKind::CharLiteral(value),
             hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
             hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral {

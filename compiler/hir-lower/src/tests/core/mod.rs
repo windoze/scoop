@@ -3,6 +3,7 @@ mod capabilities;
 mod coroutines;
 mod exceptions;
 mod ffi;
+mod floating;
 mod gc;
 mod intrinsic_types;
 mod module;

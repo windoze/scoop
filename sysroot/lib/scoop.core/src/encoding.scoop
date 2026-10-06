@@ -23,6 +23,8 @@ public interface SingleValueEncodingContainer {
     public fun writeBoolean(value: Boolean): Unit
     public fun writeLong(value: Long): Unit
     public fun writeULong(value: ULong): Unit
+    public fun writeFloat(value: Float): Unit
+    public fun writeDouble(value: Double): Unit
     public fun writeString(value: String): Unit
     public fun writeNull(): Unit
 }

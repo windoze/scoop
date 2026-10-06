@@ -1,5 +1,0 @@
-SourceFile
-  RootPackage
-  fun main()
-    Call println
-      IntLiteral 42

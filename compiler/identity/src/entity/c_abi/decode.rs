@@ -112,6 +112,10 @@ pub enum DecodedCanonicalCStorageType {
         signedness: Signedness,
         bit_width: IntegerBitWidth,
     },
+    Float {
+        exact_type: DecodedPersistentId<PersistentExactTypeId>,
+        kind: crate::FloatKind,
+    },
     Boolean {
         exact_type: DecodedPersistentId<PersistentExactTypeId>,
     },
@@ -145,6 +149,10 @@ impl DecodedCanonicalCStorageType {
                 exact_type: resolver.resolve(exact_type)?,
                 signedness,
                 bit_width,
+            }),
+            Self::Float { exact_type, kind } => Ok(CanonicalCStorageType::Float {
+                exact_type: resolver.resolve(exact_type)?,
+                kind,
             }),
             Self::Boolean { exact_type } => Ok(CanonicalCStorageType::Boolean {
                 exact_type: resolver.resolve(exact_type)?,
@@ -182,6 +190,7 @@ impl WireEncode for DecodedCanonicalCStorageType {
                 bit_width,
             } => encode_three_value_sum(encoder, 1, exact_type, signedness, bit_width),
             Self::Boolean { exact_type } => encode_value_sum(encoder, 2, exact_type),
+            Self::Float { exact_type, kind } => encode_two_value_sum(encoder, 6, exact_type, kind),
             Self::DataPointer {
                 exact_type,
                 pointee,
@@ -236,6 +245,13 @@ impl WireDecode for DecodedCanonicalCStorageType {
                 Ok(Self::Struct {
                     exact_type: decoder.field(1, DecodedPersistentId::decode)?,
                     layout: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            6 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::Float {
+                    exact_type: decoder.field(1, DecodedPersistentId::decode)?,
+                    kind: decoder.field(2, crate::FloatKind::decode)?,
                 })
             }
             tag => Err(unknown_tag(decoder, tag)),

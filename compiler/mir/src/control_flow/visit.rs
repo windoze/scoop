@@ -72,6 +72,8 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }
+        | ExprKind::FloatUnary { operand, .. }
+        | ExprKind::FloatConversion { operand, .. }
         | ExprKind::EnumTag(operand)
         | ExprKind::EnumField { operand, .. }
         | ExprKind::VariantTest { operand, .. }
@@ -117,6 +119,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
             visit_expr(index, visitor);
         }
         ExprKind::Binary { lhs, rhs, .. }
+        | ExprKind::FloatBinary { lhs, rhs, .. }
         | ExprKind::IntegerBinary { lhs, rhs, .. }
         | ExprKind::SafeIntegerDivRem { lhs, rhs, .. }
         | ExprKind::IntegerCompare { lhs, rhs, .. }
@@ -133,6 +136,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral
@@ -220,6 +224,8 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }
+        | ExprKind::FloatUnary { operand, .. }
+        | ExprKind::FloatConversion { operand, .. }
         | ExprKind::EnumTag(operand)
         | ExprKind::EnumField { operand, .. }
         | ExprKind::VariantTest { operand, .. }
@@ -265,6 +271,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
             visit_expr_mut(index, visitor);
         }
         ExprKind::Binary { lhs, rhs, .. }
+        | ExprKind::FloatBinary { lhs, rhs, .. }
         | ExprKind::IntegerBinary { lhs, rhs, .. }
         | ExprKind::SafeIntegerDivRem { lhs, rhs, .. }
         | ExprKind::IntegerCompare { lhs, rhs, .. }
@@ -281,6 +288,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral

@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 206db8fff11433976580098ad3223a01e3eb30b7cf958fbfc5950143bb0e43fa selected by direct input (${work}/native/m23_final.o): native section __text: invalid Darwin/AArch64 object relocation inventory: ScatteredRelocation",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_final.o): native section __text: invalid Darwin/AArch64 object relocation inventory: ScatteredRelocation",
     "notes": [],
     "origin": {
       "kind": "none"

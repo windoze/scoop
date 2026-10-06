@@ -61,7 +61,20 @@ impl Lowerer {
                 ),
             _ => None,
         };
-        let receiver_expected = receiver_kind.map(|kind| self.integer_type(kind));
+        let float_kind = self.select_const_float_method_kind(
+            receiver,
+            &name.text,
+            args,
+            expected,
+            file,
+            declarations,
+            ordinary,
+            states,
+            stack,
+        );
+        let receiver_expected = receiver_kind
+            .map(|kind| self.integer_type(kind))
+            .or_else(|| float_kind.and_then(|kind| self.core_float_type(kind).ok()));
         let receiver = self.evaluate_const_expression(
             receiver,
             receiver_expected,
@@ -71,6 +84,27 @@ impl Lowerer {
             states,
             stack,
         )?;
+        if let Some(resolved) = self.resolve_const_float_intrinsic(receiver.ty, &name.text) {
+            return self.evaluate_const_float_call(
+                resolved,
+                receiver,
+                args,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+                span,
+            );
+        }
+        if self.float_kind(receiver.ty).is_some() {
+            self.error(
+                name.span,
+                "const initializer did not resolve to an exact typed core floating intrinsic"
+                    .into(),
+            );
+            return None;
+        }
         let hir::Type::Integer(source_kind) = self.types[receiver.ty] else {
             self.error(
                 name.span,

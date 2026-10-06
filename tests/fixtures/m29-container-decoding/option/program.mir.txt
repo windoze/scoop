@@ -87,6 +87,7 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface ToString
   interface Encodable<Int>
   interface Encoder
   interface KeyedEncodingContainer
@@ -98,7 +99,6 @@ Module
   interface MutableList<String> : List<String>
   interface Decodable<Option<Int>>
   interface Decodable<Option<Option<Int>>>
-  interface ToString
   interface Hash
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
@@ -156,7 +156,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call external38 direct
+      call external40 direct
       val $dependency.receiver: Companion
         Type Companion
         GlobalRead $singleton$084dce1061546480d414f0e784b877e7b0a86f5ea92899946ac0c582c71fe504
@@ -166,7 +166,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call $call.1: Int = external15 direct
+      call $call.1: Int = external17 direct
         Type Companion
         Local $dependency.receiver
         Type Decoder
@@ -278,7 +278,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object-private:dev.m29:container-option:0.1.0/src/main.scoop:Counted
-      call external35 direct
+      call external37 direct
         Type String
         Local $init.message
       unreachable
@@ -382,7 +382,7 @@ Module
         Local $dependency.receiver
         Type Decodable<Int>
         Local $dependency.parameter.element
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -452,7 +452,7 @@ Module
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -491,7 +491,7 @@ Module
       assign $new.3
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.3
       throw
@@ -553,7 +553,7 @@ Module
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -610,7 +610,7 @@ Module
         Local $dependency.receiver
         Type Decodable<Option<Int>>
         Local $dependency.parameter.element
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -649,7 +649,7 @@ Module
       assign $new.5
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.5
       throw
@@ -675,7 +675,7 @@ Module
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -714,7 +714,7 @@ Module
       assign $new.6
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.6
       throw
@@ -740,7 +740,7 @@ Module
       assign $new.7
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.7
       throw
@@ -1188,7 +1188,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -1299,7 +1299,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -1397,7 +1397,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -1487,7 +1487,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -1581,7 +1581,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -1747,7 +1747,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -1802,7 +1802,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -1885,7 +1885,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -2056,7 +2056,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -2111,7 +2111,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -2227,7 +2227,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -2263,7 +2263,7 @@ Module
       val $dependency.local.3: Int
         Type Int
         Local part
-      call $dependency.local.2: String = external18 direct
+      call $dependency.local.2: String = external20 direct
         Type Int
         Local $dependency.local.3
       val $dependency.local.4: ArrayList<String>
@@ -2317,7 +2317,7 @@ Module
       assign $new.1
         Type JsonParser
         ClassAlloc JsonParser
-      call external20 direct
+      call external22 direct
         Type JsonParser
         Local $new.1
         Type String
@@ -2325,7 +2325,7 @@ Module
       val $dependency.local.7: JsonParser
         Type JsonParser
         Local $new.1
-      call $dependency.local.8: JsonValue = external21 direct
+      call $dependency.local.8: JsonValue = external23 direct
         Type JsonParser
         Local $dependency.local.7
       val $dependency.local.9: String
@@ -2340,7 +2340,7 @@ Module
       assign $new.2
         Type JsonDecoder
         ClassAlloc JsonDecoder
-      call external22 direct
+      call external24 direct
         Type JsonDecoder
         Local $new.2
         Type JsonValue
@@ -2369,7 +2369,7 @@ Module
       val $dependency.local.15: JsonDecoder
         Type JsonDecoder
         Local $dependency.local.3
-      call external23 direct
+      call external25 direct
         Type JsonDecoder
         Local $dependency.local.15
       return
@@ -2493,7 +2493,7 @@ Module
       assign $new.1
         Type JsonParser
         ClassAlloc JsonParser
-      call external20 direct
+      call external22 direct
         Type JsonParser
         Local $new.1
         Type String
@@ -2501,7 +2501,7 @@ Module
       val $dependency.local.7: JsonParser
         Type JsonParser
         Local $new.1
-      call $dependency.local.8: JsonValue = external21 direct
+      call $dependency.local.8: JsonValue = external23 direct
         Type JsonParser
         Local $dependency.local.7
       val $dependency.local.9: String
@@ -2516,7 +2516,7 @@ Module
       assign $new.2
         Type JsonDecoder
         ClassAlloc JsonDecoder
-      call external22 direct
+      call external24 direct
         Type JsonDecoder
         Local $new.2
         Type JsonValue
@@ -2545,7 +2545,7 @@ Module
       val $dependency.local.15: JsonDecoder
         Type JsonDecoder
         Local $dependency.local.3
-      call external23 direct
+      call external25 direct
         Type JsonDecoder
         Local $dependency.local.15
       return
@@ -2603,7 +2603,7 @@ Module
         Type IllegalStateException
         Local $new.3
     bb8 try.body.8 unwind bb1
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -2640,7 +2640,7 @@ Module
     bb10 try.next.10
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
-      call $dependency.receiver: String = external13 direct
+      call $dependency.receiver: String = external15 direct
         Type DecodingException
         Local error
       val $dependency.argument.0: String
@@ -2649,7 +2649,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external16 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2724,7 +2724,7 @@ Module
         Type IllegalStateException
         Local $new.3
     bb8 try.body.8 unwind bb1
-      call external39 direct
+      call external41 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -2761,7 +2761,7 @@ Module
     bb10 try.next.10
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
-      call $dependency.receiver: String = external13 direct
+      call $dependency.receiver: String = external15 direct
         Type DecodingException
         Local error
       val $dependency.argument.0: String
@@ -2770,7 +2770,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external16 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2798,13 +2798,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external19 direct
+      call $dependency.local.2: String = external21 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external24 direct
+      call external26 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -2813,7 +2813,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external24 direct
+      call external26 direct
         Type String
         Local $dependency.local.5
       return
@@ -2921,7 +2921,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:Option.Companion
-      call external35 direct
+      call external37 direct
         Type String
         Local $init.message
       unreachable
@@ -3031,7 +3031,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:Option.Companion
-      call external35 direct
+      call external37 direct
         Type String
         Local $init.message
       unreachable
@@ -3286,7 +3286,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -3306,7 +3306,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external25 direct
+      call external27 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -3468,7 +3468,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external37 direct
+      call external39 direct
         Type IllegalArgumentException
         Local $new.1
       throw
@@ -3528,10 +3528,10 @@ Module
       val $dependency.local.8: Decoder
         Type Decoder
         Local decoder
-      call $dependency.local.2: KeyedDecodingContainer = external26 interface Decoder[0]
+      call $dependency.local.2: KeyedDecodingContainer = external28 interface Decoder[0]
         Type Decoder
         Local $dependency.local.8
-      call $dependency.local.3: List<String> = external27 interface KeyedDecodingContainer[3]
+      call $dependency.local.3: List<String> = external29 interface KeyedDecodingContainer[3]
         Type KeyedDecodingContainer
         Local $dependency.local.2
       call $call.1: Long = @fn63 interface List<String>[2]
@@ -3547,7 +3547,7 @@ Module
             Type Long
             IntegerLiteral Long value=1 bits=0x0000000000000001
     bb1 if.then.1
-      call $dependency.local.9: String = external28 interface Decoder[3]
+      call $dependency.local.9: String = external30 interface Decoder[3]
         Type Decoder
         Local decoder
       val $dependency.local.10: String
@@ -3562,7 +3562,7 @@ Module
       assign $new.2
         Type DecodingException
         ClassAlloc DecodingException
-      call external29 direct
+      call external31 direct
         Type DecodingException
         Local $new.2
         Type String
@@ -3587,7 +3587,7 @@ Module
         Local $dependency.local.13
         Type Long
         Local $dependency.local.15
-      call $call.3: Boolean = external14 direct
+      call $call.3: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -3598,7 +3598,7 @@ Module
           Type Boolean
           Local $call.3
     bb3 logic.rhs.3
-      call $call.5: Boolean = external14 direct
+      call $call.5: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -3619,7 +3619,7 @@ Module
         Type Boolean
         Local $logic.4
     bb6 if.then.6
-      call $dependency.local.16: String = external28 interface Decoder[3]
+      call $dependency.local.16: String = external30 interface Decoder[3]
         Type Decoder
         Local decoder
       val $dependency.local.17: String
@@ -3634,7 +3634,7 @@ Module
       assign $new.6
         Type DecodingException
         ClassAlloc DecodingException
-      call external29 direct
+      call external31 direct
         Type DecodingException
         Local $new.6
         Type String
@@ -3654,12 +3654,12 @@ Module
       val $dependency.local.22: String
         Type String
         Local $dependency.local.21
-      call $dependency.local.5: Decoder = external30 interface KeyedDecodingContainer[0]
+      call $dependency.local.5: Decoder = external32 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.local.20
         Type String
         Local $dependency.local.22
-      call $call.7: Boolean = external14 direct
+      call $call.7: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -3671,16 +3671,16 @@ Module
       val $dependency.local.23: Decoder
         Type Decoder
         Local $dependency.local.5
-      call $dependency.local.24: KeyedDecodingContainer = external26 interface Decoder[0]
+      call $dependency.local.24: KeyedDecodingContainer = external28 interface Decoder[0]
         Type Decoder
         Local $dependency.local.23
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.24
       val $dependency.local.25: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local $dependency.local.2
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.25
       return
@@ -3690,7 +3690,7 @@ Module
       val $dependency.local.26: Decoder
         Type Decoder
         Local $dependency.local.5
-      call $dependency.local.6: UnkeyedDecodingContainer = external32 interface Decoder[1]
+      call $dependency.local.6: UnkeyedDecodingContainer = external34 interface Decoder[1]
         Type Decoder
         Local $dependency.local.26
       val $dependency.local.28: Decodable<Int>
@@ -3701,7 +3701,7 @@ Module
       val $dependency.local.27: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local $dependency.local.6
-      call $dependency.local.29: Decoder = external33 interface UnkeyedDecodingContainer[0]
+      call $dependency.local.29: Decoder = external35 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.local.27
       val $dependency.local.30: Decoder
@@ -3715,13 +3715,13 @@ Module
       val $dependency.local.31: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local $dependency.local.6
-      call external34 interface UnkeyedDecodingContainer[1]
+      call external36 interface UnkeyedDecodingContainer[1]
         Type UnkeyedDecodingContainer
         Local $dependency.local.31
       val $dependency.local.32: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local $dependency.local.2
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.32
       val $dependency.local.33: Int
@@ -3822,7 +3822,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3933,7 +3933,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -4031,7 +4031,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -4121,7 +4121,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -4215,7 +4215,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -4381,7 +4381,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -4436,7 +4436,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -4519,7 +4519,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -4690,7 +4690,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -4745,7 +4745,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -4861,7 +4861,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -4979,7 +4979,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5090,7 +5090,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -5188,7 +5188,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5278,7 +5278,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5372,7 +5372,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -5538,7 +5538,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -5593,7 +5593,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -5676,7 +5676,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external36 direct
+      call external38 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -5847,7 +5847,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -5902,7 +5902,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -6018,7 +6018,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -6057,10 +6057,10 @@ Module
       val $dependency.local.8: Decoder
         Type Decoder
         Local decoder
-      call $dependency.local.2: KeyedDecodingContainer = external26 interface Decoder[0]
+      call $dependency.local.2: KeyedDecodingContainer = external28 interface Decoder[0]
         Type Decoder
         Local $dependency.local.8
-      call $dependency.local.3: List<String> = external27 interface KeyedDecodingContainer[3]
+      call $dependency.local.3: List<String> = external29 interface KeyedDecodingContainer[3]
         Type KeyedDecodingContainer
         Local $dependency.local.2
       call $call.1: Long = @fn63 interface List<String>[2]
@@ -6076,7 +6076,7 @@ Module
             Type Long
             IntegerLiteral Long value=1 bits=0x0000000000000001
     bb1 if.then.1
-      call $dependency.local.9: String = external28 interface Decoder[3]
+      call $dependency.local.9: String = external30 interface Decoder[3]
         Type Decoder
         Local decoder
       val $dependency.local.10: String
@@ -6091,7 +6091,7 @@ Module
       assign $new.2
         Type DecodingException
         ClassAlloc DecodingException
-      call external29 direct
+      call external31 direct
         Type DecodingException
         Local $new.2
         Type String
@@ -6116,7 +6116,7 @@ Module
         Local $dependency.local.13
         Type Long
         Local $dependency.local.15
-      call $call.3: Boolean = external14 direct
+      call $call.3: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -6127,7 +6127,7 @@ Module
           Type Boolean
           Local $call.3
     bb3 logic.rhs.3
-      call $call.5: Boolean = external14 direct
+      call $call.5: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -6148,7 +6148,7 @@ Module
         Type Boolean
         Local $logic.4
     bb6 if.then.6
-      call $dependency.local.16: String = external28 interface Decoder[3]
+      call $dependency.local.16: String = external30 interface Decoder[3]
         Type Decoder
         Local decoder
       val $dependency.local.17: String
@@ -6163,7 +6163,7 @@ Module
       assign $new.6
         Type DecodingException
         ClassAlloc DecodingException
-      call external29 direct
+      call external31 direct
         Type DecodingException
         Local $new.6
         Type String
@@ -6183,12 +6183,12 @@ Module
       val $dependency.local.22: String
         Type String
         Local $dependency.local.21
-      call $dependency.local.5: Decoder = external30 interface KeyedDecodingContainer[0]
+      call $dependency.local.5: Decoder = external32 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.local.20
         Type String
         Local $dependency.local.22
-      call $call.7: Boolean = external14 direct
+      call $call.7: Boolean = external16 direct
         Type String
         Local $dependency.local.4
         Type String
@@ -6200,16 +6200,16 @@ Module
       val $dependency.local.23: Decoder
         Type Decoder
         Local $dependency.local.5
-      call $dependency.local.24: KeyedDecodingContainer = external26 interface Decoder[0]
+      call $dependency.local.24: KeyedDecodingContainer = external28 interface Decoder[0]
         Type Decoder
         Local $dependency.local.23
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.24
       val $dependency.local.25: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local $dependency.local.2
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.25
       return
@@ -6219,7 +6219,7 @@ Module
       val $dependency.local.26: Decoder
         Type Decoder
         Local $dependency.local.5
-      call $dependency.local.6: UnkeyedDecodingContainer = external32 interface Decoder[1]
+      call $dependency.local.6: UnkeyedDecodingContainer = external34 interface Decoder[1]
         Type Decoder
         Local $dependency.local.26
       val $dependency.local.28: Decodable<Option<Int>>
@@ -6230,7 +6230,7 @@ Module
       val $dependency.local.27: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local $dependency.local.6
-      call $dependency.local.29: Decoder = external33 interface UnkeyedDecodingContainer[0]
+      call $dependency.local.29: Decoder = external35 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.local.27
       val $dependency.local.30: Decoder
@@ -6244,13 +6244,13 @@ Module
       val $dependency.local.31: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local $dependency.local.6
-      call external34 interface UnkeyedDecodingContainer[1]
+      call external36 interface UnkeyedDecodingContainer[1]
         Type UnkeyedDecodingContainer
         Local $dependency.local.31
       val $dependency.local.32: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local $dependency.local.2
-      call external31 interface KeyedDecodingContainer[2]
+      call external33 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.local.32
       val $dependency.local.33: Option<Int>
@@ -6585,7 +6585,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -6605,7 +6605,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external25 direct
+      call external27 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -6767,7 +6767,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external37 direct
+      call external39 direct
         Type IllegalArgumentException
         Local $new.1
       throw
@@ -7071,7 +7071,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external17 direct
+      call external19 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -7091,7 +7091,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external25 direct
+      call external27 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -7253,7 +7253,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external37 direct
+      call external39 direct
         Type IllegalArgumentException
         Local $new.1
       throw

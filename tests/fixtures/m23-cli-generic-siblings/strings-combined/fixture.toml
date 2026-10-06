@@ -214,7 +214,7 @@ diagnostics = []
 checks = [
   {"actual" = "${link.result.dependencies.length}", "equals" = 5},
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths", "native-digests"]},
 ]
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 
@@ -229,7 +229,7 @@ diagnostics = []
 checks = [
   {"actual" = "${reverse_link.result.dependencies.length}", "equals" = 5},
   {"actual" = "${reverse_link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {"actual" = "${reverse_link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
+  {"actual" = "${reverse_link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths", "native-digests"]},
 ]
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 

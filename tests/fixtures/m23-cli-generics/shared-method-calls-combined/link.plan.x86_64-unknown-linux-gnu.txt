@@ -1,17 +1,17 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:generic-member-provider:0.1.0 kind=Library objects=29
 cone dev.example:generic-member-combined:0.1.0 kind=Library objects=43
 cone dev.example:generic-member-downstream-combined:0.1.0 kind=Library objects=78
 cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=5 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_class_gc requirement=a7ce8b9d7dc93e74170fe9fa03bcddea03656186d365cf21e9287aa42f22288c input=41bad1167a04465c15356cb53e776569991f037bdd66b96cc05c88d97c0c9593 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
-native archive 41bad1167a04465c15356cb53e776569991f037bdd66b96cc05c88d97c0c9593 members=1
-  member 0 header=8 payload=68..1684 name="gc.o" digest=27f6b414cb9442facbe20ff5a9429eab6901415804e10c5132e48e194d0c7a43 selected=true
-ELF system imports=49
+native library m23_class_gc requirement=a7ce8b9d7dc93e74170fe9fa03bcddea03656186d365cf21e9287aa42f22288c input=$NATIVE_INPUT_0 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1684 name="gc.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=56
 startup object references:
   scoop$1$im$29f6b7668c96d4b98e5e0fd3da5749180ea24d77e4c3eff124cc3b6b9b7a5634
   scoop$1$im$51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5

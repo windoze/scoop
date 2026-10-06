@@ -89,9 +89,13 @@ pub(super) fn dump_annotation_literal(value: &AnnotationLiteral) -> String {
     match value {
         AnnotationLiteral::String(value) => format!("{value:?}"),
         AnnotationLiteral::Int(literal) => literal.to_string(),
+        AnnotationLiteral::Float(literal) => literal.to_string(),
         AnnotationLiteral::Boolean(value) => value.to_string(),
         AnnotationLiteral::Char(value) => format!("{value:?}"),
         AnnotationLiteral::SignedInt { negative, literal } => {
+            format!("{}{literal}", if *negative { "-" } else { "+" })
+        }
+        AnnotationLiteral::SignedFloat { negative, literal } => {
             format!("{}{literal}", if *negative { "-" } else { "+" })
         }
         AnnotationLiteral::ConstReference(reference) => dump_constant_reference(reference),

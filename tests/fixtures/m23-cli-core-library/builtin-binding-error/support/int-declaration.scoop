@@ -1,5 +1,11 @@
 @Intrinsic("core_int")
 public struct Int : ToString, Hash {
+    @NoGC @Intrinsic("int_to_float")
+    public fun toFloat(): Float
+
+    @NoGC @Intrinsic("int_to_double")
+    public fun toDouble(): Double
+
     @NoGC @Unsafe @Intrinsic("char_from_code_unchecked")
     internal fun characterUnchecked(): Char
 

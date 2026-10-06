@@ -15,6 +15,8 @@ pub(crate) fn encode_type(
         LirType::I16 => (4, false),
         LirType::I32 => (5, false),
         LirType::I64 => (6, false),
+        LirType::F32 => (13, false),
+        LirType::F64 => (14, false),
         LirType::MachineScalar(_) => (7, true),
         LirType::Ptr(_) => (8, true),
         LirType::ExceptionRecord => (9, false),
@@ -45,6 +47,8 @@ pub(crate) fn encode_type(
         | LirType::I8
         | LirType::I16
         | LirType::I32
+        | LirType::F32
+        | LirType::F64
         | LirType::I64
         | LirType::ExceptionRecord => Ok(()),
     }

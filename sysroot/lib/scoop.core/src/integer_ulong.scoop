@@ -1,5 +1,11 @@
 @Intrinsic("core_ulong")
 public struct ULong : ToString, Hash {
+    @NoGC @Intrinsic("ulong_to_float")
+    public fun toFloat(): Float
+
+    @NoGC @Intrinsic("ulong_to_double")
+    public fun toDouble(): Double
+
     @NoGC
     @Intrinsic("ulong_equals")
     public operator fun equals(other: ULong): Boolean

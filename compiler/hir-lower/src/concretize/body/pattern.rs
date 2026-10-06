@@ -21,6 +21,9 @@ impl Concretizer<'_> {
                 value: self.lower_expr(value, substitution, locals),
                 equality: match *equality {
                     export::LiteralPatternEquality::Char => concrete::LiteralPatternEquality::Char,
+                    export::LiteralPatternEquality::Float { kind } => {
+                        concrete::LiteralPatternEquality::Float { kind }
+                    }
                     export::LiteralPatternEquality::Integer { kind } => {
                         concrete::LiteralPatternEquality::Integer { kind }
                     }

@@ -1,0 +1,172 @@
+# M30 实施记录
+
+目标与验收矩阵见 [设计](DESIGN.md)。按独立功能完成实现、针对性验证并提交，最后执行正式整体验收；未经实际运行的项目不记作通过。
+
+## 实施计划
+
+- A：Float/Double 标量、literal、alias、完整 IR/meta/ABI 与最短字符串化。
+- B：算术、IEEE 比较、分类、totalOrder、显式转换与 const。
+- C：候选隔离与直接舍入、默认值、annotation、递归 pattern、泛型及派生相等。
+- D：值存储、GC/协程与 C/Scoop FFI、fmod native support。
+- E：single-value 协议、companion codec 与 JSON。
+- F：跨 Cone/ODR、artifact-only、Darwin 与 Linux glibc/musl 验收。
+
+## 2026-10-06：开始实施
+
+以 `93ae1e671`（M29 完成）为代码基线，保留并采用工作区已有的 M30 设计、调研及三份规范修订，分支为 `codex/m30`。
+
+本机 `target` 初始约 31 GiB，其中旧 debug incremental 约 16 GiB；确认没有活动构建后清理该 incremental 目录，保留现有编译依赖与历史验收资料。开发期优先受影响 crate 和选定文件 fixture，不反复运行全量测试。Linux 验证使用 `nuc12:~/repos/scoop`。
+
+## A：浮点标量闭环
+
+实现 Float/Double 的真实 intrinsic nominal、透明 alias、未舍入十进制 AST、目标精度 literal 与负零，贯通 HIR/MIR/LIR、持久化记录、标量 ABI、C storage 及 LLVM `float`/`double` 常量。以固定版本 `rustc_apfloat 0.2.3` 直接解析目标精度，以 Ryu 固定 commit 提供最短字符串化；新增自有模块按职责拆分，第三方源码保留原样。
+
+实际 CLI 暴露并补齐了 intrinsic struct application、具体化以及 LLVM 局部常量池的对象记录。常量池沿真实重定位保存字节并进入已有对象摘要，不增加源码实体或来源认证。受影响 section 及兼容版本见实现规范 §2.18。
+
+Darwin/AArch64 验证：
+
+- `cargo fmt --all` 与 `LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22 cargo clippy --workspace --all-targets` 通过。
+- 三个配套 CLI 的 release 构建通过。
+- 选定单元测试通过：parser 浮点语法 3 项、identity 浮点 wire 2 项、slib profile 19 项、Mach-O section 7 项、HIR persistent function 3 项。
+- `m30-floating` 的 10 个正式文件 fixture 通过，包括普通／移动 GC 运行、四阶段 golden 和 9 个精确诊断负例。直接舍入反例得到 F32 `0x4b800001`，正负零、最小 subnormal 和下溢均经实际执行验证。
+- Char 基础组合回归通过普通／移动 GC 与四阶段 golden；HIR golden 仅同步新增 core 声明导致的临时 imported identity index 变化，已确认其余内容相同。
+
+本批尚不声明算术、const 求值、pattern、完整 FFI 或 JSON 已完成；它们继续按 B～F 实施。未运行全量测试。随后在 `nuc12` 的 Linux/glibc x86_64 完成 release 构建和上述 10 个 M30 fixture，包含普通／移动 GC 与四阶段 golden，全部通过。
+
+## B1：浮点运算与显式转换
+
+新增封闭的 unary/binary/conversion 数据节点，贯通默认模板、具体化、MIR、LIR、闭包引用及各自遍历。core 提供算术、IEEE equals、分类、totalOrder 与整数／浮点显式转换。四种关系比较直接按真实浮点表示降低，不借 compareTo；div/rem 保持 NoGC。LLVM 使用严格浮点操作和直接目标位宽饱和转换；totalOrder 与分类使用原始位表示。取余产生的 fmodf/fmod 沿已有 native-support 表及平台链接闭包处理。
+
+同步 HIR core-bootstrap `/11`、interface `/59` 与 LIR link-identity-closure `/14`、profile vectors 和实现规范。新增自有 Rust 模块为 18～137 行，按数据、前端、降低、LLVM 运算／比较／转换拆分。
+
+Darwin/AArch64 实际验证：格式化、workspace clippy、三个 release CLI 构建通过；profile 单元测试 19 项、target-support 单元测试 3 项通过。M30 文件 fixture 增至 19 个并全部通过，29 个实际进程、16 份阶段 golden。新增算术、八种整数转换、混合精度与非法运算诊断；totalOrder 对每种精度各 18 个代表位型执行 324 对比较，包含正负 signaling/quiet NaN 及不同 payload，同时检查一元符号和同型转换保留位型。四个正例均通过移动 GC 运行。
+
+本批完成运行期数值操作；const 与 companion 常量接着实施，不重复执行无关全量测试。
+
+## B2：const、companion 常量与静态初值
+
+以 rustc_apfloat 的 Single/Double 实现目标精度的 const 算术、比较、分类、totalOrder 和全部显式转换，算术 NaN 规范化为正 quiet NaN；一元符号和同精度转换保留位型。Float/Double companion 各提供六个普通 const val，含精确边界。修复依赖库 companion 常量在 const initializer 中的读取，沿普通 imported const 名称、可见性和类型规则消费；静态初值与 const 共用浮点求值函数，浮点全零初值按真实标量表示保存。
+
+将 const 表达式处理和静态整数调用按职责拆分，原相关大文件降至 404 / 282 行，拆出的文件为 240 / 265 行；新增浮点求值及调用模块为约 30～165 行。再次清理约 6.8 GiB 的 debug incremental 目录。
+
+Darwin/AArch64：格式化、workspace clippy 和 release CLI 构建通过。新增 const 正例包含普通／移动 GC、四阶段 golden、通过 C ABI 读取精确位型的检查；固定 NaN、负 NaN 复制、直接舍入、最大值、最小 subnormal 和最小 normal 位型均通过。五个 const 负例及两个既有整数 const CLI 回归通过，本轮共 8 fixture、14 进程、12 golden；两个整数 HIR golden 仅临时 imported identity index 改变。12 个既有 const 单元测试通过，期间补齐旧测试用 core 缺失的 Float/Double 与转换声明，并复用实际 core 的浮点源码。
+
+运行期与 const 的 B 批完成，下一批处理候选字面量定型、annotation 和递归 pattern 组合。
+
+B 批 Linux/glibc x86_64 的 release 构建与四个正例通过：普通／移动 GC、16 个进程、16 份 golden。同步前三个 HIR 快照的 imported identity 临时编号，并为两个 C ABI 用例按 target 保存 LIR 桥接符号快照；Darwin 同组四个用例再次通过。未增加无关全量测试。
+
+## C1：候选隔离、默认精度与 receiver 推导
+
+无后缀浮点 literal 在参数、泛型 fixed point、array 和控制流分支中保留 contextual 状态；普通 MSC 后的 literal 默认优先级扩展至 Double。局部与依赖 callable、nominal constructor 共用同一个数值候选记录。receiver 仅探测两种真实 core 表示，以最终 typed intrinsic 判断资格；算术结果可传递 expected Float，显式转换不以结果类型反推源精度。const 采用相同的候选选择和直接舍入。新增推导模块分别为 79 / 117 行。
+
+实际组合用例发现并修复普通泛型 struct 构造器形状查询的提前返回，使嵌套 `Cell(字面量)` 可以从另一实参获得 Float 约束。
+
+Darwin 验证：格式化、workspace clippy、release CLI 构建通过。新增 inference 正例及两个负例通过，共 5 进程和 4 份 golden；覆盖声明顺序、失败的溢出候选、默认 Double、直接舍入反例、receiver 关系运算、const、泛型及嵌套构造器、array、tuple、分支、vararg、默认参数、return 和 lambda。普通与移动 GC 输出一致；用户 extension 不获得反向定型资格，固定 f 后缀不适配 Double。五个既有整数联合推导单元测试通过；浮点 operations/const 与整数 const CLI 回归另有 3 fixture、10 进程、12 golden 通过。
+
+## C2：annotation、递归 pattern 与派生相等
+
+annotation 的 parser 与 lowering 复用原始浮点语法，支持带符号 literal 和同类型 const 引用，metadata 保存目标精度 bits。literal pattern 通过真实 equals intrinsic 保存 FloatKind，默认模板 equality 增加 tag 4，HIR interface 更新至 `/60` 并同步 profile vectors；MIR 复用既有 FloatBinary/Equal。浮点列的剩余域由 wildcard 行覆盖，因为任何 literal 都不能匹配 NaN；递归 product 继续用既有矩阵检查。匹配与 binding 共用标量形状检查，避免把 Float/Double 当作空 struct 解构。按语言规范修正设计文档对可选 usefulness 诊断的过度要求，保留 first-match 语义。
+
+Darwin 验证：格式化、workspace clippy、release CLI 构建通过；19 个 profile 测试、14 个 parser 整数字面量回归通过。新增 annotation/pattern 两个正例通过普通／移动 GC 及 8 份 golden，确认直接舍入、负零、NaN、泛型字段、默认值与递归 enum/struct/tuple，以及含 NaN 的派生值不等于自身。14 个新负例覆盖 annotation 类型／范围、pattern 类型／不可穷尽／guard／解构和 Hash 缺失，正式 runner 全部通过。既有 annotation 源码、参数类型负例、整数递归穷尽与 Char 解构回归通过；两个 HIR 快照仅更新 imported identity 临时编号，已完整归一化比较。期间清理约 5 GiB 旧 incremental 缓存。
+
+## D1：线程浮点环境与浮点 foreign callback
+
+主线程和首次附着的 foreign thread 通过同一创建入口安装 C 默认浮点环境，并显式关闭 x86 SSE 的 FTZ/DAZ 或 AArch64 的 FZ。调用期间不反复保存／恢复 fenv；已附着线程的 native 重入责任保持原规范。函数为 runtime 内部实现，不增加 ABI 字段。
+
+Darwin 的 C 严格警告检查、workspace 格式化及 clippy 通过。新增 environment fixture 经正式 CLI 构建、普通／移动 GC 和四阶段 golden 通过，共 5 个进程；主线程检查 rounding/trap/subnormal 设置，foreign worker 在回调前故意改成向上舍入与 flush-to-zero，回调附着后验证 nearest-even、subnormal、Float/Double 参数／Double 结果及 GC 中的闭包捕获。native archive 仍不接收初始化 section，测试使用正常线程入口改变环境。
+
+随后在 nuc12 的 Linux/glibc x86_64 完成 release 构建；inference、annotation、pattern 与 environment 四个正例通过，共 14 进程、16 golden，并保存环境用例的 GNU LIR 快照。x86 SSE 的 rounding、trap mask 和 FTZ/DAZ 也通过实际线程回调验证。
+
+## D2：FFI、值容器与协程
+
+补齐 LLVM C-layout 字段大小及物理／canonical C storage 匹配中的浮点分支，继续使用既有 C 编译器分类 aggregate。三个独立 fixture 覆盖 C 同型／混合 aggregate、Scoop scalar／aggregate ABI、global/TLS、指针、原始与 managed callback，以及数组、ArrayList、泛型 aggregate、Option、boxing、引用字段、闭包和协程 frame。
+
+Darwin 格式化、workspace clippy、release CLI 构建通过。三个新 fixture 共 16 个进程、12 份阶段 golden 通过，均包含普通及移动 GC 运行。位型检查使用负 signaling NaN、正 signaling NaN、负零和最小 subnormal；协程在两个挂起点之间触发 GC，验证保留值与恢复结果。未改动不允许直接调用 FunPtr 或捕获 mutable local 的既有语言规则，测试通过正常 native 调用与显式引用状态表达这些组合。
+
+同批三个 fixture 随后在 nuc12 的 Linux/glibc x86_64 通过 release 构建、16 个进程和 12 份 golden，含两种 GC 模式；GNU 的 C bridge LIR 快照独立保存。
+
+## E：单值 codec 与 JSON
+
+SingleValueEncodingContainer／SingleValueDecodingContainer 增加 Float 与 Double 的独立读写方法，Float／Double companion 以普通 core body 显式实现 codec；既有 JSON 和手写容器实现同时补齐，不增加默认方法。JSON 用原始 number 文本直接解析目标精度，整数路径保持原有精确解析。解析后备复用 String 结果适配的方式，按实际 16 字节、8 对齐的 tagged Option 布局提供两平台 sret 入口；C locale 通过 pthread_once 初始化，临时 NUL 缓冲区按真实文本长度分配。新增 C 实现 68 行，ABI header 和两个平台适配文件各不超过 35 行，不新增通用 FFI 框架。
+
+Darwin 的格式化、workspace clippy、严格 C 告警检查和 release CLI 构建通过。四个新 fixture 共 14 进程、7 份阶段 golden 通过：独立格式保留 NaN payload／Infinity，JSON 只编码有限数，检查直接 F32 舍入、nearest-even 两侧、边界及抽样位型往返、负零、subnormal／underflow、overflow、411 位数字和逗号 locale 下解析；派生 record／enum、泛型 codec、Option、Array、ArrayList 和嵌套错误 path 均经普通／移动 GC 运行。两个负例锁定缺失 Float／Double 单值方法的精确诊断。旧序列化容器与派生依赖两项回归另有 10 进程、3 份 golden 通过；手写 encoder 的快照同步新增方法、浮点类型和相关函数编号。
+
+Linux/glibc 动态与 musl 静态均已通过这四个新 fixture，各为 14 进程、7 份 golden，包含两种 GC 模式；共有 AST/HIR/MIR 无变化，分别保存目标 LIR。两套 libc 的 strtof_l／strtod_l 均通过直接舍入和边界检查。F 批开始前再次清理了约 1.8 GiB 的闲置 debug incremental 缓存。
+
+## F1：跨 Cone、独立产物与优化后舍入
+
+跨 Cone 用例发现并补齐 annotation 产物参数校验对 Float／Double 的遗漏；校验仍在既有单一边界执行，不增加重复检查。C storage wire 的既有 round-trip 测试补入两种浮点形状，并把 unknown-tag 负例移到当前未分配的 tag。
+
+Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixture 以 release 模式编译 core、JSON、provider、facade、consumer，逐个删除源码，最后在无 LLVM 的 PATH 下只凭 .slib 与 runtime index 重新链接并运行。覆盖公开 alias、重导出、浮点 annotation／const／默认表达式、跨 Cone 泛型实例 ODR、派生 codec、fmodf／fmod 依赖，以及异常展开中的 NaN 位型；普通／移动 GC 均通过，共 10 进程、4 份 golden。
+
+独立 rounding fixture 在 debug 与 release 两种模式下通过 10 进程、8 份 golden；用普通 C 输入阻止常量折叠，验证乘加保持两次舍入、溢出算术不重结合、NaN 不被优化成自反相等和负零保留。musl 的动态 artifact 变体与最终集中验收继续进行，本节不提前记录其结果。
+
+## F2：Linux 浮点专项集中验收
+
+在 nuc12 的 x86_64 上，M30 全部 55 个文件 fixture 完成集中验证。glibc 为 54 项通过、1 项按平台不适用，55 个变体、119 个进程、67 份 golden；musl 为 55 项全部通过，56 个变体、129 个进程、71 份 golden。包括 musl 静态与动态 artifact 链接、跨 Cone 的派生 codec／annotation／ODR、debug 与 release 严格舍入，以及普通／移动 GC 的实际运行。
+
+补齐各目标的 LIR 快照；共有 HIR 的差异经逐字节比较确认只涉及 imported identity 临时编号，以及 core 新增 codec 后常量定义的源码区间位移，所有变化区间的原始源码内容保持相同。正式全仓库验收与旧测试适配另行记录，未重复运行 Linux 的无关全量用例。
+
+## F3：Rust 全仓库回归与测试数据迁移
+
+本机执行一次 `cargo test --workspace --no-fail-fast`，保留其成功结果，随后只复验受影响目标。5352 项 Rust 测试最终全部通过，无忽略项。测试采用 dev/test `opt-level=1`，保留 debug assertions 与溢出检查，以缩短完整核心库的重复编译时间。
+
+修复测试专用核心库的浮点声明位置，使其与合成源码的零长度位置一致，并保留 intrinsic struct 的省略表示；更新新增 alias／extern 后的完整 HIR 期望、核心实体计数、格式 tag 和兼容指纹。GC 的 C 测试子集链接真实浮点环境实现，按平台丢弃未使用的 formatter 并在 Linux 链接 libm。没有放宽生产验证或快照断言。
+
+定向复验通过 codegen 317 项、HIR 877 项、HIR lowering 1375 项、slib 602 项，以及 driver 原先失败的 4 项；GC 链接参数最终调整后，其 11 项 runtime collector 测试再次通过。格式化和 workspace clippy 通过；正式文件 runner 的 38 项公共规则单元测试也通过。CLI 全量及其快照迁移继续进行。
+
+随后在 Linux/glibc 复验同一组 11 项 runtime collector 测试，全部通过。旧 core 可见性负例的 Int 声明副本补齐两种浮点转换及 hidden package 中的显式 import，保持原有错误规则；其 Darwin 产物指纹更新后，普通 runner 模式的 2 个进程与 1 份快照通过，精确诊断未放宽。确认本机无活动 Rust 构建后，清理本轮约 23 GiB 的 debug incremental 缓存。
+
+## G1：删除普通功能用例的固定产物指纹
+
+按新的测试清理要求，先修订实现规范、路线图与 runner 约定，再删除 345 个普通功能 fixture 的独立 `artifact-fingerprints` 步骤，以及三个目标合计 1035 份仅含整份产物摘要的 golden。逐份解析比较确认，其余全部步骤、输入、诊断、IR、符号、运行及同次结果相等／失效断言完全保留。之前考虑的 Darwin archiver 替换未提交，已撤回；无需为这些无关快照改变工具选择。
+
+Ruff 格式化与检查、runner 的 38 项公共测试及全部 2551 个 fixture 的发现检查通过。定向普通运行中，构造器、core 布局、core 声明负例和默认可见性共 5 项通过；另外 3 项仍停在已知的旧 HIR golden，继续纳入 M30 结构快照迁移，不计作通过。Linux 前一轮的 25 项只读文件准备失败已在全新目录中全部通过，保留此前成功结果。
+
+## G2：链接计划与 native 诊断的内容摘要
+
+增加显式 `native-digests` 规则，仅替换 native 输入、归档成员内容和 dynamic provider 的摘要字段；按首次出现编号保留重复值、不同值及引用关系。requirement、源码 typed identity、符号、成员名称／顺序／范围、选择状态和动态绑定保持原样。生产指纹及同次 build/link、缓存、确定性的原值比较不变。迁移 560 个 fixture 声明中的 563 个计划检查和 21 个诊断步骤，共 1673 份计划／诊断期望；其余解析后的声明完全保留。
+
+Ruff、42 项公共规则测试和完整发现检查通过。新增反例确认错接引用、改变成员范围／选择、符号或额外诊断均仍失败。真实 CLI 普通复验通过 archive 冲突、direct 合同、dynamic loader／renamed、late archive 共 5 项；archive chain 已通过归一化计划比较，随后停在 M30 新符号的旧清单，另 3 个 callback 用例仍需迁移旧 HIR。后续按结构变化继续验证，不把快照更新作为通过结果。
+
+## G3：移除整份产物 SHA 及冻结的损坏输入
+
+删除 6 个旧 fixture 中 13 个无关的整份文件 SHA-256 比较、5 个因此为空的辅助步骤，并移除公共 runner 已无调用的 `sha256` 分支。native archive TOC、relocation、TLS 和 artifact-corruption 四项普通复验通过，仍精确验证目标损坏诊断和失败时的原输出。
+
+另外两项使用嵌入整份旧 manifest、profile 指纹、成员长度和摘要的替换片段，无法跨正常产物变更复用。按修订后的 M23-11 测试约定，将必要的格式／引用校验放到现有 Rust 测试入口：完整 registration reader 使用当次编码的表删除委托存储、失败根、initializer callable 或初始化单元；初始化引用测试区分正确角色、对调角色与另一个属性的来源；slib 测试构造实际 optional／link-required 成员，验证归档读回、对象目录、语义指纹不变／整个产物变化及精确拒绝结果。没有增加生产接口或测试用的通用产物修改框架。
+
+删除冻结片段和退役的重复 optional-members CLI fixture，共 73 个失用文件；泛型委托 fixture 的 27 个正常步骤完整保留，仍包含三 Cone 编译、移走源码、artifact-only 消费、完整阶段／符号和两种 GC。通用 program-link 的 artifact-only 运行及原子失败行为继续保留。公开语言错误的 negative fixture 未减少。
+
+Rust 格式化、workspace clippy 和 4 项定向测试通过（其中已有完整 reader 测试增加八个缺项组合，两个调度分别验证）；新增独立测试为 3 项。Ruff 和 42 项公共 runner 测试通过。Darwin CLI 最终定向验收继续复用此前成功结果，另行记录完整并集。
+
+## G4：Rust 端到端测试的固定机器码摘要
+
+继续审查 Rust 中的固定哈希，删除泛型机器码端到端辅助函数中的 13 个哈希字面量及仅用于选择该表的 target 参数。真实对象、registration 和 safepoint 的 typed 引用、ABI／LIR 对应关系与补丁字节检查仍在；不同 Cone 的实际内容一致性，以及修改关联 EH／stackmap atom 后只使相应 definition 失效的断言全部保留。该辅助文件减少 69 行，不以另一张快照表替代。
+
+直接构造受控对象字节的 slib 指纹测试、identity／wire 编码向量与 cache key／receipt 的 canonical 向量仍保留。普通文件 fixture 的固定 fingerprint 检查再次扫描为零。格式化、workspace clippy 和 `actual_generic_library_emits_shared_odr_objects` 定向测试通过。
+
+## G5：过期依赖诊断的内容摘要
+
+三个依赖失效 fixture 的四个诊断步骤仍固定了某次构建的 HIR／MIR／LIR 摘要。先修订 M23-11 的测试约定，再增加仅供诊断使用的 `dependency-digests`：只匹配完整 `StaleDependency` 消息中的六个内容摘要，以首次出现编号保留 recorded 与 actual 的相等／变化关系；Cone／provider 的身份、依赖坐标、来源、阶段、code、notes 和其他消息内容保持精确。生产诊断与指纹计算不变。
+
+归一化后逐字节确认三平台期望相同，将 12 份固定摘要 JSON 合并为 4 份共同诊断文件。增加两个公共规则测试，覆盖失效变成相等、错误阶段摘要、交换 actual 字段、改变依赖身份／坐标、无关或不完整摘要，以及更新快照时仍拒绝不同诊断。
+
+Ruff 0.16.10 格式化与检查通过，44 项公共 runner 测试在 Darwin 和 Linux 均通过。三个实际 CLI 负例在 Darwin 普通模式复验通过，保留原产物图、原子失败、链接和运行步骤；Linux 的后续定向复验记入最终验收记录。
+
+## H1：Darwin 正式验收与阶段快照
+
+完成一次完整 CLI 运行，之后仅修复、复验失败集合。初次发现 2551 项，1277 项通过；删除重复的冻结 optional-members 用例后，当前发现 2550 项。通过记录按当前 fixture 名称去重，最终 Darwin 适用的 2543 项全部有普通模式通过结果，另 7 项明确仅适用于 Linux。不存在仍待处理的失败或配置错误，也未把更新快照的运行计入通过并集。
+
+主要定向轮为 B：707 项中 181 项通过；C：1085 项中 369 项通过；D：708 项中 516 项通过；E：192 项中 171 项通过；F：21 项中 18 项通过；H：最后 3 项全部通过。另保留四轮指纹清理与 core 可见性回归的有效通过结果。最后三个多步骤用例先更新并审阅快照，只发现三处 ImportedIdentityId 编号变化，再以普通模式通过 58 个进程、70 份阶段／计划 golden。
+
+迁移完整 HIR／MIR／LIR，保留实际 typed identity、字段、顺序、布局、符号与引用。只涉及 imported identity 临时编号的更新先确认其余字节相同；core 新增浮点与 codec 方法引起的类型／函数索引、源码区间，以及构造器推导修复引起的闭包路径另行审阅。多 Cone 的 consumer dump 按完整 HIR 对应到实际产物；三个 M29 编码 consumer 的 LIR 与原始基线比较，差异仅为已审阅的 struct、external function 和 external type descriptor 索引，完整指令与控制流保持。
+
+## H2：平台链接计划、完整符号与最终收尾
+
+core 新增 40 个对象，runtime 新增 5 个对象；Linux 的实际系统导入增加 7 个。按对应的原始基线同步明确计数字段，其他计划结构保持；删除两个 Darwin-only fixture 不再引用的旧 GNU 计划。没有通过隐藏对象、符号或动态绑定来稳定计划。
+
+Darwin 的完整／strong 符号清单从本轮实际程序提取，四个闭包作用域变动按已审阅的阶段输出更新。Linux 在 namespace、继承／ZST 与 core library 三个实际程序上确认共同新增符号，再补齐 GNU／musl 的 1372 份标准 nm 清单。四个闭包用例的 Linux 专属 byte-string、layout 和 stackmap 名称从实际目标程序取回，全部符号类别及数量保持；helper 的完整 nm 清单只有新增内容。更新后不丢弃旧符号、不折叠身份或结构。
+
+GNU 与 musl 最后各选 11 个实际 CLI 样本，覆盖不同 core 配置、四种闭包初始化、完整 helper 符号和三组过期依赖。更新轮后审阅了 18 份目标符号文件，源码、诊断、共享 IR 与其他快照均无新增变化；随后在两个新目录中并行普通复验，各 11 项全部通过、11 个变体、143 个进程、188 份阶段／计划 golden。Linux 没有重跑无关全仓库 CLI 全量，之前的 M30、M29、native 与 GC 有效结果继续复用。
+
+完成前再次确认两台机器无活动 Rust 构建，清理约 1.6 GiB／6.5 GiB 的闲置 debug incremental，保留 release 命令及复用依赖。实现、指纹清理、完整 Darwin 验收与 Linux 专项／受影响范围均已完成，最终范围、版本和复现入口见[验收记录](ACCEPTANCE.md)。

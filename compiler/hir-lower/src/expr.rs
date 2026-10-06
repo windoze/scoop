@@ -86,6 +86,8 @@ mod constructors;
 mod context;
 mod copy_updates;
 mod fields;
+mod floating;
+pub(crate) use floating::{float_literal_candidate_kinds, float_literal_default_kind};
 mod interpolation;
 mod members;
 mod names;
@@ -267,6 +269,9 @@ impl Lowerer {
                 span: *span,
                 origin: self.expression_origin(*span),
             }),
+            ast::Expr::FloatLiteral(literal) => {
+                self.lower_float_literal(literal, expected, false, literal.span)
+            }
             ast::Expr::IntLiteral(literal) => {
                 self.lower_integer_literal(*literal, expected, false, literal.span)
             }

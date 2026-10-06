@@ -144,6 +144,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?
                 }
             }
+            Value::FloatConst(value) => float_constant(context, value).into(),
             Value::IntegerConst(value) => integer_ty(context, value.kind().width())
                 .const_int(value.raw_bits(), false)
                 .into(),
@@ -206,7 +207,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Param(index) => Some(scoop_lir::CallerRootSource::Param(index)),
             Value::Local(id) => Some(scoop_lir::CallerRootSource::Local(id)),
             Value::Temp(id) => Some(scoop_lir::CallerRootSource::Temp(id)),
-            Value::IntegerConst(_)
+            Value::FloatConst(_)
+            | Value::IntegerConst(_)
             | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)

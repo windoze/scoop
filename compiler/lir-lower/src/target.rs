@@ -38,7 +38,11 @@ impl LoweringContext {
         PhysicalLayout::from_scalar(self.target_profile.scalar_layout(kind))
     }
 
-    /// Natural target layout of one exact-width source integer.
+    /// Natural target layout of one IEEE scalar.
+    pub(crate) fn float_layout(self, kind: lir::FloatKind) -> PhysicalLayout {
+        PhysicalLayout::from_scalar(self.target_profile.float_layout(kind))
+    }
+
     pub(crate) fn integer_layout(self, kind: lir::IntegerKind) -> PhysicalLayout {
         self.scalar_layout(kind.width().backend_scalar_kind())
     }

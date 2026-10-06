@@ -425,6 +425,8 @@ fn storage_shape(
         LirType::I16 => scalar(BackendScalarKind::I16),
         LirType::I32 => scalar(BackendScalarKind::I32),
         LirType::I64 => scalar(BackendScalarKind::I64),
+        LirType::F32 => scalar(BackendScalarKind::F32),
+        LirType::F64 => scalar(BackendScalarKind::F64),
         LirType::Ptr(kind) => {
             let layout = target.pointer_layout(*kind);
             (layout.size_bytes(), layout.alignment_bytes())
@@ -537,6 +539,8 @@ fn storage_scan(
         | LirType::I8
         | LirType::I16
         | LirType::I32
+        | LirType::F32
+        | LirType::F64
         | LirType::I64
         | LirType::Ptr(_) => Ok(RefScan::None),
         LirType::Void => Err(StaticStorageShapeFailureV1::Void),

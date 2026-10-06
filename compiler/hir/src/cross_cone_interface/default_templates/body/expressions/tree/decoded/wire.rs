@@ -63,6 +63,22 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             Self::IntegerLiteral(value) => encode_one(encoder, 2, value),
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
             Self::CharLiteral(value) => encode_one(encoder, 63, value),
+            Self::FloatLiteral(value) => encode_one(encoder, 67, value),
+            Self::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => encode_three(encoder, 68, kind, operation, operand.as_ref()),
+            Self::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => encode_four(encoder, 69, kind, operation, lhs.as_ref(), rhs.as_ref()),
+            Self::FloatConversion {
+                conversion,
+                operand,
+            } => encode_two(encoder, 70, conversion, operand.as_ref()),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_one(encoder, 5, &WireSequence(elements)),
             Self::StructInit {
@@ -363,6 +379,34 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             }
             19 => decode_boxed_expression(decoder, fields).map(Self::PtrFromNonZeroULong),
             20 => decode_boxed_expression(decoder, fields).map(Self::PtrToULong),
+
+            68 => {
+                expect_sum_length(decoder, fields, 4)?;
+                Ok(Self::FloatUnary {
+                    kind: decoder.field(1, crate::FloatKind::decode)?,
+                    operation: decoder.field(2, crate::FloatUnaryOperator::decode)?,
+                    operand: decode_boxed_expression_field(decoder, 3)?,
+                })
+            }
+            69 => {
+                expect_sum_length(decoder, fields, 5)?;
+                Ok(Self::FloatBinary {
+                    kind: decoder.field(1, crate::FloatKind::decode)?,
+                    operation: decoder.field(2, crate::FloatBinaryOperator::decode)?,
+                    lhs: decode_boxed_expression_field(decoder, 3)?,
+                    rhs: decode_boxed_expression_field(decoder, 4)?,
+                })
+            }
+            70 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::FloatConversion {
+                    conversion: decoder.field(1, crate::DefaultFloatConversionV1::decode)?,
+                    operand: decode_boxed_expression_field(decoder, 2)?,
+                })
+            }
+            67 => {
+                decode_one(decoder, fields, crate::HirFloatConstant::decode).map(Self::FloatLiteral)
+            }
             63 => {
                 decode_one(decoder, fields, crate::CanonicalCharV1::decode).map(Self::CharLiteral)
             }

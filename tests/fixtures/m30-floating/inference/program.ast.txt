@@ -1,0 +1,216 @@
+SourceFile
+  RootPackage
+  fun pick(value: Float): String
+    =
+      StringLiteral "Float"
+  fun pick(value: Double): String
+    =
+      StringLiteral "Double"
+  fun reversed(value: Double): String
+    =
+      StringLiteral "Double"
+  fun reversed(value: Float): String
+    =
+      StringLiteral "Float"
+  fun same<T>(first: T, second: T): T
+    =
+      Var first
+  struct Cell<T>
+    field value: T
+  fun first(vararg values: Float): Float
+    =
+      Index
+        Var values
+        IntLiteral 0
+  fun defaults(value: Float = <expr>): Float
+    =
+      Var value
+  fun result(): Float
+    =
+      FloatLiteral 1.000000059604644775390625000001
+  fun consume(action: () -> Float): Float
+    =
+      Call action
+  val constOperator: Float <const> = <expr>
+  val constMember: Float <const> = <expr>
+  val constExpected: Float <const> = <expr>
+  val constEqual: Boolean <const> = <expr>
+  val constOrder: Boolean <const> = <expr>
+  val constConversion: Float <const> = <expr>
+  fun main()
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call pick
+              FloatLiteral 0.1
+            StringLiteral "Double"
+          Binary Eq
+            Call reversed
+              FloatLiteral 0.1
+            StringLiteral "Double"
+        Binary Eq
+          Call pick
+            FloatLiteral .1f
+          StringLiteral "Float"
+    Call println
+      Binary And
+        Binary Eq
+          Call pick
+            FloatLiteral 1e40
+          StringLiteral "Double"
+        Binary Eq
+          Call reversed
+            FloatLiteral 1e40
+          StringLiteral "Double"
+    val fixed
+      FloatLiteral 0f
+    val operator
+      Binary Add
+        FloatLiteral 1.000000059604644775390625000001
+        Var fixed
+    val member
+      MethodCall plus
+        FloatLiteral 1.000000059604644775390625000001
+        Var fixed
+    val expected: Float
+      MethodCall plus
+        FloatLiteral 1.000000059604644775390625000001
+        FloatLiteral 0.0
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Var operator
+            FloatLiteral 1.0000001f
+          Binary Eq
+            Var member
+            FloatLiteral 1.0000001f
+        Binary Eq
+          Var expected
+          FloatLiteral 1.0000001f
+    Call println
+      Binary And
+        Binary Gt
+          FloatLiteral 1.000000059604644775390625000001
+          FloatLiteral 1f
+        Binary Eq
+          FloatLiteral 1.000000059604644775390625000001
+          FloatLiteral 1.0000001f
+    Call println
+      MethodCall isTotallyOrdered
+        FloatLiteral 1.000000059604644775390625000001
+        Argument belowOrEqualTo=
+          FloatLiteral 1.0000001f
+    Call println
+      Binary Eq
+        MethodCall toFloat
+          FloatLiteral 1.000000059604644775390625000001
+        FloatLiteral 1f
+    val generic
+      Call same
+        FloatLiteral 1.000000059604644775390625000001
+        Var fixed
+    val nested
+      Call same
+        Call Cell
+          FloatLiteral 1.000000059604644775390625000001
+        Call Cell
+          Var fixed
+    val nominal: Cell<Float>
+      Call Cell
+        FloatLiteral 1.000000059604644775390625000001
+    val unbound
+      Call same
+        FloatLiteral 0.1
+        FloatLiteral 0.2
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              Var generic
+              FloatLiteral 1.0000001f
+            Binary Eq
+              FieldAccess value
+                Var nested
+              FloatLiteral 1.0000001f
+          Binary Eq
+            FieldAccess value
+              Var nominal
+            FloatLiteral 1.0000001f
+        Binary Eq
+          Call pick
+            Var unbound
+          StringLiteral "Double"
+    val array
+      ArrayLiteral
+        FloatLiteral 1.000000059604644775390625000001
+        Var fixed
+    val branch
+      IfExpression
+        BoolLiteral true
+        FloatLiteral 1.000000059604644775390625000001
+        else
+        Var fixed
+    val tuple: (Float, Double)
+      TupleLiteral
+        FloatLiteral 1.000000059604644775390625000001
+        FloatLiteral 0.1
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Index
+              Var array
+              IntLiteral 0
+            FloatLiteral 1.0000001f
+          Binary Eq
+            Var branch
+            FloatLiteral 1.0000001f
+        Binary Eq
+          FieldAccess _1
+            Var tuple
+          FloatLiteral 1.0000001f
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call first
+              FloatLiteral 1.000000059604644775390625000001
+              FloatLiteral 0.0
+            FloatLiteral 1.0000001f
+          Binary Eq
+            Call defaults
+            FloatLiteral 1.0000001f
+        Binary Eq
+          Call result
+          FloatLiteral 1.0000001f
+    Call println
+      Binary Eq
+        Call consume
+          Lambda 0 suspend=false
+            parameters omitted
+            FloatLiteral 1.000000059604644775390625000001
+        FloatLiteral 1.0000001f
+    Call gcCollect
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary Eq
+                  Var constOperator
+                  FloatLiteral 1.0000001f
+                Binary Eq
+                  Var constMember
+                  FloatLiteral 1.0000001f
+              Binary Eq
+                Var constExpected
+                FloatLiteral 1.0000001f
+            Var constEqual
+          Var constOrder
+        Binary Eq
+          Var constConversion
+          FloatLiteral 1f

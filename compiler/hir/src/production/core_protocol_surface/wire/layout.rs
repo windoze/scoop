@@ -28,6 +28,8 @@ pub(super) const FUNDAMENTAL_LAYOUT: [ProtocolEntryKind; FUNDAMENTAL_TYPE_COUNT]
     ProtocolEntryKind::GenericType,
     ProtocolEntryKind::GenericType,
     ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
 ];
 pub(super) const OPTION_LAYOUT: [ProtocolEntryKind; OPTION_PROTOCOL_COUNT] = [
     ProtocolEntryKind::GenericType,

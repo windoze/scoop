@@ -1,0 +1,48 @@
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("floating JSON assertion failed")) }
+}
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): ULong
+@NoGC @Extern(lib = "fixture_native", name = "select_numeric_locale")
+fun selectNumericLocale(): Unit
+
+@Unsafe fun main() {
+    selectNumericLocale()
+    roundTrips()
+    check(Json.encode(-0f, Float32.Companion) == "-0.0")
+    check(Json.encode(-0.0, Float64.Companion) == "-0.0")
+    check(Json.encode(0.1f, Float.Companion) == "0.1")
+    check(Json.encode(1e7, Double.Companion) == "1.0e7")
+    check(Json.decode("16777217", Float.Companion) == 16777216f)
+    check(Json.decode("9007199254740993", Double.Companion) == 9007199254740992.0)
+    val halfway = "1.000000059604644775390625000001"
+    check(floatBits(Json.decode(halfway, Float.Companion)) == 0x3f800001U)
+    check(floatBits(Json.decode(halfway, Double.Companion).toFloat()) == 0x3f800000U)
+    check(floatBits(Json.decode("1.000000059604644775390625", Float.Companion)) == 0x3f800000U)
+    check(floatBits(Json.decode("1.000000178813934326171875", Float.Companion)) == 0x3f800002U)
+    check(floatBits(Json.decode("-1e-1000", Float.Companion)) == 0x80000000U)
+    check(doubleBits(Json.decode("-1e-1000", Double.Companion)) == 0x8000000000000000UL)
+    check(Json.decode("1e-45", Float.Companion) == Float.MIN_VALUE)
+    check(Json.decode("5e-324", Double.Companion) == Double.MIN_VALUE)
+    var longNumber = "1"
+    var digits = 0L
+    while (digits < 410L) { longNumber += "0"; digits = digits + 1L }
+    longNumber += "e-410"
+    check(Json.decode(longNumber, Float.Companion) == 1f)
+    check(Json.decode(longNumber, Double.Companion) == 1.0)
+    check(Json.decode("18446744073709551615", ULong.Companion) == 18446744073709551615UL)
+    rejectDecoding("1.0", Long.Companion, "")
+    rejectDecoding("1e0", ULong.Companion, "")
+    numericErrors()
+    combinations()
+    println("json-floating-ok")
+}

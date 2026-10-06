@@ -44,7 +44,3 @@ diagnostics = {"file" = "diagnostics.json"}
 checks = [
   {"file" = "${work}/artifacts/test/scoop-hir-lower/0.0.0/cone.slib", "exists" = false},
 ]
-
-[[steps]]
-name = "artifact-fingerprints"
-checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

@@ -130,6 +130,9 @@ impl<'a> Projection<'a> {
                 }
                 Ok(())
             }
+            (Kind::Intrinsic(Intrinsic::Float(expected)), mir::Type::Struct(id)) if matches!(self.module.structs[*id].representation, mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(actual)) if actual == *expected) => {
+                Ok(())
+            }
             (Kind::Intrinsic(Intrinsic::Char), mir::Type::Struct(id))
                 if matches!(
                     self.module.structs[*id].representation,

@@ -1,15 +1,15 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:empty-provider:0.1.0 kind=Library objects=2
 cone dev.example:ordinary:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=3 root=scoop$1$re$3ef13c3d0996bfa9da902901a6f863e1f91852b2779dfb4dbb7144b0513a659f
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 origins=dev.example:ordinary:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([57, 139, 35, 55, 195, 30, 181, 3, 52, 142, 118, 192, 40, 143, 216, 62, 169, 249, 155, 239, 211, 47, 206, 21, 7, 137, 2, 125, 133, 19, 94, 25])])
-native archive 7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 members=1
-  member 0 header=8 payload=68..1748 name="trace.o" digest=172a5e4f869d26b6235871184ef8a8096e940edfd3bf1187bef58c77c6ebe557 selected=true
-ELF system imports=48
+native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=$NATIVE_INPUT_0 origins=dev.example:ordinary:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([57, 139, 35, 55, 195, 30, 181, 3, 52, 142, 118, 192, 40, 143, 216, 62, 169, 249, 155, 239, 211, 47, 206, 21, 7, 137, 2, 125, 133, 19, 94, 25])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1748 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=55
 startup object references:
   scoop$1$im$3ef13c3d0996bfa9da902901a6f863e1f91852b2779dfb4dbb7144b0513a659f
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

@@ -1,0 +1,56 @@
+schema = 1
+name = "m30-floating-values"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m30", "floating", "gc", "stage-golden"]
+
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "${work}/native/lib"}}]
+
+[[steps]]
+name = "compile_native_0"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native_0"
+argv = ["${ar}", "rcs", "${work}/native/lib/libfixture_native.a", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "values-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "values-ok\n"
+stderr = ""
+

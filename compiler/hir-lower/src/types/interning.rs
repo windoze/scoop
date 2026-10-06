@@ -119,7 +119,7 @@ impl Lowerer {
             },
             hir::StructApplicationRepresentation::Declared
             | hir::StructApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::Char,
+                hir::IntrinsicTypeRepresentation::Char | hir::IntrinsicTypeRepresentation::Float(_),
             ) => hir::TypeId::from_raw((self.types.len() as u32).into()),
             hir::StructApplicationRepresentation::Intrinsic(_) => {
                 unreachable!("the intrinsic contract fixes its declaration target")
@@ -137,6 +137,7 @@ impl Lowerer {
                 hir::StructApplicationRepresentation::Declared
                     | hir::StructApplicationRepresentation::Intrinsic(
                         hir::IntrinsicTypeRepresentation::Char
+                            | hir::IntrinsicTypeRepresentation::Float(_)
                     )
             )
         {

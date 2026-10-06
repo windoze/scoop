@@ -1,14 +1,14 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:enum-provider:0.1.0 kind=Library objects=51
 cone dev.example:enums-constructors:0.1.0 kind=Library objects=8
 cone dev.example:downstream-constructors:0.1.0 kind=Library objects=3
 cone dev.example:value-runtime-enum-constructors:0.1.0 kind=Executable objects=3
-runtime objects=65
+runtime objects=70
 images=5 root=scoop$1$re$8bfd4fed211320d524c149706e2f68eee0e9d0408750cc05f6b9e8a4a43a4f59
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-ELF system imports=49
+ELF system imports=56
 startup object references:
   scoop$1$im$16187ac9fb63efe28597a2e7fe74fdd3728c065feeaa7ad3d2e0957c109a0938
   scoop$1$im$37df747546841154c4497e25bff1c5ced6450c503f64ff4c403ad26d508258fa

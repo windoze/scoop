@@ -151,6 +151,7 @@ impl MirTypeBridgeAuthority<'_> {
                         SourceDeclarationKind::Struct,
                         MirTypeRepresentationV1::Intrinsic(
                             MirParamFreeIntrinsicV1::Integer(_)
+                                | MirParamFreeIntrinsicV1::Float(_)
                                 | MirParamFreeIntrinsicV1::Char
                                 | MirParamFreeIntrinsicV1::Boolean
                         )
@@ -249,6 +250,7 @@ impl MirTypeBridgeAuthority<'_> {
             Repr::Intrinsic(MirParamFreeIntrinsicV1::Unit) => facts.kind() == Kind::ZeroSizedValue,
             Repr::Intrinsic(
                 MirParamFreeIntrinsicV1::Integer(_)
+                | MirParamFreeIntrinsicV1::Float(_)
                 | MirParamFreeIntrinsicV1::Char
                 | MirParamFreeIntrinsicV1::Boolean,
             ) => facts.kind() == Kind::NonZeroValue && facts.gc() == MirGcKindV1::GcFree,

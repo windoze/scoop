@@ -44,7 +44,7 @@ fn registry_is_a_closed_typed_lookup() {
         CBridgeTargetSupportRegistryV1::current(LirTargetProfile::DARWIN_AARCH64, &profile)
             .unwrap();
 
-    assert_eq!(registry.requirements().len(), 2);
+    assert_eq!(registry.requirements().len(), 4);
     assert_eq!(
         registry
             .requirement_for_object_symbol(b"__tlv_bootstrap")
@@ -76,7 +76,7 @@ fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
             crate::GccCompilerIdentityV1::new("15.2.0", scoop_wire::sha256(b"gcc inputs")).unwrap();
         let profile = CBridgeToolchainProfileV1::new_linux_gcc(target, compiler).unwrap();
         let registry = CBridgeTargetSupportRegistryV1::current(target, &profile).unwrap();
-        assert_eq!(registry.requirements().len(), 2);
+        assert_eq!(registry.requirements().len(), 4);
         assert_eq!(
             registry
                 .requirement_for_object_symbol(b"__tls_get_addr")
@@ -102,6 +102,8 @@ fn linux_support_uses_its_tls_resolver_and_preserves_darwin_tags() {
         (CBridgeTargetSupportV1::Memcpy, 1),
         (CBridgeTargetSupportV1::TlvBootstrap, 2),
         (CBridgeTargetSupportV1::TlsGetAddr, 3),
+        (CBridgeTargetSupportV1::Fmodf, 4),
+        (CBridgeTargetSupportV1::Fmod, 5),
     ] {
         assert_eq!(encode(&support).unwrap(), vec![tag]);
     }

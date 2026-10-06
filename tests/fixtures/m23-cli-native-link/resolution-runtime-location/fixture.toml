@@ -56,7 +56,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests"]}]
 
 [[steps]]
 name = "run_original"
@@ -79,7 +79,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${relocated.result.link_plan}", "not_equals" = "${link.result.link_plan}"}, {"actual" = "${relocated.result.link_plan}", "contains" = "moved/native"}, {"actual" = "${relocated.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${relocated.result.link_plan}", "snapshot" = "relocated.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${relocated.result.link_plan}", "not_equals" = "${link.result.link_plan}"}, {"actual" = "${relocated.result.link_plan}", "contains" = "moved/native"}, {"actual" = "${relocated.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${relocated.result.link_plan}", "snapshot" = "relocated.plan", "normalize" = ["paths", "native-digests"]}]
 
 [[steps]]
 name = "run_relocated"

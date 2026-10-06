@@ -112,6 +112,7 @@ impl<'a> ConcreteTypeRelations<'a> {
             }
             IntrinsicTypeRepresentation::Unit
             | IntrinsicTypeRepresentation::Integer(_)
+            | IntrinsicTypeRepresentation::Float(_)
             | IntrinsicTypeRepresentation::Char
             | IntrinsicTypeRepresentation::Boolean
             | IntrinsicTypeRepresentation::String => Ok(()),

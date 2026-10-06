@@ -327,6 +327,18 @@ schema 的首版字段围绕当前实际测试需要组织，不把不同里程�
 
 ### 7.3 快照与运行保持
 
+2026-10-07 修订：普通功能 fixture 删除与被测行为无关的整份产物、core 和 native 输入固定摘要，以及失去用途的 golden 和辅助步骤。本目录中旧验收记录的指纹数量只记录当时执行范围，不构成以后继续锁定具体哈希的要求。缓存命中／失效、确定性、读写及源码构建与 artifact-only 消费一致性仍比较同次产生的实际值；只有输入严格受控的编码／指纹专门测试保留固定摘要。结构快照的内容摘要归一化限定明确字段，并以稳定编号保留相等和引用关系；不得隐藏 typed identity、符号、布局、顺序或其他结构差异，也不得掩盖同等条件下的非确定性。
+
+`native-digests` 只处理链接计划中 native input、archive member payload 及 dynamic provider 的内容摘要和对应引用，保留 requirement、源码声明身份、符号、成员范围与选择、动态库路径及绑定。native 诊断可以显式使用 `diagnostics_normalize`，仅归一化同一类 native object／NativeInputId 字段；其他诊断内容保持精确。规则与公共引用关系测试见 [fixture schema 1](../../../tests/fixture_runner/README.md)。
+
+文件损坏 fixture 不预先锁定整份编译产物或系统对象的 SHA-256。必要的损坏位置／字段、reader 诊断与原子输出检查承担具体正确性验证；固定编码和指纹向量由输入严格受控的 Rust 专门测试覆盖。没有实际用例后，删除公共 runner 的 `sha256` 比较及仅为它存在的测试代码。
+
+不能用嵌入整份旧 manifest、profile fingerprint、成员长度及摘要的二进制替换片段间接锁定普通功能产物。registration 缺项和初始化 callable 角色错配由 Rust reader／引用校验测试对当次编码的记录构造损坏输入；泛型委托的三 Cone 编译、移走源码后的产物消费、符号与 GC 运行仍由 CLI fixture 覆盖。未知 optional／link-required blob 的归档读回、对象目录选择和指纹相等／变化关系在现有 slib 测试中使用当次生成的成员验证；重复的冻结归档拼接 fixture 退役，CLI 的 artifact-only 链接、运行和失败时保留原输出仍由普通 program-link fixture 验证。
+
+Rust 端到端源码测试也遵守上述约定：真实 LLVM 对象的 ABI／LIR／definition 摘要通过当前记录、补丁写入、跨 Cone 相等和关联对象修改后的失效关系验证，不额外硬编码某次后端输出的哈希。直接构造受控字节或 canonical 编码的底层指纹向量继续保留。
+
+`StaleDependency` 诊断可以显式使用 `dependency-digests`：只归一化 `recorded HIR/MIR/LIR ... , actual ...` 六个内容摘要，以首次出现编号保留记录值与实际值的相等／变化关系。Cone／provider 身份、坐标、完整阶段名、来源、错误 code 和其他诊断字段保持精确；其他摘要或任意 ID 不适用该规则。归一化后确实相同的三平台诊断期望合并为单份文件。
+
 正例通过 `--emit all --dump-dir ...` 从一次当前 root 编译取得四阶段 dump，再执行同次生成的 binary，保留 warning、stdout/stderr、exit 或 trap 覆盖。negative 从结构化诊断核对 canonical source/span、code、message 和 notes；不能让“任意非零退出”满足原语言错误期望。
 
 Python 从正式 CLI 的 JSON 记录、dump 文件和真实进程结果取得这些信息，阶段 golden 只比较当前编译实际产生的阶段输出，不启动第二套前端。原 Rust 代码中的断言和旧 directive 一次迁成相同 schema，不保留另一套长期解释器。快照更新是显式开发命令，只更新被选择的期望文件并生成可审阅 diff，不自动改写成功／失败分类或接受新诊断；正常运行和最终验收始终只读期望。

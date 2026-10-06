@@ -19,7 +19,9 @@ pub(super) fn validate_and_assign_zero_padding(
     }
     let mut padding_ends = BTreeMap::new();
     for (index, section) in sections.envelope().sections().iter().enumerate() {
-        if sections.roles()[index] == BuiltinObjectSectionRoleV1::ObjectMetadata {
+        if sections.roles()[index] == BuiltinObjectSectionRoleV1::ObjectMetadata
+            || super::super::literal_pools::literal_width(section).is_some()
+        {
             continue;
         }
         let ordinal_index = index + 1;

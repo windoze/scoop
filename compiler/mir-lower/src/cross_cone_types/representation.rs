@@ -24,6 +24,19 @@ pub(super) fn project(
         (mir::Type::Integer(kind), Source::Intrinsic { .. }) => {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Integer(*kind))
         }
+        (mir::Type::Struct(id), Source::Intrinsic { representation })
+            if matches!(representation.family(), hir::IntrinsicTypeKind::Float(_)) =>
+        {
+            let mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(kind)) =
+                module.structs[*id].representation
+            else {
+                return Err(mismatch());
+            };
+            if representation.family() != hir::IntrinsicTypeKind::Float(kind) {
+                return Err(mismatch());
+            }
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Float(kind))
+        }
         (mir::Type::Struct(id), Source::Intrinsic { .. })
             if matches!(
                 module.structs[*id].representation,

@@ -21,6 +21,7 @@ impl WireEncode for IntrinsicFunctionKind {
             Self::ForeignCallbackState => encode_empty_sum(encoder, 13),
             Self::ForeignCallbackFailure => encode_empty_sum(encoder, 14),
             Self::Integer(kind) => encode_value_sum(encoder, 15, kind),
+            Self::Float(kind) => encode_value_sum(encoder, 22, kind),
             Self::PrimitiveUnary(kind) => {
                 encode_unsigned_value_sum(encoder, 16, primitive_unary_tag(*kind))
             }
@@ -62,6 +63,12 @@ impl WireDecode for IntrinsicFunctionKind {
             12 => decode_empty_intrinsic(decoder, fields, Self::ForeignCallbackRelease),
             13 => decode_empty_intrinsic(decoder, fields, Self::ForeignCallbackState),
             14 => decode_empty_intrinsic(decoder, fields, Self::ForeignCallbackFailure),
+            22 => {
+                require_intrinsic_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, FloatIntrinsicKind::decode)
+                    .map(Self::Float)
+            }
             15 => {
                 require_intrinsic_sum_length(decoder, fields, 2)?;
                 decoder

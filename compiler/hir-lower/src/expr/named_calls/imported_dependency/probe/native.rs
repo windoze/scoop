@@ -34,7 +34,7 @@ impl Lowerer {
             sinks: argument_sinks,
             parameter_types,
             return_type: result_type,
-            integer_arguments,
+            numeric_arguments,
             ..
         } = match self.infer_call_arguments(CallInferenceInput {
             signature: &signature,
@@ -130,7 +130,7 @@ impl Lowerer {
             default_plan,
             parameter_types,
             result_type,
-            integer_arguments,
+            numeric_arguments,
             call_span: call.span,
         })
     }

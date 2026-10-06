@@ -21,6 +21,14 @@ pub(crate) fn struct_layout(
                     lir::IntrinsicTypeRepresentation::Integer(kind),
                 )
             }
+            mir::IntrinsicTypeRepresentation::Float(kind) => {
+                let layout = context.float_layout(*kind);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Float(*kind),
+                )
+            }
             mir::IntrinsicTypeRepresentation::Char => {
                 let layout = context.scalar_layout(lir::BackendScalarKind::I32);
                 (

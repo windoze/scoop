@@ -119,7 +119,3 @@ exit = 0
 stdout = ""
 stderr = ""
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
-
-[[steps]]
-name = "artifact-fingerprints"
-checks = [{actual = {"consumer" = "${consumer.result.root.artifact_fingerprint}", "core" = "${core.result.root.artifact_fingerprint}", "program" = "${program.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

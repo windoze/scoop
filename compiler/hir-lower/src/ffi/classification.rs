@@ -58,7 +58,7 @@ impl Lowerer {
             },
             _ => ty,
         };
-        if self.is_char_type(resolved) {
+        if self.is_char_type(resolved) || self.float_kind(resolved).is_some() {
             return Ok(Classification::Safe);
         }
         match self.types[resolved].clone() {
@@ -264,7 +264,7 @@ impl Lowerer {
             hir::Type::Param(parameter) => *substitution.get(parameter.into_raw() as usize)?,
             _ => ty,
         };
-        if self.is_char_type(ty) {
+        if self.is_char_type(ty) || self.float_kind(ty).is_some() {
             return Some(false);
         }
         match self.types[ty].clone() {

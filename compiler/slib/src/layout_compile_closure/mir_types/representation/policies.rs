@@ -43,6 +43,7 @@ pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamF
                 },
             ))
         }
+        hir::IntrinsicTypeKind::Float(kind) => mir::MirParamFreeIntrinsicV1::Float(kind),
         hir::IntrinsicTypeKind::Char => mir::MirParamFreeIntrinsicV1::Char,
         hir::IntrinsicTypeKind::Boolean => mir::MirParamFreeIntrinsicV1::Boolean,
         hir::IntrinsicTypeKind::String => mir::MirParamFreeIntrinsicV1::String,

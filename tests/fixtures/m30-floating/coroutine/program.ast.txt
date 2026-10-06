@@ -1,0 +1,143 @@
+SourceFile
+  RootPackage
+  struct Packet
+    field single: Float
+    field wide: Double
+    field label: String
+  class Gate<T>(var waiter: Continuation<T>?)
+    fun isWaiting
+    fun complete
+  class Registration<T>(val gate: Gate<T>), SuspendRegistration<T>
+    public fun register
+  suspend fun awaitSingle(gate: Gate<Float>): Float
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  suspend fun awaitWide(gate: Gate<Double>): Double
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun fromFloatBits(value: UInt): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun fromDoubleBits(value: ULong): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): ULong
+  class Task(val first: Gate<Float>, val second: Gate<Double>, val seed: Packet), SuspendTask<Packet>
+    public suspend fun run
+  class Completion(var result: Packet?, var failed: Boolean), Continuation<Packet>
+    public fun resume
+    public fun resumeWithException
+  fun collect()
+    var index
+      IntLiteral 0L
+    while
+      Binary Lt
+        Var index
+        IntLiteral 256L
+      val garbage
+        Binary Add
+          StringLiteral "garbage-"
+          MethodCall toString
+            Var index
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1L
+    Call gcCollect
+    @Unsafe
+  fun main()
+    val first
+      Call Gate<Float>
+        Var None
+    val second
+      Call Gate<Double>
+        Var None
+    val completion
+      Call Completion
+        Var None
+        BoolLiteral false
+    val seed
+      Call Packet
+        Call fromFloatBits
+          IntLiteral 0xff800123u
+        Call fromDoubleBits
+          IntLiteral 0x7ff0000000000123uL
+        StringLiteral "seed"
+    Call startCoroutine
+      Call Task
+        Var first
+        Var second
+        Var seed
+      Var completion
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess result
+            Var completion
+          Var None
+        Unary Not
+          MethodCall isWaiting
+            Var first
+      Call println
+        StringLiteral "first"
+      return
+    Call collect
+    MethodCall complete
+      Var first
+      Unary Neg
+        FloatLiteral 0f
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess result
+            Var completion
+          Var None
+        Unary Not
+          MethodCall isWaiting
+            Var second
+      Call println
+        StringLiteral "second"
+      return
+    Call collect
+    MethodCall complete
+      Var second
+      FieldAccess MIN_VALUE
+        Var Double
+    val result
+      NullAssert
+        FieldAccess result
+          Var completion
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            FieldAccess failed
+              Var completion
+            Binary Ne
+              FieldAccess label
+                Var result
+              StringLiteral "frame-alive"
+          Binary Ne
+            Call floatBits
+              FieldAccess single
+                Var result
+            IntLiteral 0x80000000u
+        Binary Ne
+          Call doubleBits
+            FieldAccess wide
+              Var result
+          IntLiteral 1uL
+      Call println
+        StringLiteral "result"
+      return
+    Call println
+      StringLiteral "coroutine-ok"

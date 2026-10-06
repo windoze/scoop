@@ -48,6 +48,34 @@ impl Lowerer {
                 owner: *owner,
             },
             hir::ExprKind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral(*value),
+            hir::ExprKind::FloatLiteral(value) => hir::ExprKind::FloatLiteral(*value),
+            hir::ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => hir::ExprKind::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+            },
+            hir::ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => hir::ExprKind::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.instantiate_default_expr(lhs, context)),
+                rhs: Box::new(self.instantiate_default_expr(rhs, context)),
+            },
+            hir::ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => hir::ExprKind::FloatConversion {
+                conversion: *conversion,
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
+            },
             hir::ExprKind::CharLiteral(value) => hir::ExprKind::CharLiteral(*value),
             hir::ExprKind::CharCode(value) => {
                 hir::ExprKind::CharCode(Box::new(self.instantiate_default_expr(value, context)))

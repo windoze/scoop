@@ -50,6 +50,17 @@ fn integer_methods(kind: hir::IntegerKind) -> Vec<ast::FunctionDecl> {
     let type_name = kind.canonical_name();
     let prefix = kind.registry_key();
     let mut methods = Vec::new();
+    for target in hir::FloatKind::ALL {
+        methods.push(integer_intrinsic_method(
+            &format!("to{}", target.canonical_name()),
+            format!("{prefix}_to_{}", target.registry_key()),
+            Vec::new(),
+            ty_named(target.canonical_name()),
+            false,
+            false,
+            true,
+        ));
+    }
     if kind == hir::IntegerKind::SIGNED_32 {
         let mut method = integer_intrinsic_method(
             "characterUnchecked",

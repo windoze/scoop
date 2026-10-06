@@ -1,0 +1,35 @@
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): ULong
+
+fun multiplyAdd(a: Float, b: Float, c: Float): Float = a * b + c
+fun multiplyAdd(a: Double, b: Double, c: Double): Double = a * b + c
+fun addThenSubtract(a: Float, b: Float): Float = (a + b) - b
+fun addThenSubtract(a: Double, b: Double): Double = (a + b) - b
+fun reflexive(value: Float): Boolean = value == value
+fun reflexive(value: Double): Boolean = value == value
+
+@Unsafe fun main() {
+    val single = multiplyAdd(fromFloatBits(0x3f800001U), fromFloatBits(0x3f7ffffeU), -1f)
+    val wide = multiplyAdd(fromDoubleBits(0x3ff0000000000001UL), fromDoubleBits(0x3feffffffffffffeUL), -1.0)
+    if (floatBits(single) != 0U || doubleBits(wide) != 0UL) { println("fused"); return }
+    val largeSingle = fromFloatBits(0x7f7fffffU)
+    val largeWide = fromDoubleBits(0x7fefffffffffffffUL)
+    if (!addThenSubtract(largeSingle, largeSingle).isInfinite() ||
+        !addThenSubtract(largeWide, largeWide).isInfinite()) { println("reassociated"); return }
+    val quietSingle = fromFloatBits(0x7fc00042U)
+    val quietWide = fromDoubleBits(0x7ff8000000000042UL)
+    if (reflexive(quietSingle) || reflexive(quietWide)) { println("nan"); return }
+    val negativeSingle = fromFloatBits(0x80000000U)
+    val negativeWide = fromDoubleBits(0x8000000000000000UL)
+    if (floatBits(multiplyAdd(negativeSingle, 1f, negativeSingle)) != 0x80000000U ||
+        doubleBits(multiplyAdd(negativeWide, 1.0, negativeWide)) != 0x8000000000000000UL) {
+        println("zero"); return
+    }
+    println("rounding-ok")
+}

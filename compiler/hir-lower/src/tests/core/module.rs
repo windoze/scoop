@@ -15,6 +15,7 @@ pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(iteration_core_declarations());
     declarations.extend(intrinsic_type_declarations());
+    declarations.extend(super::floating::floating_declarations());
     declarations.extend([
         struct_decl(
             "SourceLocation",

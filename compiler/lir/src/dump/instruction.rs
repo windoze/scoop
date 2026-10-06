@@ -7,6 +7,40 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::FloatUnary {
+            out,
+            kind,
+            operation,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = float_{operation:?}<{kind:?}> {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::FloatBinary {
+            out,
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => buf.push_str(&format!(
+            "    t{} = float_{operation:?}<{kind:?}> {}, {} : {}\n",
+            out.into_raw(),
+            value_name(*lhs),
+            value_name(*rhs),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::FloatConversion {
+            out,
+            conversion,
+            operand,
+        } => buf.push_str(&format!(
+            "    t{} = float_convert<{conversion:?}> {} : {}\n",
+            out.into_raw(),
+            value_name(*operand),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
             super::boxing::dump_boxing(function, instruction, buf)
         }

@@ -32,11 +32,13 @@ impl NamedNominalProbe {
             .iter()
             .any(|parameter| parameter.is_vararg())
     }
-    pub(crate) fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
-        match self.candidate.state.types[self.candidate.inferred.args[index].ty] {
-            hir::Type::Integer(kind) => Some(kind),
-            _ => None,
-        }
+    pub(crate) fn source_argument_numeric(
+        &self,
+        index: usize,
+    ) -> Option<crate::call_resolution::specificity::NumericLiteralKind> {
+        self.candidate
+            .state
+            .numeric_literal_kind(self.candidate.inferred.args[index].ty)
     }
     pub(crate) fn signature(&self, state: &Lowerer) -> String {
         nominal_source_signature(state, &self.candidate.view)

@@ -638,6 +638,7 @@ pub enum MirConstantImage {
     Integer(MirIntegerConstant),
     Boolean(bool),
     Char(char),
+    Float(scoop_identity::FloatConstant),
     String(StringConstId),
     PointerNull(MirPointerNull),
     EnumUnit {
@@ -666,6 +667,7 @@ pub enum MirAnnotationValue {
     Integer(MirIntegerConstant),
     Boolean(bool),
     Char(char),
+    Float(scoop_identity::FloatConstant),
     String(String),
 }
 

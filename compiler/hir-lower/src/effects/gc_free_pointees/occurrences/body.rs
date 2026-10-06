@@ -228,6 +228,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver
@@ -367,6 +368,12 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::PrimitiveUnary {
             operand: source, ..
         }
+        | ExprKind::FloatUnary {
+            operand: source, ..
+        }
+        | ExprKind::FloatConversion {
+            operand: source, ..
+        }
         | ExprKind::IntegerConversion {
             operand: source, ..
         }
@@ -411,6 +418,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::ArrayGenerate {
             count: pointer,
             initializer: offset,
+        }
+        | ExprKind::FloatBinary {
+            lhs: pointer,
+            rhs: offset,
+            ..
         }
         | ExprKind::Binary {
             lhs: pointer,

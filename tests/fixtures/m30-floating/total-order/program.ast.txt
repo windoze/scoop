@@ -1,0 +1,206 @@
+SourceFile
+  RootPackage
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun floatFromBits(bits: UInt32): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun doubleFromBits(bits: UInt64): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt32
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): UInt64
+    @Unsafe
+  fun main()
+    val singles
+      ArrayLiteral
+        Call floatFromBits
+          IntLiteral 0xffc00002u
+        Call floatFromBits
+          IntLiteral 0xffc00001u
+        Call floatFromBits
+          IntLiteral 0xff800002u
+        Call floatFromBits
+          IntLiteral 0xff800001u
+        Call floatFromBits
+          IntLiteral 0xff800000u
+        Call floatFromBits
+          IntLiteral 0xff7fffffu
+        Call floatFromBits
+          IntLiteral 0xbf800000u
+        Call floatFromBits
+          IntLiteral 0x80000001u
+        Call floatFromBits
+          IntLiteral 0x80000000u
+        Call floatFromBits
+          IntLiteral 0x0u
+        Call floatFromBits
+          IntLiteral 0x1u
+        Call floatFromBits
+          IntLiteral 0x3f800000u
+        Call floatFromBits
+          IntLiteral 0x7f7fffffu
+        Call floatFromBits
+          IntLiteral 0x7f800000u
+        Call floatFromBits
+          IntLiteral 0x7f800001u
+        Call floatFromBits
+          IntLiteral 0x7f800002u
+        Call floatFromBits
+          IntLiteral 0x7fc00001u
+        Call floatFromBits
+          IntLiteral 0x7fc00002u
+    val doubles
+      ArrayLiteral
+        Call doubleFromBits
+          IntLiteral 0xfff8000000000002uL
+        Call doubleFromBits
+          IntLiteral 0xfff8000000000001uL
+        Call doubleFromBits
+          IntLiteral 0xfff0000000000002uL
+        Call doubleFromBits
+          IntLiteral 0xfff0000000000001uL
+        Call doubleFromBits
+          IntLiteral 0xfff0000000000000uL
+        Call doubleFromBits
+          IntLiteral 0xffefffffffffffffuL
+        Call doubleFromBits
+          IntLiteral 0xbff0000000000000uL
+        Call doubleFromBits
+          IntLiteral 0x8000000000000001uL
+        Call doubleFromBits
+          IntLiteral 0x8000000000000000uL
+        Call doubleFromBits
+          IntLiteral 0x0uL
+        Call doubleFromBits
+          IntLiteral 0x1uL
+        Call doubleFromBits
+          IntLiteral 0x3ff0000000000000uL
+        Call doubleFromBits
+          IntLiteral 0x7fefffffffffffffuL
+        Call doubleFromBits
+          IntLiteral 0x7ff0000000000000uL
+        Call doubleFromBits
+          IntLiteral 0x7ff0000000000001uL
+        Call doubleFromBits
+          IntLiteral 0x7ff0000000000002uL
+        Call doubleFromBits
+          IntLiteral 0x7ff8000000000001uL
+        Call doubleFromBits
+          IntLiteral 0x7ff8000000000002uL
+    Call gcCollect
+    var i
+      IntLiteral 0L
+    while
+      Binary Lt
+        Var i
+        IntLiteral 18L
+      var j
+        IntLiteral 0L
+      while
+        Binary Lt
+          Var j
+          IntLiteral 18L
+        if
+          Binary Or
+            Binary Ne
+              MethodCall isTotallyOrdered
+                Index
+                  Var singles
+                  Var i
+                Index
+                  Var singles
+                  Var j
+              Binary Le
+                Var i
+                Var j
+            Binary Ne
+              MethodCall isTotallyOrdered
+                Index
+                  Var doubles
+                  Var i
+                Index
+                  Var doubles
+                  Var j
+              Binary Le
+                Var i
+                Var j
+          Call println
+            StringLiteral "order"
+          return
+        assign j
+          Binary Add
+            Var j
+            IntLiteral 1L
+      assign i
+        Binary Add
+          Var i
+          IntLiteral 1L
+    val snan
+      Call floatFromBits
+        IntLiteral 0x7f800042u
+    val dnan
+      Call doubleFromBits
+        IntLiteral 0x7ff0000000000042uL
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Ne
+                  Call floatBits
+                    Unary Plus
+                      Var snan
+                  IntLiteral 0x7f800042u
+                Binary Ne
+                  Call floatBits
+                    Unary Neg
+                      Var snan
+                  IntLiteral 0xff800042u
+              Binary Ne
+                Call doubleBits
+                  Unary Plus
+                    Var dnan
+                IntLiteral 0x7ff0000000000042uL
+            Binary Ne
+              Call doubleBits
+                Unary Neg
+                  Var dnan
+              IntLiteral 0xfff0000000000042uL
+          Binary Ne
+            Call floatBits
+              MethodCall toFloat
+                Var snan
+            IntLiteral 0x7f800042u
+        Binary Ne
+          Call doubleBits
+            MethodCall toDouble
+              Var dnan
+          IntLiteral 0x7ff0000000000042uL
+      Call println
+        StringLiteral "payload"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Unary Not
+              MethodCall isNaN
+                Var snan
+            Unary Not
+              MethodCall isNaN
+                Var dnan
+          Binary Eq
+            Var snan
+            Var snan
+        Binary Eq
+          Var dnan
+          Var dnan
+      Call println
+        StringLiteral "signaling"
+      return
+    Call println
+      IntLiteral 42

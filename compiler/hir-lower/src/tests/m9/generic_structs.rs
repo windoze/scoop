@@ -35,7 +35,7 @@ fn generic_struct_fields_construct_access_and_instantiate_methods() {
     assert_eq!(local_ty(&module, "second"), "String");
     assert!(
         hir::dump(&module).contains(
-            "struct Pair<A, B>\n    field0 first: T0\n    field1 second: T1\n    property9 val first: T0 getter9=storage <stored struct17-field0>\n    property10 val second: T1 getter10=storage <stored struct17-field1>"
+            "struct Pair<A, B>\n    field0 first: T0\n    field1 second: T1\n    property9 val first: T0 getter9=storage <stored struct19-field0>\n    property10 val second: T1 getter10=storage <stored struct19-field1>"
         )
     );
 }

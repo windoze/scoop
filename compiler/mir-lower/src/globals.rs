@@ -59,6 +59,9 @@ pub(super) fn lower_global_constant(
             );
             mir::MirConstantImage::Integer(value)
         }
+        (hir::HirConstantImage::Float(value), mir::Type::Struct(_)) => {
+            mir::MirConstantImage::Float(*value)
+        }
         (hir::HirConstantImage::Char(value), mir::Type::Struct(_)) => {
             mir::MirConstantImage::Char(*value)
         }

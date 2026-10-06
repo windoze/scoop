@@ -8,6 +8,9 @@ impl Lowerer {
         if self.is_char_type(ty) {
             return Some(hir::CanonicalConstValueKindV1::Char);
         }
+        if let Some(kind) = self.float_kind(ty) {
+            return Some(hir::CanonicalConstValueKindV1::Float(kind));
+        }
         match self.types[ty] {
             hir::Type::Integer(kind) => Some(hir::CanonicalConstValueKindV1::Integer(kind)),
             hir::Type::Boolean => Some(hir::CanonicalConstValueKindV1::Boolean),
@@ -28,6 +31,12 @@ impl Lowerer {
             }
             ast::AnnotationLiteral::SignedInt { negative, literal } => {
                 self.lower_integer_literal(*literal, Some(ty), *negative, span)?
+            }
+            ast::AnnotationLiteral::Float(literal) => {
+                self.lower_float_literal(literal, Some(ty), false, span)?
+            }
+            ast::AnnotationLiteral::SignedFloat { negative, literal } => {
+                self.lower_float_literal(literal, Some(ty), *negative, span)?
             }
             ast::AnnotationLiteral::ConstReference(source) => {
                 let mut statements = Vec::new();
@@ -73,6 +82,7 @@ impl Lowerer {
         }
         let constant = match value.kind {
             hir::ExprKind::IntegerLiteral(value) => hir::ConstPropertyValue::Integer(value),
+            hir::ExprKind::FloatLiteral(value) => hir::ConstPropertyValue::Float(value),
             hir::ExprKind::BoolLiteral(value) => hir::ConstPropertyValue::Boolean(value),
             hir::ExprKind::CharLiteral(value) => hir::ConstPropertyValue::Char(value),
             hir::ExprKind::StringLiteral { value, .. } => hir::ConstPropertyValue::String(value),

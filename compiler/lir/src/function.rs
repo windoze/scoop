@@ -51,6 +51,7 @@ impl Function {
                 .logical_storage_type()
                 .clone(),
             Value::IntegerConst(value) => value.scalar_type(),
+            Value::FloatConst(value) => LirType::floating(value.kind()),
             Value::MachineScalar(value) => LirType::MachineScalar(value.kind()),
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),

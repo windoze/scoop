@@ -84,6 +84,22 @@ pub enum DefaultExpressionKindV1 {
     IntegerLiteral(CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
     CharLiteral(crate::CanonicalCharV1),
+    FloatLiteral(scoop_identity::FloatConstant),
+    FloatUnary {
+        kind: crate::FloatKind,
+        operation: crate::FloatUnaryOperator,
+        operand: Box<DefaultExpressionV1>,
+    },
+    FloatBinary {
+        kind: crate::FloatKind,
+        operation: crate::FloatBinaryOperator,
+        lhs: Box<DefaultExpressionV1>,
+        rhs: Box<DefaultExpressionV1>,
+    },
+    FloatConversion {
+        conversion: crate::DefaultFloatConversionV1,
+        operand: Box<DefaultExpressionV1>,
+    },
     UnitLiteral,
     TupleLiteral(Vec<DefaultExpressionV1>),
     StructInit {
@@ -462,6 +478,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::StringLiteral { .. }
         | DefaultExpressionKindV1::IntegerLiteral(_)
         | DefaultExpressionKindV1::CharLiteral(_)
+        | DefaultExpressionKindV1::FloatLiteral(_)
         | DefaultExpressionKindV1::BooleanLiteral(_)
         | DefaultExpressionKindV1::UnitLiteral
         | DefaultExpressionKindV1::VariantTest { .. }
@@ -506,6 +523,9 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::PrimitiveUnary { .. }
         | DefaultExpressionKindV1::IntegerOperation { .. }
         | DefaultExpressionKindV1::IntegerConversion { .. }
+        | DefaultExpressionKindV1::FloatUnary { .. }
+        | DefaultExpressionKindV1::FloatBinary { .. }
+        | DefaultExpressionKindV1::FloatConversion { .. }
         | DefaultExpressionKindV1::Binary { .. }
         | DefaultExpressionKindV1::Unary { .. }
         | DefaultExpressionKindV1::SomeWrap(_)

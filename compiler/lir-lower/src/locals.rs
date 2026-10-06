@@ -68,6 +68,8 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::Unary { operand, .. }
             | mir::ExprKind::IntegerUnary { operand, .. }
             | mir::ExprKind::IntegerConversion { operand, .. }
+            | mir::ExprKind::FloatUnary { operand, .. }
+            | mir::ExprKind::FloatConversion { operand, .. }
             | mir::ExprKind::EnumTag(operand)
             | mir::ExprKind::EnumField { operand, .. }
             | mir::ExprKind::VariantTest { operand, .. }
@@ -89,6 +91,11 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 collect_expr(replacement, out);
             }
             mir::ExprKind::ArrayGet { array, index, .. }
+            | mir::ExprKind::FloatBinary {
+                lhs: array,
+                rhs: index,
+                ..
+            }
             | mir::ExprKind::Binary {
                 lhs: array,
                 rhs: index,
@@ -151,6 +158,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::MachineScalarLiteral(_)
             | mir::ExprKind::CharLiteral(_)
+            | mir::ExprKind::FloatLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
             | mir::ExprKind::ReleaseFieldLoad { .. }

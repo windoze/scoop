@@ -35,25 +35,29 @@ impl Parser {
         let value = match token.kind {
             TokenKind::Str(value) => AnnotationLiteral::String(value),
             TokenKind::Int(lexeme) => AnnotationLiteral::Int(lexeme.with_span(token.span)),
+            TokenKind::Float(lexeme) => AnnotationLiteral::Float(lexeme),
             TokenKind::True => AnnotationLiteral::Boolean(true),
             TokenKind::False => AnnotationLiteral::Boolean(false),
             TokenKind::Char(value) => AnnotationLiteral::Char(value),
             TokenKind::Minus | TokenKind::Plus => {
                 let negative = matches!(token.kind, TokenKind::Minus);
-                let integer = self.bump();
-                let TokenKind::Int(lexeme) = integer.kind else {
-                    return Err(Diagnostic::at(
-                        integer.span,
-                        "annotation sign must precede an integer literal",
-                    ));
-                };
-                return Ok((
-                    AnnotationLiteral::SignedInt {
+                let number = self.bump();
+                let value = match number.kind {
+                    TokenKind::Int(lexeme) => AnnotationLiteral::SignedInt {
                         negative,
-                        literal: lexeme.with_span(integer.span),
+                        literal: lexeme.with_span(number.span),
                     },
-                    integer.span.end,
-                ));
+                    TokenKind::Float(literal) => {
+                        AnnotationLiteral::SignedFloat { negative, literal }
+                    }
+                    _ => {
+                        return Err(Diagnostic::at(
+                            number.span,
+                            "annotation sign must precede a numeric literal",
+                        ));
+                    }
+                };
+                return Ok((value, number.span.end));
             }
             _ => {
                 return Err(Diagnostic::at(

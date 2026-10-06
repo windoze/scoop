@@ -1,0 +1,187 @@
+SourceFile
+  RootPackage
+  val rounded: Float <const> = <expr>
+  val narrowStep: Float <const> = <expr>
+  val wideStep: Double <const> = <expr>
+  val quiet: Float <const> = <expr>
+  val negativeQuiet: Float <const> = <expr>
+  val copiedQuiet: Float <const> = <expr>
+  val divided: Double <const> = <expr>
+  val negativeZero: Double <const> = <expr>
+  val remainder: Double <const> = <expr>
+  val invalid: Boolean <const> = <expr>
+  val unordered: Boolean <const> = <expr>
+  val total: Boolean <const> = <expr>
+  val clamp: Int8 <const> = <expr>
+  val unsignedClamp: UInt8 <const> = <expr>
+  val longClamp: Int64 <const> = <expr>
+  val nanInteger: Int32 <const> = <expr>
+  val incremented: Float <const> = <expr>
+  val integerFloat: Float <const> = <expr>
+  val integerDouble: Double <const> = <expr>
+  val shortened: Float <const> = <expr>
+  val enlarged: Double <const> = <expr>
+  val maximum: Float <const> = <expr>
+  val minimum: Double <const> = <expr>
+  val normal: Float32 <const> = <expr>
+  val importedNan: Double <const> = <expr>
+    @Global
+  var globalSingle: Float = <expr>
+    @Global
+  var globalDouble: Double = <expr>
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt32
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): UInt64
+    @Unsafe
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Or
+                  Binary Ne
+                    Call floatBits
+                      Var rounded
+                    IntLiteral 0x3f800001u
+                  Binary Ne
+                    Call floatBits
+                      Var quiet
+                    IntLiteral 0x7fc00000u
+                Binary Ne
+                  Call floatBits
+                    Var copiedQuiet
+                  IntLiteral 0xffc00000u
+              Binary Ne
+                Call doubleBits
+                  Var importedNan
+                IntLiteral 0x7ff8000000000000uL
+            Binary Ne
+              Call floatBits
+                Var maximum
+              IntLiteral 0x7f7fffffu
+          Binary Ne
+            Call doubleBits
+              Var minimum
+            IntLiteral 1uL
+        Binary Ne
+          Call floatBits
+            Var normal
+          IntLiteral 0x800000u
+      Call println
+        StringLiteral "bits"
+      return
+    Call println
+      InterpolatedString
+        Expression
+          Var rounded
+        Text " "
+        Expression
+          Var narrowStep
+        Text " "
+        Expression
+          Var wideStep
+        Text " "
+        Expression
+          Var negativeZero
+        Text " "
+        Expression
+          Var remainder
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Var invalid
+              Var unordered
+            Var total
+          MethodCall isNaN
+            Var quiet
+        MethodCall isNaN
+          Var copiedQuiet
+    Call println
+      InterpolatedString
+        Expression
+          Var clamp
+        Text " "
+        Expression
+          Var unsignedClamp
+        Text " "
+        Expression
+          Var longClamp
+        Text " "
+        Expression
+          Var nanInteger
+        Text " "
+        Expression
+          Var incremented
+    Call println
+      InterpolatedString
+        Expression
+          Var integerFloat
+        Text " "
+        Expression
+          Var integerDouble
+        Text " "
+        Expression
+          Var shortened
+        Text " "
+        Expression
+          Var enlarged
+    Call println
+      InterpolatedString
+        Expression
+          Var maximum
+        Text " "
+        Expression
+          Var minimum
+        Text " "
+        Expression
+          Var normal
+        Text " "
+        Expression
+          FieldAccess MIN_VALUE
+            Var Float
+        Text " "
+        Expression
+          FieldAccess MIN_NORMAL
+            Var Double
+    Call println
+      InterpolatedString
+        Expression
+          FieldAccess NaN
+            Var Float
+        Text " "
+        Expression
+          FieldAccess NaN
+            Var Double
+        Text " "
+        Expression
+          FieldAccess POSITIVE_INFINITY
+            Var Float
+        Text " "
+        Expression
+          FieldAccess NEGATIVE_INFINITY
+            Var Double
+    Call println
+      Binary And
+        MethodCall isNaN
+          Var importedNan
+        Binary Lt
+          FieldAccess NEGATIVE_INFINITY
+            Var Float
+          Unary Neg
+            FieldAccess MAX_VALUE
+              Var Float
+    Call gcCollect
+    Call println
+      InterpolatedString
+        Expression
+          Var globalSingle
+        Text " "
+        Expression
+          Var globalDouble

@@ -84,6 +84,7 @@ pub use generated_bridge_semantics::*;
 mod symbol_planning;
 pub use symbol_planning::*;
 
+mod literal_pools;
 mod symbol_verification;
 pub use symbol_verification::*;
 

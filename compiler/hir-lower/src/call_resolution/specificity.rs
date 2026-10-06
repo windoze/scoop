@@ -8,7 +8,7 @@ use crate::Lowerer;
 
 mod literals;
 mod selection;
-pub(crate) use literals::prefer_literal_defaults;
+pub(crate) use literals::{NumericLiteralKind, prefer_literal_defaults};
 pub(crate) use selection::ApplicableDeclaration;
 
 #[cfg(test)]

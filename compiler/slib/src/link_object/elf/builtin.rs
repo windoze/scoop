@@ -73,6 +73,8 @@ fn classify(name: &[u8], kind: u32, flags: u64) -> Result<Role, ElfObjectError> 
             SHF_ALLOC | strings
         };
         (Role::CString, required)
+    } else if matches!(name, b".rodata.cst4" | b".rodata.cst8" | b".rodata.cst16") {
+        (Role::ReadOnlyData, SHF_ALLOC | SHF_MERGE)
     } else if name == b".rodata" || name.starts_with(b".rodata.") {
         (Role::ReadOnlyData, SHF_ALLOC)
     } else if name.starts_with(b".data.rel.ro.") {

@@ -43,10 +43,11 @@ impl ValidatedRuntimeBuildProfile {
 
     pub const fn include_directories(self) -> &'static [&'static str] {
         match self.target.id() {
-            TargetProfileId::DarwinAarch64 => &["include", "src"],
+            TargetProfileId::DarwinAarch64 => &["include", "src", "third_party/ryu"],
             TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => &[
                 "include",
                 "src",
+                "third_party/ryu",
                 "third_party/mbedtls",
                 "third_party/mbedtls/include",
             ],
@@ -57,6 +58,10 @@ impl ValidatedRuntimeBuildProfile {
 const COMMON: &[&str] = &[
     "runtime/src/rt.c",
     "runtime/src/characters.c",
+    "runtime/src/floating.c",
+    "runtime/src/floating_parse.c",
+    "runtime/third_party/ryu/ryu/f2s.c",
+    "runtime/third_party/ryu/ryu/d2s.c",
     "runtime/src/strings.c",
     "runtime/src/string_parts.c",
     "runtime/src/utf8.c",
@@ -120,6 +125,7 @@ const DARWIN_AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",
     "runtime/src/platform/arch/aarch64_strings.S",
+    "runtime/src/platform/arch/aarch64_floating.S",
     "runtime/src/platform/os/darwin.c",
 ];
 
@@ -131,6 +137,7 @@ const LINUX_AMD64: &[&str] = &[
     "runtime/src/platform/arch/x86_64.c",
     "runtime/src/platform/arch/x86_64_anchor.S",
     "runtime/src/platform/arch/x86_64_strings.c",
+    "runtime/src/platform/arch/x86_64_floating.c",
     "runtime/third_party/mbedtls/library/sha256.c",
     "runtime/third_party/mbedtls/library/platform_util.c",
 ];

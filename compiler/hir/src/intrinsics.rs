@@ -33,6 +33,7 @@ pub enum IntrinsicFunctionKind {
     ArrayAccess(ArrayAccessKind),
     Array(ArrayIntrinsic),
     Char(CharIntrinsic),
+    Float(FloatIntrinsicKind),
     Pointer(PointerIntrinsic),
 }
 
@@ -82,6 +83,7 @@ impl IntrinsicFunctionKind {
             Self::ArrayAccess(kind) => kind.name().to_string(),
             Self::Array(kind) => kind.name().to_string(),
             Self::Char(kind) => kind.name().to_string(),
+            Self::Float(kind) => kind.name(),
             Self::Pointer(kind) => kind.name().to_string(),
         }
     }
@@ -98,6 +100,7 @@ impl IntrinsicFunctionKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveMemberIntrinsic {
     Char(CharIntrinsic),
+    Float(FloatIntrinsicKind),
     Integer(IntegerIntrinsicKind),
     Unary(PrimitiveUnaryKind),
     Binary(PrimitiveBinaryKind),

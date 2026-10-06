@@ -7,6 +7,7 @@ pub enum CompilerNativeValueV1 {
     Void,
     Pointer,
     Integer(u8),
+    Float(crate::FloatKind),
     Boolean,
 }
 
@@ -124,10 +125,13 @@ impl TargetEhSupportV1 {
 
 impl crate::CBridgeTargetSupportV1 {
     pub const fn machine_contract(self) -> CompilerNativeContractV1 {
-        use CompilerNativeValueV1::{Integer as I, Pointer as P};
+        use crate::FloatKind::{F32, F64};
+        use CompilerNativeValueV1::{Float as F, Integer as I, Pointer as P};
         match self {
             Self::Memcpy => leaf(&[P, P, I(64)], P),
             Self::TlvBootstrap | Self::TlsGetAddr => leaf(&[P], P),
+            Self::Fmodf => leaf(&[F(F32), F(F32)], F(F32)),
+            Self::Fmod => leaf(&[F(F64), F(F64)], F(F64)),
         }
     }
 }

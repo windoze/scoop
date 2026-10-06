@@ -212,6 +212,8 @@ pub enum LirType {
     I16,
     I32,
     I64,
+    F32,
+    F64,
     MachineScalar(MachineScalarKind),
     Ptr(PointerKind),
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
@@ -285,6 +287,13 @@ impl PointerKind {
 }
 
 impl LirType {
+    pub const fn floating(kind: FloatKind) -> Self {
+        match kind {
+            FloatKind::F32 => Self::F32,
+            FloatKind::F64 => Self::F64,
+        }
+    }
+
     pub fn dump(&self) -> String {
         match self {
             LirType::Void => "void".to_string(),
@@ -293,6 +302,8 @@ impl LirType {
             LirType::I16 => "i16".to_string(),
             LirType::I32 => "i32".to_string(),
             LirType::I64 => "i64".to_string(),
+            LirType::F32 => "f32".to_string(),
+            LirType::F64 => "f64".to_string(),
             LirType::MachineScalar(kind) => format!("machine<{}>", kind.name()),
             LirType::Ptr(kind) => format!("ptr<{}>", kind.dump()),
             LirType::ExceptionRecord => "exception_record".to_string(),

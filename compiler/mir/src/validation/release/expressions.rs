@@ -44,6 +44,7 @@ pub(in crate::validation) fn validate_expression(
         ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::TupleLiteral(_)
@@ -71,6 +72,9 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::IntegerCompareTo { .. }
         | ExprKind::IntegerShift { .. }
         | ExprKind::IntegerConversion { .. }
+        | ExprKind::FloatUnary { .. }
+        | ExprKind::FloatBinary { .. }
+        | ExprKind::FloatConversion { .. }
         | ExprKind::VariantConstruct { .. }
         | ExprKind::EnumTag(_)
         | ExprKind::EnumField { .. }

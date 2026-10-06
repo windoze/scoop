@@ -92,6 +92,34 @@ impl Concretizer<'_> {
                 },
             },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
+            export::ExprKind::FloatLiteral(value) => concrete::ExprKind::FloatLiteral(*value),
+            export::ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => concrete::ExprKind::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.lower_expr(operand, substitution, locals)),
+            },
+            export::ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => concrete::ExprKind::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, substitution, locals)),
+                rhs: Box::new(self.lower_expr(rhs, substitution, locals)),
+            },
+            export::ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => concrete::ExprKind::FloatConversion {
+                conversion: *conversion,
+                operand: Box::new(self.lower_expr(operand, substitution, locals)),
+            },
             export::ExprKind::CharLiteral(value) => concrete::ExprKind::CharLiteral(*value),
             export::ExprKind::CharCode(value) => {
                 concrete::ExprKind::CharCode(Box::new(self.lower_expr(value, substitution, locals)))

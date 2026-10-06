@@ -160,6 +160,7 @@ impl Concretizer<'_> {
         value: &export::HirConstantImage,
     ) -> concrete::HirConstantImage {
         match value {
+            export::HirConstantImage::Float(value) => concrete::HirConstantImage::Float(*value),
             export::HirConstantImage::Char(value) => concrete::HirConstantImage::Char(*value),
             export::HirConstantImage::EnumUnit { variant } => {
                 let ty = self.lower_type(variant.owner, &[]);

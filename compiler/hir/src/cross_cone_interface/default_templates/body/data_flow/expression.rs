@@ -86,6 +86,7 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
+            | DefaultExpressionKindV1::FloatLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
@@ -148,6 +149,8 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::ArrayClone(operand)
             | DefaultExpressionKindV1::PrimitiveUnary { operand, .. }
             | DefaultExpressionKindV1::IntegerConversion { operand, .. }
+            | DefaultExpressionKindV1::FloatUnary { operand, .. }
+            | DefaultExpressionKindV1::FloatConversion { operand, .. }
             | DefaultExpressionKindV1::Unary { operand, .. }
             | DefaultExpressionKindV1::SomeWrap(operand)
             | DefaultExpressionKindV1::IsSome(operand)
@@ -187,6 +190,11 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::ArrayGenerate {
                 count: pointer,
                 initializer: offset,
+            }
+            | DefaultExpressionKindV1::FloatBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
             }
             | DefaultExpressionKindV1::Binary {
                 lhs: pointer,

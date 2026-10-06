@@ -16,6 +16,10 @@ mod capability;
 mod cone;
 mod context;
 mod entity;
+mod floating;
+pub use floating::{
+    FloatBinaryOperator, FloatConstant, FloatConversion, FloatKind, FloatUnaryOperator,
+};
 mod ids;
 mod mangling;
 mod record;

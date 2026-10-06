@@ -416,6 +416,8 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::Unary { operand, .. }
         | mir::ExprKind::IntegerUnary { operand, .. }
         | mir::ExprKind::IntegerConversion { operand, .. }
+        | mir::ExprKind::FloatUnary { operand, .. }
+        | mir::ExprKind::FloatConversion { operand, .. }
         | mir::ExprKind::EnumTag(operand)
         | mir::ExprKind::EnumField { operand, .. }
         | mir::ExprKind::VariantTest { operand, .. }
@@ -431,6 +433,11 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             expr_uses(replacement, uses);
         }
         mir::ExprKind::ArrayGet { array, index, .. }
+        | mir::ExprKind::FloatBinary {
+            lhs: array,
+            rhs: index,
+            ..
+        }
         | mir::ExprKind::Binary {
             lhs: array,
             rhs: index,
@@ -498,6 +505,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::CharLiteral(_)
+        | mir::ExprKind::FloatLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::ReleaseFieldLoad { .. }

@@ -1,0 +1,69 @@
+struct Packet(val single: Float, val wide: Double, val label: String)
+class Gate<T>(var waiter: Continuation<T>?) {
+    fun isWaiting(): Boolean = when (waiter) { Some(_) -> true; None -> false }
+    fun complete(value: T) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+class Registration<T>(val gate: Gate<T>): SuspendRegistration<T> {
+    public override fun register(continuation: Continuation<T>) {
+        gate.waiter = Some(continuation)
+    }
+}
+suspend fun awaitSingle(gate: Gate<Float>): Float = suspendCoroutine(Registration(gate))
+suspend fun awaitWide(gate: Gate<Double>): Double = suspendCoroutine(Registration(gate))
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): ULong
+
+class Task(val first: Gate<Float>, val second: Gate<Double>, val seed: Packet): SuspendTask<Packet> {
+    public override suspend fun run(): Packet {
+        val retained = Packet(seed.single, seed.wide, "frame-" + "alive")
+        val single = awaitSingle(first)
+        gcCollect()
+        val wide = awaitWide(second)
+        gcCollect()
+        var valid = false
+        @Unsafe {
+            valid = floatBits(retained.single) == 0xff800123U &&
+                doubleBits(retained.wide) == 0x7ff0000000000123UL &&
+                floatBits(single) == 0x80000000U && doubleBits(wide) == 1UL
+        }
+        return Packet(single, wide, if (valid) { retained.label } else { "damaged" })
+    }
+}
+class Completion(var result: Packet?, var failed: Boolean): Continuation<Packet> {
+    public override fun resume(value: Packet) { result = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { failed = true }
+}
+fun collect() {
+    var index = 0L
+    while (index < 256L) { val garbage = "garbage-" + index.toString(); index = index + 1L }
+    gcCollect()
+}
+
+@Unsafe fun main() {
+    val first = Gate<Float>(None)
+    val second = Gate<Double>(None)
+    val completion = Completion(None, false)
+    val seed = Packet(fromFloatBits(0xff800123U), fromDoubleBits(0x7ff0000000000123UL), "seed")
+    startCoroutine(Task(first, second, seed), completion)
+    if (completion.result != None || !first.isWaiting()) { println("first"); return }
+    collect()
+    first.complete(-0f)
+    if (completion.result != None || !second.isWaiting()) { println("second"); return }
+    collect()
+    second.complete(Double.MIN_VALUE)
+    val result = completion.result!!
+    if (completion.failed || result.label != "frame-alive" || floatBits(result.single) != 0x80000000U ||
+        doubleBits(result.wide) != 1UL) { println("result"); return }
+    println("coroutine-ok")
+}

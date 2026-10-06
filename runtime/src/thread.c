@@ -1,4 +1,5 @@
 #include "thread/internal.h"
+#include "floating.h"
 
 pthread_mutex_t scoop_thread_world_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t scoop_thread_world_changed = PTHREAD_COND_INITIALIZER;
@@ -73,6 +74,9 @@ void scoop_thread_ensure_stack_range(ScoopThreadState *state, uintptr_t low,
 static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind,
                                           ScoopThreadMode mode,
                                           uint64_t managed_depth) {
+    if (!scoop_float_init_environment()) {
+        scoop_thread_fatal("failed to initialize the floating-point environment");
+    }
     ScoopThreadState *state = calloc(1, sizeof *state);
     if (state == NULL) {
         scoop_thread_fatal("out of memory attaching a thread");

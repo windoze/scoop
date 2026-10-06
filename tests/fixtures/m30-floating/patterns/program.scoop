@@ -1,0 +1,31 @@
+struct Cell<T>(val value: T)
+struct Pair(val small: Float, val wide: Double)
+enum Reading { Value(Cell<Float>, (Double, Boolean)), Empty }
+fun classify(value: Float): Int = when (value) {
+    -0.0 -> 1
+    0.0f -> 2;
+    -(1.5) -> 3
+    1.000000059604644775390625000001 -> 4
+    1.0000001f -> 5
+    _ -> 6
+}
+fun nested(value: Reading): Int = when (value) {
+    Value({ value: -1.5 }, (0.0, false)) -> 1
+    Value(_, (_, false)) -> 2
+    Value(_, (_, true)) -> 3
+    Empty -> 4
+}
+fun defaults(value: Float = when (0f) { -0.0 -> 1.5f; _ -> 2.5f }): Float = value
+fun main() {
+    println(classify(0f) == 1 && classify(-0f) == 1 && classify(-1.5f) == 3)
+    println(classify(1.0000001f) == 4 && classify(Float.NaN) == 6 && classify(Float.POSITIVE_INFINITY) == 6)
+    println(nested(Reading.Value(Cell(-1.5f), (-0.0, false))) == 1 && nested(Reading.Value(Cell(Float.NaN), (Double.NaN, true))) == 3)
+    val nan = Pair(Float.NaN, Double.NaN)
+    val generic = Cell(Float.NaN)
+    val tuple = (Float.NaN, 0.0)
+    val variant = Reading.Value(Cell(Float.NaN), (Double.NaN, false))
+    println(nan != nan && generic != generic && tuple != tuple && variant != variant)
+    println(Pair(-0f, -0.0) == Pair(0f, 0.0) && Cell(-0f) == Cell(0f) && Some(-0f) == Some(0f))
+    gcCollect()
+    println(defaults() == 1.5f && Some(Float.NaN) != Some(Float.NaN))
+}

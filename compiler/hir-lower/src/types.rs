@@ -67,6 +67,7 @@ mod characters;
 mod constraints;
 mod display;
 mod fields;
+mod floating;
 mod interning;
 mod invariance;
 mod kinds;

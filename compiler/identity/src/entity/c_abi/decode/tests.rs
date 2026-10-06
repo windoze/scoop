@@ -68,6 +68,14 @@ fn all_c_storage_shapes_round_trip_and_resolve_typed_references() {
         CanonicalCStorageType::Boolean {
             exact_type: exact_type(),
         },
+        CanonicalCStorageType::Float {
+            exact_type: exact_type(),
+            kind: crate::FloatKind::F32,
+        },
+        CanonicalCStorageType::Float {
+            exact_type: exact_type(),
+            kind: crate::FloatKind::F64,
+        },
         CanonicalCStorageType::DataPointer {
             exact_type: exact_type(),
             pointee: CDataPointee::ExactObject(exact_type()),
@@ -102,7 +110,7 @@ fn c_storage_resolution_rejects_a_different_same_width_type() {
 
 #[test]
 fn c_storage_decoder_rejects_unknown_tags_and_numeric_kinds() {
-    assert_unknown::<DecodedCanonicalCStorageType>(b"\xa1\x00\x06", 6);
+    assert_unknown::<DecodedCanonicalCStorageType>(b"\xa1\x00\x07", 7);
     assert_unknown::<DecodedCDataPointee>(b"\xa1\x00\x03", 3);
     assert_unknown::<DecodedCPointerStorage>(b"\xa1\x00\x03", 3);
     assert_unknown::<Signedness>(b"\x03", 3);

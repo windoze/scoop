@@ -1,0 +1,2 @@
+const val invalid: String = 1.0.toString()
+fun main() {}

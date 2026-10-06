@@ -50,6 +50,8 @@ fn try_catch_finally_golden() {
     ]);
     let module = lower_user_with_exceptions(file).expect("the exception program must lower");
     let expected = r#"Module
+  typealias Float32 = Float
+  typealias Float64 = Double
   enum Option<T>
     Some(_1: T0)
     None()
@@ -91,6 +93,8 @@ fn try_catch_finally_golden() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
   fun __scoopThrowInitializationCycle(message: String): Unit
     val local1
       Local message : String
@@ -106,7 +110,7 @@ fn try_catch_finally_golden() {
         Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0

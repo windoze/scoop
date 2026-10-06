@@ -1,16 +1,16 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:reexport:0.1.0 kind=Executable objects=6
-runtime objects=63
+runtime objects=68
 images=2 root=_scoop$1$re$832537c02cab960f487ab0e90098fe3302bdc28f9cba2cc5381a472682ab49f6
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library Math requirement=3ccecbbd6152f7c45b7feecaebe492724cbb87a518fba0110c39235b9e109d88 input=bf2e662db20f0a36f9842c7734938f02881e8968df24463b6841528f8850283f origins=dev.programlink:reexport:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([203, 248, 41, 155, 45, 252, 162, 204, 241, 62, 46, 254, 185, 106, 228, 155, 237, 185, 8, 223, 152, 249, 2, 50, 12, 232, 18, 50, 21, 208, 65, 100])])
-dynamic provider 5f6299deb43ac3ba6d6bb6f9d755f98fdf5c447f25d2004b4a7051239178ed0c install="@rpath/libm23_leaf.dylib" imports=0
-  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
-dynamic provider a58cd5d5423e0d1cb5bb79abee947243a6da7a75ed03171fae9fc2e1bbd58861 install="@rpath/Math.framework/Math" imports=1
-  re-export "@rpath/libm23_leaf.dylib" -> 5f6299deb43ac3ba6d6bb6f9d755f98fdf5c447f25d2004b4a7051239178ed0c
-  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
+native library Math requirement=3ccecbbd6152f7c45b7feecaebe492724cbb87a518fba0110c39235b9e109d88 input=$NATIVE_INPUT_0 origins=dev.programlink:reexport:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([203, 248, 41, 155, 45, 252, 162, 204, 241, 62, 46, 254, 185, 106, 228, 155, 237, 185, 8, 223, 152, 249, 2, 50, 12, 232, 18, 50, 21, 208, 65, 100])])
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_leaf.dylib" imports=0
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
+dynamic provider $NATIVE_PROVIDER_2 install="@rpath/Math.framework/Math" imports=1
+  re-export "@rpath/libm23_leaf.dylib" -> $NATIVE_PROVIDER_0
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
 dynamic binding _m23_add -> "@rpath/Math.framework/Math" source="@rpath/libm23_leaf.dylib":_m23_add kind=Symbol weak=false
 rpath "$WORK/native"
 startup object references:

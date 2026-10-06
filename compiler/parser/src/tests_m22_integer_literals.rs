@@ -190,9 +190,9 @@ fn patterns_accept_unary_minus_over_parenthesized_integer_literals() {
     assert!(scoop_ast::dump(&file).contains("arm -1u"));
 
     for (invalid, expected_diagnostic) in [
-        ("-value", "expected integer literal after unary minus"),
-        ("-(value)", "expected integer literal after unary minus"),
-        ("-+1", "expected integer literal after unary minus"),
+        ("-value", "expected numeric literal after unary minus"),
+        ("-(value)", "expected numeric literal after unary minus"),
+        ("-+1", "expected numeric literal after unary minus"),
         ("+1", "expected pattern"),
         ("--1", "expected pattern"),
     ] {

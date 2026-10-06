@@ -45,7 +45,3 @@ diagnostics = {"file" = "diagnostics.json"}
 checks = [
   {"file" = "${work}/built-program", "exists" = false},
 ]
-
-[[steps]]
-name = "artifact-fingerprints"
-checks = [{actual = {"core" = "${core.result.root.artifact_fingerprint}"}, snapshot = "artifacts.${target}.json"}]

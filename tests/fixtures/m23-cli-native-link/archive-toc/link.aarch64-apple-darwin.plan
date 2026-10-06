@@ -1,13 +1,13 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:toc:0.1.0 kind=Executable objects=6
-runtime objects=63
+runtime objects=68
 images=2 root=_scoop$1$re$a02e98f5cc49aed96e523fa163e697ea4b52894b53f6c84d1f441ad6d0b7becc
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_math requirement=db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343 input=740e0af4ecafa716f94b072ada6cd0eb1e8e7fb0c08d611c870ee7e0e1883120 origins=dev.programlink:toc:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([68, 254, 29, 43, 7, 133, 189, 122, 114, 142, 61, 69, 183, 223, 196, 238, 23, 82, 178, 8, 118, 57, 56, 3, 35, 41, 127, 48, 81, 6, 34, 180])])
-native archive 740e0af4ecafa716f94b072ada6cd0eb1e8e7fb0c08d611c870ee7e0e1883120 members=1
-  member 1 header=120 payload=216..752 name="a_long_native_member_name.o" digest=bd5474e9e8864210f2c5c0b5d65813b60f5f6fcacaaa5e07e778d9e90b481122 selected=true
+native library m23_math requirement=db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343 input=$NATIVE_INPUT_0 origins=dev.programlink:toc:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([68, 254, 29, 43, 7, 133, 189, 122, 114, 142, 61, 69, 183, 223, 196, 238, 23, 82, 178, 8, 118, 57, 56, 3, 35, 41, 127, 48, 81, 6, 34, 180])])
+native archive $NATIVE_INPUT_0 members=1
+  member 1 header=120 payload=216..752 name="a_long_native_member_name.o" digest=$NATIVE_MEMBER_0 selected=true
 startup object references:
   _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
   _scoop$1$im$a02e98f5cc49aed96e523fa163e697ea4b52894b53f6c84d1f441ad6d0b7becc

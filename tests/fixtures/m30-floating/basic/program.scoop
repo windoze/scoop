@@ -1,0 +1,24 @@
+@NoGC fun single(value: Float): Float = value
+@NoGC fun double(value: Double): Double = value
+fun singleAlias(value: Float32): Float = value
+fun doubleAlias(value: Float64): Double = value
+
+fun main() {
+    val inferred = 0.1
+    val narrow: Float = 0.1
+    println(inferred.toString())
+    println(narrow.toString())
+    println(single(16777217.000000001).toString())
+    println(singleAlias(.5F).toString())
+    println(doubleAlias(1_234.5_6e-2).toString())
+    println(double(1e7).toString())
+    println(1e-3.toString())
+    println(1e-4.toString())
+    println((-0.0).toString())
+    println(single(-0.0).toString())
+    println(1.401298464324817e-45f.toString())
+    println(4.9406564584124654e-324.toString())
+    println(1e-400.toString())
+    println(single(1e-100).toString())
+    println(f"values: ${narrow}, ${inferred}")
+}

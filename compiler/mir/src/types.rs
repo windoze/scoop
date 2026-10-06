@@ -264,7 +264,9 @@ impl StructDef {
                 IntrinsicTypeRepresentation::Integer(kind) => Type::Integer(*kind),
                 IntrinsicTypeRepresentation::Unit => Type::Unit,
                 IntrinsicTypeRepresentation::Boolean => Type::Boolean,
-                IntrinsicTypeRepresentation::Char => Type::Struct(id),
+                IntrinsicTypeRepresentation::Char | IntrinsicTypeRepresentation::Float(_) => {
+                    Type::Struct(id)
+                }
                 IntrinsicTypeRepresentation::Ptr { pointee } => {
                     Type::Ptr(Box::new(pointee.clone()))
                 }
@@ -426,6 +428,7 @@ pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
     Char,
+    Float(crate::FloatKind),
     String,
     Array {
         element: Type,

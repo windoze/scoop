@@ -182,6 +182,7 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         }
         ast::Expr::StringLiteral { .. }
         | ast::Expr::IntLiteral(_)
+        | ast::Expr::FloatLiteral(_)
         | ast::Expr::CharLiteral { .. }
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. }

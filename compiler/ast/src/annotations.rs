@@ -1,4 +1,4 @@
-use crate::{Ident, IntegerLiteralSyntax, Span, TypeRef, VisibilitySyntax};
+use crate::{FloatLiteralSyntax, Ident, IntegerLiteralSyntax, Span, TypeRef, VisibilitySyntax};
 
 /// A static declaration with scalar parameters and no runtime constructor.
 #[derive(Debug, Clone, PartialEq)]
@@ -44,11 +44,16 @@ pub struct AnnotationArg {
 pub enum AnnotationLiteral {
     String(String),
     Int(IntegerLiteralSyntax),
+    Float(FloatLiteralSyntax),
     Boolean(bool),
     Char(char),
     SignedInt {
         negative: bool,
         literal: IntegerLiteralSyntax,
+    },
+    SignedFloat {
+        negative: bool,
+        literal: FloatLiteralSyntax,
     },
     ConstReference(Box<crate::Expr>),
 }

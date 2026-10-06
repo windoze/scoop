@@ -36,7 +36,7 @@ pub(super) fn check(
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (20, 16)
+                (22, 18)
             );
             // Generic companion templates do not create strong initialization pairs.
             // Scalar companions, Unit codecs and the suspend object keep their pairs.
@@ -55,7 +55,7 @@ pub(super) fn check(
                 units.iter().map(|unit| unit.unit()).collect(),
             );
         } else {
-            assert_eq!(units.len(), 18);
+            assert_eq!(units.len(), 20);
         }
     }
     units

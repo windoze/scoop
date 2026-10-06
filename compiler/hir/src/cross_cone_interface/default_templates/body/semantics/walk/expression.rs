@@ -47,6 +47,7 @@ where
             | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
+            | DefaultExpressionKindV1::FloatLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
@@ -342,14 +343,17 @@ where
                 count: lhs,
                 initializer: rhs,
             }
-            | DefaultExpressionKindV1::Binary { lhs, rhs, .. } => {
+            | DefaultExpressionKindV1::Binary { lhs, rhs, .. }
+            | DefaultExpressionKindV1::FloatBinary { lhs, rhs, .. } => {
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }
             DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
                 self.push_child(pending, BodyNode::IntegerArguments(arguments))
             }
-            DefaultExpressionKindV1::IntegerConversion { operand, .. } => {
+            DefaultExpressionKindV1::IntegerConversion { operand, .. }
+            | DefaultExpressionKindV1::FloatUnary { operand, .. }
+            | DefaultExpressionKindV1::FloatConversion { operand, .. } => {
                 self.push_child(pending, BodyNode::Expression(operand))
             }
         }

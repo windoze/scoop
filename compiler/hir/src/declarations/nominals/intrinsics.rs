@@ -7,6 +7,7 @@ pub enum IntrinsicTypeKind {
     Integer(IntegerKind),
     Boolean,
     Char,
+    Float(crate::FloatKind),
     String,
     Array,
     MutableArray,
@@ -21,6 +22,7 @@ impl IntrinsicTypeKind {
             Self::Integer(kind) => kind.intrinsic_name(),
             Self::Boolean => "core_boolean",
             Self::Char => "core_char",
+            Self::Float(kind) => kind.intrinsic_name(),
             Self::String => "core_string",
             Self::Array => "core_array",
             Self::MutableArray => "core_mutable_array",
@@ -35,6 +37,7 @@ impl IntrinsicTypeKind {
             Self::Integer(kind) => kind.canonical_name(),
             Self::Boolean => "Boolean",
             Self::Char => "Char",
+            Self::Float(kind) => kind.canonical_name(),
             Self::String => "String",
             Self::Array => "Array",
             Self::MutableArray => "MutableArray",
@@ -48,6 +51,7 @@ impl IntrinsicTypeKind {
             Self::Unit
             | Self::Integer(_)
             | Self::Boolean
+            | Self::Float(_)
             | Self::Char
             | Self::Ptr
             | Self::FunPtr => IntrinsicTypeTarget::Struct,
@@ -57,9 +61,12 @@ impl IntrinsicTypeKind {
 
     pub const fn parameters(self) -> IntrinsicTypeParameters {
         match self {
-            Self::Unit | Self::Integer(_) | Self::Boolean | Self::Char | Self::String => {
-                IntrinsicTypeParameters::None
-            }
+            Self::Unit
+            | Self::Integer(_)
+            | Self::Boolean
+            | Self::Float(_)
+            | Self::Char
+            | Self::String => IntrinsicTypeParameters::None,
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
             Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
             Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
@@ -72,6 +79,7 @@ impl IntrinsicTypeKind {
             (Self::Integer(kind), []) => IntrinsicTypeRepresentation::Integer(kind),
             (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
             (Self::Char, []) => IntrinsicTypeRepresentation::Char,
+            (Self::Float(kind), []) => IntrinsicTypeRepresentation::Float(kind),
             (Self::String, []) => IntrinsicTypeRepresentation::String,
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
             (Self::MutableArray, [element]) => {
@@ -94,6 +102,7 @@ pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
     Char,
+    Float(crate::FloatKind),
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },

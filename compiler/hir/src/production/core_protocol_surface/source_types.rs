@@ -2,6 +2,16 @@ use super::{CoreCompilerProtocolSurfaceV1, generic_entry};
 use scoop_identity::PersistentGenericTypeId;
 
 impl CoreCompilerProtocolSurfaceV1 {
+    pub fn float_source_type(&self, kind: crate::FloatKind) -> scoop_identity::PersistentTypeId {
+        super::concrete_entry(
+            self.fundamental_types().entries(),
+            match kind {
+                crate::FloatKind::F32 => 16,
+                crate::FloatKind::F64 => 17,
+            },
+        )
+    }
+
     pub fn character_source_type(&self) -> scoop_identity::PersistentTypeId {
         super::concrete_entry(self.fundamental_types().entries(), 15)
     }

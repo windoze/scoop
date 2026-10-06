@@ -1,0 +1,1255 @@
+Module
+  struct Pair (small: Float, wide: Double)
+  struct Cell<Float> (value: Float)
+  enum Reading
+    Value(_1: Cell<Float>, _2: (Double, Boolean))
+    Empty()
+  enum Option<Float>
+    Some(_0: Float)
+    None()
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Pair.equals @fn0(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type Pair
+            Local this
+          Type Float
+          FieldAccess 0
+            Type Pair
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 1
+            Type Pair
+            Local this
+          Type Double
+          FieldAccess 1
+            Type Pair
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Reading.equals @fn1(this: Reading, other: Reading) -> Boolean
+    bb0 entry
+      val $when.1: Reading
+        Type Reading
+        Local this
+      val $pattern.subject.2: Reading
+        Type Reading
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Reading v0
+          Type Reading
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Cell<Float>
+        Type Cell<Float>
+        VariantPayloadProject Reading v0 f0
+          Type Reading
+          Local $pattern.subject.2
+      val $left.0.1: (Double, Boolean)
+        Type (Double, Boolean)
+        VariantPayloadProject Reading v0 f1
+          Type Reading
+          Local $pattern.subject.2
+      val $when.3: Reading
+        Type Reading
+        Local other
+      val $pattern.subject.4: Reading
+        Type Reading
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Reading v0
+          Type Reading
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Reading
+        Type Reading
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Reading v1
+          Type Reading
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Cell<Float>
+        Type Cell<Float>
+        VariantPayloadProject Reading v0 f0
+          Type Reading
+          Local $pattern.subject.4
+      val $right.0.1: (Double, Boolean)
+        Type (Double, Boolean)
+        VariantPayloadProject Reading v0 f1
+          Type Reading
+          Local $pattern.subject.4
+      call $call.1: Boolean = @fn2 direct
+        Type Cell<Float>
+        Local $left.0.0
+        Type Cell<Float>
+        Local $right.0.0
+      branch bb7 bb8
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 logic.rhs.7
+      call $call.3: Boolean = @fn3 direct
+        Type (Double, Boolean)
+        Local $left.0.1
+        Type (Double, Boolean)
+        Local $right.0.1
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      return
+        Type Boolean
+        Local $logic.2
+    bb10 pattern.pass.10
+      val $when.6: Reading
+        Type Reading
+        Local other
+      val $pattern.subject.7: Reading
+        Type Reading
+        Local $when.6
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Reading v1
+          Type Reading
+          Local $pattern.subject.7
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      return
+        Type Boolean
+        BoolLiteral true
+    bb14 pattern.else.14
+      return
+        Type Boolean
+        BoolLiteral false
+    bb15 pattern.merge.15
+      unreachable
+  fun Cell.equals @fn2(this: Cell<Float>, other: Cell<Float>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type Cell<Float>
+            Local this
+          Type Float
+          FieldAccess 0
+            Type Cell<Float>
+            Local other
+  fun $derived.equals.3 @fn3(this: (Double, Boolean), other: (Double, Boolean)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 0
+            Type (Double, Boolean)
+            Local this
+          Type Double
+          FieldAccess 0
+            Type (Double, Boolean)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 1
+          Type (Double, Boolean)
+          Local this
+        Type Boolean
+        FieldAccess 1
+          Type (Double, Boolean)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun classify @fn4(value: Float) -> Int
+    bb0 entry
+      val $when.1: Float
+        Type Float
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0x80000000)
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb2 pattern.else.2
+      branch bb4 bb5
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0x00000000)
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb6
+    bb5 pattern.else.5
+      branch bb7 bb8
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0xbfc00000)
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb9
+    bb8 pattern.else.8
+      branch bb10 bb11
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0x3f800001)
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 pattern.pass.10
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      goto bb12
+    bb11 pattern.else.11
+      branch bb13 bb14
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0x3f800001)
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 pattern.pass.13
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      goto bb15
+    bb14 pattern.else.14
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      goto bb15
+    bb15 pattern.merge.15
+      goto bb12
+  fun nested @fn5(value: Reading) -> Int
+    bb0 entry
+      val $when.1: Reading
+        Type Reading
+        Local value
+      val $pattern.subject.2: Reading
+        Type Reading
+        Local $when.1
+      branch bb1 bb5
+        Type Boolean
+        VariantTest Reading v0
+          Type Reading
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      branch bb2 bb5
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type Cell<Float>
+            VariantPayloadProject Reading v0 f0
+              Type Reading
+              Local $pattern.subject.2
+          Type Float
+          FloatLiteral f32(0xbfc00000)
+    bb2 pattern.pass.2
+      branch bb3 bb5
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 0
+            Type (Double, Boolean)
+            VariantPayloadProject Reading v0 f1
+              Type Reading
+              Local $pattern.subject.2
+          Type Double
+          FloatLiteral f64(0x0000000000000000)
+    bb3 pattern.pass.3
+      call $call.1: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 1
+          Type (Double, Boolean)
+          VariantPayloadProject Reading v0 f1
+            Type Reading
+            Local $pattern.subject.2
+        Type Boolean
+        BoolLiteral false
+      branch bb4 bb5
+        Type Boolean
+        Local $call.1
+    bb4 pattern.pass.4
+      assign $result.2
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.3: Reading
+        Type Reading
+        Local $when.1
+      branch bb7 bb9
+        Type Boolean
+        VariantTest Reading v0
+          Type Reading
+          Local $pattern.subject.3
+    bb6 pattern.merge.6
+      return
+        Type Int
+        Local $result.2
+    bb7 pattern.pass.7
+      call $call.2: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 1
+          Type (Double, Boolean)
+          VariantPayloadProject Reading v0 f1
+            Type Reading
+            Local $pattern.subject.3
+        Type Boolean
+        BoolLiteral false
+      branch bb8 bb9
+        Type Boolean
+        Local $call.2
+    bb8 pattern.pass.8
+      assign $result.2
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb10
+    bb9 pattern.else.9
+      val $pattern.subject.4: Reading
+        Type Reading
+        Local $when.1
+      branch bb11 bb13
+        Type Boolean
+        VariantTest Reading v0
+          Type Reading
+          Local $pattern.subject.4
+    bb10 pattern.merge.10
+      goto bb6
+    bb11 pattern.pass.11
+      call $call.3: Boolean = external0 direct
+        Type Boolean
+        FieldAccess 1
+          Type (Double, Boolean)
+          VariantPayloadProject Reading v0 f1
+            Type Reading
+            Local $pattern.subject.4
+        Type Boolean
+        BoolLiteral true
+      branch bb12 bb13
+        Type Boolean
+        Local $call.3
+    bb12 pattern.pass.12
+      assign $result.2
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb14
+    bb13 pattern.else.13
+      val $pattern.subject.5: Reading
+        Type Reading
+        Local $when.1
+      branch bb15 bb16
+        Type Boolean
+        VariantTest Reading v1
+          Type Reading
+          Local $pattern.subject.5
+    bb14 pattern.merge.14
+      goto bb10
+    bb15 pattern.pass.15
+      assign $result.2
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      goto bb17
+    bb16 pattern.else.16
+      unreachable
+    bb17 pattern.merge.17
+      goto bb14
+  fun defaults @fn6(value: Float) -> Float
+    bb0 entry
+      return
+        Type Float
+        Local value
+  fun main @fn7() -> Unit
+    bb0 entry
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.3
+    bb4 if.then.4
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0xbfc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3f800001)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.5
+    bb10 if.then.10
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7f800000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.6
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0xbfc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $argument.0: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      val $argument.1: (Double, Boolean)
+        Type (Double, Boolean)
+        TupleLiteral
+          Type Double
+          FloatLiteral f64(0x8000000000000000)
+          Type Boolean
+          BoolLiteral false
+      val $parameter._1: Cell<Float>
+        Type Cell<Float>
+        Local $argument.0
+      val $parameter._2: (Double, Boolean)
+        Type (Double, Boolean)
+        Local $argument.1
+      val $argument.0: Reading
+        Type Reading
+        VariantConstruct Reading v0
+          Type Cell<Float>
+          Local $parameter._1
+          Type (Double, Boolean)
+          Local $parameter._2
+      val $parameter.value: Reading
+        Type Reading
+        Local $argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Reading
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb13 bb14
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb13 if.then.13
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $argument.0: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      val $argument.1: (Double, Boolean)
+        Type (Double, Boolean)
+        TupleLiteral
+          Type Double
+          FloatLiteral f64(0x7ff8000000000000)
+          Type Boolean
+          BoolLiteral true
+      val $parameter._1: Cell<Float>
+        Type Cell<Float>
+        Local $argument.0
+      val $parameter._2: (Double, Boolean)
+        Type (Double, Boolean)
+        Local $argument.1
+      val $argument.0: Reading
+        Type Reading
+        VariantConstruct Reading v0
+          Type Cell<Float>
+          Local $parameter._1
+          Type (Double, Boolean)
+          Local $parameter._2
+      val $parameter.value: Reading
+        Type Reading
+        Local $argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type Reading
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.7
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x7ff8000000000000)
+      val $parameter.small: Float
+        Type Float
+        Local $argument.0
+      val $parameter.wide: Double
+        Type Double
+        Local $argument.1
+      call nan: Pair = @fn11 direct
+        Type Float
+        Local $parameter.small
+        Type Double
+        Local $parameter.wide
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call generic: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      val tuple: (Float, Double)
+        Type (Float, Double)
+        TupleLiteral
+          Type Float
+          FloatLiteral f32(0x7fc00000)
+          Type Double
+          FloatLiteral f64(0x0000000000000000)
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $argument.0: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      val $argument.1: (Double, Boolean)
+        Type (Double, Boolean)
+        TupleLiteral
+          Type Double
+          FloatLiteral f64(0x7ff8000000000000)
+          Type Boolean
+          BoolLiteral false
+      val $parameter._1: Cell<Float>
+        Type Cell<Float>
+        Local $argument.0
+      val $parameter._2: (Double, Boolean)
+        Type (Double, Boolean)
+        Local $argument.1
+      val variant: Reading
+        Type Reading
+        VariantConstruct Reading v0
+          Type Cell<Float>
+          Local $parameter._1
+          Type (Double, Boolean)
+          Local $parameter._2
+      call $call.1: Boolean = @fn0 direct
+        Type Pair
+        Local nan
+        Type Pair
+        Local nan
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb16 logic.rhs.16
+      call $call.3: Boolean = @fn2 direct
+        Type Cell<Float>
+        Local generic
+        Type Cell<Float>
+        Local generic
+      assign $logic.2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $logic.2
+    bb19 logic.rhs.19
+      call $call.5: Boolean = @fn9 direct
+        Type (Float, Double)
+        Local tuple
+        Type (Float, Double)
+        Local tuple
+      assign $logic.4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.5
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $logic.4
+    bb22 logic.rhs.22
+      call $call.7: Boolean = @fn1 direct
+        Type Reading
+        Local variant
+        Type Reading
+        Local variant
+      assign $logic.6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.7
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $logic.6
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x8000000000000000)
+      val $parameter.small: Float
+        Type Float
+        Local $argument.0
+      val $parameter.wide: Double
+        Type Double
+        Local $argument.1
+      call $equality.lhs: Pair = @fn11 direct
+        Type Float
+        Local $parameter.small
+        Type Double
+        Local $parameter.wide
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x0000000000000000)
+      val $parameter.small: Float
+        Type Float
+        Local $argument.0
+      val $parameter.wide: Double
+        Type Double
+        Local $argument.1
+      call $call.8: Pair = @fn11 direct
+        Type Float
+        Local $parameter.small
+        Type Double
+        Local $parameter.wide
+      call $call.9: Boolean = @fn0 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.8
+      branch bb25 bb26
+        Type Boolean
+        Local $call.9
+    bb25 if.then.25
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $equality.lhs: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $call.10: Cell<Float> = @fn12 direct
+        Type Float
+        Local $parameter.value
+      call $shortCircuit.8: Boolean = @fn2 direct
+        Type Cell<Float>
+        Local $equality.lhs
+        Type Cell<Float>
+        Local $call.10
+      goto bb27
+    bb26 if.else.26
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 if.merge.27
+      branch bb28 bb29
+        Type Boolean
+        Local $shortCircuit.8
+    bb28 if.then.28
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x80000000)
+      val $dependency.parameter._1: Float
+        Type Float
+        Local $dependency.argument.0
+      val $equality.lhs: Option<Float>
+        Type Option<Float>
+        VariantConstruct Option<Float> v0
+          Type Float
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      val $dependency.parameter._1: Float
+        Type Float
+        Local $dependency.argument.0
+      call $shortCircuit.9: Boolean = @fn10 direct
+        Type Option<Float>
+        Local $equality.lhs
+        Type Option<Float>
+        VariantConstruct Option<Float> v0
+          Type Float
+          Local $dependency.parameter._1
+      goto bb30
+    bb29 if.else.29
+      val $shortCircuit.9: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 if.merge.30
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.9
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call @scoop_rt_gc_collect direct
+      val $when.1: Float
+        Type Float
+        FloatLiteral f32(0x00000000)
+      branch bb31 bb32
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $when.1
+          Type Float
+          FloatLiteral f32(0x80000000)
+    bb31 pattern.pass.31
+      assign $result.0
+        Type Float
+        FloatLiteral f32(0x3fc00000)
+      goto bb33
+    bb32 pattern.else.32
+      assign $result.0
+        Type Float
+        FloatLiteral f32(0x40200000)
+      goto bb33
+    bb33 pattern.merge.33
+      val $parameter.value: Float
+        Type Float
+        Local $result.0
+      call $dependency.receiver: Float = @fn6 direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x3fc00000)
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      branch bb34 bb35
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+    bb34 if.then.34
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $dependency.parameter._1: Float
+        Type Float
+        Local $dependency.argument.0
+      val $equality.lhs: Option<Float>
+        Type Option<Float>
+        VariantConstruct Option<Float> v0
+          Type Float
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Float
+        Type Float
+        FloatLiteral f32(0x7fc00000)
+      val $dependency.parameter._1: Float
+        Type Float
+        Local $dependency.argument.0
+      call $call.11: Boolean = @fn10 direct
+        Type Option<Float>
+        Local $equality.lhs
+        Type Option<Float>
+        VariantConstruct Option<Float> v0
+          Type Float
+          Local $dependency.parameter._1
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.11
+      goto bb36
+    bb35 if.else.35
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb36 if.merge.36
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.10
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn8(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.2 @fn9(this: (Float, Double), other: (Float, Double)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          FieldAccess 0
+            Type (Float, Double)
+            Local this
+          Type Float
+          FieldAccess 0
+            Type (Float, Double)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          FieldAccess 1
+            Type (Float, Double)
+            Local this
+          Type Double
+          FieldAccess 1
+            Type (Float, Double)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun $derived.equals.5 @fn10(this: Option<Float>, other: Option<Float>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Float>
+        Type Option<Float>
+        Local this
+      val $pattern.subject.2: Option<Float>
+        Type Option<Float>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $pattern.subject.2
+      val $when.3: Option<Float>
+        Type Option<Float>
+        Local other
+      val $pattern.subject.4: Option<Float>
+        Type Option<Float>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Float> v0
+          Type Option<Float>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Float>
+        Type Option<Float>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Float> v1
+          Type Option<Float>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Float
+        Type Float
+        VariantPayloadProject Option<Float> v0 f0
+          Type Option<Float>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $left.0.0
+          Type Float
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Float>
+        Type Option<Float>
+        Local other
+      val $pattern.subject.7: Option<Float>
+        Type Option<Float>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Float> v1
+          Type Option<Float>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun ctor.Pair.$c1 @fn11(small: Float, wide: Double) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Float
+          Local small
+          Type Double
+          Local wide
+  fun ctor.Cell.$c0 @fn12(value: Float) -> Cell<Float> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Float>
+        StructInit Cell<Float>
+          Type Float
+          Local value
+  instance mi0 function=@fn8 <- println
+  str @str0 "\n"
+  output executable @fn7

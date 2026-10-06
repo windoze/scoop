@@ -1,0 +1,2 @@
+fun less(left: Float, right: Double): Boolean = left < right
+fun main() {}

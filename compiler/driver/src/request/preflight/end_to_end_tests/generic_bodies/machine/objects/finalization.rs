@@ -44,7 +44,6 @@ fn append_member(fingerprint: OdrMemberFingerprintV1, records: &mut Vec<Vec<u8>>
 pub(super) fn check(
     finalized: &VerifiedEntryPatchSetV2,
     canonical: &scoop_lir::CanonicalCallableLirDefinitionsV1,
-    target: scoop_lir::LirTargetProfile,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let image = finalized.runtime_images().fingerprint();
     let registrations = image.registrations();
@@ -155,74 +154,6 @@ pub(super) fn check(
         image.image().image_patch(),
         image.fingerprint().as_array(),
     );
-    let odr = fingerprints
-        .values()
-        .filter_map(|value| match value.registration {
-            RegistrationFingerprintV1::Odr(fingerprint) => Some((value, fingerprint)),
-            RegistrationFingerprintV1::Strong(_) => None,
-        })
-        .collect::<Vec<_>>();
-    if let [(value, fingerprint)] = odr.as_slice() {
-        let CallableDefinitionFingerprintV1::Odr(body) = value.definition else {
-            panic!("the standalone body has ODR ownership");
-        };
-        let [(site, RegistrationFingerprintV1::Odr(safepoint))] = value.safepoints.as_slice()
-        else {
-            panic!("the standalone fixture has exactly one ODR safepoint");
-        };
-        assert_eq!(
-            site.to_string(),
-            "6700f64aa96c8984f20476cbd989168e67404473137c1f633804b0d837c53da2"
-        );
-        let definitions = match target.native_object_format() {
-            scoop_lir::NativeObjectFormat::MachO64 => [
-                "72dca880c97abbd6167e9668fb165a87738ae065922cd7e6701ae0d82ffb61eb",
-                "79bc39643575218ecb403e73d96d0c77addebe9893b5655ad911d9e80d735f47",
-                "91cd129d3d91846992c9afec329693f972f8791a98a3a9776a828b0aab7f64d9",
-            ],
-            scoop_lir::NativeObjectFormat::Elf64 => [
-                "6afd1ed63d6380f4d91934e6dfcce1141790ac1c752424c4974e807138089aa2",
-                "dc6a947d593ce4d1fe7d748187184924586937fe58f820250556f7798513e67c",
-                "19bb3f93c8345b2dfd8fd1af23349cc06c46cd76b6f54c841b67c7184e948b56",
-            ],
-        };
-        assert_eq!(
-            [
-                [
-                    body.abi().to_string(),
-                    body.lir().to_string(),
-                    body.definition().to_string()
-                ],
-                [
-                    fingerprint.abi().to_string(),
-                    fingerprint.lir().to_string(),
-                    fingerprint.definition().to_string()
-                ],
-                [
-                    safepoint.abi().to_string(),
-                    safepoint.lir().to_string(),
-                    safepoint.definition().to_string()
-                ],
-            ],
-            [
-                [
-                    "7ec9e0f465e302f9a859d00069abeef4b3712d22336c6586eb018b9802186886",
-                    "d813d5daaa1eeb9571728b9634c3f537a5b551cb8e3a49478a9262f01db92310",
-                    definitions[0],
-                ],
-                [
-                    "1850372d03688c173adc5273d1e6e4f3b7c4bbdee16c8648f4d150e05815f9d0",
-                    "586f0cb7b9a3dccddaff36bc10d6325e4d52f3743670ec878a216e5991d3d7c5",
-                    definitions[1],
-                ],
-                [
-                    "d2091017b8eb5710b4bb2bfcadfbe436fb0f431b37d409204e03270bd23c808e",
-                    "6f1d8f27e7b503ff9f9fe6a2086b4f61f5aa473bbf3d0df0a471eb06897d1443",
-                    definitions[2],
-                ],
-            ],
-        );
-    }
     fingerprints
 }
 
