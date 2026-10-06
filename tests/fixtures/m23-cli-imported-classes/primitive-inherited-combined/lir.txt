@@ -58,7 +58,7 @@ Module
     t13 = integer_Subtract<Long> local13, local15 : i64
     store t13 -> local16
     store local16 -> local17
-    call managed-direct-target3 sp<managed-call:5> live=[] t14 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td11, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target3 sp<managed-call:5> live=[] t14 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td16, machine<byte-size>(ByteSize(24)))
     store t14 -> local18
     call managed-void-target0 sp<managed-call:6> live=[local18:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn1(local18, local17)
     t15 = aggregate () : {}

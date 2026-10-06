@@ -399,3 +399,10 @@ companion 不物化，以及 companion 成员缺少宿主实参仍报错。HIR l
 
 既有 NoGC 负例同步记录值类型测试产生的显式装箱及 Any 值诊断，原错误记录和
 位置断言全部保留。生产查找模块为 129 行，没有新增数据格式或 runtime 契约。
+
+## 核心继承用例的源码替换维护
+
+六个既有 primitive inherited fixture 按当前 Boolean、Long、String 声明加入测试
+接口，并保留类型原有的 Encodable。只更新精确匹配的声明片段，没有改变原继承
+方法、默认实现或 NoGC/参数错误规则。六项 macOS 文件验收全部通过，覆盖重新
+生产 core、独立 provider/consumer、正常与 moving GC 运行及两项精确负例。
