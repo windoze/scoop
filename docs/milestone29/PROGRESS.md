@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：损坏产物向量迁移
+
+使用当前 CLI 的真实产物和既有 Slib writer 重建三个 Darwin 产物用例：委托记录
+缺失、初始化入口交换、archive 截断及未知 optional/required member。保留原记录
+身份和损坏方式，逐字节核对片段重组等于 writer 输出；同步完整产物摘要、归档
+长度与相应 stage golden，没有改变接受/拒绝规则或精确诊断的其余内容。
+
+三个用例均在干净目录的普通模式中通过，联合两个依赖失效用例的报告保存为
+`/tmp/scoop-m29-saved-reports/m29-revised-artifact-check-darwin.json`；五项合计
+67 个进程、80 次 golden 检查。此前因只读目录复用或旧摘要失败的运行单独保留，
+不计作通过。macOS 完整 Rust workspace 已通过 43 组、5,344 项测试，零失败、
+零忽略；公共 runner 的 38 项单测也通过，Linux 和正式全量 CLI 验收继续进行。
+
 ## 2026-10-06：正式产物断言同步新 codec surface
 
 两端完整 workspace 回归定位到相同五处旧测试预期：UnitEncoder 带来的一个普通

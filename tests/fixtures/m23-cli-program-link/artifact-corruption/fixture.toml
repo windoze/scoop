@@ -59,7 +59,7 @@ checks = []
 
 [[steps]]
 name = "original_bytes"
-checks = [{"file" = "${work}/original.slib", "sha256" = "4fa3b9c336b8373dcdce4816c37d0a7a9ad780a1fd8181580261f22cb53ec6d7"}]
+checks = [{"file" = "${work}/original.slib", "sha256" = "3cf90419ffd8dcd9358a957cca872601a0f5f2e2c7f383ebb3a2845b98344381"}]
 
 [[steps]]
 name = "damage_member"
@@ -92,7 +92,7 @@ checks = []
 
 [[steps]]
 name = "truncate"
-files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 142503}}]
+files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 132807}}]
 checks = []
 
 [[steps]]

@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "directory predicts archive length 142504, found 142503",
+    "message": "directory predicts archive length 132808, found 132807",
     "notes": [],
     "origin": {
       "kind": "artifact",
