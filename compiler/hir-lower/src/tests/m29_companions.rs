@@ -1,6 +1,60 @@
 use super::*;
 
 #[test]
+fn imported_enum_variants_infer_arguments_without_accessing_the_generic_companion() {
+    let provider = r#"
+        package shared
+        public enum Choice<T> {
+            Value(T), Empty
+            public companion object Factory {
+                public fun make(value: T): Choice<T> = Choice.Value(value)
+            }
+        }
+    "#;
+    super::m23_generic_body_consumption::with_provider_consumer(
+        provider,
+        r#"
+            import shared.Choice
+            fun <T> present(value: T): Choice<T> = Choice.Value(value)
+            fun empty(): Choice<Int> = Choice.Empty
+            fun main() {
+                val integer = present(7)
+                val text: Choice<String> = Choice.Value("text")
+                val explicit = Choice.Value<Int>(8)
+                val none = empty()
+            }
+        "#,
+        |output, _, _, _, _| {
+            let module = output.output().local.module();
+            assert_eq!(
+                module
+                    .enums
+                    .values()
+                    .filter(|value| value.name == "Choice")
+                    .count(),
+                2,
+            );
+            assert!(
+                module
+                    .objects
+                    .values()
+                    .all(|object| object.name != "Factory")
+            );
+        },
+    )
+    .unwrap();
+    let errors = super::m23_generic_body_consumption::with_provider_consumer(
+        provider,
+        "import shared.Choice\nfun main() { val value = Choice.make(1) }",
+        |_, _, _, _, _| (),
+    )
+    .expect_err("an actual companion member still requires complete host arguments");
+    assert!(errors.iter().any(|error| {
+        error.message == "generic companion access requires complete host type arguments"
+    }));
+}
+
+#[test]
 fn dependency_companions_keep_the_original_declaration_and_materialize_both_applications() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m29-companions/artifacts");

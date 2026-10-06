@@ -384,3 +384,18 @@ Slib writer 重建损坏及 optional/required 成员向量。删除的四条 reg
 三项文件 fixture 通过，覆盖五种 registration 错误、损坏 member、截断归档、
 magic 错误、optional 成员正常链接与 required 成员拒绝，以及普通和 moving GC
 运行。生成工具只用于此次测试数据迁移，没有进入生产 crate 或公共 runner。
+
+## enum 声明命名空间与 generic companion
+
+导入 enum 的限定调用先读取实际值绑定，变体继续通过原 typed 变体路径推断宿主
+实参；只有真正的 companion 成员进入完整宿主 application 检查。该修复不按
+Option 名称特判，也不改变变体构造或 companion 初始化规则，语言规范 4.2 同步
+明确二者的边界。
+
+新增跨库回归同时验证 payload/expected/显式实参推断、unit variant、未使用
+companion 不物化，以及 companion 成员缺少宿主实参仍报错。HIR lowering 的
+1,362 项测试通过；macOS 的 37 个相关文件 fixture 全部通过，共 166 个进程、
+126 份 golden，覆盖原 23 个 Option 消费用例及完整 companion 矩阵。
+
+既有 NoGC 负例同步记录值类型测试产生的显式装箱及 Any 值诊断，原错误记录和
+位置断言全部保留。生产查找模块为 129 行，没有新增数据格式或 runtime 契约。

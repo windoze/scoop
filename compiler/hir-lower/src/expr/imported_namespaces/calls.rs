@@ -29,7 +29,16 @@ impl Lowerer {
                 .expect("a dependency nested type retains its declaration");
             return self.lower_imported_nominal_construct(declaration, name, call, sink, expected);
         }
+        let values = self.imported_static_bindings(
+            self.imported_qualifier_owner(owner),
+            BindingNamespace::Value,
+            &name.text,
+        );
+        let is_variant = values
+            .iter()
+            .any(|binding| matches!(binding.target(), hir::ImportedTarget::EnumVariant(_)));
         if bindings.is_empty()
+            && !is_variant
             && let Some(ty) = self
                 .imported_generic_companion_type(owner, name.span)
                 .ok()?
@@ -60,11 +69,7 @@ impl Lowerer {
                 RequiredCallableModifiers::default(),
             );
         }
-        bindings.extend(self.imported_static_bindings(
-            self.imported_qualifier_owner(owner),
-            BindingNamespace::Value,
-            &name.text,
-        ));
+        bindings.extend(values);
         if bindings.is_empty() {
             self.imported_static_member_error(owner, name);
             return None;
