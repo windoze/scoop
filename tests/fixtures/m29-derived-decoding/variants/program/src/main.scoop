@@ -7,12 +7,12 @@ private fun check(value: Boolean, code: Int) {
     }
 }
 
-public enum Choice : Encodable {
+public enum Choice {
     @SerialName("none/~") Empty,
     Pair(String, Int),
     Named(@SerialName("v/~") val value: Int = 5, @Transient val ignored: Int = value + 1),
     Record { value: String, count: Int }
-    public companion object : Decodable<Choice>
+    public companion object : Encodable<Choice>, Decodable<Choice>
 }
 
 private object TupleDecoder : Decodable<(Int, String, (Long, Char), Unit)>
@@ -25,14 +25,14 @@ private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
 
 fun main() {
     val empty = Json.decode("{\"none/~\":{\"skipped\":[null,{}]}}", Choice.Companion)
-    check(Json.encode(empty) == "{\"none/~\":{}}", 1)
+    check(Json.encode(empty, Choice.Companion) == "{\"none/~\":{}}", 1)
     val pair = Json.decode("{\"Pair\":[\"pair\",2]}", Choice.Companion)
-    check(Json.encode(pair) == "{\"Pair\":[\"pair\",2]}", 2)
+    check(Json.encode(pair, Choice.Companion) == "{\"Pair\":[\"pair\",2]}", 2)
     val named = Json.decode("{\"Named\":{}}", Choice.Companion)
     check(when (named) { Choice.Named(value, ignored) -> value == 5 && ignored == 6; else -> false }, 3)
-    check(Json.encode(named) == "{\"Named\":{\"v/~\":5}}", 4)
+    check(Json.encode(named, Choice.Companion) == "{\"Named\":{\"v/~\":5}}", 4)
     val record = Json.decode("{\"Record\":{\"count\":4,\"value\":\"record\"}}", Choice.Companion)
-    check(Json.encode(record) == "{\"Record\":{\"value\":\"record\",\"count\":4}}", 5)
+    check(Json.encode(record, Choice.Companion) == "{\"Record\":{\"value\":\"record\",\"count\":4}}", 5)
     val tuple = Json.decode("[1,\"two\",[9223372036854775807,\"😀\"],null]", TupleDecoder)
     check(tuple._1 == 1 && tuple._2 == "two" && tuple._3._1 == 9223372036854775807L, 6)
     check(tuple._3._2 == '😀', 7)

@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：解码与 companion 编码的组合复验
+
+record、class 和 enum 的 round-trip 用例显式使用同一 companion 的两个接口，
+保留字段可见性、Transient、缺省构造、输入次序和路径错误断言。共用字段选择器
+后的 14 个负例仅将消息中的 field decoder 改为 field codec；逐项确认其余消息、
+错误类别、Cone 和位置完全相同。
+
+macOS 的全部 43 个解码 fixture 在普通模式下通过，共 82 个进程、28 份 golden，
+包括显式 generic 依赖、递归、Context、异常、初始化与跨 Cone 产物消费。
+格式化和 workspace clippy 已通过；正式报告保存在
+`/tmp/scoop-m29-saved-reports/m29-decoding-codecs-darwin.json`，清理了 610.9 MiB
+工作目录。Linux 目标与新协议完整验收继续进行。
+
 ## 2026-10-06：tuple 的普通 codec 组合
 
 tuple 的独立及跨 Cone fixture 迁移到普通 Encodable<tuple>，generic PairEncoder

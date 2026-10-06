@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "automatic decode has no Decodable<List<Int>> field decoder; provide a primary val dependency, a conforming companion, or an explicit decode implementation",
+    "message": "automatic decode has no Decodable<List<Int>> field codec; provide a primary val dependency, a conforming companion, or an explicit decode implementation",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
