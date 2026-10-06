@@ -77,6 +77,33 @@ impl DecodedDefaultExpressionKindV1 {
             Self::IntegerLiteral(value) => DefaultExpressionKindV1::IntegerLiteral(value),
             Self::BooleanLiteral(value) => DefaultExpressionKindV1::BooleanLiteral(value),
             Self::FloatLiteral(value) => DefaultExpressionKindV1::FloatLiteral(value),
+            Self::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => DefaultExpressionKindV1::FloatUnary {
+                kind,
+                operation,
+                operand: resolve_child(operand, resolver, locals, 68, 3)?,
+            },
+            Self::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => DefaultExpressionKindV1::FloatBinary {
+                kind,
+                operation,
+                lhs: resolve_child(lhs, resolver, locals, 69, 3)?,
+                rhs: resolve_child(rhs, resolver, locals, 69, 4)?,
+            },
+            Self::FloatConversion {
+                conversion,
+                operand,
+            } => DefaultExpressionKindV1::FloatConversion {
+                conversion,
+                operand: resolve_child(operand, resolver, locals, 70, 2)?,
+            },
             Self::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral(value),
             Self::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
             Self::TupleLiteral(elements) => DefaultExpressionKindV1::TupleLiteral(

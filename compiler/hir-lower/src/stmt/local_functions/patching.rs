@@ -305,7 +305,8 @@ impl LocalFunctionCallPatcher<'_> {
                 count: lhs,
                 initializer: rhs,
             }
-            | hir::ExprKind::Binary { lhs, rhs, .. } => {
+            | hir::ExprKind::Binary { lhs, rhs, .. }
+            | hir::ExprKind::FloatBinary { lhs, rhs, .. } => {
                 self.expression(lhs);
                 self.expression(rhs);
             }
@@ -318,7 +319,9 @@ impl LocalFunctionCallPatcher<'_> {
                     self.expression(rhs);
                 }
             },
-            hir::ExprKind::IntegerConversion { operand, .. } => {
+            hir::ExprKind::IntegerConversion { operand, .. }
+            | hir::ExprKind::FloatUnary { operand, .. }
+            | hir::ExprKind::FloatConversion { operand, .. } => {
                 self.expression(operand);
             }
             hir::ExprKind::ArraySet {

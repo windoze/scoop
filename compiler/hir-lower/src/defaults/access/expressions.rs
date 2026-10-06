@@ -239,6 +239,11 @@ impl ReferenceCollector<'_> {
                 count: pointer,
                 initializer: offset,
             }
+            | hir::ExprKind::FloatBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
+            }
             | hir::ExprKind::Binary {
                 lhs: pointer,
                 rhs: offset,
@@ -341,7 +346,9 @@ impl ReferenceCollector<'_> {
                     self.expression(rhs);
                 }
             },
-            hir::ExprKind::IntegerConversion { operand, .. } => self.expression(operand),
+            hir::ExprKind::IntegerConversion { operand, .. }
+            | hir::ExprKind::FloatUnary { operand, .. }
+            | hir::ExprKind::FloatConversion { operand, .. } => self.expression(operand),
         }
     }
 

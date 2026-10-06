@@ -1894,6 +1894,8 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 后端局部常量池没有源码实体，不要求事前创建 Strong symbol 或 definition atom。对象读取边界保存已验证的池内容，实际引用按重定位目标读取对应常量字节；canonical object relocation target 新增 tag 15，保存 byte span，池地址和局部标签不进入语义摘要。ELF 的 `.rodata.cst4/8/16` 同样使用现有只读数据通道及 `SHF_MERGE`。LIR `link-identity-closure` 升至 `/13`，旧对象摘要与缓存重建；不新增来源认证、独立凭证或第二套产物消费路径。
 
+浮点运算批次追加 HIR intrinsic tag 22，以及共享表达式 tag 68/69/70，分别保存完整 unary、binary 与 conversion 操作。操作只实例化两种浮点表示及现有八种整数；关系比较直接由浮点表示产生 typed binary 节点，不要求源码 `compareTo`。HIR `core-bootstrap-interface/11` 与 `cross-cone-interface/59` 取代标量批次版本。LIR canonical instruction 追加 tag 71/72/73，分别编码浮点 unary/binary/conversion。现有 target support 表追加 `fmodf`/`fmod`（tag 4/5），机器契约分别为 `(F32,F32)->F32` 与 `(F64,F64)->F64`、NoGC；它们使用现有平台 native 链接闭包，`link-identity-closure` 升至 `/14`。其他未改变的记录沿用原版本。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

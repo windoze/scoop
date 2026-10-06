@@ -73,6 +73,33 @@ impl BodyProjection<'_, '_> {
                 DefaultExpressionKindV1::IntegerLiteral((*value).into())
             }
             ExprKind::FloatLiteral(value) => DefaultExpressionKindV1::FloatLiteral(*value),
+            ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => DefaultExpressionKindV1::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.expression(operand)?),
+            },
+            ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => DefaultExpressionKindV1::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.expression(lhs)?),
+                rhs: Box::new(self.expression(rhs)?),
+            },
+            ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => DefaultExpressionKindV1::FloatConversion {
+                conversion: conversion.map_integer(crate::DefaultIntegerKindV1::from),
+                operand: Box::new(self.expression(operand)?),
+            },
             ExprKind::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral((*value).into()),
             ExprKind::CharCode(value) => {
                 DefaultExpressionKindV1::CharCode(Box::new(self.expression(value)?))

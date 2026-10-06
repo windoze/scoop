@@ -14,6 +14,33 @@ impl<'a> CfgLowerer<'a> {
                 mir::ExprKind::MachineScalarLiteral(*value)
             }
             smir::ExprKind::FloatLiteral(value) => mir::ExprKind::FloatLiteral(*value),
+            smir::ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => mir::ExprKind::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
+            smir::ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => mir::ExprKind::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs, span)),
+                rhs: Box::new(self.lower_expr(rhs, span)),
+            },
+            smir::ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => mir::ExprKind::FloatConversion {
+                conversion: *conversion,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
             smir::ExprKind::CharLiteral(value) => mir::ExprKind::CharLiteral(*value),
             smir::ExprKind::CharCode(value) => {
                 mir::ExprKind::CharCode(Box::new(self.lower_expr(value, span)))

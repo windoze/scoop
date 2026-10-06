@@ -383,6 +383,7 @@ const fn intrinsic_method(name: &'static str, kind: IntrinsicFunctionKind) -> In
 pub enum IntrinsicRegistryEntry {
     Standard(&'static IntrinsicSpec),
     Integer(IntegerIntrinsicKind),
+    Float(FloatIntrinsicKind),
 }
 
 impl IntrinsicRegistryEntry {
@@ -390,13 +391,14 @@ impl IntrinsicRegistryEntry {
         match self {
             Self::Standard(spec) => spec.name.to_string(),
             Self::Integer(kind) => kind.name(),
+            Self::Float(kind) => kind.name(),
         }
     }
 
     pub const fn stage(self) -> IntrinsicStage {
         match self {
             Self::Standard(spec) => spec.stage,
-            Self::Integer(_) => IntrinsicStage::Hir,
+            Self::Integer(_) | Self::Float(_) => IntrinsicStage::Hir,
         }
     }
 
@@ -404,19 +406,21 @@ impl IntrinsicRegistryEntry {
         match self {
             Self::Standard(spec) => spec.kind,
             Self::Integer(kind) => IntrinsicFunctionKind::Integer(kind),
+            Self::Float(kind) => IntrinsicFunctionKind::Float(kind),
         }
     }
 
     pub const fn target(self) -> IntrinsicTarget {
         match self {
             Self::Standard(spec) => spec.target,
-            Self::Integer(_) => IntrinsicTarget::Member,
+            Self::Integer(_) | Self::Float(_) => IntrinsicTarget::Member,
         }
     }
 
     pub const fn effects(self) -> IntrinsicEffects {
         match self {
             Self::Standard(spec) => spec.effects,
+            Self::Float(_) => IntrinsicEffects::NO_GC,
             Self::Integer(kind) => match kind.gc_effect() {
                 GcEffect::NoGc => IntrinsicEffects::NO_GC,
                 GcEffect::Managed => IntrinsicEffects::NONE,
@@ -426,6 +430,12 @@ impl IntrinsicRegistryEntry {
 }
 
 pub fn intrinsic_spec(name: &str) -> Option<IntrinsicRegistryEntry> {
+    if let Some(kind) = float_intrinsic_kinds()
+        .into_iter()
+        .find(|kind| kind.name() == name)
+    {
+        return Some(IntrinsicRegistryEntry::Float(kind));
+    }
     if let Some(kind) = integer_intrinsic_kind(name) {
         return Some(IntrinsicRegistryEntry::Integer(kind));
     }
@@ -468,6 +478,11 @@ pub fn intrinsic_function_kinds() -> Vec<IntrinsicFunctionKind> {
             })
         }));
     }
+    kinds.extend(
+        float_intrinsic_kinds()
+            .into_iter()
+            .map(IntrinsicFunctionKind::Float),
+    );
     kinds.sort_unstable();
     assert!(
         kinds.windows(2).all(|pair| pair[0] != pair[1]),

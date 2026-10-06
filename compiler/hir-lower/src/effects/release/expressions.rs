@@ -89,13 +89,17 @@ impl Lowerer {
             | E::PtrToULong(operand)
             | E::PtrCast(operand)
             | E::IntegerConversion { operand, .. }
+            | E::FloatUnary { operand, .. }
+            | E::FloatConversion { operand, .. }
             | E::Unary { operand, .. }
             | E::PrimitiveUnary { operand, .. }
             | E::SomeWrap(operand)
             | E::IsSome(operand) => {
                 self.release_expression(operand, values, facts);
             }
-            E::Binary { lhs, rhs, .. } | E::PrimitiveBinary { lhs, rhs, .. } => {
+            E::Binary { lhs, rhs, .. }
+            | E::FloatBinary { lhs, rhs, .. }
+            | E::PrimitiveBinary { lhs, rhs, .. } => {
                 self.release_expression(lhs, values, facts);
                 self.release_expression(rhs, values, facts);
             }

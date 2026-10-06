@@ -4,6 +4,11 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod conversion;
+mod operations;
+pub use conversion::FloatConversion;
+pub use operations::{FloatBinaryOperator, FloatUnaryOperator};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum FloatKind {
     F32,

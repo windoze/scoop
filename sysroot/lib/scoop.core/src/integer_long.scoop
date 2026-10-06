@@ -1,5 +1,11 @@
 @Intrinsic("core_long")
 public struct Long : ToString, Hash {
+    @NoGC @Intrinsic("long_to_float")
+    public fun toFloat(): Float
+
+    @NoGC @Intrinsic("long_to_double")
+    public fun toDouble(): Double
+
     @NoGC
     @Intrinsic("long_equals")
     public operator fun equals(other: Long): Boolean

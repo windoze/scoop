@@ -6,6 +6,7 @@ mod c_storage;
 mod call;
 mod expression;
 mod expression_support;
+mod floating;
 mod objects;
 mod places;
 mod pointers;

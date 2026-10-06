@@ -356,14 +356,17 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 count: lhs,
                 initializer: rhs,
             }
-            | DefaultExpressionKindV1::Binary { lhs, rhs, .. } => {
+            | DefaultExpressionKindV1::Binary { lhs, rhs, .. }
+            | DefaultExpressionKindV1::FloatBinary { lhs, rhs, .. } => {
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))
             }
             DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
                 self.push_child(pending, BodyNode::IntegerArguments(arguments))
             }
-            DefaultExpressionKindV1::IntegerConversion { operand, .. } => {
+            DefaultExpressionKindV1::IntegerConversion { operand, .. }
+            | DefaultExpressionKindV1::FloatUnary { operand, .. }
+            | DefaultExpressionKindV1::FloatConversion { operand, .. } => {
                 self.push_child(pending, BodyNode::Expression(operand))
             }
         }

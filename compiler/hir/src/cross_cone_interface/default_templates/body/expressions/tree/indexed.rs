@@ -40,6 +40,21 @@ enum IndexedDefaultExpressionKindV1<'a> {
     BooleanLiteral(CanonicalBooleanV1),
     CharLiteral(crate::CanonicalCharV1),
     FloatLiteral(scoop_identity::FloatConstant),
+    FloatUnary {
+        kind: crate::FloatKind,
+        operation: crate::FloatUnaryOperator,
+        operand: Box<IndexedDefaultExpressionV1<'a>>,
+    },
+    FloatBinary {
+        kind: crate::FloatKind,
+        operation: crate::FloatBinaryOperator,
+        lhs: Box<IndexedDefaultExpressionV1<'a>>,
+        rhs: Box<IndexedDefaultExpressionV1<'a>>,
+    },
+    FloatConversion {
+        conversion: crate::DefaultFloatConversionV1,
+        operand: Box<IndexedDefaultExpressionV1<'a>>,
+    },
     UnitLiteral,
     TupleLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
     StructInit {
@@ -266,6 +281,34 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::BooleanLiteral(value) => {
                 IndexedDefaultExpressionKindV1::BooleanLiteral(*value)
             }
+
+            DefaultExpressionKindV1::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => IndexedDefaultExpressionKindV1::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: index_child(operand, resolver, 68, 3)?,
+            },
+            DefaultExpressionKindV1::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => IndexedDefaultExpressionKindV1::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: index_child(lhs, resolver, 69, 3)?,
+                rhs: index_child(rhs, resolver, 69, 4)?,
+            },
+            DefaultExpressionKindV1::FloatConversion {
+                conversion,
+                operand,
+            } => IndexedDefaultExpressionKindV1::FloatConversion {
+                conversion: *conversion,
+                operand: index_child(operand, resolver, 70, 2)?,
+            },
             DefaultExpressionKindV1::FloatLiteral(value) => {
                 IndexedDefaultExpressionKindV1::FloatLiteral(*value)
             }

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v58_retains_floating_literals() {
+fn source_interface_v59_retains_floating_operations() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        58,
+        59,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -58,10 +58,10 @@ fn lir_layout_abi_v9_retains_floating_scalars() {
 }
 
 #[test]
-fn compiler_protocol_v10_retains_floating_declarations() {
+fn compiler_protocol_v11_retains_floating_operations() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        10,
+        11,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

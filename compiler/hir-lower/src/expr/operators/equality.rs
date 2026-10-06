@@ -6,7 +6,7 @@ mod fields;
 
 impl Lowerer {
     /// Finish the left evaluation before any statements produced by the right.
-    pub(super) fn lower_equality_rhs(
+    pub(in crate::expr) fn lower_equality_rhs(
         &mut self,
         lhs: hir::Expr,
         rhs: &ast::Expr,

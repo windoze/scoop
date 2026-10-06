@@ -1,0 +1,51 @@
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun floatFromBits(bits: UInt32): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun doubleFromBits(bits: UInt64): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt32
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): UInt64
+
+@Unsafe fun main() {
+    val singles = [
+        floatFromBits(0xffc00002U), floatFromBits(0xffc00001U), floatFromBits(0xff800002U),
+        floatFromBits(0xff800001U), floatFromBits(0xff800000U), floatFromBits(0xff7fffffU),
+        floatFromBits(0xbf800000U), floatFromBits(0x80000001U), floatFromBits(0x80000000U),
+        floatFromBits(0x00000000U), floatFromBits(0x00000001U), floatFromBits(0x3f800000U),
+        floatFromBits(0x7f7fffffU), floatFromBits(0x7f800000U), floatFromBits(0x7f800001U),
+        floatFromBits(0x7f800002U), floatFromBits(0x7fc00001U), floatFromBits(0x7fc00002U)
+    ]
+    val doubles = [
+        doubleFromBits(0xfff8000000000002UL), doubleFromBits(0xfff8000000000001UL), doubleFromBits(0xfff0000000000002UL),
+        doubleFromBits(0xfff0000000000001UL), doubleFromBits(0xfff0000000000000UL), doubleFromBits(0xffefffffffffffffUL),
+        doubleFromBits(0xbff0000000000000UL), doubleFromBits(0x8000000000000001UL), doubleFromBits(0x8000000000000000UL),
+        doubleFromBits(0x0000000000000000UL), doubleFromBits(0x0000000000000001UL), doubleFromBits(0x3ff0000000000000UL),
+        doubleFromBits(0x7fefffffffffffffUL), doubleFromBits(0x7ff0000000000000UL), doubleFromBits(0x7ff0000000000001UL),
+        doubleFromBits(0x7ff0000000000002UL), doubleFromBits(0x7ff8000000000001UL), doubleFromBits(0x7ff8000000000002UL)
+    ]
+    gcCollect()
+    var i = 0L
+    while (i < 18L) {
+        var j = 0L
+        while (j < 18L) {
+            if (singles[i].isTotallyOrdered(singles[j]) != (i <= j) ||
+                doubles[i].isTotallyOrdered(doubles[j]) != (i <= j)) {
+                println("order"); return
+            }
+            j = j + 1L
+        }
+        i = i + 1L
+    }
+    val snan = floatFromBits(0x7f800042U)
+    val dnan = doubleFromBits(0x7ff0000000000042UL)
+    if (floatBits(+snan) != 0x7f800042U || floatBits(-snan) != 0xff800042U ||
+        doubleBits(+dnan) != 0x7ff0000000000042UL || doubleBits(-dnan) != 0xfff0000000000042UL ||
+        floatBits(snan.toFloat()) != 0x7f800042U || doubleBits(dnan.toDouble()) != 0x7ff0000000000042UL) {
+        println("payload"); return
+    }
+    if (!snan.isNaN() || !dnan.isNaN() || snan == snan || dnan == dnan) {
+        println("signaling"); return
+    }
+    println(42)
+}

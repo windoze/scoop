@@ -1,4 +1,5 @@
 use super::*;
+use crate::{FloatBinaryOperator, FloatKind, FloatUnaryOperator, HirFloatConversion};
 
 mod type_uses;
 use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
@@ -188,6 +189,21 @@ pub enum ExprKind {
     BoolLiteral(bool),
     CharLiteral(char),
     FloatLiteral(scoop_identity::FloatConstant),
+    FloatUnary {
+        kind: FloatKind,
+        operation: FloatUnaryOperator,
+        operand: Box<Expr>,
+    },
+    FloatBinary {
+        kind: FloatKind,
+        operation: FloatBinaryOperator,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    FloatConversion {
+        conversion: HirFloatConversion,
+        operand: Box<Expr>,
+    },
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,

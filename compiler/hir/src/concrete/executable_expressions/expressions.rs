@@ -42,6 +42,8 @@ impl<'a> Traversal<'a> {
             | ExprKind::ArrayClone(operand)
             | ExprKind::PrimitiveUnary { operand, .. }
             | ExprKind::IntegerConversion { operand, .. }
+            | ExprKind::FloatUnary { operand, .. }
+            | ExprKind::FloatConversion { operand, .. }
             | ExprKind::Unary { operand, .. }
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
@@ -61,6 +63,7 @@ impl<'a> Traversal<'a> {
                 initializer: rhs,
             }
             | ExprKind::Binary { lhs, rhs, .. }
+            | ExprKind::FloatBinary { lhs, rhs, .. }
             | ExprKind::PtrOffset {
                 pointer: lhs,
                 offset: rhs,

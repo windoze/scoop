@@ -14,6 +14,7 @@ mod context;
 mod coroutines;
 mod exceptions;
 mod ffi;
+mod floating;
 mod gc_control;
 mod intrinsics;
 mod iteration;

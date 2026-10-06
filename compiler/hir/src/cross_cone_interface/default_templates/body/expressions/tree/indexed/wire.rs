@@ -46,6 +46,21 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
             Self::CharLiteral(value) => encode_one(encoder, 63, value),
             Self::FloatLiteral(value) => encode_one(encoder, 67, value),
+            Self::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => encode_three(encoder, 68, kind, operation, operand.as_ref()),
+            Self::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => encode_four(encoder, 69, kind, operation, lhs.as_ref(), rhs.as_ref()),
+            Self::FloatConversion {
+                conversion,
+                operand,
+            } => encode_two(encoder, 70, conversion, operand.as_ref()),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_sequence_variant(encoder, 5, elements),
             Self::StructInit {

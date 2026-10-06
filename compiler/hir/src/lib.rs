@@ -10,7 +10,9 @@
 //! carries a closed library/executable branch in both the export and local-
 //! concrete id domains; an executable entry is never optional.
 
-pub use scoop_identity::{FloatConstant as HirFloatConstant, FloatKind};
+pub use scoop_identity::{
+    FloatBinaryOperator, FloatConstant as HirFloatConstant, FloatKind, FloatUnaryOperator,
+};
 
 use la_arena::{Arena, Idx};
 use scoop_ast::Diagnostic;
@@ -181,3 +183,6 @@ pub use dump::{dump, dump_cross_cone, dump_local, dump_module, dump_pattern, dum
 
 #[cfg(test)]
 mod nominal_interface_fixture;
+
+mod floating;
+pub use floating::*;

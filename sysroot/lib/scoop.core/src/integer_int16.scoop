@@ -1,5 +1,11 @@
 @Intrinsic("core_int16")
 public struct Int16 : ToString, Hash {
+    @NoGC @Intrinsic("int16_to_float")
+    public fun toFloat(): Float
+
+    @NoGC @Intrinsic("int16_to_double")
+    public fun toDouble(): Double
+
     @NoGC
     @Intrinsic("int16_equals")
     public operator fun equals(other: Int16): Boolean

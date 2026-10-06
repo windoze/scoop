@@ -1,6 +1,8 @@
 //! Candidate-local decimal conversion to the selected IEEE format.
 
 use super::*;
+
+mod operations;
 use rustc_apfloat::{
     Float, Round,
     ieee::{Double, Single},

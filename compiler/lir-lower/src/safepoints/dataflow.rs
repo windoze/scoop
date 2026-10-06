@@ -13,6 +13,7 @@ pub(super) fn instruction_uses(
         lir::Instruction::UnboxValue { object, .. } => vec![*object],
         lir::Instruction::PublishReleaseReady { object } => vec![*object],
         lir::Instruction::BinOp { lhs, rhs, .. }
+        | lir::Instruction::FloatBinary { lhs, rhs, .. }
         | lir::Instruction::IntegerBinary { lhs, rhs, .. }
         | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
         | lir::Instruction::IntegerCompare { lhs, rhs, .. }
@@ -23,6 +24,8 @@ pub(super) fn instruction_uses(
             ..
         } => vec![*value, *normalized_count],
         lir::Instruction::UnaryOp { operand, .. }
+        | lir::Instruction::FloatUnary { operand, .. }
+        | lir::Instruction::FloatConversion { operand, .. }
         | lir::Instruction::IntegerUnary { operand, .. }
         | lir::Instruction::IntegerConvert { operand, .. }
         | lir::Instruction::ExtractValue {
@@ -136,6 +139,9 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         lir::Instruction::BoxValue { out, .. }
         | lir::Instruction::BinOp { out, .. }
         | lir::Instruction::UnaryOp { out, .. }
+        | lir::Instruction::FloatUnary { out, .. }
+        | lir::Instruction::FloatBinary { out, .. }
+        | lir::Instruction::FloatConversion { out, .. }
         | lir::Instruction::IntegerUnary { out, .. }
         | lir::Instruction::IntegerBinary { out, .. }
         | lir::Instruction::SafeIntegerDivRem { out, .. }

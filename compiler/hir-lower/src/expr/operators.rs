@@ -133,6 +133,12 @@ impl Lowerer {
             self.commit_expr_layer(layer, sink)
         } else {
             let receiver = self.lower_expr(receiver, sink, None)?;
+            if let Some(comparison) = comparison
+                && let Some(kind) = self.float_kind(receiver.ty)
+            {
+                return self
+                    .lower_float_comparison(kind, comparison, receiver, argument, span, sink);
+            }
             self.lower_named_call_on_receiver(
                 receiver,
                 &name,

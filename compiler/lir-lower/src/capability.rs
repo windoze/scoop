@@ -227,6 +227,9 @@ fn expression_requirement(
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::CharLiteral(_)
         | mir::ExprKind::FloatLiteral(_)
+        | mir::ExprKind::FloatUnary { .. }
+        | mir::ExprKind::FloatBinary { .. }
+        | mir::ExprKind::FloatConversion { .. }
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::ReleaseFieldLoad { .. }

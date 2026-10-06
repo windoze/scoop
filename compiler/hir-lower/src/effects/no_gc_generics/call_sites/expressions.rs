@@ -167,7 +167,9 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(rhs, out);
                 }
             },
-            ExprKind::IntegerConversion { operand, .. } => {
+            ExprKind::IntegerConversion { operand, .. }
+            | ExprKind::FloatUnary { operand, .. }
+            | ExprKind::FloatConversion { operand, .. } => {
                 self.collect_generic_calls_in_expr(operand, out);
             }
             ExprKind::FunctionCoercion { source, .. }
@@ -231,6 +233,11 @@ impl Lowerer {
             | ExprKind::ArrayGenerate {
                 count: pointer,
                 initializer: offset,
+            }
+            | ExprKind::FloatBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
             }
             | ExprKind::Binary {
                 lhs: pointer,

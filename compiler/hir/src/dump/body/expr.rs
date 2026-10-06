@@ -10,6 +10,31 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
+        ExprKind::FloatUnary {
+            kind,
+            operation,
+            operand,
+        } => {
+            out.push_str(&format!("{pad}FloatUnary {kind:?} {operation:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::FloatBinary {
+            kind,
+            operation,
+            lhs,
+            rhs,
+        } => {
+            out.push_str(&format!("{pad}FloatBinary {kind:?} {operation:?}\n"));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::FloatConversion {
+            conversion,
+            operand,
+        } => {
+            out.push_str(&format!("{pad}FloatConversion {conversion:?}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         ExprKind::ContextLookup(requirement) => out.push_str(&format!(
             "{pad}ContextLookup {} #{} : {ty}\n",
             requirement.diagnostic.declaration,

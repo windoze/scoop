@@ -23,6 +23,21 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::MachineScalar(machine_scalar_value(*value))
             }
             mir::ExprKind::FloatLiteral(value) => lir::Value::FloatConst(*value),
+            mir::ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => self.lower_float_unary(ty, *kind, *operation, operand)?,
+            mir::ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => self.lower_float_binary(ty, *kind, *operation, lhs, rhs)?,
+            mir::ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => self.lower_float_conversion(ty, *conversion, operand)?,
             mir::ExprKind::CharLiteral(value) => {
                 lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(*value as u32))
             }

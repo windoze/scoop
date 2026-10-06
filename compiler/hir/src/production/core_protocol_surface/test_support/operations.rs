@@ -19,6 +19,23 @@ pub(super) fn fixture_operation_owner(
     fundamental: &CoreFundamentalTypeProtocolV1,
 ) -> Option<DefinitionOwnerAtom> {
     match kind {
+        IntrinsicFunctionKind::Float(kind) => {
+            let index = match kind.owner() {
+                crate::IntrinsicTypeKind::Float(crate::FloatKind::F32) => 16,
+                crate::IntrinsicTypeKind::Float(crate::FloatKind::F64) => 17,
+                crate::IntrinsicTypeKind::Integer(integer) => {
+                    1 + crate::IntegerKind::ALL
+                        .iter()
+                        .position(|kind| *kind == integer)
+                        .expect("closed integer kind")
+                }
+                _ => unreachable!("floating operations have numeric owners"),
+            };
+            Some(DefinitionOwnerAtom::Type(concrete_entry_ref(
+                fundamental.entries(),
+                index,
+            )))
+        }
         IntrinsicFunctionKind::Char(kind) => Some(DefinitionOwnerAtom::Type(concrete_entry_ref(
             fundamental.entries(),
             if kind == crate::CharIntrinsic::FromCodeUnchecked {

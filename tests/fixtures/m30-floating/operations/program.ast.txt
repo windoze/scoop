@@ -1,0 +1,341 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun floatMath(a: Float, b: Float): Float
+    =
+      Binary Div
+        Binary Mul
+          Binary Add
+            Var a
+            Var b
+          Binary Sub
+            Var a
+            Var b
+        Unary Plus
+          Var b
+    @NoGC
+  fun doubleMath(a: Double, b: Double): Double
+    =
+      Binary Div
+        Binary Mul
+          Binary Add
+            Var a
+            Var b
+          Binary Sub
+            Var a
+            Var b
+        Unary Plus
+          Var b
+    @NoGC
+  fun floatRem(a: Float, b: Float): Float
+    =
+      Binary Rem
+        Var a
+        Var b
+    @NoGC
+  fun doubleRem(a: Double, b: Double): Double
+    =
+      Binary Rem
+        Var a
+        Var b
+    @NoGC
+  fun floatDiv(a: Float, b: Float): Float
+    =
+      Binary Div
+        Var a
+        Var b
+    @NoGC
+  fun doubleDiv(a: Double, b: Double): Double
+    =
+      Binary Div
+        Var a
+        Var b
+    @NoGC
+  fun ordered(a: Double, b: Double): Boolean
+    =
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Lt
+              Var a
+              Var b
+            Binary Le
+              Var a
+              Var b
+          Binary Gt
+            Var a
+            Var b
+        Binary Ge
+          Var a
+          Var b
+    @NoGC
+  fun floatOrdered(a: Float, b: Float): Boolean
+    =
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Lt
+              Var a
+              Var b
+            Binary Le
+              Var a
+              Var b
+          Binary Gt
+            Var a
+            Var b
+        Binary Ge
+          Var a
+          Var b
+  fun defaultSum(value: Double = <expr>): Double
+    =
+      Var value
+  fun main()
+    Call println
+      InterpolatedString
+        Expression
+          Call floatMath
+            FloatLiteral 7f
+            FloatLiteral 2f
+        Text " "
+        Expression
+          Call doubleMath
+            FloatLiteral 7.0
+            FloatLiteral 2.0
+    Call println
+      InterpolatedString
+        Expression
+          Call floatRem
+            Unary Neg
+              FloatLiteral 5.5f
+            FloatLiteral 2f
+        Text " "
+        Expression
+          Call doubleRem
+            Unary Neg
+              FloatLiteral 5.5
+            FloatLiteral 2.0
+    Call println
+      InterpolatedString
+        Expression
+          Call floatRem
+            Unary Neg
+              FloatLiteral 4f
+            FloatLiteral 2f
+        Text " "
+        Expression
+          Call doubleRem
+            Unary Neg
+              FloatLiteral 4.0
+            FloatLiteral 2.0
+    val nan
+      Call doubleDiv
+        FloatLiteral 0.0
+        FloatLiteral 0.0
+    val fnan
+      Call floatDiv
+        FloatLiteral 0f
+        FloatLiteral 0f
+    val infinity
+      Call doubleDiv
+        FloatLiteral 1.0
+        FloatLiteral 0.0
+    val finfinity
+      Call floatDiv
+        FloatLiteral 1f
+        FloatLiteral 0f
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            MethodCall isNaN
+              Var nan
+            MethodCall isNaN
+              Var fnan
+          Unary Not
+            MethodCall isFinite
+              Var nan
+        Unary Not
+          MethodCall isInfinite
+            Var nan
+    Call println
+      Binary And
+        Binary And
+          MethodCall isInfinite
+            Var infinity
+          MethodCall isInfinite
+            Var finfinity
+        Unary Not
+          MethodCall isFinite
+            Var infinity
+    Call println
+      Binary And
+        Binary And
+          MethodCall isFinite
+            FloatLiteral 1.0
+          MethodCall isFinite
+            FloatLiteral 1f
+        Unary Not
+          MethodCall isNaN
+            FloatLiteral 1.0
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Ne
+              Var nan
+              Var nan
+            Unary Not
+              Binary Eq
+                Var nan
+                Var nan
+          Binary Ne
+            Var fnan
+            Var fnan
+        Unary Not
+          Binary Eq
+            Var fnan
+            Var fnan
+    Call println
+      Binary And
+        Binary And
+          Unary Not
+            Call ordered
+              Var nan
+              FloatLiteral 0.0
+          Unary Not
+            Call ordered
+              FloatLiteral 0.0
+              Var nan
+        Unary Not
+          Call floatOrdered
+            Var fnan
+            FloatLiteral 0f
+    Call println
+      Binary And
+        Binary And
+          Call ordered
+            FloatLiteral 1.0
+            FloatLiteral 2.0
+          Call ordered
+            FloatLiteral 2.0
+            FloatLiteral 1.0
+        Call ordered
+          FloatLiteral 1.0
+          FloatLiteral 1.0
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              FloatLiteral 0.0
+              Unary Neg
+                FloatLiteral 0.0
+            Binary Eq
+              FloatLiteral 0f
+              Unary Neg
+                FloatLiteral 0f
+          Binary Le
+            Unary Neg
+              FloatLiteral 0.0
+            FloatLiteral 0.0
+        Binary Ge
+          FloatLiteral 0.0
+          Unary Neg
+            FloatLiteral 0.0
+    Call println
+      Binary And
+        MethodCall isTotallyOrdered
+          Unary Neg
+            FloatLiteral 0.0
+          FloatLiteral 0.0
+        Unary Not
+          MethodCall isTotallyOrdered
+            FloatLiteral 0.0
+            Unary Neg
+              FloatLiteral 0.0
+    Call println
+      Binary And
+        MethodCall isTotallyOrdered
+          Unary Neg
+            FloatLiteral 0f
+          FloatLiteral 0f
+        Unary Not
+          MethodCall isTotallyOrdered
+            FloatLiteral 0f
+            Unary Neg
+              FloatLiteral 0f
+    Call println
+      Binary And
+        MethodCall isNaN
+          Call doubleRem
+            Var infinity
+            FloatLiteral 2.0
+        MethodCall isNaN
+          Call floatRem
+            Var finfinity
+            FloatLiteral 2f
+    Call println
+      Binary And
+        MethodCall isNaN
+          Call doubleRem
+            FloatLiteral 1.0
+            FloatLiteral 0.0
+        MethodCall isNaN
+          Call floatRem
+            FloatLiteral 1f
+            FloatLiteral 0f
+    var value
+      FloatLiteral 1.25
+    var narrow
+      FloatLiteral 1.25f
+    Call println
+      InterpolatedString
+        Expression
+          Update Postfix Increment
+            Place value
+        Text " "
+        Expression
+          Update Prefix Increment
+            Place value
+        Text " "
+        Expression
+          Update Postfix Decrement
+            Place value
+        Text " "
+        Expression
+          Update Prefix Decrement
+            Place value
+    Call println
+      InterpolatedString
+        Expression
+          Update Postfix Increment
+            Place narrow
+        Text " "
+        Expression
+          Update Prefix Increment
+            Place narrow
+        Text " "
+        Expression
+          Update Postfix Decrement
+            Place narrow
+        Text " "
+        Expression
+          Update Prefix Decrement
+            Place narrow
+    val plus
+      CallableReference 0 plus
+        FloatLiteral 1.5
+    val finite
+      CallableReference 1 isFinite
+        FloatLiteral 1f
+    Call println
+      InterpolatedString
+        Expression
+          Call plus
+            FloatLiteral 2.5
+        Text " "
+        Expression
+          Call finite
+        Text " "
+        Expression
+          Call defaultSum

@@ -1,11 +1,36 @@
 use super::*;
 
 mod boxing;
+mod floating;
 mod integers;
 
 impl Writer<'_, '_> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result {
         match instruction {
+            Instruction::FloatUnary {
+                out,
+                kind,
+                operation,
+                operand,
+            } => {
+                record!(self, 71; self.temp(*out), self.u(u64::from(kind.bits())), self.u(*operation as u64), self.value(*operand))
+            }
+            Instruction::FloatBinary {
+                out,
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => {
+                record!(self, 72; self.temp(*out), self.u(u64::from(kind.bits())), self.u(*operation as u64), self.value(*lhs), self.value(*rhs))
+            }
+            Instruction::FloatConversion {
+                out,
+                conversion,
+                operand,
+            } => {
+                record!(self, 73; self.temp(*out), self.float_conversion(*conversion), self.value(*operand))
+            }
             Instruction::PublishReleaseReady { object } => {
                 record!(self, 62; self.value(*object))
             }

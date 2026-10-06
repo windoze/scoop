@@ -72,6 +72,9 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::IntegerCompareTo { .. }
         | ExprKind::IntegerShift { .. }
         | ExprKind::IntegerConversion { .. }
+        | ExprKind::FloatUnary { .. }
+        | ExprKind::FloatBinary { .. }
+        | ExprKind::FloatConversion { .. }
         | ExprKind::VariantConstruct { .. }
         | ExprKind::EnumTag(_)
         | ExprKind::EnumField { .. }
