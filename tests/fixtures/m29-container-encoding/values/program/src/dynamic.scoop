@@ -1,40 +1,49 @@
 import scoop.json.Json
 
 private struct Opaque()
-private class Node(public val children: Array<Node>) : Encodable
-private interface Labeled : Encodable {
-    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(23L) }
+private class Node(public val children: Array<Node>) {
+    public companion object : Encodable<Node>
 }
+private interface Labeled {}
 private struct Label() : Labeled
+private interface LabeledEncoder : Encodable<Labeled> {
+    public override fun encode(value: Labeled, encoder: Encoder) {
+        encoder.singleValue().writeLong(23L)
+    }
+}
+private object Labels : LabeledEncoder
 
 private fun <T> erase(value: T): Any = value
 private fun noop() {}
 
-private fun dynamic(value: Any, expected: String, code: Int) {
-    check(value is Encodable, code)
-    if (value is Encodable) { check(Json.encode(value) == expected, code) }
+private fun <T> dynamic(value: T, codec: Any, expected: String, code: Int) {
+    check(!(erase(value) is Encodable<T>), code)
+    check(codec is Encodable<T>, code)
+    if (codec is Encodable<T>) { check(Json.encode(value, codec) == expected, code) }
 }
 
 fun dynamicCases() {
-    dynamic(erase(Array<Int>(2L) { _ -> 8 }), "[8,8]", 20)
-    dynamic(erase(MutableArray<Unit>(1L) { _ -> Unit }), "[null]", 21)
+    dynamic(Array<Int>(2L) { _ -> 8 }, Array<Int>.encoder(Int.Companion), "[8,8]", 20)
+    dynamic(MutableArray<Unit>(1L) { _ -> Unit }, MutableArray<Unit>.encoder(UnitEncoder), "[null]", 21)
     val list = ArrayList<Int>()
     list.add(5)
-    dynamic(erase(list), "[5]", 22)
+    dynamic(list, ArrayList<Int>.encoder(Int.Companion), "[5]", 22)
     val empty: Option<Int> = None
-    dynamic(erase(empty), "{\"None\":{}}", 23)
-    dynamic(erase(Some(Array<Int>(1L) { _ -> 9 })), "{\"Some\":[[9]]}", 24)
-    check(!(erase(Array<Opaque>(0L) { _ -> Opaque() }) is Encodable), 25)
-    check(!(erase(MutableArray<Opaque>(1L) { _ -> Opaque() }) is Encodable), 26)
-    check(!(erase(ArrayList<Opaque>()) is Encodable), 27)
+    dynamic(empty, Option<Int>.encoder(Int.Companion), "{\"None\":{}}", 23)
+    val nested = Option<Array<Int>>.encoder(Array<Int>.encoder(Int.Companion))
+    dynamic(Some(Array<Int>(1L) { _ -> 9 }), nested, "{\"Some\":[[9]]}", 24)
+    check(!(erase(Array<Opaque>(0L) { _ -> Opaque() }) is Encodable<Array<Opaque>>), 25)
+    check(!(erase(MutableArray<Opaque>(1L) { _ -> Opaque() }) is Encodable<MutableArray<Opaque>>), 26)
+    check(!(erase(ArrayList<Opaque>()) is Encodable<ArrayList<Opaque>>), 27)
     val opaque: Option<Opaque> = None
-    check(!(erase(opaque) is Encodable), 28)
-    check(!(erase(Array<Any>(1L) { _ -> 7 }) is Encodable), 29)
-    check(!(erase(Array<() -> Unit>(0L) { _ -> ::noop }) is Encodable), 30)
+    check(!(erase(opaque) is Encodable<Option<Opaque>>), 28)
+    check(!(erase(Array<Any>(1L) { _ -> 7 }) is Encodable<Array<Any>>), 29)
+    check(!(erase(Array<() -> Unit>(0L) { _ -> ::noop }) is Encodable<Array<() -> Unit>>), 30)
     val inner = Array<Node>(0L) { _ -> throw IllegalStateException(None) }
-    dynamic(erase(inner), "[]", 31)
-    dynamic(erase(Node(inner)), "{\"children\":[]}", 32)
-    dynamic(erase(Array<Labeled>(2L) { _ -> Label() }), "[23,23]", 33)
+    dynamic(inner, Array<Node>.encoder(Node.Companion), "[]", 31)
+    dynamic(Node(inner), Node.Companion, "{\"children\":[]}", 32)
+    dynamic(Array<Labeled>(2L) { _ -> Label() }, Array<Labeled>.encoder(Labels), "[23,23]", 33)
     val view: List<Int> = Array<Int>(1L) { _ -> 4 }
-    dynamic(erase(view), "[4]", 34)
+    val codec = EncodeFunction<List<Int>>({ value, encoder -> encodeList(value, Int.Companion, encoder) })
+    dynamic(view, codec, "[4]", 34)
 }

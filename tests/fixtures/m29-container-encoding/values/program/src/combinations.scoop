@@ -1,39 +1,46 @@
 import scoop.json.Json
 
 private var visits: Int = 0
-private struct Item(val number: Int) : Encodable {
-    public override fun encode(encoder: Encoder) {
-        visits += 1
-        if (number < 0) { throw IllegalStateException(Some("element failure")) }
-        number.encode(encoder)
+private struct Item(val number: Int) {
+    public companion object : Encodable<Item> {
+        public override fun encode(value: Item, encoder: Encoder) {
+            visits += 1
+            if (value.number < 0) { throw IllegalStateException(Some("element failure")) }
+            Int.encode(value.number, encoder)
+        }
     }
 }
-private struct Record(@SerialName("wire") val values: Array<Option<Item>>) : Encodable
-private class Captured(private val write: (Encoder) -> Unit) : Encodable {
-    public override fun encode(encoder: Encoder) { write(encoder) }
+private struct Record(@SerialName("wire") val values: Array<Option<Item>>) {
+    public companion object : Encodable<Record>
 }
-private fun <T : Encodable> capture(values: Array<T>): (Encoder) -> Unit = values::encode
-private fun <T : Encodable> coding(values: Option<T>): Encodable = values
+private class Captured<T>(private val write: (T, Encoder) -> Unit) : Encodable<T> {
+    public override fun encode(value: T, encoder: Encoder) { write(value, encoder) }
+}
+private fun <T> capture(element: Encodable<T>): (Array<T>, Encoder) -> Unit {
+    val codec = Array<T>.encoder(element)
+    return codec::encode
+}
+private fun <T> coding(element: Encodable<T>): Encodable<Option<T>> = Option<T>.encoder(element)
 
 fun combinedCases() {
     val data = Array<Option<Item>>(2L) { index -> Some(Item(index.toInt32())) }
-    check(Json.encode(Record(data)) == "{\"wire\":[{\"Some\":[0]},{\"Some\":[1]}]}", 40)
+    check(Json.encode(Record(data), Record.Companion) == "{\"wire\":[{\"Some\":[0]},{\"Some\":[1]}]}", 40)
     check(visits == 2, 41)
     val array = Array<Int>(2L) { index -> index.toInt32() + 3 }
-    check(Json.encode(Captured(capture(array))) == "[3,4]", 42)
-    check(Json.encode(coding(Some(array))) == "{\"Some\":[[3,4]]}", 43)
+    check(Json.encode(array, Captured(capture(Int.Companion))) == "[3,4]", 42)
+    check(Json.encode(Some(array), coding(Array<Int>.encoder(Int.Companion))) == "{\"Some\":[[3,4]]}", 43)
     val maybe: Option<Int> = Some(6)
-    val optionReference = maybe::encode
-    check(Json.encode(Captured(optionReference)) == "{\"Some\":[6]}", 44)
+    val optionCodec = Option<Int>.encoder(Int.Companion)
+    check(Json.encode(maybe, Captured(optionCodec::encode)) == "{\"Some\":[6]}", 44)
     val mutable = MutableArray<Int>(1L) { _ -> 9 }
-    val mutableReference = mutable::encode
-    check(Json.encode(Captured(mutableReference)) == "[9]", 45)
+    val mutableCodec = MutableArray<Int>.encoder(Int.Companion)
+    check(Json.encode(mutable, Captured(mutableCodec::encode)) == "[9]", 45)
     val list = ArrayList<Int>()
     list.add(10)
-    val listReference = list::encode
-    check(Json.encode(Captured(listReference)) == "[10]", 46)
+    val listCodec = ArrayList<Int>.encoder(Int.Companion)
+    check(Json.encode(list, Captured(listCodec::encode)) == "[10]", 46)
     try {
-        Json.encode(Array<Item>(4L) { index -> Item(1 - index.toInt32()) })
+        Json.encode(Array<Item>(4L) { index -> Item(1 - index.toInt32()) }, Array<Item>.encoder(Item.Companion))
         check(false, 47)
     } catch (error: IllegalStateException) {
         check(error.message == Some("element failure"), 48)

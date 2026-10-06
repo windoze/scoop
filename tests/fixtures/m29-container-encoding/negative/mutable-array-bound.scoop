@@ -1,2 +1,2 @@
-fun <T> coding(value: MutableArray<T>): Encodable = value
+fun <T> coding(value: MutableArray<T>): Encodable<MutableArray<T>> = value
 fun main() {}

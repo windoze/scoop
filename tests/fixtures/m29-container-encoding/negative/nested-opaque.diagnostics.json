@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "body of `coding` must be of type Encodable, found Array<Option<Opaque>>",
+    "message": "automatic encode has no Encodable<Opaque> field codec; provide a primary val dependency, a conforming companion, or an explicit encode implementation",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 75,
+      "end": 107,
       "kind": "source",
       "path": "main.scoop",
-      "start": 70
+      "start": 71
     },
     "severity": "error"
   }

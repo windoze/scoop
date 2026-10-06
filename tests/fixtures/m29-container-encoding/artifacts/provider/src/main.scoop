@@ -1,10 +1,18 @@
 package containers
 
-public fun <T : Encodable> coding(values: Array<T>): Encodable = values
+public fun <T> coding(element: Encodable<T>): Encodable<Array<T>> = Array<T>.encoder(element)
 public fun <T> erase(values: MutableArray<T>): Any = values
 public fun <T> eraseList(values: ArrayList<T>): Any = values
-public fun <T : Encodable> capture(value: Option<T>): (Encoder) -> Unit = value::encode
+public fun <T> capture(element: Encodable<T>): (Option<T>, Encoder) -> Unit {
+    val codec = Option<T>.encoder(element)
+    return codec::encode
+}
 public fun shared(): Array<Option<Int>> = Array<Option<Int>>(2L) { index ->
     if (index == 0L) { None } else { Some(1) }
 }
-public struct Envelope<T : Encodable>(val items: Array<T>, val last: Option<T>) : Encodable
+public struct Envelope<T>(val items: Array<T>, val last: Option<T>) {
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Envelope<T>> = EnvelopeEncoder<T>(element)
+    }
+}
+private class EnvelopeEncoder<T>(private val element: Encodable<T>) : Encodable<Envelope<T>>

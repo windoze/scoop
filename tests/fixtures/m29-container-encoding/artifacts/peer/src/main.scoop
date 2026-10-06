@@ -2,7 +2,7 @@ package peers
 
 import containers.shared
 
-public fun nested(): Encodable = shared()
+public fun nested(): Array<Option<Int>> = shared()
 public fun independent(): Any = Array<Option<Int>>(2L) { index ->
     if (index == 0L) { None } else { Some(1) }
 }

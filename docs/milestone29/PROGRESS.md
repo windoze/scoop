@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：容器 codec 与跨库组合
+
+四种核心容器的正式用例迁移为显式 encoder factory，保留嵌套 Option/Array、
+可变序列的逻辑元素、递归 class、元素异常及访问次数。泛型 helper 和绑定引用
+保存真实 codec，数据单独传入；Any 检查验证数据没有编码 conformance，codec
+保留普通接口分派。三 Cone 用例覆盖同一容器 application、泛型派生 Envelope、
+删除源码后的链接和普通/移动 GC。负例分别检查缺少字段能力和非法实例调用。
+
+macOS 的 11 个正式 fixture 在普通模式下全部通过，共 22 个进程、8 份 golden；
+格式化与 workspace clippy 已通过。报告保存为
+`/tmp/scoop-m29-saved-reports/m29-container-codecs-darwin.json`，已清理完成的
+工作目录。Linux 两目标随后验证同一源码及共有输出。
+
 ## 2026-10-06：core 重建与角色迁移回归
 
 核心 Int/String 的精确源码替换片段同步当前 companion codec 声明，继续验证
@@ -12,7 +25,7 @@
 macOS 两项正式 fixture 在普通模式下通过，共 11 个进程、15 份 golden，包含
 删除源码后的链接及 moving GC。重用只读产物目录导致的一次权限失败已单独
 保存，干净目录复验通过，没有修改 fixture 规则。报告均归档到 /tmp；清理三个
-已完成工作目录，合计约 1.1 GiB。Linux 目标相关快照将在下一批同步验证。
+已完成工作目录，合计 284.6 MiB。Linux 目标相关快照将在下一批同步验证。
 
 ## 2026-10-06：List 编码的显式元素依赖
 
