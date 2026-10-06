@@ -90,3 +90,5 @@ Darwin 格式化、workspace clippy、release CLI 构建通过。三个新 fixtu
 SingleValueEncodingContainer／SingleValueDecodingContainer 增加 Float 与 Double 的独立读写方法，Float／Double companion 以普通 core body 显式实现 codec；既有 JSON 和手写容器实现同时补齐，不增加默认方法。JSON 用原始 number 文本直接解析目标精度，整数路径保持原有精确解析。解析后备复用 String 结果适配的方式，按实际 16 字节、8 对齐的 tagged Option 布局提供两平台 sret 入口；C locale 通过 pthread_once 初始化，临时 NUL 缓冲区按真实文本长度分配。新增 C 实现 68 行，ABI header 和两个平台适配文件各不超过 35 行，不新增通用 FFI 框架。
 
 Darwin 的格式化、workspace clippy、严格 C 告警检查和 release CLI 构建通过。四个新 fixture 共 14 进程、7 份阶段 golden 通过：独立格式保留 NaN payload／Infinity，JSON 只编码有限数，检查直接 F32 舍入、nearest-even 两侧、边界及抽样位型往返、负零、subnormal／underflow、overflow、411 位数字和逗号 locale 下解析；派生 record／enum、泛型 codec、Option、Array、ArrayList 和嵌套错误 path 均经普通／移动 GC 运行。两个负例锁定缺失 Float／Double 单值方法的精确诊断。旧序列化容器与派生依赖两项回归另有 10 进程、3 份 golden 通过；手写 encoder 的快照同步新增方法、浮点类型和相关函数编号。
+
+Linux/glibc 动态与 musl 静态均已通过这四个新 fixture，各为 14 进程、7 份 golden，包含两种 GC 模式；共有 AST/HIR/MIR 无变化，分别保存目标 LIR。两套 libc 的 strtof_l／strtod_l 均通过直接舍入和边界检查。F 批开始前再次清理了约 1.8 GiB 的闲置 debug incremental 缓存。
