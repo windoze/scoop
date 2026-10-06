@@ -1,7 +1,6 @@
 //! Representation-independent cross-Cone type facts and inheritance contracts.
 //!
-//! These constituents belong to `cross-cone-type-semantics/18` and refer to
-//! complete declarations in the shared HIR interface.
+//! These constituents refer to complete declarations in the shared HIR interface.
 
 mod access;
 mod facts;

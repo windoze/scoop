@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-M29 的 Unit 批次使用 HIR `identity-foundation/6`、`core-bootstrap-interface/9`、`cross-cone-interface/54`、`cross-cone-type-semantics/18` 与 MIR `cross-cone-type-bridge/12`，旧产物与缓存需重建。Unit 的实际 core 声明保留普通成员及 Encodable 接口，零大小值布局和 runtime ABI 不变，详见 §2.17。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+M29 当前使用 HIR `identity-foundation/7`、`core-bootstrap-interface/9`、`cross-cone-interface/55`、`cross-cone-type-semantics/20`，MIR `cross-cone-type-bridge/13` 和 LIR `cone-production/7`，旧产物与缓存需重建。Unit、容器和 tuple 的编码接口沿普通类型、调用与分派表实现；零大小值布局和 runtime metadata ABI 4 保持不变，各批次的格式演进见 §2.17。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1745,7 +1745,7 @@ initializer/ensure 签名与正文参数环境，保留原 binder 和 generic ca
 
 companion声明、带宿主实参的application与concrete实体沿名义类型模型分别表示。object declaration的value记录表示原声明，不能用它代替已应用singleton的身份；具体对象同时保留其完整exact类型。隐藏backing class的模板键引用实际generic companion声明，语言类型及签名仍使用companion自身的名义application；MIR中该application使用普通final class表示及原backing字段身份，不为模板另造一个参数自由的物理类型。初始化模板和具体application分别保存键，具体cell、failure root及published root按原声明与完整实参派生，复用既有nominal ODR组。初始化依赖保留被访问application的实参，具体化后复用已解析的依赖unit，不能只按声明id折叠不同application。
 
-companion声明、带宿主实参的application与concrete实体沿名义类型模型分别表示。application身份包含实际companion声明和完整宿主application，包括不影响布局的phantom实参；不能按显示名、布局、首次使用Cone或省略实参的object id合并。共有静态描述读取自身字段并替换宿主参数，不能把数据类型字段与companion存储混为一体。形参环境可保留在Export HIR模板，只有实际机器需求进入LocalConcrete物化闭包；单纯宿主构造、类型查询或const读取不执行companion初始化。
+application身份包含实际companion声明和完整宿主application，包括不影响布局的phantom实参；不能按显示名、布局、首次使用Cone或省略实参的object id合并。共有静态描述读取自身字段并替换宿主参数，不能把数据类型字段与companion存储混为一体。形参环境可保留在Export HIR模板，只有实际机器需求进入LocalConcrete物化闭包；单纯宿主构造、类型查询或const读取不执行companion初始化。
 
 每个实际companion application具有替换完成的object/backing exact、singleton value、initializer/ensure、initialization unit、cell、published root与failure root。声明级模板保留原unit身份，application unit与生成callable context携带完整宿主实参；initializer中的局部泛型函数、闭包和default沿同一词法application替换，不按访问点创建新模板。参数自由companion仍由定义方Strong提供；generic companion的初始化支持复用既有ODR组机制，将cell、两种root、initializer/ensure及registration作为同一application的完整组物化和合并，类型/itable与普通方法沿现有type/callable ODR关系关联。多个consumer最终使用同一组状态，不同宿主实参各自一组。结构环及参数变化递归沿已有初始化/单态化检查，运行期重入沿既有gate；不增加通用预算或运行期泛型注册表。
 
