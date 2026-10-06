@@ -1,0 +1,93 @@
+SourceFile
+  RootPackage
+    @NoGC
+    @Extern(lib = "fixture_native", name = "environment_ready")
+  fun environmentReady(): Int
+    @NoGC
+    @Extern(lib = "fixture_native", name = "single_seed")
+  fun singleSeed(kind: Int): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_seed")
+  fun doubleSeed(kind: Int): Double
+    @Extern(lib = "fixture_native", name = "run_foreign")
+  fun runForeign(callback: FunPtr<(Float, Double, Ptr<Unit>) -> Double>, context: Ptr<Unit>): Double
+  fun validate(single: Float, wide: Double): Double
+    var result
+      FloatLiteral 0.0
+    @Unsafe block
+      if
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary Eq
+                  Call environmentReady
+                  IntLiteral 1
+                Binary Eq
+                  Binary Add
+                    Var single
+                    FloatLiteral 1f
+                  Var single
+              Binary Eq
+                Binary Add
+                  Var wide
+                  FloatLiteral 1.0
+                Var wide
+            Binary Gt
+              Binary Div
+                Call singleSeed
+                  IntLiteral 1
+                FloatLiteral 2f
+              FloatLiteral 0f
+          Binary Gt
+            Binary Div
+              Call doubleSeed
+                IntLiteral 1
+              FloatLiteral 2.0
+            FloatLiteral 0.0
+        assign result
+          Var wide
+    return
+      Var result
+    @Unsafe
+  fun main()
+    Call println
+      Binary Eq
+        Call validate
+          Call singleSeed
+            IntLiteral 0
+          Call doubleSeed
+            IntLiteral 0
+        FloatLiteral 9007199254740992.0
+    val marker
+      Binary Add
+        StringLiteral "floating-"
+        StringLiteral "thread"
+    val callback
+      Call foreignCallback<(Float, Double, Ptr<Unit>) -> Double>
+        Lambda 0 suspend=false
+          param single: Float
+          param wide: Double
+          Call gcCollect
+          if
+            Binary Eq
+              Var marker
+              StringLiteral "floating-thread"
+            Call validate
+              Var single
+              Var wide
+          else
+            FloatLiteral 0.0
+        IntLiteral 2L
+        FieldAccess Reusable
+          Var ForeignCallbackMode
+    Call println
+      Binary Eq
+        Call runForeign
+          FieldAccess function
+            Var callback
+          FieldAccess context
+            Var callback
+        FloatLiteral 9007199254740992.0
+    Call releaseForeignCallback
+      Var callback

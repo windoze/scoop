@@ -68,3 +68,9 @@ Darwin 验证：格式化、workspace clippy、release CLI 构建通过。新增
 annotation 的 parser 与 lowering 复用原始浮点语法，支持带符号 literal 和同类型 const 引用，metadata 保存目标精度 bits。literal pattern 通过真实 equals intrinsic 保存 FloatKind，默认模板 equality 增加 tag 4，HIR interface 更新至 `/60` 并同步 profile vectors；MIR 复用既有 FloatBinary/Equal。浮点列的剩余域由 wildcard 行覆盖，因为任何 literal 都不能匹配 NaN；递归 product 继续用既有矩阵检查。匹配与 binding 共用标量形状检查，避免把 Float/Double 当作空 struct 解构。按语言规范修正设计文档对可选 usefulness 诊断的过度要求，保留 first-match 语义。
 
 Darwin 验证：格式化、workspace clippy、release CLI 构建通过；19 个 profile 测试、14 个 parser 整数字面量回归通过。新增 annotation/pattern 两个正例通过普通／移动 GC 及 8 份 golden，确认直接舍入、负零、NaN、泛型字段、默认值与递归 enum/struct/tuple，以及含 NaN 的派生值不等于自身。14 个新负例覆盖 annotation 类型／范围、pattern 类型／不可穷尽／guard／解构和 Hash 缺失，正式 runner 全部通过。既有 annotation 源码、参数类型负例、整数递归穷尽与 Char 解构回归通过；两个 HIR 快照仅更新 imported identity 临时编号，已完整归一化比较。期间清理约 5 GiB 旧 incremental 缓存。
+
+## D1：线程浮点环境与浮点 foreign callback
+
+主线程和首次附着的 foreign thread 通过同一创建入口安装 C 默认浮点环境，并显式关闭 x86 SSE 的 FTZ/DAZ 或 AArch64 的 FZ。调用期间不反复保存／恢复 fenv；已附着线程的 native 重入责任保持原规范。函数为 runtime 内部实现，不增加 ABI 字段。
+
+Darwin 的 C 严格警告检查、workspace 格式化及 clippy 通过。新增 environment fixture 经正式 CLI 构建、普通／移动 GC 和四阶段 golden 通过，共 5 个进程；主线程检查 rounding/trap/subnormal 设置，foreign worker 在回调前故意改成向上舍入与 flush-to-zero，回调附着后验证 nearest-even、subnormal、Float/Double 参数／Double 结果及 GC 中的闭包捕获。native archive 仍不接收初始化 section，测试使用正常线程入口改变环境。

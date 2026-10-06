@@ -1,11 +1,33 @@
 /* Ryu supplies shortest digits; this adapter fixes Scoop's textual shape. */
+#include <fenv.h>
 #include <string.h>
 
+#if defined(__x86_64__)
+#include <xmmintrin.h>
+#endif
+
+#include "floating.h"
 #include "ryu/ryu.h"
 #include "scoop_rt.h"
 #include "value_shape.h"
 
 extern const ScoopTypeDescriptor scoop_td_String;
+
+bool scoop_float_init_environment(void) {
+    if (fesetenv(FE_DFL_ENV) != 0) return false;
+#if defined(__x86_64__)
+    /* SSE has separate flush-to-zero and denormals-are-zero controls. */
+    _mm_setcsr(_mm_getcsr() & ~UINT32_C(0x8040));
+#elif defined(__aarch64__)
+    uint64_t fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
+    fpcr &= ~(UINT64_C(1) << 24);
+    __asm__ volatile("msr fpcr, %0" : : "r"(fpcr));
+#else
+#error "floating runtime requires a supported 64-bit architecture"
+#endif
+    return true;
+}
 
 static size_t format_shortest(const char *raw, size_t length, char *out) {
     const char *exponent_start = memchr(raw, 'E', length);
