@@ -14,7 +14,12 @@ where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for nominal in input.nominal_interfaces.all_records() {
-        for record in nominal.declaration_details().declared_dispatch_selections() {
+        for record in nominal
+            .declaration_details()
+            .dispatch_selections()
+            .records()
+            .iter()
+        {
             let target = record.callable_target();
             accumulator.observe(
                 ExternalHirTargetV1::Callable(target),

@@ -1,4 +1,4 @@
-//! Complete imported bodies and the scalar conformance inputs they expose.
+//! Complete imported function and constructor bodies.
 
 use super::*;
 
@@ -10,19 +10,7 @@ impl Lowerer {
             if index == self.imported_generic_templates.templates.len()
                 && constructor == self.imported_constructor_templates.templates.len()
             {
-                self.prepare_tuple_encoding_templates();
-                if let Err(error) = self.prepare_imported_encoding_inputs() {
-                    self.error(
-                        scoop_ast::Span::new(0, 0),
-                        error.diagnostic("container element encoding"),
-                    );
-                    break;
-                }
-                if index == self.imported_generic_templates.templates.len()
-                    && constructor == self.imported_constructor_templates.templates.len()
-                {
-                    break;
-                }
+                break;
             }
             if index == self.imported_generic_templates.templates.len() {
                 self.complete_imported_constructor(constructor);

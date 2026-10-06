@@ -160,9 +160,6 @@ pub enum GeneratedCallableKey {
     DerivedEquality {
         exact_owner: PersistentExactTypeId,
     },
-    TupleEncoding {
-        exact_owner: PersistentExactTypeId,
-    },
     FunctionAdapter {
         source: ExactCallableSignature,
         target: ExactCallableSignature,
@@ -333,7 +330,6 @@ impl WireEncode for GeneratedCallableKey {
                 role.encode(encoder)
             }
             Self::DerivedEquality { exact_owner } => encode_value_sum(encoder, 3, exact_owner),
-            Self::TupleEncoding { exact_owner } => encode_value_sum(encoder, 17, exact_owner),
             Self::FunctionAdapter { source, target } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 4)?;

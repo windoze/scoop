@@ -107,20 +107,6 @@ impl SourceCallableMaterialization {
         Self::exact_method(function, exact, nominal_group, signature, generated)
     }
 
-    pub fn tuple_encoding(
-        function: FunctionId,
-        exact: &crate::SourceExactTypeRecord,
-        signature: ExactCallableSignature,
-    ) -> Result<Self, SourceCallableMaterializationError> {
-        let generated = scoop_identity::PersistentGeneratedCallableId::from_key(
-            &scoop_identity::GeneratedCallableKey::TupleEncoding {
-                exact_owner: exact.id(),
-            },
-        )
-        .map_err(SourceCallableMaterializationError::GeneratedCallable)?;
-        Self::exact_method(function, exact, None, signature, generated)
-    }
-
     fn exact_method(
         function: FunctionId,
         exact: &crate::SourceExactTypeRecord,

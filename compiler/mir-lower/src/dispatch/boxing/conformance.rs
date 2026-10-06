@@ -1,4 +1,4 @@
-//! Concrete HIR conformance for ordinary and structural boxed values.
+//! Declared HIR conformance for boxed values.
 
 use super::*;
 
@@ -15,13 +15,6 @@ impl Lowerer {
                     let hir_id = self.enums.hir_ids[mir_id];
                     module.enums[hir_id].interfaces.clone()
                 }
-                mir::Type::Tuple(_) => self
-                    .tuple_conformance(module, payload)
-                    .map(|implementation| {
-                        module.interfaces[implementation.interface].canonical_type
-                    })
-                    .into_iter()
-                    .collect(),
                 _ => return Vec::new(),
             },
         };
@@ -60,23 +53,10 @@ impl Lowerer {
                 mir::Type::Enum(id, _) => {
                     &module.enums[self.enums.hir_ids[id]].interface_implementations
                 }
-                mir::Type::Tuple(_) => self
-                    .tuple_conformance(module, payload)
-                    .map(std::slice::from_ref)
-                    .unwrap_or_default(),
+                mir::Type::Tuple(_) => &[],
                 _ => unreachable!("only value types receive boxed interface adapters"),
             },
         }
-    }
-
-    fn tuple_conformance<'a>(
-        &self,
-        module: &'a hir::Module,
-        payload: &mir::Type,
-    ) -> Option<&'a hir::InterfaceImplementation> {
-        let exact = self.source_exact_types.get(payload)?.identity_record().id();
-        let owner = module.exact_type_identities.type_for_identity(exact)?;
-        module.tuple_interface_implementations.get(&owner)
     }
 
     /// Exact source declaration for a MIR struct-like payload. Primitive

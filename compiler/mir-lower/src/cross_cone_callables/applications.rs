@@ -20,22 +20,10 @@ pub(super) fn append(
         records,
     };
     for (id, function) in local.functions.iter() {
-        let tuple_encoding = match function.materialization.template() {
-            CallableTemplateOwner::Generated(callable) => matches!(
-                identities
-                    .canonical_key::<_, scoop_identity::GeneratedCallableKey>(callable)
-                    .map_err(mir::MirCallableBridgeError::from)?
-                    .as_ref(),
-                scoop_identity::GeneratedCallableKey::TupleEncoding { .. }
-            ),
-            _ => false,
-        };
-        if (!tuple_encoding
-            && !matches!(
-                function.materialization.context(),
-                CallableMaterializationContext::Application(_)
-            ))
-            || (function.receiver.method().is_none() && !function.is_suspend)
+        if !matches!(
+            function.materialization.context(),
+            CallableMaterializationContext::Application(_)
+        ) || (function.receiver.method().is_none() && !function.is_suspend)
             || matches!(function.kind, hir::concrete::FunctionKind::Intrinsic(_))
         {
             continue;
@@ -54,9 +42,6 @@ pub(super) fn append(
                 modality(function),
             )?,
             CallableTemplateOwner::GenericFunction(_) => mir::MirCallableLoweringRoleV1::Ordinary,
-            CallableTemplateOwner::Generated(_) if tuple_encoding => {
-                mir::MirCallableLoweringRoleV1::Ordinary
-            }
             _ => continue,
         };
         let signature = crate::source_callables::exact_function_signature(local, id);

@@ -1,6 +1,6 @@
 # M29 设计：静态类型描述与序列化基础设施
 
-状态：实施中，2026-10-06 codec 协议修订待实现迁移；进度和实际验证见 [PROGRESS.md](PROGRESS.md)。此前实例编码和条件 conformance 的验收不代表本次修订已实现。
+状态：实施中，2026-10-06 codec 协议修订正在迁移；进度和实际验证见 [PROGRESS.md](PROGRESS.md)。此前实例编码和条件 conformance 的验收不代表本次修订已实现。
 
 日期：2026-10-06。
 
@@ -8,7 +8,7 @@
 
 2026-10-05 决策补充：companion 按完整宿主类型分别拥有 singleton，并可使用宿主类型参数。第 3.3 节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 的共享、非 generic companion 规则，也修订后续实现中不携带宿主实参的假设。此前 milestone 设计作为历史记录保留原文；后续修改由本设计及当前三份 spec 记录。泛型 companion 已实现并通过三平台验收；M29 其余能力的实现情况见实施记录。
 
-2026-10-06 决策补充：`Encodable<T>` 与 `Decodable<T>` 均由 companion 或普通 codec 对象实现，encode 显式接收数据值。父子数据类型不经继承传递编码策略；泛型和核心容器改为两个方向的显式 codec 组合，撤销实例 Encodable、容器/tuple 条件 conformance。迁移范围见第 9.3 节；本次只修订设计与规范。
+2026-10-06 决策补充：`Encodable<T>` 与 `Decodable<T>` 均由 companion 或普通 codec 对象实现，encode 显式接收数据值。父子数据类型不经继承传递编码策略；泛型和核心容器改为两个方向的显式 codec 组合，撤销实例 Encodable、容器/tuple 条件 conformance。迁移范围见第 9.3 节；设计与规范先行，实施情况见 PROGRESS.md。
 
 对应[路线图](../ROADMAP.md)、[语言规范](../specs/SCOOP-SPEC.md) 9.4～9.6、11.13、[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.17 和[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 2.2。语言行为以已同步的规范为准；本文解释实现方式、展开结果及完成门。
 

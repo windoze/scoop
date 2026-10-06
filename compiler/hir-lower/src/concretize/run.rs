@@ -106,7 +106,6 @@ impl Concretizer<'_> {
         let module = concrete::Module {
             cone: self.source.cone,
             types: self.types,
-            tuple_interface_implementations: self.tuple_interface_implementations,
             exact_type_identities,
             local_value_identities,
             dispatch_slot_identities,

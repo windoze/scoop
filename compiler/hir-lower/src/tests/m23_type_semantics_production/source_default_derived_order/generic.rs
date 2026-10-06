@@ -20,7 +20,6 @@ fn open_default_equality_keeps_source_applications_and_exact_executable_bindings
             initialization_units: &module.initialization_units,
             initialization_unit_identities: &module.initialization_unit_identities,
             derived_equality_applications: &module.derived_equality_applications,
-            tuple_encoding_templates: &module.tuple_encoding_templates,
             structs: &module.structs,
             enums: &module.enums,
             type_identities: &module.type_identities,

@@ -51,24 +51,6 @@ where
             record.declaration_details().dispatch_selections(),
             &path.clone().field(9).field(7),
         )?;
-        if let Some(encoding) = record.declaration_details().element_encoding() {
-            let condition_path = path.clone().field(9).field(12).index(0);
-            observe(
-                accumulator,
-                encoding.element(),
-                &condition_path.clone().field(1),
-            )?;
-            observe(
-                accumulator,
-                encoding.interface(),
-                &condition_path.clone().field(2),
-            )?;
-            collect_dispatch_signatures(
-                accumulator,
-                encoding.selections(),
-                &condition_path.field(3),
-            )?;
-        }
         for (field_index, field) in (0_u64..).zip(record.source_shape().declared_fields()) {
             observe(
                 accumulator,

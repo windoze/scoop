@@ -14,7 +14,13 @@ impl NominalInterfaceRecordV1 {
         let scope = self.type_parameters.signature_scope(None);
         let mut previous = None;
         let mut types = std::collections::BTreeMap::new();
-        for (index, selection) in self.details.declared_dispatch_selections().enumerate() {
+        for (index, selection) in self
+            .details
+            .dispatch_selections()
+            .records()
+            .iter()
+            .enumerate()
+        {
             if !types.contains_key(selection.receiver()) {
                 let shape = scope
                     .validate_nominal_signature_semantics(selection.receiver(), authority)

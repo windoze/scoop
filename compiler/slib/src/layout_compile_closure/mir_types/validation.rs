@@ -62,10 +62,6 @@ pub fn validate_shared_mir_type_exports(
     super::helpers::validate(&mut comparison, core, shapes)?;
     comparison.expected.sort_unstable();
     let source_count = comparison.expected.len();
-    let dependency_metadata = dependencies
-        .iter()
-        .map(|source| source.metadata())
-        .collect::<Vec<_>>();
     for record in types.records() {
         if comparison.expected[..source_count]
             .binary_search(&record.exact())
@@ -74,7 +70,7 @@ pub fn validate_shared_mir_type_exports(
             continue;
         }
         if let mir::MirTypeOriginV1::GeneratedNominal { role, .. } = record.origin() {
-            super::helpers::generated(&mut comparison, &dependency_metadata, record, role)?;
+            super::helpers::generated(&mut comparison, record, role)?;
         }
     }
     comparison.finish()

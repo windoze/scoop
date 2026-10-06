@@ -29,7 +29,6 @@ pub struct ClassDefinition {
     pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
-    pub element_encoding: Option<ElementEncoding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

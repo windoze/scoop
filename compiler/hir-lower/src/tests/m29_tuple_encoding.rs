@@ -1,47 +1,34 @@
 use super::*;
 
 #[test]
-fn tuple_encoding_uses_normal_members_bounds_and_nested_container_combinations() {
-    let output = lower_with_sysroot(
+fn tuple_codecs_use_ordinary_function_values_and_interface_calls() {
+    lower_with_sysroot(
         r#"
-        struct Record(val value: (Int, String)) : Encodable
-        fun <T : Encodable> send(value: T, encoder: Encoder) { value.encode(encoder) }
         fun use(encoder: Encoder) {
+            val codec = EncodeFunction<(Int, String, Unit)>({ value, sink ->
+                val fields = sink.unkeyed()
+                Int.Companion.encode(value._1, fields.element())
+                String.Companion.encode(value._2, fields.element())
+                UnitEncoder.encode(value._3, fields.element())
+                fields.end()
+            })
             val value = (7, "tuple", Unit)
-            value.encode(encoder)
-            val reference = value::encode
-            reference(encoder)
-            send(value, encoder)
-            val boxed: Encodable = value
-            boxed.encode(encoder)
-            val nested = (value, Array<Option<Int>>(1L) { _ -> Some(8) })
-            nested.encode(encoder)
-            Record((9, "field")).encode(encoder)
+            codec.encode(value, encoder)
+            val reference = codec::encode
+            reference(value, encoder)
+            val erased: Encodable<(Int, String, Unit)> = codec
+            erased.encode(value, encoder)
+            val array = Array<(Int, String, Unit)>(1L) { _ -> value }
+            Array<(Int, String, Unit)>.Companion.encoder(codec).encode(array, encoder)
         }
         fun main() {}
     "#,
     )
     .unwrap();
-    assert!(!output.local.tuple_interface_implementations.is_empty());
-    for implementation in output.local.tuple_interface_implementations.values() {
-        assert_eq!(
-            output.local.interfaces[implementation.interface].name,
-            "Encodable"
-        );
-        let hir::concrete::InterfaceImplementationTarget::Method(function) =
-            implementation.methods[0].target
-        else {
-            panic!("tuple encoding is a normal method")
-        };
-        assert!(matches!(
-            output.local.functions[function].kind,
-            hir::concrete::FunctionKind::User(_)
-        ));
-    }
 }
 
 #[test]
-fn tuple_erasure_materializes_only_applicable_interface_tables() {
+fn tuple_erasure_retains_private_element_types_without_codec_conformance() {
     let output = lower_with_sysroot(
         r#"
         private struct Opaque()
@@ -52,38 +39,11 @@ fn tuple_erasure_materializes_only_applicable_interface_tables() {
             val bad = erase((2, Opaque()))
             val nested = erase(((3, "nested"), Unit))
             val local = LocalOnly()
-            if (good is Encodable && bad !is Encodable && nested is Encodable) {}
+            if (good is Encodable<(Int, String)> || bad is Encodable<(Int, Opaque)>) {}
         }
     "#,
     )
     .unwrap();
-    let mut good = 0;
-    let mut bad = 0;
-    for (ty, value) in output.local.types.iter() {
-        let hir::concrete::TypeKind::Tuple(elements) = &value.kind else {
-            continue;
-        };
-        let opaque = elements.iter().any(|element| {
-            matches!(output.local.types[*element].kind,
-            hir::concrete::TypeKind::Struct(id) if output.local.structs[id].name == "Opaque")
-        });
-        if opaque {
-            assert!(
-                !output
-                    .local
-                    .tuple_interface_implementations
-                    .contains_key(&ty)
-            );
-            bad += 1;
-        } else if output
-            .local
-            .tuple_interface_implementations
-            .contains_key(&ty)
-        {
-            good += 1;
-        }
-    }
-    assert!(good >= 2 && bad >= 1);
     let shared = hir::CanonicalSourceNominalIdsV1::from_export_hir(&output.export).unwrap();
     for (id, definition) in output.export.structs.iter() {
         if matches!(definition.name.as_str(), "Opaque" | "LocalOnly") {
@@ -101,7 +61,7 @@ fn tuple_erasure_materializes_only_applicable_interface_tables() {
 }
 
 #[test]
-fn tuple_encoding_rejects_unconstrained_and_non_encodable_elements() {
+fn tuple_values_do_not_gain_implicit_encoding_members() {
     for source in [
         "fun <T> send(value: (Int, T), e: Encoder) { value.encode(e) }",
         "fun send(value: (Int, Any), e: Encoder) { value.encode(e) }",

@@ -87,20 +87,6 @@ impl Lowerer {
                         }),
                 );
             }
-            Type::Tuple(_) => {
-                if let Some(interface) = self.element_encoding_parent(&self.types[ty].clone())
-                    && let Type::Interface(application) = self.types[interface]
-                {
-                    self.collect_interface_method_candidates(
-                        application,
-                        0,
-                        0,
-                        None,
-                        &mut Vec::new(),
-                        &mut declared,
-                    );
-                }
-            }
             Type::Any => {}
             Type::Param(receiver_parameter) => {
                 let parameter = self
@@ -141,7 +127,6 @@ impl Lowerer {
         }
 
         self.collect_selected_interface_members(ty, &mut declared);
-        declared.retain(|(candidate, _, _)| self.encoding_method_applies(candidate));
         declared
     }
 }

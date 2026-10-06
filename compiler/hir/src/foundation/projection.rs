@@ -169,8 +169,7 @@ fn project_functions_and_constructors(
             crate::HirFunctionIdentity::Source(crate::HirSourceFunctionIdentity::Generic(
                 record,
             )) => generic_functions.push(record.clone()),
-            crate::HirFunctionIdentity::PropertyAccessor(_)
-            | crate::HirFunctionIdentity::TupleEncoding(_) => {}
+            crate::HirFunctionIdentity::PropertyAccessor(_) => {}
             crate::HirFunctionIdentity::LexicalGenerated(record)
             | crate::HirFunctionIdentity::Initialization { record, .. } => insert_identity(
                 &mut generated,

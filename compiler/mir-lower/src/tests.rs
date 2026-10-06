@@ -239,7 +239,6 @@ fn extend_function_identities(module: &mut hir::Module, preserved_functions: usi
             initialization_units: &module.initialization_units,
             initialization_unit_identities: &module.initialization_unit_identities,
             derived_equality_applications: &module.derived_equality_applications,
-            tuple_encoding_templates: &module.tuple_encoding_templates,
             structs: &module.structs,
             enums: &module.enums,
             type_identities: &module.type_identities,

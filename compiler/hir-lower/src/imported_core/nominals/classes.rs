@@ -77,7 +77,6 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
-                    element_encoding: None,
                     release_policy: Default::default(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
@@ -159,7 +158,6 @@ impl Lowerer {
         let scope_len = self.type_params_in_scope.len();
         self.type_params_in_scope.extend(type_params);
         let dispatch = self.resolve_imported_class_dispatch(self_type, &declaration);
-        let element_encoding = self.resolve_imported_element_encoding(self_type, &declaration);
         self.type_params_in_scope.truncate(scope_len);
         let (virtual_methods, implementations) = dispatch?;
         let loaded = self
@@ -168,7 +166,6 @@ impl Lowerer {
             .expect("the class builder registered its identity");
         loaded.virtual_methods = virtual_methods;
         loaded.definition.interface_implementations = implementations;
-        loaded.definition.element_encoding = element_encoding?;
         if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
             && matches!(
                 declaration.interface.declaration_details().release_policy(),

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn containers_keep_unconstrained_elements_and_materialize_only_applicable_encoders() {
+fn containers_keep_unconstrained_elements_without_implicit_encoding() {
     let output = lower_with_sysroot(
         r#"
         struct Opaque()
@@ -15,7 +15,7 @@ fn containers_keep_unconstrained_elements_and_materialize_only_applicable_encode
             val g: Option<Int> = Some(7)
             val h: Option<Opaque> = None
             val erased: Any = a
-            if (erased is Encodable) {}
+            if (erased is Encodable<Array<Int>>) {}
         }
     "#,
     )
@@ -28,7 +28,6 @@ fn containers_keep_unconstrained_elements_and_materialize_only_applicable_encode
             declaration.type_params[0].bounds,
             hir::TypeParamBounds::Unconstrained
         ));
-        assert!(declaration.element_encoding.is_some());
     }
     let encodes = |interfaces: &[hir::concrete::TypeId]| {
         interfaces.iter().any(|ty| {
@@ -56,7 +55,7 @@ fn containers_keep_unconstrained_elements_and_materialize_only_applicable_encode
     {
         match output.local.types[arguments[0]].kind {
             hir::concrete::TypeKind::Integer(_) => {
-                assert!(encodes(interfaces));
+                assert!(!encodes(interfaces));
                 checked += 1;
             }
             hir::concrete::TypeKind::Struct(id) if output.local.structs[id].name == "Opaque" => {
@@ -73,21 +72,25 @@ fn containers_keep_unconstrained_elements_and_materialize_only_applicable_encode
 }
 
 #[test]
-fn bounded_nested_and_recursive_elements_use_ordinary_encoding_methods() {
+fn nested_container_codecs_keep_explicit_element_dependencies() {
     lower_with_sysroot(
         r#"
-        class Node(public val children: Array<Node>) : Encodable
-        fun <T : Encodable> send(value: Array<Option<T>>, encoder: Encoder) {
-            value.encode(encoder)
-            val reference = value::encode
-            reference(encoder)
+        fun <T> send(value: Array<Option<T>>, element: Encodable<T>, encoder: Encoder) {
+            val options = Option<T>.Companion.encoder(element)
+            val codec = Array<Option<T>>.Companion.encoder(options)
+            codec.encode(value, encoder)
+            val reference = codec::encode
+            reference(value, encoder)
         }
-        fun main() {
-            val empty = Array<Node>(0L) { _ -> throw IllegalStateException(None) }
-            val root: Any = Node(empty)
-            val children: Any = empty
-            if (children is Encodable && root is Encodable) {}
+        fun use(encoder: Encoder) {
+            send(Array<Option<Int>>(1L) { _ -> Some(8) }, Int.Companion, encoder)
+            val mutable = MutableArray<Int>(1L) { _ -> 9 }
+            MutableArray<Int>.Companion.encoder(Int.Companion).encode(mutable, encoder)
+            val list = ArrayList<Int>()
+            list.add(10)
+            ArrayList<Int>.Companion.encoder(Int.Companion).encode(list, encoder)
         }
+        fun main() {}
     "#,
     )
     .unwrap();

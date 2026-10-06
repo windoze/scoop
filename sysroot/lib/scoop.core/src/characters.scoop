@@ -1,5 +1,5 @@
 @Intrinsic("core_char")
-public struct Char : ToString, Hash, Encodable {
+public struct Char : ToString, Hash {
     @NoGC @Intrinsic("char_code")
     private fun codeValue(): Int
 
@@ -15,10 +15,10 @@ public struct Char : ToString, Hash, Encodable {
     public override fun toString(): String = coreCharToString(this)
     public override fun hash(): Long = code.toInt64()
 
-    public override fun encode(encoder: Encoder): Unit =
-        encoder.singleValue().writeString(toString())
+    public companion object : Encodable<Char>, Decodable<Char> {
+        public override fun encode(value: Char, encoder: Encoder): Unit =
+            encoder.singleValue().writeString(value.toString())
 
-    public companion object : Decodable<Char> {
         public override fun decode(decoder: Decoder): Char {
             val text = decoder.singleValue().readString()
             if (text.length != 1L) {

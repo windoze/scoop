@@ -117,10 +117,7 @@ impl<'a> OriginRequirements<'a> {
         ) && let CallableTemplateOwner::Generated(id) = record.key().owner().template()
             && matches!(
                 self.generated_key(id),
-                Some(
-                    GeneratedCallableKey::DerivedEquality { .. }
-                        | GeneratedCallableKey::TupleEncoding { .. }
-                )
+                Some(GeneratedCallableKey::DerivedEquality { .. })
             )
         {
             // Type-owned method parameters are synthetic, despite their ABI selectors.
@@ -234,7 +231,6 @@ impl<'a> OriginRequirements<'a> {
                             return Ok(Some(DefinitionOriginSubject::Constructor(*constructor)));
                         }
                         GeneratedCallableKey::DerivedEquality { .. }
-                        | GeneratedCallableKey::TupleEncoding { .. }
                         | GeneratedCallableKey::FunctionAdapter { .. }
                         | GeneratedCallableKey::DynamicFunctionAdapter { .. }
                         | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }

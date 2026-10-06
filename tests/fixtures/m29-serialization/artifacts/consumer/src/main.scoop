@@ -5,7 +5,7 @@ import model.reader
 typealias Id = Identifier
 
 fun main() {
-    val text = Json.encode(Identifier(7L))
+    val text = Json.encode(Identifier(7L), Id.Companion)
     if (text != "{\"id\":7}") { throw IllegalStateException() }
     val codec: Decodable<Identifier> = Id.Companion
     val first = Json.decode(text, codec)

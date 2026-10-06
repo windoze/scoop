@@ -49,11 +49,7 @@ pub(super) fn signatures<'a>(
                 let key = identities
                     .canonical_key::<_, GeneratedCallableKey>(*callable)
                     .map_err(|source| Error::CallIdentity(Box::new(source)))?;
-                if matches!(
-                    key.as_ref(),
-                    GeneratedCallableKey::DerivedEquality { .. }
-                        | GeneratedCallableKey::TupleEncoding { .. }
-                ) {
+                if matches!(key.as_ref(), GeneratedCallableKey::DerivedEquality { .. }) {
                     exact_generated.insert(*callable);
                 }
                 continue;

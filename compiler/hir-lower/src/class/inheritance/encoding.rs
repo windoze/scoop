@@ -6,11 +6,9 @@ use super::*;
 use ast::Span;
 use hir::FunctionKind;
 
-mod containers;
 mod declarations;
 mod fields;
 mod syntax;
-mod tuples;
 mod variants;
 
 impl Lowerer {
@@ -22,20 +20,16 @@ impl Lowerer {
             let previous_owner = self.current_owner.replace(owner);
             let before = self.diagnostics.len();
             let span = self.functions[function].span;
-            let block = if let Some(block) = self.container_encoding_body(owner, span) {
-                Some(block)
-            } else {
-                match owner {
-                    Owner::Struct(structure) => self.encode_struct(structure, encodable, span),
-                    Owner::Enum(enumeration) => self.encode_enum(enumeration, encodable, span),
-                    Owner::Class(class) => self.encode_class(class, encodable, span),
-                    Owner::Object(_) => {
-                        self.error(span, "automatic encode requires a struct, enum, or final class without a class base; provide an explicit encode implementation for an object".into());
-                        None
-                    }
-                    Owner::Interface(_) => {
-                        unreachable!("an interface does not request a nominal method body")
-                    }
+            let block = match owner {
+                Owner::Struct(structure) => self.encode_struct(structure, encodable, span),
+                Owner::Enum(enumeration) => self.encode_enum(enumeration, encodable, span),
+                Owner::Class(class) => self.encode_class(class, encodable, span),
+                Owner::Object(_) => {
+                    self.error(span, "automatic encode requires a struct, enum, or final class without a class base; provide an explicit encode implementation for an object".into());
+                    None
+                }
+                Owner::Interface(_) => {
+                    unreachable!("an interface does not request a nominal method body")
                 }
             };
             self.type_params_in_scope = previous_parameters;

@@ -38,7 +38,6 @@ fn enum_declaration() -> EnumDecl {
         span: Span::new(0, 0),
 
         definition: crate::EnumDefinition {
-            element_encoding: None,
             self_application: EnumApplicationId::from_raw(0_u32.into()),
             type_params: Vec::new(),
             variants: vec![Variant {

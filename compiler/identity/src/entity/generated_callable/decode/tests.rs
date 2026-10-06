@@ -123,7 +123,6 @@ fn all_generated_callable_records_round_trip_and_resolve() {
             role: InitializationCallableRole::Ensure,
         },
         GeneratedCallableKey::DerivedEquality { exact_owner: exact },
-        GeneratedCallableKey::TupleEncoding { exact_owner: exact },
         GeneratedCallableKey::FunctionAdapter {
             source: signature.clone(),
             target: signature.clone(),

@@ -4,23 +4,19 @@ use super::*;
 fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
     let output = lower_with_sysroot(
         r#"
-            public struct Record(val empty: Unit) : Encodable
-            public fun <T : Encodable> bounded(value: T, encoder: Encoder) {
-                value.encode(encoder)
+            public fun <T> send(value: T, codec: Encodable<T>, encoder: Encoder) {
+                codec.encode(value, encoder)
             }
             public fun use(encoder: Encoder) {
-                Unit.encode(encoder)
-                ().encode(encoder)
-                bounded(Unit, encoder)
+                UnitEncoder.encode(Unit, encoder)
+                UnitEncoder.encode((), encoder)
+                send(Unit, UnitEncoder, encoder)
                 val erased: Any = Unit
-                val boxed: Encodable = Unit
-                boxed.encode(encoder)
-                val reference = Unit::encode
-                reference(encoder)
-                Record(Unit).encode(encoder)
-                if (erased is Encodable) { erased.encode(encoder) }
-                val directCheck = Unit is Encodable
-                val combined = erased is Record && erased is Encodable
+                val codec: Encodable<Unit> = UnitEncoder
+                codec.encode(Unit, encoder)
+                val reference = codec::encode
+                reference(Unit, encoder)
+                if (erased is Encodable<Unit>) { erased.encode(Unit, encoder) }
             }
             fun main() {}
             "#,
@@ -40,12 +36,12 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
                 .id()
         )
     );
-    assert_eq!(declaration.interfaces.len(), 1);
+    assert!(declaration.interfaces.is_empty());
     let method = module
         .functions
         .values()
-        .find(|function| function.name == "Unit.encode")
+        .find(|function| function.name == "UnitEncoder.encode")
         .unwrap();
     assert!(matches!(method.kind, hir::FunctionKind::User(_)));
-    assert_eq!(method.params.len(), 2);
+    assert_eq!(method.params.len(), 3);
 }

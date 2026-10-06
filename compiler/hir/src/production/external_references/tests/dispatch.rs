@@ -76,7 +76,6 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
                         crate::NominalInstantiationConditionsV1::empty(),
                         Default::default(),
                         None,
-                        None,
                     ),
                 )
                 .unwrap()

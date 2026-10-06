@@ -55,7 +55,6 @@ impl DecodedMirCallableOriginV1 {
                         | DecodedGeneratedCallableKey::Initialization { .. }
                         | DecodedGeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                         | DecodedGeneratedCallableKey::DerivedEquality { .. }
-                        | DecodedGeneratedCallableKey::TupleEncoding { .. }
                         | DecodedGeneratedCallableKey::DispatchAdjust { .. }
                         | DecodedGeneratedCallableKey::BoxingAdjust { .. }
                 ) {

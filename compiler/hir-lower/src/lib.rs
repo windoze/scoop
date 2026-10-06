@@ -687,7 +687,6 @@ pub(crate) struct Lowerer {
         hir::GenericMethodApplicationId,
     >,
     pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
-    pub(crate) tuple_encoding_templates: Arena<hir::TupleEncodingTemplate>,
     pub(crate) derived_equality_application_by_type:
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     /// Ordinary encode members awaiting their complete bodies. The final

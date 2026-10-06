@@ -109,14 +109,6 @@ pub struct InterfaceImplementation {
     pub methods: Vec<InterfaceMethodImplementation>,
 }
 
-/// A core container's ordinary encoding implementation, available when its
-/// element type implements the same interface. The nominal binder stays unbounded.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ElementEncoding {
-    pub element: TypeId,
-    pub implementation: InterfaceImplementation,
-}
-
 /// The declaration of a slot used by one conformance. Dependency slots retain
 /// their actual declaring interface and persistent identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

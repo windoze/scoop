@@ -38,7 +38,9 @@ impl Projection<'_> {
                 declaration
                     .interface
                     .declaration_details()
-                    .declared_dispatch_selections()
+                    .dispatch_selections()
+                    .records()
+                    .iter()
             })
             .find(|selection| selection.callable_target() == target)
             .map(NominalDispatchSelectionV1::selection)
@@ -97,8 +99,7 @@ impl Projection<'_> {
             }
             HirFunctionIdentity::LexicalGenerated(_)
             | HirFunctionIdentity::Initialization { .. }
-            | HirFunctionIdentity::DerivedEquality(_)
-            | HirFunctionIdentity::TupleEncoding(_) => Err(invalid(
+            | HirFunctionIdentity::DerivedEquality(_) => Err(invalid(
                 "generated callable cannot stand in for a source dispatch declaration",
             )),
         }

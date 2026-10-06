@@ -110,7 +110,6 @@ impl FunctionIdentityBuilder<'_> {
                 initialization_units: &self.lowerer.initialization_units,
                 initialization_unit_identities: self.initialization_units,
                 derived_equality_applications: &self.lowerer.derived_equality_applications,
-                tuple_encoding_templates: &self.lowerer.tuple_encoding_templates,
                 structs: &self.lowerer.structs,
                 enums: &self.lowerer.enums,
                 type_identities: self.types,
@@ -134,18 +133,6 @@ impl FunctionIdentityBuilder<'_> {
         }
         if std::mem::replace(&mut self.visiting[index], true) {
             return Err(self.failure(function, Detail::CyclicLexicalParent));
-        }
-
-        if let Some((template, _)) = self
-            .lowerer
-            .tuple_encoding_templates
-            .iter()
-            .find(|(_, template)| template.function == function)
-        {
-            let identity = hir::HirFunctionIdentity::TupleEncoding(template);
-            self.visiting[index] = false;
-            self.identities[index] = Some(identity.clone());
-            return Ok(identity);
         }
 
         let source = self.lowerer.source_function_declarations.get(&function);

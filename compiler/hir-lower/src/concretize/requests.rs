@@ -13,14 +13,13 @@ pub(super) struct FunctionKey {
 enum FunctionDefinition {
     Body(export::DefaultCallableDeclarationV1),
     DerivedEquality,
-    TupleEncoding,
 }
 
 impl FunctionKey {
     pub(super) fn template_owner(&self) -> Option<scoop_identity::CallableTemplateOwner> {
         match self.definition {
             FunctionDefinition::Body(declaration) => Some(declaration.template_owner()),
-            FunctionDefinition::DerivedEquality | FunctionDefinition::TupleEncoding => None,
+            FunctionDefinition::DerivedEquality => None,
         }
     }
 }
@@ -108,9 +107,6 @@ impl Concretizer<'_> {
             export::HirFunctionIdentity::LexicalGenerated(record)
             | export::HirFunctionIdentity::Initialization { record, .. } => {
                 Declaration::Generated(record.id())
-            }
-            export::HirFunctionIdentity::TupleEncoding(_) => {
-                return FunctionDefinition::TupleEncoding;
             }
             export::HirFunctionIdentity::DerivedEquality(_) => {
                 return FunctionDefinition::DerivedEquality;

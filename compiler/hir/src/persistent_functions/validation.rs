@@ -104,23 +104,6 @@ fn validate_entry(
     nominal_derived: bool,
 ) -> Result<(), HirFunctionIdentityError> {
     let is_derived = matches!(declaration.kind, FunctionKind::DerivedEquality);
-    if let HirFunctionIdentity::TupleEncoding(template) = identity {
-        return inputs
-            .tuple_encoding_templates
-            .iter()
-            .find_map(|(id, value)| (id == *template).then_some(value))
-            .filter(|template| {
-                template.function == function
-                    && declaration
-                        .method
-                        .is_some_and(|method| method.owner == template.owner)
-                    && matches!(declaration.kind, FunctionKind::User(_))
-            })
-            .map(|_| ())
-            .ok_or(HirFunctionIdentityError::IdentityKind {
-                function: raw_index(function),
-            });
-    }
     match (identity, claim) {
         (HirFunctionIdentity::Source(_), None) if !is_derived => Ok(()),
         (
@@ -296,7 +279,7 @@ fn collect_unique_ids(
                 insert_generated(function, application.record().id(), generated)?;
             }
         }
-        HirFunctionIdentity::PropertyAccessor(_) | HirFunctionIdentity::TupleEncoding(_) => {}
+        HirFunctionIdentity::PropertyAccessor(_) => {}
     }
     Ok(())
 }

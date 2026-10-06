@@ -8,10 +8,8 @@ use scoop_wire::WirePath;
 use super::type_semantics::inheritance::source_errors::{invalid, resource};
 use crate::{CrossConeTypeSemanticsProductionError as Error, *};
 
-mod encoding;
 mod implementations;
 mod interfaces;
-pub(super) use encoding::project as project_encoding;
 mod selections;
 mod targets;
 

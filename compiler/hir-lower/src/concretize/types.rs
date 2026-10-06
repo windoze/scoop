@@ -202,9 +202,7 @@ impl Concretizer<'_> {
                     .map(|element| self.lower_type(*element, substitution))
                     .collect();
                 let gc_free = elements.iter().all(|element| self.types[*element].gc_free);
-                let tuple = self.intern_type(concrete::TypeKind::Tuple(elements), gc_free);
-                self.prepare_tuple_encoding(tuple);
-                tuple
+                self.intern_type(concrete::TypeKind::Tuple(elements), gc_free)
             }
             export::Type::Function(id) => {
                 let id = self.lower_function_type(id, substitution);

@@ -112,8 +112,7 @@ impl Module {
                     }
                     HirFunctionIdentity::LexicalGenerated(_)
                     | HirFunctionIdentity::Initialization { .. }
-                    | HirFunctionIdentity::DerivedEquality(_)
-                    | HirFunctionIdentity::TupleEncoding(_) => declaration.name.clone(),
+                    | HirFunctionIdentity::DerivedEquality(_) => declaration.name.clone(),
                 };
                 let type_name = declaration.method.map_or_else(String::new, |method| {
                     self.source_context_type_name(method.owner)

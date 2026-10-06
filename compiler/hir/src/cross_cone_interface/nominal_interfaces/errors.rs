@@ -10,7 +10,6 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
-    ElementEncoding,
     ReleaseOwner,
     ReleaseConditionBinder {
         position: usize,
@@ -42,7 +41,6 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ElementEncoding => formatter.write_str("element encoding requires one nominal parameter and its single interface selection"),
             Self::ReleaseOwner => {
                 formatter.write_str("release policy requires a final declared class")
             }

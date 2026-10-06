@@ -206,7 +206,6 @@ impl Fixture {
                 scoop_hir::NominalInstantiationConditionsV1::empty(),
                 Default::default(),
                 None,
-                None,
             ),
         )
         .unwrap();

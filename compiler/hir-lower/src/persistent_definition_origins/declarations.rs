@@ -70,8 +70,7 @@ impl DefinitionOriginBuilder<'_> {
                 }
                 hir::HirFunctionIdentity::PropertyAccessor(_)
                 | hir::HirFunctionIdentity::Initialization { .. }
-                | hir::HirFunctionIdentity::DerivedEquality(_)
-                | hir::HirFunctionIdentity::TupleEncoding(_) => continue,
+                | hir::HirFunctionIdentity::DerivedEquality(_) => continue,
             };
             let file = self.source_file(
                 subject,

@@ -51,8 +51,7 @@ pub(crate) fn finish_default_local_scopes(
                         | hir::HirFunctionIdentity::Initialization { record, .. } => {
                             CallableTemplateOwner::Generated(record.id())
                         }
-                        hir::HirFunctionIdentity::DerivedEquality(_)
-                        | hir::HirFunctionIdentity::TupleEncoding(_) => {
+                        hir::HirFunctionIdentity::DerivedEquality(_) => {
                             unreachable!("derived equality has no source parameter defaults")
                         }
                     },

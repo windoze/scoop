@@ -94,9 +94,6 @@ pub(super) fn project(
         }
     }
 
-    if let Some(interface) = types.encoding_parent(exact)? {
-        interfaces.push(interface);
-    }
     NominalInheritanceEdgesV1::try_new(
         exact,
         declaration.declaration_details().modality(),

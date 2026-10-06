@@ -179,7 +179,6 @@ impl CanonicalHirFoundation {
             }
             // These machine helpers do not introduce a source lexical scope.
             GeneratedCallableKey::DerivedEquality { .. }
-            | GeneratedCallableKey::TupleEncoding { .. }
             | GeneratedCallableKey::FunctionAdapter { .. }
             | GeneratedCallableKey::DynamicFunctionAdapter { .. }
             | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }

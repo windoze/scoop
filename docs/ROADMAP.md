@@ -466,13 +466,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - companion按完整宿主application分别具有类型、singleton状态及exactly-once初始化；可直接使用宿主类型参数与bound，同一application跨Cone沿ODR共享状态，不同实参各自独立。此项修订M21的共享companion选择，普通static nested作用域保持；历史milestone设计保留原文。
 - 泛型的两个方向都显式传入codec，数据类型无需编码bound。`Box<T>.Companion`把元素codec交给普通encoder/decoder helper，宿主具体化不自动提供裸T的字段能力。支持struct、enum、tuple及原范围内的final class；核心容器保持无bound用途，撤销容器/tuple条件编码，Unit使用普通UnitEncoder/UnitDecoder。
 - keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，encode/decode入口均显式接收codec。字段按声明类型选定codec，不回退到基类companion或运行期类型查找。不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
-- 2026-10-06协议修订已更新设计和三份spec，编译器、core、JSON及fixture仍待迁移；既有实例编码和条件conformance的实现/测试保留为历史，不计作新协议验收。按设计第9.3节逐功能迁移并提交，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、父子codec独立、初始化、普通接口调用、异常与moving GC后再完成总验收。
+- 2026-10-06协议修订已更新设计和三份spec，协议、core和JSON入口已迁移，自动派生及其fixture继续实施；既有实例编码和条件conformance的实现/测试保留为历史，不计作新协议验收。按设计第9.3节逐功能迁移并提交，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、父子codec独立、初始化、普通接口调用、异常与moving GC后再完成总验收。
 
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
 - 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为当前规则；泛型 companion 已通过 macOS、Linux glibc/musl 正式 fixture，M29 其余批次继续实施。
-- 2026-10-06 M29后续修订：`Encodable<T>`与`Decodable<T>`统一由companion/普通codec对象实现，数据类型继承不决定编码策略。移除旧实例编码、编码bound及容器/tuple条件接口，采用显式codec组合；当前语言9.5/11.13、runtime 2.2、impl 2.17与[M29设计](milestone29/DESIGN.md)同步，旧实施记录保留，新协议待迁移和重新验收。
+- 2026-10-06 M29后续修订：`Encodable<T>`与`Decodable<T>`统一由companion/普通codec对象实现，数据类型继承不决定编码策略。移除旧实例编码、编码bound及容器/tuple条件接口，采用显式codec组合；当前语言9.5/11.13、runtime 2.2、impl 2.17与[M29设计](milestone29/DESIGN.md)同步，旧实施记录保留，新协议正在迁移和重新验收。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。其后（同日）再调整：新增 M12"泛型上界约束与接口化"（ToString/Hash/equals，spec 11.11 已定稿），字符串插值顺延为 M13、多 Cone 顺延为 M14。
 - 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。

@@ -111,7 +111,6 @@ impl Lowerer {
             owner: owner.map(Owner::as_nominal_owner),
             access,
             definition: hir::ClassDefinition {
-                element_encoding: None,
                 release_policy: Default::default(),
                 modifier,
                 self_application,

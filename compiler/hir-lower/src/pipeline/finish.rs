@@ -384,7 +384,6 @@ impl Lowerer {
             generic_methods: self.generic_methods,
             generic_method_applications: self.generic_method_applications,
             derived_equality_applications: self.derived_equality_applications,
-            tuple_encoding_templates: self.tuple_encoding_templates,
             structs: self.structs,
             struct_constructors: self.struct_constructors,
             struct_constructor_applications: self.struct_constructor_applications,

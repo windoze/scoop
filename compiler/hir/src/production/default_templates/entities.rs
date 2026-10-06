@@ -128,7 +128,7 @@ impl<'a> DefaultEntityProjector<'a> {
                         }
                     })
                 }
-                HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+                HirFunctionIdentity::DerivedEquality(_) => {
                     Err(DefaultEntityProjectionError::UnsupportedFunctionIdentity {
                         function: super::raw_index(function),
                     })
@@ -161,8 +161,7 @@ impl<'a> DefaultEntityProjector<'a> {
             HirFunctionIdentity::PropertyAccessor(_)
             | HirFunctionIdentity::LexicalGenerated(_)
             | HirFunctionIdentity::Initialization { .. }
-            | HirFunctionIdentity::DerivedEquality(_)
-            | HirFunctionIdentity::TupleEncoding(_) => {
+            | HirFunctionIdentity::DerivedEquality(_) => {
                 Err(DefaultEntityProjectionError::ExpectedSourceDeclaration {
                     function: super::raw_index(function),
                 })
@@ -204,7 +203,7 @@ impl<'a> DefaultEntityProjector<'a> {
             | HirFunctionIdentity::Initialization { record, .. } => {
                 Ok(DefaultCallableDeclarationV1::Generated(record.id()))
             }
-            HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+            HirFunctionIdentity::DerivedEquality(_) => {
                 Err(DefaultEntityProjectionError::UnsupportedFunctionIdentity {
                     function: super::raw_index(function),
                 })
@@ -221,8 +220,7 @@ impl<'a> DefaultEntityProjector<'a> {
             | HirFunctionIdentity::Initialization { record, .. } => Ok(record.id()),
             HirFunctionIdentity::Source(_)
             | HirFunctionIdentity::PropertyAccessor(_)
-            | HirFunctionIdentity::DerivedEquality(_)
-            | HirFunctionIdentity::TupleEncoding(_) => {
+            | HirFunctionIdentity::DerivedEquality(_) => {
                 Err(DefaultEntityProjectionError::UnsupportedFunctionIdentity {
                     function: super::raw_index(function),
                 })

@@ -49,12 +49,7 @@ impl<'a> GenericBodyProducer<'a> {
         let entities = DefaultEntityProjector::new(export, imported);
         let mut index = BTreeMap::new();
         for (function, declaration) in export.functions.iter() {
-            if matches!(declaration.kind, FunctionKind::DerivedEquality)
-                || matches!(
-                    export.function_identities[function],
-                    HirFunctionIdentity::TupleEncoding(_)
-                )
-            {
+            if matches!(declaration.kind, FunctionKind::DerivedEquality) {
                 continue;
             }
             let owner = entities
@@ -161,8 +156,7 @@ impl<'a> GenericBodyProducer<'a> {
             HirFunctionIdentity::LexicalGenerated(_) => true,
             HirFunctionIdentity::PropertyAccessor(_)
             | HirFunctionIdentity::Initialization { .. }
-            | HirFunctionIdentity::DerivedEquality(_)
-            | HirFunctionIdentity::TupleEncoding(_) => false,
+            | HirFunctionIdentity::DerivedEquality(_) => false,
         };
         if (lexical || export.functions[function].type_param_count() != 0)
             && self.scheduled.insert(function)
@@ -236,8 +230,7 @@ fn is_shared_root(export: &ExportHir, function: FunctionId, roots: &SharedSource
         }
         HirFunctionIdentity::LexicalGenerated(_)
         | HirFunctionIdentity::Initialization { .. }
-        | HirFunctionIdentity::DerivedEquality(_)
-        | HirFunctionIdentity::TupleEncoding(_) => false,
+        | HirFunctionIdentity::DerivedEquality(_) => false,
     }
 }
 

@@ -136,7 +136,7 @@ impl<'a, 'input> CallbackContextResolver<'a, 'input> {
                     .map_err(|_| Detail::InvalidFunctionIdentity)?,
                 binders: binder_group(&function_type_parameters(declaration))?,
             },
-            HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+            HirFunctionIdentity::DerivedEquality(_) => {
                 return Err(Detail::InvalidFunctionIdentity);
             }
         };

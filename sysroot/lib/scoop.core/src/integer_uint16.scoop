@@ -1,5 +1,5 @@
 @Intrinsic("core_uint16")
-public struct UInt16 : ToString, Hash, Encodable {
+public struct UInt16 : ToString, Hash {
     @NoGC
     @Intrinsic("uint16_equals")
     public operator fun equals(other: UInt16): Boolean
@@ -114,10 +114,10 @@ public struct UInt16 : ToString, Hash, Encodable {
 
     public override fun hash(): Long = coreULongHash(this.toUInt64())
 
-    public override fun encode(encoder: Encoder): Unit =
-        encoder.singleValue().writeULong(this.toUInt64())
+    public companion object : Encodable<UInt16>, Decodable<UInt16> {
+        public override fun encode(value: UInt16, encoder: Encoder): Unit =
+            encoder.singleValue().writeULong(value.toUInt64())
 
-    public companion object : Decodable<UInt16> {
         public override fun decode(decoder: Decoder): UInt16 =
             decodeUnsigned(decoder, 65535UL).toUInt16()
     }

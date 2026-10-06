@@ -349,8 +349,7 @@ impl CallableIdentityBuilder<'_> {
                         .expect("an enclosing generated source callable is a lexical parent");
                     }
                 }
-                export::HirFunctionIdentity::TupleEncoding(_)
-                | export::HirFunctionIdentity::Source(_)
+                export::HirFunctionIdentity::Source(_)
                 | export::HirFunctionIdentity::PropertyAccessor(_)
                 | export::HirFunctionIdentity::LexicalGenerated(_)
                 | export::HirFunctionIdentity::Initialization { .. } => {}

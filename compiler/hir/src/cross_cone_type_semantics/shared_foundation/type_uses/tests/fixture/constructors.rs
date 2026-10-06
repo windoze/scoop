@@ -157,7 +157,6 @@ impl Loaded {
                 details.instantiation_conditions().clone(),
                 Default::default(),
                 None,
-                None,
             ),
         )
         .unwrap();

@@ -22,9 +22,6 @@ impl<'a> SharedTypeMetadataV1<'a> {
             if application.declaration.declaration() == owner {
                 return Ok(exact);
             }
-            if let Some(parent) = self.applied_encoding_parent(&application, dependencies)? {
-                pending.push(parent);
-            }
             let bindings = application.bindings();
             for parent in application.declaration.exact_supertypes().values() {
                 pending.push(self.signature_exact_type_with_bindings(

@@ -66,7 +66,6 @@ impl Collector<'_> {
                 GeneratedCallableKey::DispatchAdjust { .. }
                     | GeneratedCallableKey::BoxingAdjust { .. }
                     | GeneratedCallableKey::DerivedEquality { .. }
-                    | GeneratedCallableKey::TupleEncoding { .. }
             ) {
                 return Err(MirTypeBridgeReferenceError::GeneratedExecutionGate);
             }

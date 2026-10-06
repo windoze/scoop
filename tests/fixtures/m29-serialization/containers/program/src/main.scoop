@@ -14,15 +14,15 @@ fun <T> reject(text: String, codec: Decodable<T>, path: String) {
     check(rejected)
 }
 
-public struct User(val id: Long, val name: String) : Encodable {
-    public override fun encode(encoder: Encoder) {
-        val fields = encoder.keyed()
-        id.encode(fields.field("id/~"))
-        name.encode(fields.field("name"))
-        fields.end()
-    }
+public struct User(val id: Long, val name: String) {
+    public companion object : Encodable<User>, Decodable<User> {
+        public override fun encode(value: User, encoder: Encoder) {
+            val fields = encoder.keyed()
+            Long.encode(value.id, fields.field("id/~"))
+            String.encode(value.name, fields.field("name"))
+            fields.end()
+        }
 
-    public companion object : Decodable<User> {
         public override fun decode(decoder: Decoder): User {
             val fields = decoder.keyed()
             val id = Long.decode(fields.required("id/~"))
@@ -36,14 +36,14 @@ public struct User(val id: Long, val name: String) : Encodable {
     }
 }
 
-public struct Numbers(val elements: Array<Long>) : Encodable {
-    public override fun encode(encoder: Encoder) {
-        val sequence = encoder.unkeyed()
-        for (element in elements) { element.encode(sequence.element()) }
-        sequence.end()
-    }
+public struct Numbers(val elements: Array<Long>) {
+    public companion object : Encodable<Numbers>, Decodable<Numbers> {
+        public override fun encode(value: Numbers, encoder: Encoder) {
+            val sequence = encoder.unkeyed()
+            for (element in value.elements) { Long.encode(element, sequence.element()) }
+            sequence.end()
+        }
 
-    public companion object : Decodable<Numbers> {
         public override fun decode(decoder: Decoder): Numbers {
             val sequence = decoder.unkeyed()
             val elements = ArrayList<Long>()
@@ -54,16 +54,12 @@ public struct Numbers(val elements: Array<Long>) : Encodable {
     }
 }
 
-object UnitValue : Encodable {
-    public override fun encode(encoder: Encoder) { encoder.singleValue().writeNull() }
-}
-
 object Unread : Decodable<Long> {
     public override fun decode(decoder: Decoder): Long = 42L
 }
 
-object Incomplete : Encodable {
-    public override fun encode(encoder: Encoder) { val fields = encoder.keyed() }
+object Incomplete : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) { val fields = encoder.keyed() }
 }
 
 object ExtraElement : Decodable<Long> {
@@ -75,8 +71,8 @@ object ExtraElement : Decodable<Long> {
     }
 }
 
-object WrongEncoderContainer : Encodable {
-    public override fun encode(encoder: Encoder) {
+object WrongEncoderContainer : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) {
         val fields = encoder.keyed()
         (encoder as SingleValueEncodingContainer).writeLong(1L)
         fields.end()
@@ -88,9 +84,9 @@ object WrongDecoderContainer : Decodable<Long> {
         (decoder as SingleValueDecodingContainer).readLong()
 }
 
-fun <T : Encodable> rejectEncoding(value: T) {
+fun <T> rejectEncoding(value: T, codec: Encodable<T>) {
     var rejected: Boolean = false
-    try { val result = Json.encode(value) }
+    try { val result = Json.encode(value, codec) }
     catch (error: EncodingException) {
         check(error.path == "")
         rejected = true
@@ -99,16 +95,16 @@ fun <T : Encodable> rejectEncoding(value: T) {
 }
 
 fun main() {
-    check(Json.encode(User(7L, "雪")) == "{\"id/~\":7,\"name\":\"雪\"}")
+    check(Json.encode(User(7L, "雪"), User.Companion) == "{\"id/~\":7,\"name\":\"雪\"}")
     val user = Json.decode("{\"name\":\"雪\",\"id/~\":7}", User.Companion)
     check(user == User(7L, "雪"))
     val missing = Json.decode("{\"unknown\":[null,true,{\"a\":-12.3e+4}],\"id/~\":8}", User.Companion)
     check(missing == User(8L, "anonymous"))
-    check(Json.encode(Numbers([1L, -2L, 3L])) == "[1,-2,3]")
+    check(Json.encode(Numbers([1L, -2L, 3L]), Numbers.Companion) == "[1,-2,3]")
     val numbers = Json.decode(" [ 4 , 5 , 6 ] ", Numbers.Companion)
     check(numbers.elements.size == 3L && numbers.elements[1L] == 5L)
-    check(Json.encode(Json.decode("[]", Numbers.Companion)) == "[]")
-    check(Json.encode(UnitValue) == "null")
+    check(Json.encode(Json.decode("[]", Numbers.Companion), Numbers.Companion) == "[]")
+    check(Json.encode(Unit, UnitEncoder) == "null")
     reject("{}", User.Companion, "/id~1~0")
     reject("{\"id/~\":null}", User.Companion, "/id~1~0")
     reject("{\"id/~\":1,\"name\":null}", User.Companion, "/name")
@@ -120,7 +116,25 @@ fun main() {
     reject("[1,2]", ExtraElement, "")
     reject("42", Unread, "")
     reject("42", WrongDecoderContainer, "")
-    rejectEncoding(Incomplete)
-    rejectEncoding(WrongEncoderContainer)
+    rejectEncoding(Unit, Incomplete)
+    rejectEncoding(Unit, WrongEncoderContainer)
+    val sequence: Array<Option<Long>> = [None, Some(8L)]
+    val optionEncoder = Option<Long>.Companion.encoder(Long.Companion)
+    val sequenceEncoder = Array<Option<Long>>.Companion.encoder(optionEncoder)
+    check(Json.encode(sequence, sequenceEncoder) == "[{\"None\":{}},{\"Some\":[8]}]")
+    val mutable = MutableArray<Long>(2L) { index -> index + 1L }
+    check(Json.encode(mutable, MutableArray<Long>.Companion.encoder(Long.Companion)) == "[1,2]")
+    val list = ArrayList<Long>()
+    list.add(3L)
+    check(Json.encode(list, ArrayList<Long>.Companion.encoder(Long.Companion)) == "[3]")
+    val listEncoder = EncodeFunction<List<Long>>({ values, encoder -> encodeList(values, Long.Companion, encoder) })
+    check(Json.encode<List<Long>>(list, listEncoder) == "[3]")
+    val pairEncoder = EncodeFunction<(Long, String)>({ value, encoder ->
+        val elements = encoder.unkeyed()
+        Long.encode(value._1, elements.element())
+        String.encode(value._2, elements.element())
+        elements.end()
+    })
+    check(Json.encode((4L, "pair"), pairEncoder) == "[4,\"pair\"]")
     println("containers-ok")
 }

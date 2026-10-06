@@ -30,7 +30,6 @@ impl Harness {
             span: SPAN,
 
             definition: hir::EnumDefinition {
-                element_encoding: None,
                 self_application: option_self_application,
                 type_params: vec![type_param("T")],
                 variants: vec![

@@ -115,17 +115,12 @@ impl CallableIdentityBuilder<'_> {
                 };
                 CallableMaterialization::new(CallableTemplateOwner::Generated(record.id()), context)
             }
-            identity @ (export::HirFunctionIdentity::DerivedEquality(_)
-            | export::HirFunctionIdentity::TupleEncoding(_)) => {
+            export::HirFunctionIdentity::DerivedEquality(_) => {
                 let exact_owner = self.exact_method_owner(
                     key.owner
                         .expect("a type-owned method always has a complete owner"),
                 );
-                let role = if matches!(identity, export::HirFunctionIdentity::TupleEncoding(_)) {
-                    GeneratedCallableKey::TupleEncoding { exact_owner }
-                } else {
-                    GeneratedCallableKey::DerivedEquality { exact_owner }
-                };
+                let role = GeneratedCallableKey::DerivedEquality { exact_owner };
                 let record = CborIdentityRecord::from_key(role)
                     .expect("a type-owned method has its complete exact owner");
                 let id = record.id();

@@ -1,6 +1,5 @@
 //! Prelude references and shared dependency signature types.
 
-mod encoding;
 mod interfaces;
 mod intrinsics;
 mod members;

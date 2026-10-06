@@ -1,5 +1,5 @@
 @Intrinsic("core_long")
-public struct Long : ToString, Hash, Encodable {
+public struct Long : ToString, Hash {
     @NoGC
     @Intrinsic("long_equals")
     public operator fun equals(other: Long): Boolean
@@ -118,10 +118,10 @@ public struct Long : ToString, Hash, Encodable {
 
     public override fun hash(): Long = coreLongHash(this)
 
-    public override fun encode(encoder: Encoder): Unit =
-        encoder.singleValue().writeLong(this.toInt64())
+    public companion object : Encodable<Long>, Decodable<Long> {
+        public override fun encode(value: Long, encoder: Encoder): Unit =
+            encoder.singleValue().writeLong(value.toInt64())
 
-    public companion object : Decodable<Long> {
         public override fun decode(decoder: Decoder): Long =
             decoder.singleValue().readLong()
     }

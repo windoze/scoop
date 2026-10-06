@@ -132,22 +132,6 @@ impl MirCallableBridgeAuthority<'_> {
                 self.adjust(binding, *slot, receiver, target)
             }
             (
-                GeneratedCallableKey::TupleEncoding { exact_owner },
-                MirCallableLoweringRoleV1::Ordinary,
-            ) => {
-                if semantic.receiver() != OptionalExactOwner::Present(*exact_owner)
-                    || !matches!(
-                        self.identities
-                            .canonical_key::<_, ExactTypeKey>(*exact_owner)?
-                            .as_ref(),
-                        ExactTypeKey::Tuple(_)
-                    )
-                {
-                    return Err(MirCallableBridgeError::SignatureMismatch);
-                }
-                self.same_signatures(binding)
-            }
-            (
                 GeneratedCallableKey::DerivedEquality { exact_owner },
                 MirCallableLoweringRoleV1::DerivedEquality { owner },
             ) if *exact_owner == owner => {
@@ -172,7 +156,6 @@ impl MirCallableBridgeAuthority<'_> {
                 | GeneratedCallableKey::Initialization { .. }
                 | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                 | GeneratedCallableKey::DerivedEquality { .. }
-                | GeneratedCallableKey::TupleEncoding { .. }
                 | GeneratedCallableKey::DispatchAdjust { .. }
                 | GeneratedCallableKey::BoxingAdjust { .. },
                 _,
@@ -247,10 +230,6 @@ impl MirCallableBridgeAuthority<'_> {
                         CallableTemplateOrigin::Function(_)
                             | CallableTemplateOrigin::GenericFunction(_)
                             | CallableTemplateOrigin::Accessor(_)
-                    ),
-                    OdrMemberDiscriminator::GeneratedCallable(callable) => matches!(
-                        self.identities.canonical_key::<_, GeneratedCallableKey>(*callable)?.as_ref(),
-                        GeneratedCallableKey::TupleEncoding { exact_owner } if *exact_owner == implementor
                     ),
                     _ => false,
                 }

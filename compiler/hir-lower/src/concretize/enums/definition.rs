@@ -8,7 +8,6 @@ pub(super) struct ResolvedEnumDefinition<'a> {
     pub variants: Vec<ResolvedEnumVariant<'a>>,
     pub interfaces: &'a [export::TypeId],
     pub interface_implementations: &'a [export::InterfaceImplementation],
-    pub element_encoding: Option<&'a export::ElementEncoding>,
     pub methods: &'a [export::FunctionId],
     pub span: scoop_ast::Span,
 }
@@ -75,7 +74,6 @@ impl<'input> Concretizer<'input> {
             variants,
             interfaces: &declaration.interfaces,
             interface_implementations: &declaration.interface_implementations,
-            element_encoding: declaration.element_encoding.as_ref(),
             methods: &declaration.methods,
             span: declaration.span,
         }
@@ -111,7 +109,6 @@ impl<'a> ResolvedEnumDefinition<'a> {
                 .collect(),
             interfaces: &source.definition.interfaces,
             interface_implementations: &source.definition.interface_implementations,
-            element_encoding: source.definition.element_encoding.as_ref(),
             methods: &[],
             span: scoop_ast::Span::new(
                 u32::try_from(source.declaration.origin.origin().span().start_byte())

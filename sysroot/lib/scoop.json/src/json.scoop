@@ -1,9 +1,9 @@
 package scoop.json
 
 public object Json {
-    public fun <T : Encodable> encode(value: T): String {
+    public fun <T> encode(value: T, codec: Encodable<T>): String {
         val encoder = JsonEncoder("")
-        value.encode(encoder)
+        codec.encode(value, encoder)
         return renderJson(encoder.result())
     }
 

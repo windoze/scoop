@@ -78,21 +78,11 @@ fn insert<'a>(
     let order = declaration.declaration_details().dispatch_order();
     context.orders.insert(owner, order);
     let mut selections = BTreeMap::new();
-    let applies = types.encoding_parent(owner)?.is_some();
-    let encoding = declaration
-        .declaration_details()
-        .element_encoding()
-        .filter(|_| applies);
     for selection in declaration
         .declaration_details()
         .dispatch_selections()
         .records()
         .iter()
-        .chain(
-            encoding
-                .into_iter()
-                .flat_map(|encoding| encoding.selections().records()),
-        )
     {
         let role = match selection.role() {
             crate::NominalDispatchSelectionRoleV1::ClassVtable => {

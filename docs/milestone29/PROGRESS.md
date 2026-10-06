@@ -3,6 +3,30 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：显式 codec 协议与核心库迁移
+
+`Encodable<T>` 现在接收显式 value 和 Encoder；标量编码方法移至各自 companion，
+Unit 使用独立的 UnitEncoder。新增普通 EncodeFunction<T> 与保存元素 codec 的
+Option/Array/MutableArray/ArrayList encoder，encodeList 同样显式接收元素 codec。
+Json.encode 接收所选 codec；data 值本身不再得到编码接口。
+
+删除容器条件编码字段、专用成员筛选/具体化/导入分派，以及 tuple 编码模板、生成键
+和额外装箱接口表，保留普通类型、闭包与接口路径。HIR identity/interface/semantics
+版本分别升至 8/56/21，MIR type bridge 升至 14；descriptor、指纹和旧版本拒绝测试
+同步更新。core bootstrap、LIR 与 runtime ABI 未变。
+
+macOS 已通过 7 项显式 codec HIR 测试和 8 个协议正式 fixture（22 个进程、4 份
+stage golden），包括精确诊断、普通/移动 GC、删除源码后的独立产物链接运行。
+扩展后的容器组合 fixture 又通过 5 个进程，覆盖四种核心容器、encodeList 和 tuple
+函数值 codec 的普通/移动 GC 运行。
+HIR/identity/MIR/slib 的相关回归分别通过 877/340/345/601 项；格式化与 workspace
+all-targets clippy 通过。自动派生及其 fixture 尚在迁移，本节不代表新版 M29 完成。
+
+此前 GNU/musl 旧协议的全量正式进程已中断；报告保存在 /tmp，清理约 63.7 GiB 的
+fixture 工作目录。两端源码和 golden 与已提交版本逐文件核对后备份现场，并同步到
+协议修订基线，保留 musl/M28 worktree 与 native unwind 文件。Linux 新协议验证待
+后续同步实现提交后执行；历史旧协议通过数不并入本次验收。
+
 ## 2026-10-06：codec 协议修订，待实现迁移
 
 当前设计改为 companion/普通 codec 实现 `Encodable<T>` 与 `Decodable<T>`，
