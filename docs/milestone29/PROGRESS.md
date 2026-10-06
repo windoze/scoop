@@ -3,6 +3,22 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：新协议 Darwin 正式全量完成
+
+泛型 primitive 声明保留和 fixture 清理修复后的普通 `--all` 已完整通过。全部
+2,496 个声明中，2,490 个适用用例通过、6 个目标不适用，包含全部 176 个 M29
+fixture；没有失败、配置错误、环境错误或中断。实际执行 2,580 个变体、12,438 个
+进程、12,418 次快照检查，没有使用筛选或更新快照选项。
+
+已把通过和不适用集合与当前声明逐项核对，并保存 11,772 个实际快照文件的内容
+摘要，供 Linux 共有输出比较。本轮正式报告为
+`/tmp/scoop-m29-saved-reports/m29-generic-primitive-darwin-all.json`，日志为
+`/tmp/scoop-m29-generic-primitive-darwin-all.log`；核对结果为
+`/tmp/scoop-m29-revised-final-darwin-verification.json`。保留产物清理用例也在本轮
+再次通过，旧实例协议或分批更新报告未计入这次正式验收。
+
+两个 Linux 目标仍在完成更新及普通全量验证，M29 的整体状态继续保持实施中。
+
 ## 2026-10-06：修复后的两端 workspace 验收
 
 使用泛型 primitive 声明保留修复后的代码，macOS 完整 workspace 通过 43 组、
