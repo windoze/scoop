@@ -67,15 +67,9 @@ name = "published_artifact"
 await_file = "${prime.result.root.path}"
 
 [[steps]]
-name = "writable_cache"
-argv = ["/bin/chmod", "-R", "u+w", "${work}/build/cache"]
-exit = 0
-stdout = ""
-stderr = ""
-
-[[steps]]
 name = "remove_original_inputs"
-files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/build/cache"}}]
+# Remove published inputs without traversing the background build's staging directory.
+files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${prime.result.root.path}"}}]
 
 [[steps]]
 name = "supply_runtime"

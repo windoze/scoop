@@ -1,0 +1,16 @@
+schema = 1
+name = "m29-derived-encoding-public-codec"
+root = "public-codec.scoop"
+inputs = ["public-codec.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "serialization", "negative"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "public-codec.diagnostics.json"}

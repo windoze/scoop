@@ -276,6 +276,10 @@ fn binding_targets(
             .collect::<Result<Vec<_>, _>>()
             .map_err(PersistentLocalBindingIdentityErrorDetail::InvalidTarget)?
         }
+        CurrentUnitTarget::Annotation(id) => vec![
+            BindingTarget::annotation(lowerer.source_annotations[&id].identity.key())
+                .map_err(PersistentLocalBindingIdentityErrorDetail::InvalidTarget)?,
+        ],
         CurrentUnitTarget::TypeAlias(id) => {
             let declaration = lowerer
                 .published_type_alias(id)

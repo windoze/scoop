@@ -200,8 +200,10 @@ Module
       val $dependency.argument.0: Boolean
         Type Boolean
         IsInstance CallbackError
-          Type Throwable
-          Local failure
+          Type Any
+          Retype Any
+            Type Throwable
+            Local failure
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0

@@ -1,0 +1,121 @@
+package scoop.json
+
+internal class JsonEncoder(public override val path: String)
+    : Encoder, SingleValueEncodingContainer {
+    private var selected: Boolean = false
+    private var scalar: Boolean = false
+    private var output: Option<JsonValue> = None
+
+    private fun select(single: Boolean) {
+        if (selected) { throw EncodingException(path, "a value already has a container") }
+        selected = true
+        scalar = single
+    }
+
+    internal fun finish(value: JsonValue) {
+        when (output) {
+            Some(_) -> { throw EncodingException(path, "a value was written twice") }
+            None -> { output = Some(value) }
+        }
+    }
+
+    internal fun result(): JsonValue {
+        return when (output) {
+            Some(_) -> output!!
+            None -> { throw EncodingException(path, "a value is incomplete") }
+        }
+    }
+
+    public override fun keyed(): KeyedEncodingContainer {
+        select(false)
+        return JsonKeyedEncoder(this)
+    }
+
+    public override fun unkeyed(): UnkeyedEncodingContainer {
+        select(false)
+        return JsonUnkeyedEncoder(this)
+    }
+
+    public override fun singleValue(): SingleValueEncodingContainer {
+        select(true)
+        return this
+    }
+
+    private fun write(value: JsonValue) {
+        if (!scalar) { throw EncodingException(path, "a single-value container was not selected") }
+        finish(value)
+    }
+
+    public override fun writeBoolean(value: Boolean): Unit = write(JsonValue.BooleanValue(value))
+    public override fun writeLong(value: Long): Unit = write(JsonValue.Number(value.toString()))
+    public override fun writeULong(value: ULong): Unit = write(JsonValue.Number(value.toString()))
+    public override fun writeString(value: String): Unit = write(JsonValue.Text(value))
+    public override fun writeNull(): Unit = write(JsonValue.Null)
+}
+
+internal class JsonKeyedEncoder(private val owner: JsonEncoder) : KeyedEncodingContainer {
+    private val members: ArrayList<JsonMember> = ArrayList<JsonMember>()
+    private var pending: Option<JsonEncoder> = None
+    private var pendingName: String = ""
+    private var ended: Boolean = false
+
+    private fun flush() {
+        if (ended) { throw EncodingException(owner.path, "container is already closed") }
+        when (pending) {
+            Some(child) -> {
+                members.add(JsonMember(pendingName, child.result()))
+                pending = None
+            }
+            None -> { return }
+        }
+    }
+
+    public override fun field(name: String): Encoder {
+        flush()
+        for (member in members) {
+            if (member.name == name) {
+                throw EncodingException(childPath(owner.path, name), "duplicate object key")
+            }
+        }
+        val child = JsonEncoder(childPath(owner.path, name))
+        pendingName = name
+        pending = Some(child)
+        return child
+    }
+
+    public override fun end() {
+        flush()
+        ended = true
+        owner.finish(JsonValue.Record(members))
+    }
+}
+
+internal class JsonUnkeyedEncoder(private val owner: JsonEncoder) : UnkeyedEncodingContainer {
+    private val elements: ArrayList<JsonValue> = ArrayList<JsonValue>()
+    private var pending: Option<JsonEncoder> = None
+    private var ended: Boolean = false
+
+    private fun flush() {
+        if (ended) { throw EncodingException(owner.path, "container is already closed") }
+        when (pending) {
+            Some(child) -> {
+                elements.add(child.result())
+                pending = None
+            }
+            None -> { return }
+        }
+    }
+
+    public override fun element(): Encoder {
+        flush()
+        val child = JsonEncoder(childPath(owner.path, elements.size.toString()))
+        pending = Some(child)
+        return child
+    }
+
+    public override fun end() {
+        flush()
+        ended = true
+        owner.finish(JsonValue.Sequence(elements))
+    }
+}

@@ -1,0 +1,107 @@
+package scoop.json
+
+internal class JsonParser(text: String) {
+    private val characters: Iterator<Char> = text.iterator()
+    private var current: Option<Char> = characters.next()
+    private var position: Long = 0L
+
+    internal fun peek(): Option<Char> = current
+
+    internal fun take(path: String): Char {
+        if (current == None) { throw DecodingException(path, "unexpected end of JSON") }
+        val result = current!!
+        current = characters.next()
+        position = position + 1L
+        return result
+    }
+
+    internal fun error(path: String, message: String): DecodingException {
+        return DecodingException(path, message + " at character " + position.toString())
+    }
+
+    internal fun accept(character: Char): Boolean {
+        if (current == Some(character)) {
+            take("")
+            return true
+        }
+        return false
+    }
+
+    internal fun expect(character: Char, path: String) {
+        if (!accept(character)) { throw error(path, "expected " + character.toString()) }
+    }
+
+    private fun whitespace() {
+        while (current != None) {
+            val character = current!!
+            if (character != ' ' && character != '\t' && character != '\n' && character != '\r') {
+                return
+            }
+            take("")
+        }
+    }
+
+    internal fun parse(): JsonValue {
+        val result = value("")
+        whitespace()
+        if (current != None) { throw error("", "unexpected input after the root value") }
+        return result
+    }
+
+    private fun keyword(word: String, result: JsonValue, path: String): JsonValue {
+        for (character in word) { expect(character, path) }
+        return result
+    }
+
+    private fun value(path: String): JsonValue {
+        whitespace()
+        if (current == None) { throw error(path, "expected a JSON value") }
+        return when (current!!) {
+            'n' -> keyword("null", JsonValue.Null, path)
+            't' -> keyword("true", JsonValue.BooleanValue(true), path)
+            'f' -> keyword("false", JsonValue.BooleanValue(false), path)
+            '"' -> JsonValue.Text(readJsonString(this, path))
+            '{' -> record(path)
+            '[' -> sequence(path)
+            else -> JsonValue.Number(readJsonNumber(this, path))
+        }
+    }
+
+    private fun record(path: String): JsonValue {
+        expect('{', path)
+        val members = ArrayList<JsonMember>()
+        whitespace()
+        if (accept('}')) { return JsonValue.Record(members) }
+        var finished: Boolean = false
+        while (!finished) {
+            whitespace()
+            val name = readJsonString(this, path)
+            val child = childPath(path, name)
+            for (member in members) {
+                if (member.name == name) { throw error(child, "duplicate object key") }
+            }
+            whitespace()
+            expect(':', child)
+            members.add(JsonMember(name, value(child)))
+            whitespace()
+            finished = accept('}')
+            if (!finished) { expect(',', path) }
+        }
+        return JsonValue.Record(members)
+    }
+
+    private fun sequence(path: String): JsonValue {
+        expect('[', path)
+        val elements = ArrayList<JsonValue>()
+        whitespace()
+        if (accept(']')) { return JsonValue.Sequence(elements) }
+        var finished: Boolean = false
+        while (!finished) {
+            elements.add(value(childPath(path, elements.size.toString())))
+            whitespace()
+            finished = accept(']')
+            if (!finished) { expect(',', path) }
+        }
+        return JsonValue.Sequence(elements)
+    }
+}

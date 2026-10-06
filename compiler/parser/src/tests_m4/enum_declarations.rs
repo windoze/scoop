@@ -54,7 +54,7 @@ fn enum_positional_variants() {
         panic!("expected a positional variant");
     };
     assert_eq!(types.len(), 1);
-    assert!(matches!(&types[0].kind, TypeRefKind::Named(name) if name.text == "Int"));
+    assert!(matches!(&types[0].ty.kind, TypeRefKind::Named(name) if name.text == "Int"));
     let VariantDeclKind::Positional(types) = &decl.variants[1].kind else {
         panic!("expected a positional variant");
     };
@@ -71,8 +71,8 @@ fn enum_positional_variant_type_forms() {
     let VariantDeclKind::Positional(types) = &decl.variants[0].kind else {
         panic!("expected a positional variant");
     };
-    assert!(matches!(&types[0].kind, TypeRefKind::Nullable(_)));
-    assert!(matches!(&types[1].kind, TypeRefKind::Tuple(elements) if elements.len() == 2));
+    assert!(matches!(&types[0].ty.kind, TypeRefKind::Nullable(_)));
+    assert!(matches!(&types[1].ty.kind, TypeRefKind::Tuple(elements) if elements.len() == 2));
 }
 
 #[test]

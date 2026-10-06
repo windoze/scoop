@@ -1,0 +1,39 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"vararg decode assertion ${code}")) }
+}
+
+public struct Required(vararg val values: Int) {
+    public companion object : Decodable<Required>
+}
+public struct Defaulted(val seed: Int, vararg val values: Int = [seed]) {
+    public companion object : Decodable<Defaulted>
+}
+public class Row public constructor(vararg val values: Int = [7]) {
+    public val total: Long get() = values.size
+    public companion object : Decodable<Row>
+}
+public enum Batches {
+    Items(vararg val values: Int = [9]),
+    Omitted(@Transient vararg val values: Int = [10])
+    public companion object : Decodable<Batches>
+}
+
+fun main() {
+    check(Json.decode("{\"values\":[1,2]}", Required.Companion).values.size == 2L, 1)
+    check(Json.decode("{\"values\":[]}", Required.Companion).values.size == 0L, 2)
+    try { Json.decode("{}", Required.Companion); check(false, 3) }
+    catch (error: DecodingException) { check(error.path == "/values", 4) }
+    val a = Json.decode("{\"seed\":3}", Defaulted.Companion)
+    check(a.values.size == 1L && a.values[0L] == 3, 5)
+    val b = Json.decode("{\"values\":[4,5],\"seed\":3}", Defaulted.Companion)
+    check(b.values.size == 2L && b.values[1L] == 5, 6)
+    check(Json.decode("{}", Row.Companion).total == 1L, 7)
+    check(Json.decode("{\"values\":[1,2]}", Row.Companion).total == 2L, 8)
+    val items = Json.decode("{\"Items\":{}}", Batches.Companion)
+    check(when (items) { Batches.Items(values) -> values[0L] == 9; else -> false }, 9)
+    val omitted = Json.decode("{\"Omitted\":{\"values\":[1]}}", Batches.Companion)
+    check(when (omitted) { Batches.Omitted(values) -> values[0L] == 10; else -> false }, 10)
+    println("constructors-ok")
+}

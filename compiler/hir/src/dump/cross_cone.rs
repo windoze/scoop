@@ -62,6 +62,20 @@ pub fn dump_cross_cone(
         "definition_sources",
         interface.definition_sources().sources(),
     );
+    if !interface.annotations().declarations().is_empty()
+        || !interface.annotations().targets().is_empty()
+    {
+        records(
+            &mut text,
+            "annotations",
+            interface.annotations().declarations(),
+        );
+        records(
+            &mut text,
+            "annotated_targets",
+            interface.annotations().targets(),
+        );
+    }
     text
 }
 

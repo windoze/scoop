@@ -1,6 +1,6 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
-cone dev.example:namespace-origin:0.1.0 kind=Library objects=67
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone dev.example:namespace-origin:0.1.0 kind=Library objects=57
 cone dev.example:namespace-first:0.1.0 kind=Library objects=1
 cone dev.example:namespace-second:0.1.0 kind=Library objects=1
 cone dev.example:namespace-deep:0.1.0 kind=Library objects=7

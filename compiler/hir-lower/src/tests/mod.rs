@@ -89,6 +89,15 @@ mod m24_release_cfg;
 mod m24_release_effects;
 mod m24_release_generics;
 mod m27_context;
+mod m29_annotations;
+mod m29_class_shapes;
+mod m29_companions;
+mod m29_container_encoding;
+mod m29_derived_decoding;
+mod m29_derived_encoding;
+mod m29_static_shapes;
+mod m29_tuple_encoding;
+mod m29_unit_encoding;
 mod m3;
 mod m4;
 mod m5;
@@ -161,16 +170,17 @@ fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<ast::Diagnostic>>
     let (user, core) = files
         .split_last()
         .expect("HIR lowering tests always supply a user source");
-    assert!(
-        core.len() <= CORE_PATHS.len(),
-        "add an explicit core test path"
-    );
     let core = core
         .iter()
-        .zip(CORE_PATHS)
-        .map(|(source, path)| ProviderSource {
+        .enumerate()
+        .map(|(index, source)| ProviderSource {
             source,
-            identity: core_source_identity(path),
+            identity: core_source_identity(
+                &CORE_PATHS
+                    .get(index)
+                    .map(|path| (*path).to_owned())
+                    .unwrap_or_else(|| format!("src/core-{index}.scoop")),
+            ),
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "<core>",
             source_text: "",

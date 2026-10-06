@@ -27,7 +27,7 @@ fn tuples_and_indexing() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
+    property11 val message: Option<String> getter11=storage-body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

@@ -200,6 +200,7 @@ fn property_override_owns_one_virtual_accessor_family_and_visibility_witness() {
         let getter = module.properties[property].capability.getter();
         match module.property_getters[getter].implementation {
             hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => function,
             hir::PropertyAccessorImplementation::Storage
             | hir::PropertyAccessorImplementation::Constant => {

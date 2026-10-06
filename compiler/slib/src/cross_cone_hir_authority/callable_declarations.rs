@@ -49,7 +49,11 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             let expected_kind = match declaration {
                 CallableTemplateOrigin::Constructor(_) => matches!(
                     owner_kind,
-                    Some(SourceDeclarationKind::Struct | SourceDeclarationKind::Class)
+                    Some(
+                        SourceDeclarationKind::Struct
+                            | SourceDeclarationKind::Class
+                            | SourceDeclarationKind::Object
+                    )
                 ),
                 CallableTemplateOrigin::VariantConstructor(_) => {
                     owner_kind == Some(SourceDeclarationKind::Enum)

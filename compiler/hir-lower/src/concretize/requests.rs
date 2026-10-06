@@ -29,6 +29,10 @@ impl FunctionKey {
 pub(super) enum FunctionSource {
     Local(export::FunctionId),
     Imported(export::ImportedGenericCallableTemplateId),
+    Companion(
+        export::ImportedCompanionTemplateId,
+        scoop_identity::InitializationCallableRole,
+    ),
 }
 
 impl Concretizer<'_> {
@@ -62,6 +66,13 @@ impl Concretizer<'_> {
                     .declaration
                     .body_owner(),
             ),
+            FunctionSource::Companion(template, role) => {
+                FunctionDefinition::Body(export::DefaultCallableDeclarationV1::Generated(
+                    self.source.imported_companion_templates[template]
+                        .callable(role)
+                        .id(),
+                ))
+            }
         };
         FunctionKey {
             definition,
@@ -162,6 +173,13 @@ impl Concretizer<'_> {
                     export::FunctionKind::Intrinsic(_) | export::FunctionKind::Extern(_)
                 ),
             ),
+            FunctionSource::Companion(template, _) => (
+                self.source.imported_constructor_templates
+                    [self.source.imported_companion_templates[template].constructor]
+                    .type_parameters
+                    .len(),
+                true,
+            ),
         };
         assert_eq!(parameter_count, key.arguments.len());
         let id = concrete::FunctionId::from_raw((self.function_slots.len() as u32).into());
@@ -190,7 +208,9 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Struct(id) => &self.structs[id].type_arguments,
             concrete::MethodOwner::Enum(id) => &self.enums[id].type_arguments,
             concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
-            concrete::MethodOwner::Object(_) => &[],
+            concrete::MethodOwner::Object(id) => {
+                &self.classes[self.object_types[id].representation].type_arguments
+            }
             concrete::MethodOwner::TypeOwned(ty) => match &self.types[ty].kind {
                 concrete::TypeKind::Ptr(pointee) => std::slice::from_ref(pointee),
                 _ => &[],

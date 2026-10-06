@@ -1,5 +1,7 @@
 use super::*;
 
+mod conformance;
+
 impl Lowerer {
     /// Generate boxed value types' ordinary interface dispatch. A box has no
     /// universal vtable entries; every interface the value type implements
@@ -18,7 +20,8 @@ impl Lowerer {
         }
         let payload_name = mir::type_name(&self.shell, &payload);
         debug_assert!(self.classes[class_id].vtable.is_empty());
-        let interfaces = self.classes[class_id].interfaces.clone();
+        let interfaces = self.value_interfaces(module, &payload);
+        self.classes[class_id].interfaces = interfaces.clone();
         for iface in interfaces {
             let (hir_iface, _) = self.interfaces.source(iface);
             let method_indices: Vec<_> = module.interfaces[hir_iface]
@@ -374,92 +377,5 @@ impl Lowerer {
             },
             identity,
         )
-    }
-
-    pub(crate) fn value_interfaces(
-        &mut self,
-        module: &hir::Module,
-        payload: &mir::Type,
-    ) -> Vec<mir::InterfaceId> {
-        let declared = match self.value_struct_source(module, payload) {
-            Some(hir_id) => module.structs[hir_id].interfaces.clone(),
-            None => match payload {
-                mir::Type::Enum(mir_id, _) => {
-                    let hir_id = self.enums.hir_ids[mir_id];
-                    module.enums[hir_id].interfaces.clone()
-                }
-                _ => return Vec::new(),
-            },
-        };
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        declared
-            .into_iter()
-            .map(|ty| {
-                let lowered = types.lower(
-                    ty,
-                    &mut self.source_exact_types,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                );
-                let mir::Type::Interface(interface) = lowered else {
-                    unreachable!()
-                };
-                interface
-            })
-            .collect()
-    }
-
-    pub(crate) fn value_interface_implementations<'a>(
-        &self,
-        module: &'a hir::Module,
-        payload: &mir::Type,
-    ) -> &'a [hir::InterfaceImplementation] {
-        match self.value_struct_source(module, payload) {
-            Some(source) => &module.structs[source].interface_implementations,
-            None => match payload {
-                mir::Type::Enum(id, _) => {
-                    &module.enums[self.enums.hir_ids[id]].interface_implementations
-                }
-                _ => unreachable!("only value types receive boxed interface adapters"),
-            },
-        }
-    }
-
-    /// Exact source declaration for a MIR struct-like payload. Primitive
-    /// representations use the typed relation emitted by HIR; ordinary
-    /// struct instances use the mandatory MIR→HIR provenance map.
-    pub(crate) fn value_struct_source(
-        &self,
-        module: &hir::Module,
-        payload: &mir::Type,
-    ) -> Option<hir::StructId> {
-        match payload {
-            mir::Type::Integer(_) | mir::Type::Boolean => {
-                let exact = self
-                    .source_exact_types
-                    .get(payload)
-                    .expect("boxed payloads retain their HIR exact type")
-                    .identity_record()
-                    .id();
-                Some(
-                    module
-                        .structs
-                        .iter()
-                        .find_map(|(id, declaration)| {
-                            (module.exact_type_identities[declaration.canonical_type].id() == exact)
-                                .then_some(id)
-                        })
-                        .expect("primitive HIR types retain their actual struct declarations"),
-                )
-            }
-            mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
-            _ => None,
-        }
     }
 }

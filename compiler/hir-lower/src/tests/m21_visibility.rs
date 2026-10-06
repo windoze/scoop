@@ -3,6 +3,7 @@ mod objects;
 mod private_accessors;
 mod property_slots;
 mod protected_scopes;
+mod signatures;
 mod support;
 
 fn visibility(value: ast::DeclaredVisibility) -> ast::VisibilitySyntax {
@@ -17,6 +18,7 @@ fn set_decl_visibility(declaration: &mut Decl, value: ast::DeclaredVisibility) {
     match declaration {
         Decl::Global(declaration) => declaration.visibility = visibility,
         Decl::TypeAlias(declaration) => declaration.visibility = visibility,
+        Decl::AnnotationClass(declaration) => declaration.visibility = visibility,
         Decl::Struct(declaration) => declaration.visibility = visibility,
         Decl::Enum(declaration) => declaration.visibility = visibility,
         Decl::Class(declaration) => declaration.visibility = visibility,

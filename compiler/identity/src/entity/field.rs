@@ -437,7 +437,8 @@ fn generated_owner_matches(owner: &GeneratedNominalKey, expected: GeneratedOwner
             GeneratedNominalKey::CallableAdapterEnvironment { .. },
             GeneratedOwnerKind::CallableAdapterEnvironment
         ) | (
-            GeneratedNominalKey::ObjectBackingClass { .. },
+            GeneratedNominalKey::ObjectBackingClass { .. }
+                | GeneratedNominalKey::GenericObjectBackingClass { .. },
             GeneratedOwnerKind::ObjectBackingClass
         )
     )

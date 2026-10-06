@@ -7,7 +7,10 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
-    for (case, expected) in [("standalone", [0, 0, 5, 0]), ("combined", [2, 1, 17, 2])] {
+    for (case, expected) in [
+        ("standalone", [0, 0, 2, 0, 3]),
+        ("combined", [2, 1, 8, 2, 9]),
+    ] {
         let source =
             std::fs::read_to_string(fixtures.join(format!("shared-accessors-{case}.scoop")))
                 .unwrap();
@@ -40,7 +43,7 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
             .production()
             .hir_interface()
             .property_interfaces();
-        let mut counts = [0; 4];
+        let mut counts = [0; 5];
         for property in properties.all_declarations() {
             for source in std::iter::once(property.accessors().getter_source())
                 .chain(property.accessors().setter_source())
@@ -51,6 +54,7 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
                     Form::Constant => 1,
                     Form::Body => 2,
                     Form::AbstractSlot => 3,
+                    Form::StorageBody => 4,
                 }] += 1;
             }
         }

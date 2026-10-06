@@ -1,0 +1,63 @@
+package scoop.json
+
+internal fun writeJsonString(text: String, output: StringBuilder) {
+    val hex = "0123456789abcdef"
+    output.add('"')
+    for (character in text) {
+        when (character) {
+            '"' -> { output.add("\\\"") }
+            '\\' -> { output.add("\\\\") }
+            '\u{8}' -> { output.add("\\b") }
+            '\u{c}' -> { output.add("\\f") }
+            '\n' -> { output.add("\\n") }
+            '\r' -> { output.add("\\r") }
+            '\t' -> { output.add("\\t") }
+            else -> {
+                val code = character.code
+                if (code < 32) {
+                    output.add("\\u00")
+                    output.add(hex[(code / 16).toInt64()])
+                    output.add(hex[(code % 16).toInt64()])
+                } else { output.add(character) }
+            }
+        }
+    }
+    output.add('"')
+}
+
+internal fun writeJson(value: JsonValue, output: StringBuilder) {
+    when (value) {
+        JsonValue.Null -> { output.add("null") }
+        JsonValue.BooleanValue(result) -> { output.add(result) }
+        JsonValue.Number(text) -> { output.add(text) }
+        JsonValue.Text(text) -> { writeJsonString(text, output) }
+        JsonValue.Record(members) -> {
+            output.add('{')
+            var first: Boolean = true
+            for (member in members) {
+                if (!first) { output.add(',') }
+                first = false
+                writeJsonString(member.name, output)
+                output.add(':')
+                writeJson(member.value, output)
+            }
+            output.add('}')
+        }
+        JsonValue.Sequence(elements) -> {
+            output.add('[')
+            var first: Boolean = true
+            for (element in elements) {
+                if (!first) { output.add(',') }
+                first = false
+                writeJson(element, output)
+            }
+            output.add(']')
+        }
+    }
+}
+
+internal fun renderJson(value: JsonValue): String {
+    val output = StringBuilder()
+    writeJson(value, output)
+    return output.build()
+}

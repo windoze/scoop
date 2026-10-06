@@ -112,7 +112,7 @@ impl Lowerer {
                     .expect("the implicit getter source was recorded")
                     .body_kind = PropertyAccessorBodyKind::Storage;
                 (
-                    hir::PropertyAccessorImplementation::Body(function),
+                    hir::PropertyAccessorImplementation::StorageBody(function),
                     self.functions[function].attributes,
                 )
             }
@@ -248,7 +248,7 @@ impl Lowerer {
                     .expect("the implicit setter source was recorded")
                     .body_kind = PropertyAccessorBodyKind::Storage;
                 (
-                    hir::PropertyAccessorImplementation::Body(function),
+                    hir::PropertyAccessorImplementation::StorageBody(function),
                     self.functions[function].attributes,
                 )
             }

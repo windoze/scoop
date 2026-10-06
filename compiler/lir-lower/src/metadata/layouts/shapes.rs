@@ -40,6 +40,9 @@ pub(crate) fn struct_shape(
     } = &definition.representation
     else {
         return Ok(match definition.representation {
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Unit) => {
+                (Vec::new(), 0, 1)
+            }
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Integer(
                 kind,
             )) => {

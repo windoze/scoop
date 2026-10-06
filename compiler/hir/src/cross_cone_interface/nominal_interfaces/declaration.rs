@@ -1,6 +1,8 @@
 use super::*;
 use crate::{DeclaredVisibilityV1, NominalInheritanceModalityV1};
 
+mod class_primary;
+pub use class_primary::*;
 mod conditions;
 mod decode;
 pub use conditions::{DecodedNominalInstantiationConditionsV1, NominalInstantiationConditionsV1};
@@ -26,6 +28,7 @@ pub struct NominalDeclarationDetailsV1 {
     primary_value_constructor: Option<PersistentConstructorId>,
     instantiation_conditions: NominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
+    class_primary_constructor: Option<ClassPrimaryConstructorV1>,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -41,6 +44,7 @@ impl NominalDeclarationDetailsV1 {
         primary_value_constructor: Option<PersistentConstructorId>,
         instantiation_conditions: NominalInstantiationConditionsV1,
         release_policy: NominalReleasePolicyV1,
+        class_primary_constructor: Option<ClassPrimaryConstructorV1>,
     ) -> Self {
         Self {
             modality,
@@ -53,6 +57,7 @@ impl NominalDeclarationDetailsV1 {
             primary_value_constructor,
             instantiation_conditions,
             release_policy,
+            class_primary_constructor,
         }
     }
 
@@ -62,6 +67,10 @@ impl NominalDeclarationDetailsV1 {
 
     pub const fn release_policy(&self) -> &NominalReleasePolicyV1 {
         &self.release_policy
+    }
+
+    pub fn class_primary_constructor(&self) -> Option<&ClassPrimaryConstructorV1> {
+        self.class_primary_constructor.as_ref()
     }
 
     pub const fn primary_value_constructor(&self) -> Option<PersistentConstructorId> {
@@ -114,7 +123,9 @@ impl NominalDeclarationDetailsV1 {
         if !self.constructors.is_empty()
             && !matches!(
                 kind,
-                PublicNominalKindV1::Class | PublicNominalKindV1::Struct
+                PublicNominalKindV1::Class
+                    | PublicNominalKindV1::Struct
+                    | PublicNominalKindV1::Object
             )
         {
             return Err(NominalInterfaceRecordBuildError::ConstructorsNotAllowed(
@@ -145,6 +156,29 @@ impl NominalDeclarationDetailsV1 {
         } else if kind == PublicNominalKindV1::Struct && !self.constructors.is_empty() {
             return Err(NominalInterfaceRecordBuildError::MissingPrimaryValueConstructor);
         }
+        if let Some(primary) = &self.class_primary_constructor {
+            if kind != PublicNominalKindV1::Class {
+                return Err(NominalInterfaceRecordBuildError::PrimaryClassConstructorKind(kind));
+            }
+            if !self.constructors.values().contains(&primary.constructor()) {
+                return Err(NominalInterfaceRecordBuildError::UndeclaredConstructor(
+                    primary.constructor(),
+                ));
+            }
+            for &property in primary.properties().iter().flatten() {
+                if !self
+                    .members
+                    .values()
+                    .contains(&NestedSourceMemberRefV1::Property(property))
+                {
+                    return Err(NominalInterfaceRecordBuildError::UndeclaredMember(
+                        PublicMemberRefV1::Property(scoop_identity::PropertyOwner::Property(
+                            property,
+                        )),
+                    ));
+                }
+            }
+        }
         for member in members.members() {
             let declared = match *member {
                 PublicMemberRefV1::Callable(CallableTemplateOrigin::Function(id)) => {
@@ -170,7 +204,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -193,7 +227,13 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         encoder.field(9)?;
         self.instantiation_conditions.encode(encoder)?;
         encoder.field(10)?;
-        self.release_policy.encode(encoder)
+        self.release_policy.encode(encoder)?;
+        encoder.field(11)?;
+        encoder.array(u64::from(self.class_primary_constructor.is_some()))?;
+        if let Some(primary) = &self.class_primary_constructor {
+            primary.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

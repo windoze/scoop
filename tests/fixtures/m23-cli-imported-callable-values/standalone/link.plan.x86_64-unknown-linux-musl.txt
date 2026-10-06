@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.example:imported-callable-values-provider:0.1.0 kind=Library objects=7
 cone dev.example:imported-callable-values-root:0.1.0 kind=Executable objects=3
 runtime objects=65

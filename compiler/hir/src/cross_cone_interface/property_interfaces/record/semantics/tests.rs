@@ -189,7 +189,7 @@ fn definition_source_shape_must_match_every_exported_fact() {
 }
 
 #[test]
-fn const_member_requires_a_non_generic_object_owner() {
+fn const_member_requires_an_object_owner_and_allows_host_parameters() {
     let (record, mut authority, object) = const_object_fixture();
     assert_eq!(record.validate_semantics(&mut authority), Ok(()));
 
@@ -208,8 +208,5 @@ fn const_member_requires_a_non_generic_object_owner() {
         object,
         PublicNominalShapeV1::new(PublicNominalKindV1::Object, 1),
     );
-    assert_eq!(
-        record.validate_semantics(&mut authority),
-        Err(PropertyInterfaceSemanticValidationError::ConstOwnerArity { actual: 1 })
-    );
+    assert_eq!(record.validate_semantics(&mut authority), Ok(()));
 }

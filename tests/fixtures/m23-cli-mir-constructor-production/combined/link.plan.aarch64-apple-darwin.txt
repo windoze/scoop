@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone test:scoop-hir-lower:0.0.0 kind=Library objects=60
 cone test:mir-constructor-production-runtime-combined:1.0.0 kind=Executable objects=4
 runtime objects=63

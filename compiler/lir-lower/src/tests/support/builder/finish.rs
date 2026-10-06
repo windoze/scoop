@@ -54,6 +54,7 @@ impl Builder {
                 mir::StructRepresentation::Intrinsic(representation) => match representation {
                     mir::IntrinsicTypeRepresentation::Integer(kind) => mir::Type::Integer(*kind),
                     mir::IntrinsicTypeRepresentation::Char => mir::Type::Struct(id),
+                    mir::IntrinsicTypeRepresentation::Unit => mir::Type::Unit,
                     mir::IntrinsicTypeRepresentation::Boolean => mir::Type::Boolean,
                     mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
                         mir::Type::Ptr(Box::new(pointee.clone()))

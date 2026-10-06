@@ -90,7 +90,7 @@ impl Lowerer {
             .iter()
             .zip(declaration.interface.source_shape().declared_fields())
             .find_map(|(source, field)| {
-                (source.backing_property == Some(property_id)).then_some(field.field())
+                (source.storage.backing_property() == Some(property_id)).then_some(field.field())
             })?;
         let mutable = property.accessors().setter().is_some_and(|setter| {
             let setter = dependencies

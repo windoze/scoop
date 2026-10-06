@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
 cone dev.example:combined:0.1.0 kind=Library objects=12
 cone test:default-access-runtime-value-access-combined:1.0.0 kind=Executable objects=14
 runtime objects=65

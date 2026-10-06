@@ -11,3 +11,6 @@ pub use local::dump_local;
 
 mod cross_cone;
 pub use cross_cone::dump_cross_cone;
+
+mod static_shapes;
+pub use static_shapes::dump_static_shapes;

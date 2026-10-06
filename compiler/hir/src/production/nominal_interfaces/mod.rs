@@ -276,7 +276,7 @@ impl<'a> NominalProjection<'a> {
             &declaration.name,
             declaration.owner,
             &declaration.access,
-            &[],
+            &self.export.classes[declaration.backing_class].type_params,
         )?;
         let backing = arena_get(&self.export.classes, declaration.backing_class).ok_or(
             NominalInterfaceBuildError::UnknownLexicalOwner {
@@ -302,6 +302,7 @@ impl<'a> NominalProjection<'a> {
             id,
             declaration,
             header.declaration,
+            &header.binders,
         )?;
         self.finish_record(
             LocalNominalId::Object(id),

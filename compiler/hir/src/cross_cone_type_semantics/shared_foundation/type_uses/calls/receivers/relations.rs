@@ -44,7 +44,9 @@ impl Graph<'_> {
                     true
                 }
                 (
-                    ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. },
+                    ExactTypeKey::Nominal(_)
+                    | ExactTypeKey::NominalApplication { .. }
+                    | ExactTypeKey::Tuple(_),
                     ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. },
                 ) => is_nominal_ancestor(source, target, path, |current| {
                     self.source_receiver_parents(current, path)
@@ -76,7 +78,7 @@ impl Graph<'_> {
                         false
                     }
                 }
-                // Tuples and native pointers remain invariant; incompatible
+                // Tuple element types and native pointers remain invariant; incompatible
                 // kinds and function effects/arity have no subtype relation.
                 _ => false,
             }

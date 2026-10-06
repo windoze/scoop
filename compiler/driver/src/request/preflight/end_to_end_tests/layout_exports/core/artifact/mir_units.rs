@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
+use scoop_identity::{CoreBuiltinNominal, InitializationUnitKey, SignatureTypeKey};
 
 mod mutations;
 
@@ -36,19 +36,26 @@ pub(super) fn check(
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (4, 4)
+                (20, 16)
             );
-            // String's companion and the suspend object have initialization pairs.
+            // Generic companion templates do not create strong initialization pairs.
+            // Scalar companions, Unit codecs and the suspend object keep their pairs.
             assert_eq!(
                 metadata
                     .source_initialization_units()
                     .iter()
+                    .filter(|source| {
+                        !matches!(
+                            source.key(),
+                            InitializationUnitKey::GenericCompanionTemplate(_)
+                        )
+                    })
                     .map(|source| source.id())
                     .collect::<std::collections::BTreeSet<_>>(),
                 units.iter().map(|unit| unit.unit()).collect(),
             );
         } else {
-            assert_eq!(units.len(), 6);
+            assert_eq!(units.len(), 18);
         }
     }
     units

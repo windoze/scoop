@@ -90,7 +90,10 @@ impl NominalInterfaceRecordV1 {
                 NominalInterfaceSemanticValidationError::TypeParameterArity { expected, actual },
             );
         }
-        if self.kind == PublicNominalKindV1::Object && actual != 0 {
+        if self.kind == PublicNominalKindV1::Object
+            && actual != 0
+            && !matches!(&self.source_shape, crate::NominalSourceShapeV1::Object(shape) if shape.object_kind() == crate::ObjectSourceKindV1::Companion)
+        {
             return Err(NominalInterfaceSemanticValidationError::ObjectTypeParameters { actual });
         }
         Ok(())

@@ -58,8 +58,16 @@ impl LayoutReader<'_> {
                         value: &value.value,
                     })
                     .collect::<Vec<_>>();
-                let backing = if let ExactTypeKey::Nominal(object) = identity.exact_key() {
-                    let key = GeneratedNominalKey::ObjectBackingClass { object: *object };
+                let backing_key = match identity.exact_key() {
+                    ExactTypeKey::Nominal(object) => {
+                        Some(GeneratedNominalKey::ObjectBackingClass { object: *object })
+                    }
+                    ExactTypeKey::NominalApplication { origin, .. } => {
+                        Some(GeneratedNominalKey::GenericObjectBackingClass { object: *origin })
+                    }
+                    _ => None,
+                };
+                let backing = if let Some(key) = backing_key {
                     let id = PersistentTypeId::from_generated_key(&key).map_err(link_error)?;
                     if self.identities.contains_resolved_identity(id) {
                         Some(self.identities.canonical_record(id).map_err(link_error)?)

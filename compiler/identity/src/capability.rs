@@ -240,7 +240,7 @@ impl ArtifactCapabilityProfileId {
         Self(CapabilityId {
             namespace: "org.scoop-lang.slib-profile".to_owned(),
             name: "cross-cone-generic".to_owned(),
-            major_version: 4,
+            major_version: 5,
         })
     }
 
@@ -446,7 +446,7 @@ mod tests {
             ("single-cone-strong", 2),
             ("cross-cone-semantics-strong", 2),
             ("cross-cone-layout-strong", 3),
-            ("cross-cone-generic", 1),
+            ("cross-cone-generic", 4),
         ] {
             for major in 1..=last_major {
                 let retired =

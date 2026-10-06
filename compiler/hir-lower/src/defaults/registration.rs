@@ -31,6 +31,14 @@ impl Lowerer {
             }
             self.register_function_parameter_interface(function);
         }
+        for (function, _) in self.derived_encoding_methods.clone() {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
+        for (function, _) in self.derived_decoding_methods.clone() {
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
         for &(structure, declaration, file) in structs {
             self.current_file = file;
             if matches!(
@@ -236,6 +244,27 @@ impl Lowerer {
                 self.register_export_parameter_interface(
                     hir::ExportParameterOwner::VariantConstructor(variant),
                     &sources,
+                    &context,
+                );
+            }
+        }
+        for (_, object) in self.objects.clone().iter() {
+            let class = &self.classes[object.backing_class];
+            for constructor in class.constructors.clone() {
+                let context = DefaultContext {
+                    definition_root: hir::LexicalDefinitionRoot::ClassConstructor(constructor),
+                    source_context: hir::SourceContextSubject::Constructor(
+                        hir::SourceContextConstructor::Class(constructor),
+                    ),
+                    type_parameters: self.classes[object.backing_class].type_params.clone(),
+                    receiver: None,
+                    is_suspend: false,
+                    safety: hir::Safety::Safe,
+                    callable_name: object.name.clone(),
+                };
+                self.register_export_parameter_interface(
+                    hir::ExportParameterOwner::ClassConstructor(constructor),
+                    &[],
                     &context,
                 );
             }

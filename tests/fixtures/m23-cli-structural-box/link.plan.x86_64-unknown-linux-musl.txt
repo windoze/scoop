@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=412
+cone scoop:scoop.core:0.1.0 kind=Library objects=617
 cone dev.example:structural-box:0.1.0 kind=Library objects=2
 cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=5
 runtime objects=65

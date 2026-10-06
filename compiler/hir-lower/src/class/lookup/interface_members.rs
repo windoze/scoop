@@ -37,6 +37,7 @@ impl Lowerer {
             ty => {
                 let kind = match ty {
                     Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                    Type::Unit => hir::IntrinsicTypeKind::Unit,
                     Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                     Type::String => hir::IntrinsicTypeKind::String,
                     _ => return,

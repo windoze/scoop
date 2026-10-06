@@ -58,6 +58,7 @@ impl Lowerer {
             .declaration_details()
             .dispatch_selections()
             .records()
+            .iter()
         {
             let hir::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role()
             else {

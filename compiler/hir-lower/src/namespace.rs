@@ -65,6 +65,7 @@ impl<T> std::ops::Deref for TopLevelCandidateLayer<T> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TopLevelTypeTarget {
     Alias(SourceTypeAliasId),
+    Annotation(scoop_identity::PersistentAnnotationId),
     Nominal(NominalTarget),
 }
 
@@ -72,6 +73,7 @@ impl TopLevelTypeTarget {
     pub(crate) const fn description(self) -> &'static str {
         match self {
             Self::Alias(_) => "a typealias",
+            Self::Annotation(_) => "an annotation class",
             Self::Nominal(NominalTarget::Struct(_)) => "a struct",
             Self::Nominal(NominalTarget::Enum(_)) => "an enum",
             Self::Nominal(NominalTarget::Class(_)) => "a class",

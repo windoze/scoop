@@ -81,3 +81,38 @@ pub struct Field {
     pub name: String,
     pub ty: TypeId,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NominalFieldStorage {
+    Declared,
+    PropertyBacking(scoop_identity::PersistentPropertyId),
+    PropertyDelegate(scoop_identity::PersistentPropertyId),
+    Generated,
+}
+
+impl NominalFieldStorage {
+    pub const fn backing_property(self) -> Option<scoop_identity::PersistentPropertyId> {
+        match self {
+            Self::PropertyBacking(property) => Some(property),
+            Self::Declared | Self::PropertyDelegate(_) | Self::Generated => None,
+        }
+    }
+}
+
+impl NominalFieldStorage {
+    pub fn from_key(key: &scoop_identity::FieldIdentityKey) -> Self {
+        use scoop_identity::FieldIdentityView;
+        match key.view() {
+            FieldIdentityView::SourceDeclared { .. } => Self::Declared,
+            FieldIdentityView::SourcePropertyBacking { property, .. } => {
+                Self::PropertyBacking(property)
+            }
+            FieldIdentityView::SourcePropertyDelegate { property, .. } => {
+                Self::PropertyDelegate(property)
+            }
+            FieldIdentityView::Generated { key, .. } => key
+                .object_backing_property()
+                .map_or(Self::Generated, Self::PropertyBacking),
+        }
+    }
+}

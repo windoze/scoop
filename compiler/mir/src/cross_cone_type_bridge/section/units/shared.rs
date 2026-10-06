@@ -44,6 +44,8 @@ pub fn replay_source_initialization_units(
         if matches!(
             source,
             InitializationUnitKey::GenericDelegatedExtensionApplication { .. }
+                | InitializationUnitKey::GenericCompanionTemplate(_)
+                | InitializationUnitKey::GenericCompanionApplication { .. }
         ) {
             return Err(Error::Unit {
                 unit,

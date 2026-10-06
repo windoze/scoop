@@ -48,6 +48,16 @@ impl Lowerer {
         &self,
         input: &NominalIdentityInput<'_>,
     ) -> Result<hir::HirNominalIdentity, PersistentNominalIdentityErrorDetail> {
+        hir::HirNominalIdentity::from_source_declaration(
+            self.source_nominal_declaration_key(input)?,
+        )
+        .map_err(PersistentNominalIdentityErrorDetail::InvalidIdentity)
+    }
+
+    pub(crate) fn source_nominal_declaration_key(
+        &self,
+        input: &NominalIdentityInput<'_>,
+    ) -> Result<SourceDeclarationKey, PersistentNominalIdentityErrorDetail> {
         use PersistentNominalIdentityErrorDetail as Error;
 
         let source = self.visibility_file(input.file);
@@ -85,10 +95,7 @@ impl Lowerer {
         let name = CanonicalIdentifier::new(input.name).map_err(Error::InvalidName)?;
         let arity =
             u32::try_from(input.type_parameter_count).map_err(|_| Error::TooManyTypeParameters)?;
-        hir::HirNominalIdentity::from_source_declaration(SourceDeclarationKey::nominal(
-            site, name, input.kind, arity,
-        ))
-        .map_err(Error::InvalidIdentity)
+        Ok(SourceDeclarationKey::nominal(site, name, input.kind, arity))
     }
 
     pub(crate) fn register_nominal_identity(
@@ -183,7 +190,7 @@ impl fmt::Display for PersistentNominalIdentityError {
 impl std::error::Error for PersistentNominalIdentityError {}
 
 #[derive(Debug)]
-enum PersistentNominalIdentityErrorDetail {
+pub(crate) enum PersistentNominalIdentityErrorDetail {
     InvalidName(scoop_identity::CanonicalIdentifierError),
     InvalidSite(scoop_identity::SourceDeclarationKeyError),
     InvalidIdentity(hir::HirNominalIdentityError),

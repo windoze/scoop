@@ -56,8 +56,10 @@ Module
       assign $logic.3
         Type Boolean
         IsInstance SourceOnly<Long>
-          Type SourceOnly<Long>
-          Local value
+          Type Any
+          Retype Any
+            Type SourceOnly<Long>
+            Local value
       goto bb3
     bb2 logic.short.2
       assign $logic.3

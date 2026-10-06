@@ -1,0 +1,95 @@
+private var initializations: Int = 0
+
+private fun mark(): Int {
+    initializations += 1
+    return initializations
+}
+
+public interface Maker<T> {
+    public fun create(value: T): Box<T>
+
+    public companion object {
+        public fun identity(value: T): T = value
+    }
+}
+
+public class Empty<T>() {
+    public companion object {}
+}
+
+public enum Choice<T> {
+    Value(T)
+
+    public companion object {
+        public fun make(value: T): Choice<T> = Value(value)
+    }
+}
+
+public struct Box<T>(val value: T) {
+    public companion object Factory : Maker<T> {
+        public const val version: Int = 4
+        public val ordinal: Int = mark()
+        public var cached: Option<T> = None
+
+        private fun keep(value: T): T = value
+
+        public override fun create(value: T): Box<T> {
+            cached = Some(value)
+            return Box<T>(keep(value))
+        }
+
+        public fun <U> pair(first: T, second: U): (T, U) = (first, second)
+    }
+
+    public struct Nested(val value: Int)
+}
+
+typealias IntBox = Box<Int>
+const val declaredVersion: Int = Box<Int>.version + IntBox.Factory.version
+
+private fun check(condition: Boolean, code: Int): Unit {
+    if (!condition) {
+        println(f"companion assertion ${code} failed")
+        throw IllegalStateException(Some(f"companion assertion ${code} failed"))
+    }
+}
+
+fun main(): Unit {
+    check(declaredVersion == 8 && Box<String>.Companion.version == 4, 11)
+    check(initializations == 0, 12)
+    val ordinary = Box<Int>(3)
+    check(ordinary.value == 3 && initializations == 0, 1)
+    val first: Box<Int>.Companion = Box<Int>.Companion
+    check(first.ordinal == 1 && initializations == 1, 2)
+    val again: IntBox.Factory = IntBox.Factory
+    check(first === again && initializations == 1, 3)
+    val number = Box<Int>.create(7)
+    check(number.value == 7 && first.cached!! == 7, 4)
+
+    val strings = Box<String>.Companion
+    check(strings.ordinal == 2 && initializations == 2, 5)
+    check(strings.cached == None, 6)
+    val text = strings.create(f"value-${number.value}")
+    check(text.value == "value-7" && strings.cached!! == "value-7", 7)
+    check(first.cached!! == 7, 8)
+    Box<Int>.cached = Some(10)
+    check(first.cached!! == 10, 13)
+    IntBox.Factory.cached = Some(11)
+    check(first.cached!! == 11, 14)
+    val pair = first.pair<String>(9, "nine")
+    check(pair._1 == 9 && pair._2 == "nine", 9)
+
+    val nested: Box.Nested = Box.Nested(11)
+    check(nested.value == 11 && initializations == 2, 10)
+    val factory: Maker<Int> = first
+    check(factory.create(12).value == 12 && first.cached!! == 12, 15)
+    check(Maker<String>.identity("interface") == "interface", 16)
+    val emptyInteger: Any = Empty<Int>.Companion
+    val emptyString: Any = Empty<String>.Companion
+    check(emptyInteger !== emptyString && emptyInteger === Empty<Int>.Companion, 17)
+    val choice = Choice<Int>.make(19)
+    check(when (choice) { Value(value) -> value == 19 }, 18)
+    val create: (Int) -> Box<Int> = Box<Int>.Companion::create
+    check(create(20).value == 20 && first.cached!! == 20, 19)
+    println("companions-ok")
+}

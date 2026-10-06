@@ -55,6 +55,7 @@ test_identity!(PersistentTypeId);
 test_identity!(PersistentExactTypeId);
 test_identity!(PersistentFunctionId);
 test_identity!(PersistentGenericFunctionId);
+test_identity!(crate::PersistentGenericTypeId);
 test_identity!(PersistentConstructorId);
 test_identity!(PersistentPropertyAccessorId);
 test_identity!(PersistentGeneratedCallableId);
@@ -156,8 +157,8 @@ fn materialization_decoder_rejects_empty_arguments_and_unknown_tags() {
         }
     );
 
-    let unknown = decode_canonical::<DecodedInitializationUnitKey>(b"\xa1\x00\x06").unwrap_err();
-    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 6 });
+    let unknown = decode_canonical::<DecodedInitializationUnitKey>(b"\xa1\x00\x08").unwrap_err();
+    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 8 });
 
     let selector = decode_error_kind::<LocalValueSelector>(b"\xa1\x00\x07");
     assert_eq!(selector, WireErrorKind::UnknownTag { tag: 7 });

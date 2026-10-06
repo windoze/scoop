@@ -1,0 +1,128 @@
+@Intrinsic("core_int16")
+public struct Int16 : ToString, Hash {
+    @NoGC
+    @Intrinsic("int16_equals")
+    public operator fun equals(other: Int16): Boolean
+
+    @NoGC
+    @Intrinsic("int16_unary_plus")
+    public operator fun unaryPlus(): Int16
+
+    @NoGC
+    @Intrinsic("int16_unary_minus")
+    public operator fun unaryMinus(): Int16
+
+    @NoGC
+    @Intrinsic("int16_inc")
+    public operator fun inc(): Int16
+
+    @NoGC
+    @Intrinsic("int16_dec")
+    public operator fun dec(): Int16
+
+    @NoGC
+    @Intrinsic("int16_add")
+    public operator fun plus(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_sub")
+    public operator fun minus(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_mul")
+    public operator fun times(other: Int16): Int16
+
+    @Intrinsic("int16_div")
+    public operator fun div(other: Int16): Int16
+
+    @Intrinsic("int16_rem")
+    public operator fun rem(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_compare_to")
+    public operator fun compareTo(other: Int16): Long
+
+    @NoGC
+    @Intrinsic("int16_and")
+    public infix fun and(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_or")
+    public infix fun or(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_xor")
+    public infix fun xor(other: Int16): Int16
+
+    @NoGC
+    @Intrinsic("int16_inv")
+    public fun inv(): Int16
+
+    @NoGC
+    @Intrinsic("int16_shl")
+    public infix fun shl(count: Long): Int16
+
+    @NoGC
+    @Intrinsic("int16_shr")
+    public infix fun shr(count: Long): Int16
+
+    @NoGC
+    @Intrinsic("int16_ushr")
+    public infix fun ushr(count: Long): Int16
+
+    @NoGC
+    @Intrinsic("int16_to_int8")
+    public fun toInt8(): Int8
+
+    @NoGC
+    @Intrinsic("int16_to_int16")
+    public fun toInt16(): Int16
+
+    @NoGC
+    @Intrinsic("int16_to_int")
+    public fun toInt32(): Int
+
+    @NoGC
+    @Intrinsic("int16_to_long")
+    public fun toInt64(): Long
+
+    @NoGC
+    @Intrinsic("int16_to_uint8")
+    public fun toUInt8(): UInt8
+
+    @NoGC
+    @Intrinsic("int16_to_uint16")
+    public fun toUInt16(): UInt16
+
+    @NoGC
+    @Intrinsic("int16_to_uint")
+    public fun toUInt32(): UInt
+
+    @NoGC
+    @Intrinsic("int16_to_ulong")
+    public fun toUInt64(): ULong
+
+    public operator fun rangeTo(endpoint: Int16): IntRange =
+        IntRange(this.toInt32(), endpoint.toInt32(), 1, false, true)
+
+    public operator fun rangeUntil(endpoint: Int16): IntRange =
+        IntRange(this.toInt32(), endpoint.toInt32(), 1, false, false)
+
+    public infix fun until(endpoint: Int16): IntRange =
+        IntRange(this.toInt32(), endpoint.toInt32(), 1, false, false)
+
+    public infix fun downTo(endpoint: Int16): IntRange =
+        IntRange(this.toInt32(), endpoint.toInt32(), 1, true, true)
+
+    public override fun toString(): String = coreLongToString(this.toInt64())
+
+    public override fun hash(): Long = coreLongHash(this.toInt64())
+
+    public companion object : Encodable<Int16>, Decodable<Int16> {
+        public override fun encode(value: Int16, encoder: Encoder): Unit =
+            encoder.singleValue().writeLong(value.toInt64())
+
+        public override fun decode(decoder: Decoder): Int16 =
+            decodeSigned(decoder, -32768L, 32767L).toInt16()
+    }
+}

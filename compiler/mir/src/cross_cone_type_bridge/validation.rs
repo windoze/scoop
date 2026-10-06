@@ -187,6 +187,13 @@ impl MirTypeBridgeAuthority<'_> {
                     ) | (
                         SourceDeclarationKind::Interface,
                         MirTypeRepresentationV1::Interface
+                    ) | (
+                        SourceDeclarationKind::Object,
+                        MirTypeRepresentationV1::Class {
+                            kind: MirClassKindV1::Final,
+                            release_policy: MirClassReleasePolicyV1::None,
+                            ..
+                        }
                     )
                 );
                 if !matches {

@@ -176,7 +176,9 @@ fn project_nominal_owner<'a>(
             id,
             objects,
             PropertyNominalOwnerKind::Object,
-            |_declaration: &'a crate::ObjectDecl| &[]
+            |declaration: &'a crate::ObjectDecl| export.classes[declaration.backing_class]
+                .type_params
+                .as_slice()
         ),
         PropertyOwner::TopLevel | PropertyOwner::Extension(_) => {
             unreachable!("non-nominal owners are handled before nominal projection")

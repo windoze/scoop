@@ -1,0 +1,94 @@
+package scoop.json
+
+internal class JsonKeyedDecoder(private val owner: JsonDecoder, private val members: ArrayList<JsonMember>)
+    : KeyedDecodingContainer {
+    private val consumed: ArrayList<String> = ArrayList<String>()
+    private var pending: Option<JsonDecoder> = None
+    private var ended: Boolean = false
+    private val names: List<String> = memberNames(members)
+
+    public override val keys: List<String> get() = names
+
+    private fun check() {
+        if (ended) { throw DecodingException(owner.path, "container is already closed") }
+        when (pending) {
+            Some(child) -> { child.requireComplete() }
+            None -> { return }
+        }
+    }
+
+    public override fun optional(name: String): Option<Decoder> {
+        check()
+        for (previous in consumed) {
+            if (previous == name) {
+                throw DecodingException(childPath(owner.path, name), "field was read twice")
+            }
+        }
+        consumed.add(name)
+        for (member in members) {
+            if (member.name == name) {
+                val child = JsonDecoder(member.value, childPath(owner.path, name))
+                pending = Some(child)
+                return Some(child)
+            }
+        }
+        return None
+    }
+
+    public override fun required(name: String): Decoder {
+        val result = optional(name)
+        return when (result) {
+            Some(child) -> child
+            None -> { throw DecodingException(childPath(owner.path, name), "missing required field") }
+        }
+    }
+
+    public override fun end() {
+        check()
+        ended = true
+        owner.finish()
+    }
+}
+
+internal fun memberNames(members: ArrayList<JsonMember>): List<String> {
+    val result = ArrayList<String>()
+    for (member in members) { result.add(member.name) }
+    return result
+}
+
+internal class JsonUnkeyedDecoder(private val owner: JsonDecoder, private val elements: ArrayList<JsonValue>)
+    : UnkeyedDecodingContainer {
+    private var cursor: Long = 0L
+    private var pending: Option<JsonDecoder> = None
+    private var ended: Boolean = false
+
+    private fun check() {
+        if (ended) { throw DecodingException(owner.path, "container is already closed") }
+        when (pending) {
+            Some(child) -> { child.requireComplete() }
+            None -> { return }
+        }
+    }
+
+    public override val hasNext: Boolean get() {
+        check()
+        return cursor < elements.size
+    }
+
+    public override fun element(): Decoder {
+        check()
+        val path = childPath(owner.path, cursor.toString())
+        if (cursor == elements.size) { throw DecodingException(path, "missing array element") }
+        val child = JsonDecoder(elements[cursor], path)
+        cursor = cursor + 1L
+        pending = Some(child)
+        return child
+    }
+
+    public override fun end() {
+        check()
+        if (cursor != elements.size) { throw DecodingException(owner.path, "extra array elements") }
+        ended = true
+        owner.finish()
+    }
+}

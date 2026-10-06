@@ -5,11 +5,11 @@ use scoop_wire::{Encoder, HashError, WireEncode};
 use super::{SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationKind};
 use crate::ids::derive_persistent_id;
 use crate::{
-    CanonicalIdentifier, ConeIdentity, PackagePath, PersistentEnumVariantId,
-    PersistentExportBindingId, PersistentExtensionPropertyId, PersistentFunctionId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentLocalBindingId,
-    PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    SourceIdentity,
+    CanonicalIdentifier, ConeIdentity, PackagePath, PersistentAnnotationId,
+    PersistentEnumVariantId, PersistentExportBindingId, PersistentExtensionPropertyId,
+    PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentLocalBindingId, PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId,
+    PersistentTypeId, SourceIdentity,
 };
 
 mod decode;
@@ -45,6 +45,7 @@ pub enum BindableEntity {
     ExtensionProperty(PersistentExtensionPropertyId),
     TypeAlias(PersistentTypeAliasId),
     EnumVariant(PersistentEnumVariantId),
+    Annotation(PersistentAnnotationId),
 }
 
 impl WireEncode for BindableEntity {
@@ -59,6 +60,7 @@ impl WireEncode for BindableEntity {
             Self::ExtensionProperty(id) => encode_value_sum(encoder, 7, id),
             Self::TypeAlias(id) => encode_value_sum(encoder, 8, id),
             Self::EnumVariant(id) => encode_value_sum(encoder, 9, id),
+            Self::Annotation(id) => encode_value_sum(encoder, 10, id),
         }
     }
 }
@@ -73,6 +75,7 @@ pub enum BindingRole {
     ExtensionProperty,
     TypeAlias,
     EnumVariant,
+    Annotation,
 }
 
 impl WireEncode for BindingRole {
@@ -86,6 +89,7 @@ impl WireEncode for BindingRole {
             Self::ExtensionProperty => 6,
             Self::TypeAlias => 7,
             Self::EnumVariant => 8,
+            Self::Annotation => 9,
         })
     }
 }
@@ -177,6 +181,16 @@ impl BindingTarget {
             BindingNamespace::Type,
             BindableEntity::TypeAlias(target),
             BindingRole::TypeAlias,
+        ))
+    }
+
+    pub fn annotation(key: &SourceDeclarationKey) -> Result<Self, BindingTargetError> {
+        let target = PersistentAnnotationId::from_source_declaration(key)
+            .map_err(BindingTargetError::SourceDeclaration)?;
+        Ok(Self::new(
+            BindingNamespace::Type,
+            BindableEntity::Annotation(target),
+            BindingRole::Annotation,
         ))
     }
 

@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=427
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.example:class-provider:0.1.0 kind=Library objects=260
 cone dev.example:classes-value-interface-enum:0.1.0 kind=Library objects=2
 cone dev.example:class-downstream-value-interface-enum:0.1.0 kind=Library objects=2

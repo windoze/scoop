@@ -45,6 +45,7 @@ pub(crate) fn build(
             function_identities: functions,
             property_identities: properties,
             type_alias_identities: aliases,
+            annotations: &lowerer.annotation_metadata,
         })
         .map_err(PersistentExportBindingIdentityError::Direct)?;
 

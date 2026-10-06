@@ -15,6 +15,7 @@ pub enum ExternalHirReferenceRoleV1 {
     InheritanceDependency,
     ExecutableTypeDependency,
     TemplateDependency,
+    AnnotationDependency,
 }
 
 impl ExternalHirReferenceRoleV1 {
@@ -28,6 +29,7 @@ impl ExternalHirReferenceRoleV1 {
             | Self::ConstType
             | Self::InheritanceDependency
             | Self::ExecutableTypeDependency
+            | Self::AnnotationDependency
             | Self::TemplateDependency
             | Self::DefaultDependency => false,
         }
@@ -46,6 +48,7 @@ impl WireEncode for ExternalHirReferenceRoleV1 {
             Self::InheritanceDependency => 7,
             Self::ExecutableTypeDependency => 8,
             Self::TemplateDependency => 10,
+            Self::AnnotationDependency => 11,
         })
     }
 }
@@ -62,6 +65,7 @@ impl WireDecode for ExternalHirReferenceRoleV1 {
             7 => Ok(Self::InheritanceDependency),
             8 => Ok(Self::ExecutableTypeDependency),
             10 => Ok(Self::TemplateDependency),
+            11 => Ok(Self::AnnotationDependency),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

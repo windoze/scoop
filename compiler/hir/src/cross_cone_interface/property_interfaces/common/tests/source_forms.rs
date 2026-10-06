@@ -8,12 +8,13 @@ fn source_forms_have_fixed_tags_and_body_requirements() {
         (Form::Constant, 2, false),
         (Form::Body, 3, true),
         (Form::AbstractSlot, 4, true),
+        (Form::StorageBody, 5, true),
     ] {
         assert_eq!(encode(&form).unwrap(), [tag]);
         assert_eq!(decode_canonical::<Form>(&[tag]).unwrap(), form);
         assert_eq!(form.requires_body(), body);
     }
-    for tag in [0, 5, 6] {
+    for tag in [0, 6, 7] {
         let error = decode_canonical::<Form>(&[tag]).unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: tag.into() });
     }
@@ -148,6 +149,7 @@ fn accessor_wire(
             Form::Constant => 2,
             Form::Body => 3,
             Form::AbstractSlot => 4,
+            Form::StorageBody => 5,
         });
     };
     pair(getter, form);
@@ -162,6 +164,7 @@ fn accessor_wire(
                 Form::Constant => 2,
                 Form::Body => 3,
                 Form::AbstractSlot => 4,
+                Form::StorageBody => 5,
             },
         ]);
     }

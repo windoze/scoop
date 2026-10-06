@@ -40,7 +40,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 scoop_hir::IntrinsicTypeKind::Ptr | scoop_hir::IntrinsicTypeKind::FunPtr => {
                     Err(NativeBoundaryTargetError::InvalidSignatureShape.into())
                 }
-                scoop_hir::IntrinsicTypeKind::String
+                scoop_hir::IntrinsicTypeKind::Unit
+                | scoop_hir::IntrinsicTypeKind::String
                 | scoop_hir::IntrinsicTypeKind::Array
                 | scoop_hir::IntrinsicTypeKind::MutableArray => {
                     Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into())

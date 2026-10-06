@@ -1,0 +1,4 @@
+struct Record(val values: Array<Any>) {
+    companion object : Encodable<Record>
+}
+fun main() {}

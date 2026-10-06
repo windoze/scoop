@@ -1,8 +1,8 @@
-//! Join emitted delegate units to their source roles at the artifact boundary.
+//! Join emitted initialization units to their source roles at the artifact boundary.
 
 use scoop_identity::{
-    CallableBodyKey, CallableBodyKeyKind, DefinitionOwner, GeneratedCallableKey,
-    InitializationCallableRole, InitializationUnitKey, ObjectDefinitionPlanId,
+    CallableBodyKey, CallableBodyKeyKind, DefinitionOwner, ExactTypeKey, GeneratedCallableKey,
+    InitializationCallableRole, InitializationUnitKey, NominalOwner, ObjectDefinitionPlanId,
     ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberDiscriminator,
     OdrMemberKey, PersistentCallableBodyId, PersistentInitializationUnitId, SpecializationKey,
     StaticStorageKey, StorageRole, ValidatedIdentityGraph,
@@ -38,12 +38,34 @@ pub(super) fn validate(
         }
 
         let value_key = graph.canonical_key::<_, StaticStorageKey>(plan.storage().storage())?;
-        if value_key.owner() != DefinitionOwner::InitializationUnit(unit)
-            || !matches!(
-                value_key.role(),
-                StorageRole::PropertyDelegate | StorageRole::StaticPlaceToken
-            )
-        {
+        let valid_storage = match (key.as_ref(), value_key.owner()) {
+            (
+                InitializationUnitKey::GenericCompanionApplication {
+                    companion,
+                    arguments,
+                },
+                DefinitionOwner::Nominal(NominalOwner::ExactApplication(exact)),
+            ) => {
+                *value_key == StaticStorageKey::singleton_application_root(exact)
+                    && *graph.canonical_key::<_, ExactTypeKey>(exact)?
+                        == ExactTypeKey::NominalApplication {
+                            origin: *companion,
+                            arguments: arguments.clone(),
+                        }
+            }
+            (
+                InitializationUnitKey::GenericDelegatedExtensionApplication { .. },
+                DefinitionOwner::InitializationUnit(actual),
+            ) => {
+                actual == unit
+                    && matches!(
+                        value_key.role(),
+                        StorageRole::PropertyDelegate | StorageRole::StaticPlaceToken
+                    )
+            }
+            _ => false,
+        };
+        if !valid_storage {
             return Err(invalid(unit, "storage"));
         }
         for (field, definition) in [
@@ -141,9 +163,18 @@ fn callable_role(
         return Ok(false);
     };
     let source = graph.canonical_key::<_, InitializationUnitKey>(source)?;
-    Ok(actual == role
-        && matches!((unit, source.as_ref()),
-        (InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. }, InitializationUnitKey::ExtensionProperty(source)) if property == source))
+    let same_source = match (unit, source.as_ref()) {
+        (
+            InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. },
+            InitializationUnitKey::ExtensionProperty(source),
+        ) => property == source,
+        (
+            InitializationUnitKey::GenericCompanionApplication { companion, .. },
+            InitializationUnitKey::GenericCompanionTemplate(source),
+        ) => companion == source,
+        _ => false,
+    };
+    Ok(actual == role && same_source)
 }
 
 fn invalid(unit: PersistentInitializationUnitId, field: &'static str) -> Error {

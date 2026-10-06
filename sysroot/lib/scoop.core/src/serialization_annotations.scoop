@@ -1,0 +1,2 @@
+public annotation class SerialName(val name: String)
+public annotation class Transient

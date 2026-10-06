@@ -1,0 +1,39 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"decode selection assertion ${code}")) }
+}
+
+public struct Item(val value: Int)
+public interface Default : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder) + 10)
+}
+public object UsesDefault : Default
+public open class Base public constructor() : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder) + 20)
+}
+public class Child public constructor() : Base()
+public struct Explicit(val offset: Int) : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder) + offset)
+}
+public interface Extended : Decodable<Item> { public fun label(): String }
+public object Derived : Extended {
+    public fun decode(number: Int): Int = number + 1
+    public override fun label(): String = "derived"
+}
+public object Opaque : Decodable<Any> {
+    public override fun decode(decoder: Decoder): Any = Int.Companion.decode(decoder)
+}
+public struct WithAny(val value: Any)
+public class AnyDecoder(private val value: Decodable<Any>) : Decodable<WithAny>
+
+fun main() {
+    check(Json.decode("1", UsesDefault).value == 11, 1)
+    check(Json.decode("1", Child()).value == 21, 2)
+    check(Json.decode("1", Explicit(30)).value == 31, 3)
+    check(Derived.decode(3) == 4 && Derived.label() == "derived", 4)
+    val extended: Extended = Derived
+    check(Json.decode("{\"value\":9}", extended).value == 9, 5)
+    check(Json.decode("{\"value\":7}", AnyDecoder(Opaque)).value as Int == 7, 6)
+    println("precedence-ok")
+}

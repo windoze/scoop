@@ -8,6 +8,7 @@ use scoop_wire::WirePath;
 use super::type_semantics::inheritance::source_errors::{invalid, resource};
 use crate::{CrossConeTypeSemanticsProductionError as Error, *};
 
+mod implementations;
 mod interfaces;
 mod selections;
 mod targets;
@@ -59,6 +60,18 @@ impl<'a> Projection<'a> {
         super::signatures::HirInterfaceSignatureProjector::new(self.export)
             .map_type(ty, &self.binders)
             .map_err(invalid)
+    }
+
+    fn declaration_parameters(&self, owner: NominalOwner) -> &[TypeParamDecl] {
+        match owner {
+            NominalOwner::Class(id) => &self.export.classes[id].type_params,
+            NominalOwner::Interface(id) => &self.export.interfaces[id].type_params,
+            NominalOwner::Struct(id) => &self.export.structs[id].type_params,
+            NominalOwner::Enum(id) => &self.export.enums[id].type_params,
+            NominalOwner::Object(id) => {
+                &self.export.classes[self.export.objects[id].backing_class].type_params
+            }
+        }
     }
 
     fn push<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), Error> {

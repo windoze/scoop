@@ -31,7 +31,8 @@ impl Lowerer {
             );
 
             if root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required {
-                self.materialize_shape_box(module, &value, root.exact());
+                self.boxed
+                    .get_or_create(&mut self.classes, &mut self.shell, &value, root.exact());
             }
             let (_, step_ty) = self.coroutines.step_for(
                 &self.source_exact_types,
@@ -78,22 +79,6 @@ impl Lowerer {
                 &mut self.top_level,
                 &self.shell,
             );
-        }
-    }
-
-    fn materialize_shape_box(
-        &mut self,
-        module: &hir::Module,
-        payload: &mir::Type,
-        exact: hir::PersistentExactTypeId,
-    ) {
-        let class = self
-            .boxed
-            .get_or_create(&mut self.classes, &mut self.shell, payload, exact);
-        for interface in self.value_interfaces(module, payload) {
-            if !self.classes[class].interfaces.contains(&interface) {
-                self.classes[class].interfaces.push(interface);
-            }
         }
     }
 

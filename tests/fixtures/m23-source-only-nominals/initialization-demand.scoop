@@ -6,7 +6,9 @@ public object DeferredRegistry : DeferredSuspend {
     public override suspend fun fetch(): Int = 1
 }
 
-public class DeferredHost<T> {
+public class DeferredHost<T> {}
+
+public class ReadyHost {
     public companion object ReadyFactory {
         public val seed: Int = 6
         public fun read(): Int = seed
@@ -14,7 +16,7 @@ public class DeferredHost<T> {
 }
 
 public object ReadyRegistry {
-    public val count: Int = DeferredHost.read() + 1
+    public val count: Int = ReadyHost.read() + 1
     public fun read(): Int = count
 }
 

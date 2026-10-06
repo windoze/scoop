@@ -30,10 +30,17 @@ impl ExactInstanceLayoutV1 {
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         nominal(identity.exact_key())?;
-        let GeneratedNominalKey::ObjectBackingClass { object } = backing.key() else {
-            return Err(ExactLayoutReplayError::ObjectBackingIdentity);
+        let matches = match (backing.key(), identity.exact_key()) {
+            (GeneratedNominalKey::ObjectBackingClass { object }, ExactTypeKey::Nominal(actual)) => {
+                object == actual
+            }
+            (
+                GeneratedNominalKey::GenericObjectBackingClass { object },
+                ExactTypeKey::NominalApplication { origin, .. },
+            ) => object == origin,
+            _ => false,
         };
-        if identity.exact_key() != &ExactTypeKey::Nominal(*object) {
+        if !matches {
             return Err(ExactLayoutReplayError::ObjectBackingIdentity);
         }
         replay_class(

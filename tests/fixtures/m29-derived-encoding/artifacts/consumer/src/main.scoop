@@ -1,0 +1,29 @@
+import scoop.json.Json
+import derived.Packet
+import derived.Event
+import derived.Row
+import derived.PublicRow
+import derived.make
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("derived artifact assertion failed")) }
+}
+
+class LocalPacketEncoder<T>(private val element: Encodable<T>) : Encodable<Packet<T>>
+class LocalEventEncoder<T>(private val element: Encodable<T>) : Encodable<Event<T>>
+object LocalRowEncoder : Encodable<PublicRow>
+
+fun <T> encode(value: T, codec: Encodable<T>): String = Json.encode(value, codec)
+
+fun main() {
+    val packet = Packet<Int>.Companion.encoder(Int.Companion)
+    check(encode(make(), packet) == "{\"payload\":7}")
+    check(encode(Packet<Int>(8, "consumer"), LocalPacketEncoder<Int>(Int.Companion)) == "{\"payload\":8}")
+    check(encode(Packet<String>("text", 9), Packet<String>.Companion.encoder(String.Companion)) == "{\"payload\":\"text\"}")
+    val event = Event<Packet<Int>>.Named(make())
+    check(encode(event, Event<Packet<Int>>.Companion.encoder(packet)) == "{\"Named\":{\"item\":{\"payload\":7}}}")
+    check(encode(event, LocalEventEncoder<Packet<Int>>(packet)) == "{\"Named\":{\"item\":{\"payload\":7}}}")
+    check(encode(Row(10, "ten"), Row.Companion) == "{\"id\":10,\"name\":\"ten\"}")
+    check(encode(PublicRow(11, "eleven"), LocalRowEncoder) == "{\"id\":11,\"label\":\"eleven\"}")
+    println("artifacts-ok")
+}

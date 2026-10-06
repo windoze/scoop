@@ -1,5 +1,6 @@
 SourceFile
   QualifiedPackage consumer.nesting
+  ImportExact Local facade.nesting.Outer
   ImportStar PublicReexport facade.nesting.Outer.*
   public fun exercise<T>(value: T, read: (T) -> Int): Int
     val box
@@ -7,8 +8,10 @@ SourceFile
         Var value
     val leaf
       Call Leaf
-        Call companionAdd
-          Var companionBase
+        MethodCall companionAdd
+          TypeQualifier Outer<Int>
+          FieldAccess companionBase
+            TypeQualifier Outer<Int>
     return
       IfExpression
         Binary Eq

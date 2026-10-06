@@ -48,15 +48,20 @@ impl CanonicalExternalHirReferencesV1 {
                 if site.role() != HirExpressionTypeRoleV1::SingletonValue {
                     continue;
                 }
+                let exact = identities
+                    .canonical_key::<_, ExactTypeKey>(site.exact())
+                    .map_err(|error| Error::Identity(Box::new(error)))?;
+                // Generic companions are materialized in the application's
+                // ODR group. Their argument types do not own singleton reads.
+                let ExactTypeKey::Nominal(actual) = exact.as_ref() else {
+                    continue;
+                };
                 let ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(owner)) =
                     reference.target()
                 else {
                     return Err(Error::Target(reference.target()));
                 };
-                let exact = identities
-                    .canonical_key::<_, ExactTypeKey>(site.exact())
-                    .map_err(|error| Error::Identity(Box::new(error)))?;
-                if exact.as_ref() != &ExactTypeKey::Nominal(owner) {
+                if *actual != owner {
                     return Err(Error::Target(reference.target()));
                 }
                 let source = identities

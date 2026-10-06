@@ -137,6 +137,7 @@ fn validate_foundation(
         extension_properties: _,
         object_values: _,
         type_aliases: _,
+        annotations: _,
         property_accessors: _,
         fields: _,
         enum_variants: _,
@@ -203,6 +204,8 @@ fn validate_foundation(
         records!(8, PersistentExtensionPropertyId, SourceDeclarationKey);
     let object_values: Vec<ObjectValueRecord> =
         records!(9, PersistentObjectValueId, SourceDeclarationKey);
+    let annotations: Vec<AnnotationRecord> =
+        records!(35, PersistentAnnotationId, SourceDeclarationKey);
     let type_aliases: Vec<TypeAliasRecord> =
         records!(10, PersistentTypeAliasId, SourceDeclarationKey);
     let property_accessors: Vec<PropertyAccessorRecord> =
@@ -266,6 +269,7 @@ fn validate_foundation(
         &extension_properties,
         &object_values,
         &type_aliases,
+        &annotations,
     )?;
     validate_source_contexts(&source_contexts, &validated_sources)?;
     validate_external_types(
@@ -364,6 +368,7 @@ fn validate_foundation(
     set!(set_extension_properties, extension_properties);
     set!(set_object_values, object_values);
     set!(set_type_aliases, type_aliases);
+    set!(set_annotations, annotations);
     set!(set_property_accessors, property_accessors);
     set!(set_fields, fields);
     set!(set_enum_variants, enum_variants);
@@ -410,6 +415,7 @@ fn validate_declaration_ownership(
     extension_properties: &[ExtensionPropertyRecord],
     object_values: &[ObjectValueRecord],
     type_aliases: &[TypeAliasRecord],
+    annotations: &[AnnotationRecord],
 ) -> Result<(), HirFoundationValidationError> {
     let core = [
         CoreBuiltinNominal::Unit.identity_record(),
@@ -455,6 +461,7 @@ fn validate_declaration_ownership(
         (ExtensionProperty, extension_properties),
         (ObjectValue, object_values),
         (TypeAlias, type_aliases),
+        (Annotation, annotations),
     );
     Ok(())
 }

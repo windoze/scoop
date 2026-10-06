@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     CanonicalIdentifierError, ConeIdentity, DecodedCanonicalIdentifier, DecodedPackagePath,
-    DecodedPersistentId, DecodedSourceIdentity, PersistentEnumVariantId,
+    DecodedPersistentId, DecodedSourceIdentity, PersistentAnnotationId, PersistentEnumVariantId,
     PersistentExtensionPropertyId, PersistentFunctionId, PersistentGenericFunctionId,
     PersistentGenericTypeId, PersistentIdResolver, PersistentKeyResolver, PersistentObjectValueId,
     PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, SourceDeclarationKey,
@@ -25,6 +25,7 @@ pub enum DecodedBindableEntity {
     Property(DecodedPersistentId<PersistentPropertyId>),
     ExtensionProperty(DecodedPersistentId<PersistentExtensionPropertyId>),
     TypeAlias(DecodedPersistentId<PersistentTypeAliasId>),
+    Annotation(DecodedPersistentId<PersistentAnnotationId>),
     EnumVariant(DecodedPersistentId<PersistentEnumVariantId>),
 }
 
@@ -55,6 +56,7 @@ impl WireEncode for DecodedBindableEntity {
             Self::Property(id) => encode_value_sum(encoder, 6, id),
             Self::ExtensionProperty(id) => encode_value_sum(encoder, 7, id),
             Self::TypeAlias(id) => encode_value_sum(encoder, 8, id),
+            Self::Annotation(id) => encode_value_sum(encoder, 10, id),
             Self::EnumVariant(id) => encode_value_sum(encoder, 9, id),
         }
     }
@@ -73,6 +75,7 @@ impl WireDecode for DecodedBindableEntity {
             6 => decode_id_variant(decoder, Self::Property),
             7 => decode_id_variant(decoder, Self::ExtensionProperty),
             8 => decode_id_variant(decoder, Self::TypeAlias),
+            10 => decode_id_variant(decoder, Self::Annotation),
             9 => decode_id_variant(decoder, Self::EnumVariant),
             tag => Err(unknown_tag(decoder, tag)),
         }
@@ -99,6 +102,7 @@ impl WireDecode for BindingRole {
             5 => Ok(Self::Property),
             6 => Ok(Self::ExtensionProperty),
             7 => Ok(Self::TypeAlias),
+            9 => Ok(Self::Annotation),
             8 => Ok(Self::EnumVariant),
             tag => Err(unknown_tag(decoder, tag)),
         }
@@ -280,6 +284,7 @@ pub trait BindingResolver<E>:
     + PersistentKeyResolver<PersistentPropertyId, SourceDeclarationKey, Error = E>
     + PersistentKeyResolver<PersistentExtensionPropertyId, SourceDeclarationKey, Error = E>
     + PersistentKeyResolver<PersistentTypeAliasId, SourceDeclarationKey, Error = E>
+    + PersistentKeyResolver<PersistentAnnotationId, SourceDeclarationKey, Error = E>
     + PersistentIdResolver<PersistentEnumVariantId, Error = E>
 {
 }
@@ -294,6 +299,7 @@ impl<R, E> BindingResolver<E> for R where
         + PersistentKeyResolver<PersistentPropertyId, SourceDeclarationKey, Error = E>
         + PersistentKeyResolver<PersistentExtensionPropertyId, SourceDeclarationKey, Error = E>
         + PersistentKeyResolver<PersistentTypeAliasId, SourceDeclarationKey, Error = E>
+        + PersistentKeyResolver<PersistentAnnotationId, SourceDeclarationKey, Error = E>
         + PersistentIdResolver<PersistentEnumVariantId, Error = E>
 {
 }
@@ -391,6 +397,11 @@ where
             .resolve(id)
             .map(BindingTarget::enum_variant)
             .map_err(BindingIdentityResolutionError::Reference),
+        (
+            BindingNamespace::Type,
+            BindingRole::Annotation,
+            DecodedBindableEntity::Annotation(id),
+        ) => resolve_source_key(resolver, id, BindingTarget::annotation),
         (namespace, role, _) => {
             Err(BindingIdentityResolutionError::InvalidTarget { namespace, role })
         }

@@ -544,8 +544,10 @@ Module
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $shortCircuit.1: Boolean
         Type Boolean
         Unary BoolNot

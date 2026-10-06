@@ -1,0 +1,6 @@
+enum Item {
+    Named(@SerialName("same") val first: Int, @SerialName("same") val second: Int)
+    companion object : Encodable<Item>
+}
+
+fun main() {}

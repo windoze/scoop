@@ -17,12 +17,26 @@ impl Lowerer {
             );
             checked.intrinsic = None;
         }
-        if let Some(kind) = self.type_namespace_conflict(
-            owner,
-            &decl.name.text,
-            file_index,
-            crate::namespace::is_file_private(decl.visibility),
-        ) {
+        let intrinsic_unit = checked
+            .intrinsic
+            .is_some_and(|spec| spec.kind == hir::IntrinsicTypeKind::Unit);
+        let conflict = if intrinsic_unit {
+            self.top_level_namespaces
+                .type_conflict(
+                    file_index,
+                    &decl.name.text,
+                    crate::namespace::is_file_private(decl.visibility),
+                )
+                .map(crate::namespace::TopLevelTypeTarget::description)
+        } else {
+            self.type_namespace_conflict(
+                owner,
+                &decl.name.text,
+                file_index,
+                crate::namespace::is_file_private(decl.visibility),
+            )
+        };
+        if let Some(kind) = conflict {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
             } else {
@@ -84,6 +98,21 @@ impl Lowerer {
             file: file_index,
             span: decl.span,
         })?;
+        if intrinsic_unit
+            && identity.declaration_id()
+                != hir::SourceNominalId::Concrete(
+                    scoop_identity::CoreBuiltinNominal::Unit
+                        .identity_record()
+                        .id(),
+                )
+        {
+            self.error(
+                decl.name.span,
+                "the intrinsic Unit declaration must use the public root-package Unit identity"
+                    .to_string(),
+            );
+            return None;
+        }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
             owner: owner.map(Owner::as_nominal_owner),

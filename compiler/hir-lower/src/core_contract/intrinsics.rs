@@ -129,6 +129,7 @@ impl Lowerer {
             };
             integer_owners.push(owner);
         }
+        let unit = require(self, hir::IntrinsicTypeKind::Unit)?;
         let character = require(self, hir::IntrinsicTypeKind::Char)?;
         let boolean = require(self, hir::IntrinsicTypeKind::Boolean)?;
         let string = require(self, hir::IntrinsicTypeKind::String)?;
@@ -140,6 +141,7 @@ impl Lowerer {
             return None;
         }
         let (
+            IntrinsicTypeOwner::Struct(unit),
             IntrinsicTypeOwner::Struct(character),
             IntrinsicTypeOwner::Struct(boolean),
             IntrinsicTypeOwner::Class(string),
@@ -148,6 +150,7 @@ impl Lowerer {
             IntrinsicTypeOwner::Struct(ptr),
             IntrinsicTypeOwner::Struct(fun_ptr),
         ) = (
+            unit,
             character,
             boolean,
             string,
@@ -166,6 +169,7 @@ impl Lowerer {
         )
         .expect("one declaration cannot provide two intrinsic integer identities");
         Some(hir::IntrinsicTypeCore {
+            unit,
             character,
             integers,
             boolean,

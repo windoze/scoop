@@ -151,6 +151,22 @@ fn initialization_context(
             },
         ) => a == b,
         (
+            InitializationUnitKey::GenericCompanionTemplate(a),
+            SourceContextKey::Nominal {
+                owner: NominalDeclarationOwner::GenericTemplate(b),
+                ..
+            },
+        ) => a == b,
+        (
+            InitializationUnitKey::GenericCompanionTemplate(a),
+            SourceContextKey::Property {
+                owner: PropertyOwner::Property(b),
+                ..
+            },
+        ) => key(&foundation.properties, *b).is_some_and(|key| {
+            nominal_owner(key) == Some(NominalDeclarationOwner::GenericTemplate(*a))
+        }),
+        (
             InitializationUnitKey::Object(a) | InitializationUnitKey::Companion(a),
             SourceContextKey::Nominal {
                 owner: NominalDeclarationOwner::Concrete(b),

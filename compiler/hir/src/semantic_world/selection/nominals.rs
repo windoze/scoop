@@ -29,7 +29,7 @@ pub struct ImportedNominalDeclaration {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImportedNominalFieldSource {
     pub name: String,
-    pub backing_property: Option<scoop_identity::PersistentPropertyId>,
+    pub storage: crate::NominalFieldStorage,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -145,10 +145,10 @@ pub(super) fn declarations(
                     let (_, key) = canonical
                         .field_by_bytes(field.field().as_array())
                         .ok_or(Error::MissingNominalField(field.field()))?;
-                    let name = match key.view() {
-                        FieldIdentityView::SourceDeclared { name, .. } => name.as_str().to_owned(),
-                        FieldIdentityView::SourcePropertyBacking { property, .. }
-                        | FieldIdentityView::SourcePropertyDelegate { property, .. } => {
+                    let storage = crate::NominalFieldStorage::from_key(key);
+                    let name = match storage {
+                        crate::NominalFieldStorage::PropertyBacking(property)
+                        | crate::NominalFieldStorage::PropertyDelegate(property) => {
                             let (_, key) = canonical
                                 .property_by_bytes(property.as_array())
                                 .ok_or(Error::MissingNominalField(field.field()))?;
@@ -157,16 +157,15 @@ pub(super) fn declarations(
                                 _ => unreachable!("source properties have names"),
                             }
                         }
-                        FieldIdentityView::Generated { .. } => format!("{:?}", field.field()),
+                        crate::NominalFieldStorage::Declared => match key.view() {
+                            FieldIdentityView::SourceDeclared { name, .. } => {
+                                name.as_str().to_owned()
+                            }
+                            _ => unreachable!("declared storage has a source field key"),
+                        },
+                        crate::NominalFieldStorage::Generated => format!("{:?}", field.field()),
                     };
-                    let backing_property = match key.view() {
-                        FieldIdentityView::SourcePropertyBacking { property, .. } => Some(property),
-                        _ => None,
-                    };
-                    Ok(ImportedNominalFieldSource {
-                        name,
-                        backing_property,
-                    })
+                    Ok(ImportedNominalFieldSource { name, storage })
                 })
                 .collect::<Result<Vec<_>, Error>>()?;
             let c_abi = foundation

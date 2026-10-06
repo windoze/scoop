@@ -8,6 +8,7 @@ use crate::{
     StructSourceShapeV1,
 };
 
+mod class_primary;
 mod conditions;
 mod declaration;
 mod support;

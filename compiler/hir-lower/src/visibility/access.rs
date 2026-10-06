@@ -5,7 +5,20 @@ impl Lowerer {
         &self,
         declaration: &hir::ImportedNominalDeclaration,
     ) -> hir::AccessDomain {
-        let key = declaration.identity.declaration();
+        self.imported_type_name_access_domain(
+            declaration.identity.declaration(),
+            declaration
+                .interface
+                .declaration_details()
+                .declared_visibility(),
+        )
+    }
+
+    pub(crate) fn imported_type_name_access_domain(
+        &self,
+        key: &scoop_identity::SourceDeclarationKey,
+        visibility: hir::DeclaredVisibilityV1,
+    ) -> hir::AccessDomain {
         let mut domain = hir::AccessDomain::universal();
         let mut parent = None;
         for owner in key.owners().owners() {
@@ -30,16 +43,7 @@ impl Lowerer {
             ));
             parent = Some(owner);
         }
-        domain.intersect(
-            &self.imported_declaration_domain(
-                declaration
-                    .interface
-                    .declaration_details()
-                    .declared_visibility(),
-                parent,
-                key.origin(),
-            ),
-        )
+        domain.intersect(&self.imported_declaration_domain(visibility, parent, key.origin()))
     }
 
     pub(super) fn imported_declaration_domain(

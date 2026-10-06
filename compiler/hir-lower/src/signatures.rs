@@ -305,7 +305,7 @@ impl Lowerer {
             ast::VariantDeclKind::Positional(types) => {
                 let mut resolved = ResolvedFields::default();
                 for (index, ty_ref) in types.iter().enumerate() {
-                    let ty = self.resolve_type_ref(ty_ref)?;
+                    let ty = self.resolve_type_ref(&ty_ref.ty)?;
                     resolved.fields.push(hir::Field {
                         name: format!("_{}", index + 1),
                         ty,

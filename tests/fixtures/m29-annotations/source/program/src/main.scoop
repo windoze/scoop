@@ -1,0 +1,58 @@
+package annotated
+import SerialName as WireName
+import annotated.Label as Note
+
+const val TEXT: String = "constant"
+const val LIMIT: Long = -7
+public annotation class Label(val text: String, val enabled: Boolean = true)
+typealias Bound = Long
+annotation class Range(val minimum: Bound = LIMIT, val code: Char = 'λ')
+annotation class Scalars(
+    val i8: Int8 = -128, val i16: Int16 = -32768,
+    val i: Int = -2147483648, val l: Long = -9223372036854775808,
+    val u8: UInt8 = 255u, val u16: UInt16 = 65535u,
+    val u: UInt = 4294967295u, val ul: ULong = 18446744073709551615u,
+)
+
+@Note(TEXT, enabled = false) @Range @Scalars
+public struct Box<T>(@Note("value") @WireName("item") val value: T) {
+    public companion object { @Note("companion state") public val state: Int = 8 }
+}
+
+public struct Names() {
+    public annotation class Nested(val value: Int = 4)
+    public annotation class SerialName(val value: String)
+}
+
+@Names.SerialName("ordinary annotation on a type")
+public enum Choice {
+    @WireName("empty") @Note("variant") Empty,
+    Record(@Names.Nested @WireName("number") val value: Int),
+    Position(@Note("first") String, @Note("second") Int)
+}
+
+public interface View { @Note("logical") public val name: String }
+var visits: Int = 0
+fun initialized(): Int { visits += 1; return visits }
+public struct Probe<T>() {
+    public companion object {
+        public const val LABEL: String = "compile-time"
+        public val state: Int = initialized()
+    }
+}
+@Note(Probe<Long>.Companion.LABEL)
+public class Record(@Note("primary") @WireName("identifier") val id: Int) {
+    @Note("computed") public val size: Int get() = id
+    @Transient public var cache: String = "initial"
+}
+
+fun main() {
+    val first = Box<Int>(7)
+    val second = Box<String>("text")
+    val variant = Choice.Record(9)
+    val row = Record(6)
+    if (first.value != 7 || second.value != "text" || row.id != 6) { throw Throwable() }
+    if (Box<Int>.state != 8 || Box<String>.state != 8) { throw Throwable() }
+    if (visits != 0) { throw Throwable() }
+    println("annotations-ok")
+}

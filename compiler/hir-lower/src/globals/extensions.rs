@@ -131,6 +131,7 @@ impl Lowerer {
             hir::PropertyAccessorImplementation::Body(function) => function,
             hir::PropertyAccessorImplementation::Storage
             | hir::PropertyAccessorImplementation::Constant
+            | hir::PropertyAccessorImplementation::StorageBody(_)
             | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
                 unreachable!("a computed extension property has a getter body")
             }

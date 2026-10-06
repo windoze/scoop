@@ -32,6 +32,7 @@ mod options;
 mod parents;
 mod pointer_construction;
 mod pointers;
+mod primitive_boxing;
 mod qualified_types;
 mod reference_targets;
 mod references;

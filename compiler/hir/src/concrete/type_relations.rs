@@ -110,7 +110,8 @@ impl<'a> ConcreteTypeRelations<'a> {
             IntrinsicTypeRepresentation::FunPtr { signature } => {
                 self.visit_function(*signature, visit)
             }
-            IntrinsicTypeRepresentation::Integer(_)
+            IntrinsicTypeRepresentation::Unit
+            | IntrinsicTypeRepresentation::Integer(_)
             | IntrinsicTypeRepresentation::Char
             | IntrinsicTypeRepresentation::Boolean
             | IntrinsicTypeRepresentation::String => Ok(()),

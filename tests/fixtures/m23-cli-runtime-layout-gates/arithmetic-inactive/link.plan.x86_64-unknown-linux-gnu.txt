@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.example:arithmetic-inactive:0.1.0 kind=Library objects=3
 cone test:runtime-layout-gates-runtime-arithmetic-inactive:1.0.0 kind=Executable objects=4
 runtime objects=65

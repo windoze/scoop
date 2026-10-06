@@ -45,9 +45,10 @@ impl Lowerer {
                 let declaration = Arc::clone(&definition.declaration);
                 (declaration, self.direct_nominal_supertypes(ty))
             }
-            hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
+            hir::Type::Unit | hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
                 let kind = match self.types[ty] {
                     hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                    hir::Type::Unit => hir::IntrinsicTypeKind::Unit,
                     hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                     hir::Type::String => hir::IntrinsicTypeKind::String,
                     _ => unreachable!("primitive receiver kind"),

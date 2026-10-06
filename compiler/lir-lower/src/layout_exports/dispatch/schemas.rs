@@ -42,7 +42,13 @@ pub(super) fn for_owner<'a>(
         {
             Ok(Schema::Empty)
         }
-        mir::MirTypeRepresentationV1::BoxedValue { payload } => source(bridge, payload.value),
+        mir::MirTypeRepresentationV1::BoxedValue { payload } => {
+            if let Some(schema) = bridge.dispatch().get(exact) {
+                Ok(Schema::Source(schema))
+            } else {
+                source(bridge, payload.value)
+            }
+        }
         _ => source(bridge, exact),
     }
 }

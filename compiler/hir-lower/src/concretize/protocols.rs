@@ -86,6 +86,10 @@ impl Concretizer<'_> {
         .expect("foreign callback failure remains the exact Option<Throwable> specialization");
 
         let fundamental_types = concrete::IntrinsicTypeCore {
+            unit: self.struct_by_key[&(
+                self.source.nominal_identities[protocols.fundamental_types.unit].declaration_id(),
+                Vec::new(),
+            )],
             integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
                 let declaration = protocols.fundamental_types.integers.owner(kind);
                 let origin = self.source.nominal_identities[declaration].declaration_id();

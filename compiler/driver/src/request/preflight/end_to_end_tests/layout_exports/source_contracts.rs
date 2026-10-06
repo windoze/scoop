@@ -37,6 +37,12 @@ pub(super) fn check(
                             == lir::ExternalStrongShapeSubjectV1::TypeDescriptor(exact)
                 }));
             }
+            lir::LayoutAbiSemanticTargetV1::Callable(callable) => {
+                assert!(physical.iter().any(|import| {
+                    import.provider() == root.provider()
+                        && import.subject() == lir::ExternalStrongShapeSubjectV1::Callable(callable)
+                }));
+            }
             target => panic!("unexpected source dependency {target:?}"),
         }
     }

@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.example:generic-odr-conflict-provider:0.1.0 kind=Library objects=1
 cone dev.example:generic-odr-conflict-right:0.1.0 kind=Library objects=3
 cone test:generic-odr-conflicts-strings-conflict-right-program:1.0.0 kind=Executable objects=3

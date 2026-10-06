@@ -120,7 +120,10 @@ impl Harness {
             hir::IntrinsicTypeKind::Char,
             character_type,
         );
+        let intrinsic_unit =
+            self.declare_fixed_intrinsic_struct("Unit", hir::IntrinsicTypeKind::Unit, self.unit);
         let intrinsic_type_core = hir::IntrinsicTypeCore {
+            unit: intrinsic_unit,
             character,
             integers: intrinsic_integers,
             boolean: intrinsic_boolean,
@@ -322,6 +325,7 @@ impl Harness {
                         matches!(
                             value.implementation,
                             hir::PropertyAccessorImplementation::Body(actual)
+                                | hir::PropertyAccessorImplementation::StorageBody(actual)
                                 | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                                 if actual == function
                         )
@@ -332,6 +336,7 @@ impl Harness {
                             matches!(
                                 value.implementation,
                                 hir::PropertyAccessorImplementation::Body(actual)
+                                    | hir::PropertyAccessorImplementation::StorageBody(actual)
                                     | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                                     if actual == function
                             )
@@ -464,6 +469,7 @@ impl Harness {
         let export_binding_identities = hir::HirExportBindingIdentities::from_public_surface(
             hir::HirExportBindingIdentityInputs {
                 surface: &public_surface,
+                annotations: &hir::SourceAnnotations::default(),
                 structs: &self.structs,
                 enums: &self.enums,
                 classes: &self.classes,
@@ -556,6 +562,7 @@ impl Harness {
             .expect("the empty MIR test callback relation is valid");
         let source_parameter_interfaces = self.test_parameter_interfaces();
         let module = hir::Module {
+            annotations: hir::SourceAnnotations::default(),
             release_hooks: Arena::new(),
             cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             nominal_identities,
@@ -591,6 +598,7 @@ impl Harness {
             imported_derived_equalities: Arena::new(),
             imported_generic_templates: Arena::new(),
             imported_generic_delegate_templates: Arena::new(),
+            imported_companion_templates: Arena::new(),
             imported_constructor_templates: Arena::new(),
             imported_generic_applications: Arena::new(),
             callable_references: Arena::new(),

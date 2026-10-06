@@ -82,6 +82,7 @@ impl CurrentUnitTarget {
             Self::Enum(id) => TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)),
             Self::Object(id) => TopLevelTypeTarget::Nominal(NominalTarget::Object(id)),
             Self::TypeAlias(id) => TopLevelTypeTarget::Alias(id),
+            Self::Annotation(id) => TopLevelTypeTarget::Annotation(id),
             Self::Function(_)
             | Self::Property(_)
             | Self::EnumVariant(_)
@@ -173,6 +174,7 @@ impl Lowerer {
                     hir::ImportedTarget::Type(_)
                         | hir::ImportedTarget::GenericType(_)
                         | hir::ImportedTarget::TypeAlias(_)
+                        | hir::ImportedTarget::Annotation(_)
                 )
             })
             .map(|binding| TypeLookupCandidate {

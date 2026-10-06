@@ -19,6 +19,9 @@ pub(super) fn project(
     let module = input.module();
     for root in input.materialization().initialization_roots() {
         let unit = &module.initialization_units[root.unit()];
+        if unit.identity.key().specialization_key().is_some() {
+            continue;
+        }
         let crate::InitializationUnitKind::LazySingleton {
             value,
             published_root,

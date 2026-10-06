@@ -18,6 +18,7 @@ where
             .declaration_details()
             .dispatch_selections()
             .records()
+            .iter()
         {
             let target = record.callable_target();
             accumulator.observe(

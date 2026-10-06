@@ -14,6 +14,7 @@ pub enum ImportedSemanticEntityId {
     Property(PropertyOwner),
     ObjectValue(PersistentObjectValueId),
     TypeAlias(PersistentTypeAliasId),
+    Annotation(scoop_identity::PersistentAnnotationId),
     EnumVariant(PersistentEnumVariantId),
 }
 

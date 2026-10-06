@@ -13,6 +13,15 @@ impl Lowerer {
         {
             return self.lower_imported_qualified_field(owner, access, expected);
         }
+        let applied = self.resolve_applied_qualifier(&access.receiver).ok()?;
+        if let Some((host, target)) = applied
+            && let ast::FieldSelector::Name(name) = &access.selector
+            && let Some(crate::NominalTarget::Object(object)) =
+                self.nested_nominal_target(target.owner(), &name.text)
+        {
+            let ty = self.resolve_applied_member_type(host, name, &[], access.span)?;
+            return self.lower_qualified_singleton(object, Some(ty), access.span);
+        }
         let direct_alias = match self.resolve_direct_alias_qualifier(&access.receiver) {
             Ok(alias) => alias,
             Err(()) => return None,
@@ -26,7 +35,9 @@ impl Lowerer {
             return self.lower_singleton_value(object, access.span);
         }
         if let ast::FieldSelector::Name(name) = &access.selector {
-            let property = self.qualified_object_const_property(&access.receiver, &name.text);
+            let property = self
+                .qualified_object_const_property(&access.receiver, &name.text)
+                .ok()?;
             if let Some(property) = property {
                 let ty = self.properties[property].ty;
                 return self.lower_property_read(property, None, None, ty, access.span);
@@ -35,10 +46,12 @@ impl Lowerer {
         // `E.V` where `E` is an enum: a unit variant construction
         // (`Color.Red`). Variants with fields are constructors and must
         // be called (`E.V(...)`).
-        let qualifier = direct_alias
-            .as_ref()
-            .map(|(_, target)| *target)
-            .or_else(|| self.nominal_qualifier_target(&access.receiver));
+        let qualifier = applied.map(|(_, target)| target).or_else(|| {
+            direct_alias
+                .as_ref()
+                .map(|(_, target)| *target)
+                .or_else(|| self.nominal_qualifier_target(&access.receiver))
+        });
         if let (Some(crate::NominalTarget::Enum(enum_id)), ast::FieldSelector::Name(name)) =
             (qualifier, &access.selector)
             && self.find_variant(enum_id, &name.text).is_some()
@@ -52,7 +65,11 @@ impl Lowerer {
             && let Some(companion) =
                 self.companion_forwarding_property_object(qualifier, &name.text)
         {
-            let receiver = self.lower_singleton_value(companion, access.receiver.span())?;
+            let receiver = self.lower_qualified_singleton(
+                companion,
+                applied.map(|(ty, _)| ty),
+                access.receiver.span(),
+            )?;
             if let Some((property, owner, ty)) =
                 self.find_accessible_nominal_property(receiver.ty, &name.text)
             {
@@ -85,7 +102,11 @@ impl Lowerer {
                 .initializing_field(name, access.span)
                 .map(|field| field.read);
         }
-        let receiver = self.lower_expr(&access.receiver, sink, None)?;
+        let receiver = if let Some((ty, crate::NominalTarget::Object(object))) = applied {
+            self.lower_qualified_singleton(object, Some(ty), access.receiver.span())?
+        } else {
+            self.lower_expr(&access.receiver, sink, None)?
+        };
         if let ast::FieldSelector::Name(field) = &access.selector {
             if let Some((property, owner, ty)) =
                 self.find_accessible_nominal_property(receiver.ty, &field.text)

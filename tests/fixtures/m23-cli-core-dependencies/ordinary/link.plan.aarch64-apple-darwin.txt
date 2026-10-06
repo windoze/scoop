@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone test:core-helper:1.0.0 kind=Library objects=13
 cone test:core-dependency-consumer:1.0.0 kind=Library objects=12
 cone test:core-dependency-program-ordinary:1.0.0 kind=Executable objects=3

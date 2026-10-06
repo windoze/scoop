@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
 cone dev.example:generic-member-provider:0.1.0 kind=Library objects=9
 cone dev.example:generic-member-methods:0.1.0 kind=Library objects=18
 cone dev.example:generic-member-downstream-methods:0.1.0 kind=Library objects=78

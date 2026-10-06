@@ -114,6 +114,9 @@ pub enum DecodedGeneratedNominalKey {
     ObjectBackingClass {
         object: DecodedPersistentId<PersistentTypeId>,
     },
+    GenericObjectBackingClass {
+        object: DecodedPersistentId<crate::PersistentGenericTypeId>,
+    },
 }
 
 impl DecodedGeneratedNominalKey {
@@ -132,7 +135,8 @@ impl DecodedGeneratedNominalKey {
             + PersistentIdResolver<PersistentCallableApplicationId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
             + PersistentIdResolver<PersistentExactTypeId, Error = E>
-            + PersistentIdResolver<PersistentTypeId, Error = E>,
+            + PersistentIdResolver<PersistentTypeId, Error = E>
+            + PersistentIdResolver<crate::PersistentGenericTypeId, Error = E>,
     {
         let key = match self {
             Self::TaskContext(storage) => GeneratedNominalKey::TaskContext(
@@ -184,6 +188,13 @@ impl DecodedGeneratedNominalKey {
                     .resolve(value)
                     .map_err(GeneratedNominalResolutionError::Reference)?,
             },
+            Self::GenericObjectBackingClass { object } => {
+                GeneratedNominalKey::GenericObjectBackingClass {
+                    object: resolver
+                        .resolve(object)
+                        .map_err(GeneratedNominalResolutionError::Reference)?,
+                }
+            }
             Self::ObjectBackingClass { object } => GeneratedNominalKey::ObjectBackingClass {
                 object: resolver
                     .resolve(object)
@@ -226,6 +237,7 @@ impl WireEncode for DecodedGeneratedNominalKey {
             Self::BoxedValue { payload } => encode_value_sum(encoder, 6, payload),
             Self::CoroutineSlot { value } => encode_value_sum(encoder, 7, value),
             Self::ObjectBackingClass { object } => encode_value_sum(encoder, 8, object),
+            Self::GenericObjectBackingClass { object } => encode_value_sum(encoder, 10, object),
         }
     }
 }
@@ -265,6 +277,9 @@ impl WireDecode for DecodedGeneratedNominalKey {
             6 => decode_id_variant(decoder, fields, |payload| Self::BoxedValue { payload }),
             7 => decode_id_variant(decoder, fields, |value| Self::CoroutineSlot { value }),
             8 => decode_id_variant(decoder, fields, |object| Self::ObjectBackingClass {
+                object,
+            }),
+            10 => decode_id_variant(decoder, fields, |object| Self::GenericObjectBackingClass {
                 object,
             }),
             9 => {

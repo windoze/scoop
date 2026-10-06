@@ -28,6 +28,7 @@ fn alignment(source: hir::HirCLayoutValue) -> mir::MirCLayoutValue {
 
 pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamFreeIntrinsicV1> {
     Some(match source {
+        hir::IntrinsicTypeKind::Unit => mir::MirParamFreeIntrinsicV1::Unit,
         hir::IntrinsicTypeKind::Integer(kind) => {
             mir::MirParamFreeIntrinsicV1::Integer(mir::IntegerKind::new(
                 match kind.signedness() {

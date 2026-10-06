@@ -27,7 +27,15 @@ impl CanonicalMirCallableBindingsV1 {
             else {
                 return Err(Error::InvalidAdjust(adjust.function()));
             };
-            if local_types.get(*payload).is_none() {
+            if local_types.get(*payload).is_none()
+                && !matches!(
+                    identities
+                        .canonical_key::<_, ExactTypeKey>(*payload)
+                        .map_err(MirCallableBridgeError::from)?
+                        .as_ref(),
+                    ExactTypeKey::Tuple(_)
+                )
+            {
                 continue;
             }
             records.push(binding::project(

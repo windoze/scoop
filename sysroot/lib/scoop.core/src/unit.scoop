@@ -1,0 +1,2 @@
+@Intrinsic("core_unit")
+public struct Unit

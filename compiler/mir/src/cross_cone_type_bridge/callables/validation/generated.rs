@@ -103,7 +103,10 @@ impl MirCallableBridgeAuthority<'_> {
                 },
                 MirCallableLoweringRoleV1::BoxingAdjust { target },
             ) => {
-                if self.type_export(*payload)?.facts().kind() == MirValueKindV1::Reference
+                let payload_key = self.identities.canonical_key::<_, ExactTypeKey>(*payload)?;
+                let value = matches!(payload_key.as_ref(), ExactTypeKey::Tuple(_))
+                    || self.type_export(*payload)?.facts().kind() != MirValueKindV1::Reference;
+                if !value
                     || !matches!(
                         self.type_export(*interface)?.representation(),
                         MirTypeRepresentationV1::Interface

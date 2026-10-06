@@ -857,8 +857,10 @@ Module
       assign $result.5
         Type Boolean
         IsInstance MissingContextException
-          Type Throwable
-          Local error
+          Type Any
+          Retype Any
+            Type Throwable
+            Local error
       goto bb25
     bb24 pattern.else.24 unwind bb9
       val $pattern.subject.6: Option<Throwable>
@@ -1232,8 +1234,10 @@ Module
       assign $result.7
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local error
+          Type Any
+          Retype Any
+            Type Throwable
+            Local error
       goto bb57
     bb56 pattern.else.56
       val $pattern.subject.12: Option<Throwable>

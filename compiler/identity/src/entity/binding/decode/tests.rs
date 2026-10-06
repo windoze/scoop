@@ -8,12 +8,12 @@ use crate::{
     BindingNamespace, BindingRole, BindingTarget, BindingTargetError, CanonicalIdentifier,
     CborIdentityRecord, ConeIdentity, DeclarationScope, DecodedCborIdentityRecord,
     DecodedPersistentId, DefinitionOwnerChain, ExportBindingKey, LocalBindingKey, LocalBindingRole,
-    PackagePath, PersistentEnumVariantId, PersistentExportBindingId, PersistentExtensionPropertyId,
-    PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId, PersistentId,
-    PersistentIdMismatch, PersistentIdResolver, PersistentKeyResolver, PersistentLocalBindingId,
-    PersistentObjectValueId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    SignatureTypeKey, SourceDeclarationIdentityError, SourceDeclarationKey, SourceDeclarationSite,
-    SourceIdentity, SourceNominalKind,
+    PackagePath, PersistentAnnotationId, PersistentEnumVariantId, PersistentExportBindingId,
+    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentId, PersistentIdMismatch, PersistentIdResolver,
+    PersistentKeyResolver, PersistentLocalBindingId, PersistentObjectValueId, PersistentPropertyId,
+    PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey, SourceDeclarationIdentityError,
+    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -58,6 +58,10 @@ macro_rules! source_key_resolver {
     };
 }
 
+source_key_resolver!(
+    PersistentAnnotationId,
+    PersistentAnnotationId::from_source_declaration
+);
 source_key_resolver!(PersistentTypeId, PersistentTypeId::from_source_declaration);
 source_key_resolver!(
     PersistentGenericTypeId,
@@ -215,18 +219,18 @@ fn binding_decoder_rejects_unknown_tags_and_incomplete_sums() {
     let namespace = decode_canonical::<BindingNamespace>(b"\x03").unwrap_err();
     assert_eq!(namespace.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let role = decode_canonical::<BindingRole>(b"\x09").unwrap_err();
-    assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 9 });
+    let role = decode_canonical::<BindingRole>(b"\x0a").unwrap_err();
+    assert_eq!(role.kind(), &WireErrorKind::UnknownTag { tag: 10 });
 
     let source_role = decode_canonical::<LocalBindingRole>(b"\x05").unwrap_err();
     assert_eq!(source_role.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
     let target = decode_canonical::<DecodedBindableEntity>(
-        b"\xa2\x00\x0a\x01\x58\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+        b"\xa2\x00\x0b\x01\x58\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
 
     )
     .unwrap_err();
-    assert_eq!(target.kind(), &WireErrorKind::UnknownTag { tag: 10 });
+    assert_eq!(target.kind(), &WireErrorKind::UnknownTag { tag: 11 });
 
     let incomplete = decode_canonical::<DecodedBindableEntity>(b"\xa1\x00\x01").unwrap_err();
     assert_eq!(
@@ -250,6 +254,7 @@ fn binding_targets() -> Vec<BindingTarget> {
         BindingTarget::property(&property()).unwrap(),
         BindingTarget::extension_property(&extension_property()).unwrap(),
         BindingTarget::type_alias(&type_alias()).unwrap(),
+        BindingTarget::annotation(&annotation()).unwrap(),
         BindingTarget::enum_variant(enum_variant()),
     ]
 }
@@ -284,7 +289,17 @@ fn source_declarations() -> Vec<SourceDeclarationKey> {
         property(),
         extension_property(),
         type_alias(),
+        annotation(),
     ]
+}
+
+fn annotation() -> SourceDeclarationKey {
+    SourceDeclarationKey::nominal(
+        site(),
+        identifier("Label"),
+        SourceNominalKind::AnnotationClass,
+        0,
+    )
 }
 
 fn plain_type() -> SourceDeclarationKey {

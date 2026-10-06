@@ -67,24 +67,24 @@ class InheritedHost {
     companion object : FactoryBase()
 }
 
-const val combinedVersion: Int = Box.version + Box.Factory.version
+const val combinedVersion: Int = Box<Int>.version + Box<Int>.Factory.version
 
-fun chooseFactory(value: Box.Factory): Box.Companion = value
+fun chooseFactory(value: Box<Int>.Factory): Box<Int>.Companion = value
 
 fun main() {
     println(combinedVersion)
-    println(Box.version)
-    println(Box.Factory.version + Box.Companion.version)
+    println(Box<Int>.version)
+    println(Box<Int>.Factory.version + Box<Int>.Companion.version)
     println("before-box")
-    println(Box.answer())
-    Box.count = 3
-    println(Box.count)
-    Box.Factory.count = Box.Factory.count + 1
-    println(Box.Companion.count)
-    println(Box.Factory === Box.Companion)
-    println(chooseFactory(Box.Factory) === Box.Companion)
-    println(Box.Factory.answer())
-    println(Box.identity<Int>(5))
+    println(Box<Int>.answer())
+    Box<Int>.count = 3
+    println(Box<Int>.count)
+    Box<Int>.Factory.count = Box<Int>.Factory.count + 1
+    println(Box<Int>.Companion.count)
+    println(Box<Int>.Factory === Box<Int>.Companion)
+    println(chooseFactory(Box<Int>.Factory) === Box<Int>.Companion)
+    println(Box<Int>.Factory.answer())
+    println(Box<Int>.identity<Int>(5))
     println(DefaultHost.value())
     println(DefaultHost.Companion.value())
     println(StructHost.value())

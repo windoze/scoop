@@ -1,0 +1,4 @@
+public object Item
+public object Reader : Decodable<Item>
+
+fun main() {}

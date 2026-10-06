@@ -16,6 +16,29 @@ pub(super) fn project(
 > {
     let expected_owner = local.owner();
     let mut bindings = Vec::new();
+    let expected = match owner {
+        NominalDeclarationOwner::Concrete(id) => scoop_identity::DefinitionOwnerAtom::Type(id),
+        NominalDeclarationOwner::GenericTemplate(id) => {
+            scoop_identity::DefinitionOwnerAtom::GenericType(id)
+        }
+    };
+    for declaration in &projection.export.annotations.declarations {
+        if projection
+            .export
+            .public_surface
+            .annotations
+            .contains(&declaration.identity.id())
+            && declaration.identity.key().owners().owners().last() == Some(&expected)
+        {
+            collect_target(
+                projection,
+                owner,
+                BindableEntity::Annotation(declaration.identity.id()),
+                &mut bindings,
+            )?;
+        }
+    }
+
     if let LocalNominalId::Object(id) = local {
         let backing = &projection.export.classes[projection.export.objects[id].backing_class];
         for function in &backing.methods {

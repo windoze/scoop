@@ -71,13 +71,16 @@ fn field(graph: &ValidatedIdentityGraph, target: &DefaultFieldRefV1) -> Result<(
             if key.object_backing_property().is_some() =>
         {
             let backing = graph.canonical_key::<_, GeneratedNominalKey>(owner)?;
-            let GeneratedNominalKey::ObjectBackingClass { object } = backing.as_ref() else {
-                return Err(TargetError::Invalid("field is not an object backing field"));
+            let owner = match backing.as_ref() {
+                GeneratedNominalKey::ObjectBackingClass { object } => {
+                    SourceNominalId::Concrete(*object)
+                }
+                GeneratedNominalKey::GenericObjectBackingClass { object } => {
+                    SourceNominalId::GenericTemplate(*object)
+                }
+                _ => return Err(TargetError::Invalid("field is not an object backing field")),
             };
-            (
-                SourceNominalId::Concrete(*object),
-                SourceDeclarationKind::Object,
-            )
+            (owner, SourceDeclarationKind::Object)
         }
         _ => {
             return Err(TargetError::Invalid(
@@ -168,7 +171,10 @@ fn check_owner(
             graph.canonical_key::<_, SourceDeclarationKey>(id)?
         }
     };
-    if key.declaration_kind() != kind {
+    if key.declaration_kind() != kind
+        && !(kind == SourceDeclarationKind::Class
+            && key.declaration_kind() == SourceDeclarationKind::Object)
+    {
         return Err(TargetError::Invalid(
             "reference requires a different nominal kind",
         ));

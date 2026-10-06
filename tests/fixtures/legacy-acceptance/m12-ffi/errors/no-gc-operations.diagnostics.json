@@ -310,5 +310,31 @@
       "start": 723
     },
     "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Any is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 728,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 723
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "boxing and unboxing are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 728,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 723
+    },
+    "severity": "error"
   }
 ]

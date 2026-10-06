@@ -14,6 +14,19 @@ public struct Char : ToString, Hash {
 
     public override fun toString(): String = coreCharToString(this)
     public override fun hash(): Long = code.toInt64()
+
+    public companion object : Encodable<Char>, Decodable<Char> {
+        public override fun encode(value: Char, encoder: Encoder): Unit =
+            encoder.singleValue().writeString(value.toString())
+
+        public override fun decode(decoder: Decoder): Char {
+            val text = decoder.singleValue().readString()
+            if (text.length != 1L) {
+                throw DecodingException(decoder.path, "expected one Unicode scalar")
+            }
+            return text[0L]
+        }
+    }
 }
 
 public fun Int.toChar(): Char {

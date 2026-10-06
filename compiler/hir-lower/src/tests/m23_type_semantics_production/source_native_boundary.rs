@@ -91,7 +91,8 @@ fn native_boundary_producer_closes_local_struct_enum_and_all_imported_primitives
                         assert_eq!(family.source_name(), name);
                         assert!(matches!(
                             family,
-                            hir::IntrinsicTypeKind::Integer(_)
+                            hir::IntrinsicTypeKind::Unit
+                                | hir::IntrinsicTypeKind::Integer(_)
                                 | hir::IntrinsicTypeKind::Boolean
                                 | hir::IntrinsicTypeKind::String
                         ));

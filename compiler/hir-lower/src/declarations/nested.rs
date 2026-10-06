@@ -1,6 +1,8 @@
 use super::*;
 
 pub(crate) struct NestedDeclarationQueues<'queues, 'source> {
+    pub(crate) annotations:
+        &'queues mut Vec<(&'source ast::AnnotationClassDecl, usize, Option<Owner>)>,
     pub(crate) structs: &'queues mut Vec<(StructId, &'source ast::StructDecl, usize)>,
     pub(crate) enums: &'queues mut Vec<(EnumId, &'source ast::EnumDecl, usize)>,
     pub(crate) classes: &'queues mut Vec<(ClassId, &'source ast::ClassDecl, usize)>,
@@ -176,6 +178,9 @@ impl Lowerer {
     ) {
         let is_core = self.source_is_core(file);
         match declaration {
+            ast::NestedNominalDecl::AnnotationClass(source) => {
+                queues.annotations.push((source, file, Some(owner)))
+            }
             ast::NestedNominalDecl::Struct(source) => {
                 if let Some(id) =
                     self.declare_struct(source, queues.structs, queues.methods, file, Some(owner))

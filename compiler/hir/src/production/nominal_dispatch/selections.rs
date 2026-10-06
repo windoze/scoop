@@ -5,15 +5,8 @@ mod receivers;
 
 impl Projection<'_> {
     pub(super) fn selections(&mut self, nominal: NominalOwner) -> Result<Selections, Error> {
-        let parameters = match nominal {
-            NominalOwner::Class(id) => &self.export.classes[id].type_params[..],
-            NominalOwner::Interface(id) => &self.export.interfaces[id].type_params,
-            NominalOwner::Struct(id) => &self.export.structs[id].type_params,
-            NominalOwner::Enum(id) => &self.export.enums[id].type_params,
-            NominalOwner::Object(_) => &[],
-        };
         self.binders = super::super::signatures::HirInterfaceSignatureProjector::new(self.export)
-            .binder_frame(parameters, 0)
+            .binder_frame(self.declaration_parameters(nominal), 0)
             .map_err(invalid)?;
         let host = self.declaration_type(nominal);
         let receiver = self.type_key(host)?;
@@ -53,46 +46,7 @@ impl Projection<'_> {
                 return Ok(selections);
             }
         };
-        for implementation in implementations {
-            let role = self.interface_role(implementation.interface)?;
-            for method in &implementation.methods {
-                let slot = self.interface_slot(method.member)?;
-                let selection = match method.target {
-                    InterfaceImplementationTarget::Method(application) => {
-                        self.target(application)?
-                    }
-                    InterfaceImplementationTarget::Imported(callable) => {
-                        self.imported_selection(callable)?
-                    }
-                    InterfaceImplementationTarget::ImportedTemplate(application) => {
-                        self.imported_template_selection(application)?
-                    }
-                    InterfaceImplementationTarget::Abstract(application) if allow_abstract => {
-                        let application = &self.export.method_applications[application];
-                        Selection::Abstract(self.callable(application.function)?)
-                    }
-                    InterfaceImplementationTarget::ImportedAbstract(callable) if allow_abstract => {
-                        Selection::Abstract(self.imported_callable(callable)?)
-                    }
-                    InterfaceImplementationTarget::ImportedAbstractTemplate(application)
-                        if allow_abstract =>
-                    {
-                        Selection::Abstract(
-                            self.imported_template_selection(application)?.declaration(),
-                        )
-                    }
-                    InterfaceImplementationTarget::ImportedAbstract(_)
-                    | InterfaceImplementationTarget::ImportedAbstractTemplate(_)
-                    | InterfaceImplementationTarget::Abstract(_) => {
-                        return Err(invalid(
-                            "non-abstract owner leaves an interface slot abstract",
-                        ));
-                    }
-                };
-                let receiver = self.type_key(self.selected_receiver(method.target, host)?)?;
-                self.merge_selection(&mut selections, role.clone(), receiver, slot, selection)?;
-            }
-        }
+        self.implementation_selections(implementations, allow_abstract, host, &mut selections)?;
         Ok(selections)
     }
 
@@ -178,7 +132,7 @@ impl Projection<'_> {
         Ok(())
     }
 
-    fn merge_selection(
+    pub(super) fn merge_selection(
         &mut self,
         selections: &mut Selections,
         role: SelectionRole,

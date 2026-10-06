@@ -1,0 +1,10 @@
+public struct Item(val value: Int)
+public interface Left : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder))
+}
+public interface Right : Decodable<Item> {
+    public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder))
+}
+public object Reader : Left, Right
+
+fun main() {}

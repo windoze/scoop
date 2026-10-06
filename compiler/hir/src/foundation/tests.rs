@@ -11,10 +11,10 @@ use super::{CanonicalHirFoundation, HirFoundationBuildError, HirFoundationTable}
 use crate::{NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord, SourceRecord};
 
 #[test]
-fn empty_foundation_has_all_thirty_two_empty_tables() {
+fn empty_foundation_has_all_thirty_three_empty_tables() {
     let actual = encode(&CanonicalHirFoundation::empty()).unwrap();
-    let mut expected = vec![0xb8, 32];
-    for field in (1_u8..=29).chain([31, 32, 34]) {
+    let mut expected = vec![0xb8, 33];
+    for field in (1_u8..=29).chain([31, 32, 34, 35]) {
         if field < 24 {
             expected.push(field);
         } else {
@@ -188,8 +188,8 @@ fn source_nominal(name: &str, owners: DefinitionOwnerChain) -> SourceDeclaration
 
 #[test]
 fn reader_rejects_retired_native_witness_field_thirty() {
-    let mut bytes = vec![0xb8, 32];
-    for field in 1_u8..=32 {
+    let mut bytes = vec![0xb8, 33];
+    for field in 1_u8..=33 {
         if field < 24 {
             bytes.push(field);
         } else {
@@ -210,9 +210,11 @@ fn reader_rejects_retired_native_witness_field_thirty() {
 #[test]
 fn reader_rejects_retired_native_witness_without_explicit_c_projection() {
     let mut bytes = scoop_wire::encode(&CanonicalHirFoundation::empty()).unwrap();
-    let end = bytes.len();
-    assert_eq!(&bytes[end - 3..], &[0x18, 34, 0x80]);
-    bytes[end - 2] = 33;
+    let field = bytes
+        .windows(3)
+        .position(|bytes| bytes == [0x18, 34, 0x80])
+        .unwrap();
+    bytes[field + 1] = 33;
     let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(&bytes).unwrap_err();
     assert_eq!(
         error.kind(),

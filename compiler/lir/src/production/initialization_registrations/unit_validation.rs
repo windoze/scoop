@@ -57,7 +57,9 @@ pub(super) fn validate_unit_kind_and_schedule(
             InitializationUnitKind::EagerTopLevel { .. },
             InitializationSchedule::EagerStartup,
         ) | (
-            InitializationUnitKey::Object(_) | InitializationUnitKey::Companion(_),
+            InitializationUnitKey::Object(_)
+                | InitializationUnitKey::Companion(_)
+                | InitializationUnitKey::GenericCompanionApplication { .. },
             InitializationUnitKind::LazySingleton { .. },
             InitializationSchedule::LazyAccess,
         ) | (
@@ -115,6 +117,20 @@ pub(super) fn validate_value_storage_key(
                         NominalDeclarationOwner::Concrete(actual)
                     )) if actual == *owner
                 )
+        }
+        InitializationUnitKey::GenericCompanionTemplate(_) => false,
+        InitializationUnitKey::GenericCompanionApplication {
+            companion,
+            arguments,
+        } => {
+            let exact = scoop_identity::PersistentExactTypeId::from_key(
+                &scoop_identity::ExactTypeKey::NominalApplication {
+                    origin: *companion,
+                    arguments: arguments.clone(),
+                },
+            )
+            .expect("a companion application is encodable");
+            key == &StaticStorageKey::singleton_application_root(exact)
         }
         InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
             key.owner() == DefinitionOwner::InitializationUnit(unit)

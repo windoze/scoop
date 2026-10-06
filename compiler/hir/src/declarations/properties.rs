@@ -183,7 +183,14 @@ pub struct PropertySetter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyAccessorImplementation {
     Storage,
+    StorageBody(FunctionId),
     Constant,
     Body(FunctionId),
     AbstractSlot(FunctionId),
+}
+
+impl PropertyAccessorImplementation {
+    pub const fn is_storage(self) -> bool {
+        matches!(self, Self::Storage | Self::StorageBody(_))
+    }
 }

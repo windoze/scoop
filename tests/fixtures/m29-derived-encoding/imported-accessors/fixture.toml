@@ -1,0 +1,33 @@
+schema = 1
+name = "m29-derived-encoding-imported-accessors"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "serialization", "negative", "artifact-only"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/accessor-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/consumer.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "consumer.diagnostics.json"}

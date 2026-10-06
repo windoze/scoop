@@ -1,0 +1,3 @@
+struct Opaque()
+object Coding : Encodable<((Int, Opaque), Unit)>
+fun main() {}

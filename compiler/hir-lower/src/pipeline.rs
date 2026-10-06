@@ -1,6 +1,7 @@
 use super::*;
 mod finish;
 mod run;
+mod type_parameters;
 
 impl Lowerer {
     pub(crate) fn fresh_type_param(&mut self, substitution_slot: usize) -> hir::TypeParamId {
@@ -244,6 +245,7 @@ impl Lowerer {
             imported_constructor_templates: Default::default(),
             imported_generic_templates: Default::default(),
             imported_generic_delegate_templates: Arena::new(),
+            imported_companion_templates: Arena::new(),
             imported_generic_applications: Arena::new(),
             retained_binding_witness_uses: Vec::new(),
             bound_callable_refs: Arena::new(),
@@ -310,6 +312,9 @@ impl Lowerer {
             delegate_storages: Arena::new(),
             generic_delegate_templates: Arena::new(),
             source_type_aliases: Arena::new(),
+            source_annotations: std::collections::BTreeMap::new(),
+            annotation_metadata: hir::SourceAnnotations::default(),
+            nested_annotations_by_owner: HashMap::new(),
             top_level_namespaces: crate::namespace::TopLevelNamespaces::default(),
             type_aliases: Arena::new(),
             type_alias_resolution_stack: Vec::new(),
@@ -321,6 +326,9 @@ impl Lowerer {
             generic_method_application_by_key: HashMap::new(),
             derived_equality_applications: Arena::new(),
             derived_equality_application_by_type: HashMap::new(),
+            derived_encoding_methods: Vec::new(),
+            derived_decoding_methods: Vec::new(),
+            invalid_override_methods: HashSet::new(),
             top_level: Vec::new(),
             unit,
             integer_types,

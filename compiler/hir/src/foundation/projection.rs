@@ -26,6 +26,15 @@ impl CanonicalHirFoundation {
         let mut foundation = Self::empty();
 
         project_nominals(export, &mut foundation)?;
+        foundation.set_annotations(
+            export
+                .annotations
+                .declarations
+                .iter()
+                .filter(|declaration| declaration.identity.key().origin() == export.cone)
+                .map(|declaration| declaration.identity.clone())
+                .collect(),
+        )?;
         project_functions_and_constructors(export, local, &mut foundation)?;
         project_properties_and_members(export, &mut foundation)?;
         project_exact_types(export, local, &mut foundation)?;

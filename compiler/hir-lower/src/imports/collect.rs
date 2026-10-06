@@ -207,6 +207,7 @@ impl Lowerer {
                             hir::ImportedTarget::Type(_)
                                 | hir::ImportedTarget::GenericType(_)
                                 | hir::ImportedTarget::TypeAlias(_)
+                                | hir::ImportedTarget::Annotation(_)
                                 | hir::ImportedTarget::Function(_)
                                 | hir::ImportedTarget::GenericFunction(_)
                                 | hir::ImportedTarget::Property(_)
@@ -234,6 +235,20 @@ impl Lowerer {
                 TopLevelTypeTarget::Nominal(target) => {
                     self.collect_import_nominal(&mut surface, namespace, name, target)
                 }
+                TopLevelTypeTarget::Annotation(annotation) => {
+                    let declaration = &self.source_annotations[&annotation];
+                    surface.insert(
+                        namespace,
+                        CurrentUnitBinding {
+                            target: CurrentUnitTarget::Annotation(annotation),
+                            source: self.import_source(file),
+                            file,
+                            span: declaration.declaration.span,
+                            access: declaration.access.lookup.clone(),
+                            name,
+                        },
+                    );
+                }
                 TopLevelTypeTarget::Alias(alias) => {
                     let declaration = &self.source_type_aliases[alias];
                     surface.insert(
@@ -249,6 +264,21 @@ impl Lowerer {
                     );
                 }
             }
+        }
+        for (&(owner, ref name), &annotation) in &self.nested_annotations_by_owner {
+            let declaration = &self.source_annotations[&annotation];
+            let file = declaration.file;
+            surface.insert(
+                ResolvedNamespace::Static(self.static_import_namespace(owner)),
+                CurrentUnitBinding {
+                    target: CurrentUnitTarget::Annotation(annotation),
+                    source: self.import_source(file),
+                    file,
+                    span: declaration.declaration.span,
+                    access: declaration.access.lookup.clone(),
+                    name: name.clone(),
+                },
+            );
         }
         for (&(owner, ref name), &target) in &self.nested_nominals_by_owner {
             self.collect_import_nominal(

@@ -1,0 +1,59 @@
+public interface Decodable<T> {
+    public fun decode(decoder: Decoder): T
+}
+
+public interface Decoder {
+    public val path: String
+    public fun keyed(): KeyedDecodingContainer
+    public fun unkeyed(): UnkeyedDecodingContainer
+    public fun singleValue(): SingleValueDecodingContainer
+}
+
+public interface KeyedDecodingContainer {
+    public val keys: List<String>
+    public fun required(name: String): Decoder
+    public fun optional(name: String): Option<Decoder>
+    public fun end(): Unit
+}
+
+public interface UnkeyedDecodingContainer {
+    public val hasNext: Boolean
+    public fun element(): Decoder
+    public fun end(): Unit
+}
+
+public interface SingleValueDecodingContainer {
+    public fun readBoolean(): Boolean
+    public fun readLong(): Long
+    public fun readULong(): ULong
+    public fun readString(): String
+    public fun readNull(): Unit
+}
+
+public class DecodingException public constructor(public val path: String, message: String)
+    : Exception(Some(message))
+
+public class DecodeFunction<T> public constructor(private val body: (Decoder) -> T)
+    : Decodable<T> {
+    public override fun decode(decoder: Decoder): T = body(decoder)
+}
+
+public object UnitDecoder : Decodable<Unit> {
+    public override fun decode(decoder: Decoder): Unit = decoder.singleValue().readNull()
+}
+
+internal fun decodeSigned(decoder: Decoder, minimum: Long, maximum: Long): Long {
+    val result = decoder.singleValue().readLong()
+    if (result < minimum || result > maximum) {
+        throw DecodingException(decoder.path, "integer is out of range")
+    }
+    return result
+}
+
+internal fun decodeUnsigned(decoder: Decoder, maximum: ULong): ULong {
+    val result = decoder.singleValue().readULong()
+    if (result > maximum) {
+        throw DecodingException(decoder.path, "integer is out of range")
+    }
+    return result
+}

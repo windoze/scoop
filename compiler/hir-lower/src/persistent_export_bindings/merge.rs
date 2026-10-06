@@ -138,9 +138,10 @@ fn direct_conflict_key(
     overloads: &BTreeMap<BindableEntity, hir::ImportedBindingConflictKey>,
 ) -> Result<hir::ImportedBindingConflictKey, PersistentExportBindingIdentityError> {
     match target {
-        BindableEntity::Type(_) | BindableEntity::GenericType(_) | BindableEntity::TypeAlias(_) => {
-            Ok(hir::ImportedBindingConflictKey::Type)
-        }
+        BindableEntity::Type(_)
+        | BindableEntity::GenericType(_)
+        | BindableEntity::TypeAlias(_)
+        | BindableEntity::Annotation(_) => Ok(hir::ImportedBindingConflictKey::Type),
         BindableEntity::ObjectValue(_)
         | BindableEntity::Property(_)
         | BindableEntity::EnumVariant(_) => Ok(hir::ImportedBindingConflictKey::Value),
@@ -201,7 +202,10 @@ fn conflict_key_matches_target(
         (conflict, target),
         (
             hir::ImportedBindingConflictKey::Type,
-            BindableEntity::Type(_) | BindableEntity::GenericType(_) | BindableEntity::TypeAlias(_)
+            BindableEntity::Type(_)
+                | BindableEntity::GenericType(_)
+                | BindableEntity::TypeAlias(_)
+                | BindableEntity::Annotation(_)
         ) | (
             hir::ImportedBindingConflictKey::Value,
             BindableEntity::ObjectValue(_)
@@ -252,6 +256,17 @@ fn nested_binding_owners(
     properties: &hir::HirPropertyIdentities,
 ) -> BTreeMap<BindableEntity, DefinitionOwnerAtom> {
     let mut owners = BTreeMap::new();
+    for id in &surface.annotations {
+        if let Some(owner) = lowerer.source_annotations[id]
+            .identity
+            .key()
+            .owners()
+            .owners()
+            .last()
+        {
+            owners.insert(BindableEntity::Annotation(*id), owner.clone());
+        }
+    }
     for &id in &surface.structs {
         collect_nested_nominal_owner(&mut owners, &nominals[id]);
     }

@@ -239,6 +239,11 @@ impl CanonicalCrossConeRouteAuthority<'_> {
                             property: id,
                             ..
                         } => self.property_resolution(PropertyOwner::ExtensionProperty(*id)),
+                        InitializationUnitKey::GenericCompanionTemplate(id)
+                        | InitializationUnitKey::GenericCompanionApplication {
+                            companion: id,
+                            ..
+                        } => self.nominal_resolution(NominalDeclarationOwner::GenericTemplate(*id)),
                         InitializationUnitKey::Object(id)
                         | InitializationUnitKey::Companion(id) => {
                             self.nominal_resolution(NominalDeclarationOwner::Concrete(*id))
@@ -269,6 +274,11 @@ impl CanonicalCrossConeRouteAuthority<'_> {
             ExternalHirTargetV1::ObjectValue(id) => {
                 let key = self.source_declaration_key::<PersistentObjectValueId>(id)?;
                 self.source_resolution(&key, BindingTarget::object_value(&key))
+            }
+            ExternalHirTargetV1::Annotation(id) => {
+                let key =
+                    self.source_declaration_key::<scoop_identity::PersistentAnnotationId>(id)?;
+                self.source_resolution(&key, BindingTarget::annotation(&key))
             }
             ExternalHirTargetV1::TypeAlias(id) => {
                 let key = self.source_declaration_key::<PersistentTypeAliasId>(id)?;

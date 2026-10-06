@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=438
+cone scoop:scoop.core:0.1.0 kind=Library objects=643
 cone dev.example:class-provider:0.1.0 kind=Library objects=260
 cone dev.example:classes-primitive-inherited-boolean:0.1.0 kind=Library objects=2
 cone dev.example:class-downstream-primitive-inherited-boolean:0.1.0 kind=Library objects=2

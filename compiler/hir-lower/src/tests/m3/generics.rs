@@ -28,7 +28,7 @@ fn generic_identity_infers_type_arguments() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
+    property11 val message: Option<String> getter11=storage-body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -364,7 +364,7 @@ fn nested_generic_calls_record_param_instantiations() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
+    property11 val message: Option<String> getter11=storage-body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -510,7 +510,7 @@ fn generic_option_roundtrip() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
+    property11 val message: Option<String> getter11=storage-body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

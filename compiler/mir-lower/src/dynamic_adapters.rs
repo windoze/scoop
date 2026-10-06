@@ -96,20 +96,8 @@ impl Lowerer {
                 if let mir::Type::Function(nested) = ty {
                     pending.push(*nested);
                 } else if is_boxable(ty) {
-                    let class =
-                        self.boxed
-                            .get_or_create(&mut self.classes, &mut self.shell, ty, exact);
-                    if matches!(
-                        self.source_exact_types.get(ty).map(|source| source.owner()),
-                        Some(mir::SourceExactTypeOwner::Cone(provider)) if provider != module.cone
-                    ) {
-                        continue;
-                    }
-                    for interface in self.value_interfaces(module, ty) {
-                        if !self.classes[class].interfaces.contains(&interface) {
-                            self.classes[class].interfaces.push(interface);
-                        }
-                    }
+                    self.boxed
+                        .get_or_create(&mut self.classes, &mut self.shell, ty, exact);
                 }
             }
         }

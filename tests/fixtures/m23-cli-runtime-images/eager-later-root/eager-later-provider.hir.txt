@@ -1,6 +1,6 @@
 == Export ==
 Module
-  property0 val later: Long getter0=body($get$later) <stored global0 init0>
+  property0 val later: Long getter0=storage-body($get$later) <stored global0 init0>
   val later: Long <global0 managed>
   fun trace(arg1: Long): Unit <unsafe no-gc cdecl> <extern0 abi=c symbol=m23_trace lib=m23_runtime_images>
   fun initialize(): Long
@@ -21,6 +21,75 @@ Module
     return
       GlobalRead later : Long
   output library
+== Static Shapes ==
+unit Unit
+intrinsic core_int8 Int8 Concrete(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4]))
+  interface ToString
+  interface Hash
+intrinsic core_int16 Int16 Concrete(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70]))
+  interface ToString
+  interface Hash
+intrinsic core_int Int Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))
+  interface ToString
+  interface Hash
+intrinsic core_long Long Concrete(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))
+  interface ToString
+  interface Hash
+intrinsic core_uint8 UInt8 Concrete(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216]))
+  interface ToString
+  interface Hash
+intrinsic core_uint16 UInt16 Concrete(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53]))
+  interface ToString
+  interface Hash
+intrinsic core_uint UInt Concrete(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75]))
+  interface ToString
+  interface Hash
+intrinsic core_ulong ULong Concrete(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248]))
+  interface ToString
+  interface Hash
+intrinsic core_boolean Boolean Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))
+  interface ToString
+  interface Hash
+intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
+  public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
+any Any
+interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
+  parameter T: Any
+interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
+  parameter T: Any
+class Throwable Concrete(PersistentTypeId([52, 14, 197, 53, 40, 145, 114, 19, 48, 106, 128, 71, 51, 154, 164, 217, 17, 163, 145, 23, 194, 20, 73, 185, 182, 162, 42, 38, 51, 7, 173, 29]))
+  constructor Constructor(PersistentConstructorId([84, 32, 196, 202, 149, 144, 64, 117, 54, 82, 22, 147, 35, 209, 86, 184, 221, 238, 244, 15, 59, 13, 237, 67, 24, 60, 35, 116, 204, 149, 117, 27]))
+interface SuspendRegistration<T> GenericTemplate(PersistentGenericTypeId([80, 188, 252, 189, 116, 121, 224, 49, 66, 155, 150, 60, 205, 4, 57, 70, 147, 131, 203, 206, 75, 84, 41, 8, 74, 156, 94, 112, 217, 199, 183, 207]))
+  parameter T: Any
+class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
+  base Exception
+  constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
+    parameter message: Option<String> Plain default parameter0
+class Exception Concrete(PersistentTypeId([142, 87, 2, 76, 204, 55, 50, 96, 83, 32, 249, 205, 109, 172, 122, 28, 68, 54, 57, 231, 7, 212, 7, 34, 32, 169, 251, 228, 229, 149, 81, 121]))
+  base Throwable
+  field message: Option<String> Field(PersistentFieldId([149, 203, 168, 111, 213, 200, 80, 53, 248, 73, 183, 41, 242, 24, 158, 120, 189, 140, 149, 120, 95, 21, 186, 148, 67, 186, 139, 239, 80, 120, 208, 131])) PropertyBacking(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+  public property message: Option<String> 2a3930f700cfe99e457bcbae3b6c7cbb78cbecb5e7f0f8be2f06284b9add2026 stored 95cba86fd5c85035f849b729f2189e78bd8c95785f15ba9443ba8bef5078d083
+  constructor Constructor(PersistentConstructorId([25, 35, 17, 109, 201, 110, 78, 21, 232, 210, 177, 220, 71, 252, 25, 233, 177, 47, 203, 166, 101, 159, 77, 84, 16, 179, 84, 175, 235, 207, 71, 95]))
+    parameter message: Option<String> Property(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  parameter T: Any
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: String VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
 == LocalConcrete ==
 LocalConcrete bfed2e02615c0e1a7326aff00db467c6b87b9b319f8f649decb444a98e95b38b Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }
@@ -42,7 +111,7 @@ LocalConcrete bfed2e02615c0e1a7326aff00db467c6b87b9b319f8f649decb444a98e95b38b L
   functions Idx::<Function>(4) Function { name: "$get$later", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([26, 213, 137, 100, 231, 59, 187, 88, 177, 116, 117, 65, 255, 180, 172, 254, 238, 154, 65, 53, 101, 207, 54, 69, 196, 128, 152, 121, 132, 227, 109, 220])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [], capture_parameters: [], return_ty: Idx::<Type>(4), attributes: FunctionAttributes { safety: Safe, gc_effect: Managed, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 0, data: [] }, statements: [Statement { kind: InitializationEnsure(Idx::<InitializationUnit>(0)), span: Span { start: 179, end: 216 } }, Statement { kind: Return { value: Some(Expr { kind: GlobalRead(Idx::<Global>(0)), ty: Idx::<Type>(4), span: Span { start: 190, end: 195 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 190, end: 195 }, context: Idx::<SourceContext>(3) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 190, end: 195 }, context: Idx::<SourceContext>(3) } } }) }, span: Span { start: 190, end: 195 } }] }), receiver: None, span: Span { start: 179, end: 216 } }
   extern_functions Idx::<ExternFunction>(0) ExternFunction { source_contract: SourceNativeExternalContractRecord { id: PersistentSourceNativeExternalContractId([194, 88, 79, 48, 33, 101, 218, 180, 104, 45, 144, 37, 112, 202, 27, 35, 124, 42, 234, 139, 116, 122, 151, 227, 31, 124, 73, 159, 234, 249, 72, 3]), key: SourceNativeExternalContractKey { owner: Function(PersistentFunctionId([222, 224, 98, 75, 152, 200, 24, 254, 94, 187, 219, 240, 133, 21, 227, 155, 132, 248, 173, 111, 77, 10, 84, 219, 57, 199, 141, 69, 213, 145, 177, 231])) }, contract: Function { symbol: SourceNativeSymbol([109, 50, 51, 95, 116, 114, 97, 99, 101]), library: LogicalLibrary(CanonicalNativeLibraryName("m23_runtime_images")), abi: C(SourceCAbiFunctionSignature { parameters: [Nominal(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))], result: Void }), calling_convention: Cdecl } }, source_name: "trace", native_symbol: "m23_trace", library: "m23_runtime_images", abi: C, calling_convention: Cdecl, gc_effect: NoGc, safety: Unsafe, params: [Idx::<Type>(4)], return_type: Idx::<Type>(0) }
   globals Idx::<Global>(0) Global { name: "later", storage_owner: Backing(Property(PersistentPropertyId([90, 158, 66, 47, 102, 213, 51, 79, 51, 70, 230, 70, 229, 15, 150, 228, 235, 199, 242, 108, 169, 15, 252, 231, 234, 11, 75, 200, 132, 84, 170, 172]))), ty: Idx::<Type>(4), mutable: false, storage: Managed { state: ZeroedForRuntimeUnit { unit: Idx::<InitializationUnit>(0) } }, span: Span { start: 179, end: 216 } }
-  initialization_units Idx::<InitializationUnit>(0) InitializationUnit { identity: CborIdentityRecord { id: PersistentInitializationUnitId([121, 124, 255, 176, 93, 8, 209, 222, 11, 199, 222, 91, 26, 172, 141, 206, 39, 36, 253, 59, 27, 239, 181, 235, 9, 9, 174, 218, 104, 217, 71, 16]), key: TopLevelProperty(PersistentPropertyId([90, 158, 66, 47, 102, 213, 51, 79, 51, 70, 230, 70, 229, 15, 150, 228, 235, 199, 242, 108, 169, 15, 252, 231, 234, 11, 75, 200, 132, 84, 170, 172])) }, display_name: "top-level:later", schedule: EagerStartup, kind: EagerTopLevel { storage: Idx::<Global>(0) }, initializer: Idx::<Function>(2), ensure: Idx::<Function>(3), failure_root: Idx::<InitializationFailureRoot>(0), dependencies: [], cycle_thrower: Imported(ImportedCoreProtocolCallable { provider: ConeIdentity([94, 165, 245, 232, 255, 36, 129, 130, 200, 248, 199, 225, 4, 60, 170, 226, 15, 22, 59, 206, 253, 52, 204, 164, 233, 125, 140, 106, 3, 191, 98, 13]), definition: Function(ImportedHirId(ImportedIdentityId(4078))), signature: SignatureCallableShape { effect: Ordinary, receiver: Absent, parameters: [Nominal(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))], result: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) } }) }
+  initialization_units Idx::<InitializationUnit>(0) InitializationUnit { identity: CborIdentityRecord { id: PersistentInitializationUnitId([121, 124, 255, 176, 93, 8, 209, 222, 11, 199, 222, 91, 26, 172, 141, 206, 39, 36, 253, 59, 27, 239, 181, 235, 9, 9, 174, 218, 104, 217, 71, 16]), key: TopLevelProperty(PersistentPropertyId([90, 158, 66, 47, 102, 213, 51, 79, 51, 70, 230, 70, 229, 15, 150, 228, 235, 199, 242, 108, 169, 15, 252, 231, 234, 11, 75, 200, 132, 84, 170, 172])) }, display_name: "top-level:later", schedule: EagerStartup, kind: EagerTopLevel { storage: Idx::<Global>(0) }, initializer: Idx::<Function>(2), ensure: Idx::<Function>(3), failure_root: Idx::<InitializationFailureRoot>(0), dependencies: [], cycle_thrower: Imported(ImportedCoreProtocolCallable { provider: ConeIdentity([94, 165, 245, 232, 255, 36, 129, 130, 200, 248, 199, 225, 4, 60, 170, 226, 15, 22, 59, 206, 253, 52, 204, 164, 233, 125, 140, 106, 3, 191, 98, 13]), definition: Function(ImportedHirId(ImportedIdentityId(6264))), signature: SignatureCallableShape { effect: Ordinary, receiver: Absent, parameters: [Nominal(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))], result: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) } }) }
   initialization_failure_roots Idx::<InitializationFailureRoot>(0) InitializationFailureRoot { unit: Idx::<InitializationUnit>(0) }
   generated []
   callbacks []
@@ -55,7 +124,7 @@ CrossCone bfed2e02615c0e1a7326aff00db467c6b87b9b319f8f649decb444a98e95b38b
   callable_interfaces count=1
     callable_interfaces[0] CallableInterfaceRecordV1 { data: CallableDeclarationRecordV1 { declaration: Accessor(PersistentPropertyAccessorId([26, 213, 137, 100, 231, 59, 187, 88, 177, 116, 117, 65, 255, 180, 172, 254, 238, 154, 65, 53, 101, 207, 54, 69, 196, 128, 152, 121, 132, 227, 109, 220])), owner: TopLevel, type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, parameters: CanonicalSourceParameterShapesV1 { parameters: [], len: 0 }, result: Nominal(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230])), effects: CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary, release_callability: Unavailable }, modality: Final, visibility: Public, slots: CanonicalPersistentIdsV1 { values: [] }, context_parameters: [] }, access: DirectOnly }
   property_interfaces count=1
-    property_interfaces[0] PropertyInterfaceRecordV1 { data: PropertyDeclarationRecordV1 { declaration: Property(PersistentPropertyId([90, 158, 66, 47, 102, 213, 51, 79, 51, 70, 230, 70, 229, 15, 150, 228, 235, 199, 242, 108, 169, 15, 252, 231, 234, 11, 75, 200, 132, 84, 170, 172])), owner: TopLevel, type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, value_type: Nominal(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230])), accessors: PropertyAccessorsV1 { getter: PropertyAccessorSourceV1 { accessor: PersistentPropertyAccessorId([26, 213, 137, 100, 231, 59, 187, 88, 177, 116, 117, 65, 255, 180, 172, 254, 238, 154, 65, 53, 101, 207, 54, 69, 196, 128, 152, 121, 132, 227, 109, 220]), implementation: Body }, setter: None }, representation: RuntimeAccessor, visibility: Public }, access: DirectOnly, setter_access: Restricted }
+    property_interfaces[0] PropertyInterfaceRecordV1 { data: PropertyDeclarationRecordV1 { declaration: Property(PersistentPropertyId([90, 158, 66, 47, 102, 213, 51, 79, 51, 70, 230, 70, 229, 15, 150, 228, 235, 199, 242, 108, 169, 15, 252, 231, 234, 11, 75, 200, 132, 84, 170, 172])), owner: TopLevel, type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, value_type: Nominal(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230])), accessors: PropertyAccessorsV1 { getter: PropertyAccessorSourceV1 { accessor: PersistentPropertyAccessorId([26, 213, 137, 100, 231, 59, 187, 88, 177, 116, 117, 65, 255, 180, 172, 254, 238, 154, 65, 53, 101, 207, 54, 69, 196, 128, 152, 121, 132, 227, 109, 220]), implementation: StorageBody }, setter: None }, representation: RuntimeAccessor, visibility: Public }, access: DirectOnly, setter_access: Restricted }
   type_aliases count=0
   source_interfaces count=0
   default_templates count=0

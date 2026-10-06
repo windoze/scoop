@@ -57,7 +57,8 @@ impl ImportedEntityIndex {
         self.insert_nominals(provider)?;
         self.insert_callables(provider)?;
         self.insert_properties(provider)?;
-        self.insert_aliases(provider)
+        self.insert_aliases(provider)?;
+        self.insert_annotations(provider)
     }
 
     fn insert_nominals(
@@ -263,6 +264,30 @@ impl ImportedEntityIndex {
                     )?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn insert_annotations(
+        &mut self,
+        provider: &ImportedProvider<'_>,
+    ) -> Result<(), ImportedSemanticWorldBuildError> {
+        for declaration in provider.interface().annotations().declarations() {
+            let annotation = declaration.annotation;
+            let entity = ImportedSemanticEntityId::Annotation(annotation);
+            let imported = provider.foundation().identity(annotation).ok_or(
+                ImportedSemanticWorldBuildError::MissingEntityIdentity {
+                    provider: provider.identity(),
+                    entity,
+                },
+            )?;
+            self.insert_target(
+                provider,
+                entity,
+                BindableEntity::Annotation(annotation),
+                ImportedTarget::Annotation(imported),
+                ImportedBindingConflictKey::Type,
+            )?;
         }
         Ok(())
     }

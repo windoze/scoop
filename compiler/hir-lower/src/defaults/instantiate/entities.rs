@@ -48,7 +48,11 @@ impl Lowerer {
                         self.instantiate_default_enum_application(owner, context),
                     ),
                     hir::GenericMethodOwner::Object(owner) => {
-                        hir::GenericMethodOwner::Object(owner)
+                        let owner = self.instantiate_default_method_owner(
+                            hir::MethodOwnerApplication::Object(owner),
+                            context,
+                        );
+                        self.generic_method_owner(owner)
                     }
                 };
                 let arguments = application
@@ -163,7 +167,13 @@ impl Lowerer {
                 )
             }
             hir::MethodOwnerApplication::Object(owner) => {
-                hir::MethodOwnerApplication::Object(owner)
+                let object = self.object_types[owner];
+                let application =
+                    self.instantiate_default_class_application(object.representation, context);
+                self.method_owner_application(
+                    crate::Owner::Object(object.declaration),
+                    self.class_applications[application].arguments.clone(),
+                )
             }
         }
     }

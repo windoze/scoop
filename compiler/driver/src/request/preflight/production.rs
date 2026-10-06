@@ -41,7 +41,16 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 .map(|source| scoop_ast::dump(source.ast()))
                 .collect()
         });
-        let hir = self.lower_hir(requested, protocols).map_err(|e| {
+        let world = self
+            .request
+            .dependencies()
+            .semantic()
+            .imported_semantic_world()
+            .map_err(CurrentConeHirStageError::SemanticWorld)
+            .map_err(|e| {
+                CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Hir(e))
+            })?;
+        let hir = self.lower_hir(requested, protocols, &world).map_err(|e| {
             CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Hir(e))
         })?;
         let warnings =
@@ -53,8 +62,9 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 })?;
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
-                "== Export ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
+                "== Export ==\n{}== Static Shapes ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
                 scoop_hir::dump(&hir.hir.output().export),
+                scoop_hir::dump_static_shapes(hir.hir.output().export.module(), &world),
                 scoop_hir::dump_local(&hir.hir.output().local),
                 scoop_hir::dump_cross_cone(&hir.hir, &hir.cross_cone_section)
             )
@@ -78,13 +88,8 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         &self,
         requested: scoop_identity::RequestedConeKind,
         protocols: &ValidatedCompilerProtocols,
+        world: &scoop_hir::ImportedSemanticWorld<'_>,
     ) -> Result<current_hir::CurrentConeHirArtifacts, CurrentConeHirStageError> {
-        let world = self
-            .request
-            .dependencies()
-            .semantic()
-            .imported_semantic_world()
-            .map_err(CurrentConeHirStageError::SemanticWorld)?;
         let mut source_names = self
             .request
             .dependencies()
@@ -112,7 +117,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             requested,
             &self.sources,
             protocols.hir_input(),
-            &world,
+            world,
             source_names,
         )
     }

@@ -1,0 +1,41 @@
+import shared.Box
+import shared.Maker
+import shared.initializations
+import shared.integerCompanion
+
+typealias IntBox = Box<Int>
+
+private fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("companion artifact assertion failed")) }
+}
+
+fun main() {
+    check(IntBox.version == 4 && initializations == 0)
+    val first: IntBox.Factory = IntBox.Factory
+    check(first === integerCompanion() && initializations == 1)
+    check(first.totalAtCreation == 1 && first.bias == 5)
+    val integer = Box<Int>.create(7)
+    check(integer.value == 7 && first.cached!! == 7)
+    val second = Box<String>.Companion
+    check(initializations == 2 && second.ordinal == 2)
+    check(second.totalAtCreation == 2 && second.bias == 5)
+    check(second.create("text").value == "text")
+    check(second.cached!! == "text" && first.cached!! == 7)
+    val pair = second.pair<Int>("item", 9)
+    check(pair._1 == "item" && pair._2 == 9)
+    Box<String>.cached = Some("changed")
+    check(second.echo() == "changed")
+    val captured = second.capture("captured")
+    gcCollect()
+    check(captured() == "captured")
+    check(first.savedOrdinal() == 1 && second.savedOrdinal() == 2)
+    val maker: Maker<Int> = first
+    check(maker.create(12).value == 12 && first.echo() == 12)
+    val create: (Int) -> Box<Int> = IntBox.Companion::create
+    check(create(13).value == 13 && first.echo() == 13)
+    context("prefix") {
+        val contextual = second.contextual("value")
+        check(contextual._1 == "prefix" && contextual._2 == "value")
+    }
+    println("artifacts-ok")
+}

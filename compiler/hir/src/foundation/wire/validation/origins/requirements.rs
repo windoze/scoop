@@ -120,7 +120,7 @@ impl<'a> OriginRequirements<'a> {
                 Some(GeneratedCallableKey::DerivedEquality { .. })
             )
         {
-            // Derived equality parameters are synthetic, despite their ABI selectors.
+            // Type-owned method parameters are synthetic, despite their ABI selectors.
             // Keeping them outside both origin sets also rejects fabricated origins.
             return Ok(());
         }

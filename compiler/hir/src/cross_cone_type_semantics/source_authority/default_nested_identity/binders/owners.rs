@@ -45,6 +45,10 @@ impl Arity<'_, '_> {
                         property: id,
                         ..
                     } => self.property(PropertyOwner::ExtensionProperty(id)),
+                    InitializationUnitKey::GenericCompanionTemplate(id)
+                    | InitializationUnitKey::GenericCompanionApplication {
+                        companion: id, ..
+                    } => self.nominal(SourceNominalId::GenericTemplate(id)),
                     InitializationUnitKey::Object(id) | InitializationUnitKey::Companion(id) => {
                         self.nominal(SourceNominalId::Concrete(id))
                     }

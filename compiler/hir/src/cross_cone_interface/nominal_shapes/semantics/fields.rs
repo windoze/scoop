@@ -43,13 +43,15 @@ pub(super) fn validate_owner<E>(
         | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyBacking { .. })
         | (PublicNominalKindV1::Class, FieldIdentityView::SourcePropertyDelegate { .. }) => true,
         (PublicNominalKindV1::Object, FieldIdentityView::Generated { owner, key }) => {
-            let SourceNominalId::Concrete(object) = declaration else {
-                return Err(NominalSourceFieldSemanticError::FieldRole);
+            let backing = match declaration {
+                SourceNominalId::Concrete(object) => {
+                    GeneratedNominalKey::ObjectBackingClass { object }
+                }
+                SourceNominalId::GenericTemplate(object) => {
+                    GeneratedNominalKey::GenericObjectBackingClass { object }
+                }
             };
-            let expected =
-                PersistentTypeId::from_generated_key(&GeneratedNominalKey::ObjectBackingClass {
-                    object,
-                });
+            let expected = PersistentTypeId::from_generated_key(&backing);
             return if expected.ok() == Some(owner) && key.object_backing_property().is_some() {
                 Ok(())
             } else {

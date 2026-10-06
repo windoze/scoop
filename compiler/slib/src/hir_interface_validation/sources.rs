@@ -115,6 +115,9 @@ impl<'a> HirInterfaceValidationInput<'a> {
             .constants()
             .validate_semantics(&mut authority)
             .map_err(CrossConeHirConstSurfaceError::Constants)?;
+        authority
+            .validate_annotations()
+            .map_err(CrossConeHirConstSurfaceError::Annotations)?;
         Ok(())
     }
 }

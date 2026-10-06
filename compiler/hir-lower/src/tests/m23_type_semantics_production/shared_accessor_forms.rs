@@ -6,7 +6,10 @@ use scoop_wire::{decode_canonical, encode};
 fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slots() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, expected) in [("standalone", [0, 0, 5, 0]), ("combined", [2, 1, 17, 2])] {
+    for (case, expected) in [
+        ("standalone", [0, 0, 2, 0, 3]),
+        ("combined", [2, 1, 8, 2, 9]),
+    ] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-accessors-{case}.scoop")))
                 .unwrap();
@@ -48,7 +51,7 @@ fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slo
                     )
                 }))
                 .collect();
-            let mut counts = [0; 4];
+            let mut counts = [0; 5];
             for property in restored.all_declarations() {
                 for source in std::iter::once(property.accessors().getter_source())
                     .chain(property.accessors().setter_source())
@@ -62,6 +65,7 @@ fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slo
                         Form::Constant => 1,
                         Form::Body => 2,
                         Form::AbstractSlot => 3,
+                        Form::StorageBody => 4,
                     }] += 1;
                 }
                 assert_eq!(

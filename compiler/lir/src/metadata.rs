@@ -840,6 +840,7 @@ pub enum LayoutKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,
@@ -1569,6 +1570,16 @@ impl StaticStorageIdentity {
     ) -> Result<Self, scoop_wire::HashError> {
         Self::new(
             scoop_identity::StaticStorageKey::static_place_for_property(owner),
+            root,
+        )
+    }
+
+    pub fn singleton_application_root(
+        owner: scoop_identity::PersistentExactTypeId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::singleton_application_root(owner),
             root,
         )
     }

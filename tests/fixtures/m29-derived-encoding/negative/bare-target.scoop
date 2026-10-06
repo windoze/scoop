@@ -1,0 +1,3 @@
+class Codec<T> : Encodable<T>
+
+fun main() {}

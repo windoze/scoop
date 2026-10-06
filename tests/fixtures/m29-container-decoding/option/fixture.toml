@@ -1,0 +1,53 @@
+schema = 1
+name = "m29-container-decoding-option"
+inputs = ["program", "../../../../sysroot/lib/scoop.json"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "serialization", "json", "stage-golden", "gc"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "json"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${repo}/sysroot/lib/scoop.json", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-json", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.json/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "option-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "option-ok\n"
+stderr = ""

@@ -1,0 +1,3 @@
+@SerialName("value")
+struct Value()
+fun main() {}

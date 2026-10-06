@@ -78,10 +78,32 @@ pub(super) fn validate(
                 )?;
                 continue;
             }
-            if !matches!(
-                key.as_ref(),
-                scoop_identity::ExactTypeKey::NominalApplication { .. }
-            ) {
+            let tuple_box = if let scoop_identity::ExactTypeKey::Nominal(nominal) = key.as_ref() {
+                let generated = metadata
+                    .identities
+                    .canonical_key::<_, scoop_identity::GeneratedNominalKey>(*nominal)?;
+                if let scoop_identity::GeneratedNominalKey::BoxedValue { payload } =
+                    generated.as_ref()
+                {
+                    matches!(
+                        metadata
+                            .identities
+                            .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)?
+                            .as_ref(),
+                        scoop_identity::ExactTypeKey::Tuple(_)
+                    )
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            if !tuple_box
+                && !matches!(
+                    key.as_ref(),
+                    scoop_identity::ExactTypeKey::NominalApplication { .. }
+                )
+            {
                 return Err(Error::Unexpected(record.owner()));
             }
             for entry in record

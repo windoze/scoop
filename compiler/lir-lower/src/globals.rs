@@ -197,6 +197,9 @@ fn static_storage_identity(
         mir::StaticStorageOwner::PropertyDelegate(owner) => {
             lir::StaticStorageIdentity::property_delegate(owner, root)
         }
+        mir::StaticStorageOwner::SingletonApplicationPublishedRoot(owner) => {
+            lir::StaticStorageIdentity::singleton_application_root(owner, root)
+        }
         mir::StaticStorageOwner::SingletonPublishedRoot(owner) => {
             lir::StaticStorageIdentity::singleton_published_root(owner, root)
         }

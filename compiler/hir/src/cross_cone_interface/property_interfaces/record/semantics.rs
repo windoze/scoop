@@ -237,11 +237,6 @@ fn validate_const_nominal_shape<E>(
             actual: shape.kind(),
         });
     }
-    if shape.type_parameter_arity() != 0 {
-        return Err(PropertyInterfaceSemanticValidationError::ConstOwnerArity {
-            actual: shape.type_parameter_arity(),
-        });
-    }
     Ok(())
 }
 

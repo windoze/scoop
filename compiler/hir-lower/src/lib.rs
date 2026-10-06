@@ -153,6 +153,7 @@ mod stmt;
 #[cfg(test)]
 mod tests;
 mod types;
+mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
@@ -476,8 +477,8 @@ struct SourceProvider {
     source: String,
 }
 
-/// Source spelling retained for every source FunctionId.
-/// Generated/accessor/initialization functions are deliberately absent.
+/// Source-visible named declarations, including synthesized nominal members.
+/// Lexical helpers, accessors and initialization functions are absent.
 #[derive(Debug, Clone)]
 pub(crate) struct SourceFunctionDeclaration {
     pub(crate) name: String,
@@ -559,6 +560,7 @@ pub(crate) struct Lowerer {
     pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
     pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
     pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
+    pub(crate) imported_companion_templates: Arena<hir::ImportedCompanionTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
@@ -657,6 +659,13 @@ pub(crate) struct Lowerer {
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
+    pub(crate) source_annotations: std::collections::BTreeMap<
+        scoop_identity::PersistentAnnotationId,
+        user_annotations::SourceAnnotationInput,
+    >,
+    pub(crate) annotation_metadata: hir::SourceAnnotations,
+    pub(crate) nested_annotations_by_owner:
+        HashMap<(Owner, String), scoop_identity::PersistentAnnotationId>,
     pub(crate) top_level_namespaces: namespace::TopLevelNamespaces,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
@@ -680,6 +689,11 @@ pub(crate) struct Lowerer {
     pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
     pub(crate) derived_equality_application_by_type:
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
+    /// Ordinary encode members awaiting their complete bodies, paired with
+    /// the selected core protocol declaration.
+    derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    invalid_override_methods: HashSet<FunctionId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     /// Total lowering-time map for the eight canonical integer identities.

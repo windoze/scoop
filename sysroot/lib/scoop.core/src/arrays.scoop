@@ -14,6 +14,12 @@ public class Array<T> : List<T> {
     public fun toMutableArray(): MutableArray<T>
 
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
+
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Array<T>> = ArrayEncoder<T>(element)
+
+        public fun decoder(element: Decodable<T>): Decodable<Array<T>> = ArrayDecoder<T>(element)
+    }
 }
 
 @Intrinsic("core_mutable_array")
@@ -35,5 +41,11 @@ public class MutableArray<T> : List<T> {
     public fun toArray(): Array<T>
 
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
-}
 
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<MutableArray<T>> = MutableArrayEncoder<T>(element)
+
+        public fun decoder(element: Decodable<T>): Decodable<MutableArray<T>> =
+            MutableArrayDecoder<T>(element)
+    }
+}

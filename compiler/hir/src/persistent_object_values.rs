@@ -53,11 +53,6 @@ impl HirObjectValueIdentities {
             objects.len(),
             singleton_values.len(),
         )?;
-        require_count(
-            ObjectRelationTable::ObjectType,
-            objects.len(),
-            object_types.len(),
-        )?;
 
         let mut seen_values = vec![false; singleton_values.len()];
         let mut seen_types = vec![false; object_types.len()];
@@ -116,7 +111,6 @@ impl HirObjectValueIdentities {
             }
         }
         require_coverage(ObjectRelationTable::SingletonValue, &seen_values)?;
-        require_coverage(ObjectRelationTable::ObjectType, &seen_types)?;
 
         let mut identities = Vec::with_capacity(singleton_values.len());
         for (value_id, value) in singleton_values.iter() {

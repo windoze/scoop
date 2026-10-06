@@ -1,0 +1,50 @@
+package shared
+
+public var initializations: Int = 0
+
+private fun mark(): Int {
+    initializations += 1
+    return initializations
+}
+
+public interface Maker<T> {
+    public fun create(value: T): Box<T>
+}
+
+public struct Seed<T>() {
+    public companion object {
+        public val ordinal: Int = mark()
+    }
+}
+
+public object Defaults {
+    public val bias: Int = 5
+}
+
+public struct Box<T>(val value: T) {
+    public companion object Factory : Maker<T> {
+        public const val version: Int = 4
+        public val ordinal: Int = Seed<T>.ordinal
+        public val totalAtCreation: Int = initializations
+        public val bias: Int = Defaults.bias
+        public var cached: Option<T> = None
+        public val savedOrdinal: () -> Int = {
+            fun <U> choose(value: U, saved: Int = Seed<T>.ordinal): Int = saved
+            choose(0)
+        }
+
+        public override fun create(value: T): Box<T> {
+            cached = Some(value)
+            return Box<T>(value)
+        }
+
+        public fun <U> pair(first: T, second: U): (T, U) = (first, second)
+        public fun echo(value: T = cached!!): T = value
+        public fun capture(value: T): () -> T = { value }
+
+        context(prefix: String)
+        public fun contextual(value: T): (String, T) = (prefix, value)
+    }
+}
+
+public fun integerCompanion(): Box<Int>.Companion = Box<Int>.Companion

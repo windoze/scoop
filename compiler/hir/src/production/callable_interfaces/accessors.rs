@@ -147,6 +147,7 @@ fn finish(
         .map_err(CallableProjectionError::Signature)?;
     let effects = match implementation {
         PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
         | PropertyAccessorImplementation::AbstractSlot(function) => {
             let function = &projection.export.functions[function];
             let binders = projection
@@ -162,6 +163,7 @@ fn finish(
     .map_err(CallableProjectionError::Effects)?;
     let context_parameters = match implementation {
         PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
         | PropertyAccessorImplementation::AbstractSlot(function) => {
             let function = &projection.export.functions[function];
             let binders = projection
@@ -252,6 +254,7 @@ fn modality(
         }
         PropertyAccessorImplementation::Storage
         | PropertyAccessorImplementation::Constant
+        | PropertyAccessorImplementation::StorageBody(_)
         | PropertyAccessorImplementation::Body(_) => match property.modifier {
             MethodModifier::Final => CallableModalityV1::Final,
             MethodModifier::Open => CallableModalityV1::Open,

@@ -41,15 +41,23 @@ impl CanonicalCrossConeRouteAuthority<'_> {
             .identities
             .canonical_key::<PersistentTypeId, GeneratedNominalKey>(generated)
             .map_err(CrossConeHirReferenceAuthorityError::Identity)?;
-        let GeneratedNominalKey::ObjectBackingClass { object } = key.as_ref() else {
-            return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target });
+        let (object, atom) = match key.as_ref() {
+            GeneratedNominalKey::ObjectBackingClass { object } => (
+                NominalDeclarationOwner::Concrete(*object),
+                DefinitionOwnerAtom::Type(*object),
+            ),
+            GeneratedNominalKey::GenericObjectBackingClass { object } => (
+                NominalDeclarationOwner::GenericTemplate(*object),
+                DefinitionOwnerAtom::GenericType(*object),
+            ),
+            _ => return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target }),
         };
-        let object_key = self.source_declaration_key(*object)?;
+        let object_key = self.nominal_source_key(object)?;
         if object_key.declaration_kind() != SourceDeclarationKind::Object {
             return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target });
         }
         let property_key = self.source_declaration_key(property)?;
-        if property_key.owners().owners().last() != Some(&DefinitionOwnerAtom::Type(*object))
+        if property_key.owners().owners().last() != Some(&atom)
             || property_key.origin() != object_key.origin()
         {
             return Err(
@@ -58,7 +66,7 @@ impl CanonicalCrossConeRouteAuthority<'_> {
                 )),
             );
         }
-        Ok(NominalDeclarationOwner::Concrete(*object))
+        Ok(object)
     }
 
     pub(super) fn variant_field_resolution(

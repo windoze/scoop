@@ -37,6 +37,7 @@ impl Lowerer {
                 }
                 if self
                     .qualified_object_const_property(receiver, &name.text)
+                    .ok()?
                     .is_some()
                 {
                     self.error(
@@ -57,13 +58,8 @@ impl Lowerer {
                     );
                 }
                 let mut sink = Vec::new();
-                let forwarding = self
-                    .nominal_qualifier_target(receiver)
-                    .and_then(|host| self.companion_forwarding_property_object(host, &name.text));
-                let receiver = match forwarding {
-                    Some(companion) => self.lower_singleton_value(companion, receiver.span())?,
-                    None => self.lower_expr(receiver, &mut sink, None)?,
-                };
+                let receiver =
+                    self.lower_qualified_property_receiver(receiver, &name.text, &mut sink)?;
                 let kind = self.assign_class_field(assign, receiver, name, &mut sink)?;
                 out.extend(sink);
                 Some(kind)

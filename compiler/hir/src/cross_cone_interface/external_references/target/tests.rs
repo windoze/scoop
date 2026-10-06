@@ -25,10 +25,11 @@ fn target_variants_have_frozen_tags_and_round_trip() {
         ExternalHirTargetV1::Field(fixture.field),
         ExternalHirTargetV1::EnumVariantField(fixture.variant_field),
         ExternalHirTargetV1::GeneratedCallable(fixture.generated),
+        ExternalHirTargetV1::Annotation(fixture.annotation),
     ];
     let mut resolver = fixture.resolver();
 
-    for (tag, target) in (1_u8..=8).zip(targets) {
+    for (tag, target) in (1_u8..=9).zip(targets) {
         let bytes = encode(&target).unwrap();
         assert_eq!(bytes[2], tag);
         let decoded: DecodedExternalHirTargetV1 = decode_canonical(&bytes).unwrap();
@@ -38,9 +39,9 @@ fn target_variants_have_frozen_tags_and_round_trip() {
 
 #[test]
 fn decoder_rejects_unknown_tags_and_wrong_sum_length() {
-    let unknown = decode_canonical::<DecodedExternalHirTargetV1>(&[0xa2, 0x00, 0x09, 0x01, 0x00])
+    let unknown = decode_canonical::<DecodedExternalHirTargetV1>(&[0xa2, 0x00, 0x0a, 0x01, 0x00])
         .unwrap_err();
-    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 9 });
+    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 10 });
 
     let wrong_length =
         decode_canonical::<DecodedExternalHirTargetV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
@@ -74,6 +75,7 @@ struct Fixture {
     property: PersistentPropertyId,
     object: PersistentObjectValueId,
     alias: PersistentTypeAliasId,
+    annotation: PersistentAnnotationId,
     field: PersistentFieldId,
     variant: PersistentEnumVariantId,
     variant_field: PersistentEnumVariantFieldId,
@@ -130,6 +132,11 @@ impl Fixture {
             property,
             object,
             alias,
+            annotation: PersistentAnnotationId::from_source_declaration(&nominal_declaration(
+                "Label",
+                SourceNominalKind::AnnotationClass,
+            ))
+            .unwrap(),
             field,
             variant,
             variant_field,
@@ -144,6 +151,7 @@ impl Fixture {
             property: self.property,
             object: self.object,
             alias: self.alias,
+            annotation: self.annotation,
             field: self.field,
             variant: self.variant,
             variant_field: self.variant_field,
@@ -158,6 +166,7 @@ struct Resolver {
     property: PersistentPropertyId,
     object: PersistentObjectValueId,
     alias: PersistentTypeAliasId,
+    annotation: PersistentAnnotationId,
     field: PersistentFieldId,
     variant: PersistentEnumVariantId,
     variant_field: PersistentEnumVariantFieldId,
@@ -185,6 +194,7 @@ resolve_fixture_identity!(PersistentFunctionId, function, "function");
 resolve_fixture_identity!(PersistentPropertyId, property, "property");
 resolve_fixture_identity!(PersistentObjectValueId, object, "object value");
 resolve_fixture_identity!(PersistentTypeAliasId, alias, "type alias");
+resolve_fixture_identity!(PersistentAnnotationId, annotation, "annotation");
 resolve_fixture_identity!(PersistentFieldId, field, "field");
 resolve_fixture_identity!(PersistentEnumVariantId, variant, "enum variant");
 resolve_fixture_identity!(

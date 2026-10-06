@@ -104,6 +104,16 @@ impl SourceCallableMaterialization {
             },
         )
         .map_err(SourceCallableMaterializationError::GeneratedCallable)?;
+        Self::exact_method(function, exact, nominal_group, signature, generated)
+    }
+
+    fn exact_method(
+        function: FunctionId,
+        exact: &crate::SourceExactTypeRecord,
+        nominal_group: Option<&crate::SourceNominalSpecializationRecord>,
+        signature: ExactCallableSignature,
+        generated: scoop_identity::PersistentGeneratedCallableId,
+    ) -> Result<Self, SourceCallableMaterializationError> {
         let discriminator = OdrMemberDiscriminator::GeneratedCallable(generated);
         let owner = if matches!(exact.key(), ExactTypeKey::Nominal(owner)
             if *owner == CoreBuiltinNominal::Unit.identity_record().id())

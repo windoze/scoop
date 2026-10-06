@@ -1,13 +1,15 @@
 SourceFile
   QualifiedPackage consumer.nesting
-  ImportExact Local facade.nesting.Outer.companionAdd
+  ImportExact Local facade.nesting.Outer
   ImportStar Local facade.nesting.Outer.Companion.*
   ImportExact Local facade.nesting.Outer.Tools.keep
   public fun exercise<T>(value: T, read: (T) -> Int): Int
     val leaf
       Call CompanionLeaf
-        Call companionAdd
-          Var companionBase
+        MethodCall companionAdd
+          TypeQualifier Outer<Int>
+          FieldAccess companionBase
+            TypeQualifier Outer<Int>
     return
       IfExpression
         Binary Eq

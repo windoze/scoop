@@ -14,7 +14,7 @@ use crate::{
     NativeExternalContractFingerprint, NativeExternalContractFingerprintInput,
     NativeExternalSymbolKey, NativeLinkRequirementId, NativeLinkRequirementKey,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey,
+    ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey, PersistentAnnotationId,
     PersistentCallableApplicationId, PersistentCallbackApplicationId,
     PersistentCallbackRegistrationId, PersistentConstructorId, PersistentDispatchSlotId,
     PersistentDispatchTableId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
@@ -94,6 +94,11 @@ impl_cbor_identity_key!(
     SourceDeclarationKey => PersistentTypeAliasId,
     SourceDeclarationIdentityError,
     PersistentTypeAliasId::from_source_declaration
+);
+impl_cbor_identity_key!(
+    SourceDeclarationKey => PersistentAnnotationId,
+    SourceDeclarationIdentityError,
+    PersistentAnnotationId::from_source_declaration
 );
 impl_hash_identity_key!(
     PropertyAccessorKey => PersistentPropertyAccessorId,

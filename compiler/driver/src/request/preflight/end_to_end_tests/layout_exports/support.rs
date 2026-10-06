@@ -203,6 +203,7 @@ pub(super) fn with_pair(
                     usage.target(),
                     mir::MirTypeBridgeTargetV1::Type(_)
                         | mir::MirTypeBridgeTargetV1::ShapeSupport(_)
+                        | mir::MirTypeBridgeTargetV1::Callable(_)
                 ))
     );
     assert_eq!(
