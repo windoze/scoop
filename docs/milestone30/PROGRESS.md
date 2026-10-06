@@ -138,3 +138,9 @@ Ruff、42 项公共规则测试和完整发现检查通过。新增反例确认�
 删除冻结片段和退役的重复 optional-members CLI fixture，共 73 个失用文件；泛型委托 fixture 的 27 个正常步骤完整保留，仍包含三 Cone 编译、移走源码、artifact-only 消费、完整阶段／符号和两种 GC。通用 program-link 的 artifact-only 运行及原子失败行为继续保留。公开语言错误的 negative fixture 未减少。
 
 Rust 格式化、workspace clippy 和 4 项定向测试通过（其中已有完整 reader 测试增加八个缺项组合，两个调度分别验证）；新增独立测试为 3 项。Ruff 和 42 项公共 runner 测试通过。Darwin CLI 最终定向验收继续复用此前成功结果，另行记录完整并集。
+
+## G4：Rust 端到端测试的固定机器码摘要
+
+继续审查 Rust 中的固定哈希，删除泛型机器码端到端辅助函数中的 13 个哈希字面量及仅用于选择该表的 target 参数。真实对象、registration 和 safepoint 的 typed 引用、ABI／LIR 对应关系与补丁字节检查仍在；不同 Cone 的实际内容一致性，以及修改关联 EH／stackmap atom 后只使相应 definition 失效的断言全部保留。该辅助文件减少 69 行，不以另一张快照表替代。
+
+直接构造受控对象字节的 slib 指纹测试、identity／wire 编码向量与 cache key／receipt 的 canonical 向量仍保留。普通文件 fixture 的固定 fingerprint 检查再次扫描为零。格式化、workspace clippy 和 `actual_generic_library_emits_shared_odr_objects` 定向测试通过。

@@ -150,7 +150,6 @@ pub(super) fn verify(
         scoop_slib::ConeSourceForm::Manifest,
     )
     .unwrap();
-    let target = prepared.target_selection.target();
     let finalized = prepared
         .finalize(
             &undefined,
@@ -167,7 +166,7 @@ pub(super) fn verify(
     if expected_bodies == 1 {
         member_fingerprints::check_inputs(objects, &finalized.foundation, canonical);
     }
-    let fingerprints = finalization::check(objects, canonical, target);
+    let fingerprints = finalization::check(objects, canonical);
     let code = scoop_slib::compute_cross_cone_layout_code_fingerprint_v1(
         finalized.projection,
         native,
