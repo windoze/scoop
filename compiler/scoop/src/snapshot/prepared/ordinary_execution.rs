@@ -18,9 +18,8 @@ use crate::{
 mod diagnostics;
 
 impl PreparedBuildGraph {
-    /// Resolves one ordinary source node through the content-addressed cache
-    /// or exactly one paired compiler child while the exclusive key lock is
-    /// held across the miss, validation, and atomic summary.
+    /// Observed sources compile independently; ordinary misses keep their key
+    /// lock through compilation. Both publish under the same exclusive key lock.
     pub(crate) fn execute_ordinary_source(
         &mut self,
         identity: ConeIdentity,
@@ -38,10 +37,25 @@ impl PreparedBuildGraph {
             .compile_cache_key(identity, completed)
             .map_err(|source| OrdinarySourceExecutionError::CacheKey(Box::new(source)))?;
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
-        let observed = self.is_observed(identity);
-        if !observed {
+        let lock = if self.is_observed(identity) {
+            None
+        } else {
+            {
+                let lock = store
+                    .acquire_shared(key)
+                    .map_err(OrdinarySourceExecutionError::CacheStore)?;
+                if let CompileCacheLookupV1::Hit(entry) = store
+                    .lookup(&lock)
+                    .map_err(OrdinarySourceExecutionError::CacheStore)?
+                {
+                    return self
+                        .complete_cache_hit(identity, *entry, completed)
+                        .map_err(OrdinarySourceExecutionError::CacheCompletion);
+                }
+            }
+
             let lock = store
-                .acquire_shared(key)
+                .acquire_exclusive(key)
                 .map_err(OrdinarySourceExecutionError::CacheStore)?;
             if let CompileCacheLookupV1::Hit(entry) = store
                 .lookup(&lock)
@@ -51,22 +65,8 @@ impl PreparedBuildGraph {
                     .complete_cache_hit(identity, *entry, completed)
                     .map_err(OrdinarySourceExecutionError::CacheCompletion);
             }
-        }
-
-        let lock = store
-            .acquire_exclusive(key)
-            .map_err(OrdinarySourceExecutionError::CacheStore)?;
-        if let CompileCacheLookupV1::Hit(entry) = store
-            .lookup(&lock)
-            .map_err(OrdinarySourceExecutionError::CacheStore)?
-        {
-            let hit = self
-                .complete_cache_hit(identity, *entry, completed)
-                .map_err(OrdinarySourceExecutionError::CacheCompletion)?;
-            if !observed {
-                return Ok(hit);
-            }
-        }
+            Some(lock)
+        };
 
         let invocation = self
             .child_invocation_plan(identity, request_id, completed)
@@ -89,7 +89,7 @@ impl PreparedBuildGraph {
                 return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
             }
         };
-        self.finish_source_output(identity, completed, &invocation, &lock, &success)
+        self.finish_source_output(identity, completed, &invocation, key, lock, &success)
             .map_err(|source| {
                 if success.warnings().is_empty() {
                     source
@@ -107,10 +107,10 @@ impl PreparedBuildGraph {
         identity: ConeIdentity,
         completed: &[&CompletedNode],
         invocation: &super::model::child_request::ChildInvocationPlanV1,
-        lock: &crate::CompileCacheKeyLockV1,
+        key: crate::ConeCompileCacheKeyV1,
+        held_lock: Option<crate::CompileCacheKeyLockV1>,
         success: &scoop_protocol::ScoopcSuccessV1,
     ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
-        let key = lock.key();
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
         self.staging
             .validate_completed_output(invocation.output_path())
@@ -149,8 +149,14 @@ impl PreparedBuildGraph {
         )
         .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
         completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
+        let lock = match held_lock {
+            Some(lock) => lock,
+            None => store
+                .acquire_exclusive(key)
+                .map_err(OrdinarySourceExecutionError::CacheStore)?,
+        };
         let published = store
-            .publish(lock, &output, &receipt)
+            .publish(&lock, &output, &receipt)
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
         let (crate::CompileCachePublishV1::Published(entry)
         | crate::CompileCachePublishV1::ExistingEquivalent(entry)) = published;

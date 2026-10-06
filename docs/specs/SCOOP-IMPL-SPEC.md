@@ -997,6 +997,12 @@ build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价
 
 显式 stage dump 是普通编译的观察输出。`scoop build --emit <ast|hir|mir|lir|all> --dump-dir <dir> [--dump-scope root|sources]` 默认只观察 root；sources 覆盖图中全部源码节点，不从 prebuilt 反造 AST 或 LocalConcrete HIR。一个被观察节点只启动一次 child，在同次实际 pipeline 中取得请求的 dump；HIR dump 同时显示 Export 与 LocalConcrete，并以 CrossCone 区域显示同次 HIR 生产的共享接口、source constructor 合同和导入 application；LocalConcrete 保留实际 shape-support roots。共享声明、默认参数／泛型正文、引用与 definition source 按已有 canonical 表顺序输出，arena 按本地 id 顺序输出。观察只读取已有 typed 数据，不重新投影、解码或验证，也不改变产物内容。普通 cache hit 不启动 child；显式观察的源码节点即使命中仍重新编译一次，使用相同源码／依赖快照和编译键，不增加 dump cache 或第二条语义管线。该请求不省略正常产物生产，失败不得返回成功 artifact。machine transport 仍是单 request／response 的 length-prefixed canonical CBOR；M23-11 将请求／响应协议升至 2，以封闭文件输出请求携带非空、唯一、有序的 stage 集合和目录，返回逐 stage 文件位置与内容摘要。machine stdout 只含协议 frame；旧单 stage 的 machine 形态按版本拒绝。协议 capability 及编译缓存随版本失效，`.slib`、identity、runtime ABI 和 link-plan 格式不因 dump 改变。
 
+显式观察不消费缓存产物来替代本次编译；其 child、实际新产物的检查及 dump 输出
+在编译键独占锁之外完成，只在比较和原子发布缓存条目时取得该锁。普通缓存未命中
+仍在独占锁内再次检查并去重编译；普通命中仍复用已有结果。并发观察各自生成所请求
+的 dump，相同产物沿既有规则复用缓存条目，差异仍报 nondeterminism；失败不发布成功
+产物。不增加 dump 缓存、并发登记表或新的格式/协议版本。
+
 build/run 的默认 target root 为 manifest Cone root 下的 `target/`，single-file 则为调用者 cwd 下的 `target/`；显式 `--target-dir <dir>` 相对调用者 cwd 解析并替换该根。实际输出目录统一追加 `<canonical-target-triple>/<debug|release>/`，即使省略 `--target` 也保留已解析的 host triple。manifest library 的文件名为 `<cone-name>.slib`，manifest executable 为 `<cone-name>`，single-file 为 `<sanitized-input-stem>`；用户可见路径不再含 content fingerprint。build 的 `-o` 单独覆盖最终 root 文件的完整路径，不追加 triple/profile；它与 `--target-dir` 可同时使用，最终文件以 `-o` 为准，内部产物缓存仍独立由 `--cache-dir` 决定。所有物化均复用同次已检查结果、目的位置锁与原子发布，不重新链接或重做 final verifier；library 不与可变用户文件共享 cache inode。相同目的位置由最后一次成功发布替换，失败保留旧文件。`run` 先完成同样的稳定输出发布，再执行同次链接结果保留的私有副本；副本与稳定 binary 位于同一目录以保持 `@executable_path` 语义，argv[0] 使用稳定 binary 路径。它继承调用者 cwd、environment、stdio 与原始程序参数，结束后仅清理私有文件并保留真实 exit/signal；工具失败不执行旧 binary。历史 driver 和 fixture runner 已在早先提交中删除，M23-11 必须恢复正式 CLI 的历史端到端测试覆盖，不能把仍在磁盘上的 fixture 或仅 stage 单元测试视为已经通过该完成门。
 
 M23-11 同时将现有 Rust-based fixture infra 迁到统一的 Python runner：fixture 的发现、环境准备、工具执行、诊断／dump／运行结果比较及快照维护共用一套数据规则。acceptance criteria 可写在 fixture 源码注释或附加描述文件中，两种载体使用同一 schema，统一表达执行条件、步骤与断言；不得按文件名、目录、里程碑或单个 case 在 Python 中硬编码行为。新增 fixture 原则上只增加源码、描述和期望文件，只有现有规则确实不能表达新的实际测试能力时才扩展公共规则。迁移验收须同时恢复覆盖并删除原 Rust fixture runner、专用测试编排／快照辅助代码及不再使用的依赖与入口，不保留两套长期实现。普通 Rust 单元测试继续验证内存中的算法、类型结构和内部不变量，不再承担文件 fixture 的发现和执行编排；这项迁移不改变生产 compiler、IR 或 runtime 的语言与边界。
