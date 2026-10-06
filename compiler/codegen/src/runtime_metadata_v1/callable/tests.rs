@@ -31,7 +31,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap();
 
@@ -143,7 +143,7 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap();
     assert_eq!(
@@ -158,7 +158,7 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
@@ -176,7 +176,7 @@ fn rejects_missing_or_non_address_significant_callable_entries() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("is not declared"), "{error}");
@@ -200,7 +200,7 @@ fn rejects_missing_or_non_address_significant_callable_entries() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("address-significant"), "{error}");
@@ -230,7 +230,7 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
@@ -255,7 +255,7 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
@@ -273,7 +273,7 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         &plan,
         &surface,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        super::CallableRegistrationSelection::NonContext,
+        plan.registrations()[0].body(),
     )
     .unwrap_err();
     assert!(error.0.contains("external linkage"), "{error}");

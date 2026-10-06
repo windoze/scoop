@@ -63,7 +63,7 @@ fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         StrongObjectEmissionSelection::CallableBody(body),
         |context, llvm, target_data, _, _| {
             Ok((
-                runtime_metadata_v1::emit_context_callable_metadata_v1(
+                runtime_metadata_v1::emit_callable_metadata_v1(
                     context,
                     llvm,
                     target_data,

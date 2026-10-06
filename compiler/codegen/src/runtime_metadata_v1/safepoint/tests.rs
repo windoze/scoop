@@ -19,7 +19,13 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
     let context = Context::create();
     let llvm = context.create_module("safepoint-registration");
 
-    let emitted = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+    )
+    .unwrap();
 
     assert_eq!(emitted.producer(), ConeIdentity::SINGLE_FILE);
     assert_eq!(emitted.registrations().len(), 1);
@@ -145,14 +151,26 @@ fn completes_one_matching_image_declaration_then_rejects_redefinition() {
     );
     declaration.set_linkage(Linkage::External);
 
-    let emitted = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+    )
+    .unwrap();
     assert_eq!(
         emitted.registrations()[0].descriptor().get_name(),
         declaration.get_name()
     );
     assert!(declaration.get_initializer().is_some());
 
-    let error = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+    )
+    .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
 }
 
@@ -165,7 +183,13 @@ fn rejects_an_incompatible_prior_global_declaration() {
     let incompatible = llvm.add_global(context.i8_type(), None, symbol.as_str());
     incompatible.set_linkage(Linkage::External);
 
-    let error = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+    )
+    .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
 }
 

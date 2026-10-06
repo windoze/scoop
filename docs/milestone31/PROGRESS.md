@@ -64,3 +64,10 @@
 - 首轮定向 48 项通过；随后新增多线程 native/callback/冻结段根和同一卡并发写入 2 项通过，native recursive region 补测通过。真实空间不足测试在已预留一个目标 block 后失败，再 full 并继续分配，数据保持。
 - Darwin 三个正式用例共 9 个变体通过；新增构造期间晋升、ready/unready release hook、宽值/数组/box/Context 组合的三个变体通过，包含真实 minor stress 与正常容量触发。runtime ABI 与 compatibility 各 4 项通过，JSON 统计已实际运行并解析。
 - Linux 本批验证待补：`nuc12w.0d0a.com:22` 连续连接超时，未把前一批 Linux 结果当作本批通过。继续其余实现后重试。清理新增的约 1.1 GiB debug 增量目录。
+
+## M31-2 物理边界：正文附属登记
+
+- 每个 callable 对象包含自己的 callable/safepoint registration、Context key 表与 cell，以及原有 EH/stackmap/私有 scan；无 Context 的登记同样随正文。公共 metadata 对象不再定义正文登记。
+- 分区直接使用已有 typed body/site owner，保持所有 definition 的完整、不重叠覆盖；未增加新身份或分组框架。原 Context 专用发射模块改为统一正文登记发射，公共发射代码减少。
+- Rust fmt 与 workspace clippy 通过；真实 object、NoGC、登记、patch 侧表定向 15 项通过。Darwin nursery 的 debug/release/normal 三变体、跨 Cone Context 的 artifact-only link/run 与九份阶段快照通过，合计 19 个正式进程。
+- 本批仅建立可同选的正文物理边界；独立 ODR 数据分区、显式 primary 选择、最终 image 和 definition 字段删除继续实施。

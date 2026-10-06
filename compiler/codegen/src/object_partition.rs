@@ -1,6 +1,6 @@
 //! Deterministic physical partition for strong Scoop LIR object emission.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_lir::{
@@ -52,13 +52,13 @@ impl ScoopLirObjectPartitionV1 {
             .map_err(ScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
-        let context_bodies = input
+        let site_owners = input
             .module()
             .callable_bodies()
-            .filter(|function| !scoop_lir::function_context_keys(function).is_empty())
-            .map(|function| function.callable_body.id())
-            .collect::<BTreeSet<_>>();
-        let mut context_registrations = BTreeMap::new();
+            .flat_map(|function| function.safepoints.iter())
+            .map(|site| (site.site_id(), site.owner()))
+            .collect::<BTreeMap<_, _>>();
+        let mut body_registrations = BTreeMap::<_, Vec<_>>::new();
         for definition in producer_units.scoop_lir_definition_plans() {
             let plan = surface
                 .plan(*definition)
@@ -84,11 +84,25 @@ impl ScoopLirObjectPartitionV1 {
                             *definition,
                         ));
                     };
-                    if context_bodies.contains(&body) {
-                        context_registrations.insert(body, *definition);
-                    } else {
-                        non_callable.push(*definition);
-                    }
+                    body_registrations
+                        .entry(body)
+                        .or_default()
+                        .push(*definition);
+                }
+                StrongDefinitionRole::SafepointRegistration => {
+                    let StrongDefinitionEntityKind::SafepointSite(site) = plan.owner().kind()
+                    else {
+                        return Err(ScoopLirObjectPartitionError::InvalidCallableDefinition(
+                            *definition,
+                        ));
+                    };
+                    let body = site_owners.get(&site).ok_or(
+                        ScoopLirObjectPartitionError::InvalidCallableDefinition(*definition),
+                    )?;
+                    body_registrations
+                        .entry(*body)
+                        .or_default()
+                        .push(*definition);
                 }
                 _ => non_callable.push(*definition),
             }
@@ -104,13 +118,22 @@ impl ScoopLirObjectPartitionV1 {
         });
         objects.extend(callables.into_iter().map(|(body, definition)| {
             let mut definition_plans = vec![definition];
-            definition_plans.extend(context_registrations.remove(&body));
+            definition_plans.extend(body_registrations.remove(&body).into_iter().flatten());
             definition_plans.sort_unstable();
             ScoopLirObjectUnitSetV1 {
                 kind: ScoopLirObjectKindV1::CallableBody(body),
                 definition_plans,
             }
         }));
+        if let Some(definition) = body_registrations
+            .values()
+            .flat_map(|plans| plans.iter())
+            .next()
+        {
+            return Err(ScoopLirObjectPartitionError::InvalidCallableDefinition(
+                *definition,
+            ));
+        }
         Ok(Self {
             producer_units,
             objects,

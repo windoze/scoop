@@ -104,11 +104,13 @@ pub(crate) fn emit_strong_safepoint_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongSafepointRegistrationPlanSetV1,
+    body: scoop_lir::PersistentCallableBodyId,
 ) -> Result<EmittedStrongSafepointRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let registrations = plan
         .registrations()
         .iter()
+        .filter(|registration| registration.owner() == body)
         .map(|registration| emit_registration(context, llvm, &types, *registration))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongSafepointRegistrationSetV1 {

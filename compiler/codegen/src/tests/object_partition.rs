@@ -30,17 +30,49 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
             .iter()
             .find(|plan| plan.definition_plan() == *definition)
             .is_some_and(|plan| {
-                plan.definition_role() != scoop_lir::StrongDefinitionRole::CallableBody
+                !matches!(
+                    plan.definition_role(),
+                    scoop_lir::StrongDefinitionRole::CallableBody
+                        | scoop_lir::StrongDefinitionRole::CallableRegistration
+                        | scoop_lir::StrongDefinitionRole::SafepointRegistration
+                )
             })
     }));
 
     let actual_bodies = partition.objects()[1..]
         .iter()
         .map(|object| {
-            assert_eq!(object.definition_plans().len(), 1);
             let ScoopLirObjectKindV1::CallableBody(body) = object.kind() else {
                 panic!("only the first object may be non-callable");
             };
+            let plans = object
+                .definition_plans()
+                .iter()
+                .map(|id| surface.plan(*id).unwrap())
+                .collect::<Vec<_>>();
+            assert!(plans.iter().any(|plan| plan.definition_role()
+                == scoop_lir::StrongDefinitionRole::CallableRegistration));
+            for plan in plans {
+                match plan.owner().kind() {
+                    scoop_lir::StrongDefinitionEntityKind::CallableBody(owner) => {
+                        assert_eq!(owner, body)
+                    }
+                    scoop_lir::StrongDefinitionEntityKind::SafepointSite(site) => {
+                        let function = input
+                            .module()
+                            .callable_bodies()
+                            .find(|function| function.callable_body.id() == body)
+                            .unwrap();
+                        assert!(
+                            function
+                                .safepoints
+                                .iter()
+                                .any(|entry| entry.site_id() == site)
+                        );
+                    }
+                    other => panic!("unrelated definition in callable object: {other:?}"),
+                }
+            }
             body
         })
         .collect::<BTreeSet<_>>();
@@ -233,13 +265,12 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
             continue;
         };
         callable_count += 1;
-        let [definition] = member.units().definition_plans() else {
-            panic!("each callable member must own exactly one definition");
-        };
-        let plan = emitted
-            .production()
-            .canonical_definitions()
-            .plan(*definition)
+        let plan = member
+            .units()
+            .definition_plans()
+            .iter()
+            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .find(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
             .unwrap();
         assert_eq!(
             plan.owner().kind(),
@@ -247,6 +278,21 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
         );
         let bytes = std::fs::read(member.path()).unwrap();
         let object = object::File::parse(bytes.as_slice()).unwrap();
+        for definition in member.units().definition_plans() {
+            let definition = emitted
+                .production()
+                .canonical_definitions()
+                .plan(*definition)
+                .unwrap();
+            let name = normalization
+                .compiler_generated_object_symbol(definition.primary_symbol().symbol().as_str());
+            assert!(
+                object
+                    .symbol_by_name(&name)
+                    .is_some_and(|symbol| symbol.is_definition()),
+                "missing colocated definition {name}"
+            );
+        }
         let primary_name =
             normalization.compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str());
         let primary = object.symbol_by_name(&primary_name).unwrap();
