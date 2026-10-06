@@ -1,3 +1,0 @@
-struct Item<T>(val value: T) : Encodable
-
-fun main() {}

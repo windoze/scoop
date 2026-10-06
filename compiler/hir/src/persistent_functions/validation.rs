@@ -217,6 +217,7 @@ fn validate_accessor(
                 && matches!(
                     inputs.property_getters[getter].implementation,
                     PropertyAccessorImplementation::Body(actual)
+                        | PropertyAccessorImplementation::StorageBody(actual)
                         | PropertyAccessorImplementation::AbstractSlot(actual)
                         if actual == function
                 )
@@ -230,6 +231,7 @@ fn validate_accessor(
                 && matches!(
                     inputs.property_setters[setter].implementation,
                     PropertyAccessorImplementation::Body(actual)
+                        | PropertyAccessorImplementation::StorageBody(actual)
                         | PropertyAccessorImplementation::AbstractSlot(actual)
                         if actual == function
                 )

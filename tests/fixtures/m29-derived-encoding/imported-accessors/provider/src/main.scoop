@@ -1,0 +1,9 @@
+package accessors
+public class Getter public constructor() {
+    public val value: Int = 7
+        get() = field
+}
+public class Setter public constructor() {
+    public var value: Int = 8
+        set(next) { field = next }
+}

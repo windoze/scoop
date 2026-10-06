@@ -365,6 +365,7 @@ impl Lowerer {
         matches!(
             accessor,
             hir::PropertyAccessorImplementation::Body(_)
+                | hir::PropertyAccessorImplementation::StorageBody(_)
                 | hir::PropertyAccessorImplementation::AbstractSlot(_)
         )
     }

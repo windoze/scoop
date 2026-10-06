@@ -3,6 +3,7 @@ mod objects;
 mod private_accessors;
 mod property_slots;
 mod protected_scopes;
+mod signatures;
 mod support;
 
 fn visibility(value: ast::DeclaredVisibility) -> ast::VisibilitySyntax {

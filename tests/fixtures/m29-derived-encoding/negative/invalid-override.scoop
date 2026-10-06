@@ -1,5 +1,7 @@
-struct Item(val value: Int) : Encodable {
-    public override fun encode(encoder: Encoder): Int = 1
+struct Item(val value: Any) {
+    companion object : Encodable<Item> {
+        public override fun encode(value: Item, encoder: Encoder): Int = 1
+    }
 }
 
 fun main() {}

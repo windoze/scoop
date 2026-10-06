@@ -1,6 +1,7 @@
-enum Item : Encodable {
+enum Item {
     @SerialName("same") First,
     @SerialName("same") Second
+    companion object : Encodable<Item>
 }
 
 fun main() {}

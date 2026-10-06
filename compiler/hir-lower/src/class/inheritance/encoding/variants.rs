@@ -3,123 +3,122 @@ use super::*;
 impl Lowerer {
     pub(super) fn encode_enum(
         &mut self,
-        enumeration: hir::EnumId,
-        encodable: TypeId,
+        context: CodingContext,
+        value: hir::Expr,
+        encoder: hir::Expr,
         span: Span,
-    ) -> Option<ast::Block> {
-        let variants = self.enums[enumeration].variants.clone();
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<()> {
+        let container = self.encoding_container(encoder, true, span, sink)?;
         let mut arms = Vec::new();
         let mut names = std::collections::HashSet::new();
-        for (index, variant) in variants.into_iter().enumerate() {
-            let source = hir::EnumVariantRef::checked(&self.enums, enumeration, index as u32)
-                .expect("the shape iterates this enum's variants");
-            let variant_span = self.enum_variant_spans[&source];
-            let name = self
+        for variant in self.enum_variants(context.target) {
+            let (wire, fields) = self.encoding_variant_names(&variant);
+            self.check_encoding_wire_name(&wire, "variant", span, &mut names)?;
+            let mut body = Vec::new();
+            let name = self.coding_string(&wire, span);
+            let child =
+                self.coding_call(container.clone(), "field", vec![name], span, &mut body)?;
+            let keyed = variant.style != hir::VariantStyle::Positional;
+            let payload = self.encoding_container(child, keyed, span, &mut body)?;
+            let mut patterns = Vec::new();
+            let mut field_names = std::collections::HashSet::new();
+            for (index, ((_, ty), wire)) in variant.fields.iter().zip(fields).enumerate() {
+                let Some(wire) = wire else { continue };
+                if keyed {
+                    self.check_encoding_wire_name(&wire, "field", span, &mut field_names)?;
+                }
+                let local = self.alloc_hidden("encoded_payload", *ty);
+                patterns.push((index as u32, hir::Pattern::Binding { local }));
+                let field = self.coding_expr(hir::ExprKind::Local(local), *ty, span);
+                self.encode_field(
+                    context,
+                    field,
+                    payload.clone(),
+                    keyed.then_some(wire.as_str()),
+                    span,
+                    &mut body,
+                )?;
+            }
+            self.end_coding_container(payload, span, &mut body)?;
+            arms.push(hir::WhenArm {
+                pattern: hir::Pattern::Variant {
+                    application: variant.application,
+                    fields: patterns,
+                },
+                guard: None,
+                body,
+                span,
+            });
+        }
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::When(hir::When {
+                subject: value,
+                arms,
+                fallback: hir::WhenFallback::Impossible(
+                    hir::ExhaustivenessProof::EnumPatternMatrix {
+                        subject_ty: context.target,
+                    },
+                ),
+            }),
+            span,
+        });
+        self.end_coding_container(container, span, sink)
+    }
+
+    fn encoding_variant_names(
+        &self,
+        variant: &crate::types::EnumVariant,
+    ) -> (String, Vec<Option<String>>) {
+        let application = self
+            .nominal_application(variant.application.owner)
+            .expect("a variant belongs to its enum application");
+        let index = self.enum_variant_index(variant.application);
+        if let Some(enumeration) = self.source_enum_id(application.template) {
+            let source = hir::EnumVariantRef::checked(&self.enums, enumeration, index)
+                .expect("the variant belongs to its declaration");
+            let wire = self
                 .serialization_wire_name(
                     hir::SourceAnnotationTarget::Variant(source),
                     &variant.name,
                 )
-                .expect("Transient is not a variant annotation");
-            if !names.insert(name.clone()) {
-                self.error(
-                    variant_span,
-                    format!("automatic encode has duplicate variant name `{name}`"),
-                );
-            }
-            let child = syntax::call(
-                syntax::variable("__encoding_variants", variant_span),
-                "field",
-                vec![syntax::string(name, variant_span)],
-                variant_span,
-            );
-            let mut fields = Vec::new();
-            let mut patterns = Vec::new();
-            let mut field_names = std::collections::HashSet::new();
-            for (field_index, field) in variant.fields.iter().enumerate() {
-                let source =
-                    hir::EnumVariantFieldRef::checked(&self.enums, source, field_index as u32)
-                        .expect("the shape iterates this variant's fields");
-                let span = self.enum_variant_field_spans[&source];
-                if let Some(name) = self.serialization_wire_name(
-                    hir::SourceAnnotationTarget::VariantField(source),
-                    &field.name,
-                ) {
-                    let binding = format!("__encoding_value_{field_index}");
-                    self.check_encoding_field(&name, field.ty, encodable, span, &mut field_names);
-                    fields.push((name, syntax::variable(&binding, span), span));
-                    patterns.push(ast::Pattern::Binding(syntax::ident(&binding, span)));
-                } else {
-                    patterns.push(ast::Pattern::Wildcard { span });
-                }
-            }
-            let body = if variant.style == hir::VariantStyle::Positional {
-                syntax::sequence(
-                    fields
-                        .into_iter()
-                        .map(|(_, value, span)| (value, span))
-                        .collect(),
-                    child,
-                    variant_span,
+                .expect("variants cannot be Transient");
+            let fields = variant
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(index, (name, _))| {
+                    let field =
+                        hir::EnumVariantFieldRef::checked(&self.enums, source, index as u32)
+                            .expect("the field belongs to its variant");
+                    self.serialization_wire_name(
+                        hir::SourceAnnotationTarget::VariantField(field),
+                        name,
+                    )
+                })
+                .collect();
+            (wire, fields)
+        } else {
+            let wire = self
+                .dependency_coding_wire_name(
+                    hir::AnnotationTargetV1::Variant(variant.application.variant),
+                    &variant.name,
                 )
-            } else {
-                syntax::record(fields, child, variant_span)
-            };
-            let path = vec![syntax::ident(&variant.name, variant_span)];
-            let pattern = if variant.style == hir::VariantStyle::Named {
-                ast::Pattern::Named {
-                    path,
-                    fields: variant
-                        .fields
-                        .iter()
-                        .zip(patterns)
-                        .map(|(field, subpattern)| ast::FieldPattern {
-                            field: syntax::ident(&field.name, variant_span),
-                            subpattern: Box::new(subpattern),
-                            span: variant_span,
-                        })
-                        .collect(),
-                    rest: None,
-                    span: variant_span,
-                }
-            } else {
-                ast::Pattern::Positional {
-                    path,
-                    elements: patterns,
-                    rest: None,
-                    span: variant_span,
-                }
-            };
-            arms.push(ast::WhenArm {
-                pattern,
-                guard: None,
-                body,
-                span: variant_span,
-            });
+                .expect("variants cannot be Transient");
+            let fields = variant
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(field_index, (name, _))| {
+                    let field = self.loaded_enum_definitions[&application.template]
+                        .field_identity(index as usize, field_index);
+                    self.dependency_coding_wire_name(
+                        hir::AnnotationTargetV1::VariantField(field),
+                        name,
+                    )
+                })
+                .collect();
+            (wire, fields)
         }
-        Some(ast::Block {
-            statements: vec![
-                syntax::local(
-                    "__encoding_variants",
-                    syntax::call(syntax::variable("encoder", span), "keyed", vec![], span),
-                    span,
-                ),
-                ast::Statement {
-                    kind: ast::StatementKind::When(ast::When {
-                        subject: ast::Expr::This { span },
-                        arms,
-                        else_body: None,
-                        span,
-                    }),
-                    span,
-                },
-                syntax::statement(syntax::call(
-                    syntax::variable("__encoding_variants", span),
-                    "end",
-                    vec![],
-                    span,
-                )),
-            ],
-            span,
-        })
     }
 }

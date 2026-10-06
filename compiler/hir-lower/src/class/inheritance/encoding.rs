@@ -1,46 +1,72 @@
-//! Missing core encode requirements become ordinary source-owned members.
-//! Pending work is consumed before Export HIR construction.
+//! Missing encode requirements become ordinary methods on the selected codec.
 
+use super::coding::{CodingContext, CodingDirection, SelectedCodec};
 use super::interfaces::InterfaceMemberInstance;
 use super::*;
 use ast::Span;
-use hir::FunctionKind;
 
+mod classes;
 mod declarations;
 mod fields;
-mod syntax;
+mod values;
 mod variants;
 
 impl Lowerer {
     pub(crate) fn lower_derived_encoding_bodies(&mut self) {
-        for (function, owner, encodable) in std::mem::take(&mut self.derived_encoding_methods) {
+        for (function, interface) in std::mem::take(&mut self.derived_encoding_methods) {
             self.current_file = self.function_files[&function];
-            let parameters = self.signatures[&function].type_params.clone();
-            let previous_parameters = std::mem::replace(&mut self.type_params_in_scope, parameters);
-            let previous_owner = self.current_owner.replace(owner);
-            let before = self.diagnostics.len();
-            let span = self.functions[function].span;
-            let block = match owner {
-                Owner::Struct(structure) => self.encode_struct(structure, encodable, span),
-                Owner::Enum(enumeration) => self.encode_enum(enumeration, encodable, span),
-                Owner::Class(class) => self.encode_class(class, encodable, span),
-                Owner::Object(_) => {
-                    self.error(span, "automatic encode requires a struct, enum, or final class without a class base; provide an explicit encode implementation for an object".into());
-                    None
-                }
-                Owner::Interface(_) => {
-                    unreachable!("an interface does not request a nominal method body")
-                }
+            let context = CodingContext {
+                owner: self.function_owner[&function],
+                target: self.signatures[&function].params[0].ty,
+                interface,
+                direction: CodingDirection::Encode,
             };
-            self.type_params_in_scope = previous_parameters;
-            self.current_owner = previous_owner;
-            if self.diagnostics.len() != before {
-                continue;
+            let span = self.functions[function].span;
+            let body = self.lower_synthesized_body(function, |state| {
+                let parameter = |index: usize| {
+                    let parameter = &state.functions[function].params[index];
+                    state.coding_expr(hir::ExprKind::Local(parameter.local), parameter.ty, span)
+                };
+                let value = parameter(1);
+                let encoder = parameter(2);
+                let before = state.diagnostics.len();
+                let mut statements = Vec::new();
+                if state.encode_target(context, value, encoder, span, &mut statements).is_some() {
+                    statements.push(hir::Statement {
+                        kind: hir::StatementKind::Return { value: None },
+                        span,
+                    });
+                } else if state.diagnostics.len() == before {
+                    state.error(span, "automatic encode could not resolve the required core codec or field access".into());
+                }
+                statements
+            });
+            self.functions[function].kind = hir::FunctionKind::User(body);
+        }
+    }
+
+    fn encode_target(
+        &mut self,
+        context: CodingContext,
+        value: hir::Expr,
+        encoder: hir::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<()> {
+        match self.types[context.target].clone() {
+            Type::Struct(_) => self.encode_struct(context, value, encoder, span, sink),
+            Type::Class(_) => self.encode_class(context, value, encoder, span, sink),
+            Type::Enum(_) => self.encode_enum(context, value, encoder, span, sink),
+            Type::Tuple(fields) => {
+                let codecs = fields
+                    .into_iter()
+                    .map(|ty| self.select_field_codec(context, ty, span))
+                    .collect::<Option<Vec<_>>>()?;
+                self.encode_tuple(context, &codecs, value, encoder, span, sink)
             }
-            if let Some(block) = block {
-                let body =
-                    self.lower_synthesized_body(function, |lowerer| lowerer.lower_block(&block));
-                self.functions[function].kind = FunctionKind::User(body);
+            _ => {
+                self.error(span, format!("automatic encode requires a struct, enum, tuple, or final class without a class base; target {} requires an explicit implementation", self.type_name(context.target)));
+                None
             }
         }
     }

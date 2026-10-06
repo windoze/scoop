@@ -689,10 +689,11 @@ pub(crate) struct Lowerer {
     pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
     pub(crate) derived_equality_application_by_type:
         HashMap<TypeId, hir::DerivedEqualityApplicationId>,
-    /// Ordinary encode members awaiting their complete bodies. The final
-    /// element is the already selected core Encodable application.
-    derived_encoding_methods: Vec<(FunctionId, Owner, TypeId)>,
+    /// Ordinary encode members awaiting their complete bodies, paired with
+    /// the selected core protocol declaration.
+    derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    invalid_override_methods: HashSet<FunctionId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     /// Total lowering-time map for the eight canonical integer identities.

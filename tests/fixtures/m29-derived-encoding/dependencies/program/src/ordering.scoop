@@ -1,0 +1,62 @@
+import scoop.json.Json
+
+private object Trace { var events: String = "" }
+
+private struct Payload(val number: Int, val text: String) {
+    public companion object : Encodable<Payload> {
+        init { Trace.events += "codec;" }
+        public override fun encode(value: Payload, encoder: Encoder) {
+            Trace.events += f"value=${value.number}:${value.text};"
+            encoder.singleValue().writeString(f"${value.number}:${value.text}")
+        }
+    }
+}
+private class Source(public var value: Payload) {
+    public companion object : Encodable<Source>
+}
+private class TraceEncoder(private val source: Source)
+    : Encoder, KeyedEncodingContainer, SingleValueEncodingContainer {
+    public override val path: String get() = ""
+    public override fun keyed(): KeyedEncodingContainer {
+        Trace.events += "keyed;"
+        return this
+    }
+    public override fun unkeyed(): UnkeyedEncodingContainer {
+        throw IllegalStateException(Some("unexpected unkeyed container"))
+    }
+    public override fun singleValue(): SingleValueEncodingContainer = this
+    public override fun field(name: String): Encoder {
+        check(name == "value")
+        Trace.events += "child;"
+        source.value = Payload(9, "new")
+        return this
+    }
+    public override fun end() { Trace.events += "end;" }
+    public override fun writeString(value: String) { Trace.events += f"write=${value};" }
+    public override fun writeBoolean(value: Boolean) { throw IllegalStateException(None) }
+    public override fun writeLong(value: Long) { throw IllegalStateException(None) }
+    public override fun writeULong(value: ULong) { throw IllegalStateException(None) }
+    public override fun writeNull() { throw IllegalStateException(None) }
+}
+
+private struct Unvisited() {
+    public companion object : Encodable<Unvisited> {
+        init { throw IllegalStateException(Some("an unused codec was initialized")) }
+    }
+}
+private struct Skip(@Transient val ignored: Unvisited, val value: Int) {
+    public companion object : Encodable<Skip>
+}
+private enum Choice {
+    Main(Int), Other(Unvisited)
+    public companion object : Encodable<Choice>
+}
+
+fun orderingCases() {
+    val source = Source(Payload(1, "old"))
+    Source.Companion.encode(source, TraceEncoder(source))
+    check(Trace.events == "keyed;child;codec;value=1:old;write=1:old;end;")
+    check(source.value.number == 9 && source.value.text == "new")
+    check(Json.encode(Skip(Unvisited(), 8), Skip.Companion) == "{\"value\":8}")
+    check(Json.encode(Choice.Main(4), Choice.Companion) == "{\"Main\":[4]}")
+}

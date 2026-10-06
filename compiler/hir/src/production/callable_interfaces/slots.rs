@@ -28,6 +28,7 @@ pub(super) fn accessor(
 ) -> Result<CanonicalPersistentIdsV1<PersistentDispatchSlotId>, Error> {
     match implementation {
         PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
         | PropertyAccessorImplementation::AbstractSlot(function) => {
             let function =
                 super::arena_get(&export.functions, function).ok_or(Error::UnknownDeclaration)?;

@@ -3,6 +3,38 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：companion 与普通 codec 的自动编码派生
+
+自动 encode 现在归请求实现的 codec，目标取 Encodable<R> 的 R，生成独立的 this、
+value 与 Encoder 参数。struct、enum、tuple 和无 class 基类的 final class 沿普通
+字段、property、模式分支和调用生成完整 HIR；删除旧实例编码的 AST 拼装路径。
+编码和解码共用定义处的字段 codec 选择、annotation、表达式与 tuple 闭包组合，
+新增派生模块最长 220 行。非法 override 保留普通错误，合法手写、继承、default
+和无关 overload 继续按正常选择规则处理。
+
+primary val 依赖、递归 this、精确 companion 与核心容器/tuple 组合按设计顺序绑定；
+A/B 具体化为相同类型时仍使用原依赖。运行验证覆盖先读取字段、再取得 child、最后
+初始化 codec，Transient 和未选枚举分支不初始化无用 codec，移动 GC 保持已读值。
+父子数据类型的 companion 独立，字段不会回退到基类 codec，显式基类 codec 仍可
+接收普通向上转换。内部/private 数据及 codec、跨 Cone struct/enum/class 字段和
+删除源码后的产物链接均有真实用例。
+
+修正普通签名访问检查：signature exposure 使用 direct lookup domain，override
+coverage 仍使用 slot contract；手写和合成的内部实现均不因此泄漏为 public API。
+共有 property accessor 新增 StorageBody，保留 implicit 存储正文与 custom 正文的
+区别及原 callable。HIR cross-cone-interface 升至 57，两个 profile 向量逐字节
+核对仅版本字节变化，旧格式需重建；identity、MIR/LIR 格式及 runtime ABI 保持。
+
+macOS 的 36 个正式 fixture 在不更新快照的模式下全部通过：6 个正例、30 个负例，
+64 个进程、16 份 golden，含普通/移动 GC 和产物消费。HIR lowering 的 1,373 项、
+HIR 的 877 项与 slib 的 601 项单测通过，另有 1 项正式 accessor 发布/读取测试通过；
+格式化及 workspace all-targets clippy 通过。fixture 使用固定 CLI 副本，避免 driver
+测试重建工具影响运行；被重建干扰的失败运行不计作通过。
+
+报告保存在 /tmp，已清理本批完成的两个工作目录，分别回收 98.5 MiB 与 805.4 MiB；
+CLI 副本和 M28 worktree 保留。Linux glibc/musl 的本批验收及其余 M29 fixture 的新
+协议迁移继续实施，本节不表示整个 M29 完成。
+
 ## 2026-10-06：显式 codec 协议与核心库迁移
 
 `Encodable<T>` 现在接收显式 value 和 Encoder；标量编码方法移至各自 companion，

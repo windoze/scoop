@@ -3,20 +3,20 @@ use super::*;
 impl Lowerer {
     pub(super) fn decode_variants(
         &mut self,
-        context: DecodeContext,
+        context: CodingContext,
         decoder: hir::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let decoder = self.decoding_local(decoder, span, sink);
-        let variants = self.decoding_call(decoder.clone(), "keyed", Vec::new(), span, sink)?;
-        let variants = self.decoding_local(variants, span, sink);
-        let keys = self.decoding_property(variants.clone(), "keys", span)?;
-        let keys = self.decoding_local(keys, span, sink);
-        let count = self.decoding_property(keys.clone(), "size", span)?;
+        let decoder = self.coding_local(decoder, span, sink);
+        let variants = self.coding_call(decoder.clone(), "keyed", Vec::new(), span, sink)?;
+        let variants = self.coding_local(variants, span, sink);
+        let keys = self.coding_property(variants.clone(), "keys", span)?;
+        let keys = self.coding_local(keys, span, sink);
+        let count = self.coding_property(keys.clone(), "size", span)?;
         let one = self.decoding_long(1, span);
-        let correct = self.decoding_call(count, "equals", vec![one], span, sink)?;
-        let invalid = self.decoding_expr(
+        let correct = self.coding_call(count, "equals", vec![one], span, sink)?;
+        let invalid = self.coding_expr(
             hir::ExprKind::Unary {
                 op: hir::UnOp::Not,
                 operand: Box::new(correct),
@@ -35,12 +35,12 @@ impl Lowerer {
             span,
         });
         let index = self.decoding_long(0, span);
-        let name = self.decoding_call(keys, "get", vec![index], span, sink)?;
-        let name = self.decoding_local(name, span, sink);
-        let result = self.alloc_hidden("decoded_variant", context.result);
+        let name = self.coding_call(keys, "get", vec![index], span, sink)?;
+        let name = self.coding_local(name, span, sink);
+        let result = self.alloc_hidden("decoded_variant", context.target);
         let mut names = std::collections::HashSet::new();
         let mut branches = Vec::new();
-        for variant in self.enum_variants(context.result) {
+        for variant in self.enum_variants(context.target) {
             let (wire, record) = self.decoding_variant_shape(&variant, span)?;
             if !names.insert(wire.clone()) {
                 self.error(
@@ -49,12 +49,12 @@ impl Lowerer {
                 );
                 return None;
             }
-            let wire = self.decoding_string(&wire, span);
+            let wire = self.coding_string(&wire, span);
             let mut setup = Vec::new();
             let condition =
-                self.decoding_call(name.clone(), "equals", vec![wire], span, &mut setup)?;
+                self.coding_call(name.clone(), "equals", vec![wire], span, &mut setup)?;
             let mut body = Vec::new();
-            let child = self.decoding_call(
+            let child = self.coding_call(
                 variants.clone(),
                 "required",
                 vec![name.clone()],
@@ -62,18 +62,18 @@ impl Lowerer {
                 &mut body,
             )?;
             let inputs = self.read_decoding_record(context, &record, child, span, &mut body)?;
-            self.end_decoding_container(variants.clone(), span, &mut body)?;
+            self.end_coding_container(variants.clone(), span, &mut body)?;
             let value = if variant.style == hir::VariantStyle::Unit {
-                self.decoding_expr(
+                self.coding_expr(
                     hir::ExprKind::VariantConstruct {
                         variant: variant.application,
                         args: Vec::new(),
                     },
-                    context.result,
+                    context.target,
                     span,
                 )
             } else {
-                self.finish_decoding_record(context.result, &record, inputs, span, &mut body)?
+                self.finish_decoding_record(context.target, &record, inputs, span, &mut body)?
             };
             body.push(hir::Statement {
                 kind: hir::StatementKind::ValDecl {
@@ -97,7 +97,7 @@ impl Lowerer {
             tail = setup;
         }
         sink.extend(tail);
-        Some(self.decoding_expr(hir::ExprKind::Local(result), context.result, span))
+        Some(self.coding_expr(hir::ExprKind::Local(result), context.target, span))
     }
 
     fn decoding_variant_shape(
@@ -136,7 +136,7 @@ impl Lowerer {
             Some((wire, record))
         } else {
             let wire = self
-                .dependency_decoding_wire_name(
+                .dependency_coding_wire_name(
                     hir::AnnotationTargetV1::Variant(variant.application.variant),
                     &variant.name,
                 )
@@ -152,7 +152,7 @@ impl Lowerer {
             for (field_index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = self.loaded_enum_definitions[&application.template]
                     .field_identity(index as usize, field_index);
-                parameter.wire = self.dependency_decoding_wire_name(
+                parameter.wire = self.dependency_coding_wire_name(
                     hir::AnnotationTargetV1::VariantField(field),
                     &parameter.name,
                 );

@@ -179,6 +179,7 @@ impl Lowerer {
                 })
             }
             hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 match (owner_application, receiver) {
@@ -258,6 +259,7 @@ impl Lowerer {
                 unreachable!("const properties never expose a setter")
             }
             hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 let expression = match (owner_application, receiver) {

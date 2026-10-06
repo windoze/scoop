@@ -5,6 +5,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum PropertyAccessorImplementationV1 {
     Storage,
+    StorageBody,
     Constant,
     Body,
     AbstractSlot,
@@ -14,6 +15,7 @@ impl PropertyAccessorImplementationV1 {
     pub const fn from_source(source: crate::PropertyAccessorImplementation) -> Self {
         match source {
             crate::PropertyAccessorImplementation::Storage => Self::Storage,
+            crate::PropertyAccessorImplementation::StorageBody(_) => Self::StorageBody,
             crate::PropertyAccessorImplementation::Constant => Self::Constant,
             crate::PropertyAccessorImplementation::Body(_) => Self::Body,
             crate::PropertyAccessorImplementation::AbstractSlot(_) => Self::AbstractSlot,
@@ -21,7 +23,11 @@ impl PropertyAccessorImplementationV1 {
     }
 
     pub const fn requires_body(self) -> bool {
-        matches!(self, Self::Body | Self::AbstractSlot)
+        matches!(self, Self::StorageBody | Self::Body | Self::AbstractSlot)
+    }
+
+    pub const fn is_storage(self) -> bool {
+        matches!(self, Self::Storage | Self::StorageBody)
     }
 }
 
@@ -32,6 +38,7 @@ impl WireEncode for PropertyAccessorImplementationV1 {
             Self::Constant => 2,
             Self::Body => 3,
             Self::AbstractSlot => 4,
+            Self::StorageBody => 5,
         })
     }
 }
@@ -43,6 +50,7 @@ impl WireDecode for PropertyAccessorImplementationV1 {
             2 => Ok(Self::Constant),
             3 => Ok(Self::Body),
             4 => Ok(Self::AbstractSlot),
+            5 => Ok(Self::StorageBody),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),

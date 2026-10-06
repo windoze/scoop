@@ -1,5 +1,6 @@
 //! Missing decode requirements become ordinary methods over selected declarations.
 
+use super::coding::{CodingContext, CodingDirection, SelectedCodec};
 use super::*;
 use crate::call_resolution::candidates::{
     NominalConstructorSource, ValueParameterCalling, VarargOmission,
@@ -8,7 +9,6 @@ use crate::imported_core::ImportedTypeBindings;
 use ast::Span;
 use hir::ImportedCallableSource;
 
-mod annotations;
 mod classes;
 mod codecs;
 mod constructors;
@@ -17,13 +17,6 @@ mod expressions;
 mod records;
 mod shapes;
 mod variants;
-
-#[derive(Clone, Copy)]
-struct DecodeContext {
-    owner: Owner,
-    result: TypeId,
-    decodable: hir::SourceNominalId,
-}
 
 #[derive(Clone)]
 enum DecodeConstructor {
@@ -50,7 +43,7 @@ struct DecodeParameter {
     default: Option<DecodeDefault>,
 }
 
-struct DecodeRecord {
+pub(super) struct DecodeRecord {
     constructor: DecodeConstructor,
     parameters: Vec<DecodeParameter>,
     keyed: bool,
@@ -60,16 +53,17 @@ impl Lowerer {
     pub(crate) fn lower_derived_decoding_bodies(&mut self) {
         for (function, decodable) in std::mem::take(&mut self.derived_decoding_methods) {
             self.current_file = self.function_files[&function];
-            let context = DecodeContext {
+            let context = CodingContext {
                 owner: self.function_owner[&function],
-                result: self.signatures[&function].return_ty,
-                decodable,
+                target: self.signatures[&function].return_ty,
+                interface: decodable,
+                direction: CodingDirection::Decode,
             };
             let span = self.functions[function].span;
             let body = self.lower_synthesized_body(function, |state| {
                 let decoder = state.functions[function].params[1].clone();
                 let decoder =
-                    state.decoding_expr(hir::ExprKind::Local(decoder.local), decoder.ty, span);
+                    state.coding_expr(hir::ExprKind::Local(decoder.local), decoder.ty, span);
                 let mut statements = Vec::new();
                 let before = state.diagnostics.len();
                 if let Some(value) = state.decode_result(context, decoder, span, &mut statements) {
@@ -88,27 +82,27 @@ impl Lowerer {
 
     fn decode_result(
         &mut self,
-        context: DecodeContext,
+        context: CodingContext,
         decoder: hir::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        match self.types[context.result].clone() {
+        match self.types[context.target].clone() {
             Type::Struct(_) | Type::Class(_) => {
-                let record = self.decode_record_shape(context.result, span)?;
+                let record = self.decode_record_shape(context.target, span)?;
                 let inputs = self.read_decoding_record(context, &record, decoder, span, sink)?;
-                self.finish_decoding_record(context.result, &record, inputs, span, sink)
+                self.finish_decoding_record(context.target, &record, inputs, span, sink)
             }
             Type::Enum(_) => self.decode_variants(context, decoder, span, sink),
             Type::Tuple(fields) => {
                 let codecs = fields
                     .into_iter()
-                    .map(|ty| self.select_field_decoder(context, ty, span))
+                    .map(|ty| self.select_field_codec(context, ty, span))
                     .collect::<Option<Vec<_>>>()?;
-                self.decode_tuple(context, context.result, &codecs, decoder, span, sink)
+                self.decode_tuple(context, context.target, &codecs, decoder, span, sink)
             }
             _ => {
-                self.error(span, format!("automatic decode requires a struct, enum, tuple, or final class with a primary constructor; result {} requires an explicit implementation", self.type_name(context.result)));
+                self.error(span, format!("automatic decode requires a struct, enum, tuple, or final class with a primary constructor; result {} requires an explicit implementation", self.type_name(context.target)));
                 None
             }
         }

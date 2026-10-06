@@ -147,6 +147,9 @@ fn dump_accessor_implementation(
 ) -> String {
     match implementation {
         PropertyAccessorImplementation::Storage => "storage".to_string(),
+        PropertyAccessorImplementation::StorageBody(function) => {
+            format!("storage-body({})", module.functions[function].name)
+        }
         PropertyAccessorImplementation::Constant => "constant".to_string(),
         PropertyAccessorImplementation::Body(function) => {
             format!("body({})", module.functions[function].name)

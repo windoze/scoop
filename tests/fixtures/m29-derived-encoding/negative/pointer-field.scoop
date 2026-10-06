@@ -1,3 +1,3 @@
-struct Item(val value: Ptr<Int>) : Encodable
+struct Item(val value: Ptr<Int>) { companion object : Encodable<Item> }
 
 fun main() {}

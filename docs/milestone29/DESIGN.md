@@ -91,6 +91,8 @@ enum 的字段必须留在 variant 下：两个分支都叫 `value` 是合法的
 
 描述不包含机器 offset、内存 tag/niche、读写字段的运行期函数指针或可执行 default 指针。需要字段访问和构造时，合成器仍通过对应 typed declaration 生成正常 HIR。普通可见性在原语义边界检查，不因字段出现在 `.slib` 中就变成 public。
 
+property 描述保留 accessor 是否为普通存储生成的正文。跨 Cone 的 `StorageBody` 与无正文的 `Storage` 都表示普通存储访问，`Body` 表示自定义正文；前者仍保留原 callable 身份并沿普通调用路径消费。自动派生据此检查 custom getter/setter，不根据有无 callable 或分析正文推断，格式见实现规范 2.17。
+
 HIR dump 必须能展示字段名称/类型/annotation、variant 层级及构造关系，供实现验收和用户检查。具体 dump 排版随已有 golden 机制确定，不在这里另定一种独立反射文件格式。
 
 ### 2.2 自定义 annotation 的最小表面
@@ -166,6 +168,8 @@ public struct User(val id: Long) {
 subinterface 可以继承核心接口，编译器只补核心 requirement，其他义务仍需实现。无关合法 overload 不屏蔽要求的签名。手写一个方向后，另一个仍按声明形状派生，编译器不推导任意用户程序的逆函数。
 
 同一 codec 可以同时实现两个方向，普通组合 interface 也可继承这两个完整 application。M29 不增加内建 Codable 标记，两个 requirement 仍分别选择和合成。
+
+internal/private 数据类型同样可以拥有 companion codec。手写与合成方法的签名按普通成员的 direct lookup domain 检查；public override 对接口槽的覆盖不把受 owner 限制的实现签名变为 public API。经接口调用使用该静态接口的签名及完整实参，公开声明仍不得泄漏不可见类型，见语言规范 9.1.5。
 
 ### 3.2 具体调用与泛型调用
 

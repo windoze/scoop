@@ -1,3 +1,4 @@
-object Item : Encodable { val value: Int = 1 }
+object Item { val value: Int = 1 }
+object Codec : Encodable<Item>
 
 fun main() {}

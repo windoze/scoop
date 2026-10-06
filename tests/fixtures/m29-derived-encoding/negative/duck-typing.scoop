@@ -1,6 +1,8 @@
 struct Value() {
-    public fun encode(encoder: Encoder) { encoder.singleValue().writeNull() }
+    companion object {
+        public fun encode(value: Value, encoder: Encoder) { encoder.singleValue().writeNull() }
+    }
 }
-struct Item(val value: Value) : Encodable
+struct Item(val value: Value) { companion object : Encodable<Item> }
 
 fun main() {}

@@ -5,23 +5,23 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 72,
+      "end": 105,
       "kind": "source",
       "path": "main.scoop",
-      "start": 66
+      "start": 99
     },
     "severity": "error"
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "struct `Item` does not implement interface method `Encodable.encode`",
+    "message": "companion object `Companion` does not implement interface method `Encodable<Item>.encode`",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 101,
+      "end": 151,
       "kind": "source",
       "path": "main.scoop",
-      "start": 0
+      "start": 34
     },
     "severity": "error"
   }

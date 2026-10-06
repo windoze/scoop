@@ -133,6 +133,7 @@ impl Lowerer {
                         && matches!(
                             getter.implementation,
                             hir::PropertyAccessorImplementation::Body(function)
+                                | hir::PropertyAccessorImplementation::StorageBody(function)
                                 | hir::PropertyAccessorImplementation::AbstractSlot(function)
                                 if function == candidate.function
                         )

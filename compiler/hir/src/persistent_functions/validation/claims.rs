@@ -6,6 +6,7 @@ pub(super) fn claim_accessors(
 ) -> Result<(), HirFunctionIdentityError> {
     for (getter, declaration) in inputs.property_getters.iter() {
         if let PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
         | PropertyAccessorImplementation::AbstractSlot(function) = declaration.implementation
         {
             claim(
@@ -20,6 +21,7 @@ pub(super) fn claim_accessors(
     }
     for (setter, declaration) in inputs.property_setters.iter() {
         if let PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::StorageBody(function)
         | PropertyAccessorImplementation::AbstractSlot(function) = declaration.implementation
         {
             claim(

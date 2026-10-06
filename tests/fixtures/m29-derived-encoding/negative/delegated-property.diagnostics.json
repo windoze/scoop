@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "property `value` requires an explicit encode implementation",
+    "message": "property `value` requires an explicit encode implementation or Transient",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 129,
+      "end": 156,
       "kind": "source",
       "path": "main.scoop",
-      "start": 105
+      "start": 122
     },
     "severity": "error"
   }

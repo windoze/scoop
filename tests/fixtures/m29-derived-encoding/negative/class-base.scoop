@@ -1,4 +1,4 @@
 open class Base()
-class Item(val value: Int) : Base(), Encodable
+class Item(val value: Int) : Base() { companion object : Encodable<Item> }
 
 fun main() {}

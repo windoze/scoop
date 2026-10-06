@@ -23,7 +23,7 @@ impl Lowerer {
         if matches!(self.types[result], Type::Class(_)) {
             return self.decode_class_shape(result, span);
         }
-        let mut record = self.decoding_primary(result, span)?;
+        let mut record = self.coding_primary(result, span)?;
         if let Some(structure) = self.source_struct_id(application.template) {
             for (index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = hir::StructFieldRef::checked(&self.structs, structure, index as u32)
@@ -37,7 +37,7 @@ impl Lowerer {
             let declaration = &self.loaded_struct_definitions[&application.template].declaration;
             for (index, parameter) in record.parameters.iter_mut().enumerate() {
                 let field = declaration.interface.source_shape().declared_fields()[index].field();
-                parameter.wire = self.dependency_decoding_wire_name(
+                parameter.wire = self.dependency_coding_wire_name(
                     hir::AnnotationTargetV1::Field(field),
                     &parameter.name,
                 );

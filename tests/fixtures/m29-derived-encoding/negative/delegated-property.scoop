@@ -1,8 +1,9 @@
 class Slot() {
     public operator fun getValue(thisRef: Item): Int = 1
 }
-class Item() : Encodable {
+class Item() {
     val value: Int by Slot()
+    companion object : Encodable<Item>
 }
 
 fun main() {}

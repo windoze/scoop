@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "automatic encode requires field `value` of type FunPtr<(Int) -> Int> to implement Encodable",
+    "message": "automatic encode has no Encodable<FunPtr<(Int) -> Int>> field codec; provide a primary val dependency, a conforming companion, or an explicit encode implementation",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 43,
+      "end": 81,
       "kind": "source",
       "path": "main.scoop",
-      "start": 12
+      "start": 47
     },
     "severity": "error"
   }

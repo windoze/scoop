@@ -21,14 +21,13 @@ impl Lowerer {
             return None;
         }
         interfaces.iter().find(|ty| matches!(self.types[**ty], Type::Interface(application) if self.interface_applications[application].template == decodable && self.interface_applications[application].arguments == [signature.result]))?;
-        if self.coding_candidate_declared("decode", signature.parameters[0], candidates) {
+        if self.coding_candidate_declared("decode", &signature.parameters, candidates) {
             return None;
         }
         let function = self.register_coding_method(
             owner,
             "decode",
-            "decoder",
-            signature.parameters[0],
+            &[("decoder", signature.parameters[0])],
             signature.result,
         );
         self.derived_decoding_methods.push((function, decodable));

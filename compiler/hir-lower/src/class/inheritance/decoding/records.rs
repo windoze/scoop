@@ -12,7 +12,7 @@ pub(super) enum DecodedInput {
 impl Lowerer {
     pub(super) fn read_decoding_record(
         &mut self,
-        context: DecodeContext,
+        context: CodingContext,
         record: &DecodeRecord,
         decoder: hir::Expr,
         span: Span,
@@ -33,14 +33,14 @@ impl Lowerer {
                 return None;
             }
         }
-        let container = self.decoding_call(
+        let container = self.coding_call(
             decoder,
             if record.keyed { "keyed" } else { "unkeyed" },
             Vec::new(),
             span,
             sink,
         )?;
-        let container = self.decoding_local(container, span, sink);
+        let container = self.coding_local(container, span, sink);
         let mut inputs = Vec::with_capacity(record.parameters.len());
         for parameter in &record.parameters {
             let Some(name) = &parameter.wire else {
@@ -51,10 +51,10 @@ impl Lowerer {
                 ));
                 continue;
             };
-            let codec = self.select_field_decoder(context, parameter.ty, span)?;
+            let codec = self.select_field_codec(context, parameter.ty, span)?;
             let input = if record.keyed {
-                let name = self.decoding_string(name, span);
-                self.decoding_call(
+                let name = self.coding_string(name, span);
+                self.coding_call(
                     container.clone(),
                     if parameter.default.is_some() {
                         "optional"
@@ -66,21 +66,21 @@ impl Lowerer {
                     sink,
                 )?
             } else {
-                self.decoding_call(container.clone(), "element", Vec::new(), span, sink)?
+                self.coding_call(container.clone(), "element", Vec::new(), span, sink)?
             };
             if record.keyed
                 && let Some(default) = parameter.default
             {
-                let child = self.decoding_local(input, span, sink);
+                let child = self.coding_local(input, span, sink);
                 let decoder_type = self
                     .as_option(child.ty)
                     .expect("optional returns Option<Decoder>");
-                let condition = self.decoding_expr(
+                let condition = self.coding_expr(
                     hir::ExprKind::IsSome(Box::new(child.clone())),
                     self.boolean,
                     span,
                 );
-                let provided = self.decoding_expr(
+                let provided = self.coding_expr(
                     hir::ExprKind::Unwrap {
                         operand: Box::new(child),
                         trap_on_none: false,
@@ -93,8 +93,8 @@ impl Lowerer {
                     self.decode_selected_value(context, &codec, provided, span, &mut yes)?;
                 let option = self.option_type(parameter.ty);
                 let value =
-                    self.decoding_expr(hir::ExprKind::SomeWrap(Box::new(value)), option, span);
-                let missing = self.decoding_expr(hir::ExprKind::NoneLiteral, option, span);
+                    self.coding_expr(hir::ExprKind::SomeWrap(Box::new(value)), option, span);
+                let missing = self.coding_expr(hir::ExprKind::NoneLiteral, option, span);
                 let value = self.decoding_branch(
                     condition,
                     option,
@@ -110,7 +110,7 @@ impl Lowerer {
                 ));
             }
         }
-        self.end_decoding_container(container, span, sink)?;
+        self.end_coding_container(container, span, sink)?;
         Some(inputs)
     }
 
@@ -130,12 +130,12 @@ impl Lowerer {
                     self.decoding_default(&record.constructor, default, &arguments, span, sink)?
                 }
                 DecodedInput::Optional { value, default } => {
-                    let condition = self.decoding_expr(
+                    let condition = self.coding_expr(
                         hir::ExprKind::IsSome(Box::new(value.clone())),
                         self.boolean,
                         span,
                     );
-                    let provided = self.decoding_expr(
+                    let provided = self.coding_expr(
                         hir::ExprKind::Unwrap {
                             operand: Box::new(value),
                             trap_on_none: false,
@@ -163,8 +163,8 @@ impl Lowerer {
                 }
             };
             let value = self.adapt_to(value, parameter.ty);
-            arguments.push(self.decoding_local(value, span, sink));
+            arguments.push(self.coding_local(value, span, sink));
         }
-        self.call_decoding_constructor(result, record, arguments, span, sink)
+        self.call_coding_constructor(result, record, arguments, span, sink)
     }
 }

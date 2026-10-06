@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v56_removes_container_encoding_conditions() {
+fn source_interface_v57_distinguishes_implicit_storage_bodies() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        56,
+        57,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

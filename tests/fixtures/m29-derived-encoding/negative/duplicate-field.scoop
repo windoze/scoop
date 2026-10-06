@@ -1,4 +1,6 @@
 struct Item(@SerialName("same") val first: Int,
-            @SerialName("same") val second: String) : Encodable
+            @SerialName("same") val second: String) {
+    companion object : Encodable<Item>
+}
 
 fun main() {}

@@ -1,21 +1,85 @@
 use super::*;
 use crate::imports::{ImportLookupLayer, lookup::TypeLookupTarget};
 use crate::namespace::TopLevelTypeTarget;
+use ast::Span;
 use hir::{Function, FunctionKind};
 use la_arena::Arena;
+
+mod annotations;
+mod codecs;
+mod expressions;
+mod tuple;
+pub(super) use codecs::SelectedCodec;
+
+#[derive(Clone, Copy)]
+pub(super) struct CodingContext {
+    pub owner: Owner,
+    pub target: TypeId,
+    pub interface: hir::SourceNominalId,
+    pub direction: CodingDirection,
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum CodingDirection {
+    Encode,
+    Decode,
+}
+
+impl CodingDirection {
+    fn method(self) -> &'static str {
+        match self {
+            Self::Encode => "encode",
+            Self::Decode => "decode",
+        }
+    }
+    fn factory(self) -> &'static str {
+        match self {
+            Self::Encode => "encoder",
+            Self::Decode => "decoder",
+        }
+    }
+    fn protocol(self) -> &'static str {
+        match self {
+            Self::Encode => "Encodable",
+            Self::Decode => "Decodable",
+        }
+    }
+    fn stream(self) -> &'static str {
+        match self {
+            Self::Encode => "Encoder",
+            Self::Decode => "Decoder",
+        }
+    }
+    fn unit_codec(self) -> &'static str {
+        match self {
+            Self::Encode => "UnitEncoder",
+            Self::Decode => "UnitDecoder",
+        }
+    }
+    fn function_codec(self) -> &'static str {
+        match self {
+            Self::Encode => "EncodeFunction",
+            Self::Decode => "DecodeFunction",
+        }
+    }
+}
 
 impl Lowerer {
     pub(in crate::class) fn coding_candidate_declared(
         &mut self,
         name: &str,
-        parameter: TypeId,
+        parameters: &[TypeId],
         candidates: &[crate::CallableCandidate],
     ) -> bool {
         for candidate in candidates {
             let function = &self.functions[candidate.function];
-            if function.name.rsplit('.').next() != Some(name)
-                || function.method_type_param_count() != 0
-            {
+            if function.name.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            if self.invalid_override_methods.contains(&candidate.function) {
+                return true;
+            }
+            if function.method_type_param_count() != 0 {
                 continue;
             }
             let crate::CallableCandidateOwner::Method(application) = candidate.owner else {
@@ -23,7 +87,13 @@ impl Lowerer {
             };
             let arguments = self.method_owner_arguments(application).to_vec();
             let candidate = self.instantiated_signature(candidate.function, &arguments, &[]);
-            if candidate.params.len() == 1 && self.types_equal(candidate.params[0].ty, parameter) {
+            if candidate.params.len() == parameters.len()
+                && candidate
+                    .params
+                    .iter()
+                    .zip(parameters)
+                    .all(|(parameter, &required)| self.types_equal(parameter.ty, required))
+            {
                 return true;
             }
         }
@@ -34,8 +104,7 @@ impl Lowerer {
         &mut self,
         owner: Owner,
         name: &str,
-        parameter_name: &str,
-        parameter: TypeId,
+        values: &[(&str, TypeId)],
         result: TypeId,
     ) -> FunctionId {
         let span = match owner {
@@ -98,14 +167,17 @@ impl Lowerer {
                 attributes: hir::FunctionAttributes::default(),
                 owner_type_param_count: parameters.len(),
                 type_params: parameters,
-                params: vec![crate::FnParam {
-                    name: ast::Ident {
-                        text: parameter_name.into(),
-                        span,
-                    },
-                    ty: parameter,
-                    calling: crate::FnParamCalling::Required,
-                }],
+                params: values
+                    .iter()
+                    .map(|&(name, ty)| crate::FnParam {
+                        name: ast::Ident {
+                            text: name.into(),
+                            span,
+                        },
+                        ty,
+                        calling: crate::FnParamCalling::Required,
+                    })
+                    .collect(),
                 return_ty: result,
             },
         );

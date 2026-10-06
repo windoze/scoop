@@ -32,7 +32,7 @@ impl Lowerer {
             self.error(span, format!("automatic decode requires a final class without a class base; {} requires an explicit implementation", self.type_name(result)));
             return None;
         }
-        let mut record = self.decoding_primary(result, span)?;
+        let mut record = self.coding_primary(result, span)?;
         if let Some(class) = self.source_class_id(application.template) {
             self.current_decoding_class(class, &mut record, span)?;
         } else {
@@ -100,7 +100,7 @@ impl Lowerer {
             .expect("the selected class has its primary mapping");
         for (parameter, property) in record.parameters.iter_mut().zip(primary.properties()) {
             parameter.wire = property.and_then(|property| {
-                self.dependency_decoding_wire_name(
+                self.dependency_coding_wire_name(
                     hir::AnnotationTargetV1::Property(property),
                     &parameter.name,
                 )
@@ -117,7 +117,7 @@ impl Lowerer {
             };
             if !primary.properties().contains(&Some(property))
                 && self
-                    .dependency_decoding_wire_name(
+                    .dependency_coding_wire_name(
                         hir::AnnotationTargetV1::Property(property),
                         "stored property",
                     )

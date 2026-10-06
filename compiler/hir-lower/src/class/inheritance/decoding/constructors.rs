@@ -3,7 +3,7 @@ use crate::constructor_resolution::NominalConstructorCall;
 use crate::expr::CallSite;
 
 impl Lowerer {
-    pub(super) fn call_decoding_constructor(
+    pub(in crate::class::inheritance) fn call_coding_constructor(
         &mut self,
         result: TypeId,
         record: &DecodeRecord,
@@ -12,7 +12,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         self.push_scope();
-        let mut arguments = self.decoding_arguments(values, span, sink);
+        let mut arguments = self.coding_arguments(values, span, sink);
         if record.keyed {
             for (argument, parameter) in arguments.iter_mut().zip(&record.parameters) {
                 argument.name = ast::CallArgumentName::Named(ast::Ident {
@@ -73,7 +73,7 @@ impl Lowerer {
                             unreachable!("automatic decoding selects ordinary source constructors")
                         }
                     };
-                    self.decoding_expr(kind, result, span)
+                    self.coding_expr(kind, result, span)
                 })
             }
             DecodeConstructor::Dependency { declaration, .. } => {

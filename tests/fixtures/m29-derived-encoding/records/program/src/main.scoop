@@ -7,38 +7,54 @@ fun check(value: Boolean) {
 object Defaults { var calls: Int = 0 }
 public fun nextValue(): Int { Defaults.calls += 1; return 7 }
 
-public struct Empty() : Encodable
-public struct Box<T : Encodable>(val value: T) : Encodable
-public struct Record<T : Encodable>(
+public struct Empty() { public companion object : Encodable<Empty> }
+public struct Box<T>(val value: T) {
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Box<T>> = BoxEncoder<T>(element)
+    }
+}
+public class BoxEncoder<T>(private val element: Encodable<T>) : Encodable<Box<T>>
+public struct Record<T>(
     @SerialName("v/~") val value: T,
     @Transient val ignored: (Int) -> Int
-) : Encodable
-public struct WithDefaults(val first: Int = nextValue(), val second: Int = first + 1) : Encodable
+) {
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Record<T>> = RecordEncoder<T>(element)
+    }
+}
+public struct RecordEncoder<T>(val element: Encodable<T>) : Encodable<Record<T>>
+public struct WithDefaults(val first: Int = nextValue(), val second: Int = first + 1) {
+    public companion object : Encodable<WithDefaults>
+}
 
-public class Row public constructor(private val id: Int, public val name: String) : Encodable {
+public class Row public constructor(private val id: Int, public val name: String) {
     public val computed: String get() = name
     @SerialName("counter") public var count: Long = 2L
     @Transient private val cache: (Int) -> Int = { value -> value + 1 }
+    public companion object : Encodable<Row>
 }
 
-fun <T : Encodable> nested(value: T): String = Json.encode(Box<T>(value))
+fun <T> nested(value: T, element: Encodable<T>): String =
+    Json.encode(Box<T>(value), Box<T>.Companion.encoder(element))
 
 fun main() {
-    check(Json.encode(Empty()) == "{}")
-    check(Json.encode(Box<Int>(3)) == "{\"value\":3}")
-    check(nested(Box<String>("text")) == "{\"value\":{\"value\":\"text\"}}")
+    check(Json.encode(Empty(), Empty.Companion) == "{}")
+    val integerBox = Box<Int>.Companion.encoder(Int.Companion)
+    check(Json.encode(Box<Int>(3), integerBox) == "{\"value\":3}")
+    check(nested(Box<String>("text"), Box<String>.Companion.encoder(String.Companion)) == "{\"value\":{\"value\":\"text\"}}")
     val value = Record<Box<Int>>(Box<Int>(4), { item -> item + 1 })
-    check(Json.encode(value) == "{\"v/~\":{\"value\":4}}")
-    val erased: Encodable = value
-    check(Json.encode(erased) == "{\"v/~\":{\"value\":4}}")
-    check(Json.encode(WithDefaults(7, 8)) == "{\"first\":7,\"second\":8}")
+    val codec = Record<Box<Int>>.Companion.encoder(integerBox)
+    check(Json.encode(value, codec) == "{\"v/~\":{\"value\":4}}")
+    val erased: Any = value
+    check(!(erased is Encodable<Record<Box<Int>>>))
+    check(Json.encode(WithDefaults(7, 8), WithDefaults.Companion) == "{\"first\":7,\"second\":8}")
     check(Defaults.calls == 0)
     val defaults = WithDefaults()
     check(Defaults.calls == 1)
-    check(Json.encode(defaults) == "{\"first\":7,\"second\":8}")
+    check(Json.encode(defaults, WithDefaults.Companion) == "{\"first\":7,\"second\":8}")
     check(Defaults.calls == 1)
     val row = Row(9, "nine")
     row.count = 3L
-    check(Json.encode(row) == "{\"id\":9,\"name\":\"nine\",\"counter\":3}")
+    check(Json.encode(row, Row.Companion) == "{\"id\":9,\"name\":\"nine\",\"counter\":3}")
     println("records-ok")
 }

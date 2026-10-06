@@ -31,7 +31,7 @@ impl Lowerer {
             }
             self.register_function_parameter_interface(function);
         }
-        for (function, _, _) in self.derived_encoding_methods.clone() {
+        for (function, _) in self.derived_encoding_methods.clone() {
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }

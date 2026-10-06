@@ -1,0 +1,4 @@
+import accessors.Getter
+import accessors.Setter
+object GetterCodec : Encodable<Getter>
+object SetterCodec : Encodable<Setter>

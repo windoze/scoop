@@ -37,7 +37,7 @@ fn struct_construction_and_field_access() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property13: Option<String>
-    property13 val message: Option<String> getter13=body(Exception.$get$message) <stored field0 init=parameter11>
+    property13 val message: Option<String> getter13=storage-body(Exception.$get$message) <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

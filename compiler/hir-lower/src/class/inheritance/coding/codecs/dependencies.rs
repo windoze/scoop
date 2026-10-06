@@ -1,11 +1,11 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn decoding_dependencies(
+    pub(super) fn coding_dependencies(
         &mut self,
         owner: Owner,
         interface: TypeId,
-    ) -> Vec<(String, DecoderDependency)> {
+    ) -> Vec<(String, CodecDependency)> {
         match owner {
             Owner::Struct(_) => {
                 let ty = self.owner_ty(owner);
@@ -16,7 +16,7 @@ impl Lowerer {
                     .filter_map(|field| {
                         self.is_subtype(field.ty, interface).then_some((
                             field.name,
-                            DecoderDependency::Field(field.reference, field.ty),
+                            CodecDependency::Field(field.reference, field.ty),
                         ))
                     })
                     .collect()
@@ -40,7 +40,7 @@ impl Lowerer {
                         if mutable || !self.is_subtype(ty, interface) {
                             return None;
                         }
-                        Some((name, DecoderDependency::Property(id, ty)))
+                        Some((name, CodecDependency::Property(id, ty)))
                     })
                     .collect()
             }
@@ -49,16 +49,16 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn decoding_dependency_value(
+    pub(super) fn coding_dependency_value(
         &mut self,
-        dependency: &DecoderDependency,
+        dependency: &CodecDependency,
         span: Span,
     ) -> Option<hir::Expr> {
         let receiver = self
             .lower_current_this(span)
-            .expect("a decoder receiver remains available to nested closures");
+            .expect("a codec receiver remains available to nested closures");
         match *dependency {
-            DecoderDependency::Field(field, ty) => Some(self.decoding_expr(
+            CodecDependency::Field(field, ty) => Some(self.coding_expr(
                 hir::ExprKind::FieldAccess {
                     receiver: Box::new(receiver),
                     field,
@@ -66,7 +66,7 @@ impl Lowerer {
                 ty,
                 span,
             )),
-            DecoderDependency::Property(property, ty) => {
+            CodecDependency::Property(property, ty) => {
                 let Type::Class(application) = self.types[receiver.ty] else {
                     unreachable!("the dependency belongs to a class")
                 };

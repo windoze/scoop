@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(in crate::class::inheritance::decoding) fn decoding_primary(
+    pub(in crate::class::inheritance) fn coding_primary(
         &mut self,
         result: TypeId,
         span: Span,

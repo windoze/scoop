@@ -325,6 +325,7 @@ impl Harness {
                         matches!(
                             value.implementation,
                             hir::PropertyAccessorImplementation::Body(actual)
+                                | hir::PropertyAccessorImplementation::StorageBody(actual)
                                 | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                                 if actual == function
                         )
@@ -335,6 +336,7 @@ impl Harness {
                             matches!(
                                 value.implementation,
                                 hir::PropertyAccessorImplementation::Body(actual)
+                                    | hir::PropertyAccessorImplementation::StorageBody(actual)
                                     | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                                     if actual == function
                             )
