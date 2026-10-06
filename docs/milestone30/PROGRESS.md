@@ -100,3 +100,9 @@ Linux/glibc 动态与 musl 静态均已通过这四个新 fixture，各为 14 �
 Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixture 以 release 模式编译 core、JSON、provider、facade、consumer，逐个删除源码，最后在无 LLVM 的 PATH 下只凭 .slib 与 runtime index 重新链接并运行。覆盖公开 alias、重导出、浮点 annotation／const／默认表达式、跨 Cone 泛型实例 ODR、派生 codec、fmodf／fmod 依赖，以及异常展开中的 NaN 位型；普通／移动 GC 均通过，共 10 进程、4 份 golden。
 
 独立 rounding fixture 在 debug 与 release 两种模式下通过 10 进程、8 份 golden；用普通 C 输入阻止常量折叠，验证乘加保持两次舍入、溢出算术不重结合、NaN 不被优化成自反相等和负零保留。musl 的动态 artifact 变体与最终集中验收继续进行，本节不提前记录其结果。
+
+## F2：Linux 浮点专项集中验收
+
+在 nuc12 的 x86_64 上，M30 全部 55 个文件 fixture 完成集中验证。glibc 为 54 项通过、1 项按平台不适用，55 个变体、119 个进程、67 份 golden；musl 为 55 项全部通过，56 个变体、129 个进程、71 份 golden。包括 musl 静态与动态 artifact 链接、跨 Cone 的派生 codec／annotation／ODR、debug 与 release 严格舍入，以及普通／移动 GC 的实际运行。
+
+补齐各目标的 LIR 快照；共有 HIR 的差异经逐字节比较确认只涉及 imported identity 临时编号，以及 core 新增 codec 后常量定义的源码区间位移，所有变化区间的原始源码内容保持相同。正式全仓库验收与旧测试适配另行记录，未重复运行 Linux 的无关全量用例。
