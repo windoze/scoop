@@ -165,6 +165,7 @@ impl Lowerer {
                     self.types[ty],
                     hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
                 ) && !self.is_char_type(ty)
+                    && self.float_kind(ty).is_none()
                 {
                     self.error(
                         decl.ty.span,
@@ -470,6 +471,7 @@ impl Lowerer {
                     self.types[ty],
                     hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
                 ) && !self.is_char_type(ty)
+                    && self.float_kind(ty).is_none()
                 {
                     self.error(
                         property.ty.span,

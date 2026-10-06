@@ -38,6 +38,8 @@ impl<'a> MachineValues<'a> {
             | T::I8
             | T::I16
             | T::I32
+            | T::F32
+            | T::F64
             | T::I64
             | T::MachineScalar(_)
             | T::Ptr(_) => true,

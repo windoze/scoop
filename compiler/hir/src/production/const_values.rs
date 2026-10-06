@@ -108,16 +108,18 @@ fn const_type_kind(export: &ExportHir, ty: crate::TypeId) -> Option<CanonicalCon
         return None;
     }
     match export.types[ty] {
-        Type::Struct(application)
-            if matches!(
-                export
-                    .struct_definition(export.struct_applications[application].template)
-                    .representation,
-                crate::StructRepresentation::Intrinsic(crate::IntrinsicTypeKind::Char)
-            ) =>
+        Type::Struct(application) => match export
+            .struct_definition(export.struct_applications[application].template)
+            .representation
         {
-            Some(CanonicalConstValueKindV1::Char)
-        }
+            crate::StructRepresentation::Intrinsic(crate::IntrinsicTypeKind::Char) => {
+                Some(CanonicalConstValueKindV1::Char)
+            }
+            crate::StructRepresentation::Intrinsic(crate::IntrinsicTypeKind::Float(kind)) => {
+                Some(CanonicalConstValueKindV1::Float(kind))
+            }
+            _ => None,
+        },
         Type::Integer(kind) => Some(CanonicalConstValueKindV1::Integer(kind)),
         Type::Boolean => Some(CanonicalConstValueKindV1::Boolean),
         Type::String => Some(CanonicalConstValueKindV1::String),

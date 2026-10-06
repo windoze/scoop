@@ -26,6 +26,7 @@ use crate::{
 pub(crate) mod layout_link_support;
 
 mod archive;
+mod extension_members;
 mod objects;
 mod production;
 mod sections;

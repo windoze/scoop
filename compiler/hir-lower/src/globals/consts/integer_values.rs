@@ -168,6 +168,7 @@ fn evaluate_hir_integer_constant_inner(
                     match evaluate_integer_no_gc_operation(*operation, left, right)? {
                         hir::ConstPropertyValue::Integer(value) => Some(value),
                         hir::ConstPropertyValue::Boolean(_)
+                        | hir::ConstPropertyValue::Float(_)
                         | hir::ConstPropertyValue::Char(_)
                         | hir::ConstPropertyValue::String(_) => None,
                     }
@@ -288,7 +289,10 @@ pub(super) fn signed_value(kind: hir::IntegerKind, raw: u64) -> i128 {
     }
 }
 
-fn integer_from_raw(kind: hir::IntegerKind, raw: u64) -> hir::HirIntegerConstant {
+pub(in crate::globals) fn integer_from_raw(
+    kind: hir::IntegerKind,
+    raw: u64,
+) -> hir::HirIntegerConstant {
     match kind {
         hir::IntegerKind::SIGNED_8 => hir::HirIntegerConstant::Signed8(raw as u8),
         hir::IntegerKind::SIGNED_16 => hir::HirIntegerConstant::Signed16(raw as u16),

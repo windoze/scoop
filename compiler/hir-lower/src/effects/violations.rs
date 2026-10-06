@@ -137,6 +137,7 @@ impl Lowerer {
             )),
             ExprKind::IntegerLiteral(_)
             | ExprKind::CharLiteral(_)
+            | ExprKind::FloatLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -360,7 +361,7 @@ impl Lowerer {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
-            ExprKind::Binary { lhs, rhs, .. } => {
+            ExprKind::Binary { lhs, rhs, .. } | ExprKind::FloatBinary { lhs, rhs, .. } => {
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
@@ -385,7 +386,9 @@ impl Lowerer {
                     }
                 }
             }
-            ExprKind::IntegerConversion { operand, .. } => {
+            ExprKind::IntegerConversion { operand, .. }
+            | ExprKind::FloatUnary { operand, .. }
+            | ExprKind::FloatConversion { operand, .. } => {
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::Unary { operand, .. }

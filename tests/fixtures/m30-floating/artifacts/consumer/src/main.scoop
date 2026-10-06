@@ -1,0 +1,54 @@
+package consumer
+
+import scoop.json.Json
+import bridge.Scalar
+import bridge.Wide
+import bridge.Measure
+import bridge.Record
+import bridge.identity
+import bridge.cell
+import bridge.ZERO
+import bridge.NAN
+import bridge.fromProvider
+import bridge.fromFacade
+import bridge.facadeCell
+import bridge.patternDefault
+import bridge.arithmeticDefault
+import bridge.classify
+import bridge.remainder
+import bridge.wideRemainder
+
+@Measure(ZERO, NAN)
+struct Annotated(val value: Scalar)
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Scalar
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Wide
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Scalar): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Wide): ULong
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("floating artifact assertion failed")) }
+}
+
+@Unsafe fun main() {
+    check(floatBits(ZERO) == 0x80000000U && doubleBits(NAN) == 0xfff8000000000000UL)
+    check(floatBits(patternDefault()) == 0x3f800001U && arithmeticDefault() == 2.5f)
+    check(classify(0f) == 1 && classify(Scalar.NaN) == 2)
+    check(floatBits(fromProvider()) == 0x80000000U && floatBits(fromFacade()) == 0x80000000U)
+    check(floatBits(identity<Scalar>(-0f)) == 0x80000000U)
+    check(floatBits(cell(-0f).value) == 0x80000000U && floatBits(facadeCell(-0f).value) == 0x80000000U)
+    check(remainder(fromFloatBits(0x40b00000U)) == 1.5f)
+    check(wideRemainder(fromDoubleBits(0x4016000000000000UL), 2.0) == 1.5)
+    val value = Json.decode("{\"small\":0.1}", Record.Companion)
+    check(value.small == 0.1f && doubleBits(value.wide) == 0x8000000000000000UL)
+    check(Json.encode(value, Record.Companion) == "{\"small\":0.1,\"wide\":-0.0}")
+    val retained = Record(fromFloatBits(0xff800123U), fromDoubleBits(0x7ff0000000000123UL))
+    try { gcCollect(); throw Exception(Some("float unwind")) }
+    catch (error: Exception) { gcCollect() }
+    check(floatBits(retained.small) == 0xff800123U && doubleBits(retained.wide) == 0x7ff0000000000123UL)
+    println("floating-artifacts-ok")
+}

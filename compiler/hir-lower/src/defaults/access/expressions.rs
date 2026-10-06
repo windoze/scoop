@@ -113,6 +113,7 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::CharLiteral(_)
+            | hir::ExprKind::FloatLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::ConstructorReceiver
@@ -238,6 +239,11 @@ impl ReferenceCollector<'_> {
                 count: pointer,
                 initializer: offset,
             }
+            | hir::ExprKind::FloatBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
+            }
             | hir::ExprKind::Binary {
                 lhs: pointer,
                 rhs: offset,
@@ -340,7 +346,9 @@ impl ReferenceCollector<'_> {
                     self.expression(rhs);
                 }
             },
-            hir::ExprKind::IntegerConversion { operand, .. } => self.expression(operand),
+            hir::ExprKind::IntegerConversion { operand, .. }
+            | hir::ExprKind::FloatUnary { operand, .. }
+            | hir::ExprKind::FloatConversion { operand, .. } => self.expression(operand),
         }
     }
 

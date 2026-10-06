@@ -1,0 +1,30 @@
+@NoGC @Extern(lib = "fixture_native", name = "environment_ready")
+fun environmentReady(): Int
+@NoGC @Extern(lib = "fixture_native", name = "single_seed")
+fun singleSeed(kind: Int): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_seed")
+fun doubleSeed(kind: Int): Double
+@Extern(lib = "fixture_native", name = "run_foreign")
+fun runForeign(callback: FunPtr<(Float, Double, Ptr<Unit>) -> Double>, context: Ptr<Unit>): Double
+
+fun validate(single: Float, wide: Double): Double {
+    var result = 0.0
+    @Unsafe {
+        if (environmentReady() == 1 && single + 1f == single && wide + 1.0 == wide &&
+            singleSeed(1) / 2f > 0f && doubleSeed(1) / 2.0 > 0.0) { result = wide }
+    }
+    return result
+}
+
+@Unsafe fun main() {
+    println(validate(singleSeed(0), doubleSeed(0)) == 9007199254740992.0)
+    val marker = "floating-" + "thread"
+    val callback = foreignCallback<(Float, Double, Ptr<Unit>) -> Double>(
+        { single: Float, wide: Double ->
+            gcCollect()
+            if (marker == "floating-thread") { validate(single, wide) } else { 0.0 }
+        }, 2L, ForeignCallbackMode.Reusable
+    )
+    println(runForeign(callback.function, callback.context) == 9007199254740992.0)
+    releaseForeignCallback(callback)
+}

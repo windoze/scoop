@@ -1,0 +1,8 @@
+class Incomplete: SingleValueDecodingContainer {
+    public override fun readBoolean(): Boolean { throw IllegalStateException(None) }
+    public override fun readLong(): Long { throw IllegalStateException(None) }
+    public override fun readULong(): ULong { throw IllegalStateException(None) }
+    public override fun readString(): String { throw IllegalStateException(None) }
+    public override fun readNull() { throw IllegalStateException(None) }
+}
+fun main() {}

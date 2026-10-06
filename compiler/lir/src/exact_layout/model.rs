@@ -153,6 +153,7 @@ pub enum ScalarRepresentationKindV1 {
     Integer(IntegerKind),
     Boolean,
     Char,
+    Float(crate::FloatKind),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

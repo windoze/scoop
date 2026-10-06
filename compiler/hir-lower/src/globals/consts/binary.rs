@@ -92,7 +92,14 @@ impl Lowerer {
                 ) == Some(kind)
             })
         };
-        let operand_expected = operand_kind.map(|kind| self.integer_type(kind));
+        let float_kind = self.select_const_float_binary_kind(operator, lhs, expected, |kind| {
+            self.probe_const_float_kind(rhs, kind, file, declarations, ordinary, states, stack)
+                == Some(kind)
+        });
+        let operand_expected = operand_kind
+            .map(|kind| self.integer_type(kind))
+            .or_else(|| float_kind.and_then(|kind| self.core_float_type(kind).ok()))
+            .or_else(|| expected.filter(|ty| self.float_kind(*ty).is_some()));
         let lhs = self.evaluate_const_expression(
             lhs,
             operand_expected,
@@ -102,11 +109,7 @@ impl Lowerer {
             states,
             stack,
         )?;
-        let rhs_expected = if equality {
-            operand_expected
-        } else {
-            Some(lhs.ty)
-        };
+        let rhs_expected = Some(lhs.ty);
         let rhs = self.evaluate_const_expression(
             rhs,
             rhs_expected,
@@ -129,6 +132,10 @@ impl Lowerer {
         }
 
         let result = match (lhs.value, rhs.value) {
+            (hir::ConstPropertyValue::Float(left), hir::ConstPropertyValue::Float(right)) => {
+                float_binary_operator(operator)
+                    .map(|operation| evaluate_float_binary(operation, left, right))
+            }
             (hir::ConstPropertyValue::Integer(left), hir::ConstPropertyValue::Integer(right)) => {
                 let hir::Type::Integer(kind) = self.types[lhs.ty] else {
                     unreachable!("integer constant values have integer types")
@@ -178,7 +185,9 @@ impl Lowerer {
         let ty = match value {
             hir::ConstPropertyValue::Boolean(_) => self.boolean,
             hir::ConstPropertyValue::String(_) => self.string,
-            hir::ConstPropertyValue::Integer(_) | hir::ConstPropertyValue::Char(_) => lhs.ty,
+            hir::ConstPropertyValue::Integer(_)
+            | hir::ConstPropertyValue::Float(_)
+            | hir::ConstPropertyValue::Char(_) => lhs.ty,
         };
         Some(EvaluatedConst { value, ty })
     }

@@ -297,6 +297,7 @@ pub(super) fn lower_constant_image(
         mir::MirConstantImage::Integer(value) => {
             lir::LirConstantImage::Integer(integer_constant(*value))
         }
+        mir::MirConstantImage::Float(value) => lir::LirConstantImage::Float(*value),
         mir::MirConstantImage::Char(value) => {
             lir::LirConstantImage::Integer(lir::LirIntegerConstant::Signed32(*value as u32))
         }

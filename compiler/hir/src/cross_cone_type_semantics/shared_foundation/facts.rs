@@ -141,6 +141,7 @@ impl Replay<'_, '_> {
             NominalSourceShapeV1::Intrinsic(representation) => match representation.family() {
                 IntrinsicTypeKind::Unit => Ok(Shape::Unit),
                 IntrinsicTypeKind::Integer(_)
+                | IntrinsicTypeKind::Float(_)
                 | IntrinsicTypeKind::Char
                 | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
                 IntrinsicTypeKind::String

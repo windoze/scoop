@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod missing;
+
 #[test]
 fn full_surface_replays_foreign_initialization_and_local_storage_and_callables() {
     for lazy in [false, true] {
@@ -70,6 +72,8 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 .dependencies(),
             &[reference]
         );
+
+        missing::reject_incomplete_surface(&fixture, &provider, &original);
 
         let section = crate::ConeProductionSectionV2::from_parts(
             coordinate.clone(),

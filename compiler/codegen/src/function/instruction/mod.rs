@@ -7,6 +7,7 @@ mod boxing;
 mod callbacks;
 mod enums;
 mod exceptions;
+mod floating;
 mod heap;
 mod operators;
 mod pointers;
@@ -18,6 +19,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
                 self.emit_boxing(instruction)
             }
+            Instruction::FloatUnary { .. }
+            | Instruction::FloatBinary { .. }
+            | Instruction::FloatConversion { .. } => self.emit_float_instruction(instruction),
             Instruction::BinOp { .. }
             | Instruction::UnaryOp { .. }
             | Instruction::IntegerUnary { .. }

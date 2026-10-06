@@ -1,21 +1,21 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:mixed-provider:0.1.0 kind=Library objects=16
 cone dev.programlink:mixed-left:0.1.0 kind=Library objects=3
 cone dev.programlink:mixed-right:0.1.0 kind=Library objects=3
 cone dev.programlink:mixed-root:0.1.0 kind=Executable objects=7
-runtime objects=63
+runtime objects=68
 images=5 root=_scoop$1$re$566833882282e6bbc1fc4fcf146f44f3c390f23a04b56ae0b992adc4ff93a177
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_mix_archive requirement=3ba3325776d1fed50e6250e99119ae8bef3cbc2df04c008c3ff512caeb793c8d input=8b4c37a3939e53b5d9ba66225f3f7ef36d6a3403589d50a3b8f52e53944991bc origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([124, 30, 143, 61, 3, 34, 34, 101, 229, 34, 63, 115, 222, 46, 44, 181, 106, 128, 145, 63, 5, 71, 181, 250, 210, 187, 246, 221, 175, 88, 188, 17])])
-native library m23_mix_dynamic requirement=d64e3525a0e5daee36993c4560ce75527b06c5ed2fed6ee920e2c68e868b7e7b input=91b7ba7368265751572e849a77574786796456f8f28a7b629d46c24db923f84e origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([54, 229, 85, 88, 46, 48, 61, 7, 201, 85, 157, 19, 140, 85, 136, 60, 194, 12, 112, 117, 240, 156, 189, 67, 79, 237, 221, 196, 150, 53, 50, 137])])
-native archive 8b4c37a3939e53b5d9ba66225f3f7ef36d6a3403589d50a3b8f52e53944991bc members=3
-  member 0 header=8 payload=68..652 name="archive.o" digest=1715d47d944cfa1aef812dc4e3fbfb113a80a568ec0f7aba71dac39d6fee4340 selected=true
-  member 1 header=652 payload=712..1296 name="helper.o" digest=50d0c90a926a938af6dd25ae4394f192de7df374e491446dc76fdb83416bf422 selected=true
-  member 2 header=1296 payload=1356..2124 name="unused.o" digest=01e22947b81dda7f6eb814ceac61501013a134a496fd8ddded43035e0c27917d selected=false
-dynamic provider d58050267b7c402c8e8144353d47e4e50d9ce2beea735275209c5f1a7a5ea2aa install="@rpath/libm23_mix_dynamic.dylib" imports=1
-  load "/usr/lib/libSystem.B.dylib" -> 9ed0130489330cb98e74d182c4332c5ad814ae8f0a032396dbdcdfa7132c0ce4
+native library m23_mix_archive requirement=3ba3325776d1fed50e6250e99119ae8bef3cbc2df04c008c3ff512caeb793c8d input=$NATIVE_INPUT_0 origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([124, 30, 143, 61, 3, 34, 34, 101, 229, 34, 63, 115, 222, 46, 44, 181, 106, 128, 145, 63, 5, 71, 181, 250, 210, 187, 246, 221, 175, 88, 188, 17])])
+native library m23_mix_dynamic requirement=d64e3525a0e5daee36993c4560ce75527b06c5ed2fed6ee920e2c68e868b7e7b input=$NATIVE_INPUT_1 origins=dev.programlink:mixed-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([54, 229, 85, 88, 46, 48, 61, 7, 201, 85, 157, 19, 140, 85, 136, 60, 194, 12, 112, 117, 240, 156, 189, 67, 79, 237, 221, 196, 150, 53, 50, 137])])
+native archive $NATIVE_INPUT_0 members=3
+  member 0 header=8 payload=68..652 name="archive.o" digest=$NATIVE_MEMBER_0 selected=true
+  member 1 header=652 payload=712..1296 name="helper.o" digest=$NATIVE_MEMBER_1 selected=true
+  member 2 header=1296 payload=1356..2124 name="unused.o" digest=$NATIVE_MEMBER_2 selected=false
+dynamic provider $NATIVE_PROVIDER_0 install="@rpath/libm23_mix_dynamic.dylib" imports=1
+  load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
 dynamic binding _m23_dynamic -> "@rpath/libm23_mix_dynamic.dylib" source="@rpath/libm23_mix_dynamic.dylib":_m23_dynamic kind=Symbol weak=false
 rpath "$WORK/native"
 startup object references:

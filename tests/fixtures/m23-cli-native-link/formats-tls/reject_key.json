@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object b5ffad0302096a7de707f649c5ed9ccfd3f0d9fb9314b82f15d5107e7dc23490 selected by direct input (${work}/native/m23_final.o): native TLV descriptor has invalid bootstrap or initial key",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_final.o): native TLV descriptor has invalid bootstrap or initial key",
     "notes": [],
     "origin": {
       "kind": "none"

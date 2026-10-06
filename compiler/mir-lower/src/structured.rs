@@ -350,6 +350,22 @@ pub(crate) enum ExprKind {
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
     CharLiteral(char),
+    FloatLiteral(scoop_identity::FloatConstant),
+    FloatUnary {
+        kind: mir::FloatKind,
+        operation: mir::FloatUnaryOperator,
+        operand: Box<Expr>,
+    },
+    FloatBinary {
+        kind: mir::FloatKind,
+        operation: mir::FloatBinaryOperator,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    FloatConversion {
+        conversion: mir::MirFloatConversion,
+        operand: Box<Expr>,
+    },
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     BoolLiteral(bool),

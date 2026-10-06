@@ -1,0 +1,3 @@
+annotation class Metric(val value: Float)
+@Metric(1) struct Item()
+fun main() {}

@@ -1,18 +1,18 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:archive:0.1.0 kind=Executable objects=8
-runtime objects=63
+runtime objects=68
 images=2 root=_scoop$1$re$4484b064eb2783fe49e975aaefb43c854beb2a92a8be7b0b4d65fd40b3481f63
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_tail requirement=5d417a0cedff3a149b255786f4ce6b8927963aae52a08d06dc936b6ca181027c input=48591190d8b4b996dee03170a04c5a1b0f8c5354a64f7b02fb1f3a1c13be21d6 origins=dev.programlink:archive:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([92, 226, 63, 208, 164, 110, 133, 32, 109, 119, 101, 207, 96, 169, 82, 173, 175, 130, 75, 47, 232, 210, 73, 232, 15, 198, 94, 27, 52, 189, 25, 112])])
-native library m23_chain requirement=96395a3420e11eae0f3e86ae67b5c5cd31f52106a8d651ed25be60944d390770 input=8ce191872fb44a23185ce722bb27a718584b43629a2d9d33830ea70fc6f36e39 origins=dev.programlink:archive:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([14, 5, 23, 123, 81, 7, 174, 33, 211, 20, 186, 206, 154, 233, 43, 91, 177, 3, 29, 185, 188, 75, 231, 44, 221, 224, 112, 207, 207, 9, 81, 229])])
-native archive 48591190d8b4b996dee03170a04c5a1b0f8c5354a64f7b02fb1f3a1c13be21d6 members=1
-  member 0 header=8 payload=68..708 name="middle.o" digest=1e1b180717fdb2116ee2c074768a1472fb418fe4365d707b9e7821c59ddfa89a selected=true
-native archive 8ce191872fb44a23185ce722bb27a718584b43629a2d9d33830ea70fc6f36e39 members=3
-  member 0 header=8 payload=68..636 name="entry.o" digest=478493776016b16bca97bd5e75185a4a14cc4db5976a875219044cb57a8c80da selected=true
-  member 1 header=636 payload=696..1208 name="end.o" digest=539ca5f6a3b6fd494b11d7dde53d97b08cfcb7f72ac1ab66257c982eaf4ad1db selected=true
-  member 2 header=1208 payload=1268..2092 name="unused.o" digest=d56ea68234aea7b8c787e14fdcb3dcb8a04c30d0b13db8f8f00b1796d38f72c6 selected=false
+native library m23_tail requirement=5d417a0cedff3a149b255786f4ce6b8927963aae52a08d06dc936b6ca181027c input=$NATIVE_INPUT_0 origins=dev.programlink:archive:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([92, 226, 63, 208, 164, 110, 133, 32, 109, 119, 101, 207, 96, 169, 82, 173, 175, 130, 75, 47, 232, 210, 73, 232, 15, 198, 94, 27, 52, 189, 25, 112])])
+native library m23_chain requirement=96395a3420e11eae0f3e86ae67b5c5cd31f52106a8d651ed25be60944d390770 input=$NATIVE_INPUT_1 origins=dev.programlink:archive:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([14, 5, 23, 123, 81, 7, 174, 33, 211, 20, 186, 206, 154, 233, 43, 91, 177, 3, 29, 185, 188, 75, 231, 44, 221, 224, 112, 207, 207, 9, 81, 229])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..708 name="middle.o" digest=$NATIVE_MEMBER_0 selected=true
+native archive $NATIVE_INPUT_1 members=3
+  member 0 header=8 payload=68..636 name="entry.o" digest=$NATIVE_MEMBER_1 selected=true
+  member 1 header=636 payload=696..1208 name="end.o" digest=$NATIVE_MEMBER_2 selected=true
+  member 2 header=1208 payload=1268..2092 name="unused.o" digest=$NATIVE_MEMBER_3 selected=false
 startup object references:
   _scoop$1$im$4484b064eb2783fe49e975aaefb43c854beb2a92a8be7b0b4d65fd40b3481f63
   _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

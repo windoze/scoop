@@ -257,7 +257,9 @@ pub fn verify_c_bridge_target_support_requirements_v1(
                         == super::VerifiedObjectRelocationFormV1::Unsigned64
             }
             scoop_lir::CBridgeTargetSupportV1::TlsGetAddr
-            | scoop_lir::CBridgeTargetSupportV1::Memcpy => {
+            | scoop_lir::CBridgeTargetSupportV1::Memcpy
+            | scoop_lir::CBridgeTargetSupportV1::Fmodf
+            | scoop_lir::CBridgeTargetSupportV1::Fmod => {
                 binding.section_role() == super::BuiltinObjectSectionRoleV1::Text
                     && binding
                         .relocation_form()

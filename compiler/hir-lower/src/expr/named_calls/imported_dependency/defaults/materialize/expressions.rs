@@ -257,6 +257,34 @@ impl Lowerer {
                 owner: hir::StringConstantOwner::CurrentDefinition,
             },
             Kind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral((*value).into()),
+            Kind::FloatLiteral(value) => hir::ExprKind::FloatLiteral(*value),
+            Kind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => hir::ExprKind::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
+            },
+            Kind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => hir::ExprKind::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),
+                rhs: Box::new(self.materialize_imported_default_expression(rhs, context)?),
+            },
+            Kind::FloatConversion {
+                conversion,
+                operand,
+            } => hir::ExprKind::FloatConversion {
+                conversion: conversion.map_integer(hir::IntegerKind::from),
+                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
+            },
             Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,

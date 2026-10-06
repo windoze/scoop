@@ -1,19 +1,19 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:scoopabi-provider:0.1.0 kind=Library objects=20
 cone dev.programlink:scoopabi-facade:0.1.0 kind=Library objects=1
 cone dev.programlink:scoopabi-root:0.1.0 kind=Executable objects=8
-runtime objects=65
+runtime objects=70
 images=4 root=scoop$1$re$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_scoopabi requirement=45b8d82074d706eb0175da18693487ad8fd077b4a909104100e045b17d557d28 input=5acfbb2985c223fc75ffd7aaa10a0dcdae5b5b9603ac67d6a5bcfb7db9d9c35d origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 42, 243, 168, 26, 177, 229, 251, 245, 250, 110, 21, 35, 188, 221, 169, 173, 48, 15, 254, 34, 84, 189, 55, 158, 229, 139, 208, 61, 49, 196, 216])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([114, 51, 149, 239, 23, 135, 212, 232, 14, 254, 188, 46, 206, 79, 190, 130, 26, 75, 222, 145, 141, 149, 242, 175, 246, 128, 188, 83, 216, 53, 10, 251])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 114, 56, 98, 146, 24, 89, 0, 156, 73, 2, 221, 5, 249, 251, 39, 152, 228, 28, 196, 217, 181, 226, 253, 124, 119, 37, 184, 57, 100, 59, 69])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([157, 52, 151, 244, 89, 239, 63, 254, 135, 170, 109, 96, 33, 84, 151, 82, 157, 13, 184, 104, 57, 155, 86, 84, 228, 119, 250, 38, 46, 136, 177, 136])])
-native library m23_scoop_leaf requirement=eb0d13cdf5fcaf1a7f08056542e91a12197bd189a760ed263913deda8f06e1a7 input=98d3c389548424c42d2b65e7599633bbc488e00c751825a63b105d3ac81930a1 origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([4, 41, 45, 13, 2, 183, 162, 126, 115, 6, 58, 170, 182, 231, 166, 113, 105, 78, 156, 57, 130, 16, 113, 66, 17, 26, 246, 128, 166, 179, 26, 97])])
-native archive 5acfbb2985c223fc75ffd7aaa10a0dcdae5b5b9603ac67d6a5bcfb7db9d9c35d members=1
-  member 0 header=8 payload=68..3220 name="managed.o" digest=aae2784114d81067b1d58ef017f9d416aad6a772481b5a618f0bb16234101777 selected=true
-native archive 98d3c389548424c42d2b65e7599633bbc488e00c751825a63b105d3ac81930a1 members=1
-  member 0 header=8 payload=68..1300 name="leaf.o" digest=058972a03e87453bdfa380509c3ab4b9bd059a8380490d360f92fd1510748282 selected=true
-ELF system imports=48
+native library m23_scoopabi requirement=45b8d82074d706eb0175da18693487ad8fd077b4a909104100e045b17d557d28 input=$NATIVE_INPUT_0 origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 42, 243, 168, 26, 177, 229, 251, 245, 250, 110, 21, 35, 188, 221, 169, 173, 48, 15, 254, 34, 84, 189, 55, 158, 229, 139, 208, 61, 49, 196, 216])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([114, 51, 149, 239, 23, 135, 212, 232, 14, 254, 188, 46, 206, 79, 190, 130, 26, 75, 222, 145, 141, 149, 242, 175, 246, 128, 188, 83, 216, 53, 10, 251])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 114, 56, 98, 146, 24, 89, 0, 156, 73, 2, 221, 5, 249, 251, 39, 152, 228, 28, 196, 217, 181, 226, 253, 124, 119, 37, 184, 57, 100, 59, 69])]), dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([157, 52, 151, 244, 89, 239, 63, 254, 135, 170, 109, 96, 33, 84, 151, 82, 157, 13, 184, 104, 57, 155, 86, 84, 228, 119, 250, 38, 46, 136, 177, 136])])
+native library m23_scoop_leaf requirement=eb0d13cdf5fcaf1a7f08056542e91a12197bd189a760ed263913deda8f06e1a7 input=$NATIVE_INPUT_1 origins=dev.programlink:scoopabi-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([4, 41, 45, 13, 2, 183, 162, 126, 115, 6, 58, 170, 182, 231, 166, 113, 105, 78, 156, 57, 130, 16, 113, 66, 17, 26, 246, 128, 166, 179, 26, 97])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..3220 name="managed.o" digest=$NATIVE_MEMBER_0 selected=true
+native archive $NATIVE_INPUT_1 members=1
+  member 0 header=8 payload=68..1300 name="leaf.o" digest=$NATIVE_MEMBER_1 selected=true
+ELF system imports=55
 startup object references:
   scoop$1$im$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

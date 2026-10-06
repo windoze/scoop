@@ -26,6 +26,8 @@ public interface SingleValueDecodingContainer {
     public fun readBoolean(): Boolean
     public fun readLong(): Long
     public fun readULong(): ULong
+    public fun readFloat(): Float
+    public fun readDouble(): Double
     public fun readString(): String
     public fun readNull(): Unit
 }

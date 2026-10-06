@@ -10,6 +10,9 @@ impl Writer<'_, '_> {
             Value::IntegerConst(value) => {
                 record!(self, 4; self.integer_kind(value.kind()), self.u(value.raw_bits()))
             }
+            Value::FloatConst(value) => {
+                record!(self, 14; self.u(u64::from(value.kind().bits())), self.u(value.raw_bits()))
+            }
             Value::MachineScalar(value) => {
                 record!(self, 5; self.machine_kind(value.kind()), self.u(value.raw_bits()))
             }

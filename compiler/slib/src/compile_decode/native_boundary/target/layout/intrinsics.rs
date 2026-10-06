@@ -59,6 +59,7 @@ pub(super) fn intrinsic_layout(
                 true,
             ))
         }
+        IntrinsicTypeKind::Float(kind) => Ok(scalar(target.float_layout(kind), true)),
         IntrinsicTypeKind::Char => Ok(scalar(
             target.scalar_layout(scoop_lir::BackendScalarKind::I32),
             true,

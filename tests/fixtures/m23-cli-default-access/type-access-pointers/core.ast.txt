@@ -151,6 +151,8 @@ SourceFile
     fun readBoolean
     fun readLong
     fun readULong
+    fun readFloat
+    fun readDouble
     fun readString
     fun readNull
   public class DecodingException(val path: String, message: String) : Exception(<1 args>)
@@ -221,6 +223,8 @@ SourceFile
     fun writeBoolean
     fun writeLong
     fun writeULong
+    fun writeFloat
+    fun writeDouble
     fun writeString
     fun writeNull
   public class EncodingException(val path: String, message: String) : Exception(<1 args>)
@@ -252,6 +256,108 @@ SourceFile
     @NoGC
     @Intrinsic("align_of")
   public fun alignOf<T : value>(): ULong
+SourceFile
+  RootPackage
+    @Intrinsic("core_float")
+  public struct Float <representation omitted> : ToString
+    public companion object
+      public fun encode
+      public fun decode
+      public const val NaN: Float <const> = <expr>
+        Binary Div
+          FloatLiteral 0f
+          FloatLiteral 0f
+      public const val POSITIVE_INFINITY: Float <const> = <expr>
+        Binary Div
+          FloatLiteral 1f
+          FloatLiteral 0f
+      public const val NEGATIVE_INFINITY: Float <const> = <expr>
+        Unary Neg
+          Var POSITIVE_INFINITY
+      public const val MAX_VALUE: Float <const> = <expr>
+        FloatLiteral 3.4028234663852886e38f
+      public const val MIN_VALUE: Float <const> = <expr>
+        FloatLiteral 1.401298464324817e-45f
+      public const val MIN_NORMAL: Float <const> = <expr>
+        FloatLiteral 1.1754943508222875e-38f
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun equals
+    public fun isNaN
+    public fun isInfinite
+    public fun isFinite
+    public fun isTotallyOrdered
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toFloat
+    public fun toDouble
+    public fun toString
+    @Intrinsic("core_double")
+  public struct Double <representation omitted> : ToString
+    public companion object
+      public fun encode
+      public fun decode
+      public const val NaN: Double <const> = <expr>
+        Binary Div
+          FloatLiteral 0.0
+          FloatLiteral 0.0
+      public const val POSITIVE_INFINITY: Double <const> = <expr>
+        Binary Div
+          FloatLiteral 1.0
+          FloatLiteral 0.0
+      public const val NEGATIVE_INFINITY: Double <const> = <expr>
+        Unary Neg
+          Var POSITIVE_INFINITY
+      public const val MAX_VALUE: Double <const> = <expr>
+        FloatLiteral 1.7976931348623157e308
+      public const val MIN_VALUE: Double <const> = <expr>
+        FloatLiteral 4.9406564584124654e-324
+      public const val MIN_NORMAL: Double <const> = <expr>
+        FloatLiteral 2.2250738585072014e-308
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun equals
+    public fun isNaN
+    public fun isInfinite
+    public fun isFinite
+    public fun isTotallyOrdered
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public fun toFloat
+    public fun toDouble
+    public fun toString
+  public typealias Float32 = Float
+  public typealias Float64 = Double
+    @Extern(name = "scoop_rt_float_to_string", abi = "scoop")
+  internal fun coreFloatToString(value: Float): String
+    @Extern(name = "scoop_rt_double_to_string", abi = "scoop")
+  internal fun coreDoubleToString(value: Double): String
 SourceFile
   RootPackage
   public enum ForeignCallbackMode
@@ -330,6 +436,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_int")
   public struct Int <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     internal fun characterUnchecked
     public operator fun equals
     public operator fun unaryPlus
@@ -370,6 +478,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_int16")
   public struct Int16 <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -409,6 +519,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_int8")
   public struct Int8 <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -448,6 +560,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_long")
   public struct Long <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -487,6 +601,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_uint")
   public struct UInt <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -525,6 +641,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_uint16")
   public struct UInt16 <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -563,6 +681,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_uint8")
   public struct UInt8 <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -601,6 +721,8 @@ SourceFile
   RootPackage
     @Intrinsic("core_ulong")
   public struct ULong <representation omitted> : ToString, Hash
+    public fun toFloat
+    public fun toDouble
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus

@@ -1,0 +1,68 @@
+class Storage(var single: Float, var wide: Double, var trace: String)
+
+class ScalarEncoder(val storage: Storage): Encoder, SingleValueEncodingContainer {
+    public override val path: String get() = ""
+    public override fun keyed(): KeyedEncodingContainer { throw IllegalStateException(None) }
+    public override fun unkeyed(): UnkeyedEncodingContainer { throw IllegalStateException(None) }
+    public override fun singleValue(): SingleValueEncodingContainer = this
+    public override fun writeBoolean(value: Boolean) { throw IllegalStateException(None) }
+    public override fun writeLong(value: Long) { throw IllegalStateException(None) }
+    public override fun writeULong(value: ULong) { throw IllegalStateException(None) }
+    public override fun writeString(value: String) { throw IllegalStateException(None) }
+    public override fun writeNull() { throw IllegalStateException(None) }
+    public override fun writeFloat(value: Float) {
+        gcCollect()
+        storage.single = value
+        storage.trace += "f;"
+    }
+    public override fun writeDouble(value: Double) {
+        gcCollect()
+        storage.wide = value
+        storage.trace += "d;"
+    }
+}
+
+class ScalarDecoder(val storage: Storage): Decoder, SingleValueDecodingContainer {
+    public override val path: String get() = ""
+    public override fun keyed(): KeyedDecodingContainer { throw IllegalStateException(None) }
+    public override fun unkeyed(): UnkeyedDecodingContainer { throw IllegalStateException(None) }
+    public override fun singleValue(): SingleValueDecodingContainer = this
+    public override fun readBoolean(): Boolean { throw IllegalStateException(None) }
+    public override fun readLong(): Long { throw IllegalStateException(None) }
+    public override fun readULong(): ULong { throw IllegalStateException(None) }
+    public override fun readString(): String { throw IllegalStateException(None) }
+    public override fun readNull() { throw IllegalStateException(None) }
+    public override fun readFloat(): Float { gcCollect(); return storage.single }
+    public override fun readDouble(): Double { gcCollect(); return storage.wide }
+}
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): ULong
+
+fun <T> encode(value: T, codec: Encodable<T>, target: Encoder) { codec.encode(value, target) }
+fun <T> decode(codec: Decodable<T>, source: Decoder): T = codec.decode(source)
+
+@Unsafe fun main() {
+    val storage = Storage(0f, 0.0, "")
+    val encoder = ScalarEncoder(storage)
+    val decoder = ScalarDecoder(storage)
+    encode(fromFloatBits(0xff800123U), Float32.Companion, encoder)
+    encode(fromDoubleBits(0x7ff0000000000123UL), Float64.Companion, encoder)
+    if (floatBits(decode(Float.Companion, decoder)) != 0xff800123U ||
+        doubleBits(decode(Double.Companion, decoder)) != 0x7ff0000000000123UL) {
+        println("nan"); return
+    }
+    Float.encode(-0f, encoder)
+    Double.encode(Double.POSITIVE_INFINITY, encoder)
+    if (floatBits(Float32.decode(decoder)) != 0x80000000U ||
+        !Double.decode(decoder).isInfinite() || storage.trace != "f;d;f;d;") {
+        println("dispatch"); return
+    }
+    println("single-value-ok")
+}

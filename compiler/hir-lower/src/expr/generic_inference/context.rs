@@ -8,6 +8,9 @@ impl Lowerer {
     /// context-independent arguments cannot bind every constructor variable;
     /// this lets nested calls perform their own fixed-point inference.
     pub(crate) fn expr_requires_expected_type(&self, expr: &ast::Expr) -> bool {
+        if crate::expr::float_literal_default_kind(expr) == Some(hir::FloatKind::F64) {
+            return true;
+        }
         match expr {
             ast::Expr::IntLiteral(_) => true,
             ast::Expr::Unary { op, operand, .. }
@@ -123,7 +126,7 @@ impl Lowerer {
 
     /// Whether a contextual expression can nevertheless synthesize a
     /// complete type when a surrounding inference fixed point has no other
-    /// evidence. Integer literals use their suffix/default-width ladder;
+    /// evidence. Numeric literals use their suffix and default format;
     /// aggregate constructors may use such literals transitively.
     ///
     /// This is deliberately separate from `expr_requires_expected_type`:
@@ -131,6 +134,9 @@ impl Lowerer {
     /// `Option<Int8>` / `Option<Int16>` parameter types before any default is
     /// committed.
     pub(crate) fn expr_can_provide_default_seed(&self, expr: &ast::Expr) -> bool {
+        if crate::expr::float_literal_default_kind(expr).is_some() {
+            return true;
+        }
         match expr {
             ast::Expr::IntLiteral(_) => true,
             ast::Expr::Unary { op, operand, .. }
@@ -290,10 +296,10 @@ impl Lowerer {
             self.find_variant(enum_id, variant_name)
                 .map(|variant| (enum_id, variant))
         } else {
-            let [target] = self.core_prelude_variant_refs(name) else {
-                return None;
-            };
-            Some((target.enumeration(), target.local_index()))
+            match self.core_prelude_variant_refs(name) {
+                [target] => Some((target.enumeration(), target.local_index())),
+                _ => None,
+            }
         };
         if let Some((enum_id, variant)) = variant {
             return Some((

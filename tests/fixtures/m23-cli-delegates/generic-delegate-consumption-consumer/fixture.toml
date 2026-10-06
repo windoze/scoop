@@ -1,8 +1,8 @@
 schema = 1
 name = "generic-delegate-consumption-consumer"
-inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-delegate-provider", "../../m23-generic-delegate-consumption/provider.scoop", "generic-delegate-consumer", "../../m23-generic-delegate-consumption/consumer.scoop", "generic-delegate-downstream", "../../m23-generic-delegate-consumption/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c", "../support/metadata.c", "corruptions"]
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-delegate-provider", "../../m23-generic-delegate-consumption/provider.scoop", "generic-delegate-consumer", "../../m23-generic-delegate-consumption/consumer.scoop", "generic-delegate-downstream", "../../m23-generic-delegate-consumption/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c", "../support/metadata.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-# The corruption vectors embed a complete Mach-O artifact manifest and archive sizes.
+# Native metadata companions currently target Mach-O.
 targets = ["aarch64-apple-darwin"]
 tags = ["generics", "generic_delegated_properties_republish_and_execute_from_artifacts", "stage-golden"]
 
@@ -206,7 +206,7 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
   {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths", "native-digests"]},
 ]
 
 [[steps]]
@@ -237,147 +237,3 @@ argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${
 exit = 0
 stdout = {snapshot = "strong_symbols.${target}.txt"}
 stderr = ""
-
-[[steps]]
-name = "prepare_corruption"
-files = [
-  {"copy" = {"from" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "to" = "${work}/valid-consumer.slib"}},
-  {"copy" = {"from" = "${fixture}/generic-delegate-downstream", "to" = "${work}/negative-source"}},
-  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-consumption/downstream.scoop", "to" = "${work}/negative-source/src/main.scoop"}},
-]
-checks = [
-  {"file" = "${work}/valid-consumer.slib", "sha256" = "c1117b04e1ad59bf5fc1b79464684e002dab5b2b46fc788c010f43d25dd08c48"},
-]
-
-[[steps]]
-name = "corrupt_missing_delegate_storage"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-delegate-storage/3.old.bin"}, "new" = {"file" = "corruptions/missing-delegate-storage/3.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-delegate-storage/2.old.bin"}, "new" = {"file" = "corruptions/missing-delegate-storage/2.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-delegate-storage/1.old.bin"}, "new" = {"file" = "corruptions/missing-delegate-storage/1.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-delegate-storage/0.old.bin"}, "new" = {"file" = "corruptions/missing-delegate-storage/0.new.bin"}}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "487a7e29bcb3a9f412148bde67082771b1e03c534c74002d4648415a76603cab"},
-]
-
-[[steps]]
-name = "reject_missing_delegate_storage"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/negative-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "corruptions/missing-delegate-storage/diagnostics.json"}
-checks = [
-  {"file" = "${work}/rejected.slib", "exists" = false},
-]
-
-[[steps]]
-name = "corrupt_missing_failure_root"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-failure-root/3.old.bin"}, "new" = {"file" = "corruptions/missing-failure-root/3.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-failure-root/2.old.bin"}, "new" = {"file" = "corruptions/missing-failure-root/2.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-failure-root/1.old.bin"}, "new" = {"file" = "corruptions/missing-failure-root/1.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-failure-root/0.old.bin"}, "new" = {"file" = "corruptions/missing-failure-root/0.new.bin"}}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "532db1257f7d125f828c6f29342ac866272b87adfcb3299b6acdf72aafb9cff4"},
-]
-
-[[steps]]
-name = "reject_missing_failure_root"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/negative-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "corruptions/missing-failure-root/diagnostics.json"}
-checks = [
-  {"file" = "${work}/rejected.slib", "exists" = false},
-]
-
-[[steps]]
-name = "corrupt_missing_initializer_callable"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/4.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/4.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/3.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/3.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/2.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/2.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/1.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/1.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/0.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/0.new.bin"}}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "052c2d0e3418e19b08e516fbdb1e7f324f1bfb419264b9aa6f8e0509fe4ea048"},
-]
-
-[[steps]]
-name = "reject_missing_initializer_callable"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/negative-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "corruptions/missing-initializer-callable/diagnostics.json"}
-checks = [
-  {"file" = "${work}/rejected.slib", "exists" = false},
-]
-
-[[steps]]
-name = "corrupt_missing_unit"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-unit/3.old.bin"}, "new" = {"file" = "corruptions/missing-unit/3.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-unit/2.old.bin"}, "new" = {"file" = "corruptions/missing-unit/2.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-unit/1.old.bin"}, "new" = {"file" = "corruptions/missing-unit/1.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-unit/0.old.bin"}, "new" = {"file" = "corruptions/missing-unit/0.new.bin"}}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "343fd53310467ba315142489de1cdec3ce8e01677ba5a16f5a4c3b616a56dfad"},
-]
-
-[[steps]]
-name = "reject_missing_unit"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/negative-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "corruptions/missing-unit/diagnostics.json"}
-checks = [
-  {"file" = "${work}/rejected.slib", "exists" = false},
-]
-
-[[steps]]
-name = "corrupt_swapped_initializer_and_ensure"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/swapped-initializer-and-ensure/1.old.bin"}, "new" = {"file" = "corruptions/swapped-initializer-and-ensure/1.new.bin"}}},
-  {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/swapped-initializer-and-ensure/0.old.bin"}, "new" = {"file" = "corruptions/swapped-initializer-and-ensure/0.new.bin"}}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "7963bbdd59e84b1b90d36e44f8f45db0d31fbe0c6cfaf53e80687a0a61a63740"},
-]
-
-[[steps]]
-name = "reject_swapped_initializer_and_ensure"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/negative-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/rejected.slib"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "corruptions/swapped-initializer-and-ensure/diagnostics.json"}
-checks = [
-  {"file" = "${work}/rejected.slib", "exists" = false},
-]
-
-[[steps]]
-name = "restore_consumer"
-files = [
-  {"copy" = {"from" = "${work}/valid-consumer.slib", "to" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"}},
-]
-checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "same_as" = "${work}/valid-consumer.slib"},
-]

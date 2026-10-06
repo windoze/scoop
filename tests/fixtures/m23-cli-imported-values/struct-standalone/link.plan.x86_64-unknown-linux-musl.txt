@@ -1,17 +1,17 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:struct-provider:0.1.0 kind=Library objects=32
 cone dev.example:struct-standalone:0.1.0 kind=Library objects=3
 cone dev.example:downstream-standalone:0.1.0 kind=Library objects=3
 cone dev.example:value-runtime-struct-standalone:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=5 root=scoop$1$re$46ea920e4070cb1724df6ac58fb0eba78b5cbe979857d1af92554b7e5d1f6647
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_struct_abi requirement=0c8a1a0156185ee2a594021ea6593a0239a893f3967d793df49bfa6398a00b32 input=b0c9e44ac9aef9567ebcaf367135b51f54faa3f5d3d3fa412df990dc304dc5db origins=dev.example:value-runtime-struct-standalone:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([36, 173, 44, 91, 45, 223, 127, 29, 207, 250, 154, 88, 111, 179, 142, 63, 28, 34, 198, 10, 8, 157, 32, 55, 107, 77, 46, 51, 186, 80, 44, 111])])
-native archive b0c9e44ac9aef9567ebcaf367135b51f54faa3f5d3d3fa412df990dc304dc5db members=1
-  member 0 header=8 payload=68..1948 name="abi.o" digest=43e67f344e3620743bd4b8911b97ca4a1a1a4197bfb900fb83da650837991460 selected=true
-ELF system imports=47
+native library m23_struct_abi requirement=0c8a1a0156185ee2a594021ea6593a0239a893f3967d793df49bfa6398a00b32 input=$NATIVE_INPUT_0 origins=dev.example:value-runtime-struct-standalone:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([36, 173, 44, 91, 45, 223, 127, 29, 207, 250, 154, 88, 111, 179, 142, 63, 28, 34, 198, 10, 8, 157, 32, 55, 107, 77, 46, 51, 186, 80, 44, 111])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1948 name="abi.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=54
 startup object references:
   scoop$1$im$2ffa80d478d39252024502d0bb4ed953254090c91af074e874eb942c79cdbf33
   scoop$1$im$41a11c3f83765ad4f9c934d839ebca9ab312751a20c282405a30e89fa1dd6006

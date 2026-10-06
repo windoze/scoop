@@ -63,6 +63,8 @@ impl Fixture {
         let intrinsic_core = IntrinsicTypeCore {
             unit: crate::StructId::from_raw(12_u32.into()),
             character: crate::StructId::from_raw(11_u32.into()),
+            float: crate::StructId::from_raw(13_u32.into()),
+            double: crate::StructId::from_raw(14_u32.into()),
             integers: IntegerTypeCore::new(std::array::from_fn(|index| {
                 crate::StructId::from_raw((index as u32).into())
             }))

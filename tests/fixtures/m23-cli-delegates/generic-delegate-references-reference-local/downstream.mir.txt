@@ -25,12 +25,12 @@ Module
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn11 captures=1
-    bridge function_type1 -> @fn17 id=d24797c57d7a494c919aebbe2c9b4375d2001aa7993d264c64415f3a4b17fbf5
+    bridge function_type1 -> @fn17 id=bf2dc9f60e807c50e6446af2e4069f91bfafc7ce8e03487594ccd313f3f40254
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn18 id=bf2dc9f60e807c50e6446af2e4069f91bfafc7ce8e03487594ccd313f3f40254
-  generated_exact_type get0 location=closure1 nominal_id=c55c0ea4481c46533fb22b93013f4ea3d411d33cf2e152ba566ee1add20287c0 exact_id=09ea10bc203fab45b9acc6d0d195e5f1e95caa0be191bc1d85e043da0181f693
+    bridge function_type1 -> @fn18 id=d24797c57d7a494c919aebbe2c9b4375d2001aa7993d264c64415f3a4b17fbf5
+  generated_exact_type get0 location=closure0 nominal_id=c55c0ea4481c46533fb22b93013f4ea3d411d33cf2e152ba566ee1add20287c0 exact_id=09ea10bc203fab45b9acc6d0d195e5f1e95caa0be191bc1d85e043da0181f693
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get2 location=closure0 nominal_id=e82d8b90c8eb30ddea52f389d4941b6d5ae5883ffe2db04cb8be31ba88a5dd30 exact_id=2e3db4736d3d1cf3d3a496cc6a400488e8e996e035b07c5ae2cc11f294b684e5
+  generated_exact_type get2 location=closure1 nominal_id=e82d8b90c8eb30ddea52f389d4941b6d5ae5883ffe2db04cb8be31ba88a5dd30 exact_id=2e3db4736d3d1cf3d3a496cc6a400488e8e996e035b07c5ae2cc11f294b684e5
   generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
@@ -39,8 +39,8 @@ Module
   generated_exact_type get8 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn16 id=3282278ab46c146bd3e772dae3825f9eed42c78ce4041aef5f8209a7c4d40d65
-  generated_callable gc1 function=@fn18 id=bf2dc9f60e807c50e6446af2e4069f91bfafc7ce8e03487594ccd313f3f40254
-  generated_callable gc2 function=@fn17 id=d24797c57d7a494c919aebbe2c9b4375d2001aa7993d264c64415f3a4b17fbf5
+  generated_callable gc1 function=@fn17 id=bf2dc9f60e807c50e6446af2e4069f91bfafc7ce8e03487594ccd313f3f40254
+  generated_callable gc2 function=@fn18 id=d24797c57d7a494c919aebbe2c9b4375d2001aa7993d264c64415f3a4b17fbf5
   fun check @fn0() -> Int
     bb0 entry
       call $dependency.receiver: Int = external0 direct
@@ -363,36 +363,36 @@ Module
         BoolLiteral true
     bb1 if.then.1
       call external7 direct
-      val $dependency.local.3: Trace
+      val $dependency.local.1: Trace
         Type Trace
         GlobalRead $singleton$5a65a7ae2eb3532b4836102c2f8336701e2b7ffa47eb26503352bf49d6b6124f
-      call $dependency.local.4: Int = external1 direct
+      call $dependency.local.2: Int = external1 direct
         Type Trace
-        Local $dependency.local.3
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      val $dependency.local.6: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.local.7: Int
-        Type Int
-        Local $dependency.local.6
       call external4 direct
         Type Trace
-        Local $dependency.local.3
+        Local $dependency.local.1
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.5
+          Local $dependency.local.3
           Type Int
-          Local $dependency.local.7
-      val $dependency.local.8: Int
+          Local $dependency.local.5
+      val $dependency.local.6: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.9: Int
+      val $dependency.local.7: Int
         Type Int
-        Local $dependency.local.8
+        Local $dependency.local.6
       assign $new.1
         Type Payload
         ClassAlloc Payload
@@ -400,19 +400,19 @@ Module
         Type Payload
         Local $new.1
         Type Int
-        Local $dependency.local.9
+        Local $dependency.local.7
       val $dependency.local.0: Payload
         Type Payload
         Local $new.1
-      val $dependency.local.10: () -> Int
+      val $dependency.local.8: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$reference0
           CaptureInit field=0
             Type Payload
             Local $dependency.local.0
-      val $dependency.local.11: () -> Int
+      val $dependency.local.9: () -> Int
         Type () -> Int
-        Local $dependency.local.10
+        Local $dependency.local.8
       assign $new.2
         Type ReaderSlot<Later>
         ClassAlloc ReaderSlot<Later>
@@ -420,18 +420,18 @@ Module
         Type ReaderSlot<Later>
         Local $new.2
         Type () -> Int
-        Local $dependency.local.11
+        Local $dependency.local.9
       assign $dependency.local.12
         Type ReaderSlot<Later>
         Local $new.2
       goto bb3
     bb2 if.else.2
-      val $dependency.local.1: () -> Int
+      val $dependency.local.10: () -> Int
         Type () -> Int
         ClosureAlloc cc1 $Closure$reference1
-      val $dependency.local.2: () -> Int
+      val $dependency.local.11: () -> Int
         Type () -> Int
-        Local $dependency.local.1
+        Local $dependency.local.10
       assign $new.3
         Type ReaderSlot<Later>
         ClassAlloc ReaderSlot<Later>
@@ -439,7 +439,7 @@ Module
         Type ReaderSlot<Later>
         Local $new.3
         Type () -> Int
-        Local $dependency.local.2
+        Local $dependency.local.11
       assign $dependency.local.12
         Type ReaderSlot<Later>
         Local $new.3

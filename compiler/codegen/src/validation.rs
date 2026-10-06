@@ -304,6 +304,7 @@ fn checked_value_type(
             .ok_or_else(|| invalid("parameter", index as usize)),
         Value::Temp(id) => checked_temp_type(function, id, owner).cloned(),
         Value::IntegerConst(value) => Ok(value.scalar_type()),
+        Value::FloatConst(value) => Ok(LirType::floating(value.kind())),
         Value::MachineScalar(value) => Ok(LirType::MachineScalar(value.kind())),
         Value::BoolConst(_) => Ok(LirType::I1),
         Value::ContextKeyCell(_) => Ok(scoop_lir::RAW_PTR),
@@ -892,7 +893,9 @@ fn validate_c_type(
     visiting: &mut HashSet<StructDefId>,
 ) -> Result<(), CodegenError> {
     match ty {
-        scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => Ok(()),
+        scoop_lir::CType::Float(_) | scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => {
+            Ok(())
+        }
         scoop_lir::CType::DataPointer { pointee, storage } => {
             if let scoop_lir::CDataPointerStorage::Nullable(reference) = storage {
                 let id = reference.definition();

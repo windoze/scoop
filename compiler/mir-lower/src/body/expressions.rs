@@ -50,6 +50,34 @@ impl BodyLowerer<'_> {
             hir::ExprKind::IntegerLiteral(value) => {
                 smir::ExprKind::IntegerLiteral(lower_integer_constant(*value))
             }
+            hir::ExprKind::FloatLiteral(value) => smir::ExprKind::FloatLiteral(*value),
+            hir::ExprKind::FloatUnary {
+                kind,
+                operation,
+                operand,
+            } => smir::ExprKind::FloatUnary {
+                kind: *kind,
+                operation: *operation,
+                operand: Box::new(self.lower_expr(operand)),
+            },
+            hir::ExprKind::FloatBinary {
+                kind,
+                operation,
+                lhs,
+                rhs,
+            } => smir::ExprKind::FloatBinary {
+                kind: *kind,
+                operation: *operation,
+                lhs: Box::new(self.lower_expr(lhs)),
+                rhs: Box::new(self.lower_expr(rhs)),
+            },
+            hir::ExprKind::FloatConversion {
+                conversion,
+                operand,
+            } => smir::ExprKind::FloatConversion {
+                conversion: conversion.map_integer(lower_integer_kind),
+                operand: Box::new(self.lower_expr(operand)),
+            },
             hir::ExprKind::CharLiteral(value) => smir::ExprKind::CharLiteral(*value),
             hir::ExprKind::CharCode(value) => {
                 smir::ExprKind::CharCode(Box::new(self.lower_expr(value)))

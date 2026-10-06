@@ -1,9 +1,0 @@
-{
-  "core": "f8b99e77ed6c8b746dc55f52de8f976ac1f5dfe76ac5d83752c0ed0ea494cb27",
-  "left_consumer": "a83718543693a9ed1d0f0f678fcb7cda88927fc5adfe3cee7d716257bfcea7f3",
-  "left_program": "f475f0af6b44dfa5a319f6127635dac6c62b7bb65d9b7dbf8cf6bcdb7a936763",
-  "left_provider": "135fadb5c10f35dea22882f5b16160e45da079a429eb44b3f011de7382a21579",
-  "right_consumer": "bd09b131ce0cbba8c986d86dd5e224dddb480c4bb8186ba6a32b5e22d6a25370",
-  "right_program": "0cb6fab95561741ebdb63b3f152537b0fa82274caa52d6acee78697b8e2de961",
-  "right_provider": "6c2b2bcf0335ca3fe4e6103ff80a9de29f221447aa0143b9659821110d78b1bc"
-}

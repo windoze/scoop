@@ -50,6 +50,22 @@ enum DecodedDefaultExpressionKindV1 {
     IntegerLiteral(CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
     CharLiteral(crate::CanonicalCharV1),
+    FloatLiteral(scoop_identity::FloatConstant),
+    FloatUnary {
+        kind: crate::FloatKind,
+        operation: crate::FloatUnaryOperator,
+        operand: Box<DecodedDefaultExpressionV1>,
+    },
+    FloatBinary {
+        kind: crate::FloatKind,
+        operation: crate::FloatBinaryOperator,
+        lhs: Box<DecodedDefaultExpressionV1>,
+        rhs: Box<DecodedDefaultExpressionV1>,
+    },
+    FloatConversion {
+        conversion: crate::DefaultFloatConversionV1,
+        operand: Box<DecodedDefaultExpressionV1>,
+    },
     UnitLiteral,
     TupleLiteral(Vec<DecodedDefaultExpressionV1>),
     StructInit {

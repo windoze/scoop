@@ -36,6 +36,8 @@ private class TraceEncoder(private val source: Source)
     public override fun writeBoolean(value: Boolean) { throw IllegalStateException(None) }
     public override fun writeLong(value: Long) { throw IllegalStateException(None) }
     public override fun writeULong(value: ULong) { throw IllegalStateException(None) }
+    public override fun writeFloat(value: Float) { throw IllegalStateException(None) }
+    public override fun writeDouble(value: Double) { throw IllegalStateException(None) }
     public override fun writeNull() { throw IllegalStateException(None) }
 }
 

@@ -70,6 +70,11 @@ impl WireEncode for MirParamFreeIntrinsicV1 {
             Self::Boolean => tag(encoder, 1, 3),
             Self::String => tag(encoder, 1, 4),
             Self::Char => tag(encoder, 1, 5),
+            Self::Float(kind) => {
+                tag(encoder, 2, 6)?;
+                encoder.field(1)?;
+                kind.encode(encoder)
+            }
             Self::Integer(kind) => {
                 tag(encoder, 3, 2)?;
                 encoder.field(1)?;
@@ -92,12 +97,21 @@ impl WireDecode for MirParamFreeIntrinsicV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let count = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
-        fields(decoder, count, if kind == 2 { 3 } else { 1 })?;
+        fields(
+            decoder,
+            count,
+            match kind {
+                2 => 3,
+                6 => 2,
+                _ => 1,
+            },
+        )?;
         match kind {
             1 => Ok(Self::Unit),
             3 => Ok(Self::Boolean),
             4 => Ok(Self::String),
             5 => Ok(Self::Char),
+            6 => Ok(Self::Float(decoder.field(1, crate::FloatKind::decode)?)),
             2 => {
                 let signedness = match decoder.field(1, Decoder::unsigned)? {
                     1 => IntegerSignedness::Signed,

@@ -87,6 +87,18 @@ fn classify_section(
         (b"__TEXT", b"__const") | (b"__DATA", b"__const") | (b"__DATA_CONST", b"__const") => {
             Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
         }
+        (b"__TEXT", b"__literal4") => Some((
+            BuiltinObjectSectionRoleV1::ReadOnlyData,
+            macho::S_4BYTE_LITERALS,
+        )),
+        (b"__TEXT", b"__literal8") => Some((
+            BuiltinObjectSectionRoleV1::ReadOnlyData,
+            macho::S_8BYTE_LITERALS,
+        )),
+        (b"__TEXT", b"__literal16") => Some((
+            BuiltinObjectSectionRoleV1::ReadOnlyData,
+            macho::S_16BYTE_LITERALS,
+        )),
         (b"__TEXT", b"__scoop_sig") | (b"__TEXT", b"__scoop_ctx")
             if profile == BuiltinLinkObjectSectionProfileV1::GeneratedCBridge =>
         {

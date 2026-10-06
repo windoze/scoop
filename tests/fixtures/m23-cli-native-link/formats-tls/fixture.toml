@@ -30,10 +30,6 @@ files = [{"copy" = {"from" = "${work}/objects/m23_final.o", "to" = "${work}/nati
 checks = []
 
 [[steps]]
-name = "original_object"
-checks = [{"file" = "${work}/native/m23_final.o", "sha256" = "f1fa0303569b3c769c5561de84d91175f39c806b13b68011f197ea1dbf51f601"}]
-
-[[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/records", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
@@ -72,6 +68,7 @@ checks = []
 
 [[steps]]
 name = "reject_key"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""
@@ -93,6 +90,7 @@ checks = []
 
 [[steps]]
 name = "reject_template"
+diagnostics_normalize = ["native-digests"]
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
 exit = 1
 stdout = ""

@@ -54,6 +54,9 @@ impl ImportedCallableCandidate {
             return None;
         };
         match intrinsic {
+            hir::IntrinsicFunctionKind::Float(kind) => {
+                Some(NormalizedImportedIntrinsic::Float(kind))
+            }
             hir::IntrinsicFunctionKind::Char(kind) => Some(NormalizedImportedIntrinsic::Char(kind)),
             hir::IntrinsicFunctionKind::Integer(kind) => {
                 Some(NormalizedImportedIntrinsic::Integer(kind))

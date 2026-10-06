@@ -4,6 +4,10 @@
 //! flat public data model while keeping identity/types, module entities,
 //! metadata, functions, instructions and calls in separate source modules.
 
+pub use scoop_identity::{
+    FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind, FloatUnaryOperator,
+};
+
 use std::num::NonZeroU32;
 
 use la_arena::{Arena, Idx};
@@ -159,3 +163,5 @@ pub use task_context::{
     CallableContextKeyCellV1, ContextKey, context_key_cell_atom, context_key_table_atom,
     function_context_keys,
 };
+
+pub type LirFloatConversion = scoop_identity::FloatConversion<IntegerKind>;

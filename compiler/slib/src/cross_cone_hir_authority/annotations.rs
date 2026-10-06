@@ -134,6 +134,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     IntrinsicTypeKind::Integer(kind) => {
                         Ok(CanonicalConstValueKindV1::Integer(kind))
                     }
+                    IntrinsicTypeKind::Float(kind) => Ok(CanonicalConstValueKindV1::Float(kind)),
                     IntrinsicTypeKind::Char => Ok(CanonicalConstValueKindV1::Char),
                     IntrinsicTypeKind::String => Ok(CanonicalConstValueKindV1::String),
                     _ => Err(Error::Invalid(

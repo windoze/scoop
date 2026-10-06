@@ -1,0 +1,307 @@
+SourceFile
+  RootPackage
+  struct Packet<T>
+    field number: T
+    field stamp: Double
+    field label: String
+  class Holder(var small: Float, var wide: Double)
+  enum Reading
+    Value(Float)
+    Empty
+    @Global
+  var storedSingle: Float = <expr>
+    @Global
+  var storedWide: Double = <expr>
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun fromFloatBits(value: UInt): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun fromDoubleBits(value: ULong): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): ULong
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun unpack(value: Reading): Float
+    =
+      WhenExpression
+        Var value
+        arm Value(number)
+          Var number
+        arm Empty
+          FloatLiteral 0f
+    @Unsafe
+  fun main()
+    val single
+      Call fromFloatBits
+        IntLiteral 0xff800123u
+    val wide
+      Call fromDoubleBits
+        IntLiteral 0x7ff0000000000123uL
+    val singles
+      Call MutableArray<Float>
+        IntLiteral 130L
+        Lambda 0 suspend=false
+          param i: _
+          if
+            Binary Eq
+              Binary Rem
+                Var i
+                IntLiteral 2L
+              IntLiteral 0L
+            Var single
+          else
+            Unary Neg
+              FloatLiteral 0f
+    val doubles
+      Call Array<Double>
+        IntLiteral 130L
+        Lambda 1 suspend=false
+          param i: _
+          Var wide
+    val list
+      Call ArrayList<Float>
+    for value
+      Var singles
+      MethodCall add
+        Var list
+        Var value
+    val packet
+      Call identity
+        Call Packet
+          Var single
+          Var wide
+          Binary Add
+            StringLiteral "packet-"
+            StringLiteral "alive"
+    val tuple
+      Call identity
+        TupleLiteral
+          Call Some
+            Var single
+          Var wide
+    val variant
+      MethodCall Value
+        Var Reading
+        Var single
+    val holder
+      Call Holder
+        Var single
+        Var wide
+    val boxed: ToString
+      Var single
+    val any: Any
+      Var single
+    val captured
+      Call Holder
+        Var single
+        Var wide
+    val closure: () -> Packet<Float>
+      Lambda 2 suspend=false
+        parameters omitted
+        Call gcCollect
+        Call Packet
+          FieldAccess small
+            Var captured
+          Var wide
+          FieldAccess label
+            Var packet
+    assign .small
+      Var captured
+      Unary Neg
+        FloatLiteral 0f
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            Var storedSingle
+          IntLiteral 0x80000000u
+        Binary Ne
+          Call doubleBits
+            Var storedWide
+          IntLiteral 0x10000000000000uL
+      Call println
+        StringLiteral "initializers"
+      return
+    assign storedSingle
+      Var single
+    assign storedWide
+      Var wide
+    Call gcCollect
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Ne
+                  Call floatBits
+                    FieldAccess number
+                      Var packet
+                  IntLiteral 0xff800123u
+                Binary Ne
+                  Call doubleBits
+                    FieldAccess stamp
+                      Var packet
+                  IntLiteral 0x7ff0000000000123uL
+              Binary Ne
+                Call floatBits
+                  NullAssert
+                    FieldAccess _1
+                      Var tuple
+                IntLiteral 0xff800123u
+            Binary Ne
+              Call doubleBits
+                FieldAccess _2
+                  Var tuple
+              IntLiteral 0x7ff0000000000123uL
+          Binary Ne
+            Call floatBits
+              Call unpack
+                Var variant
+            IntLiteral 0xff800123u
+        Binary Ne
+          FieldAccess label
+            Var packet
+          StringLiteral "packet-alive"
+      Call println
+        StringLiteral "aggregates"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call floatBits
+                Cast Float optional=false
+                  Var any
+              IntLiteral 0xff800123u
+            Is Int false
+              Var any
+          Is Double false
+            Var any
+        Binary Ne
+          MethodCall toString
+            Var boxed
+          StringLiteral "NaN"
+      Call println
+        StringLiteral "boxing"
+      return
+    var index
+      IntLiteral 0L
+    while
+      Binary Lt
+        Var index
+        IntLiteral 130L
+      val expected
+        IfExpression
+          Binary Eq
+            Binary Rem
+              Var index
+              IntLiteral 2L
+            IntLiteral 0L
+          IntLiteral 0xff800123u
+          else
+          IntLiteral 0x80000000u
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call floatBits
+                Index
+                  Var singles
+                  Var index
+              Var expected
+            Binary Ne
+              Call floatBits
+                Index
+                  Var list
+                  Var index
+              Var expected
+          Binary Ne
+            Call doubleBits
+              Index
+                Var doubles
+                Var index
+            IntLiteral 0x7ff0000000000123uL
+        Call println
+          StringLiteral "arrays"
+        return
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1L
+    assign []
+      Var list
+      IntLiteral 64L
+      Unary Neg
+        FloatLiteral 0f
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            MethodCall removeAt
+              Var list
+              IntLiteral 64L
+          IntLiteral 0x80000000u
+        Binary Ne
+          FieldAccess size
+            Var list
+          IntLiteral 129L
+      Call println
+        StringLiteral "list"
+      return
+    val capturedPacket
+      Call closure
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Ne
+                Call floatBits
+                  FieldAccess number
+                    Var capturedPacket
+                IntLiteral 0x80000000u
+              Binary Ne
+                Call doubleBits
+                  FieldAccess stamp
+                    Var capturedPacket
+                IntLiteral 0x7ff0000000000123uL
+            Binary Ne
+              FieldAccess label
+                Var capturedPacket
+              StringLiteral "packet-alive"
+          Binary Ne
+            Call floatBits
+              FieldAccess small
+                Var holder
+            IntLiteral 0xff800123u
+        Binary Ne
+          Call doubleBits
+            FieldAccess wide
+              Var holder
+          IntLiteral 0x7ff0000000000123uL
+      Call println
+        StringLiteral "closure"
+      return
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            Var storedSingle
+          IntLiteral 0xff800123u
+        Binary Ne
+          Call doubleBits
+            Var storedWide
+          IntLiteral 0x7ff0000000000123uL
+      Call println
+        StringLiteral "globals"
+      return
+    Call println
+      StringLiteral "values-ok"

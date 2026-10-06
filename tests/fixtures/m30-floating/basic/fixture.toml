@@ -1,0 +1,37 @@
+schema = 1
+name = "m30-floating-basic"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m30", "floating", "gc", "stage-golden"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "program.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "0.1\n0.1\n1.6777218e7\n0.5\n12.3456\n1.0e7\n0.001\n1.0e-4\n-0.0\n-0.0\n1.0e-45\n5.0e-324\n0.0\n0.0\nvalues: 0.1, 0.1\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "0.1\n0.1\n1.6777218e7\n0.5\n12.3456\n1.0e7\n0.001\n1.0e-4\n-0.0\n-0.0\n1.0e-45\n5.0e-324\n0.0\n0.0\nvalues: 0.1, 0.1\n"
+stderr = ""

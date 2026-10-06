@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 03c74cfdde60fbcc8c8140795e9c83f2e88567804b35dc763c00bca1abaf6a5f-member-1-1436 selected by helper <- native object 03c74cfdde60fbcc8c8140795e9c83f2e88567804b35dc763c00bca1abaf6a5f-member-0-8 selected by m23_add <- Cone dev.programlink:archive:0.1.0 member 1567198e63f98081f742c7d83aa947298df6164aa3d4064f36dfc39321bba471 (${work}/native/libm23_math.a): native object contains unsupported initialization, LTO or executable-stack section .init_array",
+    "message": "native object $NATIVE_INPUT_0-member-1-1436 selected by helper <- native object $NATIVE_INPUT_0-member-0-8 selected by m23_add <- Cone dev.programlink:archive:0.1.0 member 1567198e63f98081f742c7d83aa947298df6164aa3d4064f36dfc39321bba471 (${work}/native/libm23_math.a): native object contains unsupported initialization, LTO or executable-stack section .init_array",
     "notes": [],
     "origin": {
       "kind": "none"

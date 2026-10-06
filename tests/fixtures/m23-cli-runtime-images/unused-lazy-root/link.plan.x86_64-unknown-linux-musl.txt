@@ -1,15 +1,15 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:lazy-failure-provider:0.1.0 kind=Library objects=29
 cone dev.example:unused-lazy-root:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=3 root=scoop$1$re$1fb502afb29d49f8c62fafd022804415865e8cb79b7f1f1cb871f77138fc2094
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 origins=dev.example:lazy-failure-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 14, 22, 121, 133, 176, 173, 213, 120, 105, 227, 40, 97, 53, 184, 24, 68, 22, 11, 251, 31, 10, 9, 101, 106, 94, 88, 135, 95, 164, 125, 88])]), dev.example:unused-lazy-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([94, 183, 96, 88, 211, 112, 164, 33, 50, 137, 207, 80, 212, 211, 194, 121, 107, 146, 239, 110, 191, 228, 153, 102, 164, 162, 100, 234, 133, 8, 170, 48])])
-native archive 7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 members=1
-  member 0 header=8 payload=68..1748 name="trace.o" digest=172a5e4f869d26b6235871184ef8a8096e940edfd3bf1187bef58c77c6ebe557 selected=true
-ELF system imports=48
+native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=$NATIVE_INPUT_0 origins=dev.example:lazy-failure-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([218, 14, 22, 121, 133, 176, 173, 213, 120, 105, 227, 40, 97, 53, 184, 24, 68, 22, 11, 251, 31, 10, 9, 101, 106, 94, 88, 135, 95, 164, 125, 88])]), dev.example:unused-lazy-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([94, 183, 96, 88, 211, 112, 164, 33, 50, 137, 207, 80, 212, 211, 194, 121, 107, 146, 239, 110, 191, 228, 153, 102, 164, 162, 100, 234, 133, 8, 170, 48])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1748 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=55
 startup object references:
   scoop$1$im$1fb502afb29d49f8c62fafd022804415865e8cb79b7f1f1cb871f77138fc2094
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

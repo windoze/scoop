@@ -11,6 +11,9 @@ use scoop_lir::{ConeProductionSectionV2, RegistrationDefinitionOwner};
 
 use super::SharedLirStrongProductionError as Error;
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn validate(
     production: &ConeProductionSectionV2,
     graph: &ValidatedIdentityGraph,

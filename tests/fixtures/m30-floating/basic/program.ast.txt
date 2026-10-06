@@ -1,0 +1,79 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun single(value: Float): Float
+    =
+      Var value
+    @NoGC
+  fun double(value: Double): Double
+    =
+      Var value
+  fun singleAlias(value: Float32): Float
+    =
+      Var value
+  fun doubleAlias(value: Float64): Double
+    =
+      Var value
+  fun main()
+    val inferred
+      FloatLiteral 0.1
+    val narrow: Float
+      FloatLiteral 0.1
+    Call println
+      MethodCall toString
+        Var inferred
+    Call println
+      MethodCall toString
+        Var narrow
+    Call println
+      MethodCall toString
+        Call single
+          FloatLiteral 16777217.000000001
+    Call println
+      MethodCall toString
+        Call singleAlias
+          FloatLiteral .5f
+    Call println
+      MethodCall toString
+        Call doubleAlias
+          FloatLiteral 1234.56e-2
+    Call println
+      MethodCall toString
+        Call double
+          FloatLiteral 1e7
+    Call println
+      MethodCall toString
+        FloatLiteral 1e-3
+    Call println
+      MethodCall toString
+        FloatLiteral 1e-4
+    Call println
+      MethodCall toString
+        Unary Neg
+          FloatLiteral 0.0
+    Call println
+      MethodCall toString
+        Call single
+          Unary Neg
+            FloatLiteral 0.0
+    Call println
+      MethodCall toString
+        FloatLiteral 1.401298464324817e-45f
+    Call println
+      MethodCall toString
+        FloatLiteral 4.9406564584124654e-324
+    Call println
+      MethodCall toString
+        FloatLiteral 1e-400
+    Call println
+      MethodCall toString
+        Call single
+          FloatLiteral 1e-100
+    Call println
+      InterpolatedString
+        Text "values: "
+        Expression
+          Var narrow
+        Text ", "
+        Expression
+          Var inferred

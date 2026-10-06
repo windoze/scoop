@@ -19,16 +19,26 @@ pub enum CBridgeTargetSupportV1 {
     Memcpy,
     TlvBootstrap,
     TlsGetAddr,
+    Fmodf,
+    Fmod,
 }
 
 impl CBridgeTargetSupportV1 {
-    pub const ALL: [Self; 3] = [Self::Memcpy, Self::TlvBootstrap, Self::TlsGetAddr];
+    pub const ALL: [Self; 5] = [
+        Self::Memcpy,
+        Self::TlvBootstrap,
+        Self::TlsGetAddr,
+        Self::Fmodf,
+        Self::Fmod,
+    ];
 
     pub const fn for_target(target: LirTargetProfile) -> &'static [Self] {
         match target.id() {
-            crate::TargetProfileId::DarwinAarch64 => &[Self::Memcpy, Self::TlvBootstrap],
+            crate::TargetProfileId::DarwinAarch64 => {
+                &[Self::Memcpy, Self::TlvBootstrap, Self::Fmodf, Self::Fmod]
+            }
             crate::TargetProfileId::LinuxX86_64Gnu | crate::TargetProfileId::LinuxX86_64Musl => {
-                &[Self::Memcpy, Self::TlsGetAddr]
+                &[Self::Memcpy, Self::TlsGetAddr, Self::Fmodf, Self::Fmod]
             }
         }
     }
@@ -38,6 +48,8 @@ impl CBridgeTargetSupportV1 {
             Self::Memcpy => "memcpy",
             Self::TlvBootstrap => "_tlv_bootstrap",
             Self::TlsGetAddr => "__tls_get_addr",
+            Self::Fmodf => "fmodf",
+            Self::Fmod => "fmod",
         }
     }
 }
@@ -48,6 +60,8 @@ impl WireEncode for CBridgeTargetSupportV1 {
             Self::Memcpy => 1,
             Self::TlvBootstrap => 2,
             Self::TlsGetAddr => 3,
+            Self::Fmodf => 4,
+            Self::Fmod => 5,
         })
     }
 }

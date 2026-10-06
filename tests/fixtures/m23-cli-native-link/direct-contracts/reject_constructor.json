@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 23048c0d4bfdf77f2e27382f59935f45ed53dc1ade5566da8b64550ebdc68198 selected by direct input (${work}/native/m23_math.o): native object contains forbidden initialization or LTO section __mod_init_func",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_math.o): native object contains forbidden initialization or LTO section __mod_init_func",
     "notes": [],
     "origin": {
       "kind": "none"

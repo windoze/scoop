@@ -92,6 +92,9 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         Instruction::BoxValue { out, .. }
         | Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
+        | Instruction::FloatUnary { out, .. }
+        | Instruction::FloatBinary { out, .. }
+        | Instruction::FloatConversion { out, .. }
         | Instruction::IntegerUnary { out, .. }
         | Instruction::IntegerBinary { out, .. }
         | Instruction::SafeIntegerDivRem { out, .. }

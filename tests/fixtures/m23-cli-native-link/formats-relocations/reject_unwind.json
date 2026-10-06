@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 65a330187ca331ecbcc834f9e76f54b4bbc79970236d66e6dd0804abf86f0d53 selected by direct input (${work}/native/m23_final.o): native compact unwind record is truncated",
+    "message": "native object $NATIVE_INPUT_0 selected by direct input (${work}/native/m23_final.o): native compact unwind record is truncated",
     "notes": [],
     "origin": {
       "kind": "none"

@@ -5,6 +5,9 @@ use super::*;
 impl Lexer<'_> {
     /// `pos` is at the first digit.
     pub(super) fn lex_int(&mut self) -> Result<TokenKind, Diagnostic> {
+        if self.starts_float() {
+            return self.lex_float();
+        }
         let start = self.pos;
         let radix = if self.source[self.pos..].starts_with("0b")
             || self.source[self.pos..].starts_with("0B")

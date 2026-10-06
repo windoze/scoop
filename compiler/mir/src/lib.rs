@@ -10,6 +10,10 @@
 //! function body is a CFG and calls are explicit effect statements; [`Expr`]
 //! cannot contain a call.
 
+pub use scoop_identity::{
+    FloatBinaryOperator, FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator,
+};
+
 use la_arena::{Arena, Idx};
 
 pub use scoop_identity::{
@@ -120,3 +124,5 @@ pub use control_flow::*;
 
 mod dump;
 pub use dump::{dump, type_name};
+
+pub type MirFloatConversion = scoop_identity::FloatConversion<IntegerKind>;

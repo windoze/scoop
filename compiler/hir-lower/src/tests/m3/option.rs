@@ -20,6 +20,8 @@ fn some_none_and_nullable_annotations() {
     )]);
     let module = lower_user(file).expect("Option constructors must lower");
     let expected = r#"Module
+  typealias Float32 = Float
+  typealias Float64 = Double
   enum Option<T>
     Some(_1: T0)
     None()
@@ -58,6 +60,8 @@ fn some_none_and_nullable_annotations() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
   fun __scoopThrowInitializationCycle(message: String): Unit
     val local1
       Local message : String
@@ -73,7 +77,7 @@ fn some_none_and_nullable_annotations() {
         Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -144,11 +148,13 @@ fn safe_field_access_desugars_to_hidden_locals() {
     ]);
     let module = lower_user(file).expect("safe field access must lower");
     let expected = r#"Module
+  typealias Float32 = Float
+  typealias Float64 = Double
   struct Point
     field0 x: Int
     field1 y: Int
-    property9 val x: Int getter9=storage <stored struct17-field0>
-    property10 val y: Int getter10=storage <stored struct17-field1>
+    property9 val x: Int getter9=storage <stored struct19-field0>
+    property10 val y: Int getter10=storage <stored struct19-field1>
   enum Option<T>
     Some(_1: T0)
     None()
@@ -187,6 +193,8 @@ fn safe_field_access_desugars_to_hidden_locals() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
   fun __scoopThrowInitializationCycle(message: String): Unit
     val local1
       Local message : String
@@ -202,7 +210,7 @@ fn safe_field_access_desugars_to_hidden_locals() {
         Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0
@@ -279,6 +287,8 @@ fn elvis_desugars_to_hidden_locals() {
     )]);
     let module = lower_user(file).expect("elvis must lower");
     let expected = r#"Module
+  typealias Float32 = Float
+  typealias Float64 = Double
   enum Option<T>
     Some(_1: T0)
     None()
@@ -317,6 +327,8 @@ fn elvis_desugars_to_hidden_locals() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
   fun __scoopThrowInitializationCycle(message: String): Unit
     val local1
       Local message : String
@@ -332,7 +344,7 @@ fn elvis_desugars_to_hidden_locals() {
         Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
     val local1
       Local value : T0

@@ -11,6 +11,7 @@ use crate::{
 pub enum DefaultLiteralEqualityV1 {
     Char,
     Integer { kind: DefaultIntegerKindV1 },
+    Float { kind: crate::FloatKind },
     Ordinary { target: DefaultCallableRefV1 },
 }
 
@@ -20,6 +21,12 @@ impl WireEncode for DefaultLiteralEqualityV1 {
             Self::Char => {
                 encoder.map(1)?;
                 encode_tag(encoder, 3)
+            }
+            Self::Float { kind } => {
+                encoder.map(2)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                kind.encode(encoder)
             }
             Self::Integer { kind } => {
                 encoder.map(2)?;
@@ -41,6 +48,7 @@ impl WireEncode for DefaultLiteralEqualityV1 {
 pub enum DecodedDefaultLiteralEqualityV1 {
     Char,
     Integer { kind: DefaultIntegerKindV1 },
+    Float { kind: crate::FloatKind },
     Ordinary { target: DecodedDefaultCallableRefV1 },
 }
 
@@ -55,6 +63,7 @@ impl DecodedDefaultLiteralEqualityV1 {
         match self {
             Self::Char => Ok(DefaultLiteralEqualityV1::Char),
             Self::Integer { kind } => Ok(DefaultLiteralEqualityV1::Integer { kind }),
+            Self::Float { kind } => Ok(DefaultLiteralEqualityV1::Float { kind }),
             Self::Ordinary { target } => Ok(DefaultLiteralEqualityV1::Ordinary {
                 target: target
                     .resolve(resolver)
@@ -70,6 +79,12 @@ impl WireEncode for DecodedDefaultLiteralEqualityV1 {
             Self::Char => {
                 encoder.map(1)?;
                 encode_tag(encoder, 3)
+            }
+            Self::Float { kind } => {
+                encoder.map(2)?;
+                encode_tag(encoder, 4)?;
+                encoder.field(1)?;
+                kind.encode(encoder)
             }
             Self::Integer { kind } => {
                 encoder.map(2)?;
@@ -92,6 +107,12 @@ impl WireDecode for DecodedDefaultLiteralEqualityV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            4 => {
+                expect_sum_length(decoder, fields, 2)?;
+                Ok(Self::Float {
+                    kind: decoder.field(1, crate::FloatKind::decode)?,
+                })
+            }
             3 => {
                 expect_sum_length(decoder, fields, 1)?;
                 Ok(Self::Char)

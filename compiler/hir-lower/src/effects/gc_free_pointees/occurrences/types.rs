@@ -245,6 +245,12 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::PrimitiveUnary {
             operand: source, ..
         }
+        | ExprKind::FloatUnary {
+            operand: source, ..
+        }
+        | ExprKind::FloatConversion {
+            operand: source, ..
+        }
         | ExprKind::IntegerConversion {
             operand: source, ..
         }
@@ -363,7 +369,8 @@ pub(in super::super) fn collect_expr_types(
             count: lhs,
             initializer: rhs,
         }
-        | ExprKind::Binary { lhs, rhs, .. } => {
+        | ExprKind::Binary { lhs, rhs, .. }
+        | ExprKind::FloatBinary { lhs, rhs, .. } => {
             collect_expr_types(lowerer, lhs, out);
             collect_expr_types(lowerer, rhs, out);
         }
@@ -416,6 +423,7 @@ pub(in super::super) fn collect_expr_types(
         | ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver

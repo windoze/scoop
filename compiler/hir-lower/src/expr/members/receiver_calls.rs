@@ -164,7 +164,7 @@ impl Lowerer {
         };
         if let ast::InfixTarget::Named(name) = target
             && let Some(layer) =
-                self.probe_integer_literal_receiver(lhs, expected, |state, receiver, layer_sink| {
+                self.probe_numeric_literal_receiver(lhs, expected, |state, receiver, layer_sink| {
                     state.lower_explicit_named_call(
                         receiver,
                         name,

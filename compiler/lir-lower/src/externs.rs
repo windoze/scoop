@@ -176,6 +176,12 @@ pub(super) fn c_ffi_type(
             storage: lir::CCodePointerStorage::Direct,
         },
         mir::Type::Struct(id) => {
+            if let mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(
+                kind,
+            )) = module.structs[*id].representation
+            {
+                return lir::CType::Float(kind);
+            }
             if matches!(
                 module.structs[*id].representation,
                 mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)

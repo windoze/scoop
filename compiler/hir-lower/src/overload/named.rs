@@ -54,12 +54,14 @@ impl NamedCallableProbe {
             .any(|parameter| parameter.is_vararg())
     }
 
-    pub(crate) fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
+    pub(crate) fn source_argument_numeric(
+        &self,
+        index: usize,
+    ) -> Option<crate::call_resolution::specificity::NumericLiteralKind> {
         let offset = usize::from(matches!(self.receiver, NamedCallReceiver::Extension(_)));
-        match self.transaction.state.types[self.transaction.args[index + offset].ty] {
-            hir::Type::Integer(kind) => Some(kind),
-            _ => None,
-        }
+        self.transaction
+            .state
+            .numeric_literal_kind(self.transaction.args[index + offset].ty)
     }
 
     pub(crate) fn signature(&self, state: &Lowerer, name: &str) -> String {

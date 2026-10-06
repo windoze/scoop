@@ -131,6 +131,8 @@ impl Lowerer {
         }
         let unit = require(self, hir::IntrinsicTypeKind::Unit)?;
         let character = require(self, hir::IntrinsicTypeKind::Char)?;
+        let float = require(self, hir::IntrinsicTypeKind::Float(hir::FloatKind::F32))?;
+        let double = require(self, hir::IntrinsicTypeKind::Float(hir::FloatKind::F64))?;
         let boolean = require(self, hir::IntrinsicTypeKind::Boolean)?;
         let string = require(self, hir::IntrinsicTypeKind::String)?;
         let array = require(self, hir::IntrinsicTypeKind::Array)?;
@@ -143,6 +145,8 @@ impl Lowerer {
         let (
             IntrinsicTypeOwner::Struct(unit),
             IntrinsicTypeOwner::Struct(character),
+            IntrinsicTypeOwner::Struct(float),
+            IntrinsicTypeOwner::Struct(double),
             IntrinsicTypeOwner::Struct(boolean),
             IntrinsicTypeOwner::Class(string),
             IntrinsicTypeOwner::Class(array),
@@ -152,6 +156,8 @@ impl Lowerer {
         ) = (
             unit,
             character,
+            float,
+            double,
             boolean,
             string,
             array,
@@ -171,6 +177,8 @@ impl Lowerer {
         Some(hir::IntrinsicTypeCore {
             unit,
             character,
+            float,
+            double,
             integers,
             boolean,
             string,

@@ -148,7 +148,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${link.result.link_plan_fingerprint}", equals = "${consumer.result.link_plan_fingerprint}"},
-  {actual = "${link.result.link_plan}", snapshot = "link.plan.${target}.txt", normalize = ["paths"]},
+  {actual = "${link.result.link_plan}", snapshot = "link.plan.${target}.txt", normalize = ["paths", "native-digests"]},
 ]
 
 [[steps]]

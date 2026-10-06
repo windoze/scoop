@@ -145,6 +145,7 @@ pub(crate) fn class_definition_layout(
                 }
                 mir::IntrinsicTypeRepresentation::Unit
                 | mir::IntrinsicTypeRepresentation::Integer(_)
+                | mir::IntrinsicTypeRepresentation::Float(_)
                 | mir::IntrinsicTypeRepresentation::Char
                 | mir::IntrinsicTypeRepresentation::Boolean => {
                     unreachable!("the registry fixes intrinsic declaration targets")

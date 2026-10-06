@@ -1,0 +1,377 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun narrow(value: Double): Int8
+    =
+      MethodCall toInt8
+        Var value
+    @NoGC
+  fun widen(value: Float): Double
+    =
+      MethodCall toDouble
+        Var value
+    @NoGC
+  fun shorten(value: Double): Float
+    =
+      MethodCall toFloat
+        Var value
+  fun main()
+    val nan
+      Binary Div
+        FloatLiteral 0.0
+        FloatLiteral 0.0
+    val positive
+      Binary Div
+        FloatLiteral 1.0
+        FloatLiteral 0.0
+    val negative
+      Unary Neg
+        Var positive
+    Call println
+      InterpolatedString
+        Expression
+          Call narrow
+            FloatLiteral 1000.0
+        Text " "
+        Expression
+          Call narrow
+            Unary Neg
+              FloatLiteral 1000.0
+        Text " "
+        Expression
+          Call narrow
+            Unary Neg
+              FloatLiteral 12.75
+        Text " "
+        Expression
+          Call narrow
+            Var nan
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toInt8
+            Var positive
+        Text " "
+        Expression
+          MethodCall toInt16
+            Var positive
+        Text " "
+        Expression
+          MethodCall toInt32
+            Var positive
+        Text " "
+        Expression
+          MethodCall toInt64
+            Var positive
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toInt8
+            Var negative
+        Text " "
+        Expression
+          MethodCall toInt16
+            Var negative
+        Text " "
+        Expression
+          MethodCall toInt32
+            Var negative
+        Text " "
+        Expression
+          MethodCall toInt64
+            Var negative
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            Var positive
+        Text " "
+        Expression
+          MethodCall toUInt16
+            Var positive
+        Text " "
+        Expression
+          MethodCall toUInt32
+            Var positive
+        Text " "
+        Expression
+          MethodCall toUInt64
+            Var positive
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            Var negative
+        Text " "
+        Expression
+          MethodCall toUInt16
+            Var negative
+        Text " "
+        Expression
+          MethodCall toUInt32
+            Var negative
+        Text " "
+        Expression
+          MethodCall toUInt64
+            Var negative
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            Var nan
+        Text " "
+        Expression
+          MethodCall toUInt16
+            Var nan
+        Text " "
+        Expression
+          MethodCall toUInt32
+            Var nan
+        Text " "
+        Expression
+          MethodCall toUInt64
+            Var nan
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            FloatLiteral 255.9
+        Text " "
+        Expression
+          MethodCall toUInt8
+            FloatLiteral 256.0
+        Text " "
+        Expression
+          MethodCall toUInt16
+            FloatLiteral 65536.0
+        Text " "
+        Expression
+          MethodCall toUInt32
+            FloatLiteral 4294967296.0
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt64
+            FloatLiteral 18446744073709551616.0
+        Text " "
+        Expression
+          MethodCall toInt64
+            FloatLiteral 9223372036854775808.0
+    val fnan
+      Binary Div
+        FloatLiteral 0f
+        FloatLiteral 0f
+    val fpositive
+      Binary Div
+        FloatLiteral 1f
+        FloatLiteral 0f
+    val fnegative
+      Unary Neg
+        Var fpositive
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toInt8
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toInt16
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toInt32
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toInt64
+            Var fpositive
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toInt8
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toInt16
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toInt32
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toInt64
+            Var fnegative
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toUInt16
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toUInt32
+            Var fpositive
+        Text " "
+        Expression
+          MethodCall toUInt64
+            Var fpositive
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toInt8
+            Var fnan
+        Text " "
+        Expression
+          MethodCall toInt16
+            Var fnan
+        Text " "
+        Expression
+          MethodCall toInt32
+            Var fnan
+        Text " "
+        Expression
+          MethodCall toInt64
+            Var fnan
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toUInt8
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toUInt16
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toUInt32
+            Var fnegative
+        Text " "
+        Expression
+          MethodCall toUInt64
+            Var fnegative
+    val i8: Int8
+      Unary Neg
+        IntLiteral 128
+    val i16: Int16
+      Unary Neg
+        IntLiteral 32768
+    val i32: Int32
+      Unary Neg
+        IntLiteral 2147483648
+    val i64: Int64
+      Unary Neg
+        IntLiteral 9223372036854775808
+    val u8: UInt8
+      IntLiteral 255u
+    val u16: UInt16
+      IntLiteral 65535u
+    val u32: UInt32
+      IntLiteral 4294967295u
+    val u64: UInt64
+      IntLiteral 18446744073709551615uL
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toFloat
+            Var i8
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var i16
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var i32
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var i64
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toFloat
+            Var u8
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var u16
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var u32
+        Text " "
+        Expression
+          MethodCall toFloat
+            Var u64
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toDouble
+            Var i8
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var i16
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var i32
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var i64
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toDouble
+            Var u8
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var u16
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var u32
+        Text " "
+        Expression
+          MethodCall toDouble
+            Var u64
+    Call println
+      InterpolatedString
+        Expression
+          Call widen
+            FloatLiteral 0.1f
+        Text " "
+        Expression
+          Call shorten
+            FloatLiteral 0.1
+        Text " "
+        Expression
+          Call shorten
+            Unary Neg
+              FloatLiteral 0.0
+        Text " "
+        Expression
+          Call widen
+            Unary Neg
+              FloatLiteral 0f
+    Call println
+      InterpolatedString
+        Expression
+          MethodCall toDouble
+            Unary Neg
+              FloatLiteral 0.0
+        Text " "
+        Expression
+          MethodCall toFloat
+            Unary Neg
+              FloatLiteral 0f
+        Text " "
+        Expression
+          Call shorten
+            FloatLiteral 1e40

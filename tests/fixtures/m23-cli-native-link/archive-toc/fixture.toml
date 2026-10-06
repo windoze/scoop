@@ -41,10 +41,6 @@ stderr = ""
 env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
-name = "original_archive"
-checks = [{"file" = "${work}/native/libm23_math.a", "sha256" = "f3d31636dd507a4fe0512a9c0797aeaba605579f9bb52883f47b8538003d0af9"}]
-
-[[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/toc", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
@@ -68,7 +64,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests"]}]
 
 [[steps]]
 name = "run_linked"

@@ -70,6 +70,10 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             RelocationTargetSlotV1::Subtrahend => 3,
         })?;
         match self.target {
+            CanonicalRelocationTargetKindV1::Literal(literal) => {
+                encoder.u32(15)?;
+                encoder.byte_span(literal.bytes())
+            }
             CanonicalRelocationTargetKindV1::Requirement(requirement) => {
                 requirement.runtime_encode(encoder)
             }

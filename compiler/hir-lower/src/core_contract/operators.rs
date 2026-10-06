@@ -3,6 +3,7 @@ use super::*;
 impl Lowerer {
     pub(crate) fn validate_core_operator_intrinsics(&mut self, files: &[ast::SourceFile]) {
         self.validate_char_intrinsics(files);
+        self.validate_float_intrinsics(files);
         for kind in hir::PrimitiveUnaryKind::ALL {
             let intrinsic = hir::IntrinsicFunctionKind::PrimitiveUnary(kind);
             if let Some(function) = self.require_intrinsic(intrinsic, files) {
@@ -366,7 +367,7 @@ impl Lowerer {
         }
     }
 
-    fn malformed_operator_intrinsic(&mut self, function: FunctionId, intrinsic: &str) {
+    pub(super) fn malformed_operator_intrinsic(&mut self, function: FunctionId, intrinsic: &str) {
         self.current_file = self.function_files[&function];
         self.error(
             self.functions[function].span,

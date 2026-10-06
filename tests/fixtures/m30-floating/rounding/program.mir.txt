@@ -1,0 +1,688 @@
+Module
+  extern ef0 fromFloatBits @float_from_bits(UInt) -> Float <abi=c no-gc lib=fixture_native>
+  extern ef1 fromDoubleBits @double_from_bits(ULong) -> Double <abi=c no-gc lib=fixture_native>
+  extern ef2 floatBits @float_bits(Float) -> UInt <abi=c no-gc lib=fixture_native>
+  extern ef3 doubleBits @double_bits(Double) -> ULong <abi=c no-gc lib=fixture_native>
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun fromFloatBits @fn0(arg0: UInt) -> Float
+    bb0 entry
+      call $call.1: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local arg0
+      return
+        Type Float
+        Local $call.1
+  fun fromDoubleBits @fn1(arg0: ULong) -> Double
+    bb0 entry
+      call $call.1: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local arg0
+      return
+        Type Double
+        Local $call.1
+  fun floatBits @fn2(arg0: Float) -> UInt
+    bb0 entry
+      call $call.1: UInt = extern2 @float_bits direct
+        Type Float
+        Local arg0
+      return
+        Type UInt
+        Local $call.1
+  fun doubleBits @fn3(arg0: Double) -> ULong
+    bb0 entry
+      call $call.1: ULong = extern3 @double_bits direct
+        Type Double
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun multiplyAdd @fn4(a: Float, b: Float, c: Float) -> Float
+    bb0 entry
+      val $dependency.receiver: Float
+        Type Float
+        Local a
+      val $dependency.argument.0: Float
+        Type Float
+        Local b
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.receiver: Float
+        Type Float
+        FloatBinary F32 Multiply
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Float
+        Type Float
+        Local c
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      return
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+  fun multiplyAdd @fn5(a: Double, b: Double, c: Double) -> Double
+    bb0 entry
+      val $dependency.receiver: Double
+        Type Double
+        Local a
+      val $dependency.argument.0: Double
+        Type Double
+        Local b
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $dependency.receiver: Double
+        Type Double
+        FloatBinary F64 Multiply
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Double
+        Type Double
+        Local c
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      return
+        Type Double
+        FloatBinary F64 Add
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+  fun addThenSubtract @fn6(a: Float, b: Float) -> Float
+    bb0 entry
+      val $dependency.receiver: Float
+        Type Float
+        Local a
+      val $dependency.argument.0: Float
+        Type Float
+        Local b
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      val $dependency.receiver: Float
+        Type Float
+        FloatBinary F32 Add
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Float
+        Type Float
+        Local b
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      return
+        Type Float
+        FloatBinary F32 Subtract
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+  fun addThenSubtract @fn7(a: Double, b: Double) -> Double
+    bb0 entry
+      val $dependency.receiver: Double
+        Type Double
+        Local a
+      val $dependency.argument.0: Double
+        Type Double
+        Local b
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $dependency.receiver: Double
+        Type Double
+        FloatBinary F64 Add
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Double
+        Type Double
+        Local b
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      return
+        Type Double
+        FloatBinary F64 Subtract
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+  fun reflexive @fn8(value: Float) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Float
+        Type Float
+        Local value
+      val $dependency.argument.0: Float
+        Type Float
+        Local value
+      val $dependency.parameter.other: Float
+        Type Float
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        FloatBinary F32 Equal
+          Type Float
+          Local $dependency.receiver
+          Type Float
+          Local $dependency.parameter.other
+  fun reflexive @fn9(value: Double) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Double
+        Type Double
+        Local value
+      val $dependency.argument.0: Double
+        Type Double
+        Local value
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+  fun main @fn10() -> Unit
+    bb0 entry
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1065353217 bits=0x3f800001
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $argument.0: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local $parameter.value
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1065353214 bits=0x3f7ffffe
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $argument.1: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local $parameter.value
+      val $argument.2: Float
+        Type Float
+        FloatLiteral f32(0xbf800000)
+      val $parameter.a: Float
+        Type Float
+        Local $argument.0
+      val $parameter.b: Float
+        Type Float
+        Local $argument.1
+      val $parameter.c: Float
+        Type Float
+        Local $argument.2
+      call single: Float = @fn4 direct
+        Type Float
+        Local $parameter.a
+        Type Float
+        Local $parameter.b
+        Type Float
+        Local $parameter.c
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=4607182418800017409 bits=0x3ff0000000000001
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $argument.0: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=4607182418800017406 bits=0x3feffffffffffffe
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $argument.1: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local $parameter.value
+      val $argument.2: Double
+        Type Double
+        FloatLiteral f64(0xbff0000000000000)
+      val $parameter.a: Double
+        Type Double
+        Local $argument.0
+      val $parameter.b: Double
+        Type Double
+        Local $argument.1
+      val $parameter.c: Double
+        Type Double
+        Local $argument.2
+      call wide: Double = @fn5 direct
+        Type Double
+        Local $parameter.a
+        Type Double
+        Local $parameter.b
+        Type Double
+        Local $parameter.c
+      val $argument.0: Float
+        Type Float
+        Local single
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: UInt = extern2 @float_bits direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=0 bits=0x00000000
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt result=Boolean
+            Type UInt
+            Local $dependency.receiver
+            Type UInt
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $argument.0: Double
+        Type Double
+        Local wide
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: ULong = extern3 @double_bits direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb5 if.merge.5
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2139095039 bits=0x7f7fffff
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call largeSingle: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9218868437227405311 bits=0x7fefffffffffffff
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call largeWide: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        Local largeSingle
+      val $argument.1: Float
+        Type Float
+        Local largeSingle
+      val $parameter.a: Float
+        Type Float
+        Local $argument.0
+      val $parameter.b: Float
+        Type Float
+        Local $argument.1
+      call $dependency.receiver: Float = @fn6 direct
+        Type Float
+        Local $parameter.a
+        Type Float
+        Local $parameter.b
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FloatUnary F32 IsInfinite
+          Type Float
+          Local $dependency.receiver
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb6 if.then.6
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $argument.0: Double
+        Type Double
+        Local largeWide
+      val $argument.1: Double
+        Type Double
+        Local largeWide
+      val $parameter.a: Double
+        Type Double
+        Local $argument.0
+      val $parameter.b: Double
+        Type Double
+        Local $argument.1
+      call $dependency.receiver: Double = @fn7 direct
+        Type Double
+        Local $parameter.a
+        Type Double
+        Local $parameter.b
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FloatUnary F64 IsInfinite
+          Type Double
+          Local $dependency.receiver
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $shortCircuit.1
+    bb9 if.then.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb10 if.merge.10
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2143289410 bits=0x7fc00042
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call quietSingle: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9221120237041090626 bits=0x7ff8000000000042
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call quietWide: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        Local quietSingle
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $call.1: Boolean = @fn8 direct
+        Type Float
+        Local $parameter.value
+      branch bb11 bb12
+        Type Boolean
+        Local $call.1
+    bb11 if.then.11
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      val $argument.0: Double
+        Type Double
+        Local quietWide
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $shortCircuit.2: Boolean = @fn9 direct
+        Type Double
+        Local $parameter.value
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.2
+    bb14 if.then.14
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb15 if.merge.15
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2147483648 bits=0x80000000
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call negativeSingle: Float = extern0 @float_from_bits direct
+        Type UInt
+        Local $parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9223372036854775808 bits=0x8000000000000000
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call negativeWide: Double = extern1 @double_from_bits direct
+        Type ULong
+        Local $parameter.value
+      val $argument.0: Float
+        Type Float
+        Local negativeSingle
+      val $argument.1: Float
+        Type Float
+        FloatLiteral f32(0x3f800000)
+      val $argument.2: Float
+        Type Float
+        Local negativeSingle
+      val $parameter.a: Float
+        Type Float
+        Local $argument.0
+      val $parameter.b: Float
+        Type Float
+        Local $argument.1
+      val $parameter.c: Float
+        Type Float
+        Local $argument.2
+      call $argument.0: Float = @fn4 direct
+        Type Float
+        Local $parameter.a
+        Type Float
+        Local $parameter.b
+        Type Float
+        Local $parameter.c
+      val $parameter.value: Float
+        Type Float
+        Local $argument.0
+      call $dependency.receiver: UInt = extern2 @float_bits direct
+        Type Float
+        Local $parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2147483648 bits=0x80000000
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt result=Boolean
+            Type UInt
+            Local $dependency.receiver
+            Type UInt
+            Local $dependency.parameter.other
+    bb16 if.then.16
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      val $argument.0: Double
+        Type Double
+        Local negativeWide
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3ff0000000000000)
+      val $argument.2: Double
+        Type Double
+        Local negativeWide
+      val $parameter.a: Double
+        Type Double
+        Local $argument.0
+      val $parameter.b: Double
+        Type Double
+        Local $argument.1
+      val $parameter.c: Double
+        Type Double
+        Local $argument.2
+      call $argument.0: Double = @fn5 direct
+        Type Double
+        Local $parameter.a
+        Type Double
+        Local $parameter.b
+        Type Double
+        Local $parameter.c
+      val $parameter.value: Double
+        Type Double
+        Local $argument.0
+      call $dependency.receiver: ULong = extern3 @double_bits direct
+        Type Double
+        Local $parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $shortCircuit.3
+    bb19 if.then.19
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb20 if.merge.20
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun println @fn11(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn11 <- println
+  str @str0 "fused"
+  str @str1 "reassociated"
+  str @str2 "nan"
+  str @str3 "zero"
+  str @str4 "rounding-ok"
+  str @str5 "\n"
+  output executable @fn10

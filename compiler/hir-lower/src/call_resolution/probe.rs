@@ -31,7 +31,8 @@ pub(crate) struct InferredCall {
     pub(crate) sinks: Vec<Vec<hir::Statement>>,
     pub(crate) parameter_types: Vec<hir::TypeId>,
     pub(crate) return_type: hir::TypeId,
-    pub(crate) integer_arguments: Vec<Option<hir::IntegerKind>>,
+    pub(crate) numeric_arguments:
+        Vec<Option<crate::call_resolution::specificity::NumericLiteralKind>>,
 }
 
 impl Lowerer {
@@ -76,12 +77,9 @@ impl Lowerer {
             .into_iter()
             .zip(types.owner.iter().chain(&types.callable).copied())
             .collect::<Vec<_>>();
-        let integer_arguments = values
+        let numeric_arguments = values
             .iter()
-            .map(|value| match self.types[value.ty] {
-                hir::Type::Integer(kind) => Some(kind),
-                _ => None,
-            })
+            .map(|value| self.numeric_literal_kind(value.ty))
             .collect();
         let mut adapted = Vec::with_capacity(values.len());
         for (index, (value, pattern)) in values.into_iter().zip(&patterns).enumerate() {
@@ -124,7 +122,7 @@ impl Lowerer {
             sinks,
             parameter_types,
             return_type,
-            integer_arguments,
+            numeric_arguments,
         })
     }
 }

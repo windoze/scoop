@@ -100,6 +100,10 @@ pub enum CanonicalCStorageType {
         signedness: Signedness,
         bit_width: IntegerBitWidth,
     },
+    Float {
+        exact_type: PersistentExactTypeId,
+        kind: crate::FloatKind,
+    },
     Boolean {
         exact_type: PersistentExactTypeId,
     },
@@ -123,6 +127,7 @@ impl CanonicalCStorageType {
         match self {
             Self::Integer { exact_type, .. }
             | Self::Boolean { exact_type }
+            | Self::Float { exact_type, .. }
             | Self::DataPointer { exact_type, .. }
             | Self::CodePointer { exact_type, .. }
             | Self::Struct { exact_type, .. } => exact_type,
@@ -139,6 +144,7 @@ impl WireEncode for CanonicalCStorageType {
                 bit_width,
             } => encode_three_value_sum(encoder, 1, exact_type, signedness, bit_width),
             Self::Boolean { exact_type } => encode_value_sum(encoder, 2, exact_type),
+            Self::Float { exact_type, kind } => encode_two_value_sum(encoder, 6, exact_type, kind),
             Self::DataPointer {
                 exact_type,
                 pointee,

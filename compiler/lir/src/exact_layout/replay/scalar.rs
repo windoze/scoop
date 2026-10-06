@@ -16,6 +16,12 @@ impl ExactValueLayoutV1 {
         nominal(identity.exact_key())?;
         let layout = match kind {
             ScalarRepresentationKindV1::Integer(kind) => identity.target().integer_layout(kind),
+            ScalarRepresentationKindV1::Float(kind) => {
+                identity.target().scalar_layout(match kind {
+                    crate::FloatKind::F32 => BackendScalarKind::F32,
+                    crate::FloatKind::F64 => BackendScalarKind::F64,
+                })
+            }
             ScalarRepresentationKindV1::Char => {
                 identity.target().scalar_layout(BackendScalarKind::I32)
             }

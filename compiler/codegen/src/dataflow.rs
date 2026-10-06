@@ -16,7 +16,8 @@ impl LiveValue {
             Value::Local(id) => Some(Self::Local(id)),
             Value::Temp(id) => Some(Self::Temp(id)),
             Value::CArgumentStorage(storage) => Some(Self::Local(storage.local())),
-            Value::IntegerConst(_)
+            Value::FloatConst(_)
+            | Value::IntegerConst(_)
             | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)
@@ -53,6 +54,7 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         Instruction::UnboxValue { object, .. } => vec![*object],
         Instruction::PublishReleaseReady { object } => vec![*object],
         Instruction::BinOp { lhs, rhs, .. }
+        | Instruction::FloatBinary { lhs, rhs, .. }
         | Instruction::IntegerBinary { lhs, rhs, .. }
         | Instruction::SafeIntegerDivRem { lhs, rhs, .. }
         | Instruction::IntegerCompare { lhs, rhs, .. }
@@ -63,6 +65,8 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             ..
         } => vec![*value, *normalized_count],
         Instruction::UnaryOp { operand, .. }
+        | Instruction::FloatUnary { operand, .. }
+        | Instruction::FloatConversion { operand, .. }
         | Instruction::IntegerUnary { operand, .. }
         | Instruction::IntegerConvert { operand, .. }
         | Instruction::ExtractValue {
@@ -177,6 +181,9 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         Instruction::BoxValue { out, .. }
         | Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
+        | Instruction::FloatUnary { out, .. }
+        | Instruction::FloatBinary { out, .. }
+        | Instruction::FloatConversion { out, .. }
         | Instruction::IntegerUnary { out, .. }
         | Instruction::IntegerBinary { out, .. }
         | Instruction::SafeIntegerDivRem { out, .. }

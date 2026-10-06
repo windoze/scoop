@@ -120,11 +120,33 @@ impl Harness {
             hir::IntrinsicTypeKind::Char,
             character_type,
         );
+        let float_type = self
+            .types
+            .alloc(hir::Type::Struct(hir::StructApplicationId::from_raw(
+                (self.struct_applications.len() as u32).into(),
+            )));
+        let float = self.declare_fixed_intrinsic_struct(
+            "Float",
+            hir::IntrinsicTypeKind::Float(hir::FloatKind::F32),
+            float_type,
+        );
+        let double_type = self
+            .types
+            .alloc(hir::Type::Struct(hir::StructApplicationId::from_raw(
+                (self.struct_applications.len() as u32).into(),
+            )));
+        let double = self.declare_fixed_intrinsic_struct(
+            "Double",
+            hir::IntrinsicTypeKind::Float(hir::FloatKind::F64),
+            double_type,
+        );
         let intrinsic_unit =
             self.declare_fixed_intrinsic_struct("Unit", hir::IntrinsicTypeKind::Unit, self.unit);
         let intrinsic_type_core = hir::IntrinsicTypeCore {
             unit: intrinsic_unit,
             character,
+            float,
+            double,
             integers: intrinsic_integers,
             boolean: intrinsic_boolean,
             string: intrinsic_string,

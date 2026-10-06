@@ -34,6 +34,7 @@ impl BodyLowerer<'_> {
     ) -> smir::Expr {
         use scoop_hir::PrimitiveMemberIntrinsic as I;
         match intrinsic {
+            I::Float(kind) => super::floating::floating_member(kind, args, result_type),
             I::Char(kind) => super::characters::character_member(kind, args, result_type),
             I::Unary(kind) => {
                 let [operand] = args.try_into().expect("a unary member has one receiver");

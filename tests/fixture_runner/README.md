@@ -78,6 +78,11 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 传作 argv 时先在 vars 中声明 `raw_hex = "${work.hex}2fff"`，再写 `{hex = "${raw_hex}"}`；
 静态 hex 或完整引用使用相同的预检和执行规则。
 `${variants.normal.build.result.root.artifact_fingerprint}` 可比较前一变体。
+普通功能 fixture 不额外保存整份产物、core 或 native 输入的固定指纹快照。
+缓存命中／失效、确定性、产物读写和源码构建／artifact-only 消费一致性，应使用
+`equals`／`not_equals` 或 `same_as`／`different_from` 比较本次实际产生的值。
+固定摘要仅用于输入严格受控、需要锁定编码或指纹规则的专门测试；结构、诊断、
+ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一化隐藏这些差异。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。
@@ -96,9 +101,21 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 `records`、`diagnostics`、`returncode`、`pid`、`stdout`、`stderr`、`raw_stderr`。
 
 每一步的 `checks` 选择 `actual`（JSON 引用）、`file` 或 `glob`（排序后的路径数组），并选择一个比较：
-`equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、`sha256`、
+`equals`、`not_equals`、`contains`、`not_contains`；文件还支持 `exists`、`type`、
 `same_as`、`different_from`。`snapshot = "expected.hir.txt"` 比较完整文本或 JSON。
-只有 `normalize = ["paths", "newlines"]` 两种公共非语义规则。显式
+文件损坏用例保留有针对性的修改、实际 reader 诊断与原子输出断言，不以整份编译产物或
+系统工具输出的固定 SHA-256 作为准备步骤。受控编码／指纹规则的固定向量由对应 Rust 单元测试覆盖。
+`normalize` 的公共规则为 `paths`、`newlines` 和 `native-digests`。后者仅用于链接计划：
+将 `native library` 的 `input`、`native object/archive` 的内容 ID、归档 member 的
+`digest`、`dynamic provider` 及其 load/re-export 引用替换为按首次出现编号的标记。
+同值共用标记，不同值使用不同标记；保留逻辑库、requirement、源码声明身份、符号、
+成员名称／顺序／范围、选择状态、动态库路径和绑定关系。它不处理普通 IR ID 或任意哈希。
+native 诊断中的 `native object` 引用及 `NativeInputId(Digest256(...))` 可通过进程步骤的
+`diagnostics_normalize = ["native-digests"]` 使用同一规则；完整诊断的其他字段仍精确比较。
+过期依赖诊断可用 `diagnostics_normalize = ["dependency-digests"]`，仅处理
+`StaleDependency` 中 recorded HIR/MIR/LIR 与 actual 的六个内容摘要，保留它们的相等／变化关系。
+该规则只允许用于诊断；Cone／provider 身份、坐标、来源、阶段、错误 code 和其他内容仍精确比较。
+摘要本身是被测行为的确定性或编码测试不启用此规则。显式
 `--update-snapshots` 仅更新选中的 snapshot 文件，不改 exit/signal、诊断和普通输出期望。
 
 文件准备步骤使用 `files = [{copy = {from = "...", to = "..."}}]`。

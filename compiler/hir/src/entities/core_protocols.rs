@@ -285,6 +285,8 @@ impl ForeignCallbackFailureResult {
 pub struct IntrinsicTypeCore {
     pub unit: StructId,
     pub character: StructId,
+    pub float: StructId,
+    pub double: StructId,
     pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,

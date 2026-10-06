@@ -66,6 +66,8 @@ fn scan_value(
         | lir::LirType::I8
         | lir::LirType::I16
         | lir::LirType::I32
+        | lir::LirType::F32
+        | lir::LirType::F64
         | lir::LirType::I64
         | lir::LirType::MachineScalar(_)
         | lir::LirType::Ptr(_)

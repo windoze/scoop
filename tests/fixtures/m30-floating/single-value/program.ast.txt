@@ -1,0 +1,130 @@
+SourceFile
+  RootPackage
+  class Storage(var single: Float, var wide: Double, var trace: String)
+  class ScalarEncoder(val storage: Storage), Encoder, SingleValueEncodingContainer
+    public open override val path: String <computed>
+      get()
+        StringLiteral ""
+    public fun keyed
+    public fun unkeyed
+    public fun singleValue
+    public fun writeBoolean
+    public fun writeLong
+    public fun writeULong
+    public fun writeString
+    public fun writeNull
+    public fun writeFloat
+    public fun writeDouble
+  class ScalarDecoder(val storage: Storage), Decoder, SingleValueDecodingContainer
+    public open override val path: String <computed>
+      get()
+        StringLiteral ""
+    public fun keyed
+    public fun unkeyed
+    public fun singleValue
+    public fun readBoolean
+    public fun readLong
+    public fun readULong
+    public fun readString
+    public fun readNull
+    public fun readFloat
+    public fun readDouble
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun fromFloatBits(value: UInt): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun fromDoubleBits(value: ULong): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): ULong
+  fun encode<T>(value: T, codec: Encodable<T>, target: Encoder)
+    MethodCall encode
+      Var codec
+      Var value
+      Var target
+  fun decode<T>(codec: Decodable<T>, source: Decoder): T
+    =
+      MethodCall decode
+        Var codec
+        Var source
+    @Unsafe
+  fun main()
+    val storage
+      Call Storage
+        FloatLiteral 0f
+        FloatLiteral 0.0
+        StringLiteral ""
+    val encoder
+      Call ScalarEncoder
+        Var storage
+    val decoder
+      Call ScalarDecoder
+        Var storage
+    Call encode
+      Call fromFloatBits
+        IntLiteral 0xff800123u
+      FieldAccess Companion
+        Var Float32
+      Var encoder
+    Call encode
+      Call fromDoubleBits
+        IntLiteral 0x7ff0000000000123uL
+      FieldAccess Companion
+        Var Float64
+      Var encoder
+    if
+      Binary Or
+        Binary Ne
+          Call floatBits
+            Call decode
+              FieldAccess Companion
+                Var Float
+              Var decoder
+          IntLiteral 0xff800123u
+        Binary Ne
+          Call doubleBits
+            Call decode
+              FieldAccess Companion
+                Var Double
+              Var decoder
+          IntLiteral 0x7ff0000000000123uL
+      Call println
+        StringLiteral "nan"
+      return
+    MethodCall encode
+      Var Float
+      Unary Neg
+        FloatLiteral 0f
+      Var encoder
+    MethodCall encode
+      Var Double
+      FieldAccess POSITIVE_INFINITY
+        Var Double
+      Var encoder
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call floatBits
+              MethodCall decode
+                Var Float32
+                Var decoder
+            IntLiteral 0x80000000u
+          Unary Not
+            MethodCall isInfinite
+              MethodCall decode
+                Var Double
+                Var decoder
+        Binary Ne
+          FieldAccess trace
+            Var storage
+          StringLiteral "f;d;f;d;"
+      Call println
+        StringLiteral "dispatch"
+      return
+    Call println
+      StringLiteral "single-value-ok"

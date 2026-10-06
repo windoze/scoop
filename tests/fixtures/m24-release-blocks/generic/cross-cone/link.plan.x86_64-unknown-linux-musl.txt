@@ -1,17 +1,17 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone test:release-generic-provider:0.1.0 kind=Library objects=5
 cone test:release-generic-left:0.1.0 kind=Library objects=8
 cone test:release-generic-right:0.1.0 kind=Library objects=12
 cone test:release-generic-consumer:0.1.0 kind=Executable objects=16
-runtime objects=65
+runtime objects=70
 images=5 root=scoop$1$re$ffe8993579c787eab60f492174f07ebebe287f6807c4501ddce568cf4597484e
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m24_release requirement=f132ba5db54ea99d4b22d02655d0cf8750823e9e08bc743f0699d8bfab4122ce input=a6d6d951eaf29eea1f9b90bb447c561ab92f25134e69c584683a69e9e332ff6a origins=test:release-generic-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-consumer:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-consumer:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([70, 139, 106, 245, 148, 65, 201, 205, 204, 244, 136, 39, 191, 137, 167, 63, 218, 230, 148, 156, 224, 63, 60, 71, 121, 182, 3, 207, 148, 174, 134, 120])])
-native archive a6d6d951eaf29eea1f9b90bb447c561ab92f25134e69c584683a69e9e332ff6a members=1
-  member 0 header=8 payload=68..1716 name="trace.o" digest=eca7cd088bbee4cc793bdabfff54926f16237502aba5cfd5b1acf55fb9ed1d8f selected=true
-ELF system imports=48
+native library m24_release requirement=f132ba5db54ea99d4b22d02655d0cf8750823e9e08bc743f0699d8bfab4122ce input=$NATIVE_INPUT_0 origins=test:release-generic-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-consumer:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([222, 180, 54, 114, 16, 138, 181, 188, 114, 122, 9, 236, 27, 215, 28, 194, 72, 87, 53, 109, 119, 196, 142, 69, 14, 201, 20, 125, 38, 99, 138, 152])]), test:release-generic-consumer:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([70, 139, 106, 245, 148, 65, 201, 205, 204, 244, 136, 39, 191, 137, 167, 63, 218, 230, 148, 156, 224, 63, 60, 71, 121, 182, 3, 207, 148, 174, 134, 120])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1716 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=55
 startup object references:
   scoop$1$im$035529245c214def052393e91abfa8e3bc4e52b3ae49e956b8d9dd91e83728bb
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

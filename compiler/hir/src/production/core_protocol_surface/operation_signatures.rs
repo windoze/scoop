@@ -18,6 +18,41 @@ pub(super) fn expected_operation_signature(
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     let (effect, parameters, result) = match kind {
+        IntrinsicFunctionKind::Float(kind) => {
+            let floating = |kind| SignatureTypeKey::Nominal(surface.float_source_type(kind));
+            match kind {
+                crate::FloatIntrinsicKind::Unary { kind, operation } => (
+                    Effect::Ordinary,
+                    Vec::new(),
+                    if operation.is_predicate() {
+                        boolean.clone()
+                    } else {
+                        floating(kind)
+                    },
+                ),
+                crate::FloatIntrinsicKind::Binary { kind, operation } => (
+                    Effect::Ordinary,
+                    vec![floating(kind)],
+                    if operation.is_predicate() {
+                        boolean.clone()
+                    } else {
+                        floating(kind)
+                    },
+                ),
+                crate::FloatIntrinsicKind::Conversion(conversion) => {
+                    let result = match conversion {
+                        scoop_identity::FloatConversion::FromInteger { target, .. }
+                        | scoop_identity::FloatConversion::BetweenFloats { target, .. } => {
+                            floating(target)
+                        }
+                        scoop_identity::FloatConversion::ToInteger { target, .. } => {
+                            signature_integer(fundamental, target)
+                        }
+                    };
+                    (Effect::Ordinary, Vec::new(), result)
+                }
+            }
+        }
         IntrinsicFunctionKind::Char(kind) => {
             let character = signature_concrete(fundamental, 15);
             match kind {
@@ -252,6 +287,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::GcStats
         | IntrinsicFunctionKind::CurrentSourceLocation
         | IntrinsicFunctionKind::Integer(_)
+        | IntrinsicFunctionKind::Float(_)
         | IntrinsicFunctionKind::Char(_)
         | IntrinsicFunctionKind::PrimitiveUnary(_)
         | IntrinsicFunctionKind::PrimitiveBinary(_)

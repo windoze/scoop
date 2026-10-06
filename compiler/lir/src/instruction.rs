@@ -37,6 +37,7 @@ pub enum Value {
     Param(u32),
     Temp(TempId),
     IntegerConst(LirIntegerConstant),
+    FloatConst(LirFloatConstant),
     MachineScalar(MachineScalarValue),
     BoolConst(bool),
     NullPointer(PointerKind),
@@ -55,6 +56,24 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    FloatUnary {
+        out: TempId,
+        kind: FloatKind,
+        operation: FloatUnaryOperator,
+        operand: Value,
+    },
+    FloatBinary {
+        out: TempId,
+        kind: FloatKind,
+        operation: FloatBinaryOperator,
+        lhs: Value,
+        rhs: Value,
+    },
+    FloatConversion {
+        out: TempId,
+        conversion: LirFloatConversion,
+        operand: Value,
+    },
     BoxValue {
         out: TempId,
         payload: BoxPayload,

@@ -134,7 +134,9 @@ impl CBridgeTypeSurface {
                     self.materialize_struct(module, id)?;
                 }
             }
-            scoop_lir::CType::Integer(_) | scoop_lir::CType::Boolean => {}
+            scoop_lir::CType::Float(_)
+            | scoop_lir::CType::Integer(_)
+            | scoop_lir::CType::Boolean => {}
         }
         Ok(())
     }
@@ -250,6 +252,13 @@ impl<'a> CTypeRenderer<'a> {
         match ty {
             scoop_lir::CType::Integer(kind) => Ok(Self::attach(integer_name(*kind), declarator)),
             scoop_lir::CType::Boolean => Ok(Self::attach("_Bool", declarator)),
+            scoop_lir::CType::Float(kind) => Ok(Self::attach(
+                match kind {
+                    scoop_lir::FloatKind::F32 => "float",
+                    scoop_lir::FloatKind::F64 => "double",
+                },
+                declarator,
+            )),
             scoop_lir::CType::DataPointer { pointee, storage } => {
                 let pointee = exact_data_pointee(pointee, storage)?;
                 let pointer = format!("*{declarator}");

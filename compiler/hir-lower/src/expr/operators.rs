@@ -122,10 +122,17 @@ impl Lowerer {
             infix: false,
             ..Default::default()
         };
-        let value = if let Some(layer) = self.probe_integer_literal_receiver(
+        let value = if let Some(layer) = self.probe_numeric_literal_receiver(
             receiver,
             expected,
             |state, receiver, layer_sink| {
+                if let Some(comparison) = comparison
+                    && let Some(kind) = state.float_kind(receiver.ty)
+                {
+                    return state.lower_float_comparison(
+                        kind, comparison, receiver, argument, span, layer_sink,
+                    );
+                }
                 state
                     .lower_named_call_on_receiver(receiver, &name, call, layer_sink, None, required)
             },
@@ -133,6 +140,12 @@ impl Lowerer {
             self.commit_expr_layer(layer, sink)
         } else {
             let receiver = self.lower_expr(receiver, sink, None)?;
+            if let Some(comparison) = comparison
+                && let Some(kind) = self.float_kind(receiver.ty)
+            {
+                return self
+                    .lower_float_comparison(kind, comparison, receiver, argument, span, sink);
+            }
             self.lower_named_call_on_receiver(
                 receiver,
                 &name,
@@ -147,6 +160,9 @@ impl Lowerer {
             )?
         };
         if let Some(comparison) = comparison {
+            if matches!(value.kind, ExprKind::FloatBinary { .. }) {
+                return Some(value);
+            }
             let long = self.integer_type(hir::IntegerKind::SIGNED_64);
             debug_assert_eq!(value.ty, long);
             return Some(hir::Expr {
@@ -430,6 +446,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+            && let ast::Expr::FloatLiteral(literal) = operand
+        {
+            return self.lower_float_literal(literal, expected, op == ast::UnOp::Neg, span);
+        }
         if op == ast::UnOp::Neg
             && let ast::Expr::IntLiteral(literal) = operand
             && matches!(
@@ -461,7 +482,7 @@ impl Lowerer {
         if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
             && crate::expr::integer_literal_candidate_kinds(operand).is_some()
         {
-            if let Some(layer) = self.probe_integer_literal_receiver(
+            if let Some(layer) = self.probe_numeric_literal_receiver(
                 operand,
                 expected,
                 |state, receiver, layer_sink| {

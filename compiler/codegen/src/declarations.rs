@@ -87,6 +87,7 @@ pub(crate) fn c_basic_ty<'ctx>(
     Ok(match ty {
         scoop_lir::CType::Integer(kind) => integer_ty(context, kind.width()).into(),
         scoop_lir::CType::Boolean => context.bool_type().into(),
+        scoop_lir::CType::Float(kind) => float_type(context, *kind).into(),
         scoop_lir::CType::DataPointer { .. } | scoop_lir::CType::CodePointer { .. } => {
             ptr_ty(context).into()
         }
@@ -130,7 +131,8 @@ fn c_abi_integer_extension(ty: &scoop_lir::CType) -> Option<CAbiIntegerExtension
                 scoop_lir::IntegerSignedness::Unsigned => CAbiIntegerExtension::Zero,
             })
         }
-        scoop_lir::CType::Integer(_)
+        scoop_lir::CType::Float(_)
+        | scoop_lir::CType::Integer(_)
         | scoop_lir::CType::DataPointer { .. }
         | scoop_lir::CType::CodePointer { .. }
         | scoop_lir::CType::Struct(_) => None,

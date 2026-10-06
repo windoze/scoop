@@ -33,7 +33,7 @@ impl Lowerer {
                     continue;
                 };
                 if self.annotation_scalar_kind(value_type).is_none() {
-                    self.error(parameter.ty.span, "annotation parameter types are limited to Boolean, String, Char and fixed-width integers".into());
+                    self.error(parameter.ty.span, "annotation parameter types are limited to Boolean, String, Char, fixed-width integers, Float and Double".into());
                     continue;
                 }
                 let default = if let Some(default) = &parameter.default {

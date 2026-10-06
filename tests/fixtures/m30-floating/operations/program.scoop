@@ -1,0 +1,37 @@
+@NoGC fun floatMath(a: Float, b: Float): Float = (a + b) * (a - b) / +b
+@NoGC fun doubleMath(a: Double, b: Double): Double = (a + b) * (a - b) / +b
+@NoGC fun floatRem(a: Float, b: Float): Float = a % b
+@NoGC fun doubleRem(a: Double, b: Double): Double = a % b
+@NoGC fun floatDiv(a: Float, b: Float): Float = a / b
+@NoGC fun doubleDiv(a: Double, b: Double): Double = a / b
+@NoGC fun ordered(a: Double, b: Double): Boolean = a < b || a <= b || a > b || a >= b
+@NoGC fun floatOrdered(a: Float, b: Float): Boolean = a < b || a <= b || a > b || a >= b
+fun defaultSum(value: Double = 1.25 + 2.75): Double = value
+
+fun main() {
+    println(f"${floatMath(7f, 2f)} ${doubleMath(7.0, 2.0)}")
+    println(f"${floatRem(-5.5f, 2f)} ${doubleRem(-5.5, 2.0)}")
+    println(f"${floatRem(-4f, 2f)} ${doubleRem(-4.0, 2.0)}")
+    val nan = doubleDiv(0.0, 0.0)
+    val fnan = floatDiv(0f, 0f)
+    val infinity = doubleDiv(1.0, 0.0)
+    val finfinity = floatDiv(1f, 0f)
+    println(nan.isNaN() && fnan.isNaN() && !nan.isFinite() && !nan.isInfinite())
+    println(infinity.isInfinite() && finfinity.isInfinite() && !infinity.isFinite())
+    println(1.0.isFinite() && 1f.isFinite() && !1.0.isNaN())
+    println(nan != nan && !(nan == nan) && fnan != fnan && !(fnan == fnan))
+    println(!ordered(nan, 0.0) && !ordered(0.0, nan) && !floatOrdered(fnan, 0f))
+    println(ordered(1.0, 2.0) && ordered(2.0, 1.0) && ordered(1.0, 1.0))
+    println(0.0 == -0.0 && 0f == -0f && -0.0 <= 0.0 && 0.0 >= -0.0)
+    println((-0.0).isTotallyOrdered(0.0) && !0.0.isTotallyOrdered(-0.0))
+    println((-0f).isTotallyOrdered(0f) && !0f.isTotallyOrdered(-0f))
+    println(doubleRem(infinity, 2.0).isNaN() && floatRem(finfinity, 2f).isNaN())
+    println(doubleRem(1.0, 0.0).isNaN() && floatRem(1f, 0f).isNaN())
+    var value = 1.25
+    var narrow = 1.25f
+    println(f"${value++} ${++value} ${value--} ${--value}")
+    println(f"${narrow++} ${++narrow} ${narrow--} ${--narrow}")
+    val plus = 1.5::plus
+    val finite = 1f::isFinite
+    println(f"${plus(2.5)} ${finite()} ${defaultSum()}")
+}

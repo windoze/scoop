@@ -187,7 +187,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", normalize = ["native-digests"]},
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
 ]
 

@@ -28,6 +28,8 @@ pub enum BackendScalarKind {
     I16,
     I32,
     I64,
+    F32,
+    F64,
 }
 
 /// Coarse physical shape consumed by the closed Scoop ABI classifier.
@@ -197,9 +199,16 @@ impl LirTargetProfile {
             BackendScalarKind::I1 => ScalarLayout::new(1, 1),
             BackendScalarKind::I8 => ScalarLayout::new(1, 1),
             BackendScalarKind::I16 => ScalarLayout::new(2, 2),
-            BackendScalarKind::I32 => ScalarLayout::new(4, 4),
-            BackendScalarKind::I64 => ScalarLayout::new(8, 8),
+            BackendScalarKind::I32 | BackendScalarKind::F32 => ScalarLayout::new(4, 4),
+            BackendScalarKind::I64 | BackendScalarKind::F64 => ScalarLayout::new(8, 8),
         }
+    }
+
+    pub const fn float_layout(self, kind: crate::FloatKind) -> ScalarLayout {
+        self.scalar_layout(match kind {
+            crate::FloatKind::F32 => BackendScalarKind::F32,
+            crate::FloatKind::F64 => BackendScalarKind::F64,
+        })
     }
 
     pub const fn integer_layout(self, kind: IntegerKind) -> ScalarLayout {

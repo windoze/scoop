@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "unresolved native symbol _missing_helper in default namespace (unresolved symbol _missing_helper); reference chain: _missing_helper <- native object d673aa734ea734a4a9cd8ec7f672b57416fdee359f0c9c13aac693f4f9d7018f selected by direct input",
+    "message": "unresolved native symbol _missing_helper in default namespace (unresolved symbol _missing_helper); reference chain: _missing_helper <- native object $NATIVE_INPUT_0 selected by direct input",
     "notes": [],
     "origin": {
       "kind": "none"

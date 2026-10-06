@@ -51,6 +51,13 @@ fn validate_constant_image(
                 format!("{} constant", value.kind().canonical_name())
             })
         }
+        LirConstantImage::Float(value) => require_exact_type(
+            global,
+            path,
+            expected,
+            &LirType::floating(value.kind()),
+            || format!("{} constant", value.kind().canonical_name()),
+        ),
         LirConstantImage::Bool(_) => {
             require_exact_type(global, path, expected, &LirType::I1, || {
                 "Boolean constant".to_string()

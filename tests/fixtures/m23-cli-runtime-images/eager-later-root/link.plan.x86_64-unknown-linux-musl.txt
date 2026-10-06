@@ -1,16 +1,16 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:eager-bad-provider:0.1.0 kind=Library objects=8
 cone dev.example:eager-later-provider:0.1.0 kind=Library objects=8
 cone dev.example:eager-later-root:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=4 root=scoop$1$re$ae12a06da616f1ee39ea78b6e70339b5a216646f141240131e0432d6183a3f83
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 origins=dev.example:eager-bad-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([1, 212, 46, 131, 177, 230, 33, 58, 126, 101, 67, 71, 249, 139, 7, 133, 139, 31, 62, 158, 163, 171, 166, 65, 138, 173, 122, 194, 241, 64, 164, 61])]), dev.example:eager-later-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([194, 88, 79, 48, 33, 101, 218, 180, 104, 45, 144, 37, 112, 202, 27, 35, 124, 42, 234, 139, 116, 122, 151, 227, 31, 124, 73, 159, 234, 249, 72, 3])]), dev.example:eager-later-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([248, 171, 156, 11, 248, 251, 185, 29, 253, 14, 178, 139, 187, 160, 119, 221, 35, 82, 182, 96, 178, 223, 111, 240, 134, 123, 99, 14, 180, 139, 150, 54])])
-native archive 7e4af857b3efed9c003c24136bf68539bb5988c176fa2bdef21ddfbe3659ccb9 members=1
-  member 0 header=8 payload=68..1748 name="trace.o" digest=172a5e4f869d26b6235871184ef8a8096e940edfd3bf1187bef58c77c6ebe557 selected=true
-ELF system imports=48
+native library m23_runtime_images requirement=0f7f3c6d43f925d64f518a61c3f5bbd07a6d1cd5ed53b984f3de5996818f2573 input=$NATIVE_INPUT_0 origins=dev.example:eager-bad-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([1, 212, 46, 131, 177, 230, 33, 58, 126, 101, 67, 71, 249, 139, 7, 133, 139, 31, 62, 158, 163, 171, 166, 65, 138, 173, 122, 194, 241, 64, 164, 61])]), dev.example:eager-later-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([194, 88, 79, 48, 33, 101, 218, 180, 104, 45, 144, 37, 112, 202, 27, 35, 124, 42, 234, 139, 116, 122, 151, 227, 31, 124, 73, 159, 234, 249, 72, 3])]), dev.example:eager-later-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([248, 171, 156, 11, 248, 251, 185, 29, 253, 14, 178, 139, 187, 160, 119, 221, 35, 82, 182, 96, 178, 223, 111, 240, 134, 123, 99, 14, 180, 139, 150, 54])])
+native archive $NATIVE_INPUT_0 members=1
+  member 0 header=8 payload=68..1748 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
+ELF system imports=55
 startup object references:
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
   scoop$1$im$ae12a06da616f1ee39ea78b6e70339b5a216646f141240131e0432d6183a3f83

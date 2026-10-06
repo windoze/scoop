@@ -111,6 +111,8 @@ pub use emission::{
 };
 use function::emit_function;
 pub(crate) use llvm_types::*;
+mod floating;
+pub(crate) use floating::{float_constant, float_type};
 pub(crate) use module_context::*;
 pub use object_materialization::EmittedStrongDigestPatchMaterializationV1;
 pub use object_partition::{

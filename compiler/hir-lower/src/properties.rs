@@ -164,6 +164,7 @@ impl Lowerer {
                 };
                 let kind = match value {
                     hir::ConstPropertyValue::Integer(value) => hir::ExprKind::IntegerLiteral(value),
+                    hir::ConstPropertyValue::Float(value) => hir::ExprKind::FloatLiteral(value),
                     hir::ConstPropertyValue::Char(value) => hir::ExprKind::CharLiteral(value),
                     hir::ConstPropertyValue::Boolean(value) => hir::ExprKind::BoolLiteral(value),
                     hir::ConstPropertyValue::String(value) => hir::ExprKind::StringLiteral {

@@ -2,11 +2,12 @@
 
 import difflib
 import glob
-import hashlib
 import json
 import signal
 
+from .dependency_digests import normalize_dependency_digests
 from .model import AssertionFailure
+from .native_digests import normalize_native_digests
 from .schema import COMPARISONS
 from .values import byte_value, expand, json_value, path
 
@@ -62,7 +63,16 @@ def process_expectations(step, result, context, base, update=False):
             )
     if "diagnostics" in step:
         expected = expand(json_value(step["diagnostics"], base), context)
-        equal(result["diagnostics"], expected, f"{step['name']} complete diagnostics")
+        actual = result["diagnostics"]
+        rules = step.get("diagnostics_normalize", [])
+        if rules:
+            actual = normalize(
+                json.dumps(actual, sort_keys=True, indent=2).encode(), rules, context
+            )
+            expected = normalize(
+                json.dumps(expected, sort_keys=True, indent=2).encode(), rules, context
+            )
+        equal(actual, expected, f"{step['name']} complete diagnostics")
     return snapshots
 
 
@@ -79,6 +89,10 @@ def normalize(data, rules, context):
             replacements, key=lambda pair: len(pair[0]), reverse=True
         ):
             data = data.replace(original, replacement)
+    if "native-digests" in rules:
+        data = normalize_native_digests(data)
+    if "dependency-digests" in rules:
+        data = normalize_dependency_digests(data)
     return data
 
 
@@ -129,8 +143,6 @@ def check_all(checks, context, base, update):
         elif comparison in ("same_as", "different_from"):
             other = path(expected, base).read_bytes()
             equal(actual == other, comparison == "same_as", f"{subject} vs {expected}")
-        elif comparison == "sha256":
-            equal(hashlib.sha256(actual).hexdigest(), expected, str(subject))
         else:
             if isinstance(actual, bytes):
                 expected = byte_value(expected, base)

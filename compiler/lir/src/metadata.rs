@@ -844,6 +844,7 @@ pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
     Char,
+    Float(crate::FloatKind),
     String,
     Ptr { pointee: LirDataPointee },
     FunPtr { signature: LirFunctionType },
@@ -1664,6 +1665,7 @@ pub enum LirStaticInitialState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LirConstantImage {
     Integer(LirIntegerConstant),
+    Float(LirFloatConstant),
     Bool(bool),
     NullPointer(PointerKind),
     GlobalPointer {

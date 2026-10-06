@@ -1,0 +1,38 @@
+@NoGC fun narrow(value: Double): Int8 = value.toInt8()
+@NoGC fun widen(value: Float): Double = value.toDouble()
+@NoGC fun shorten(value: Double): Float = value.toFloat()
+fun main() {
+    val nan = 0.0 / 0.0
+    val positive = 1.0 / 0.0
+    val negative = -positive
+    println(f"${narrow(1000.0)} ${narrow(-1000.0)} ${narrow(-12.75)} ${narrow(nan)}")
+    println(f"${positive.toInt8()} ${positive.toInt16()} ${positive.toInt32()} ${positive.toInt64()}")
+    println(f"${negative.toInt8()} ${negative.toInt16()} ${negative.toInt32()} ${negative.toInt64()}")
+    println(f"${positive.toUInt8()} ${positive.toUInt16()} ${positive.toUInt32()} ${positive.toUInt64()}")
+    println(f"${negative.toUInt8()} ${negative.toUInt16()} ${negative.toUInt32()} ${negative.toUInt64()}")
+    println(f"${nan.toUInt8()} ${nan.toUInt16()} ${nan.toUInt32()} ${nan.toUInt64()}")
+    println(f"${255.9.toUInt8()} ${256.0.toUInt8()} ${65536.0.toUInt16()} ${4294967296.0.toUInt32()}")
+    println(f"${18446744073709551616.0.toUInt64()} ${9223372036854775808.0.toInt64()}")
+    val fnan = 0f / 0f
+    val fpositive = 1f / 0f
+    val fnegative = -fpositive
+    println(f"${fpositive.toInt8()} ${fpositive.toInt16()} ${fpositive.toInt32()} ${fpositive.toInt64()}")
+    println(f"${fnegative.toInt8()} ${fnegative.toInt16()} ${fnegative.toInt32()} ${fnegative.toInt64()}")
+    println(f"${fpositive.toUInt8()} ${fpositive.toUInt16()} ${fpositive.toUInt32()} ${fpositive.toUInt64()}")
+    println(f"${fnan.toInt8()} ${fnan.toInt16()} ${fnan.toInt32()} ${fnan.toInt64()}")
+    println(f"${fnegative.toUInt8()} ${fnegative.toUInt16()} ${fnegative.toUInt32()} ${fnegative.toUInt64()}")
+    val i8: Int8 = -128
+    val i16: Int16 = -32768
+    val i32: Int32 = -2147483648
+    val i64: Int64 = -9223372036854775808
+    val u8: UInt8 = 255U
+    val u16: UInt16 = 65535U
+    val u32: UInt32 = 4294967295U
+    val u64: UInt64 = 18446744073709551615UL
+    println(f"${i8.toFloat()} ${i16.toFloat()} ${i32.toFloat()} ${i64.toFloat()}")
+    println(f"${u8.toFloat()} ${u16.toFloat()} ${u32.toFloat()} ${u64.toFloat()}")
+    println(f"${i8.toDouble()} ${i16.toDouble()} ${i32.toDouble()} ${i64.toDouble()}")
+    println(f"${u8.toDouble()} ${u16.toDouble()} ${u32.toDouble()} ${u64.toDouble()}")
+    println(f"${widen(0.1f)} ${shorten(0.1)} ${shorten(-0.0)} ${widen(-0f)}")
+    println(f"${(-0.0).toDouble()} ${(-0f).toFloat()} ${shorten(1e40)}")
+}

@@ -45,6 +45,7 @@ pub enum HirConstantImage {
     Integer(HirIntegerConstant),
     Boolean(bool),
     Char(char),
+    Float(scoop_identity::FloatConstant),
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {
