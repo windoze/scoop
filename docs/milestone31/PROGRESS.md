@@ -87,3 +87,11 @@
 - 最终 image 检查针对新生成的 prefix、coordinate、依赖、摘要与登记表/count/binding；复用已有目标映射和权限读取。修复通用 Mach-O 对象库将标准 `__DATA_CONST,__const` 定义标成 Unknown 时的 native data 识别，其他未知节和指令属性仍拒绝。
 - Rust fmt 与 workspace clippy 通过。4 项定向测试通过，包含真实 C metadata、最终可执行文件的 image 摘要/表项数量损坏拒绝和实际选择与 link map 不一致拒绝。Darwin 跨 Cone Context 用例通过；新增四 Cone 独立用例的 debug/release、artifact-only link、倒序依赖输入、normal/full-moving/minor stress、六份阶段快照通过，合计 20 个正式进程。
 - 本批建立实际选择与最终 image，旧 ODR 内容判等和公共 definition 字段将在下一批删除，混合优化验收随之补齐。Linux SSH 仍超时，未声明本批 Linux 通过。清理新增的约 0.69 GiB 闲置增量产物。
+
+## M31-2 兼容实现与依赖语义
+
+- 跨产物 ODR 合并只比较完整 group/member key 与共享 ABI，删除 canonical LIR、机器码与 stackmap 的内容判等及专用差异诊断。原先绕过普通依赖图、把不同源码当作同一定义的三个测试，改为同一模板的 debug/release 真实对象测试；重复 artifact 仍拒绝。
+- LIR dependency semantic 改用已有 layout/descriptor/scan/dispatch/callable/shape-support 导出与普通 callable bridge。本地 foundation 和完整 production 不再贡献依赖语义，backend 配置移出该摘要；target 与 runtime/identity ABI 保留。域为 `scoop-lir-semantic-v2`，不新增正文摘要或 ABI 副本。摘要实现按编码与测试职责拆分，主文件 426 行。
+- 正式 ODR fixture 覆盖两种相反的混合优化组合、缓存键变化、消费者零次重编译、最终链接失效及重复输入稳定；移除源码后倒序传入产物链接，并运行 minor/full moving。真实泛型模板增加 GC 调用后，旧消费者仍以 StaleDependency 拒绝且不发布输出。
+- workspace fmt/clippy 通过；摘要与 registry 定向检查 8 项、真实同 key/ABI 不同机器对象测试 1 项通过；Darwin 正式 fixture 两变体共 20 个进程、6 项 stage golden 通过（37.30s，复用编译缓存）。Linux SSH 仍超时，本批 Linux 验证待补。
+- metadata ABI 5、公共 definition 字段及仅服务这些字段的摘要节点/正文编码将在下一批迁移，本批不声明 M31-2 全部完成。

@@ -42,7 +42,7 @@ M31 把已经可用的编译、产物消费、链接与运行闭环推进到可�
 | generated-C 固定 O0，runtime 默认已经 O2 | 两者分别表达，不把 runtime O2 误记为新增收益 | [c_bridge_invocation.rs](../../compiler/lir/src/c_bridge_invocation.rs)、[runtime compile](../../compiler/scoop/src/runtime_build/compile.rs) |
 | LIR 在 roots/sites 定稿前已有局部布尔折叠和不可达 CFG 删除 | 扩展现有入口，避免另建通用优化 IR/SSA 框架 | [safepoints/mod.rs](../../compiler/lir-lower/src/safepoints/mod.rs)、[constants.rs](../../compiler/lir-lower/src/safepoints/constants.rs) |
 | 临时 root storage 使用逐站点 alloca/volatile；清单严格匹配 LIR sites | 优化前后须明确实际 GC 发射计划，不能维持旧清单再机械要求相等 | [function/roots.rs](../../compiler/codegen/src/function/roots.rs)、[statepoint/manifest.rs](../../compiler/codegen/src/statepoint/manifest.rs) |
-| ODR 比较 ABI、canonical LIR、object 与 stackmap 摘要 | 需要删除实现内容相等要求，同时处理 metadata 选择 | [ODR merge](../../compiler/slib/src/layout_compile_closure/lir_physical/odr/merge.rs)、[content.rs](../../compiler/slib/src/layout_compile_closure/lir_physical/odr/content.rs) |
+| ODR 比较 ABI、canonical LIR、object 与 stackmap 摘要 | 需要删除实现内容相等要求，同时处理 metadata 选择 | [ODR merge](../../compiler/slib/src/layout_compile_closure/lir_physical/odr/merge.rs) |
 | GC 是单代 moving Immix；卡表有写入和清理，没有 remembered set 消费 | nursery 必须包含真正的 minor 闭环 | [collector.c](../../runtime/src/gc/collector.c)、[reclamation.c](../../runtime/src/gc/reclamation.c) |
 | small 上限为 64 bytes；超过后每对象至少取得一个 32 KiB span | nursery 和晋升都必须修正中小对象路径 | [heap_internal.h](../../runtime/src/gc/heap_internal.h)、[allocation.c](../../runtime/src/gc/allocation.c) |
 | 编译器连标量写入也标卡，Context 使用普通 byte store | 先明确范围屏障、引用写入覆盖与并发规则 | [memory.rs](../../compiler/codegen/src/function/memory.rs)、[task_context.c](../../runtime/src/task_context.c) |

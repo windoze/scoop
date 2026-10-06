@@ -104,9 +104,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
     let code_runtime_link = FingerprintSinkSet::CODE
         .union(FingerprintSinkSet::RUNTIME_IMAGE)
         .union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
-    let lir_code_runtime = FingerprintSinkSet::LIR
-        .union(FingerprintSinkSet::CODE)
-        .union(FingerprintSinkSet::RUNTIME_IMAGE);
+    let code_runtime = FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE);
     let code_link = FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
     for (capability, location, purpose, sinks) in [
         (
@@ -125,7 +123,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             lir_identity_foundation_capability(),
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
-            FingerprintSinkSet::LIR,
+            code_link,
         ),
         (
             manifest_single_cone_production_capability(),
@@ -173,7 +171,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             lir_strong_production_capability(),
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
-            lir_code_runtime,
+            code_runtime,
         ),
         (
             lir_link_identity_closure_capability(),

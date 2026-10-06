@@ -5,8 +5,8 @@ tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m31", "odr", "artifact-only", "context", "moving-gc", "stage-golden"]
 variants = [
-  {name = "debug", vars = {profile = "debug"}},
-  {name = "release", vars = {profile = "release"}},
+  {name = "debug", vars = {profile = "debug", other_profile = "release"}},
+  {name = "release", vars = {profile = "release", other_profile = "debug"}},
 ]
 
 [[steps]]
@@ -41,6 +41,64 @@ stdout = "helper\n168\n42\n"
 stderr = ""
 
 [[steps]]
+name = "prepare_mixed"
+files = [
+  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/prebuilt-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/artifacts/${build.result.dependencies.0.coordinate.group}/${build.result.dependencies.0.coordinate.name}/${build.result.dependencies.0.coordinate.version}/cone.slib"}},
+  {copy = {from = "${build.result.dependencies.1.path}", to = "${work}/artifacts/${build.result.dependencies.1.coordinate.group}/${build.result.dependencies.1.coordinate.name}/${build.result.dependencies.1.coordinate.version}/cone.slib"}},
+  {copy = {from = "${build.result.dependencies.2.path}", to = "${work}/artifacts/${build.result.dependencies.2.coordinate.group}/${build.result.dependencies.2.coordinate.name}/${build.result.dependencies.2.coordinate.version}/cone.slib"}},
+  {copy = {from = "${build.result.dependencies.3.path}", to = "${work}/artifacts/${build.result.dependencies.3.coordinate.group}/${build.result.dependencies.3.coordinate.name}/${build.result.dependencies.3.coordinate.version}/cone.slib"}},
+  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../template\"", new = ""}},
+  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../left\"", new = ""}},
+  {replace = {path = "${work}/source/root/Cone.toml", old = ", path = \"../right\"", new = ""}},
+  {replace = {path = "${work}/source/right/Cone.toml", old = ", path = \"../template\"", new = ""}},
+  {remove = {path = "${work}/source/template"}},
+  {remove = {path = "${work}/source/left"}},
+]
+
+[[steps]]
+name = "change_profile"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/right", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${other_profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/b-right/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.result.dependencies.3.coordinate.name}", equals = "b-right"},
+  {actual = "${change_profile.result.observations.nodes.2.cache_key}", not_equals = "${build.result.observations.nodes.3.cache_key}"},
+  {actual = "${change_profile.result.root.artifact_fingerprint}", not_equals = "${build.result.dependencies.3.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "mixed"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${mixed.result.observations.child_invocations}", equals = []},
+  {actual = "${mixed.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+  {actual = "${mixed.result.dependencies.3.artifact_fingerprint}", equals = "${change_profile.result.root.artifact_fingerprint}"},
+  {actual = "${mixed.result.link_plan_fingerprint}", not_equals = "${build.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${work}/prebuilt-sysroot", "--cone-path", "${work}/artifacts", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.link_plan_fingerprint}", equals = "${mixed.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
 name = "isolate"
 files = [
   {remove = {path = "${work}/source"}},
@@ -50,14 +108,14 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--dependency-slib", "${mixed.result.dependencies.3.path}", "--dependency-slib", "${mixed.result.dependencies.2.path}", "--dependency-slib", "${mixed.result.dependencies.1.path}", "--dependency-slib", "${mixed.result.dependencies.0.path}", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
 env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
 exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"}]
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${mixed.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "run_moving"
@@ -74,3 +132,34 @@ env = {SCOOP_GC_STRESS_MINOR = "1"}
 exit = 0
 stdout = "helper\n168\n42\n"
 stderr = ""
+
+[[steps]]
+name = "change_template"
+files = [
+  {copy = {from = "${fixture}/template", to = "${work}/changed-template"}},
+  {replace = {path = "${work}/changed-template/src/main.scoop", old = "public fun <T: ref> keep(value: T): T {\n    gcCollect()", new = "public fun <T: ref> keep(value: T): T {\n    gcCollect()\n    gcCollect()"}},
+]
+
+[[steps]]
+name = "changed_template"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/changed-template", "--sysroot", "${work}/prebuilt-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "-o", "${work}/artifacts/dev.m31.odr/z-template/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${changed_template.result.root.artifact_fingerprint}", not_equals = "${mixed.result.dependencies.1.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "stale"
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${mixed.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${mixed.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "-o", "${work}/stale-program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "stale.diagnostics.json"}
+diagnostics_normalize = ["dependency-digests"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+checks = [{file = "${work}/stale-program", exists = false}]

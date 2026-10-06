@@ -7,10 +7,6 @@ pub enum OdrDefinitionDifference {
     GroupKey,
     MemberKey,
     Abi,
-    Lir,
-    Object,
-    Stackmap,
-    Definition,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,10 +30,6 @@ pub enum OdrDefinitionMergeError {
         provider: ConeIdentity,
         member: OdrMemberId,
     },
-    MissingContent {
-        provider: ConeIdentity,
-        member: OdrMemberId,
-    },
     Conflict(Box<OdrMemberConflict>),
     SymbolOwnerConflict {
         first: ConeIdentity,
@@ -50,9 +42,9 @@ impl OdrDefinitionMergeError {
     pub(in crate::layout_compile_closure::lir_physical) const fn provider(&self) -> ConeIdentity {
         match self {
             Self::DuplicateArtifact(provider) => *provider,
-            Self::Identity { provider, .. }
-            | Self::MissingPhysicalDefinition { provider, .. }
-            | Self::MissingContent { provider, .. } => *provider,
+            Self::Identity { provider, .. } | Self::MissingPhysicalDefinition { provider, .. } => {
+                *provider
+            }
             Self::Conflict(conflict) => conflict.second,
             Self::SymbolOwnerConflict { second, .. } => *second,
         }

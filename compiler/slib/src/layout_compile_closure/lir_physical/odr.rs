@@ -10,7 +10,6 @@ use crate::{
     OdrMemberDirectoryEntryV1,
 };
 
-mod content;
 mod errors;
 mod merge;
 
