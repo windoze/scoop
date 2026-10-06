@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 companion 的泛型规则：每个完整宿主类型各有自己的 companion 类型与 singleton，companion 可使用宿主类型参数，见 9.1.3、9.5 和 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21 及后续历史 milestone 设计保留原文，其中“泛型宿主共享非 generic companion”的规则由本次修订取代。
 
-M29 的 Unit 使用实际 core 声明提供普通 Encodable 实现，固定类型身份、零大小值布局与 Unit 返回 ABI 不变。成员、装箱和跨 Cone 分派沿既有 intrinsic struct 路径，UnitDecoder 仍是独立 object；对应共有格式及实现见实现规范 §2.17。
+2026-10-06，M29 将编码协议修订为 `Encodable<T>.encode(value: T, encoder: Encoder)`，与 `Decodable<T>` 一样由 companion 或普通 codec 对象实现。数据类型不因 codec 的存在获得接口；泛型、容器和 tuple 的两个方向均使用显式 codec 组合，见 9.5、11.13。Unit 使用独立的 UnitEncoder / UnitDecoder，固定类型身份、零大小值布局与返回 ABI 不变。本次文档修订先于实现迁移，既有实例编码和条件 conformance 的验收不代表新协议已实现；实际进度见 [M29 实施记录](../milestone29/PROGRESS.md)。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -146,7 +146,7 @@ Scoop 的类型分为两大类：
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
 - struct、enum 和 tuple 的内联值布局必须有限。字段或 payload 经实际内联的泛型形参返回同一值类型声明、且途中没有引用或指针边界时，在声明处报错；改变环上的类型实参不能消除此错误。此规则同样适用于来自依赖的泛型包装器。没有存入字段／payload 的 Phantom 参数以及仅位于引用或指针之后的参数，不构成内联布局依赖。
 - function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
-- Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。M29的`Decodable<T>`同样遵守此规则。
+- Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。M29的`Encodable<T>`与`Decodable<T>`同样遵守此规则。
 - 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；类型检查顺序不决定运行期求值顺序，显式实参与缺省表达式严格按 8.5.3 求值。
 - 调用点可以写显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。列表仍须覆盖callee自己声明的全部参数位置，但任一位置可以写`_`请求继续推断，例如`convert<Int, _>(value)`或`Pair<_, String>(first, second)`；显式类型与`_`产生的fresh variable进入同一个candidate-local constraint system。`_`只在调用/构造的显式type-argument list中合法，不是类型，不能出现在变量、字段、返回类型、上界、cast目标或nominal type annotation中。泛型宿主的方法调用只列method自己的参数，宿主application仍由receiver确定；整组省略时继续使用普通推断。
 - generic type application在类型位置必须覆盖全部参数位置；不支持裸generic type或少写参数，每个位置都必须是普通完整类型。`G<out T>`、`G<in T>`与`G<*>`均不是Scoop类型语法。generic class/struct constructor及enum variant构造产生exact application，可以整组省略实参或用`_`部分推断。
@@ -158,9 +158,9 @@ Scoop 的类型分为两大类：
 - Scoop不提供use-site `in`/`out` projection、star projection或wildcard capture。需要只读/只写抽象时，优先让消费操作本身成为带bound的generic callable，例如`fun <T : Animal> consume(values: Array<T>)`；需要保存未知application时，必须声明显式的非generic interface或用户实现的type-erased wrapper。语言不会隐式制造existential类型、runtime generic dictionary或capture-open dispatch。
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
 - 类型上界在参数列表中写作`T : Bound`，或在声明头后的`where T : Bound`子句中给出。同一参数至多有一个class上界，并可同时具有多个不同interface上界；class上界保证实际参数是该exact class application的引用子类型，成员候选包括class及其继承闭包。class/interface上界都必须是参数完整的exact reference application；不接受value type、函数类型、`Any`或另一type parameter，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一nominal上界互斥（见13.9）。
-- 类型实参必须同时满足参数的全部上界；class/interface关系按普通继承、显式conformance及完整application identity判断。11.13为核心类型规定的封闭结构型Encodable conformance也是合法实现；其他value type仍须显式声明interface。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。Decodable的能力属于显式解码器值，不为被解码类型增加特殊bound。
+- 类型实参必须同时满足参数的全部上界；class/interface关系按普通继承、显式conformance及完整application identity判断，value type实现interface须有显式声明。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。11.13的编码与解码能力属于显式codec值，不为目标数据类型增加特殊bound或结构型conformance。
 - receiver为有界type parameter时，成员候选只来自唯一class上界、interface上界及其继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct/virtual/interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。 class 上界中的属性同样参与查询：存储、计算属性和函数值属性使用完整上界实参及其继承替换；读取、赋值、复合赋值和安全访问保留原 receiver 的访问域检查，getter／setter 在定义处选定。该规则与声明位于当前 Cone 或依赖无关。
-- 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。Decodable<T>及其decode方法也使用普通interface语义。
+- 每个合法且参数完整的exact class/interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound。Scoop不引入`dyn`/trait object语法、object-safety分类或可空witness；所有合法interface成员仍可经concrete、exact interface或bounded receiver调用。`Encodable<T>`、`Decodable<T>`及其方法也使用普通interface语义。
 - interface方法现阶段不能声明自己的type parameter；`interface I { fun <T> f(value: T) }`在声明处即为编译错误。interface宿主可以generic，例如`interface I<T> { fun f(value: T) }`，完整application `I<String>`中的方法可正常itable分派。这是method-level generic dispatch ABI尚未定义的功能边界，不是允许声明后再限制调用形态的object-safety规则。未来开放时必须同时支持interface与bounded receiver调用。
 - non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。调用根据exact receiver application与完整method argument使用direct dispatch，运行期派生class不能override目标。
 - class/struct/enum泛型宿主上的泛型成员函数，以及带宿主类型参数环境的companion上的泛型成员函数，都拥有两组类型参数：宿主类型实参由接收者的exact静态application确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同semantic identity，方法参数不得与宿主参数重名。companion的宿主实参来自9.1.3规定的完整宿主application，不从方法实参反推。调用点显式列表只写method自身参数，可整组省略，或覆盖全部位置并在待推断位置写`_`；两组参数的bound一起验证。interface本身的方法现阶段没有第二组参数，其companion的方法属于普通object成员。
@@ -305,7 +305,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
 - tuple 是值类型：immutable、无 identity；当全部元素可比较时条件派生结构相等，Unit无条件满足结构相等（见11.11）。
-- tuple 不支持在源码中显式声明implements列表，也不支持命名字段，不实现`ToString`。M29仅按11.13的封闭规则提供`Encodable`结构型conformance；解码由单独的`Decodable<(T1, T2, ...)>`实现承担，不为tuple添加companion或Decodable conformance。其他interface仍须使用命名struct显式实现。
+- tuple 不支持在源码中显式声明implements列表，也不支持命名字段，不实现`ToString`。M29的编码与解码分别由普通`Encodable<(T1, T2, ...)>`、`Decodable<(T1, T2, ...)>`实现承担，见11.13；不为tuple添加companion或条件接口。需要数据值自身实现interface时使用命名struct显式声明。
 
 ### 4.4 值类型通用规则
 
@@ -1010,7 +1010,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - 跨 Cone 的 companion、嵌套声明和转发按实际 host 的静态命名空间解析，保留完整宿主application。`Host.member`只查实际导出的转发binding，再使用成员所属companion application的真实receiver，不生成static副本。限定路径本身不构造或初始化host，const读取也不触发singleton初始化。companion属性赋值、复合赋值与自增均先求值并保存一次实际receiver，再求值右值并调用对应getter/setter；可见性、值遮蔽与本地声明相同；
 
 `hir/cross-cone-interface/30` 补齐 object 的声明种类：source-shape 的旧 Object tag 8 退役，新 tag 9 保留 field 1=value、field 2=声明序字段，新增 field 3=`Standalone(1)` 或 `Companion(2)`；host 沿已有声明 key 的 typed owner 查询。命名 companion 发布名称与 `Companion` 两个普通 type/value binding，object 的公开方法和属性进入自身静态 binding 表。共有命名空间在本 owner 无同名 binding 时，沿已声明的 companion 关系转发其直接 binding；不复制成员声明、不用名称或初始化 metadata 推断 companion。旧 `/28` 产物与缓存重建，退役 tag 不复用，runtime ABI 不变。
-上述为已有产物格式的演进记录；M29还须按实现规范2.17补齐companion的宿主binder/application及初始化物化，不表示`/30`已经实现本次语义。
+上述为历史格式的演进记录；M29的companion宿主binder/application及初始化物化已在后续格式中补齐，见实现规范2.17。`/30`本身不包含这些语义，不能把该历史版本当作当前companion格式。
 
 - body可以声明static nested class/struct/enum/interface/object，包括companion body中的普通嵌套声明。它们没有implicit outer receiver或outer type parameter；需要关联时显式声明自己的参数。generic outer名称可作为owner qualifier而不构成裸generic application；`Box.Nested`仍是独立声明，不因`Box<Int>`/`Box<String>`复制。只有companion按直接宿主application参数化，普通static nested声明仍是外层类型参数作用域的边界。`inner class`、anonymous/local object/type及implicit outer instance capture不支持；
 - ordinary top-level stored/delegated property可以是`val`或`var`、可以包含managed ref，使用compiler-managed hidden storage/accessor并进入global root表；它不可`addressOf`。`@Global`/`@ThreadLocal`仍只表示13.6的显式可寻址GC-free raw storage，`@Extern`仍只表示C data symbol；这些storage形态不能带普通accessor/delegate或与ordinary property混用；
@@ -1225,33 +1225,43 @@ public struct Account(@Description("Stable identifier") val id: Long)
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。
 
-### 9.5 companion 上的解码接口（M29）
+### 9.5 companion 与普通 codec 的编码、解码接口（M29）
 
-构造新值的接口用显式结果类型参数表达，由companion或普通解码器对象实现：
+两个方向都用显式目标类型参数表达，由companion或普通codec对象实现：
 
 ```scoop
+public interface Encodable<T> {
+    public fun encode(value: T, encoder: Encoder): Unit
+}
+
 public interface Decodable<T> {
     public fun decode(decoder: Decoder): T
 }
 
 public struct Identifier(val value: Long) {
-    public companion object : Decodable<Identifier> {
+    public companion object : Encodable<Identifier>, Decodable<Identifier> {
+        public override fun encode(value: Identifier, encoder: Encoder): Unit =
+            Long.Companion.encode(value.value, encoder)
+
         public override fun decode(decoder: Decoder): Identifier =
             Identifier(Long.Companion.decode(decoder))
     }
 }
 
+public fun <T> encodeTo(value: T, encoder: Encoder, codec: Encodable<T>): Unit =
+    codec.encode(value, encoder)
+
 public fun <T> decodeFrom(decoder: Decoder, codec: Decodable<T>): T =
     codec.decode(decoder)
 ```
 
-- Decodable是普通invariant generic interface，T是普通显式类型参数。实现的结果类型直接写Identifier、`Box<E>`或tuple等完整类型；没有Self替换、associated type或static成员语法。
-- `Identifier.Companion`实现`Decodable<Identifier>`；Identifier实例不因此实现该interface。decode的this是companion/解码器对象，返回值才是新构造的Identifier。实现选择、override、slot、可见性及异常均使用现有普通方法规则，缺省body的合成见11.13。
-- 调用`Identifier.Companion.decode(source)`，也可按9.1.3在无冲突时写`Identifier.decode(source)`；后者只转发到同一个companion成员。generic代码显式接收`Decodable<T>`值并调用其方法，`T`本身不提供`T.decode`或`T.Companion`的泛型查找能力。不增加隐式decoder参数、companion bound或按运行期类型寻找解码器的规则。
-- companion按9.1.3随完整宿主application具体化，可以直接写`Decodable<Box<T>>`并返回`Box<T>`。这不为裸T增加`T.Companion`查找能力；含T字段时仍须在定义处具有合法字段解码器。需要调用方选择元素策略时，由companion的普通方法显式接收`Decodable<T>`并返回持有依赖的普通解码器，见11.13.4；该调用不修改singleton的全局状态。
-- class继承不继承companion。`Base.Companion : Decodable<Base>`不成为`Decodable<Derived>`；两种application受普通不变性约束。普通解码器class继承来的方法/default仍按原规则使用，不重写其结果类型。
-- `Decodable<T>`的实际实现可以来自companion、object或普通class/struct。用户可以手写返回接口、基类或singleton值的实现；自动生成只接受11.13规定的目标形状，不改变正常构造和访问规则。
-- 两个不相同的Decodable application若因decode参数相同而结果不兼容，使用普通interface/override冲突诊断；不能仅按结果类型选择一个重载。不增加专用的工厂requirement或运行期构造器表。
+- `Encodable<T>`与`Decodable<T>`都是普通invariant generic interface，T是普通显式类型参数。encode的数据参数和decode的结果直接写Identifier、`Box<E>`或tuple等完整类型；没有Self替换、associated type或static成员语法。
+- `Identifier.Companion`实现这两个接口，Identifier实例不因此实现它们。两个方法的this都是codec；encode通过value取得待编码数据，decode返回目标值。实现选择、override、slot、可见性及异常均使用普通方法规则，缺省body的合成见11.13。
+- `Identifier.Companion.encode(value, sink)`与`Identifier.Companion.decode(source)`都是普通成员调用；无冲突时可按9.1.3转发为`Identifier.encode(value, sink)`与`Identifier.decode(source)`。generic代码显式接收相应codec值；不增加`T.encode`/`T.decode`/`T.Companion`泛型查找、隐式codec参数或companion bound。
+- companion随完整宿主application具体化，可声明`Encodable<Box<T>>`或`Decodable<Box<T>>`，但含T字段时仍须在定义处取得相应字段codec。需要调用方选择元素策略时，普通encoder/decoder方法显式接收元素codec并返回持有依赖的普通对象，见11.13.4；依赖不写入singleton的全局状态。
+- class继承不继承companion。Base.Companion的`Encodable<Base>`或`Decodable<Base>`不会转移到Derived.Companion，也不会使数据实例获得接口。`Encodable<Base>`不能赋给`Encodable<Derived>`，解码方向同理；显式使用Base codec时，encode的数据实参仍允许普通Derived到Base的向上转换，表示按Base策略编码。运行时数据类型不改变所选codec；字段的自动选择也不向基类companion回退。
+- 普通codec class自身继承的方法/default照常选择，参数和结果类型不会因数据类型继承自动改写。codec可以由companion、object或普通class/struct提供，可手写处理接口、基类或singleton目标；自动派生仍限于11.13的形状及普通访问规则。
+- 不同interface application的成员按普通overload/override规则检查；尤其两个decode参数相同而结果不兼容时诊断冲突，不能仅按结果类型选择。两个方向可由同一codec或普通组合interface表达，不需要新增内建Codable标记或专用工厂requirement。
 
 ### 9.6 静态类型描述（M29）
 
@@ -1709,11 +1719,11 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ### 11.13 编码、解码与缺省实现（M29）
 
-本节是M29待实现的目标语义；范围、合成示例和验收见[M29设计](../milestone29/DESIGN.md)。核心库在`scoop.core`提供：
+本节规定2026-10-06修订后的M29目标语义，现有实例编码实现仍待迁移；范围、合成示例和验收见[M29设计](../milestone29/DESIGN.md)及其实施记录。核心库在`scoop.core`提供：
 
 ```scoop
-public interface Encodable {
-    public fun encode(encoder: Encoder): Unit
+public interface Encodable<T> {
+    public fun encode(value: T, encoder: Encoder): Unit
 }
 
 public interface Decodable<T> {
@@ -1724,28 +1734,28 @@ public annotation class SerialName(val name: String)
 public annotation class Transient
 ```
 
-两者都是普通实例interface，但接收者不同：Encodable由待编码值的类型实现，`Decodable<T>`由能构造T的companion或普通解码器类型实现。请求默认实现的声明分别列出对应interface；一个类型的companion实现`Decodable<T>`不会让该数据类型的实例也实现它。M29不提供把两个不同接收者合并为一个标记的Codable接口，不自动添加companion或向另一声明转移conformance。
+两者都是由companion或普通codec对象实现的普通实例interface，this始终是codec。请求默认实现的声明分别列出对应完整interface application；encode的数据参数和decode的结果由T确定。目标数据类型不会因codec存在获得接口，编译器不自动添加companion或向另一声明转移conformance。两个方向独立，也可由同一codec同时实现；M29不新增内建Codable标记，普通组合interface沿原规则使用。
 
 #### 11.13.1 实现选择与合成条件
 
 - 先按普通override/default规则选择合法的用户实现或继承实现；缺少实现时，才为当前实现类型上的核心requirement合成普通方法。两个方向独立决定，手写一个不影响另一个。错误的显式override仍然报错；无关的合法overload不占用requirement。不生成interface中遍历运行期元数据的共享default body。
-- 编译器只识别实际core协议声明的typed identity；用户同名interface或annotation没有特殊行为。用户subinterface可继承Encodable或某个完整`Decodable<T>`并增加其他requirement；编译器只补齐encode/decode，其他缺失方法仍是正常错误。
-- encode的被描述类型是当前receiver类型；decode的被描述类型是已实现`Decodable<T>`中的T，不是companion/解码器本身。struct按源码字段处理，enum按variant/payload处理，tuple按元素处理。合成encode要求所有参与字段的静态类型满足Encodable；合成decode要求按11.13.4为参与字段确定合法解码器值。缺失能力、歧义或不可构造形状在定义处报错，不生成运行期失败stub。
-- 数据class的自动处理范围是普通final class且没有显式class基类。encode使用本owner的存储property；带自定义accessor或委托的property须显式处理。decode还要求目标有唯一primary constructor，所有参与状态来自其val/var参数；未参与的构造参数须有default，其他存储状态须明确Transient并能按既有规则初始化。解码器必须在正常访问域内调用该constructor；声明在companion内不会创建超出9.1.5的额外权限。
-- computed/abstract property不作为存储字段参与派生。无参与字段的普通struct/class编码为record，不能把intrinsic类型当成空record。开放/抽象class、带class基类、singleton或其他不满足上述映射的目标使用显式codec；object可以正常实现`Decodable<T>`，但自动构造不会尝试创建新的singleton。
-- 泛型encode在定义处需要显式Encodable bound。泛型decode的结果类型如`Box<E>`可以包含普通参数E，由解码器对象的显式依赖提供`Decodable<E>`；不要求E实现`Decodable<E>`。generic宿主的companion可使用该宿主的类型参数并按9.1.3具体化，但这不补足裸E的字段解码能力。裸T等没有可展开目标形状的类型不能仅因声明了`Decodable<T>`就自动得到body。
-- 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或解码器依赖。
+- 编译器只识别实际core协议声明的typed identity；用户同名interface或annotation没有特殊行为。用户subinterface可继承完整的`Encodable<T>`或`Decodable<T>`并增加其他requirement；编译器只补齐encode/decode，其他缺失方法仍是正常错误。
+- 两个方向的被描述类型都是interface application中的T，不是codec的receiver类型。struct按源码字段处理，enum按variant/payload处理，tuple按元素处理。按11.13.4在定义处为每个参与字段分别确定`Encodable<F>`或`Decodable<F>`值，encode读取value的字段，不读取codec自身的依赖字段作为数据。缺失能力、歧义或不可构造形状报错，不生成运行期失败stub。
+- 数据class的自动处理范围仍是普通final class且没有显式class基类。encode读取value所属目标owner的存储property；带自定义accessor或委托的property须显式处理。decode还要求目标有唯一primary constructor，所有参与状态来自其val/var参数；未参与的构造参数须有default，其他存储状态须明确Transient并能按既有规则初始化。字段读取和constructor调用都必须处于codec的正常访问域；合成不创建超出9.1.5的额外权限。
+- computed/abstract property不作为存储字段参与派生。无参与字段的普通struct/class编码为record，不能把intrinsic类型当成空record。开放/抽象class、带class基类、singleton或其他不满足上述映射的目标使用手写codec；object可以实现任一方向，但自动构造不会尝试创建新的singleton。将编码移入codec不扩大class自动派生范围。
+- 泛型目标如`Box<E>`可包含普通参数E，两个方向分别由显式`Encodable<E>`、`Decodable<E>`依赖提供字段能力，不要求E自身实现接口。companion可使用宿主参数并按9.1.3具体化，但不能等E具体化后再发现其codec。裸T没有可展开目标形状，不能仅凭声明`Encodable<T>`或`Decodable<T>`自动得到body。
+- 合法递归类型先建立合成方法签名，再生成body；值布局和单态化终止性继续遵守3.2。已有接口实现选择在定义处完成，具体化不重新选重载、default或字段codec依赖。
 
-核心Boolean、现有定宽整数、String、Char、Unit无条件提供Encodable；`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`在T满足Encodable时提供该方向的结构型conformance；非空tuple在每个元素满足Encodable时提供conformance。这些封闭规则不改变容器本身无bound的定义，不禁止`Array<NonEncodable>`的普通使用。核心解码使用11.13.4的普通companion/解码器对象，不为数据类型追加Decodable conformance。
+核心Boolean、现有定宽整数、String、Char的companion分别实现具体的`Encodable<Scalar>`与`Decodable<Scalar>`；Unit使用普通object UnitEncoder与UnitDecoder。`Option<T>`、`Array<T>`、`MutableArray<T>`、`ArrayList<T>`及tuple的codec按11.13.4组合。标量、Unit、容器和tuple数据值不因此获得编码/解码接口；不再提供条件conformance，容器原有无bound用途保持。
 
-List/MutableList不推导结构型Encodable，也没有唯一默认解码结果。核心库提供普通
-`fun <T : Encodable> encodeList(values: List<T>, encoder: Encoder): Unit`：取得一个
-unkeyed 容器，按 values 的普通迭代次序逐项取得 element encoder 并调用元素的
-encode，最后结束该容器。空列表同样结束容器；元素异常沿普通调用传播。该函数
+List/MutableList没有唯一默认解码结果。核心库提供普通
+`fun <T> encodeList(values: List<T>, element: Encodable<T>, encoder: Encoder): Unit`：
+取得一个unkeyed容器，按values的普通迭代次序逐项取得child并调用
+`element.encode(value, child)`，最后结束该容器。空列表同样结束容器；元素异常沿普通调用传播。该函数
 只遍历逻辑元素，不编码容器的 capacity、backing 或空闲槽。
 
-Any、函数、Ptr/FunPtr没有默认codec。用户可显式实现Decodable<`List<T>`>、
-`Decodable<Any>`等并选择正常返回值；不从运行期类型名推断具体实现。
+Any、函数、Ptr/FunPtr没有默认codec。用户可手写`Encodable<List<T>>`、
+`Decodable<List<T>>`、`Encodable<Any>`或`Decodable<Any>`等实现；不从运行期类型名推断具体codec。
 
 #### 11.13.2 容器协议与库边界
 
@@ -1812,7 +1822,7 @@ path表示输入/输出数据位置，采用从空串根开始的JSON Pointer se
 
 `optional(name)`只在key不存在时返回None；格式中的显式null仍返回Some(Decoder)，之后按字段codec处理。`keys`是输入数据中的键列表，不是类型描述。keyed读取不要求输入字段顺序与请求顺序相同；未知key可跳过但仍需是合法格式，重复key必须失败。unkeyed的element在耗尽时失败，end拒绝剩余元素；tuple据此检查长度。
 
-类型相关调用留在合成body及普通泛型helper中：`value.encode(child)`与`codec.decode(child)`；codec是静态类型为`Decodable<F>`的普通值，F是字段的完整类型。不要求interface方法级泛型、Any中间树、runtime SerialDescriptor或反射字段访问。JSON、未来的二进制格式等由普通库实现这些interface，编译器只生成相同的类型侧代码。
+类型相关调用留在合成body及普通泛型helper中：`codec.encode(value, child)`与`codec.decode(child)`；codec分别是满足`Encodable<F>`或`Decodable<F>`的普通值，F是字段的完整静态类型。不要求interface方法级泛型、Any中间树、runtime SerialDescriptor或反射字段访问。JSON、未来的二进制格式等由普通库实现这些interface，编译器只生成相同的类型侧代码。
 
 #### 11.13.3 缺省数据模型与构造
 
@@ -1835,41 +1845,49 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-M29以普通库的`Json.encode<T : Encodable>(value: T): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`完成可运行闭环。调用如`Json.decode(text, User.Companion)`，T按普通实参推断；没有仅从T隐式取得解码器的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。无Float/Double或Map的新增承诺；record已可覆盖对象形式，array覆盖序列。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
+M29以普通库的`Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`完成可运行闭环。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。无Float/Double或Map的新增承诺；record已可覆盖对象形式，array覆盖序列。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
 
-#### 11.13.4 解码器依赖与泛型组合
+#### 11.13.4 编码、解码依赖与泛型组合
 
-合成`Decodable<R>`.decode时，结果R必须具有已知的struct/enum/tuple或合格class形状。R中的类型参数可以尚未具体化。对参与解码的每个字段类型F，按以下顺序确定一个普通`Decodable<F>`值；选择在定义处完成并保留实际声明引用，不在具体化时重新匹配：
+合成`Encodable<R>`.encode或`Decodable<R>`.decode时，目标R必须具有已知的struct/enum/tuple或合格class形状，R中的类型参数可以尚未具体化。两个方向分别按以下顺序确定每个参与字段F所需的`Encodable<F>`或`Decodable<F>`值；选择在定义处完成并保留实际声明引用，不在具体化时重新匹配：
 
-1. 当前解码器class/struct的primary constructor中，以val保存且静态类型满足`Decodable<F>`的显式依赖。没有匹配才继续；多个匹配则诊断歧义，不能按参数名称或顺序任选。companion没有constructor，不扫描其任意property、Context或整个词法作用域寻找依赖。
-2. F与本方法的结果R相同，则使用this，以支持正常的递归解码。
-3. F是可明确命名的名义类型，且它的普通companion实现了相同application的`Decodable<F>`，则使用该可见companion值。F为`Envelope<E>`等完整application时，保留对应宿主实参并引用`Envelope<E>.Companion`；仅有同名decode/decoder函数不构成conformance。
-4. F为核心Option/Array/MutableArray/ArrayList，递归取得元素解码器后调用该完整类型companion上预定义的普通`decoder`方法，例如`Array<E>.Companion.decoder(element)`；F为Unit时使用核心UnitDecoder，F为tuple时按元素递归组合一个普通解码器。其余缺失情况报错，要求显式注入解码器或手写body；尤其不能在实例化时猜测裸类型参数的companion。
+1. 当前codec class/struct的primary constructor中，以val保存且静态类型满足所需完整interface application的显式依赖。没有匹配才继续；多个匹配诊断歧义，不按参数名称或顺序任选。companion没有constructor，不扫描其任意property、Context或整个词法作用域寻找依赖。
+2. F与目标R相同则使用this，支持当前方向的递归调用。
+3. F是可明确命名的名义类型，且它的可见普通companion实现了所需的`Encodable<F>`或`Decodable<F>`，则使用该值。F为`Envelope<E>`等完整application时保留宿主实参；不向F的基类companion回退，仅有同名encode/decode/encoder/decoder方法也不构成conformance。
+4. F为核心Option/Array/MutableArray/ArrayList时，递归取得相应元素codec并调用完整宿主companion上预定义的普通encoder/decoder方法，例如`Array<E>.Companion.encoder(element)`。Unit使用UnitEncoder/UnitDecoder，tuple按元素递归组合普通codec。其余缺失情况报错，要求显式注入或手写body；不能在实例化时猜测裸类型参数的companion。
 
-同一字段类型可以复用同一依赖，不同字段需要不同策略时手写decode。两个不同binder在具体化后恰好相同不触发重新选择或新的歧义；body继续使用定义处选定的参数。generic用户类型不按名约定自动调用companion.decoder；调用方显式组合其解码器并传入需要它的provider。
+同一字段类型可以复用同一依赖，不同字段需要不同策略时手写相应方法。两个不同binder在具体化后恰好相同不触发重新选择或新的歧义；body继续使用定义处选定的参数。generic用户类型不按名约定自动调用companion.encoder/decoder；调用方显式组合其codec并传入需要它的provider。
 
 ```scoop
 public struct Box<T>(val value: T) {
     public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Box<T>> =
+            BoxEncoder(element)
+
         public fun decoder(element: Decodable<T>): Decodable<Box<T>> =
             BoxDecoder(element)
     }
 }
 
+public class BoxEncoder<E>(private val element: Encodable<E>) : Encodable<Box<E>>
 public class BoxDecoder<E>(private val element: Decodable<E>) : Decodable<Box<E>>
 ```
 
-BoxDecoder缺少的decode由编译器合成，读取value时调用this.element.decode，再正常构造`Box<E>`。入口可写`Json.decode(text, Box<Long>.Companion.decoder(Long.Companion))`，或使用同一成员的`Box<Long>.decoder(...)`转发。companion方法中的T来自宿主，BoxDecoder的E来自其构造实参；decoder方法本身没有另行声明的类型参数。元素codec属于本次返回的BoxDecoder，不写入companion字段，不因相同T而固定为某一种解码策略。
+两个helper缺少的方法分别合成：BoxEncoder从数据实参读取value字段并调用this.element.encode；BoxDecoder调用this.element.decode后正常构造`Box<E>`。入口可写`Json.encode(box, Box<Long>.Companion.encoder(Long.Companion))`或`Json.decode(text, Box<Long>.Companion.decoder(Long.Companion))`，也可使用普通companion转发。方法中的T来自宿主，helper的E由构造实参推断；encoder/decoder方法没有另行声明的类型参数。元素codec属于本次返回的对象，不写入companion字段；同一个数据类型可使用多个编码或解码策略，数据本身无需编码bound，其他用户声明的泛型约束保持原义。
 
-核心scalar由各自companion实现具体`Decodable<Scalar>`；Unit没有companion，使用普通object UnitDecoder。Option/Array/MutableArray/ArrayList的companion随完整宿主类型具体化，其decoder方法使用宿主T并接收`Decodable<T>`，返回普通持有该依赖的解码器对象。tuple可由用户显式声明`Decodable<(A, B, ...)>`实现请求合成；自动组合tuple字段时可生成普通闭包，经核心`DecodeFunction<T>`适配为`Decodable<T>`，不增加tuple metatype或按arity命名的源码类型。
+Option/Array/MutableArray/ArrayList的encoder方法接收`Encodable<T>`并返回相应容器的编码器，decoder方法接收`Decodable<T>`并返回解码器。两个方向都由普通持有依赖的对象实现，数组只处理逻辑元素，Option保留enum形状。tuple没有companion，可由普通object/class/struct显式实现完整的tuple codec接口请求合成；自动组合tuple字段时，普通闭包分别由核心EncodeFunction或DecodeFunction适配，不增加tuple metatype或按arity命名的源码类型。
 
 ```scoop
+public class EncodeFunction<T>(private val body: (T, Encoder) -> Unit) : Encodable<T> {
+    public override fun encode(value: T, encoder: Encoder): Unit = body(value, encoder)
+}
+
 public class DecodeFunction<T>(private val body: (Decoder) -> T) : Decodable<T> {
     public override fun decode(decoder: Decoder): T = body(decoder)
 }
 ```
 
-这些解码器、闭包及依赖都是普通typed值，按现有调用、分派、初始化和GC规则执行。合成body先取得实际存在的字段child，再求值该字段的codec表达式；缺失的可选字段不初始化其companion或构造其codec。组合按字段顺序在正常decode执行中进行，不能提前成新的singleton初始化链。调用方显式传入的codec仍按原实参求值规则处理。没有全局decoder registry、隐式witness参数或对运行期类型描述的查询。
+这些codec、闭包及依赖都是普通typed值，按现有调用、分派、初始化和GC规则执行。encode按声明/元素顺序读取数据、取得child，再求值已选codec并调用；每个数据读取与child取得只执行一次。decode先取得实际存在的字段child，再求值codec；缺失的可选字段、Transient字段及未选中的variant不求值字段codec。组合在相应方法执行时进行，不提前成新的singleton初始化链。调用方显式传入的codec仍按原实参求值规则处理。没有全局codec registry、隐式witness参数或对运行期类型描述的查询。
 
 ---
 

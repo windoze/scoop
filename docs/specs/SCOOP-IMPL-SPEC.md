@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-M29 当前使用 HIR `identity-foundation/7`、`core-bootstrap-interface/9`、`cross-cone-interface/55`、`cross-cone-type-semantics/20`，MIR `cross-cone-type-bridge/13` 和 LIR `cone-production/7`，旧产物与缓存需重建。Unit、容器和 tuple 的编码接口沿普通类型、调用与分派表实现；零大小值布局和 runtime metadata ABI 4 保持不变，各批次的格式演进见 §2.17。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。本次是文档修订，实现仍待迁移。修订前已实现的格式为 HIR `identity-foundation/7`、`core-bootstrap-interface/9`、`cross-cone-interface/55`、`cross-cone-type-semantics/20`，MIR `cross-cone-type-bridge/13` 和 LIR `cone-production/7`；迁移按实际受影响 section 升级并重建旧产物与缓存，不预分配版本号。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1238,7 +1238,7 @@ M23-11 再完成 umbrella build/run/link、single-file 与历史 fixture 的总�
 - **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
 - **interface 槽序**：按直接父接口的声明序递归收集继承成员，再追加当前接口声明的成员；同一 exact application 在菱形路径中只访问一次。完整收集后按 HIR 的 typed override 关系移除被覆盖的旧成员，保留其余成员的相对顺序，getter/setter 分别处理。private helper 不占槽。Export HIR 的 source schema 与 LocalConcrete HIR 使用同一规则；类 vtable 则保留 base prefix，override 不改变既有 family 的位置。
 - **generic exact application**：generic class/interface receiver始终携带参数完整的exact静态application。普通class继承或interface conformance只能到达声明中写出的exact base/interface application；调用继续使用该exact application对应的direct/vtable/itable路径，不存在按同template其他实参查找的view slot、bridge或wildcard table。
-- **interface没有Self/object-safety分类**：`Self`不进入AST/HIR内建type kind；若源码使用该标识，只走普通名称解析。每个合法exact interface application都是普通reference type并拥有独立TypeDescriptor/itable identity，不输出`object_safe`、`requires_sized_self`或类似flag。interface方法签名只能引用普通类型及interface宿主参数；HIR在声明处拒绝方法自身的type parameter，因此每个合法method都有固定semantic slot/signature，经concrete、exact interface或bounded receiver均可调用。M29的Decodable<T>.decode也是普通实例方法，其receiver是companion/解码器，结果是显式T；不增加工厂slot或特殊结果类型。未来开放method-level generic interface member前仍须先定义跨Cone specialization/itable ABI。
+- **interface没有Self/object-safety分类**：`Self`不进入AST/HIR内建type kind；若源码使用该标识，只走普通名称解析。每个合法exact interface application都是普通reference type并拥有独立TypeDescriptor/itable identity，不输出`object_safe`、`requires_sized_self`或类似flag。interface方法签名只能引用普通类型及interface宿主参数；HIR在声明处拒绝方法自身的type parameter，因此每个合法method都有固定semantic slot/signature，经concrete、exact interface或bounded receiver均可调用。M29的`Encodable<T>.encode`与`Decodable<T>.decode`同样是普通实例方法，receiver是companion/codec，encode另接收显式T，decode返回T；不增加工厂slot或特殊类型。未来开放method-level generic interface member前仍须先定义跨Cone specialization/itable ABI。
 - **其他泛型成员函数不参与虚分派**：class上的泛型成员必须为final，值类型成员本来即为final；open、abstract、override、覆盖既有virtual slot或充当interface实现都在HIR定义检查拒绝。exact owner调用标为direct concrete target，不是virtual slot。泛型宿主参数与方法自身参数使用export侧不同typed id空间，单态化键按“宿主参数在前、方法参数在后”携带完整实参，并生成不再含该参数空间的`ConcreteCallableId`；不能按名称或裸索引拼接两组参数，MIR也不能通过跳过table insertion来掩盖一个上游仍标为virtual的非法组合。
 - **结构化表达式降级**：AST 在表达式位置直接表示 `if` / `when` / `try`。HIR lower 先确定所有正常分支的共同结果类型，再分配一个类型完备的隐藏结果 local，在每个可正常结束的分支尾写入该 local，并把原有 HIR 结构化语句追加到表达式的 desugaring sink；表达式本身成为该 local 的读取。结果为 `Unit` 时无需结果 local，但仍须保留分支尾表达式的求值。HIR 保留这些结构化控制语句；MIR lower 在内部完成结构化控制降级后，统一输出基本块 CFG，不新增内嵌 CFG 的表达式节点；LIR 只接收该 CFG。
 
@@ -1702,9 +1702,9 @@ M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启
 
 ### 2.17 静态类型描述与编码方法合成（M29）
 
-本节规定M29目标分层，实现与验收见[M29设计](../milestone29/DESIGN.md)。语言合同见9.1.3、9.4～9.6、11.13，runtime边界见运行时规范2.2、2.7；本文不表示M29已实现。对M21 companion作用域和M23物化假设的修订只记入当前规范与M29，历史milestone文件不改写。
+本节规定2026-10-06修订后的M29目标分层，实现迁移与验收见[M29设计](../milestone29/DESIGN.md)第9.3节及其实施记录；旧实例编码的实现和测试不代表新协议已经完成。语言合同见9.1.3、9.4～9.6、11.13，runtime边界见运行时规范2.2、2.7。对M21 companion作用域和M23物化假设的修订只记入当前规范与M29，历史milestone文件不改写。
 
-**AST与parser。** 增加annotation class及字段/variant/property注解的完整源码结构，保留参数来源及位置/命名形式，HIR负责常量化。companion声明继续使用普通语法，限定类型/值/成员路径须完整保留`Box<T>.Companion`及`Box<T>.decode(...)`中的宿主类型实参。HIR区分声明命名空间与实际companion application，后者要求完整实参，不从方法参数反推宿主。`Decodable<T>`、generic helper和override使用普通interface/方法机制，不增加static方法、特殊Self结果或类型级factory declaration。
+**AST与parser。** 增加annotation class及字段/variant/property注解的完整源码结构，保留参数来源及位置/命名形式，HIR负责常量化。companion声明继续使用普通语法，限定类型/值/成员路径须完整保留`Box<T>.Companion`及其成员路径中的宿主类型实参。HIR区分声明命名空间与实际companion application，后者要求完整实参，不从方法参数反推宿主。`Encodable<T>`、`Decodable<T>`、generic helper和override使用普通interface/方法机制，不增加static方法、特殊Self结果或类型级factory declaration。
 
 **共有HIR事实。** 静态描述复用类型、名义shape、PersistentFieldId、variant、logical property与constructor/default记录；只补缺失的annotation及关联，不复制类型或布局图。annotation使用独立typed声明身份，应用保存实际引用和按参数序补齐的typed常量。泛型字段保留binder引用，实例化后完整；tuple保留位置，class字段保留owner，computed/delegated property与intrinsic表示保持区别。不得使用FQN fallback、裸annotation名称identity或opaque default指针。
 
@@ -1755,15 +1755,15 @@ application身份包含实际companion声明和完整宿主application，包括�
 
 每个实际companion application具有替换完成的object/backing exact、singleton value、initializer/ensure、initialization unit、cell、published root与failure root。声明级模板保留原unit身份，application unit与生成callable context携带完整宿主实参；initializer中的局部泛型函数、闭包和default沿同一词法application替换，不按访问点创建新模板。参数自由companion仍由定义方Strong提供；generic companion的初始化支持复用既有ODR组机制，将cell、两种root、initializer/ensure及registration作为同一application的完整组物化和合并，类型/itable与普通方法沿现有type/callable ODR关系关联。多个consumer最终使用同一组状态，不同宿主实参各自一组。结构环及参数变化递归沿已有初始化/单态化检查，运行期重入沿既有gate；不增加通用预算或运行期泛型注册表。
 
-**普通接口与receiver。** Encodable.encode的receiver是被编码值；`Decodable<R>`.decode的receiver是实现该interface的companion/普通解码器，结果是显式R。两者均有普通完整方法签名、override关系和itable slot。没有FactoryRequirementId、Implementor结果或工厂专用绑定。companion forwarding解析到上述完整application的真实object receiver，再使用对应ensure/root，不生成static副本。
+**普通接口与receiver。** `Encodable<R>`.encode与`Decodable<R>`.decode的receiver都是实际companion/codec；encode另接收普通R数据参数，decode返回R。两者均有完整方法签名、override关系和普通itable slot。目标类型的继承不传递codec关系，不能由value的运行时类型重新选择companion。没有FactoryRequirementId、Implementor结果或工厂专用绑定；companion forwarding使用完整application的真实receiver及其ensure/root，不生成static副本。
 
 **前端合成。** HIR按以下顺序处理，后端不重新解释annotation或寻找codec：
 
-1. 登记普通数据类型、核心接口、companion/解码器及合法用户方法，完成annotation、字段和构造关联。
+1. 登记普通数据类型、核心接口、companion/codec及合法用户方法，完成annotation、字段和构造关联。
 2. 沿现有继承/default/override规则选择实现，只为仍缺失的核心方法登记完整合成签名。签名先于body建立，支持递归引用，不以合成是否碰巧成功决定conformance。
-3. encode检查receiver字段的Encodable能力；decode读取`Decodable<R>`中的R，检查目标shape、构造映射及正常访问域。按语言规范11.13.4在定义处选定primary val依赖、递归this、可见companion application或核心组合helper，保留实际typed引用和宿主实参；不得在实例化时重新匹配参数或按名字扫描工厂。允许companion声明`Decodable<Box<T>>`不等于裸T已具有解码器，缺失字段能力仍在定义处报错。
-4. 展开普通字段访问、接口/直接调用、分支、循环、临时local、String常量及正常构造。decode先取得存在的child，再求值该字段的codec，缺失字段不构造其codec。default复用8.5的既有绑定/替换，读完已提供值后按参数序补齐。
-5. tuple组合可生成普通typed闭包并调用核心`DecodeFunction<T>`；其捕获、函数值和调用沿现有closure路径。core容器使用普通companion方法及持有显式元素解码器的generic class，不增加MIR序列化指令或运行期反射数据。
+3. 两个方向都从相应interface application读取目标R，检查其shape及codec的正常访问域，decode另检查构造映射。按语言规范11.13.4在定义处为字段选定primary val依赖、递归this、可见companion application或核心组合helper，保留实际typed引用和宿主实参；不向数据基类companion回退，不在实例化时重新匹配参数或按名字扫描工厂。宿主T可见不等于已有相应字段codec，缺失能力仍在定义处报错。
+4. 展开普通字段访问、接口/直接调用、分支、循环、临时local、String常量及正常构造。encode按序从value读取字段、取得child后求值codec并调用；decode先取得存在的child再求值codec。缺失的可选字段、Transient字段及未选中variant不构造字段codec。default复用8.5的既有绑定/替换，读完已提供值后按参数序补齐。
+5. tuple的两个方向可生成普通typed闭包并调用核心`EncodeFunction<T>`/`DecodeFunction<T>`，捕获、函数值和调用沿现有closure路径。core容器使用普通companion方法及持有显式元素codec的generic class，不增加数据类型的条件接口、MIR序列化指令或运行期反射数据。
 6. Export HIR保存完整body/template及已选声明关系；具体化只做普通替换/单态化。LocalConcrete不残留缺失实现、无类型字段或待解释的Serialize/Deserialize计划。
 
 缺失方法在现有 interface 实现选择器的 obligation 分支登记；用户方法、继承方法和
@@ -1774,117 +1774,75 @@ application 身份。所有签名登记后，字段/variant/property 和注解�
 生成的块沿普通 body lowering 绑定字段访问、方法调用和模式分支。中间待办只在
 HIR lowering 内存在，不为派生增加独立 callable 类别或跨阶段的序列化执行计划。
 
-源码与合成方法共用函数体的 receiver、参数、词法来源和 Context 建立流程。decode
-直接使用已选的 typed 字段、companion application 和 constructor 引用，复用原调用
+源码与合成方法共用函数体的 receiver、参数、词法来源和 Context 建立流程。两方向
+直接使用已选的 typed 字段、codec 与 companion application；decode 另使用 constructor 引用，复用原调用
 及 default 模板实例化入口；不得把这些引用转回 FQN 后重新查找。生成的临时值、
 条件分支和最终构造均进入普通 HIR，缺失字段的 default 只放在实际缺失分支中执行。
 
-tuple 的组合解码闭包共用源码 lambda 的参数、词法来源、捕获和正文登记流程。
-生成器只提供普通 typed 语句和值；捕获的解码器 receiver 仍由原 binding identity
+tuple 的组合编码/解码闭包共用源码 lambda 的参数、词法来源、捕获和正文登记流程。
+生成器只提供普通 typed 语句和值；捕获的 codec receiver 仍由原 binding identity
 关联，不为合成闭包另建名义类型、执行指令或跨阶段计划。
 
-encode归数据类型，decode归实际companion/解码器。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同解码器即使返回同一个R也保持不同声明；同一provider application才沿原ODR合并。构造调用的求值来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
+两个方法都归实际companion/codec，数据参数R与receiver分别保存完整类型。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同codec即使处理同一个R也保持不同声明；同一provider application才沿原ODR合并。字段访问及构造调用的来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
 
-**核心类型与格式库。** scalar数据值实现Encodable，其普通companion实现具体`Decodable<Scalar>`；Unit使用普通UnitDecoder。Option/Array/MutableArray/ArrayList和tuple按11.13的封闭规则提供结构型Encodable，不给数据类型追加Decodable conformance。generic核心类型的companion随宿主具体化，其普通decoder方法使用宿主T、显式接收`Decodable<T>`并构造持有该依赖的常规helper；每次传入的codec不写入singleton状态。方法的普通声明身份由已有core协议关系引用，不以同名用户声明替代。核心类型的原泛型范围保持不变。
+**核心类型与格式库。** scalar 的普通 companion 同时实现具体
+`Encodable<Scalar>` / `Decodable<Scalar>`，方法分别接收数据值或返回目标值。
+数据类型不因拥有 codec 获得接口；编译器不为标量、Unit、容器或 tuple 增加
+编码 bound、条件成员或编码专用装箱接口。
 
-Unit 的 core 声明使用 `core_unit` intrinsic 表示，固定声明身份与语言内建 Unit
-相同；`Unit`/`()` 表达式、零大小值布局和 Unit 返回 ABI 保持不变。该声明正常
-保存成员及已声明接口，`encode` 是调用 `singleValue().writeNull()` 的普通源码
-方法。成员查找、上界、装箱及跨 Cone 分派复用其他 intrinsic struct 的路径；
-共有类型事实继续使用原 Unit identity，并从实际声明取得接口关系。旧的无源码
-声明 Unit 分支仅描述该声明引入前的实现，不能丢弃现在已发布的成员和继承信息。
-UnitDecoder 仍是独立普通 object，不为 Unit 自动建立 companion。
+Unit 保留实际 `core_unit` 声明、固定身份、零大小值布局及 Unit 返回 ABI；
+移除的只是数据实例的编码接口。普通 object UnitEncoder 接收 Unit 并调用
+`singleValue().writeNull()`，UnitDecoder 读取 null 并返回 Unit，不伪造 companion。
+其他普通成员、装箱和跨 Cone 类型关系仍沿 intrinsic struct 的正常路径。
 
 普通 `is`/`!is` 的操作数在 Export HIR 中归一化为引用，值操作数使用既有装箱
 适配。若智能转换已经把同一引用表示为 `Unbox`，类型测试直接复用其原引用；
 不把拆箱后的值传给 runtime 的引用参数，也不把右侧条件的拆箱提前到短路判断
-之前。操作数仍只求值一次，后续阶段消费已明确的引用表示。
+之前。操作数仍只求值一次，后续阶段消费已明确的引用表示。该修复独立于编码协议。
 
-Unit 批次为共有 intrinsic family 分配 tag 9（此前 tag 1～8 保持不变），并在
-LIR 的布局内容编码中为 Unit 分配 tag 7。HIR identity-foundation 升至 `/6`、
-core-bootstrap-interface 升至 `/9`、cross-cone-interface 升至 `/54`、
-cross-cone-type-semantics 升至 `/18`，MIR cross-cone-type-bridge 升至 `/12`；
-这些版本保存实际 Unit 声明及接口，旧产物和缓存重建。MIR 继续使用既有 Unit
-类型桥表示，LIR 的 exact layout 与 runtime ABI 均保持零大小 Unit 契约。
+Unit 引入时使用共有 intrinsic tag 9 与 LIR 布局内容 tag 7，相关版本为 HIR
+identity-foundation `/6`、core-bootstrap-interface `/9`、cross-cone-interface
+`/54`、cross-cone-type-semantics `/18` 及 MIR cross-cone-type-bridge `/12`。
+这些是保留普通 Unit 声明的格式演进记录，不要求 Unit 继续实现编码接口。
 
-`encodeList` 是带显式 `T : Encodable` 上界的普通 core 泛型函数，正文使用既有
-for、接口调用和 unkeyed Encoder 协议。它的普通 callable 身份、函数引用、模板
-消费、异常与 GC 均复用现有实现；List 本身不因提供这个 helper 而增加 Encodable
-接口，core 不增加编译器专用的序列编码操作。
+Option/Array/MutableArray/ArrayList 的 companion 随完整宿主具体化，普通 encoder
+方法接收 `Encodable<T>`，decoder 方法接收 `Decodable<T>`，分别构造持有依赖的
+普通 helper。两个方法使用宿主 T，不改变数据容器的泛型约束，不把实参写入
+singleton 状态。编译器按已有 core 关系引用实际方法声明，不扫描同名用户工厂。
 
-四种核心容器的条件编码在 Export HIR 中保存元素类型与完整的普通接口实现选择，
-与无条件父接口分开；容器声明原有的 T 仍无编码上界。合成的 encode 是宿主拥有的
-普通方法，正文的独立 binder 在定义处具有 Encodable 上界，并按同一宿主参数序
-进行替换，不改写容器自身 binder。Array、MutableArray、ArrayList 的方法调用
-普通 encodeList；Option 通过普通库代码保留 None/Some 的 enum 表示。
+`encodeList(values: List<T>, element: Encodable<T>, encoder: Encoder)` 是普通
+core 泛型函数，沿现有 for、接口调用和 unkeyed 协议处理逻辑元素。数组类的编码
+helper 调用它，Option helper 保留 None/Some 的 enum 形状；所有代码均有普通
+callable identity、模板及异常/GC 路径，不增加编译器专用序列编码操作。
 
-成员查找、泛型上界、接口适配和函数引用共用该条件。共有名义声明保存原始元素
-签名、实际接口及已选方法引用，导入方替换这些引用，不重新按名字寻找实现。
-具体类型的正常物化在元素满足条件时形成完整接口表，即使正文没有静态 encode
-调用，经 Any 擦除后的 is 与分派也必须可用。条件判断消费完整的已检查声明关系，
-不能把递归物化时临时 arena 中尚未填充的父接口误判为不存在。Export HIR 完成
-依赖正文闭包时，还应为实际名义/函数 application 使用的标量实参保留普通 core
-声明与接口选择；不能依赖恰好存在某次标量方法调用，也不能在具体化阶段再做
-源码成员查找。该补齐复用原导入缓存和正文闭包，只处理实际出现的实参。普通名义 application
-与方法的既有身份、模板和 ODR 规则保持，不新增运行期编码操作或类型参数限制。
+tuple codec 的自动组合生成普通 lambda，经 EncodeFunction/DecodeFunction 持有
+函数值；前者正文投影显式数据参数并依次调用元素 codec，后者解码元素后构造 tuple。
+捕获的依赖是普通 typed 值，闭包身份、装箱、分派和 ODR 沿现有路径；tuple 数据
+自身没有编码接口，不需要按 arity 生成的成员模板或 TupleEncoding callable。
 
-条件编码记录位于共有名义声明 details 的 field 12，使用零项/一项数组表示。
-一项 record 的 fields 1～3 分别为元素签名、接口签名与普通 dispatch selections。
-元素必须是该 class/enum 唯一的原始 binder（depth 0、index 0），接口为参数自由
-名义接口，唯一的 selection 引用同一接口及实际 encode 方法；这些是普通的格式、
-binder 与引用关系约束。对应 HIR
-cross-cone-interface 升至 `/55`、cross-cone-type-semantics 升至 `/19`。
-旧产物和缓存重建，MIR/LIR 继续使用普通类型、调用和分派表格式。
-MIR 类型桥比对复用同一共有继承查询；application 已在当前闭包继承图中时直接
-读取已验证的 edges，其他实际 application 仅作声明实参替换，不另建条件判定。
+**撤销旧条件编码。** 迁移删除只服务实例编码的名义 details 条件编码 field 12、
+条件接口查询/选择及 tuple 编码模板、TupleEncoding 生成键与专用分派记录。
+退役字段/tag 不复用；按实际受影响的 section 升级并拒绝旧版本，不保留平行的
+兼容派生或分派路径。旧条件编码的 `/55`、`/19` 及 tuple 的 `/7`、`/20`、MIR
+`/13` 只是修订前格式，实施记录保留其历史结果。普通值装箱、类型测试、接口分派、
+实际依赖闭包及 shape support 的独立职责继续保留，不因移除编码关系而退化。
 
-非空 tuple 的条件接口由全部元素共同决定。HIR 成员查找和泛型检查使用同一
-Encodable 父接口，直接成员与绑定引用沿普通接口调用处理。条件查询及模板生成
-沿普通名义类型解析取得完整的 core 接口声明，不能只登记 interface application
-而依赖后续某次成员调用补齐定义；默认参数推断也必须能直接查询其父接口。
-生成器只为当前类型
-闭包实际出现的 tuple 元素数建立编码方法模板，每个元素参数显式具有 Encodable
-上界；模板具有独立 typed id、完整 receiver、参数和普通 HIR 正文。正文依次投影
-各元素，调用 unkeyed 容器的 element/encode/end，不创建名义包装类型或限定长度。
-这些方法及局部值没有源码声明；局部值使用既有 Synthetic 来源，this/参数保留
-普通 ABI selector，生成临时值使用既有 synthetic selector，不补造源码位置锚。
+Json 是普通库的 Encoder/Decoder 实现；Json.encode 与 Json.decode 都接收源码
+可见的 codec，分别调用 `codec.encode(value, encoder)` 与 `codec.decode(decoder)`。
+core 登记不依赖 JSON 库；String/Char/List、格式数据树、异常、codec helper 与
+函数值适配类都使用普通语言能力，没有 compiler JSON builtin 或 runtime JSON C 入口。
 
-具体化把合格 tuple 的完整普通接口实现与类型一起交给 MIR，即使该值只经 Any
-擦除而没有静态编码调用也如此。编码方法使用独立的 generated callable 类型键
-TupleEncoding(exact tuple)，与已有 equality 分开，沿 StructuralType 的普通 ODR
-group/member 合并。MIR 复用现有值装箱、adjust thunk 和接口表，LIR/runtime 不增加
-序列化操作。导入方按其实际 tuple 形状生成同一普通方法，调用处只保留已有的
-Encodable 接口引用，不复制新的跨阶段编码计划。
-
-结构 tuple 的 MIR 类型仍由原 exact tuple key 表示，不追加名义字段或类型记录。
-实际装箱类型从完整 MIR 接口表保存父接口，并以该装箱 exact identity 拥有普通
-dispatch schema；名义值继续复用其原声明的 schema。adjust thunk 的签名连接
-实际 box、tuple payload 与接口 receiver，LIR 直接消费这一份 schema。共有 reader
-沿既有 tuple 条件查询核对 box 的接口，不重建字段布局或重新降低编码正文。
-每个实际 box 在 MIR 完成时统一从完整 HIR conformance 取得接口并生成 thunk；
-正文装箱、函数适配和 shape support 只登记所需 box，不按偶然的目标接口补表。
-实际 tuple 装箱在 HIR 的既有表示依赖闭包中保留元素所需的私有名义声明，供
-结构 box 的普通 ODR 记录引用；这些声明不增加公开查找名，也不要求元素可编码。
-
-共有类型查询从 core 容器声明已保存的实际条件接口引用取得 Encodable，并按同一
-声明继承关系递归检查 tuple 元素；不通过类型打印名恢复身份。新增 generated key
-使 HIR identity-foundation 升至 `/7`，tuple 条件关系使 cross-cone-type-semantics
-升至 `/20`；MIR cross-cone-type-bridge 升至 `/13`，保存结构 tuple 装箱的普通
-接口与 dispatch schema。旧产物与缓存重建，其他格式及 runtime ABI 保持。
-
-Json是普通库的Encoder/Decoder实现。Json.decode接收源码可见的`Decodable<T>`实参，按正常interface调用；Json.encode仍使用Encodable bound。core登记和body检查不依赖JSON库。String/Char/List、格式数据树、异常、codec helper与DecodeFunction使用普通库/语言能力，没有compiler JSON builtin或runtime JSON C入口。
-
-**产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，解码器沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。
+**产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，两个方向的codec沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。
 
 共有继承图覆盖当前及可达依赖的声明；其中的exact application按typed identity查询对应的已验证产物图。某个依赖自身的继承关系可以包含消费方未直接引用的application，例如另一个库的`Decodable<User>`；不能要求这些key全部重复写入最后一个消费产物，也不能仅因查询依赖继承关系就新增消费方机器物化根。
 
-新增语义进入实际受影响section及cache profile；实现批次在既有codec处分配字段号，旧产物明确拒绝并重建。annotation、字段/default/构造、显式decoder绑定或body变化进入相应内容fingerprint。没有工厂专用wire family、反射sidecar或来源凭证；reader边界只检查正常格式、typed引用和契约，未变化结果由后续stage复用。
+新增语义进入实际受影响section及cache profile；实现批次在既有产物编码处分配字段号，旧产物明确拒绝并重建。annotation、字段/default/构造、两个方向的显式codec绑定或body变化进入相应内容fingerprint。没有工厂专用wire family、反射sidecar或来源凭证；reader边界只检查正常格式、typed引用和契约，未变化结果由后续stage复用。
 
 泛型 companion 批次将 HIR `cross-cone-interface` 升至 `/51`、`cross-cone-type-semantics` 升至 `/17`，MIR `cross-cone-type-bridge` 升至 `/11`，LIR `cross-cone-layout-abi` 升至 `/8`、`cone-production` 升至 `/7`、`link-identity-closure` 升至 `/12`；正式 `cross-cone-generic` profile 升至 `/5`。这些版本覆盖宿主 binder、隐藏构造模板、应用表示及 ODR 初始化支持；各 profile fingerprint 随 required section 更新，旧产物和缓存重建。三层 outer schema、mangler 和 runtime ABI 保持不变。消费方从原构造模板的直接 singleton 引用保留泛型初始化依赖；默认值和嵌套 callable 的独立源上下文不计为构造器自身的直接依赖，普通外部属性/object 则沿既有 materialized initialization-use 表连接。
 
-MIR降级普通方法/companion调用、构造、控制流、closure与异常；每个companion使用其完整application对应的ensure及singleton read，LIR处理原有receiver、返回值ABI和精确根。`Decodable<R>`的普通itable调用保留真实receiver，优化可按已有规则去虚拟化，不能假定所有codec都没有状态或总可direct call。codec、依赖、闭包和解码临时值由moving GC跟踪，companion按application独立遵守原exactly-once初始化，class目标遵守M19/M24构造与release-ready。本里程碑不增加runtime TypeDescriptor字段、C函数或runtime metadata ABI版本；编译产物中的application/初始化表示及语义变化须按实际section升级兼容版本和fingerprint，旧产物与缓存重建，不预占实现尚未确定的wire编号。
+MIR降级普通方法/companion调用、构造、控制流、closure与异常；每个companion使用其完整application对应的ensure及singleton read。LIR按普通签名区分codec receiver、encode的数据参数与decode的结果，处理既有ABI和精确根。两个接口的itable调用保留真实codec receiver，优化可按已有规则去虚拟化，不能假定codec无状态或总可direct call。编码数据、codec、依赖、闭包及解码临时值由moving GC跟踪，companion按application独立遵守原exactly-once初始化，class解码目标遵守M19/M24构造与release-ready。本里程碑不增加runtime TypeDescriptor字段、C函数或runtime metadata ABI版本；编译产物语义变化按实际section升级兼容版本和fingerprint，旧产物与缓存重建，不预占wire编号。
 
-**验收。** 真实源码覆盖companion/conformance、手写/派生选择、类型化annotation、scalar/record/sequence/enum、显式decoder依赖、default副作用及正常构造。generic companion覆盖不同宿主实参的type/状态独立、同一application的别名/转发与跨Cone合并、宿主bound/方法参数替换、各自exactly-once及失败缓存、无字段/phantom参数、ordinary nested作用域；negative检查缺少宿主实参、非法实例捕获、参数重名、类型/访问/依赖歧义。golden展示普通声明、完整application、调用和展开。跨Cone覆盖provider及generic decoder、独立产物link/run和ODR；组合companion初始化、接口分派、闭包、Context、异常与moving GC。实际实现完成后才记录workspace与正式fixture验收结果。
+**验收。** 真实源码覆盖两个codec接口、手写/派生选择、类型化annotation、scalar/record/sequence/enum、双向显式依赖、default副作用及正常构造；增加父子数据codec独立、Base视图显式选择、不变性与无基类companion回退。generic companion覆盖不同宿主实参的type/状态独立、同一application的别名/转发与跨Cone合并、宿主bound/方法参数替换、各自exactly-once及失败缓存、无字段/phantom参数、ordinary nested作用域；negative检查缺少宿主实参、非法实例捕获、参数重名、字段/构造访问和依赖歧义。golden区分codec receiver与数据参数，不保留旧条件编码与TupleEncoding记录。跨Cone覆盖generic encoder/decoder provider、独立产物link/run和ODR；组合接口分派、闭包、Context、异常与moving GC。迁移后重新完成workspace与正式fixture验收，再记录实际结果。
 
 ## 3. 待明确事项
 

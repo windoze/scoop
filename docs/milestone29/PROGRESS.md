@@ -3,7 +3,25 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
-## 实施顺序
+## 2026-10-06：codec 协议修订，待实现迁移
+
+当前设计改为 companion/普通 codec 实现 `Encodable<T>` 与 `Decodable<T>`，
+encode 显式接收数据值；Json 的两个入口都接收 codec。泛型的两个方向均注入字段
+codec，数据类型不再需要编码 bound；容器/tuple 的旧条件编码改用普通 helper 和
+函数值组合。父子数据类型的 companion 独立，字段不会向基类 companion 回退。
+
+本次只修订 M29 设计、三份 spec 和路线图，尚未修改编译器、core、JSON 或 fixture。
+截至修订前提交 `795a4b26e`，以下实施记录中的实例 Encodable、条件编码及其
+验收结果均属于旧协议，不代表新 `Encodable<T>` 已实现。已有泛型 companion、
+annotation/shape、普通构造、JSON 格式处理及独立正确性修复继续作为迁移基础。
+
+后续按 [设计第 9.3 节](DESIGN.md#93-2026-10-06-协议迁移) 逐功能实现并提交：
+先迁移协议/标量/Unit/JSON，再迁移 codec 上的派生与依赖，随后替换容器和 tuple
+编码并删除专用条件关系、生成键和分派记录。按实际产物变化升级兼容版本，同步
+正负 fixture、stage golden，并重新完成 macOS、Linux glibc/musl 的正式验收。
+此次文档修改不预先记录新协议的测试通过数。
+
+## 修订前的实施顺序与验收约定
 
 1. 普通编码/解码协议、标量 codec 和 JSON 库，建立显式 codec 的真实运行闭环。
 2. 完整宿主限定和泛型 companion，贯通单态化、独立初始化及跨 Cone ODR。

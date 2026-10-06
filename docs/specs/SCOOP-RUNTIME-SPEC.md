@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
 
-M29 的 Unit 使用实际 core 声明提供普通 Encodable 实现，固定类型身份、零大小值布局与 Unit 返回 ABI 不变。成员、装箱和跨 Cone 分派沿既有 intrinsic struct 路径，UnitDecoder 仍是独立 object；对应共有格式及实现见实现规范 §2.17。
+2026-10-06，M29 将编码改为 companion/普通 codec 的 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 一样保留真实 codec receiver。Unit 使用独立的 UnitEncoder / UnitDecoder，数据的固定类型身份、零大小值布局与返回 ABI 保持。本次文档修订先于实现迁移，旧实例编码的验收不代表新协议已实现；分层与格式迁移见实现规范 §2.17。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -143,9 +143,9 @@ M23-6的class instance以完整base instance作为prefix：继承字段offset不
 
 ### 2.2 TypeDescriptor
 
-M29的静态类型描述见语言规范9.6，它属于编译器/`.slib`类型接口，不是本节的运行期TypeDescriptor。字段名、字段类型列表和annotation不发射为反射枚举表，wire名称只是普通String常量。Encodable与`Decodable<T>`均沿既有普通interface ABI；后者的decode具有真实companion/解码器receiver和普通itable slot，返回显式T，不增加类型级工厂、metatype或运行期构造器注册表。
+M29的静态类型描述见语言规范9.6，它属于编译器/`.slib`类型接口，不是本节的运行期TypeDescriptor。字段名、字段类型列表和annotation不发射为反射枚举表，wire名称只是普通String常量。`Encodable<T>`与`Decodable<T>`均使用普通interface ABI和真实companion/codec receiver；encode另接收普通T参数，decode返回T，两个方向均有普通itable slot。分派由codec对象决定，不按数据的运行时TypeDescriptor寻找companion或编码实现，不增加类型级工厂、metatype或构造器注册表。
 
-companion按完整宿主application分别使用既有exactly-once gate；`Box<Int>.Companion`与`Box<String>.Companion`具有不同exact type、TypeDescriptor和对象，各自扫描替换类型参数后的成员。普通解码器、元素codec依赖及闭包按正常对象/函数值表示保活。M29的解码临时值、容器和结果沿原value layout、根、write barrier与异常路径处理；class目标必须执行正常构造及release-ready发布，runtime不按TypeDescriptor填字段或补default。JSON算法由普通Scoop库实现，本里程碑不改变对象头、扫描记录、runtime metadata ABI或C入口。
+companion按完整宿主application分别使用既有exactly-once gate；`Box<Int>.Companion`与`Box<String>.Companion`具有不同exact type、TypeDescriptor和对象，各自扫描替换类型参数后的成员。普通codec、元素依赖及EncodeFunction/DecodeFunction闭包按正常对象/函数值表示保活。编码的数据实参、codec receiver、解码临时值、容器和结果沿原value layout、根、write barrier与异常路径处理；值类型codec适配到接口时使用普通装箱与receiver调整，目标数据不因编码获得接口。class解码目标必须执行正常构造及release-ready发布，runtime不按TypeDescriptor填字段或补default。JSON算法由普通Scoop库实现，本里程碑不改变对象头、扫描记录、runtime metadata ABI或C入口。
 
 M23-6a 的共同 HIR 按原声明与完整 application 产生类型事实，MIR/LIR 保留对应 exact identity、实际 provider、Strong/ODR 归属及布局。源码与依赖产物的类型表示统一不改变对象布局、TypeDescriptor、GC 或初始化契约；runtime 消费实际生成的记录，不因声明来自另一 Cone 重新判定语言类型或复制定义方状态。新实例的必要 facts 由编译阶段完成，运行时继续检查动态对象范围、状态和 GC 要求。
 
