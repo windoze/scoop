@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.example:projection-standalone:0.1.0 kind=Library objects=7
-cone test:shared-lir-selection-standalone-program:1.0.0 kind=Executable objects=8
+cone test:shared-lir-selection-standalone-program:1.0.0 kind=Executable objects=4
 runtime objects=65
 images=3 root=scoop$1$re$b511d3a6d853f05544b7eee4b2c994331eda6ab86ca7fd0179b95a2759e2309f
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
