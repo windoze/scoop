@@ -2,6 +2,8 @@ package hidden
 
 import ToString
 import Hash
+import Float
+import Double
 import Int8
 import Int16
 import Long

@@ -114,3 +114,5 @@ Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixt
 修复测试专用核心库的浮点声明位置，使其与合成源码的零长度位置一致，并保留 intrinsic struct 的省略表示；更新新增 alias／extern 后的完整 HIR 期望、核心实体计数、格式 tag 和兼容指纹。GC 的 C 测试子集链接真实浮点环境实现，按平台丢弃未使用的 formatter 并在 Linux 链接 libm。没有放宽生产验证或快照断言。
 
 定向复验通过 codegen 317 项、HIR 877 项、HIR lowering 1375 项、slib 602 项，以及 driver 原先失败的 4 项；GC 链接参数最终调整后，其 11 项 runtime collector 测试再次通过。格式化和 workspace clippy 通过；正式文件 runner 的 38 项公共规则单元测试也通过。CLI 全量及其快照迁移继续进行。
+
+随后在 Linux/glibc 复验同一组 11 项 runtime collector 测试，全部通过。旧 core 可见性负例的 Int 声明副本补齐两种浮点转换及 hidden package 中的显式 import，保持原有错误规则；其 Darwin 产物指纹更新后，普通 runner 模式的 2 个进程与 1 份快照通过，精确诊断未放宽。确认本机无活动 Rust 构建后，清理本轮约 23 GiB 的 debug incremental 缓存。
