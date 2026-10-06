@@ -348,3 +348,16 @@ macOS、Linux glibc/musl 各通过 21 个进程、8 份阶段 golden，并完成
 345、MIR lowering 114，以及 slib 的 macOS 601/Linux 602 项回归通过。报告归档并
 清理本批 fixture 工作目录后提交，完整 workspace、公共 runner 单测及全部正式
 文件 fixture 的总验收继续实施。
+
+## 总验收中的依赖收集回归
+
+M29 的普通值编码方法带来了实际的外部 callable 依赖。将 materialization 根及
+本地 dispatch 表目标的收集合并到 driver 原有的 MIR 引用收集入口，正式 CLI
+与产物回归辅助路径使用同一结果；不增加阶段验证或第二套选择逻辑。
+
+产物测试继续核对这些 callable 的实际 provider 和物理导入，并更新两组值用例
+新增的编码签名类型。泛型正文的位置按现行规范保留定义方来源，默认参数使用点
+仍核对消费方来源；测试分别统计 core 支持正文和用例自己的求值位置。
+
+macOS 的 workspace 格式化、lint 和完整 5,331 项 Rust 测试通过，没有失败或
+忽略项。Linux workspace 及三平台完整文件 fixture 验收继续进行。

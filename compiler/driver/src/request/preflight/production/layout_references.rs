@@ -122,5 +122,58 @@ pub(in crate::request::preflight) fn collect_mir_references(
             lir::ExternalStrongShapeSubjectV1::StaticStorage(storage),
         ))
     }));
+    for callable in input.materialization().external_callable_roots() {
+        let provider = callable.provider();
+        let target = callable.implementation();
+        if dependencies.iter().any(|dependency| {
+            dependency.provider() == provider && dependency.callables().get(target).is_some()
+        }) {
+            roots.push(lir::LayoutAbiDependencyV1::new(
+                provider,
+                lir::LayoutAbiSemanticTargetV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
+            ));
+            physical.push((
+                provider,
+                lir::ExternalStrongShapeSubjectV1::Callable(
+                    scoop_identity::CallableDefinitionOwner::Strong(target),
+                ),
+            ));
+        }
+    }
+    for (id, class) in input.module().classes.iter() {
+        let ty = if matches!(
+            class.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+        ) {
+            mir::Type::String
+        } else {
+            mir::Type::Class(id)
+        };
+        if input.materialization().source_nominal_shape(&ty).is_none()
+            && input
+                .materialization()
+                .generated_nominal_shape(mir::GeneratedExactTypeLocation::Class(id))
+                .is_none()
+        {
+            continue;
+        }
+        for slot in class
+            .vtable
+            .iter()
+            .chain(class.itables.iter().flat_map(|table| &table.slots))
+        {
+            if let mir::TableSlot::External(callable) = slot {
+                let reference = input.module().meta.external_callables[*callable].reference();
+                physical.push((
+                    reference.provider(),
+                    lir::ExternalStrongShapeSubjectV1::Callable(
+                        scoop_identity::CallableDefinitionOwner::Strong(reference.implementation()),
+                    ),
+                ));
+            }
+        }
+    }
     Ok(())
 }

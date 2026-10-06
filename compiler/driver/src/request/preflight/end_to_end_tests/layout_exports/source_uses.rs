@@ -11,8 +11,33 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-materialized-type-uses");
     for (name, expected) in [
         // Deferred has a finite coroutine start and an initializer returning Unit.
-        ("standalone", vec!["Boolean", "String", "Throwable", "Unit"]),
-        ("combined", vec!["Any", "Boolean", "String", "Unit"]),
+        // Both value cases retain the signatures of core encoding bodies.
+        (
+            "standalone",
+            vec![
+                "Boolean",
+                "Char",
+                "Encoder",
+                "KeyedEncodingContainer",
+                "String",
+                "Throwable",
+                "Unit",
+                "UnkeyedEncodingContainer",
+            ],
+        ),
+        (
+            "combined",
+            vec![
+                "Any",
+                "Boolean",
+                "Char",
+                "Encoder",
+                "KeyedEncodingContainer",
+                "String",
+                "Unit",
+                "UnkeyedEncodingContainer",
+            ],
+        ),
         ("initialization", vec!["Boolean", "String", "Unit"]),
     ] {
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -28,8 +53,11 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
                 let uses = projection;
                 let mut names = Vec::new();
                 for usage in uses {
-                    let mir::MirTypeBridgeTargetV1::Type(exact) = usage.target() else {
-                        panic!("fixture has only external type requirements")
+                    let exact = match usage.target() {
+                        mir::MirTypeBridgeTargetV1::Type(exact) => exact,
+                        // Core value encoding adds ordinary callable dependencies.
+                        mir::MirTypeBridgeTargetV1::Callable(_) => continue,
+                        _ => panic!("fixture requires external types and their value methods"),
                     };
                     let key = input
                         .identities
