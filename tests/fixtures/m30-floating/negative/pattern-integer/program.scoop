@@ -1,0 +1,2 @@
+fun classify(value: Float): Int = when (value) { 0 -> 1; _ -> 2 }
+fun main() {}

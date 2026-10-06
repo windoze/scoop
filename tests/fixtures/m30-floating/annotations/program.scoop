@@ -1,0 +1,16 @@
+const val limit: Float = 1.000000059604644775390625000001
+annotation class Measure(val single: Float = 1.000000059604644775390625000001, val wide: Double = -0.0)
+annotation class Limits(val low: Float32 = Float.MIN_VALUE, val high: Double = Double.POSITIVE_INFINITY)
+@Measure @Limits
+struct Sample(@Measure(limit, wide = +0.1) val value: Float)
+@Measure(-0f, wide = Double.NaN)
+enum Reading { One(@Measure(0.1, wide = 1e40) Float), Empty }
+@Measure(+0.1F, wide = -1e-300)
+class Sensor(@Limits val calibration: Double)
+fun main() {
+    val sample = Sample(limit)
+    val sensor = Sensor(-0.0)
+    println(sample.value == 1.0000001f && sensor.calibration.isTotallyOrdered(belowOrEqualTo = -0.0))
+    gcCollect()
+    println(Reading.One(0.1f) == Reading.One(0.1f))
+}

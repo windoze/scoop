@@ -7,6 +7,30 @@ use super::*;
 mod targets;
 
 impl Lowerer {
+    pub(super) fn check_intrinsic_pattern_shape(
+        &mut self,
+        pattern: &ast::Pattern,
+        ty: TypeId,
+    ) -> Option<()> {
+        if matches!(
+            pattern,
+            ast::Pattern::Tuple { .. }
+                | ast::Pattern::Positional { .. }
+                | ast::Pattern::Named { .. }
+        ) && (self.is_char_type(ty) || self.float_kind(ty).is_some())
+        {
+            self.error(
+                pattern_span(pattern),
+                format!(
+                    "intrinsic type `{}` cannot be destructured",
+                    self.type_name(ty)
+                ),
+            );
+            return None;
+        }
+        Some(())
+    }
+
     pub(super) fn lower_struct_positional_pattern(
         &mut self,
         owner: TypeId,
@@ -56,10 +80,6 @@ impl Lowerer {
         matched_ty: TypeId,
         span: Span,
     ) -> Option<PatternTarget> {
-        if self.is_char_type(matched_ty) {
-            self.error(span, "intrinsic type `Char` cannot be destructured".into());
-            return None;
-        }
         match self.types[matched_ty] {
             Type::Struct(_) => {
                 if path.is_empty() || self.pattern_type_name_matches(path, matched_ty)? {

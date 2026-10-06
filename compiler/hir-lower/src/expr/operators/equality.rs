@@ -290,6 +290,17 @@ impl Lowerer {
         } else if let Some(kind) = integer_kind {
             self.check_call_effects(hir::Callable::Function(function), span);
             hir::LiteralPatternEquality::Integer { kind }
+        } else if let hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind:
+                hir::IntrinsicFunctionKind::Float(hir::FloatIntrinsicKind::Binary {
+                    kind,
+                    operation: hir::FloatBinaryOperator::Equal,
+                }),
+            ..
+        }) = self.functions[function].kind
+        {
+            self.check_call_effects(hir::Callable::Function(function), span);
+            hir::LiteralPatternEquality::Float { kind }
         } else {
             let callable = self.materialize_resolved_callee(&resolved);
             self.check_call_effects(callable, span);

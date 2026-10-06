@@ -59,6 +59,7 @@ impl Lowerer {
         mutable: bool,
         statements: &mut Vec<hir::Statement>,
     ) -> Option<()> {
+        self.check_intrinsic_pattern_shape(pattern, subject.ty)?;
         match pattern {
             ast::Pattern::Binding(name) => {
                 let local = self.bind_local(name, subject.ty, mutable)?;

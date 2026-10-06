@@ -93,6 +93,7 @@ impl Lowerer {
         matched_ty: TypeId,
         ctx: PatternCtx,
     ) -> Option<hir::Pattern> {
+        self.check_intrinsic_pattern_shape(pattern, matched_ty)?;
         match pattern {
             ast::Pattern::Binding(name) => {
                 // Variant-first bare-name lookup belongs exclusively to
@@ -330,7 +331,7 @@ pub(super) fn is_irrefutable(pattern: &hir::Pattern) -> bool {
 }
 
 /// Whether an expression is a literal (patterns only match literals by
-/// equality; a negative integer is unary minus over a literal).
+/// equality; a negative number is unary minus over a literal).
 fn is_literal_expr(expr: &ast::Expr) -> bool {
     match expr {
         ast::Expr::IntLiteral(_)
@@ -344,7 +345,10 @@ fn is_literal_expr(expr: &ast::Expr) -> bool {
             operand,
             ..
         } => {
-            matches!(&**operand, ast::Expr::IntLiteral(_))
+            matches!(
+                &**operand,
+                ast::Expr::IntLiteral(_) | ast::Expr::FloatLiteral(_)
+            )
         }
         _ => false,
     }

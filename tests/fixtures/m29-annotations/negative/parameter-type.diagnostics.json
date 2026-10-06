@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation parameter types are limited to Boolean, String, Char and fixed-width integers",
+    "message": "annotation parameter types are limited to Boolean, String, Char, fixed-width integers, Float and Double",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",

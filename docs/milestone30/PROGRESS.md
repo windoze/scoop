@@ -62,3 +62,9 @@ B 批 Linux/glibc x86_64 的 release 构建与四个正例通过：普通／移�
 实际组合用例发现并修复普通泛型 struct 构造器形状查询的提前返回，使嵌套 `Cell(字面量)` 可以从另一实参获得 Float 约束。
 
 Darwin 验证：格式化、workspace clippy、release CLI 构建通过。新增 inference 正例及两个负例通过，共 5 进程和 4 份 golden；覆盖声明顺序、失败的溢出候选、默认 Double、直接舍入反例、receiver 关系运算、const、泛型及嵌套构造器、array、tuple、分支、vararg、默认参数、return 和 lambda。普通与移动 GC 输出一致；用户 extension 不获得反向定型资格，固定 f 后缀不适配 Double。五个既有整数联合推导单元测试通过；浮点 operations/const 与整数 const CLI 回归另有 3 fixture、10 进程、12 golden 通过。
+
+## C2：annotation、递归 pattern 与派生相等
+
+annotation 的 parser 与 lowering 复用原始浮点语法，支持带符号 literal 和同类型 const 引用，metadata 保存目标精度 bits。literal pattern 通过真实 equals intrinsic 保存 FloatKind，默认模板 equality 增加 tag 4，HIR interface 更新至 `/60` 并同步 profile vectors；MIR 复用既有 FloatBinary/Equal。浮点列的剩余域由 wildcard 行覆盖，因为任何 literal 都不能匹配 NaN；递归 product 继续用既有矩阵检查。匹配与 binding 共用标量形状检查，避免把 Float/Double 当作空 struct 解构。按语言规范修正设计文档对可选 usefulness 诊断的过度要求，保留 first-match 语义。
+
+Darwin 验证：格式化、workspace clippy、release CLI 构建通过；19 个 profile 测试、14 个 parser 整数字面量回归通过。新增 annotation/pattern 两个正例通过普通／移动 GC 及 8 份 golden，确认直接舍入、负零、NaN、泛型字段、默认值与递归 enum/struct/tuple，以及含 NaN 的派生值不等于自身。14 个新负例覆盖 annotation 类型／范围、pattern 类型／不可穷尽／guard／解构和 Hash 缺失，正式 runner 全部通过。既有 annotation 源码、参数类型负例、整数递归穷尽与 Char 解构回归通过；两个 HIR 快照仅更新 imported identity 临时编号，已完整归一化比较。期间清理约 5 GiB 旧 incremental 缓存。

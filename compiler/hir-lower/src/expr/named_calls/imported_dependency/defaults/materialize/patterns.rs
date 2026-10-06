@@ -59,6 +59,9 @@ impl Lowerer {
                 let subject_ty = self.materialize_imported_default_type(subject_type, context)?;
                 let equality = match equality {
                     hir::DefaultLiteralEqualityV1::Char => hir::LiteralPatternEquality::Char,
+                    hir::DefaultLiteralEqualityV1::Float { kind } => {
+                        hir::LiteralPatternEquality::Float { kind: *kind }
+                    }
                     hir::DefaultLiteralEqualityV1::Integer { kind } => {
                         hir::LiteralPatternEquality::Integer {
                             kind: (*kind).into(),

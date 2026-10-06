@@ -90,6 +90,18 @@ impl Lowerer {
         }
 
         let subject_ty = types[0];
+        if let Some(kind) = self.float_kind(subject_ty) {
+            // IEEE equality never matches NaN. Only wildcard heads can cover
+            // that remaining domain, and their tails must cover the product.
+            let remainder = matrix
+                .iter()
+                .filter(|row| super::is_irrefutable(&row[0]))
+                .map(|row| row[1..].to_vec())
+                .collect();
+            let mut tail = self.missing_witness(&types[1..], &remainder)?;
+            tail.insert(0, Witness::FloatNaN(kind));
+            return Some(tail);
+        }
         if self.is_char_type(subject_ty) {
             return self.missing_character_witness(types, matrix);
         }

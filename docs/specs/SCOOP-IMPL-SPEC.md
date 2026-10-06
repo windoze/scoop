@@ -1902,3 +1902,5 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 2. **后续 GC 演进**：M15基线为macOS/AArch64上的单代、STW、单线程moving Immix与精确stackmap；其他target adapter、分代/晋升及parallel/concurrent collector仍需另行设计，并与runtime spec 3.6的屏障契约同步。
 3. **off-heap ByteBuffer 与外部内存反馈**：已移出 M26，后续单独设计增长、borrow/view、close、失败原子性、external-memory pressure accounting 与 managed 侧 GC 反馈；它不改变 M24 release hook 的 best-effort 时机。
 4. **Windows 异常**（catchpad）与调试信息（line table 等）留待后续。
+
+浮点 pattern 批次为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。

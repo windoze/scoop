@@ -49,6 +49,14 @@ impl Lowerer {
             hir::LiteralPatternEquality::Char
         } else if let Some(kind) = integer {
             hir::LiteralPatternEquality::Integer { kind }
+        } else if let Some(hir::PrimitiveMemberIntrinsic::Float(
+            hir::FloatIntrinsicKind::Binary {
+                kind,
+                operation: hir::FloatBinaryOperator::Equal,
+            },
+        )) = candidate.normalized_intrinsic()
+        {
+            hir::LiteralPatternEquality::Float { kind }
         } else {
             let selected = match candidate {
                 ImportedCallableCandidate::Binding(candidate) => self

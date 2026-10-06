@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v59_retains_floating_operations() {
+fn source_interface_v60_retains_floating_patterns() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        59,
+        60,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

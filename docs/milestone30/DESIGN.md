@@ -213,7 +213,7 @@ const evaluator 扩展现有 typed intrinsic 集合，覆盖浮点算术、比�
 
 M29 的 annotation 参数类型增加 Float/Double，值仍限于 literal、带符号 numeric literal 与同类型 const 引用；没有新的 CTFE 调用机制。参数按声明顺序存储 typed constant，读取跨 Cone annotation 时不按十进制文本再次舍入。
 
-浮点 literal pattern 使用 subject 的 exact precision 与 IEEE 相等。两个不同文本若舍入成同一非 NaN 数值，覆盖同一个 singleton；正负零同样覆盖一个值，无 guard 的重复分支按既有 unreachable 规则诊断。浮点 pattern 列始终保留需 wildcard/`else` 覆盖的剩余域，不能因浮点格式的 bits 数有限而枚举其全域，也不能从 `isNaN()` guard 推导穷尽。递归 tuple、struct 与 enum payload 复用同一规则。
+浮点 literal pattern 使用 subject 的 exact precision 与 IEEE 相等。两个不同文本若舍入成同一非 NaN 数值，覆盖同一个 singleton；正负零同样覆盖一个值，重复分支保持既有 first-match 顺序；沿语言规范第 5 章，不另要求实现新的 usefulness 诊断。浮点 pattern 列始终保留需 wildcard/`else` 覆盖的剩余域，不能因浮点格式的 bits 数有限而枚举其全域，也不能从 `isNaN()` guard 推导穷尽。递归 tuple、struct 与 enum payload 复用同一规则。
 
 泛型具体化、扩展方法、callable reference、closure、default 与跨 Cone 调用仅需把两种表示接入现有类型通道；不新增浮点专用泛型 bound。对外的 member、ToString 与 codec 仍按实际声明和 interface application 选择，不能把没有普通字段的 intrinsic struct 当作空值、恒等的空 struct 或空 record codec。
 

@@ -1,0 +1,45 @@
+SourceFile
+  RootPackage
+  val limit: Float <const> = <expr>
+  annotation class Measure(val single: Float = 1.000000059604644775390625000001, val wide: Double = -0.0)
+  annotation class Limits(val low: Float32 = Float.MIN_VALUE, val high: Double = Double.POSITIVE_INFINITY)
+    @Measure
+    @Limits
+  struct Sample
+    @Measure(limit, wide = +0.1)
+    field value: Float
+    @Measure(-0f, wide = Double.NaN)
+  enum Reading
+    One(@Measure(0.1, wide = 1e40) Float)
+    Empty
+    @Measure(+0.1f, wide = -1e-300)
+  class Sensor(@Limits val calibration: Double)
+  fun main()
+    val sample
+      Call Sample
+        Var limit
+    val sensor
+      Call Sensor
+        Unary Neg
+          FloatLiteral 0.0
+    Call println
+      Binary And
+        Binary Eq
+          FieldAccess value
+            Var sample
+          FloatLiteral 1.0000001f
+        MethodCall isTotallyOrdered
+          FieldAccess calibration
+            Var sensor
+          Argument belowOrEqualTo=
+            Unary Neg
+              FloatLiteral 0.0
+    Call gcCollect
+    Call println
+      Binary Eq
+        MethodCall One
+          Var Reading
+          FloatLiteral 0.1f
+        MethodCall One
+          Var Reading
+          FloatLiteral 0.1f

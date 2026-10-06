@@ -475,7 +475,7 @@ M22实现子集把`break`/`continue`与既有`return`/`throw`统一视为jump st
 - 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
 - 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
 
-integer literal pattern还允许unary minus直接作用于literal；括号不形成语义节点，空白或注释不影响识别。它以subject的exact integer type复用11.2的fit、wrapping unary-minus与signed `MIN`边界，其他常量表达式不属于literal pattern。
+integer与floating literal pattern还允许unary minus直接作用于literal；括号不形成语义节点，空白或注释不影响识别。整数以subject的exact integer type复用11.2的fit、wrapping unary-minus与signed `MIN`边界；浮点以subject的exact precision复用11.2.2的直接舍入和符号位规则。其他常量表达式不属于literal pattern。
 
 实现可同时计算pattern usefulness，但任何优化只能消费已经类型化的proof；不得因为最后一个arm或每个variant名至少出现一次，就把其条件视为恒真。
 
@@ -1441,7 +1441,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 #### 11.2.2 `Float` / `Double`（M30）
 
-本节定义 M30 的目标行为，实施范围与完成门见 [M30 设计](../milestone30/DESIGN.md)。`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型显式实现 `ToString`，不实现 `Hash`。
+本节定义 M30 的目标行为，实施范围与完成门见 [M30 设计](../milestone30/DESIGN.md)。`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型显式实现 `ToString`，不实现 `Hash`，不支持把标量按空 struct 解构。
 
 **字面量与定型。** 十进制浮点字面量具有小数部分、指数部分或 `f/F` 后缀中的至少一项，例如 `1.0`、`.5`、`1e3`、`1f`、`1.5e-2F`。小数点后必须有数字；`1.` 不是浮点字面量，`1..2` 和 `1.toDouble()` 保留原有词法。指数 `e/E` 后可带 `+/-`，随后必须有十进制数字；`_` 只可位于同一数字段的两个数字之间。无十六进制/二进制浮点语法或 `d/D` 后缀；已有整数 `0x1f` 仍是十六进制整数。
 

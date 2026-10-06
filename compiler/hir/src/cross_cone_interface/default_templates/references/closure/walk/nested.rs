@@ -374,7 +374,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let callable = match equality {
-            DefaultLiteralEqualityV1::Char | DefaultLiteralEqualityV1::Integer { .. } => {
+            DefaultLiteralEqualityV1::Char
+            | DefaultLiteralEqualityV1::Integer { .. }
+            | DefaultLiteralEqualityV1::Float { .. } => {
                 return Ok(());
             }
             DefaultLiteralEqualityV1::Ordinary { target } => target,

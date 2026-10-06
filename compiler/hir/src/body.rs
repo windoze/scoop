@@ -209,6 +209,7 @@ pub enum Pattern {
 pub enum LiteralPatternEquality {
     Char,
     Integer { kind: IntegerKind },
+    Float { kind: crate::FloatKind },
     Ordinary { equals: CallableTarget },
 }
 
