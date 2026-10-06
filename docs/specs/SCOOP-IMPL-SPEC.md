@@ -1801,6 +1801,32 @@ for、接口调用和 unkeyed Encoder 协议。它的普通 callable 身份、�
 消费、异常与 GC 均复用现有实现；List 本身不因提供这个 helper 而增加 Encodable
 接口，core 不增加编译器专用的序列编码操作。
 
+四种核心容器的条件编码在 Export HIR 中保存元素类型与完整的普通接口实现选择，
+与无条件父接口分开；容器声明原有的 T 仍无编码上界。合成的 encode 是宿主拥有的
+普通方法，正文的独立 binder 在定义处具有 Encodable 上界，并按同一宿主参数序
+进行替换，不改写容器自身 binder。Array、MutableArray、ArrayList 的方法调用
+普通 encodeList；Option 通过普通库代码保留 None/Some 的 enum 表示。
+
+成员查找、泛型上界、接口适配和函数引用共用该条件。共有名义声明保存原始元素
+签名、实际接口及已选方法引用，导入方替换这些引用，不重新按名字寻找实现。
+具体类型的正常物化在元素满足条件时形成完整接口表，即使正文没有静态 encode
+调用，经 Any 擦除后的 is 与分派也必须可用。条件判断消费完整的已检查声明关系，
+不能把递归物化时临时 arena 中尚未填充的父接口误判为不存在。Export HIR 完成
+依赖正文闭包时，还应为实际名义/函数 application 使用的标量实参保留普通 core
+声明与接口选择；不能依赖恰好存在某次标量方法调用，也不能在具体化阶段再做
+源码成员查找。该补齐复用原导入缓存和正文闭包，只处理实际出现的实参。普通名义 application
+与方法的既有身份、模板和 ODR 规则保持，不新增运行期编码操作或类型参数限制。
+
+条件编码记录位于共有名义声明 details 的 field 12，使用零项/一项数组表示。
+一项 record 的 fields 1～3 分别为元素签名、接口签名与普通 dispatch selections。
+元素必须是该 class/enum 唯一的原始 binder（depth 0、index 0），接口为参数自由
+名义接口，唯一的 selection 引用同一接口及实际 encode 方法；这些是普通的格式、
+binder 与引用关系约束。对应 HIR
+cross-cone-interface 升至 `/55`、cross-cone-type-semantics 升至 `/19`。
+旧产物和缓存重建，MIR/LIR 继续使用普通类型、调用和分派表格式。
+MIR 类型桥比对复用同一共有继承查询；application 已在当前闭包继承图中时直接
+读取已验证的 edges，其他实际 application 仅作声明实参替换，不另建条件判定。
+
 Json是普通库的Encoder/Decoder实现。Json.decode接收源码可见的`Decodable<T>`实参，按正常interface调用；Json.encode仍使用Encodable bound。core登记和body检查不依赖JSON库。String/Char/List、格式数据树、异常、codec helper与DecodeFunction使用普通库/语言能力，没有compiler JSON builtin或runtime JSON C入口。
 
 **产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，解码器沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。

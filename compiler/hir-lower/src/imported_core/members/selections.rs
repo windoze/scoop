@@ -9,6 +9,40 @@ pub(super) type SelectedInterfaceSources =
     BTreeMap<(hir::TypeId, PersistentDispatchSlotId), CallableTemplateOrigin>;
 
 impl Lowerer {
+    pub(super) fn imported_encoding_member_applies(
+        &mut self,
+        receiver: hir::TypeId,
+        target: CallableTemplateOrigin,
+    ) -> bool {
+        let kind = self.types[receiver].clone();
+        let declaration = match kind {
+            hir::Type::Class(application) => self
+                .loaded_class_definitions
+                .get(&self.class_applications[application].template)
+                .map(|loaded| &loaded.declaration),
+            hir::Type::Enum(application) => self
+                .loaded_enum_definitions
+                .get(&self.enum_applications[application].template)
+                .map(|loaded| &loaded.declaration),
+            _ => None,
+        };
+        let is_encoding = declaration
+            .and_then(|declaration| {
+                declaration
+                    .interface
+                    .declaration_details()
+                    .element_encoding()
+            })
+            .is_some_and(|encoding| {
+                encoding
+                    .selections()
+                    .records()
+                    .iter()
+                    .any(|selection| selection.callable_target() == target)
+            });
+        !is_encoding || self.element_encoding_parent(&kind).is_some()
+    }
+
     pub(super) fn record_selected_interface_sources(
         &mut self,
         ty: hir::TypeId,

@@ -41,6 +41,17 @@ impl Graph<'_> {
             }
             parents.push(exact);
         }
+        let dependencies = self
+            .providers
+            .values()
+            .map(|provider| provider.metadata)
+            .collect::<Vec<_>>();
+        if let Some(parent) = self
+            .current
+            .applied_encoding_parent(&application, &dependencies)?
+        {
+            parents.push(parent);
+        }
         Ok(parents)
     }
 }

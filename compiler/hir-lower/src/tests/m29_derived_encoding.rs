@@ -9,19 +9,7 @@ const LEAF: &str = r#"
 "#;
 
 fn compile(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    lower(&[
-        complete_core_file(),
-        scoop_parser::parse(include_str!(
-            "../../../../sysroot/lib/scoop.core/src/encoding.scoop"
-        ))
-        .unwrap(),
-        scoop_parser::parse(include_str!(
-            "../../../../sysroot/lib/scoop.core/src/serialization_annotations.scoop"
-        ))
-        .unwrap(),
-        scoop_parser::parse(&format!("{LEAF}\n{source}\nfun main() {{}}"))
-            .expect("the test uses valid syntax"),
-    ])
+    lower_with_sysroot(&format!("{LEAF}\n{source}\nfun main() {{}}"))
 }
 
 #[test]

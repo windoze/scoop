@@ -3,6 +3,7 @@
 use super::*;
 use hir::ImportedCallableSource;
 
+mod encoding;
 mod selections;
 
 impl Lowerer {

@@ -481,6 +481,9 @@ impl Lowerer {
             &pending_objects,
             &pending_methods,
         );
+        if defines_core {
+            self.declare_container_encodings();
+        }
         self.validate_signature_exposure();
         // Defaults and constructor expressions can select derived equality.
         // Publish its conditional signatures before any of those bodies lower.

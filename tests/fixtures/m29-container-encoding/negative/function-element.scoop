@@ -1,0 +1,2 @@
+fun coding(value: Array<() -> Unit>): Encodable = value
+fun main() {}

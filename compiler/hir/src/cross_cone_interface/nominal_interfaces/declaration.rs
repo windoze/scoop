@@ -5,7 +5,9 @@ mod class_primary;
 pub use class_primary::*;
 mod conditions;
 mod decode;
+mod element_encoding;
 pub use conditions::{DecodedNominalInstantiationConditionsV1, NominalInstantiationConditionsV1};
+pub use element_encoding::{DecodedNominalElementEncodingV1, NominalElementEncodingV1};
 mod inventory;
 mod references;
 mod release;
@@ -29,6 +31,7 @@ pub struct NominalDeclarationDetailsV1 {
     instantiation_conditions: NominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<ClassPrimaryConstructorV1>,
+    element_encoding: Option<NominalElementEncodingV1>,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -45,6 +48,7 @@ impl NominalDeclarationDetailsV1 {
         instantiation_conditions: NominalInstantiationConditionsV1,
         release_policy: NominalReleasePolicyV1,
         class_primary_constructor: Option<ClassPrimaryConstructorV1>,
+        element_encoding: Option<NominalElementEncodingV1>,
     ) -> Self {
         Self {
             modality,
@@ -58,6 +62,7 @@ impl NominalDeclarationDetailsV1 {
             instantiation_conditions,
             release_policy,
             class_primary_constructor,
+            element_encoding,
         }
     }
 
@@ -71,6 +76,10 @@ impl NominalDeclarationDetailsV1 {
 
     pub fn class_primary_constructor(&self) -> Option<&ClassPrimaryConstructorV1> {
         self.class_primary_constructor.as_ref()
+    }
+
+    pub fn element_encoding(&self) -> Option<&NominalElementEncodingV1> {
+        self.element_encoding.as_ref()
     }
 
     pub const fn primary_value_constructor(&self) -> Option<PersistentConstructorId> {
@@ -98,6 +107,17 @@ impl NominalDeclarationDetailsV1 {
 
     pub const fn dispatch_selections(&self) -> &CanonicalNominalDispatchSelectionsV1 {
         &self.dispatch_selections
+    }
+
+    /// All declared targets, including those guarded by the element encoding condition.
+    pub fn declared_dispatch_selections(
+        &self,
+    ) -> impl Iterator<Item = &crate::NominalDispatchSelectionV1> {
+        self.dispatch_selections.records().iter().chain(
+            self.element_encoding
+                .iter()
+                .flat_map(|encoding| encoding.selections().records()),
+        )
     }
 
     pub(super) fn validate(
@@ -204,7 +224,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -232,6 +252,11 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         encoder.array(u64::from(self.class_primary_constructor.is_some()))?;
         if let Some(primary) = &self.class_primary_constructor {
             primary.encode(encoder)?;
+        }
+        encoder.field(12)?;
+        encoder.array(u64::from(self.element_encoding.is_some()))?;
+        if let Some(encoding) = &self.element_encoding {
+            encoding.encode(encoder)?;
         }
         Ok(())
     }

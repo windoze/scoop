@@ -210,6 +210,7 @@ impl Lowerer {
         }
 
         self.collect_selected_interface_members(ty, &mut declared);
+        declared.retain(|(candidate, _, _)| self.encoding_method_applies(candidate));
         declared
     }
 

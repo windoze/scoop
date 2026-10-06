@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v54_retains_intrinsic_unit_members() {
+fn source_interface_v55_retains_container_encoding_conditions() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        54,
+        55,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v54_retains_intrinsic_unit_members() {
 }
 
 #[test]
-fn type_semantics_v18_retains_intrinsic_unit_relations() {
+fn type_semantics_v19_retains_conditional_encoding_relations() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        18,
+        19,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

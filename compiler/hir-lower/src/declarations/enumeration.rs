@@ -74,6 +74,7 @@ impl Lowerer {
             span: decl.span,
 
             definition: hir::EnumDefinition {
+                element_encoding: None,
                 no_gc,
                 self_application,
                 type_params,

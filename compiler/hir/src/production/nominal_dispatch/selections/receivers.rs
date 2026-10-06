@@ -3,7 +3,7 @@
 use super::*;
 
 impl Projection<'_> {
-    pub(super) fn selected_receiver(
+    pub(in crate::production::nominal_dispatch) fn selected_receiver(
         &self,
         target: InterfaceImplementationTarget,
         host: TypeId,

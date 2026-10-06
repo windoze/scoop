@@ -43,8 +43,10 @@ impl Lowerer {
         let mut params = Vec::with_capacity(
             sig.params.len() + usize::from(owner.is_some() || extension_receiver.is_some()),
         );
-        if let Some(host_ty) = owner
-            .map(|owner| self.owner_ty(owner))
+        if let Some(host_ty) = self.functions[id]
+            .method
+            .map(|method| method.owner)
+            .or_else(|| owner.map(|owner| self.owner_ty(owner)))
             .or(extension_receiver)
         {
             let local = self.alloc_this_local(host_ty, self.functions[id].span);

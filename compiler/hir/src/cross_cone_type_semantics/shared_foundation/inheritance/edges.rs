@@ -64,7 +64,7 @@ fn parents(edges: &NominalInheritanceEdgesV1) -> impl Iterator<Item = Persistent
         .chain(edges.direct_interfaces().iter().copied())
 }
 
-fn project(
+pub(super) fn project(
     types: MetadataTypes<'_, '_>,
     exact: PersistentExactTypeId,
 ) -> Result<NominalInheritanceEdgesV1, Error> {
@@ -94,6 +94,9 @@ fn project(
         }
     }
 
+    if let Some(interface) = types.encoding_parent(exact)? {
+        interfaces.push(interface);
+    }
     NominalInheritanceEdgesV1::try_new(
         exact,
         declaration.declaration_details().modality(),

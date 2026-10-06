@@ -16,6 +16,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     instantiation_conditions: DecodedNominalInstantiationConditionsV1,
     release_policy: NominalReleasePolicyV1,
     class_primary_constructor: Option<DecodedClassPrimaryConstructorV1>,
+    element_encoding: Option<DecodedNominalElementEncodingV1>,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -67,13 +68,16 @@ impl DecodedNominalDeclarationDetailsV1 {
                 .map(|primary| primary.resolve(resolver))
                 .transpose()
                 .map_err(Error::ClassPrimary)?,
+            self.element_encoding
+                .map(|encoding| encoding.resolve(resolver))
+                .transpose()?,
         ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        decoder.expect_map(12)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -103,6 +107,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 .field(9, DecodedNominalInstantiationConditionsV1::decode)?,
             release_policy: decoder.field(10, NominalReleasePolicyV1::decode)?,
             class_primary_constructor: decoder.field(11, super::class_primary::wire::optional)?,
+            element_encoding: decoder.field(12, super::element_encoding::wire::optional)?,
         };
 
         Ok(value)
@@ -111,7 +116,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -145,6 +150,11 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
         encoder.array(u64::from(self.class_primary_constructor.is_some()))?;
         if let Some(primary) = &self.class_primary_constructor {
             primary.encode(encoder)?;
+        }
+        encoder.field(12)?;
+        encoder.array(u64::from(self.element_encoding.is_some()))?;
+        if let Some(encoding) = &self.element_encoding {
+            encoding.encode(encoder)?;
         }
         Ok(())
     }

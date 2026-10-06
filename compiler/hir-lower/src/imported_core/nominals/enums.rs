@@ -63,6 +63,7 @@ impl Lowerer {
                 context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::EnumDefinition {
+                    element_encoding: None,
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,
@@ -149,12 +150,15 @@ impl Lowerer {
         self.type_params_in_scope.extend(type_params);
         let implementations =
             self.resolve_imported_interface_implementations(self_type, &declaration, &interfaces);
+        let element_encoding = self.resolve_imported_element_encoding(self_type, &declaration);
         self.type_params_in_scope.truncate(scope_len);
-        self.loaded_enum_definitions
+        let definition = &mut self
+            .loaded_enum_definitions
             .get_mut(&owner)
             .expect("the enum builder registered its identity")
-            .definition
-            .interface_implementations = implementations?;
+            .definition;
+        definition.interface_implementations = implementations?;
+        definition.element_encoding = element_encoding?;
         Ok(())
     }
 }

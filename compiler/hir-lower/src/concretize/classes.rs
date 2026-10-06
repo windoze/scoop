@@ -145,12 +145,19 @@ impl Concretizer<'_> {
             self.classes[id].representation =
                 concrete::ClassRepresentation::Declared { fields, base_class };
         }
+        let encoding_applies = definition
+            .element_encoding
+            .is_some_and(|encoding| self.concrete_encoding_applies(encoding, substitution));
         let mut methods = self
-            .request_concrete_methods(definition.methods, method_owner)
+            .request_encoding_methods(
+                definition.methods,
+                method_owner,
+                definition.element_encoding.filter(|_| !encoding_applies),
+            )
             .into_iter()
             .map(concrete::ClassMethod::Local)
             .collect::<Vec<_>>();
-        let direct_interfaces = definition
+        let mut direct_interfaces: Vec<_> = definition
             .interfaces
             .iter()
             .map(|interface| self.lower_type(*interface, substitution))
@@ -174,8 +181,16 @@ impl Concretizer<'_> {
                     }
                 }),
         );
-        let interface_implementations = self
+        let mut interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
+        if let Some(encoding) = definition.element_encoding.filter(|_| encoding_applies) {
+            direct_interfaces
+                .push(self.lower_type(encoding.implementation.interface, substitution));
+            interface_implementations.extend(self.lower_interface_implementations(
+                std::slice::from_ref(&encoding.implementation),
+                substitution,
+            ));
+        }
         self.classes[id].interfaces = interface_implementations
             .iter()
             .map(|implementation| self.interface_type[&implementation.interface])

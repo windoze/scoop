@@ -1,0 +1,45 @@
+import scoop.json.Json
+import containers.coding
+import containers.erase
+import containers.eraseList
+import containers.capture
+import containers.shared
+import containers.Envelope
+import peers.nested
+import peers.independent
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"container artifact assertion ${code}")) }
+}
+private class Captured(private val write: (Encoder) -> Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { write(encoder) }
+}
+private struct Opaque()
+
+fun main() {
+    val integers = Array<Int>(3L) { index -> index.toInt32() + 1 }
+    check(Json.encode(coding(integers)) == "[1,2,3]", 1)
+    check(Json.encode(Captured(capture(Some(Unit)))) == "{\"Some\":[null]}", 2)
+    val erased = erase(MutableArray<String>(2L) { _ -> "界" })
+    check(erased is Encodable, 3)
+    if (erased is Encodable) { check(Json.encode(erased) == "[\"界\",\"界\"]", 4) }
+    val list = ArrayList<Int>()
+    list.add(7)
+    val erasedList = eraseList(list)
+    check(erasedList is Encodable, 5)
+    if (erasedList is Encodable) { check(Json.encode(erasedList) == "[7]", 6) }
+    check(!(erase(MutableArray<Opaque>(0L) { _ -> Opaque() }) is Encodable), 7)
+    check(!(eraseList(ArrayList<Opaque>()) is Encodable), 8)
+    val expected = "[{\"None\":{}},{\"Some\":[1]}]"
+    check(Json.encode(shared()) == expected, 9)
+    check(Json.encode(nested()) == expected, 10)
+    val fromPeer = independent()
+    check(fromPeer is Encodable, 11)
+    if (fromPeer is Encodable) { check(Json.encode(fromPeer) == expected, 12) }
+    val local = Array<Option<Int>>(2L) { index -> if (index == 0L) { None } else { Some(1) } }
+    check(Json.encode(local) == expected, 13)
+    check(Json.encode(Envelope(integers, Some(4))) == "{\"items\":[1,2,3],\"last\":{\"Some\":[4]}}", 14)
+    val restored = Json.decode(Json.encode(shared()), Array<Option<Int>>.decoder(Option<Int>.decoder(Int.Companion)))
+    check(Json.encode(restored) == expected, 15)
+    println("container-encoding-artifacts-ok")
+}

@@ -19,6 +19,7 @@ fn declaration_details_reject_modality_incompatible_with_nominal_kind() {
         details.instantiation_conditions().clone(),
         Default::default(),
         None,
+        None,
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -45,6 +46,7 @@ fn public_constructor_must_belong_to_the_complete_declaration() {
         details.instantiation_conditions().clone(),
         Default::default(),
         None,
+        None,
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -69,6 +71,7 @@ fn public_member_must_belong_to_the_complete_declaration() {
         details.primary_value_constructor(),
         details.instantiation_conditions().clone(),
         Default::default(),
+        None,
         None,
     );
     assert_eq!(
@@ -121,6 +124,7 @@ fn struct_constructor_set_requires_the_primary_declaration_reference() {
         None,
         details.instantiation_conditions().clone(),
         Default::default(),
+        None,
         None,
     );
     assert_eq!(

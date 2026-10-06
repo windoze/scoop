@@ -286,3 +286,34 @@ GC 复用既有路径，没有新增 IR 指令、格式版本或 runtime ABI。
 各通过 13 个进程、7 份阶段 golden，均完成不更新快照的复验；5 份共有 HIR/MIR
 字节一致，4 份 Linux LIR 独立保存。两端格式化/lint 通过，报告归档后清理本批
 fixture 工作目录。容器与 tuple 的条件 Encodable 和正式总验收继续实施。
+
+
+## 四种核心容器的条件 Encodable
+
+Option、Array、MutableArray、ArrayList 保留无约束的原始类型参数，只有元素满足
+实际 core Encodable 时才提供该接口及 encode 成员。合成方法由原容器声明拥有，
+正文以独立的有界 binder 检查，并按宿主参数位置正常替换。三个序列容器复用普通
+encodeList，Option 调用十二行普通 helper，保留 None/Some 的 enum 编码形式。
+
+条件以完整的元素类型、接口与普通方法选择保存在 HIR 名义声明中；成员查找、
+泛型上界、绑定引用、具体化与共有继承查询使用同一条件。正常实例物化就形成
+所需接口表，没有静态 encode 调用的值经 Any 擦除后也可测试和分派。递归名义类型
+读取完整声明中的接口事实；依赖正文闭包复用原导入缓存，补齐实际 application
+所用标量的 core 声明，不依赖偶然的静态成员调用。
+
+共有名义 details 增加 field 12，HIR interface/semantics 分别升至 55/19，旧产物
+与缓存重建。MIR 类型桥复用已有共有继承查询，删去重复的父接口投影；没有新增
+MIR/LIR 指令或 runtime ABI。新增生产模块最长 161 行，导入泛型主模块由 361 行
+缩为 291 行，正文完成逻辑按职责独立为 76 行模块。
+
+新增 11 个正式 fixture，其中 9 项锁定精确错误位置和信息；组合覆盖空容器、
+逻辑 size、嵌套/递归、Unit、接口元素、绑定方法、异常及普通 List 视图。
+独立产物用例删除 core、JSON、provider、peer、consumer 全部源码后链接运行，
+验证重复泛型实例的 ODR、动态接口和 moving GC。macOS、Linux glibc/musl 各通过
+22 个进程、8 份阶段 golden，并完成不更新快照的复验；6 份共有 HIR/MIR 字节一致，
+4 份 Linux LIR 独立保存。
+
+两端 workspace 格式化/lint 通过，HIR 877 项、HIR lowering 1358 项、MIR lowering
+114 项，以及 slib 的 macOS 601/Linux 602 项全部通过。报告已归档，本批 fixture
+工作目录清理后提交；tuple 的条件 Encodable 和完整 workspace/文件 fixture
+总验收继续实施。

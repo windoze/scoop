@@ -1,0 +1,3 @@
+struct Opaque()
+fun coding(value: Array<Option<Opaque>>): Encodable = value
+fun main() {}

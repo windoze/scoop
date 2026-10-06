@@ -1,0 +1,12 @@
+internal fun <T : Encodable> encodeOption(value: Option<T>, encoder: Encoder): Unit {
+    val variants = encoder.keyed()
+    when (value) {
+        Option.None -> { variants.field("None").keyed().end() }
+        Option.Some(item) -> {
+            val elements = variants.field("Some").unkeyed()
+            item.encode(elements.element())
+            elements.end()
+        }
+    }
+    variants.end()
+}

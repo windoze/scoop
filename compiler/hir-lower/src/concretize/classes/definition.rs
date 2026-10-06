@@ -9,6 +9,7 @@ pub(super) struct ResolvedClassDefinition<'a> {
     pub representation: ResolvedClassRepresentation<'a>,
     pub interfaces: &'a [export::TypeId],
     pub interface_implementations: &'a [export::InterfaceImplementation],
+    pub element_encoding: Option<&'a export::ElementEncoding>,
     pub methods: &'a [export::FunctionId],
     pub virtual_methods: &'a [export::ImportedVirtualMethod],
     pub constructors: &'a [export::ClassConstructorId],
@@ -72,6 +73,7 @@ impl<'input> Concretizer<'input> {
             representation,
             interfaces: &declaration.interfaces,
             interface_implementations: &declaration.interface_implementations,
+            element_encoding: declaration.element_encoding.as_ref(),
             methods: &declaration.methods,
             virtual_methods: &[],
             constructors: if declaration.type_params.is_empty() {
@@ -126,6 +128,7 @@ impl<'a> ResolvedClassDefinition<'a> {
             representation,
             interfaces: &definition.interfaces,
             interface_implementations: &definition.interface_implementations,
+            element_encoding: definition.element_encoding.as_ref(),
             methods: &[],
             virtual_methods: &source.virtual_methods,
             constructors: &[],

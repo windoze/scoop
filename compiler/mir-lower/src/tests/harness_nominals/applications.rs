@@ -217,6 +217,7 @@ impl Harness {
             span: SPAN,
 
             definition: hir::EnumDefinition {
+                element_encoding: None,
                 self_application,
                 type_params,
                 variants,

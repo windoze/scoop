@@ -1,0 +1,39 @@
+import scoop.json.Json
+
+fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some(f"container encoding assertion ${code}")) }
+}
+
+fun main() {
+    check(Json.encode(Array<Int>(0L) { _ -> 0 }) == "[]", 1)
+    val array = Array<Int>(3L) { index -> index.toInt32() - 1 }
+    check(Json.encode(array) == "[-1,0,1]", 2)
+    val mutable = MutableArray<String>(2L) { index -> if (index == 0L) { "中" } else { "🙂" } }
+    check(Json.encode(mutable) == "[\"中\",\"🙂\"]", 3)
+    mutable[0L] = "文"
+    check(Json.encode(mutable) == "[\"文\",\"🙂\"]", 4)
+    val list = ArrayList<Int>()
+    list.add(1)
+    list.add(2)
+    list.add(3)
+    list.removeAt(1L)
+    check(Json.encode(list) == "[1,3]", 5)
+    list.clear()
+    check(Json.encode(list) == "[]", 6)
+    check(Json.encode(Array<Unit>(2L) { _ -> Unit }) == "[null,null]", 7)
+    val none: Option<Int> = None
+    val some: Option<Int> = Some(7)
+    check(Json.encode(none) == "{\"None\":{}}", 8)
+    check(Json.encode(some) == "{\"Some\":[7]}", 9)
+    check(Json.encode(Some(Unit)) == "{\"Some\":[null]}", 10)
+    val nested = Array<Option<Array<Int>>>(2L) { index ->
+        if (index == 0L) { None } else { Some(array) }
+    }
+    check(Json.encode(nested) == "[{\"None\":{}},{\"Some\":[[-1,0,1]]}]", 11)
+    val roundTrip = Json.decode(Json.encode(nested), Array<Option<Array<Int>>>.decoder(
+        Option<Array<Int>>.decoder(Array<Int>.decoder(Int.Companion))))
+    check(Json.encode(roundTrip) == Json.encode(nested), 12)
+    dynamicCases()
+    combinedCases()
+    println("container-encoding-ok")
+}

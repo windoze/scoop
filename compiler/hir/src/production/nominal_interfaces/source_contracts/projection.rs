@@ -69,6 +69,7 @@ pub(super) fn project(
         instantiation_conditions(export, local, parameters)?,
         release_policy(export, local, parameters)?,
         class_primary::project(export, local)?,
+        crate::production::nominal_dispatch::project_encoding(export, local.owner())?,
     );
     NominalInterfaceRecordV1::try_new(
         owner,

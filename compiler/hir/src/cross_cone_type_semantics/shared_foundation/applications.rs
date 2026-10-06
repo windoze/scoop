@@ -3,6 +3,7 @@ use scoop_identity::{ExactTypeKey, SourceDeclarationKey};
 use super::*;
 use crate::{NominalInterfaceRecordV1, SourceNominalId};
 
+mod encoding;
 mod members;
 
 /// A borrowed declaration with the receiver's complete substitution.

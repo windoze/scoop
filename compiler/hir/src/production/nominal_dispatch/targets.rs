@@ -38,8 +38,7 @@ impl Projection<'_> {
                 declaration
                     .interface
                     .declaration_details()
-                    .dispatch_selections()
-                    .records()
+                    .declared_dispatch_selections()
             })
             .find(|selection| selection.callable_target() == target)
             .map(NominalDispatchSelectionV1::selection)
@@ -186,7 +185,20 @@ impl Projection<'_> {
             }
         };
         let method = self.method(application.function)?;
-        if method.owner != self.declaration_type(owner) {
+        let projector = super::super::signatures::HirInterfaceSignatureProjector::new(self.export);
+        let method_binders = projector
+            .function_binders(&self.export.functions[application.function])
+            .map_err(invalid)?;
+        let owner_binders = projector
+            .binder_frame(self.declaration_parameters(owner), 0)
+            .map_err(invalid)?;
+        if projector
+            .map_type(method.owner, &method_binders)
+            .map_err(invalid)?
+            != projector
+                .map_type(self.declaration_type(owner), &owner_binders)
+                .map_err(invalid)?
+        {
             return Err(invalid(
                 "selected method application disagrees with its declaration owner",
             ));

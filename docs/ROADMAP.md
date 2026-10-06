@@ -466,7 +466,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - companion按完整宿主application分别具有类型、singleton状态及exactly-once初始化；可直接使用宿主类型参数与bound，同一application跨Cone沿ODR共享状态，不同实参各自独立。此项修订M21的共享companion选择，普通static nested作用域保持；历史milestone设计保留原文。
 - 泛型编码使用显式Encodable bound，泛型解码显式传入`Decodable<T>`对象。`Box<T>.Companion`的方法可使用宿主T，并把元素codec传给普通解码器helper；按宿主具体化不自动提供裸T的解码能力。完成struct、enum、tuple及构造映射明确的final class，核心容器保持原无bound用途。
 - keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，decode入口显式接收codec。不依赖Any map、反射类型名或工厂注册表，不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
-- 按设计第9节分批实施，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、companion初始化、普通接口调用、异常与moving GC；普通协议、标量与Unit codec、JSON、完整宿主companion、annotation/静态shape、名义类型encode、自动decode、普通列表编码helper及核心容器的显式解码器已按实施记录交付，核心容器/tuple的条件Encodable与正式总验收继续推进。
+- 按设计第9节分批实施，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、companion初始化、普通接口调用、异常与moving GC；普通协议、标量与Unit codec、JSON、完整宿主companion、annotation/静态shape、名义类型encode、自动decode、普通列表编码helper、核心容器的显式解码器及条件Encodable已按实施记录交付，tuple的条件Encodable与正式总验收继续推进。
 
 ## 3. 备注
 

@@ -8,7 +8,8 @@ impl Lowerer {
     }
 
     pub(super) fn direct_nominal_supertypes_for(&mut self, ty: Type) -> Vec<TypeId> {
-        match ty {
+        let conditional = self.element_encoding_parent(&ty);
+        let mut result = match ty {
             Type::Class(application) => {
                 let application = self.class_applications[application].clone();
                 let declaration = self.class_definition(application.template).clone();
@@ -76,7 +77,11 @@ impl Lowerer {
             Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Ptr(_) | Type::FunPtr(_) => {
                 Vec::new()
             }
+        };
+        if let Some(interface) = conditional {
+            result.push(interface);
         }
+        result
     }
 
     /// Interfaces explicitly declared by the source definition of one

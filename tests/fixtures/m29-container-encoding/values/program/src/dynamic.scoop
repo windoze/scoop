@@ -1,0 +1,40 @@
+import scoop.json.Json
+
+private struct Opaque()
+private class Node(public val children: Array<Node>) : Encodable
+private interface Labeled : Encodable {
+    public override fun encode(encoder: Encoder) { encoder.singleValue().writeLong(23L) }
+}
+private struct Label() : Labeled
+
+private fun <T> erase(value: T): Any = value
+private fun noop() {}
+
+private fun dynamic(value: Any, expected: String, code: Int) {
+    check(value is Encodable, code)
+    if (value is Encodable) { check(Json.encode(value) == expected, code) }
+}
+
+fun dynamicCases() {
+    dynamic(erase(Array<Int>(2L) { _ -> 8 }), "[8,8]", 20)
+    dynamic(erase(MutableArray<Unit>(1L) { _ -> Unit }), "[null]", 21)
+    val list = ArrayList<Int>()
+    list.add(5)
+    dynamic(erase(list), "[5]", 22)
+    val empty: Option<Int> = None
+    dynamic(erase(empty), "{\"None\":{}}", 23)
+    dynamic(erase(Some(Array<Int>(1L) { _ -> 9 })), "{\"Some\":[[9]]}", 24)
+    check(!(erase(Array<Opaque>(0L) { _ -> Opaque() }) is Encodable), 25)
+    check(!(erase(MutableArray<Opaque>(1L) { _ -> Opaque() }) is Encodable), 26)
+    check(!(erase(ArrayList<Opaque>()) is Encodable), 27)
+    val opaque: Option<Opaque> = None
+    check(!(erase(opaque) is Encodable), 28)
+    check(!(erase(Array<Any>(1L) { _ -> 7 }) is Encodable), 29)
+    check(!(erase(Array<() -> Unit>(0L) { _ -> ::noop }) is Encodable), 30)
+    val inner = Array<Node>(0L) { _ -> throw IllegalStateException(None) }
+    dynamic(erase(inner), "[]", 31)
+    dynamic(erase(Node(inner)), "{\"children\":[]}", 32)
+    dynamic(erase(Array<Labeled>(2L) { _ -> Label() }), "[23,23]", 33)
+    val view: List<Int> = Array<Int>(1L) { _ -> 4 }
+    dynamic(erase(view), "[4]", 34)
+}

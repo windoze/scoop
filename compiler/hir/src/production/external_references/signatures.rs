@@ -46,37 +46,28 @@ where
                 &path.clone().field(4).index(signature_index),
             )?;
         }
-        for (selection_index, selection) in record
-            .declaration_details()
-            .dispatch_selections()
-            .records()
-            .iter()
-            .enumerate()
-        {
+        collect_dispatch_signatures(
+            accumulator,
+            record.declaration_details().dispatch_selections(),
+            &path.clone().field(9).field(7),
+        )?;
+        if let Some(encoding) = record.declaration_details().element_encoding() {
+            let condition_path = path.clone().field(9).field(12).index(0);
             observe(
                 accumulator,
-                selection.receiver(),
-                &path
-                    .clone()
-                    .field(9)
-                    .field(7)
-                    .index(selection_index as u64)
-                    .field(3),
+                encoding.element(),
+                &condition_path.clone().field(1),
             )?;
-            if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role()
-            {
-                observe(
-                    accumulator,
-                    interface,
-                    &path
-                        .clone()
-                        .field(9)
-                        .field(7)
-                        .index(selection_index as u64)
-                        .field(0)
-                        .field(1),
-                )?;
-            }
+            observe(
+                accumulator,
+                encoding.interface(),
+                &condition_path.clone().field(2),
+            )?;
+            collect_dispatch_signatures(
+                accumulator,
+                encoding.selections(),
+                &condition_path.field(3),
+            )?;
         }
         for (field_index, field) in (0_u64..).zip(record.source_shape().declared_fields()) {
             observe(
@@ -114,6 +105,24 @@ where
             | NominalSourceShapeV1::Interface
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Intrinsic(_) => continue,
+        }
+    }
+    Ok(())
+}
+
+fn collect_dispatch_signatures<A, E>(
+    accumulator: &mut ExternalReferenceAccumulator<'_, A>,
+    selections: &crate::CanonicalNominalDispatchSelectionsV1,
+    path: &WirePath,
+) -> Result<(), ExternalHirReferenceProductionError<E>>
+where
+    A: ExternalHirReferenceSemanticAuthority<E>,
+{
+    for (index, selection) in selections.records().iter().enumerate() {
+        let path = path.clone().index(index as u64);
+        observe(accumulator, selection.receiver(), &path.clone().field(3))?;
+        if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role() {
+            observe(accumulator, interface, &path.field(0).field(1))?;
         }
     }
     Ok(())

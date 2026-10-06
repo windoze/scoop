@@ -87,6 +87,9 @@ impl NominalInterfaceRecordV1 {
         }
         validate_member_partition(&members)?;
         details.validate(kind, &constructors, &members)?;
+        if let Some(encoding) = details.element_encoding() {
+            encoding.validate(kind, type_parameters.binders().len())?;
+        }
         details
             .instantiation_conditions()
             .validate(kind, type_parameters.binders().len())?;

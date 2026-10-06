@@ -62,6 +62,15 @@ impl Lowerer {
                 continue;
             }
             self.record_selected_interface_sources(ty, &mut selected_sources);
+            let kind = self.types[ty].clone();
+            if self.element_encoding_parent(&kind).is_some()
+                && let Some((encoding, _)) = self.element_encoding_for_type(&kind)
+            {
+                suppress_local_implementations(
+                    std::slice::from_ref(&encoding.implementation),
+                    &mut suppressed_slots,
+                );
+            }
             match &self.types[ty] {
                 hir::Type::Class(application) => {
                     let template = self.class_applications[*application].template;
@@ -172,6 +181,9 @@ impl Lowerer {
                 .member_callable_candidates(owner, lookup)?
             {
                 let declaration = candidate.interface();
+                if !self.imported_encoding_member_applies(ty, declaration.declaration()) {
+                    continue;
+                }
                 if !self.imported_callable_is_accessible(declaration, access_receiver) {
                     continue;
                 }

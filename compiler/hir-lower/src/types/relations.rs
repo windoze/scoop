@@ -1,5 +1,6 @@
 use super::*;
 
+mod encoding;
 mod parents;
 
 impl Lowerer {

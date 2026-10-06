@@ -108,15 +108,29 @@ impl Concretizer<'_> {
         self.enums[id].gc_free = gc_free;
         self.types[self.enum_type[&id]].gc_free = gc_free;
         self.check_completed_no_gc_type("enum", &definition.name, definition.no_gc, gc_free);
-        let methods =
-            self.request_concrete_methods(definition.methods, concrete::MethodOwner::Enum(id));
-        let direct_interfaces = definition
+        let encoding_applies = definition
+            .element_encoding
+            .is_some_and(|encoding| self.concrete_encoding_applies(encoding, substitution));
+        let methods = self.request_encoding_methods(
+            definition.methods,
+            concrete::MethodOwner::Enum(id),
+            definition.element_encoding.filter(|_| !encoding_applies),
+        );
+        let mut direct_interfaces: Vec<_> = definition
             .interfaces
             .iter()
             .map(|interface| self.lower_type(*interface, substitution))
             .collect();
-        let interface_implementations = self
+        let mut interface_implementations = self
             .lower_interface_implementations(definition.interface_implementations, substitution);
+        if let Some(encoding) = definition.element_encoding.filter(|_| encoding_applies) {
+            direct_interfaces
+                .push(self.lower_type(encoding.implementation.interface, substitution));
+            interface_implementations.extend(self.lower_interface_implementations(
+                std::slice::from_ref(&encoding.implementation),
+                substitution,
+            ));
+        }
         let interfaces = interface_implementations
             .iter()
             .map(|implementation| self.interface_type[&implementation.interface])

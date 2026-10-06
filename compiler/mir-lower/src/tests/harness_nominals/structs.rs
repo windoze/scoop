@@ -152,6 +152,7 @@ impl Harness {
             name: name.to_string(),
             access: hir::NominalAccess::public(),
             definition: hir::ClassDefinition {
+                element_encoding: None,
                 release_policy: Default::default(),
                 modifier: hir::ClassModifier::Final,
                 self_application,

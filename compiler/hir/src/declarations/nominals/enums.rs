@@ -25,6 +25,7 @@ pub struct EnumDefinition {
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
+    pub element_encoding: Option<ElementEncoding>,
 }
 
 impl std::ops::Deref for EnumDecl {

@@ -28,6 +28,7 @@ fn with_conditions(
             conditions,
             Default::default(),
             None,
+            None,
         ),
     )
 }
@@ -79,12 +80,12 @@ fn declaration_reader_rejects_missing_nominal_conditions() {
     let release = encode(details.release_policy()).unwrap();
     let mut legacy = encode(details).unwrap();
     legacy[0] = 0xa8;
-    legacy.truncate(legacy.len() - conditions.len() - release.len() - 4);
+    legacy.truncate(legacy.len() - conditions.len() - release.len() - 6);
     let error = decode_canonical::<DecodedNominalDeclarationDetailsV1>(&legacy).unwrap_err();
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 11,
+            expected: 12,
             actual: 8
         }
     ));

@@ -22,6 +22,7 @@ mod constructor_slots;
 mod constructor_work;
 mod context;
 mod coroutines;
+mod encoding;
 mod enums;
 mod equality;
 mod functions;

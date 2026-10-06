@@ -2,22 +2,8 @@ use super::*;
 
 #[test]
 fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
-    let mut core = complete_core_file();
-    core.declarations.retain(|declaration| {
-        !matches!(declaration, ast::Decl::Struct(declaration) if declaration.name.text == "Unit")
-    });
-    let output = lower(&[
-        core,
-        scoop_parser::parse(include_str!(
-            "../../../../sysroot/lib/scoop.core/src/encoding.scoop"
-        ))
-        .unwrap(),
-        scoop_parser::parse(include_str!(
-            "../../../../sysroot/lib/scoop.core/src/unit.scoop"
-        ))
-        .unwrap(),
-        scoop_parser::parse(
-            r#"
+    let output = lower_with_sysroot(
+        r#"
             public struct Record(val empty: Unit) : Encodable
             public fun <T : Encodable> bounded(value: T, encoder: Encoder) {
                 value.encode(encoder)
@@ -38,9 +24,7 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
             }
             fun main() {}
             "#,
-        )
-        .unwrap(),
-    ])
+    )
     .unwrap();
     let module = &output.export;
     let (owner, declaration) = module

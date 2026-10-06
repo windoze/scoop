@@ -31,6 +31,21 @@ impl SharedTypeMetadataV1<'_> {
 }
 
 impl CheckedSharedTypeFoundationV1<'_> {
+    /// Resolve one actual application through the same source parent query used by the graph.
+    pub fn nominal_application_inheritance(
+        self,
+        exact: PersistentExactTypeId,
+        dependencies: &[CheckedSharedTypeFoundationV1<'_>],
+    ) -> Result<NominalInheritanceEdgesV1, Error> {
+        edges::project(
+            MetadataTypes {
+                current: self.metadata,
+                dependencies,
+            },
+            exact,
+        )
+    }
+
     /// Checks the closure's inheritance inventory once against its declarations.
     /// Each supplied foundation has already resolved its own dependency types.
     /// All providers can consume the temporary graph in the callback.
