@@ -372,3 +372,15 @@ macOS 的 workspace 格式化、lint 和完整 5,331 项 Rust 测试通过，没
 10 个 M29 tuple fixture 在固定工具副本上以不更新快照的方式通过，共 21 个
 进程、8 份 golden；macOS 的完整 5,331 项 workspace 测试也覆盖此修复。涉及的
 生产文件分别为 155、165、68 行，未新增阶段或运行时机制。
+
+## 既有二进制损坏向量迁移
+
+使用当前正式 CLI 重新生产原 generic delegate 与 program-link 产物，再用原
+Slib writer 重建损坏及 optional/required 成员向量。删除的四条 registration
+记录与旧向量逐字节相同，交换仍针对原初始化单元；所有片段唯一匹配，组合结果
+与 writer 完整输出一致。更新实际摘要、archive 长度和 cone-production 7 的
+诊断位置，保留原错误类别、缺失数量、字段角色及禁止发布产物的检查。
+
+三项文件 fixture 通过，覆盖五种 registration 错误、损坏 member、截断归档、
+magic 错误、optional 成员正常链接与 required 成员拒绝，以及普通和 moving GC
+运行。生成工具只用于此次测试数据迁移，没有进入生产 crate 或公共 runner。
