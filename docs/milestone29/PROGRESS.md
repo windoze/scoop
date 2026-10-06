@@ -3,6 +3,15 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：Linux artifact-graph 诊断迁移
+
+glibc、musl 的 artifact-graph 各完整复验通过，均执行 17 个进程、25 次快照检查；
+24 份共有快照与 Darwin 正式结果逐字节一致。只同步两目标的 stale_library、
+stale_before_native 诊断摘要，其余消息与位置保持；没有改变语言或产物校验规则。
+报告保存为 `/tmp/scoop-m29-saved-reports/` 下的
+`m29-generic-primitive-{gnu,musl}-graph-update.json`。已清理约 278 MiB 的完成目录；
+Linux 主更新轮及后续普通完整 `--all` 继续进行。
+
 ## 2026-10-06：Linux 依赖失效用例迁移
 
 两个 generic ODR 依赖失效用例在 glibc、musl 各完成一次正确目标的更新复验，
