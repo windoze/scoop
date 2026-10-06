@@ -1,4 +1,7 @@
-use std::fmt;
+use std::{collections::BTreeSet, fmt};
+
+mod encoding;
+use encoding::RuntimeImageFingerprintInputV1;
 
 use scoop_identity::{ConeIdentity, DigestNodeKey};
 use scoop_lir::{RuntimeAbiFingerprint, TargetProfileFingerprint};
@@ -57,6 +60,25 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
     pub const fn fingerprint(&self) -> RuntimeImageFingerprint {
         self.fingerprint
     }
+
+    /// Hash the actual final tables without revalidating unchanged artifact contents.
+    pub fn fingerprint_for_definitions(
+        &self,
+        selected: &BTreeSet<scoop_identity::ObjectDefinitionPlanId>,
+    ) -> Result<RuntimeImageFingerprint, RuntimeImageFingerprintError> {
+        domain_separated_runtime_hash(
+            RUNTIME_IMAGE_DOMAIN,
+            &RuntimeImageFingerprintInputV1 {
+                image: &self.image,
+                registrations: &self.registrations,
+                runtime_abi: self.compatibility.runtime_abi(),
+                target_profile: self.compatibility.target_fingerprint(),
+                selected: Some(selected),
+            },
+        )
+        .map(|digest| RuntimeImageFingerprint::from_array(*digest.as_array()))
+        .map_err(RuntimeImageFingerprintError::Hash)
+    }
 }
 
 pub fn compute_runtime_image_fingerprint_v1(
@@ -94,6 +116,7 @@ where
             registrations: &registrations,
             runtime_abi: compatibility.runtime_abi(),
             target_profile: compatibility.target_fingerprint(),
+            selected: None,
         },
     )
     .map(|digest| RuntimeImageFingerprint::from_array(*digest.as_array()))
@@ -271,169 +294,6 @@ where
         return Err(RuntimeImageFingerprintError::DigestInputMismatch);
     }
     Ok(())
-}
-
-struct RuntimeImageFingerprintInputV1<'proof, D, C, I> {
-    image: &'proof VerifiedConeImageV1,
-    registrations: &'proof VerifiedStrongRegistrationPatchSetV1<D, C, I>,
-    runtime_abi: RuntimeAbiFingerprint,
-    target_profile: TargetProfileFingerprint,
-}
-
-impl<D, C, I> RuntimeEncode for RuntimeImageFingerprintInputV1<'_, D, C, I>
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        encoder.fixed(self.runtime_abi.as_array())?;
-        encoder.fixed(self.target_profile.as_array())?;
-        self.image.plan().cone().runtime_encode(encoder)?;
-        encoder.sequence_length(self.image.plan().dependencies().len())?;
-        for dependency in self.image.plan().dependencies() {
-            encoder.fixed(dependency.as_array())?;
-        }
-        self.encode_static_storages(encoder)?;
-        self.encode_immortal_objects(encoder)?;
-        self.encode_initializations(encoder)?;
-        self.encode_types(encoder)?;
-        self.encode_safepoints(encoder)?;
-        self.encode_callables(encoder)
-    }
-}
-
-impl<D, C, I> RuntimeImageFingerprintInputV1<'_, D, C, I>
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    fn encode_static_storages(
-        &self,
-        encoder: &mut RuntimeEncoder,
-    ) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.static_storages();
-        let plans = fingerprints
-            .shapes()
-            .storage_definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_strong_static_storage_record_v1(
-                encoder,
-                plan,
-                fingerprint.registration().as_array(),
-                fingerprint.layout(),
-                fingerprint.scan(),
-            )?;
-        }
-        Ok(())
-    }
-
-    fn encode_immortal_objects(
-        &self,
-        encoder: &mut RuntimeEncoder,
-    ) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.immortal_objects();
-        let plans = fingerprints
-            .object_definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_strong_immortal_object_record_v1(
-                encoder,
-                plan.object(),
-                plan.object_size(),
-                plan.required_alignment(),
-                plan.type_registration(),
-                plan.definition_owner(),
-                fingerprint.registration().as_array(),
-            )?;
-        }
-        Ok(())
-    }
-
-    fn encode_initializations(
-        &self,
-        encoder: &mut RuntimeEncoder,
-    ) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.initializations();
-        let plans = fingerprints
-            .definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            let gateway = fingerprint
-                .gateway_body()
-                .zip(fingerprint.gateway_definition());
-            runtime_encode_strong_initialization_record_v1(
-                encoder,
-                plan,
-                fingerprint.registration().as_array(),
-                gateway,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn encode_types(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.types();
-        let plans = fingerprints.registrations().plan().registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_type_record_v1(
-                encoder,
-                plan,
-                fingerprint.registration().as_array(),
-                fingerprint.descriptor_definition().as_array(),
-                fingerprint.layout().as_array(),
-            )?;
-        }
-        Ok(())
-    }
-
-    fn encode_safepoints(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.safepoints();
-        let plans = fingerprints.registrations().plan().registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_safepoint_record_v1(
-                encoder,
-                *plan,
-                fingerprint.registration().as_array(),
-                fingerprint.stackmap().as_array(),
-            )?;
-        }
-        Ok(())
-    }
-
-    fn encode_callables(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let fingerprints = self.registrations.callables();
-        let plans = fingerprints
-            .body_objects()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
-        encoder.sequence_length(plans.len())?;
-        for (plan, fingerprint) in plans.iter().zip(fingerprints.fingerprints()) {
-            runtime_encode_callable_record_v1(
-                encoder,
-                *plan,
-                fingerprint.registration().as_array(),
-                fingerprint.body_definition().as_array(),
-            )?;
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

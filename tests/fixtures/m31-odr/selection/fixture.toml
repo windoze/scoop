@@ -1,0 +1,76 @@
+schema = 1
+name = "m31-odr-selection"
+inputs = ["template", "left", "right", "root"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "odr", "artifact-only", "context", "moving-gc", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/template", to = "${work}/source/template"}},
+  {copy = {from = "${fixture}/left", to = "${work}/source/left"}},
+  {copy = {from = "${fixture}/right", to = "${work}/source/right"}},
+  {copy = {from = "${fixture}/root", to = "${work}/source/root"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.result.dependencies.length}", equals = 4},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "root.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "root.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "root.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "helper\n168\n42\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [
+  {remove = {path = "${work}/source"}},
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.3.path}", "--dependency-slib", "${build.result.dependencies.2.path}", "--dependency-slib", "${build.result.dependencies.1.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_moving"
+argv = ["${link.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "helper\n168\n42\n"
+stderr = ""
+
+[[steps]]
+name = "run_minor"
+argv = ["${link.result.output}"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "helper\n168\n42\n"
+stderr = ""

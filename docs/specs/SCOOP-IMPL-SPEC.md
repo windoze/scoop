@@ -1924,6 +1924,8 @@ LLVM 为大值 `byval` 参数生成的标准 `memcpy` 不展开异常，也不�
 
 program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。候选 image descriptor 及其六类表具有独立物理成员，供 program-link 整体替换；非 callable 的独立 ODR definition 与自身 associated atoms 各成一个可选择成员。
 
+最终 image 沿用 startup C/native-object 输出：按所选 definition 过滤已验证的六类登记，保留每个逻辑 Cone 的 coordinate 与直接依赖，使用同一 RuntimeImage 编码计算实际表的内容摘要。startup 对象同时定义这些 image、pointer 表及正文引用的既有 trap-message 符号；原候选 image 对象不参加 native link。定义、未定义引用和最终 relocation 检查均使用实际保留的 member，最终 link map 必须符合显式选择。`scoop-resolved-link-plan-v3` 保留原输入产物摘要，并覆盖所选对象及实际 startup 源码/对象，不增加另一套选择摘要或链接缓存框架。
+
 `.slib` 保留候选 image/registration 数据与物理 owner，program-link 在选择后通过现有 native-object 输出路径生成最终 image descriptor 和六类 pointer 表，不启动 LLVM/Scoop codegen、不读取源码或 runtime header，也不修改已发布 artifact。落选正文及其站点/EH/Context 数据不进入最终对象集合；所有引用指向唯一 TD、storage/cell、callable 和登记。最终 image fingerprint 根据实际表计算并进入既有 link plan，普通 eager 初始化顺序和 lazy unit 的 exactly-once 语义保持。Mach-O 不能依赖独立 weak coalesce 模拟这项关联选择；ELF 采用相同显式规则，不把平台 COMDAT 能力变为另一套语义。
 
 **nursery。** runtime 在现有 arena 中按 block 区分 nursery/旧代，TLAB 从 nursery 分配；minor 只追踪完整根、旧代脏区和年轻存活图。首轮存活即晋升到 Immix 旧代，不增加 survivor 区或年龄字段。无法放入普通 block 的大对象及带 release hook 的对象直接进入旧代；pin 不得移动已暴露的地址，含 pinned 对象的 block 在 STW 中原地转旧代。普通中小对象及其晋升须支持跨 line 分配：调整旧 64-byte small 上限和仅 `uint8_t` size-units 表示，精确 size、占用 line 和 forwarding 在原 side metadata 中表达。

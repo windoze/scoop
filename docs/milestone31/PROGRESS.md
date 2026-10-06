@@ -79,3 +79,11 @@
 - Rust fmt 与 workspace clippy 通过；codegen 物理分区 6 项、reader 类型登记与引用闭包 26 项通过。Darwin 跨 Cone Context 的 artifact-only link/run 与九份快照通过；TLS 的 normal/full-moving 两变体、源码移除后独立链接与运行、八份快照通过，合计 22 个正式进程。
 - TLS 的 Darwin LIR 快照同步已实现的整数条件清理，只删除已知非零除数对应的不可达除零分支。Linux 快照留待实际目标运行更新，未以 Darwin 结果代替。
 - Context 用例拆分后的首轮耗时约 58 秒，复用符号索引后约 48 秒；前一批约 27 秒。这是物理分区的实际编译开销，后续性能报告继续记录。清理新增的约 0.90 GiB debug 增量目录，保留可复用依赖与 release 命令。
+
+## M31-2 物理选择与最终 image
+
+- program-link 按 coordinate 的 group/name/version 顺序，在已有 typed 物理索引上选择 ODR primary。正文附属登记与原始 stackmap/EH 同选，独立 metadata 分别选择；定义、未定义引用与实际对象输入均过滤落选 member。Darwin 的最终 link map 逐一核对所选 ODR primary 与有引用的 atom 归属。
+- 原候选 image 对象退出 native 输入；startup C/native-object 路径生成每个逻辑 Cone 的最终 image、六类 pointer 表与既有 trap-message 符号。复用 RuntimeImage 编码计算实际所选登记的摘要，输入 artifact 不改写。链接计划域升级为 `scoop-resolved-link-plan-v3`，直接覆盖所选对象和新 startup 源码/对象。
+- 最终 image 检查针对新生成的 prefix、coordinate、依赖、摘要与登记表/count/binding；复用已有目标映射和权限读取。修复通用 Mach-O 对象库将标准 `__DATA_CONST,__const` 定义标成 Unknown 时的 native data 识别，其他未知节和指令属性仍拒绝。
+- Rust fmt 与 workspace clippy 通过。4 项定向测试通过，包含真实 C metadata、最终可执行文件的 image 摘要/表项数量损坏拒绝和实际选择与 link map 不一致拒绝。Darwin 跨 Cone Context 用例通过；新增四 Cone 独立用例的 debug/release、artifact-only link、倒序依赖输入、normal/full-moving/minor stress、六份阶段快照通过，合计 20 个正式进程。
+- 本批建立实际选择与最终 image，旧 ODR 内容判等和公共 definition 字段将在下一批删除，混合优化验收随之补齐。Linux SSH 仍超时，未声明本批 Linux 通过。清理新增的约 0.69 GiB 闲置增量产物。

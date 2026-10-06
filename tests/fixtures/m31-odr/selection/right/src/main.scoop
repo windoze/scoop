@@ -1,0 +1,9 @@
+package selected.right
+
+import selected.templates.*
+
+public fun fromRight(value: Item): Int = context(value) {
+    val box = Box<Item>(current<Item>())
+    println(keep<String>("helper"))
+    keep<Item>(box.value).number
+}

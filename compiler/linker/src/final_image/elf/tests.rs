@@ -51,6 +51,16 @@ fn actual_elf_program_rejects_changed_alias_startup_permissions_and_stackmaps() 
     bytes[at..at + 8].copy_from_slice(&(alias.address() + 8).to_le_bytes());
     reject(bytes, "String alias");
 
+    let at = file_offset(symbol(&inputs.images[0]).address());
+    for (field, expected) in [
+        (96, "differs from its selected contents"),
+        (232, "incorrect selected count"),
+    ] {
+        let mut bytes = original.clone();
+        bytes[at + field] ^= 1;
+        reject(bytes, expected);
+    }
+
     let at = file_offset(symbol("scoop_program_images").address());
     let mut bytes = original.clone();
     bytes[at] ^= 8;

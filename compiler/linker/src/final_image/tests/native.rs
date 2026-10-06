@@ -96,10 +96,9 @@ fn actual_native_call_pointer_and_map_address_corruption_are_rejected() {
 }
 
 // The production link has already checked the actual ld map. For byte-mutation
-// tests retain native ranges and the first weak definitions in this fixed
-// fixture's object order. The unmodified executable must pass before each
-// mutation. Actual map winner selection is covered separately by map tests
-// and public CLI fixtures with different per-Cone physical references.
+// tests retain native ranges and explicitly selected Cone definitions. The
+// unmodified executable must pass before each mutation. Actual map ownership
+// is covered separately by map tests and public CLI fixtures.
 pub(super) fn symbol_ranges(inputs: &ProgramInputs<'_>, bytes: &[u8]) -> LinkMap {
     let file: MachOFile64<'_> = MachOFile64::parse(bytes).unwrap();
     let final_symbols: BTreeMap<_, _> = file

@@ -1,0 +1,19 @@
+package selected.templates
+
+public class Item public constructor(public var number: Int)
+public class Box<T: ref> public constructor(public var value: T)
+
+context(value: T)
+public fun <T: ref> current(): T {
+    gcCollect()
+    return value
+}
+
+public fun <T: ref> keep(value: T): T {
+    gcCollect()
+    return value
+}
+
+public fun fromTemplate(value: Item): Int = context(value) {
+    keep<Item>(current<Item>()).number
+}

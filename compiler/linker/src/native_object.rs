@@ -16,6 +16,9 @@ mod selected;
 pub(crate) use references::{NativeReferenceSection, NativeReferences};
 mod wire;
 
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+mod tests;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NativeSymbolKind {
     Function,
@@ -131,16 +134,6 @@ impl NativeObjectIndex {
                 requirements.insert(name);
                 continue;
             }
-            let kind = match symbol.kind() {
-                SymbolKind::Text => NativeSymbolKind::Function,
-                SymbolKind::Data => NativeSymbolKind::Data,
-                SymbolKind::Tls => NativeSymbolKind::ThreadLocal,
-                other => {
-                    return Err(error(format!(
-                        "native definition {name} has invalid kind {other:?}"
-                    )));
-                }
-            };
             let section = file
                 .section_by_index(
                     symbol
@@ -148,6 +141,27 @@ impl NativeObjectIndex {
                         .ok_or_else(|| error(format!("native definition {name} has no section")))?,
                 )
                 .map_err(error)?;
+            let kind = match symbol.kind() {
+                SymbolKind::Text => NativeSymbolKind::Function,
+                SymbolKind::Data => NativeSymbolKind::Data,
+                SymbolKind::Tls => NativeSymbolKind::ThreadLocal,
+                SymbolKind::Unknown
+                    if section.segment_name().map_err(error)? == Some("__DATA_CONST")
+                        && section.name().map_err(error)? == "__const"
+                        && section.macho_section().flags.get(file.endian())
+                            & (macho::SECTION_TYPE
+                                | macho::S_ATTR_PURE_INSTRUCTIONS
+                                | macho::S_ATTR_SOME_INSTRUCTIONS)
+                            == macho::S_REGULAR =>
+                {
+                    NativeSymbolKind::Data
+                }
+                other => {
+                    return Err(error(format!(
+                        "native definition {name} has invalid kind {other:?}"
+                    )));
+                }
+            };
             let end = section
                 .address()
                 .checked_add(section.size())

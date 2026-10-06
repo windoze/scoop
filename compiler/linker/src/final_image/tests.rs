@@ -19,6 +19,20 @@ fn actual_executable_corruption_is_rejected_before_publication() {
     let original = std::fs::read(&fixture.output.path).unwrap();
     let map = native::symbol_ranges(&inputs, &original);
     verify(&original, &inputs, &startup, &fixture.profile, &map).unwrap();
+    for (artifact, symbols) in fixture.closure.artifacts() {
+        let definitions = artifact
+            .production()
+            .canonical_definitions()
+            .plans()
+            .iter()
+            .map(|plan| plan.definition_plan())
+            .collect();
+        let candidate = symbols.final_objects().runtime_images().fingerprint();
+        assert_eq!(
+            candidate.fingerprint_for_definitions(&definitions).unwrap(),
+            candidate.fingerprint()
+        );
+    }
     let reject = |name: &str, bytes: Vec<u8>, expected: &str| {
         let error = match verify(&bytes, &inputs, &startup, &fixture.profile, &map) {
             Err(error) => error.to_string(),
@@ -27,6 +41,24 @@ fn actual_executable_corruption_is_rejected_before_publication() {
         assert!(error.contains(expected), "{name}: {error}");
         assert_eq!(std::fs::read(&fixture.output.path).unwrap(), original);
     };
+
+    let file: MachOFile64<'_> = MachOFile64::parse(original.as_slice()).unwrap();
+    let image = file
+        .symbols()
+        .find(|symbol| symbol.name().ok() == Some(inputs.images[0].as_str()))
+        .unwrap();
+    let section = file
+        .section_by_index(image.section_index().unwrap())
+        .unwrap();
+    let offset = (section.file_range().unwrap().0 + image.address() - section.address()) as usize;
+    for (field, expected) in [
+        (96, "differs from its selected contents"),
+        (232, "incorrect selected count"),
+    ] {
+        let mut bytes = original.clone();
+        bytes[offset + field] ^= 1;
+        reject("selected image", bytes, expected);
+    }
 
     let mut bytes = original.clone();
     let main = command(&bytes, macho::LC_MAIN);

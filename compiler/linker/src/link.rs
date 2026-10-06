@@ -93,7 +93,7 @@ fn link_inputs(
     let profile_fingerprint = profile.fingerprint().map_err(error)?;
     let fingerprint = ResolvedLinkPlanFingerprint(
         domain_separated_cbor_hash(
-            "scoop-resolved-link-plan-v2",
+            "scoop-resolved-link-plan-v3",
             &Plan {
                 closure,
                 runtime,
@@ -189,13 +189,20 @@ fn dump(
     inputs: &ProgramInputs<'_>,
     startup: &StartupObject,
 ) -> String {
-    let mut text = String::from("program-link v2\n");
+    let mut text = String::from("program-link v3\n");
     for (artifact, symbols) in closure.artifacts() {
         text.push_str(&format!(
             "cone {} kind={:?} objects={}\n",
             artifact.manifest().cone().coordinate(),
             artifact.manifest().cone().kind(),
-            symbols.final_objects().objects().len()
+            symbols
+                .final_objects()
+                .objects()
+                .iter()
+                .filter(|object| inputs
+                    .selected
+                    .contains(artifact.identity(), object.member()))
+                .count()
                 + symbols.object_contents().generated_objects().len()
         ));
     }
