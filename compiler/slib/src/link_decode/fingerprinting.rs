@@ -587,7 +587,8 @@ impl<'input> FinalizedStrongLinkObjectSections<'input> {
             production.lir().clone(),
             link_objects,
         )
-        .map_err(StrongLinkFinalValidationError::ProductionProjection)?;
+        .map_err(StrongLinkFinalValidationError::ProductionProjection)?
+        .with_optimization(production_manifest.optimization());
         let code = crate::compute_code_fingerprint_v1(
             code_projection,
             native_requirements,

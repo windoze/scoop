@@ -18,6 +18,9 @@ pub use types::*;
 mod target;
 pub use target::*;
 
+mod optimization;
+pub use optimization::OptimizationMode;
+
 mod backend;
 pub use backend::*;
 

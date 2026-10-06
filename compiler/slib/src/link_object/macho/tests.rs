@@ -1,6 +1,35 @@
 use super::*;
 
 #[test]
+fn optimization_hints_are_bounded_linkedit_data() {
+    let mut bytes = object_without_deployment();
+    let command_end = 32 + 72 + 24 + 80;
+    bytes.splice(command_end..command_end, [0; 16]);
+    write_u32(&mut bytes, 16, 4);
+    write_u32(&mut bytes, 20, (command_end - 32 + 16) as u32);
+    for field in [32 + 72 + 8, 32 + 72 + 16] {
+        write_u32(&mut bytes, field, (command_end + 16) as u32);
+    }
+    let payload = bytes.len();
+    bytes.extend_from_slice(&[0, 0, 0, 0]);
+    write_u32(&mut bytes, command_end, macho::LC_LINKER_OPTIMIZATION_HINT);
+    write_u32(&mut bytes, command_end + 4, 16);
+    write_u32(&mut bytes, command_end + 8, payload as u32);
+    write_u32(&mut bytes, command_end + 12, 4);
+    assert!(validate_darwin_arm64_object_envelope_v1(&bytes).is_ok());
+    write_u32(&mut bytes, command_end + 8, u32::MAX);
+    assert_eq!(
+        validate_darwin_arm64_object_envelope_v1(&bytes),
+        Err(ObjectEnvelopeValidationError::LinkeditDataOutOfBounds)
+    );
+    write_u32(&mut bytes, command_end + 8, 0);
+    assert_eq!(
+        validate_darwin_arm64_object_envelope_v1(&bytes),
+        Err(ObjectEnvelopeValidationError::OverlappingFileRanges)
+    );
+}
+
+#[test]
 fn accepts_the_closed_relocatable_object_envelope() {
     let bytes = object_bytes_with_tools(&[
         (macho::TOOL_CLANG, 0x0f00_0100),

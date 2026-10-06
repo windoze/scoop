@@ -10,6 +10,13 @@ pub enum BuildProfile {
 }
 
 impl BuildProfile {
+    pub const fn optimization(self) -> scoop_lir::OptimizationMode {
+        match self {
+            Self::Debug => scoop_lir::OptimizationMode::Debug,
+            Self::Release => scoop_lir::OptimizationMode::Release,
+        }
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Debug => "debug",

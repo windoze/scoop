@@ -113,7 +113,8 @@ impl PreparedBuildGraph {
                 None => StageDumpPolicyV1::None,
             },
         )
-        .map_err(ChildRequestPlanError::Protocol)?;
+        .map_err(ChildRequestPlanError::Protocol)?
+        .with_optimization(self.context.optimization);
         Ok(ChildInvocationPlanV1 {
             #[cfg(test)]
             identity,

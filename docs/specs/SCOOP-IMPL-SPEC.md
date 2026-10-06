@@ -1930,6 +1930,10 @@ program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼
 
 **版本与验收。** M31 metadata ABI 4→5 删除 registration 公共 identity 的 definition fingerprint；删除 OdrDefinition 和仅回填该字段的 StrongRegistration 节点，普通 RuntimeImage/Code/Artifact 内容保护保持。调整实际发生变化的 child protocol、producer 配置、manifest/production、code GC plan、image/registration wire、runtime ABI 与 cache 版本；不为未改变的实体 id、对象头、TD、managed ref 或 stackmap v3 增加新格式。ABI 5 的具体字段顺序、section 版本和普通编码向量随各实现批次记录，旧不完整屏障与旧 ODR 产物必须拒绝或重建，不能靠优化 profile 名辨别。
 
+M31-1 的配置格式先独立落地：child protocol 为 4，build request 新增必需 field 9 `OptimizationMode`（Debug=1、Release=2）。manifest `single-cone-production/4` 新增必需 field 12，同一模式同时选择本次 Scoop machine O0/O2 与 generated-C O0/O2；该字段进入 Code/Artifact，不进入 HIR/MIR/LIR 依赖语义或 ABI。当前普通 IR 仍使用 SROA/mem2reg，后续首批 pass 的配置与版本另按实际落地更新。generated-C 通用 flag 合同的原 Unoptimized tag 6 退役，SelectedOptimization 使用 tag 15，实际 flag 由 field 12 决定。编译缓存域为 `scoop-cone-compile-cache-v2`，新增必需 mode field 13；runtime 和 final-link 继续使用各自已有配置。旧请求、manifest 和缓存不再作为本批输入。
+
+Darwin 的 O2 对象可包含标准 `LC_LINKER_OPTIMIZATION_HINT`。对象 reader 按 linkedit-data command 的固定大小检查其数据范围，并与现有 section、重定位、符号和字符串表统一检查非重叠；该数据随所在对象进入普通 Code 内容，交由 native linker 消费，不作为 ABI 或独立定义判等数据。
+
 完成门包括三 target 的 debug/release 功能与正式 CLI fixture、混合优化 ODR 和 artifact-only link、真实 minor/full moving/多 mutator/FFI/Context/release 组合，以及可复跑的性能基线。性能记录运行与编译时间、代码/产物大小、分配/晋升/扫描量及 GC 停顿，不设置噪声毫秒门槛，也不把完整代码摘要 golden 当成优化正确性测试。详细批次、非目标和验收矩阵见 M31 设计。
 
 ## 3. 待明确事项

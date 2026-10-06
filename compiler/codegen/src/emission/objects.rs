@@ -78,6 +78,7 @@ impl EmittedConeObjectMemberV1 {
 /// alive for exactly as long as this result.
 #[derive(Debug)]
 pub struct EmittedConeObjectSet<P> {
+    optimization: scoop_lir::OptimizationMode,
     target_selection: scoop_lir::ValidatedLirTargetSelection,
     foundation: scoop_lir::ConeLirFoundation,
     production: P,
@@ -90,6 +91,10 @@ pub type EmittedConeObjectSetV1 = EmittedConeObjectSet<scoop_lir::ConeProduction
 pub type EmittedConeObjectSetV2 = EmittedConeObjectSet<scoop_lir::ConeProductionSectionV2>;
 
 impl<P> EmittedConeObjectSet<P> {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.optimization
+    }
+
     pub const fn target(&self) -> scoop_lir::LirTargetProfile {
         self.target_selection.target()
     }
@@ -330,6 +335,7 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
     patches.sort_unstable_by_key(|patch| patch.intent());
     runtime_metadata_v1::validate_patch_coverage(&production, &patches)?;
     Ok(EmittedConeObjectSet {
+        optimization: profile.optimization(),
         target_selection: profile.lir_target_selection(),
         foundation: input.foundation().clone(),
         production,

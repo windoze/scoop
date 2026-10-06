@@ -141,9 +141,19 @@ pub struct SingleConeProductionCodeProjectionV1 {
     strong_registration_set: CanonicalStrongRegistrationFingerprintSetV1,
     runtime_image_fingerprint: RuntimeImageFingerprint,
     odr_members: CanonicalOdrMemberDirectoryV1,
+    optimization: scoop_lir::OptimizationMode,
 }
 
 impl SingleConeProductionCodeProjectionV1 {
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.optimization = mode;
+        self
+    }
+
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.optimization
+    }
+
     pub const fn distribution(&self) -> ArtifactDistributionClassV1 {
         self.distribution
     }
@@ -175,7 +185,7 @@ impl SingleConeProductionCodeProjectionV1 {
 
 impl WireEncode for SingleConeProductionCodeProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -189,7 +199,9 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
         encoder.field(6)?;
         self.runtime_image_fingerprint.encode(encoder)?;
         encoder.field(11)?;
-        self.odr_members.encode(encoder)
+        self.odr_members.encode(encoder)?;
+        encoder.field(12)?;
+        self.optimization.encode(encoder)
     }
 }
 
@@ -203,6 +215,11 @@ pub struct VerifiedSingleConeProductionCodeProjectionV1 {
 }
 
 impl VerifiedSingleConeProductionCodeProjectionV1 {
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.projection.optimization = mode;
+        self
+    }
+
     pub const fn strong_production(&self) -> &ConeProductionSectionV1 {
         &self.strong_production
     }
@@ -224,6 +241,10 @@ pub struct SingleConeProductionManifestV1 {
 }
 
 impl SingleConeProductionManifestV1 {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.projection().optimization()
+    }
+
     pub const fn from_verified_code(code: VerifiedCodeFingerprintV1) -> Self {
         Self { code }
     }
@@ -285,7 +306,7 @@ impl SingleConeProductionManifestV1 {
 
 impl WireEncode for SingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.distribution().encode(encoder)?;
         encoder.field(2)?;
@@ -307,7 +328,9 @@ impl WireEncode for SingleConeProductionManifestV1 {
         encoder.field(10)?;
         self.c_bridge_production().encode(encoder)?;
         encoder.field(11)?;
-        self.odr_members().encode(encoder)
+        self.odr_members().encode(encoder)?;
+        encoder.field(12)?;
+        self.optimization().encode(encoder)
     }
 }
 

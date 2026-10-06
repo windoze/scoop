@@ -69,6 +69,7 @@ where
         strong_registration_set,
         runtime_image_fingerprint: runtime_image.fingerprint(),
         odr_members,
+        optimization: scoop_lir::OptimizationMode::Debug,
     };
     Ok(projection)
 }

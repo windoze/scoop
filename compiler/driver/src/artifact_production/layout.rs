@@ -36,6 +36,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
         dependency_owners: &[slib::CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<slib::AssembledCrossConeLayoutArtifactV1, Error> {
+        let optimization = emitted.optimization();
         let prepared = objects::prepare(emitted, generated)?;
         let strong = prepared.patch_sites.builtins().strong_relocations().clone();
         let defined =
@@ -84,7 +85,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
         let support = slib::LirLinkSupportSectionV1::from_string_descriptor(descriptor)
             .map_err(Error::LinkSupport)?;
         let code = slib::compute_cross_cone_layout_code_fingerprint_v1(
-            finalized.projection,
+            finalized.projection.with_optimization(optimization),
             native,
             defined,
             undefined,

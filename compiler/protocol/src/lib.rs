@@ -10,6 +10,7 @@ pub use dump::{StageDumpKindV1, StageDumpPolicyV1, StageDumpSet};
 mod framing;
 mod path;
 mod request;
+pub use scoop_lir::OptimizationMode;
 mod response;
 
 pub use diagnostic::{
@@ -34,7 +35,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 

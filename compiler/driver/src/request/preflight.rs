@@ -85,6 +85,7 @@ pub struct LoadedSingleConeBuildRequest {
     output: SlibOutputDestination,
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
+    optimization: scoop_lir::OptimizationMode,
 }
 
 impl SingleConeBuildRequest {
