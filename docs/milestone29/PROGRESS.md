@@ -3,6 +3,12 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：generic companion 的普通宿主 bound
+
+宿主 bound 负例改用普通 Required interface，避免把已移除的数据 Encodable
+关系当成泛型约束基础。Box<Plain>.Companion 仍在相同宿主应用处拒绝不满足
+bound 的实参；精确消息及源位置断言已同步，macOS 正式负例通过并保存报告。
+
 ## 2026-10-06：容器 codec 与跨库组合
 
 四种核心容器的正式用例迁移为显式 encoder factory，保留嵌套 Option/Array、
