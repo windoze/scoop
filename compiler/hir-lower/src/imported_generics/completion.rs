@@ -10,7 +10,22 @@ impl Lowerer {
             if index == self.imported_generic_templates.templates.len()
                 && constructor == self.imported_constructor_templates.templates.len()
             {
-                break;
+                if !self.diagnostics.is_empty() {
+                    break;
+                }
+                if let Err(error) = self.retain_generic_primitive_declarations() {
+                    self.diagnostics.push(scoop_ast::Diagnostic::without_span(
+                        scoop_ast::DiagnosticSeverity::Error,
+                        self.primary_output_file(),
+                        error.diagnostic("generic primitive argument"),
+                    ));
+                    break;
+                }
+                if index == self.imported_generic_templates.templates.len()
+                    && constructor == self.imported_constructor_templates.templates.len()
+                {
+                    break;
+                }
             }
             if index == self.imported_generic_templates.templates.len() {
                 self.complete_imported_constructor(constructor);

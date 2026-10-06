@@ -22,6 +22,8 @@
 
 primitive 声明按需查询并在本次 HIR 中复用。只有实际 Box、值 receiver 适配及函数变型适配需要的装箱源才进入 concrete nominal 表；未使用的 primitive、失败候选和未实例化默认模板不能仅因查询或 arena 存在而成为机器物化根。默认参数实例化沿相同的完整声明查询与装箱路径处理。
 
+泛型应用的实际类型实参及其结构组成在进入具体化前保留所需的 primitive 声明，覆盖普通函数、成员、名义类型和依赖模板。泛型正文中的 Box 或函数变型可能直到代入实参后才确定装箱源，不能依赖调用方偶然进行成员查找或接口转换来取得声明。声明查询复用既有结果，不重新检查已成立的语言约束；保留类型实参的声明本身不增加 concrete nominal 或机器物化根。
+
 独立 function/adapter 的 Structural ODR 发布仍受 M23-7 能力门约束。完整 lowering 输入不代表当前 production profile 已支持该发布能力。
 
 引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/30`，旧产物与缓存重建，不改变 runtime C ABI。

@@ -3,6 +3,21 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：泛型 primitive 装箱的声明保留
+
+移除实例编码后，三 Cone 的 shared-bounds-context 暴露 Unit 只在泛型正文内
+装箱时缺少实际声明的 panic。按实现规范先补充契约，再在泛型正文完成时保留
+实际类型实参及结构组成所需的 primitive 声明；复用既有查询和完成队列，仅在
+真实 Box/receiver/函数变型使用处物化 concrete nominal，不新增 wire 或 runtime
+规则，也不重新进行已完成的语言约束检查。新增实现模块 58 行。
+
+两个 Rust 回归测试验证本地、导入、名义成员与函数变型的 Unit 装箱，以及仅
+传递泛型 Unit 时没有额外装箱类型。格式化、workspace clippy 和两项测试通过；
+三 Cone 原失败用例及两个 Unit codec 用例在干净目录的普通模式中全部通过，
+共 25 个进程、22 次 golden 检查，后两个用例的既有快照无需变化。报告保存为
+`/tmp/scoop-m29-saved-reports/m29-generic-primitive-darwin-check.json`。完整
+workspace 和三平台正式全量将使用修复后的固定 CLI 副本继续验证。
+
 ## 2026-10-06：Linux 新协议 M29 快照更新
 
 GNU 与 musl 各自完成全部 176 个 M29 fixture，分别执行 363 个进程、113 次
