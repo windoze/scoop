@@ -115,6 +115,10 @@ fn c_storage_shape(
             IntegerBitWidth::Bits64 => Scalar::I64,
         }),
         CanonicalCStorageType::Boolean { .. } => target.scalar_layout(Scalar::I1),
+        CanonicalCStorageType::Float { kind, .. } => target.scalar_layout(match kind {
+            crate::FloatKind::F32 => Scalar::F32,
+            crate::FloatKind::F64 => Scalar::F64,
+        }),
         CanonicalCStorageType::DataPointer { .. } => target.data_pointer().layout(),
         CanonicalCStorageType::CodePointer { .. } => target.code_pointer().layout(),
         CanonicalCStorageType::Struct { exact_type, layout } => {

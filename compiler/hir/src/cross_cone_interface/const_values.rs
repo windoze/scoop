@@ -183,12 +183,14 @@ pub enum CanonicalConstValueV1 {
     Integer(CanonicalIntegerConstantV1),
     Boolean(CanonicalBooleanV1),
     Char(CanonicalCharV1),
+    Float(crate::HirFloatConstant),
     String(String),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CanonicalConstValueKindV1 {
     Char,
+    Float(crate::FloatKind),
     Integer(IntegerKind),
     Boolean,
     String,
@@ -200,6 +202,7 @@ impl CanonicalConstValueV1 {
             Self::Integer(value) => CanonicalConstValueKindV1::Integer(value.kind()),
             Self::Boolean(_) => CanonicalConstValueKindV1::Boolean,
             Self::Char(_) => CanonicalConstValueKindV1::Char,
+            Self::Float(value) => CanonicalConstValueKindV1::Float(value.kind()),
             Self::String(_) => CanonicalConstValueKindV1::String,
         }
     }
@@ -214,12 +217,14 @@ impl WireEncode for CanonicalConstValueV1 {
             Self::Boolean(_) => 2,
             Self::String(_) => 3,
             Self::Char(_) => 4,
+            Self::Float(_) => 5,
         })?;
         encoder.field(1)?;
         match self {
             Self::Integer(value) => value.encode(encoder),
             Self::Boolean(value) => value.encode(encoder),
             Self::Char(value) => value.encode(encoder),
+            Self::Float(value) => value.encode(encoder),
             Self::String(value) => encoder.text(value),
         }
     }
@@ -239,6 +244,9 @@ impl WireDecode for CanonicalConstValueV1 {
                 .map(Self::Boolean),
             3 => decoder.field(1, Decoder::owned_text).map(Self::String),
             4 => decoder.field(1, CanonicalCharV1::decode).map(Self::Char),
+            5 => decoder
+                .field(1, crate::HirFloatConstant::decode)
+                .map(Self::Float),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
@@ -250,6 +258,7 @@ impl From<ConstPropertyValue> for CanonicalConstValueV1 {
             ConstPropertyValue::Integer(value) => Self::Integer(value.into()),
             ConstPropertyValue::Boolean(value) => Self::Boolean(value.into()),
             ConstPropertyValue::Char(value) => Self::Char(value.into()),
+            ConstPropertyValue::Float(value) => Self::Float(value),
             ConstPropertyValue::String(value) => Self::String(value),
         }
     }
@@ -261,6 +270,7 @@ impl From<CanonicalConstValueV1> for ConstPropertyValue {
             CanonicalConstValueV1::Integer(value) => Self::Integer(value.into()),
             CanonicalConstValueV1::Boolean(value) => Self::Boolean(value.into()),
             CanonicalConstValueV1::Char(value) => Self::Char(value.into()),
+            CanonicalConstValueV1::Float(value) => Self::Float(value),
             CanonicalConstValueV1::String(value) => Self::String(value),
         }
     }

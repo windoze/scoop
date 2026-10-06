@@ -13,6 +13,7 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::MachineScalarLiteral(value) => {
                 mir::ExprKind::MachineScalarLiteral(*value)
             }
+            smir::ExprKind::FloatLiteral(value) => mir::ExprKind::FloatLiteral(*value),
             smir::ExprKind::CharLiteral(value) => mir::ExprKind::CharLiteral(*value),
             smir::ExprKind::CharCode(value) => {
                 mir::ExprKind::CharCode(Box::new(self.lower_expr(value, span)))

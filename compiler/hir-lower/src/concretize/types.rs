@@ -105,6 +105,9 @@ impl Concretizer<'_> {
             export::IntrinsicTypeRepresentation::Unit => {
                 concrete::IntrinsicTypeRepresentation::Unit
             }
+            export::IntrinsicTypeRepresentation::Float(kind) => {
+                concrete::IntrinsicTypeRepresentation::Float(kind)
+            }
             export::IntrinsicTypeRepresentation::Char => {
                 concrete::IntrinsicTypeRepresentation::Char
             }

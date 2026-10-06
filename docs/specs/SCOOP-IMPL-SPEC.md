@@ -1886,6 +1886,14 @@ integer→float按source signedness使用`sitofp/uitofp`并直接产生目标精
 
 **产物。** HIR/MIR/LIR的type、constant、intrinsic、C storage及实际ABI记录按kind完整编码；metadata的Eq/Hash、去重及fingerprint按raw bits工作，这是编译器数据比较，不是Scoop浮点`==`或Hash conformance。已知负零和NaN位型不得在跨Cone传递、缓存或ODR时消失。更新实际受影响的section/profile兼容版本并重建旧产物，新增single-value接口方法后相关实现与itable一并重编；实现时再分配wire字段/tag，不在设计中预占编号。reader只验证必要的格式、typed引用、kind/位宽与ABI，后续stage复用已经验证的数据。不为仅调研的128位类型加入成功IR节点、runtime字段或占位实现。
 
+M30 标量批次使用 HIR `core-bootstrap-interface/10`、`cross-cone-interface/58`、`cross-cone-type-semantics/22`，MIR `cross-cone-type-bridge/15`，LIR `identity-foundation/5`、`cross-cone-layout-abi/9`、`strong-production/19` 与 `cone-production/8`。required inventory 和 profile fingerprint 随实际 section 版本更新，旧产物与缓存重建；runtime metadata ABI 4 保持。
+
+`FloatKind` 编码为 unsigned 32 或 64；常量为两字段 map，field 1 保存 kind，field 2 保存同宽 raw bits，F32 超出 32 bits 拒绝。新增 HIR literal tag 67、nominal representation tag 10、canonical const tag 5，MIR intrinsic representation tag 6，LIR scalar representation tag 4、canonical type tag 13/14、canonical value tag 14、canonical shape representation tag 8；canonical C storage 与 LIR C type 使用 tag 6。上述 tag 均追加到各自封闭域，原有编号保持，core fundamental 表在 Char 后追加 Float 与 Double。
+
+Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8` 与 `__literal16` 常量池作为普通只读数据，分别要求 `S_4BYTE_LITERALS`、`S_8BYTE_LITERALS` 与 `S_16BYTE_LITERALS`。现有对象范围、重定位与内容摘要规则继续适用；16-byte 池可保存后端合并的标量常量，不表示支持 Float128。
+
+后端局部常量池没有源码实体，不要求事前创建 Strong symbol 或 definition atom。对象读取边界保存已验证的池内容，实际引用按重定位目标读取对应常量字节；canonical object relocation target 新增 tag 15，保存 byte span，池地址和局部标签不进入语义摘要。ELF 的 `.rodata.cst4/8/16` 同样使用现有只读数据通道及 `SHF_MERGE`。LIR `link-identity-closure` 升至 `/13`，旧对象摘要与缓存重建；不新增来源认证、独立凭证或第二套产物消费路径。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

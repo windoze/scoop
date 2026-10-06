@@ -269,6 +269,8 @@ impl<'a> AbiMetadataValidator<'a> {
             LirType::I8 => scalar(scoop_lir::BackendScalarKind::I8),
             LirType::I16 => scalar(scoop_lir::BackendScalarKind::I16),
             LirType::I32 => scalar(scoop_lir::BackendScalarKind::I32),
+            LirType::F32 => scalar(scoop_lir::BackendScalarKind::F32),
+            LirType::F64 => scalar(scoop_lir::BackendScalarKind::F64),
             LirType::I64 | LirType::MachineScalar(_) => scalar(scoop_lir::BackendScalarKind::I64),
             LirType::Ptr(kind) => {
                 let layout = profile.pointer_layout(*kind);

@@ -40,6 +40,15 @@ impl CanonicalCAbiBuilder<'_> {
                 storage: identity::CPointerStorage::Direct,
             },
             mir::Type::Struct(id) => {
+                if let mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::Float(kind),
+                ) = self.module.structs[*id].representation
+                {
+                    return Ok(identity::CanonicalCStorageType::Float {
+                        exact_type: self.exact_type(ty),
+                        kind,
+                    });
+                }
                 if matches!(
                     self.module.structs[*id].representation,
                     mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)

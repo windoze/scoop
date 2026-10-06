@@ -50,6 +50,7 @@ enum DecodedDefaultExpressionKindV1 {
     IntegerLiteral(CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
     CharLiteral(crate::CanonicalCharV1),
+    FloatLiteral(scoop_identity::FloatConstant),
     UnitLiteral,
     TupleLiteral(Vec<DecodedDefaultExpressionV1>),
     StructInit {

@@ -115,6 +115,7 @@ fn constant_and_vararg_projection_keep_actual_nominal_references_in_combination(
         };
         let expected = match constant.value().kind() {
             hir::CanonicalConstValueKindV1::Char => hir::IntrinsicTypeKind::Char,
+            hir::CanonicalConstValueKindV1::Float(kind) => hir::IntrinsicTypeKind::Float(kind),
             hir::CanonicalConstValueKindV1::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
             hir::CanonicalConstValueKindV1::Boolean => hir::IntrinsicTypeKind::Boolean,
             hir::CanonicalConstValueKindV1::String => hir::IntrinsicTypeKind::String,

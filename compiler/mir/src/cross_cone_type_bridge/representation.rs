@@ -37,6 +37,7 @@ pub enum MirParamFreeIntrinsicV1 {
     Boolean,
     String,
     Char,
+    Float(crate::FloatKind),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

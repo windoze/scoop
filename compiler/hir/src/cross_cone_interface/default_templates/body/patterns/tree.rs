@@ -84,6 +84,7 @@ impl DefaultPatternV1 {
             value.kind(),
             DefaultExpressionKindV1::IntegerLiteral(_)
                 | DefaultExpressionKindV1::CharLiteral(_)
+                | DefaultExpressionKindV1::FloatLiteral(_)
                 | DefaultExpressionKindV1::BooleanLiteral(_)
                 | DefaultExpressionKindV1::StringLiteral { .. }
         ) {

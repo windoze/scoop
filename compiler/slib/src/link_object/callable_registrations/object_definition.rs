@@ -267,6 +267,7 @@ struct CanonicalRelocationTargetV1 {
 
 #[derive(Clone, Copy)]
 enum CanonicalRelocationTargetKindV1 {
+    Literal(crate::link_object::literal_pools::ObjectLiteral),
     Requirement(CanonicalObjectDefinitionRequirementV1),
     StaticStorage(CanonicalStaticStorageTargetV1),
     OwningAssociatedAtomOffset {

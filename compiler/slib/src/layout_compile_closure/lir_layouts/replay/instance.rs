@@ -72,7 +72,11 @@ impl Replay<'_> {
                 lir::ExactInstanceLayoutV1::boxed_payload(identity, &payload, foundation)?
             }
             Kind::Intrinsic(
-                Intrinsic::Unit | Intrinsic::Integer(_) | Intrinsic::Char | Intrinsic::Boolean,
+                Intrinsic::Unit
+                | Intrinsic::Integer(_)
+                | Intrinsic::Float(_)
+                | Intrinsic::Char
+                | Intrinsic::Boolean,
             )
             | Kind::Struct { .. }
             | Kind::Enum { .. }

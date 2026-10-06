@@ -130,6 +130,7 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
                 layout.kind,
                 LayoutKind::Intrinsic(
                     IntrinsicTypeRepresentation::Integer(_)
+                        | IntrinsicTypeRepresentation::Float(_)
                         | IntrinsicTypeRepresentation::Char
                         | IntrinsicTypeRepresentation::Boolean
                         | IntrinsicTypeRepresentation::String
@@ -165,6 +166,7 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
             LayoutKind::Intrinsic(
                 IntrinsicTypeRepresentation::Unit
                 | IntrinsicTypeRepresentation::Integer(_)
+                | IntrinsicTypeRepresentation::Float(_)
                 | IntrinsicTypeRepresentation::Char
                 | IntrinsicTypeRepresentation::Boolean
                 | IntrinsicTypeRepresentation::String,

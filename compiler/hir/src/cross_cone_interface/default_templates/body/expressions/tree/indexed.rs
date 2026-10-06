@@ -39,6 +39,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     IntegerLiteral(&'a CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
     CharLiteral(crate::CanonicalCharV1),
+    FloatLiteral(scoop_identity::FloatConstant),
     UnitLiteral,
     TupleLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
     StructInit {
@@ -264,6 +265,9 @@ impl DefaultExpressionV1 {
             }
             DefaultExpressionKindV1::BooleanLiteral(value) => {
                 IndexedDefaultExpressionKindV1::BooleanLiteral(*value)
+            }
+            DefaultExpressionKindV1::FloatLiteral(value) => {
+                IndexedDefaultExpressionKindV1::FloatLiteral(*value)
             }
             DefaultExpressionKindV1::CharLiteral(value) => {
                 IndexedDefaultExpressionKindV1::CharLiteral(*value)

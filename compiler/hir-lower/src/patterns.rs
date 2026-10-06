@@ -335,6 +335,7 @@ fn is_literal_expr(expr: &ast::Expr) -> bool {
     match expr {
         ast::Expr::IntLiteral(_)
         | ast::Expr::StringLiteral { .. }
+        | ast::Expr::FloatLiteral(_)
         | ast::Expr::CharLiteral { .. }
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. } => true,

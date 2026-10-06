@@ -187,6 +187,7 @@ pub enum ExprKind {
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     CharLiteral(char),
+    FloatLiteral(scoop_identity::FloatConstant),
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,

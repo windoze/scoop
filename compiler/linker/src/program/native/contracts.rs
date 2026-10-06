@@ -157,6 +157,7 @@ pub(super) fn check_compiler_contract(
             let actual_size = match c_value(storage)? {
                 Value::Pointer => 8,
                 Value::Integer(bits) => u64::from(bits / 8),
+                Value::Float(kind) => u64::from(kind.bytes()),
                 Value::Boolean => 1,
                 Value::Void => 0,
             };
@@ -182,6 +183,7 @@ pub(super) fn check_compiler_contract(
 fn c_value(storage: CanonicalCStorageType) -> Result<Value, LinkError> {
     match storage {
         CanonicalCStorageType::Integer { bit_width, .. } => Ok(Value::Integer(bit_width.get())),
+        CanonicalCStorageType::Float { kind, .. } => Ok(Value::Float(kind)),
         CanonicalCStorageType::Boolean { .. } => Ok(Value::Boolean),
         CanonicalCStorageType::DataPointer { .. } | CanonicalCStorageType::CodePointer { .. } => {
             Ok(Value::Pointer)
@@ -219,6 +221,9 @@ fn scoop_value(
         scoop_lir::ExactRepresentationKindV1::Scalar(
             scoop_lir::ScalarRepresentationKindV1::Integer(kind),
         ) => Ok(Value::Integer(kind.width().bits() as u8)),
+        scoop_lir::ExactRepresentationKindV1::Scalar(
+            scoop_lir::ScalarRepresentationKindV1::Float(kind),
+        ) => Ok(Value::Float(kind)),
         scoop_lir::ExactRepresentationKindV1::QualifiedPointer(_) => Ok(Value::Pointer),
         _ => Err(error("compiler native ABI requires a scalar or pointer")),
     }

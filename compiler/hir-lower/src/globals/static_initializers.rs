@@ -40,6 +40,7 @@ impl Lowerer {
         }
         Some(match evaluated.value {
             hir::ConstPropertyValue::Integer(value) => hir::HirConstantImage::Integer(value),
+            hir::ConstPropertyValue::Float(value) => hir::HirConstantImage::Float(value),
             hir::ConstPropertyValue::Char(value) => hir::HirConstantImage::Char(value),
             hir::ConstPropertyValue::Boolean(value) => hir::HirConstantImage::Boolean(value),
             hir::ConstPropertyValue::String(value) => hir::HirConstantImage::String(value),
@@ -214,9 +215,9 @@ impl Lowerer {
                 let ty = match value {
                     hir::ConstPropertyValue::Boolean(_) => self.boolean,
                     hir::ConstPropertyValue::String(_) => self.string,
-                    hir::ConstPropertyValue::Integer(_) | hir::ConstPropertyValue::Char(_) => {
-                        lhs.ty
-                    }
+                    hir::ConstPropertyValue::Integer(_)
+                    | hir::ConstPropertyValue::Float(_)
+                    | hir::ConstPropertyValue::Char(_) => lhs.ty,
                 };
                 Some(StaticValue { value, ty })
             }

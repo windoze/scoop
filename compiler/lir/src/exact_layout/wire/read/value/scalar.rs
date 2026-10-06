@@ -30,6 +30,12 @@ pub(super) fn decode(decoder: &mut Decoder<'_>) -> Result<ScalarRepresentationKi
             length(decoder, fields, 1)?;
             Ok(ScalarRepresentationKindV1::Char)
         }
+        4 => {
+            length(decoder, fields, 2)?;
+            Ok(ScalarRepresentationKindV1::Float(
+                decoder.field(1, crate::FloatKind::decode)?,
+            ))
+        }
         value => Err(unknown(decoder, value)),
     }
 }

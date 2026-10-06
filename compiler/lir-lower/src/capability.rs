@@ -226,6 +226,7 @@ fn expression_requirement(
         | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
         | mir::ExprKind::CharLiteral(_)
+        | mir::ExprKind::FloatLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::ReleaseFieldLoad { .. }

@@ -430,6 +430,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
+            && let ast::Expr::FloatLiteral(literal) = operand
+        {
+            return self.lower_float_literal(literal, expected, op == ast::UnOp::Neg, span);
+        }
         if op == ast::UnOp::Neg
             && let ast::Expr::IntLiteral(literal) = operand
             && matches!(

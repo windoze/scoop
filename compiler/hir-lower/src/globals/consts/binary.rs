@@ -178,7 +178,9 @@ impl Lowerer {
         let ty = match value {
             hir::ConstPropertyValue::Boolean(_) => self.boolean,
             hir::ConstPropertyValue::String(_) => self.string,
-            hir::ConstPropertyValue::Integer(_) | hir::ConstPropertyValue::Char(_) => lhs.ty,
+            hir::ConstPropertyValue::Integer(_)
+            | hir::ConstPropertyValue::Float(_)
+            | hir::ConstPropertyValue::Char(_) => lhs.ty,
         };
         Some(EvaluatedConst { value, ty })
     }

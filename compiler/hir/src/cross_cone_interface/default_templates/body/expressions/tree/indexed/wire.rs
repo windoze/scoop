@@ -45,6 +45,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::IntegerLiteral(value) => encode_one(encoder, 2, *value),
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
             Self::CharLiteral(value) => encode_one(encoder, 63, value),
+            Self::FloatLiteral(value) => encode_one(encoder, 67, value),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_sequence_variant(encoder, 5, elements),
             Self::StructInit {

@@ -37,6 +37,7 @@ pub enum Value {
     Param(u32),
     Temp(TempId),
     IntegerConst(LirIntegerConstant),
+    FloatConst(LirFloatConstant),
     MachineScalar(MachineScalarValue),
     BoolConst(bool),
     NullPointer(PointerKind),

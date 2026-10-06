@@ -22,6 +22,7 @@ impl Writer<'_, '_> {
         match ty {
             CType::Integer(kind) => record!(self, 1; self.integer_kind(*kind)),
             CType::Boolean => record!(self, 2;),
+            CType::Float(kind) => record!(self, 6; self.u(u64::from(kind.bits()))),
             CType::DataPointer { pointee, storage } => {
                 record!(self, 3; self.c_pointee(pointee), self.c_data_storage(storage))
             }

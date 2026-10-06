@@ -28,6 +28,7 @@ impl Lowerer {
             | hir::ClassRepresentation::Intrinsic(
                 hir::IntrinsicTypeKind::Unit
                 | hir::IntrinsicTypeKind::Integer(_)
+                | hir::IntrinsicTypeKind::Float(_)
                 | hir::IntrinsicTypeKind::Char
                 | hir::IntrinsicTypeKind::Boolean
                 | hir::IntrinsicTypeKind::String

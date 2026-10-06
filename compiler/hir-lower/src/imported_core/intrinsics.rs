@@ -78,7 +78,8 @@ impl Lowerer {
             hir::IntrinsicTypeKind::Unit => fundamental.unit().persistent(),
             hir::IntrinsicTypeKind::Boolean => fundamental.boolean().persistent(),
             hir::IntrinsicTypeKind::String => fundamental.string().persistent(),
-            hir::IntrinsicTypeKind::Char
+            hir::IntrinsicTypeKind::Float(_)
+            | hir::IntrinsicTypeKind::Char
             | hir::IntrinsicTypeKind::Array
             | hir::IntrinsicTypeKind::MutableArray
             | hir::IntrinsicTypeKind::Ptr

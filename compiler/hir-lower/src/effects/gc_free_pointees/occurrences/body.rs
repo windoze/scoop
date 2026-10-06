@@ -228,6 +228,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
+        | ExprKind::FloatLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver

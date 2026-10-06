@@ -22,6 +22,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::MachineScalarLiteral(value) => {
                 lir::Value::MachineScalar(machine_scalar_value(*value))
             }
+            mir::ExprKind::FloatLiteral(value) => lir::Value::FloatConst(*value),
             mir::ExprKind::CharLiteral(value) => {
                 lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(*value as u32))
             }

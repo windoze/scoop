@@ -16,6 +16,8 @@ mod capability;
 mod cone;
 mod context;
 mod entity;
+mod floating;
+pub use floating::{FloatConstant, FloatKind};
 mod ids;
 mod mangling;
 mod record;

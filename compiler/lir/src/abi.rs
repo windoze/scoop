@@ -55,6 +55,8 @@ pub fn scoop_abi_value_shape(
         | LirType::I8
         | LirType::I16
         | LirType::I32
+        | LirType::F32
+        | LirType::F64
         | LirType::I64
         | LirType::MachineScalar(_)
         | LirType::Ptr(_) => ScoopAbiValueShape::Scalar,

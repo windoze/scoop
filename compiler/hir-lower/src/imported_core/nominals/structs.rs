@@ -34,7 +34,9 @@ impl Lowerer {
                 hir::NominalSourceShapeV1::Intrinsic(shape)
                     if matches!(
                         shape.family(),
-                        hir::IntrinsicTypeKind::FunPtr | hir::IntrinsicTypeKind::Char
+                        hir::IntrinsicTypeKind::FunPtr
+                            | hir::IntrinsicTypeKind::Float(_)
+                            | hir::IntrinsicTypeKind::Char
                     ) =>
                 {
                     (

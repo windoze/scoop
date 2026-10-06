@@ -151,6 +151,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::MachineScalarLiteral(_)
             | mir::ExprKind::CharLiteral(_)
+            | mir::ExprKind::FloatLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
             | mir::ExprKind::ReleaseFieldLoad { .. }

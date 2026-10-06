@@ -69,6 +69,12 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                         CanonicalConstValueKindV1::Integer(kind),
                     )
                     .unwrap(),
+                IntrinsicTypeKind::Float(kind) => authority
+                    .validate_const_value_type(
+                        concrete(provider.owner),
+                        CanonicalConstValueKindV1::Float(kind),
+                    )
+                    .unwrap(),
                 IntrinsicTypeKind::Char => authority
                     .validate_const_value_type(
                         concrete(provider.owner),

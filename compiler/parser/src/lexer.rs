@@ -8,6 +8,7 @@
 
 use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
 
+mod floating;
 mod integers;
 mod interpolation;
 mod literals;
@@ -148,6 +149,7 @@ impl<'a> Lexer<'a> {
             // `..` is the rest marker in pattern positions (spec 4.6);
             // the range operator shares the token but only appears in
             // expression positions (a dedicated diagnostic in M5).
+            '.' if self.starts_float() => return self.lex_float(),
             '.' => {
                 self.pos += 1;
                 if self.eat('.') {

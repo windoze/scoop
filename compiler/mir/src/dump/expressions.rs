@@ -41,6 +41,7 @@ pub(super) fn dump_expr(
         ExprKind::MachineScalarLiteral(value) => {
             out.push_str(&format!("{pad}MachineScalarLiteral {value:?}\n"));
         }
+        ExprKind::FloatLiteral(value) => out.push_str(&format!("{pad}FloatLiteral {value}\n")),
         ExprKind::CharLiteral(value) => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
         ExprKind::CharCode(operand) => {
             out.push_str(&format!("{pad}CharCode\n"));

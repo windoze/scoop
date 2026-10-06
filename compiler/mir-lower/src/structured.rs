@@ -350,6 +350,7 @@ pub(crate) enum ExprKind {
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
     CharLiteral(char),
+    FloatLiteral(scoop_identity::FloatConstant),
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     BoolLiteral(bool),

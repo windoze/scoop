@@ -650,6 +650,7 @@ pub enum ExprKind {
     MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),
     CharLiteral(char),
+    FloatLiteral(scoop_identity::FloatConstant),
     CharCode(Box<Expr>),
     CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,

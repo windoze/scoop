@@ -48,6 +48,7 @@ impl Lowerer {
                 owner: *owner,
             },
             hir::ExprKind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral(*value),
+            hir::ExprKind::FloatLiteral(value) => hir::ExprKind::FloatLiteral(*value),
             hir::ExprKind::CharLiteral(value) => hir::ExprKind::CharLiteral(*value),
             hir::ExprKind::CharCode(value) => {
                 hir::ExprKind::CharCode(Box::new(self.instantiate_default_expr(value, context)))

@@ -64,7 +64,10 @@ pub(crate) fn ref_scan(
         mir::Type::Struct(id)
             if matches!(
                 module.structs[*id].representation,
-                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                mir::StructRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::Float(_)
+                        | mir::IntrinsicTypeRepresentation::Char
+                )
             ) =>
         {
             lir::RefScan::None

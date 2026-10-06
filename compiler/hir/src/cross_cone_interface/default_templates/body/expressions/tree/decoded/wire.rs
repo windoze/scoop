@@ -63,6 +63,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             Self::IntegerLiteral(value) => encode_one(encoder, 2, value),
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
             Self::CharLiteral(value) => encode_one(encoder, 63, value),
+            Self::FloatLiteral(value) => encode_one(encoder, 67, value),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_one(encoder, 5, &WireSequence(elements)),
             Self::StructInit {
@@ -363,6 +364,9 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             }
             19 => decode_boxed_expression(decoder, fields).map(Self::PtrFromNonZeroULong),
             20 => decode_boxed_expression(decoder, fields).map(Self::PtrToULong),
+            67 => {
+                decode_one(decoder, fields, crate::HirFloatConstant::decode).map(Self::FloatLiteral)
+            }
             63 => {
                 decode_one(decoder, fields, crate::CanonicalCharV1::decode).map(Self::CharLiteral)
             }

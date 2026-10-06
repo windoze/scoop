@@ -92,6 +92,7 @@ impl Concretizer<'_> {
                 },
             },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
+            export::ExprKind::FloatLiteral(value) => concrete::ExprKind::FloatLiteral(*value),
             export::ExprKind::CharLiteral(value) => concrete::ExprKind::CharLiteral(*value),
             export::ExprKind::CharCode(value) => {
                 concrete::ExprKind::CharCode(Box::new(self.lower_expr(value, substitution, locals)))

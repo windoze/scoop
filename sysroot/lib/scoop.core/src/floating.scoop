@@ -1,0 +1,18 @@
+@Intrinsic("core_float")
+public struct Float : ToString {
+    public override fun toString(): String = coreFloatToString(this)
+}
+
+@Intrinsic("core_double")
+public struct Double : ToString {
+    public override fun toString(): String = coreDoubleToString(this)
+}
+
+public typealias Float32 = Float
+public typealias Float64 = Double
+
+@Extern(name = "scoop_rt_float_to_string", abi = "scoop")
+internal fun coreFloatToString(value: Float): String
+
+@Extern(name = "scoop_rt_double_to_string", abi = "scoop")
+internal fun coreDoubleToString(value: Double): String

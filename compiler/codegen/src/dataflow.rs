@@ -16,7 +16,8 @@ impl LiveValue {
             Value::Local(id) => Some(Self::Local(id)),
             Value::Temp(id) => Some(Self::Temp(id)),
             Value::CArgumentStorage(storage) => Some(Self::Local(storage.local())),
-            Value::IntegerConst(_)
+            Value::FloatConst(_)
+            | Value::IntegerConst(_)
             | Value::MachineScalar(_)
             | Value::BoolConst(_)
             | Value::NullPointer(_)

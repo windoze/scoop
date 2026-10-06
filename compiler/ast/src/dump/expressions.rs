@@ -9,6 +9,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_expr(value, indent + 1, out);
             dump_block(body, indent + 1, out);
         }
+        Expr::FloatLiteral(value) => out.push_str(&format!("{pad}FloatLiteral {value}\n")),
         Expr::CharLiteral { value, .. } => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));

@@ -30,6 +30,10 @@ impl Parser {
                 })
             }
             TokenKind::FStringStart => self.parse_interpolated_string(),
+            TokenKind::Float(literal) => {
+                self.pos += 1;
+                Ok(Expr::FloatLiteral(literal))
+            }
             TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok(Expr::IntLiteral(lexeme.with_span(token.span)))

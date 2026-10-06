@@ -8,7 +8,9 @@ pub(crate) fn lir_size_align(
 ) -> StorageResult<(u64, u64)> {
     let (size, alignment) = match ty {
         lir::LirType::Void => (0, 1),
-        lir::LirType::I1
+        lir::LirType::F32
+        | lir::LirType::F64
+        | lir::LirType::I1
         | lir::LirType::I8
         | lir::LirType::I16
         | lir::LirType::I32
@@ -18,6 +20,8 @@ pub(crate) fn lir_size_align(
                 lir::LirType::I8 => lir::BackendScalarKind::I8,
                 lir::LirType::I16 => lir::BackendScalarKind::I16,
                 lir::LirType::I32 => lir::BackendScalarKind::I32,
+                lir::LirType::F32 => lir::BackendScalarKind::F32,
+                lir::LirType::F64 => lir::BackendScalarKind::F64,
                 _ => lir::BackendScalarKind::I64,
             };
             let layout = context.scalar_layout(kind);

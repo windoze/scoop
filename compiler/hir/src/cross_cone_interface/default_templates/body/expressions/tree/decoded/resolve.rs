@@ -76,6 +76,7 @@ impl DecodedDefaultExpressionKindV1 {
             },
             Self::IntegerLiteral(value) => DefaultExpressionKindV1::IntegerLiteral(value),
             Self::BooleanLiteral(value) => DefaultExpressionKindV1::BooleanLiteral(value),
+            Self::FloatLiteral(value) => DefaultExpressionKindV1::FloatLiteral(value),
             Self::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral(value),
             Self::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
             Self::TupleLiteral(elements) => DefaultExpressionKindV1::TupleLiteral(

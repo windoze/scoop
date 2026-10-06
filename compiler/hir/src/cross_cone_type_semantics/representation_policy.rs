@@ -148,6 +148,11 @@ impl WireEncode for NominalIntrinsicRepresentationV1 {
             IntrinsicTypeKind::Unit => wire::tag(encoder, 1, 9),
             IntrinsicTypeKind::Boolean => wire::tag(encoder, 1, 2),
             IntrinsicTypeKind::Char => wire::tag(encoder, 1, 8),
+            IntrinsicTypeKind::Float(kind) => {
+                wire::tag(encoder, 2, 10)?;
+                encoder.field(1)?;
+                kind.encode(encoder)
+            }
             IntrinsicTypeKind::String => wire::tag(encoder, 1, 3),
             IntrinsicTypeKind::Array => wire::tag(encoder, 1, 4),
             IntrinsicTypeKind::MutableArray => wire::tag(encoder, 1, 5),
@@ -167,6 +172,10 @@ impl WireDecode for NominalIntrinsicRepresentationV1 {
                 let signedness = decoder.field(1, decode_signedness)?;
                 let width = decoder.field(2, decode_width)?;
                 IntrinsicTypeKind::Integer(IntegerKind::new(signedness, width))
+            }
+            10 => {
+                wire::expect_fields(decoder, fields, 2)?;
+                IntrinsicTypeKind::Float(decoder.field(1, crate::FloatKind::decode)?)
             }
             2..=9 => {
                 wire::expect_fields(decoder, fields, 1)?;

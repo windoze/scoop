@@ -10,6 +10,8 @@
 //! carries a closed library/executable branch in both the export and local-
 //! concrete id domains; an executable entry is never optional.
 
+pub use scoop_identity::{FloatConstant as HirFloatConstant, FloatKind};
+
 use la_arena::{Arena, Idx};
 use scoop_ast::Diagnostic;
 pub use scoop_ast::Span;

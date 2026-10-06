@@ -747,6 +747,8 @@ fn abi_layout(
         LirType::I8 => scalar(scoop_lir::BackendScalarKind::I8),
         LirType::I16 => scalar(scoop_lir::BackendScalarKind::I16),
         LirType::I32 => scalar(scoop_lir::BackendScalarKind::I32),
+        LirType::F32 => scalar(scoop_lir::BackendScalarKind::F32),
+        LirType::F64 => scalar(scoop_lir::BackendScalarKind::F64),
         LirType::I64 | LirType::MachineScalar(_) => scalar(scoop_lir::BackendScalarKind::I64),
         LirType::Ptr(kind) => {
             let layout = scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(*kind);
@@ -813,6 +815,8 @@ fn abi_scan(
         | LirType::I16
         | LirType::I32
         | LirType::I64
+        | LirType::F32
+        | LirType::F64
         | LirType::MachineScalar(_)
         | LirType::Ptr(_)
         | LirType::ExceptionRecord => RefScan::None,

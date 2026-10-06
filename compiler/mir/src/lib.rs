@@ -10,6 +10,8 @@
 //! function body is a CFG and calls are explicit effect statements; [`Expr`]
 //! cannot contain a call.
 
+pub use scoop_identity::{FloatConstant as MirFloatConstant, FloatKind};
+
 use la_arena::{Arena, Idx};
 
 pub use scoop_identity::{

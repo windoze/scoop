@@ -21,6 +21,8 @@ pub(crate) fn basic_ty<'ctx>(
         LirType::I16 => context.i16_type().into(),
         LirType::I32 => context.i32_type().into(),
         LirType::I64 => context.i64_type().into(),
+        LirType::F32 => context.f32_type().into(),
+        LirType::F64 => context.f64_type().into(),
         // Machine scalar domains remain distinct in LIR and converge only at
         // this final physical lowering boundary.
         LirType::MachineScalar(_) => context.i64_type().into(),
@@ -90,6 +92,7 @@ pub(crate) fn llvm_constant<'ctx>(
                 .const_int(value.raw_bits(), false)
                 .into()
         }
+        LirConstantImage::Float(value) => float_constant(context, *value).into(),
         LirConstantImage::Bool(value) => {
             if expected_lir_ty != &LirType::I1 {
                 return Err(CodegenError(format!(

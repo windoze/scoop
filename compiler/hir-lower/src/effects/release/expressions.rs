@@ -19,6 +19,7 @@ impl Lowerer {
             }
             E::IntegerLiteral(_)
             | E::CharLiteral(_)
+            | E::FloatLiteral(_)
             | E::BoolLiteral(_)
             | E::UnitLiteral
             | E::Local(_)

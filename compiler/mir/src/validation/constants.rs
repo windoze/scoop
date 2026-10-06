@@ -74,6 +74,17 @@ fn validate_constant_image(
                 }));
             }
         }
+        MirConstantImage::Float(value) => {
+            if !matches!(expected, Type::Struct(id)
+                if (id.into_raw().into_u32() as usize) < module.structs.len()
+                    && matches!(module.structs[*id].representation,
+                        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Float(kind)) if kind == value.kind()))
+            {
+                return Err(failure(MirConstantImageError::TypeMismatch {
+                    image: "floating image",
+                }));
+            }
+        }
         MirConstantImage::Char(_) => {
             if !matches!(expected, Type::Struct(id)
                 if (id.into_raw().into_u32() as usize) < module.structs.len()

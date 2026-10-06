@@ -358,6 +358,7 @@ impl LocalFunctionCallPatcher<'_> {
             | hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::CharLiteral(_)
+            | hir::ExprKind::FloatLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::Local(_)

@@ -310,6 +310,9 @@ pub(crate) fn lower_intrinsic_type_representation(
         mir::IntrinsicTypeRepresentation::Integer(kind) => {
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
+        mir::IntrinsicTypeRepresentation::Float(kind) => {
+            lir::IntrinsicTypeRepresentation::Float(*kind)
+        }
         mir::IntrinsicTypeRepresentation::Char => lir::IntrinsicTypeRepresentation::Char,
         mir::IntrinsicTypeRepresentation::Unit => lir::IntrinsicTypeRepresentation::Unit,
         mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
@@ -360,16 +363,15 @@ pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
         mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
         mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
-        mir::Type::Struct(id) => {
-            if matches!(
-                module.structs[*id].representation,
-                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
-            ) {
+        mir::Type::Struct(id) => match module.structs[*id].representation {
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char) => {
                 lir::LirType::I32
-            } else {
-                lir::LirType::Struct(struct_def_id(*id))
             }
-        }
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(kind)) => {
+                lir::LirType::floating(kind)
+            }
+            _ => lir::LirType::Struct(struct_def_id(*id)),
+        },
         mir::Type::Tuple(elements) => {
             lir::LirType::Aggregate(elements.iter().map(|ty| lir_type(module, ty)).collect())
         }

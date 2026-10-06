@@ -257,6 +257,7 @@ impl Lowerer {
                 owner: hir::StringConstantOwner::CurrentDefinition,
             },
             Kind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral((*value).into()),
+            Kind::FloatLiteral(value) => hir::ExprKind::FloatLiteral(*value),
             Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,

@@ -169,6 +169,34 @@ fn relocated_data_const_is_read_only_but_other_data_sections_stay_closed() {
     );
 }
 
+#[test]
+fn floating_literal_pools_require_their_actual_macho_flags() {
+    for (section, flags) in [
+        (b"__literal4".as_slice(), macho::S_4BYTE_LITERALS),
+        (b"__literal8".as_slice(), macho::S_8BYTE_LITERALS),
+        (b"__literal16".as_slice(), macho::S_16BYTE_LITERALS),
+    ] {
+        let bytes = object_with_section(b"__TEXT", section, flags);
+        let inventory = validate_builtin_object_section_inventory_v1(
+            validate_darwin_arm64_object_envelope_v1(&bytes).unwrap(),
+            BuiltinLinkObjectSectionProfileV1::ScoopLir,
+        )
+        .unwrap();
+        assert_eq!(
+            inventory.roles(),
+            &[BuiltinObjectSectionRoleV1::ReadOnlyData]
+        );
+        let wrong_flags = object_with_section(b"__TEXT", section, macho::S_REGULAR);
+        assert!(matches!(
+            validate_builtin_object_section_inventory_v1(
+                validate_darwin_arm64_object_envelope_v1(&wrong_flags).unwrap(),
+                BuiltinLinkObjectSectionProfileV1::ScoopLir,
+            ),
+            Err(BuiltinObjectSectionValidationError::SectionFlagsMismatch { .. })
+        ));
+    }
+}
+
 fn text_object() -> Vec<u8> {
     object_with_section(
         b"__TEXT",

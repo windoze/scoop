@@ -130,6 +130,9 @@ impl AbiMetadataValidator<'_> {
                     scoop_lir::IntrinsicTypeRepresentation::Integer(kind) => {
                         scalar(profile.integer_layout(kind))
                     }
+                    scoop_lir::IntrinsicTypeRepresentation::Float(kind) => {
+                        scalar(profile.float_layout(kind))
+                    }
                     scoop_lir::IntrinsicTypeRepresentation::Char => {
                         scalar(profile.scalar_layout(scoop_lir::BackendScalarKind::I32))
                     }

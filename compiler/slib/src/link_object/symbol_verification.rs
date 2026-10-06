@@ -18,6 +18,7 @@ use super::{
 use crate::SlibMemberId;
 
 mod padding;
+use super::literal_pools::{LiteralPools, ObjectLiteral};
 use padding::validate_and_assign_zero_padding;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -135,9 +136,13 @@ pub struct VerifiedMemberStrongObjectDefinitionIndexV1 {
     sections: ValidatedBuiltinObjectSectionInventoryV1,
     symbols: Vec<VerifiedStrongDefinitionSymbolV1>,
     definitions: Vec<VerifiedStrongObjectDefinitionV1>,
+    literal_pools: LiteralPools,
 }
 
 impl VerifiedMemberStrongObjectDefinitionIndexV1 {
+    pub(super) fn literal_at(&self, section: NonZeroU32, address: u64) -> Option<ObjectLiteral> {
+        self.literal_pools.at(section, address)
+    }
     pub const fn producer(&self) -> ConeIdentity {
         self.producer
     }
@@ -270,6 +275,7 @@ pub fn verify_member_strong_object_definitions_v1(
         .map(finalize_definition)
         .collect::<Result<Vec<_>, _>>()?;
     validate_disjoint_atom_ranges(&definitions)?;
+    let literal_pools = LiteralPools::read(bytes, &sections)?;
     validate_and_assign_zero_padding(bytes, &sections, &mut definitions)?;
 
     Ok(VerifiedMemberStrongObjectDefinitionIndexV1 {
@@ -278,6 +284,7 @@ pub fn verify_member_strong_object_definitions_v1(
         sections,
         symbols,
         definitions,
+        literal_pools,
     })
 }
 

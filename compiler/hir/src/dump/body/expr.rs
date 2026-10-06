@@ -30,6 +30,9 @@ pub(super) fn dump_expr(
         ExprKind::IntegerLiteral(value) => {
             out.push_str(&format!("{pad}IntegerLiteral {value} : {ty}\n"));
         }
+        ExprKind::FloatLiteral(value) => {
+            out.push_str(&format!("{pad}FloatLiteral {value} : {ty}\n"))
+        }
         ExprKind::CharLiteral(value) => {
             out.push_str(&format!("{pad}CharLiteral {value:?} : {ty}\n"))
         }

@@ -72,6 +72,7 @@ impl BodyProjection<'_, '_> {
             ExprKind::IntegerLiteral(value) => {
                 DefaultExpressionKindV1::IntegerLiteral((*value).into())
             }
+            ExprKind::FloatLiteral(value) => DefaultExpressionKindV1::FloatLiteral(*value),
             ExprKind::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral((*value).into()),
             ExprKind::CharCode(value) => {
                 DefaultExpressionKindV1::CharCode(Box::new(self.expression(value)?))

@@ -31,6 +31,23 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         for (slot, target) in relocation_targets(relocation.shape()) {
             let target = match target {
                 VerifiedRelocationTargetV1::LocalDefinition {
+                    owner_atom: None,
+                    section_ordinal,
+                    value,
+                    ..
+                } if member
+                    .definitions()
+                    .literal_at(*section_ordinal, *value)
+                    .is_some() =>
+                {
+                    CanonicalRelocationTargetKindV1::Literal(
+                        member
+                            .definitions()
+                            .literal_at(*section_ordinal, *value)
+                            .expect("the local target belongs to a literal pool"),
+                    )
+                }
+                VerifiedRelocationTargetV1::LocalDefinition {
                     owner_atom: Some(target_atom),
                     section_ordinal,
                     value,

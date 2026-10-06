@@ -24,6 +24,7 @@ pub enum Expr {
         span: Span,
     },
     IntLiteral(IntegerLiteralSyntax),
+    FloatLiteral(crate::FloatLiteralSyntax),
     BoolLiteral {
         value: bool,
         span: Span,
@@ -232,6 +233,7 @@ impl Expr {
     pub fn span(&self) -> Span {
         match self {
             Expr::IntLiteral(literal) => literal.span,
+            Expr::FloatLiteral(literal) => literal.span,
             Expr::CharLiteral { span, .. }
             | Expr::ContextScope { span, .. }
             | Expr::StringLiteral { span, .. }

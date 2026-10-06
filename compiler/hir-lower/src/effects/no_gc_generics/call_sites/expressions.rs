@@ -57,6 +57,7 @@ impl Lowerer {
             | ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
             | ExprKind::CharLiteral(_)
+            | ExprKind::FloatLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)

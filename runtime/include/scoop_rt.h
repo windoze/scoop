@@ -87,6 +87,8 @@ const ScoopString *scoop_rt_long_to_string(int64_t v);
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
 const ScoopString *scoop_rt_char_to_string(uint32_t value);
+const ScoopString *scoop_rt_float_to_string(float value);
+const ScoopString *scoop_rt_double_to_string(double value);
 int64_t scoop_rt_string_byte_length(const ScoopString *value);
 int64_t scoop_rt_string_length(const ScoopString *value);
 uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);

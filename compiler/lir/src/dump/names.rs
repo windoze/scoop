@@ -11,6 +11,7 @@ pub(super) fn value_name(value: Value) -> String {
         Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntegerConst(value) => value.dump(),
+        Value::FloatConst(value) => value.to_string(),
         Value::MachineScalar(value) => {
             format!("machine<{}>({value:?})", value.kind().name())
         }

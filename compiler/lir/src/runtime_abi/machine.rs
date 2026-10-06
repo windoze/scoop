@@ -7,6 +7,7 @@ pub enum CompilerNativeValueV1 {
     Void,
     Pointer,
     Integer(u8),
+    Float(crate::FloatKind),
     Boolean,
 }
 
