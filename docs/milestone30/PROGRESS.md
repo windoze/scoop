@@ -54,3 +54,11 @@ Darwin/AArch64：格式化、workspace clippy 和 release CLI 构建通过。新
 运行期与 const 的 B 批完成，下一批处理候选字面量定型、annotation 和递归 pattern 组合。
 
 B 批 Linux/glibc x86_64 的 release 构建与四个正例通过：普通／移动 GC、16 个进程、16 份 golden。同步前三个 HIR 快照的 imported identity 临时编号，并为两个 C ABI 用例按 target 保存 LIR 桥接符号快照；Darwin 同组四个用例再次通过。未增加无关全量测试。
+
+## C1：候选隔离、默认精度与 receiver 推导
+
+无后缀浮点 literal 在参数、泛型 fixed point、array 和控制流分支中保留 contextual 状态；普通 MSC 后的 literal 默认优先级扩展至 Double。局部与依赖 callable、nominal constructor 共用同一个数值候选记录。receiver 仅探测两种真实 core 表示，以最终 typed intrinsic 判断资格；算术结果可传递 expected Float，显式转换不以结果类型反推源精度。const 采用相同的候选选择和直接舍入。新增推导模块分别为 79 / 117 行。
+
+实际组合用例发现并修复普通泛型 struct 构造器形状查询的提前返回，使嵌套 `Cell(字面量)` 可以从另一实参获得 Float 约束。
+
+Darwin 验证：格式化、workspace clippy、release CLI 构建通过。新增 inference 正例及两个负例通过，共 5 进程和 4 份 golden；覆盖声明顺序、失败的溢出候选、默认 Double、直接舍入反例、receiver 关系运算、const、泛型及嵌套构造器、array、tuple、分支、vararg、默认参数、return 和 lambda。普通与移动 GC 输出一致；用户 extension 不获得反向定型资格，固定 f 后缀不适配 Double。五个既有整数联合推导单元测试通过；浮点 operations/const 与整数 const CLI 回归另有 3 fixture、10 进程、12 golden 通过。

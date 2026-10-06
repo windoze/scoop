@@ -7,6 +7,7 @@ use crate::Lowerer;
 mod binary;
 mod expression;
 mod floating_calls;
+mod floating_inference;
 mod floating_values;
 pub(super) use floating_calls::{ResolvedConstFloatIntrinsic, evaluate_float_call};
 pub(super) use floating_values::{

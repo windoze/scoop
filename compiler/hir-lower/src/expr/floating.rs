@@ -2,7 +2,9 @@
 
 use super::*;
 
+mod inference;
 mod operations;
+pub(crate) use inference::{float_literal_candidate_kinds, float_literal_default_kind};
 use rustc_apfloat::{
     Float, Round,
     ieee::{Double, Single},

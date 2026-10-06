@@ -260,7 +260,7 @@ impl Lowerer {
             );
             return None;
         }
-        if let Some(layer) = self.probe_integer_literal_receiver(
+        if let Some(layer) = self.probe_numeric_literal_receiver(
             receiver,
             expected,
             |state, receiver, layer_sink| {

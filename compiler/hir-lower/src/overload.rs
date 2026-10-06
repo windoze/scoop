@@ -368,10 +368,7 @@ impl Lowerer {
                                 .expect("every tied candidate has an applicability transaction");
                             let value = &transaction.args
                                 [usize::from(inference_receiver.is_some()) + index];
-                            match transaction.state.types[value.ty] {
-                                hir::Type::Integer(kind) => Some(kind),
-                                _ => None,
-                            }
+                            transaction.state.numeric_literal_kind(value.ty)
                         },
                     );
                 }

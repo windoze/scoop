@@ -61,7 +61,20 @@ impl Lowerer {
                 ),
             _ => None,
         };
-        let receiver_expected = receiver_kind.map(|kind| self.integer_type(kind));
+        let float_kind = self.select_const_float_method_kind(
+            receiver,
+            &name.text,
+            args,
+            expected,
+            file,
+            declarations,
+            ordinary,
+            states,
+            stack,
+        );
+        let receiver_expected = receiver_kind
+            .map(|kind| self.integer_type(kind))
+            .or_else(|| float_kind.and_then(|kind| self.core_float_type(kind).ok()));
         let receiver = self.evaluate_const_expression(
             receiver,
             receiver_expected,

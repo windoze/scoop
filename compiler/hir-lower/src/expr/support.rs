@@ -177,7 +177,7 @@ pub(crate) fn common_integer_literal_kind(expressions: &[&ast::Expr]) -> Option<
 }
 
 impl Lowerer {
-    /// Stable strength of the integer defaults nested in a contextual seed.
+    /// Stable strength of the numeric defaults nested in a contextual seed.
     /// Callers use this only after `expr_can_provide_default_seed` has proved
     /// the whole expression can synthesize a complete type. Choosing the
     /// strongest seed removes source-order dependence without committing any
@@ -189,6 +189,9 @@ impl Lowerer {
         fn nested_rank(expr: &ast::Expr) -> Option<(u32, hir::IntegerSignedness)> {
             if let Some(kind) = integer_literal_default_kind(expr) {
                 return Some((kind.width().bits(), kind.signedness()));
+            }
+            if let Some(kind) = float_literal_default_kind(expr) {
+                return Some((kind.bits(), hir::IntegerSignedness::Signed));
             }
             let children: Vec<&ast::Expr> = match expr {
                 ast::Expr::TupleLiteral { elements, .. }
@@ -208,17 +211,20 @@ impl Lowerer {
             .flatten()
     }
 
-    /// Probe the closed integer receiver family transactionally. A probe is
-    /// eligible only when its final typed HIR proves an integer
+    /// Probe the closed numeric receiver families transactionally. A probe is
+    /// eligible only when its final typed HIR proves a numeric
     /// representation intrinsic or one of the four ordinary core range
     /// members. User and extension methods with the same spelling therefore
     /// cannot obtain reverse literal inference.
-    pub(in crate::expr) fn probe_integer_literal_receiver(
+    pub(in crate::expr) fn probe_numeric_literal_receiver(
         &self,
         receiver: &ast::Expr,
         expected: Option<TypeId>,
         mut lower: impl FnMut(&mut Lowerer, hir::Expr, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
     ) -> Option<SuccessfulExprLayer> {
+        if float_literal_candidate_kinds(receiver).is_some() {
+            return self.probe_float_literal_receiver(receiver, expected, lower);
+        }
         let kinds = integer_literal_candidate_kinds(receiver)?;
         let default = integer_literal_default_kind(receiver);
         let expected_kind = expected.and_then(|ty| match self.types[ty] {

@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `value` must be of type Double, found Float",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 99,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 117,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  }
+]

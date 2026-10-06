@@ -67,7 +67,7 @@ pub(crate) struct ImportedDependencyCallProbe {
     default_plan: ImportedDefaultPlan,
     parameter_types: Vec<hir::TypeId>,
     result_type: hir::TypeId,
-    integer_arguments: Vec<Option<hir::IntegerKind>>,
+    numeric_arguments: Vec<Option<crate::call_resolution::specificity::NumericLiteralKind>>,
     declaration_file: usize,
     declaration_span: ast::Span,
     call_span: ast::Span,
@@ -135,8 +135,11 @@ impl ImportedDependencyCallProbe {
         self.argument_map.has_vararg()
     }
 
-    pub(crate) fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
-        self.integer_arguments[index]
+    pub(crate) fn source_argument_numeric(
+        &self,
+        index: usize,
+    ) -> Option<crate::call_resolution::specificity::NumericLiteralKind> {
+        self.numeric_arguments[index]
     }
 
     pub(crate) fn signature(&self, name: &str) -> String {

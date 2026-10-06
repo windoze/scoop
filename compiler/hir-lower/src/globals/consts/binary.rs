@@ -92,8 +92,13 @@ impl Lowerer {
                 ) == Some(kind)
             })
         };
+        let float_kind = self.select_const_float_binary_kind(operator, lhs, expected, |kind| {
+            self.probe_const_float_kind(rhs, kind, file, declarations, ordinary, states, stack)
+                == Some(kind)
+        });
         let operand_expected = operand_kind
             .map(|kind| self.integer_type(kind))
+            .or_else(|| float_kind.and_then(|kind| self.core_float_type(kind).ok()))
             .or_else(|| expected.filter(|ty| self.float_kind(*ty).is_some()));
         let lhs = self.evaluate_const_expression(
             lhs,
