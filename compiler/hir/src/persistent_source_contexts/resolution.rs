@@ -175,7 +175,7 @@ fn function_context_key(
                 unit: inputs.initialization_unit_identities[*unit].id(),
             })
         }
-        HirFunctionIdentity::DerivedEquality(_) => {
+        HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
             Err(HirSourceContextIdentityError::InvalidFunctionSubject {
                 context: raw_index(context),
             })

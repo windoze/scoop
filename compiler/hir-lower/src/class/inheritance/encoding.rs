@@ -10,6 +10,7 @@ mod containers;
 mod declarations;
 mod fields;
 mod syntax;
+mod tuples;
 mod variants;
 
 impl Lowerer {

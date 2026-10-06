@@ -97,7 +97,8 @@ impl Projection<'_> {
             }
             HirFunctionIdentity::LexicalGenerated(_)
             | HirFunctionIdentity::Initialization { .. }
-            | HirFunctionIdentity::DerivedEquality(_) => Err(invalid(
+            | HirFunctionIdentity::DerivedEquality(_)
+            | HirFunctionIdentity::TupleEncoding(_) => Err(invalid(
                 "generated callable cannot stand in for a source dispatch declaration",
             )),
         }

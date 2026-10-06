@@ -33,7 +33,15 @@ impl Lowerer {
 
         self.current_owner = owner;
         self.current_this = None;
-        self.set_source_context(hir::SourceContextSubject::Function(id));
+        if self
+            .tuple_encoding_templates
+            .values()
+            .any(|template| template.function == id)
+        {
+            self.current_source_context = None;
+        } else {
+            self.set_source_context(hir::SourceContextSubject::Function(id));
+        }
 
         // Parameters are immutable locals in the function's outermost
         // scope; the body block nests inside it, so body locals may

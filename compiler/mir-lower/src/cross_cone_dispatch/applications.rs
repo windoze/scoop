@@ -11,14 +11,29 @@ pub(super) fn append(
 ) -> Result<(), Error> {
     let slots = virtual_slots(local, context)?;
     for record in types.records() {
-        if !matches!(record.origin(), mir::MirTypeOriginV1::NominalApplication(_)) {
-            continue;
-        }
         let owner = record.exact();
+        let physical_owner = match record.origin() {
+            mir::MirTypeOriginV1::NominalApplication(_) => owner,
+            mir::MirTypeOriginV1::GeneratedNominal {
+                role: scoop_identity::GeneratedNominalKey::BoxedValue { payload },
+                ..
+            } if matches!(
+                context
+                    .authority
+                    .identities
+                    .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)?
+                    .as_ref(),
+                scoop_identity::ExactTypeKey::Tuple(_)
+            ) && !record.base_and_interfaces().interfaces.is_empty() =>
+            {
+                *payload
+            }
+            _ => continue,
+        };
         let physical = context
             .physical
-            .get(&owner)
-            .ok_or(Error::MissingPhysicalType(owner))?;
+            .get(&physical_owner)
+            .ok_or(Error::MissingPhysicalType(physical_owner))?;
         let mut vtable = mir::MirDispatchSlotsV1::NoClassVtable;
         let mut itables = Vec::new();
         if let mir::Type::Interface(_) = physical {

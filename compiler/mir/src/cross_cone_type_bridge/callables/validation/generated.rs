@@ -103,7 +103,10 @@ impl MirCallableBridgeAuthority<'_> {
                 },
                 MirCallableLoweringRoleV1::BoxingAdjust { target },
             ) => {
-                if self.type_export(*payload)?.facts().kind() == MirValueKindV1::Reference
+                let payload_key = self.identities.canonical_key::<_, ExactTypeKey>(*payload)?;
+                let value = matches!(payload_key.as_ref(), ExactTypeKey::Tuple(_))
+                    || self.type_export(*payload)?.facts().kind() != MirValueKindV1::Reference;
+                if !value
                     || !matches!(
                         self.type_export(*interface)?.representation(),
                         MirTypeRepresentationV1::Interface
@@ -127,6 +130,22 @@ impl MirCallableBridgeAuthority<'_> {
                 // A default body receives the interface view of the same box.
                 // The dispatch schema proves the payload-to-interface path.
                 self.adjust(binding, *slot, receiver, target)
+            }
+            (
+                GeneratedCallableKey::TupleEncoding { exact_owner },
+                MirCallableLoweringRoleV1::Ordinary,
+            ) => {
+                if semantic.receiver() != OptionalExactOwner::Present(*exact_owner)
+                    || !matches!(
+                        self.identities
+                            .canonical_key::<_, ExactTypeKey>(*exact_owner)?
+                            .as_ref(),
+                        ExactTypeKey::Tuple(_)
+                    )
+                {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                }
+                self.same_signatures(binding)
             }
             (
                 GeneratedCallableKey::DerivedEquality { exact_owner },
@@ -153,6 +172,7 @@ impl MirCallableBridgeAuthority<'_> {
                 | GeneratedCallableKey::Initialization { .. }
                 | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. }
                 | GeneratedCallableKey::DerivedEquality { .. }
+                | GeneratedCallableKey::TupleEncoding { .. }
                 | GeneratedCallableKey::DispatchAdjust { .. }
                 | GeneratedCallableKey::BoxingAdjust { .. },
                 _,
@@ -227,6 +247,10 @@ impl MirCallableBridgeAuthority<'_> {
                         CallableTemplateOrigin::Function(_)
                             | CallableTemplateOrigin::GenericFunction(_)
                             | CallableTemplateOrigin::Accessor(_)
+                    ),
+                    OdrMemberDiscriminator::GeneratedCallable(callable) => matches!(
+                        self.identities.canonical_key::<_, GeneratedCallableKey>(*callable)?.as_ref(),
+                        GeneratedCallableKey::TupleEncoding { exact_owner } if *exact_owner == implementor
                     ),
                     _ => false,
                 }

@@ -1,0 +1,2 @@
+fun <T> encode(value: (Int, T), encoder: Encoder) { value.encode(encoder) }
+fun main() {}

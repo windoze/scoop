@@ -1,0 +1,28 @@
+import scoop.json.Json
+
+fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some("tuple case $code")) }
+}
+public struct Record(@SerialName("point") val value: (Int, String)) : Encodable {
+    public companion object : Decodable<Record>
+}
+private object PairDecoder : Decodable<(Int, String)>
+private object NestedDecoder : Decodable<((Int, String), Unit)>
+
+fun main() {
+    check(Json.encode((5,)) == "[5]", 0)
+    check(Json.encode((7, "tuple")) == "[7,\"tuple\"]", 1)
+    check(Json.encode((Unit, Unit)) == "[null,null]", 2)
+    check(Json.encode(((1, "nested"), (true, '中'))) == "[[1,\"nested\"],[true,\"中\"]]", 3)
+    check(Json.encode((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) == "[1,2,3,4,5,6,7,8,9,10,11,12]", 4)
+    val pair = Json.decode("[9,\"decode\"]", PairDecoder)
+    check(pair._1 == 9 && pair._2 == "decode", 5)
+    check(Json.encode(Json.decode("[[8,\"nested\"],null]", NestedDecoder)) == "[[8,\"nested\"],null]", 6)
+    check(Json.encode(Json.decode("{\"point\":[3,\"field\"]}", Record.Companion)) == "{\"point\":[3,\"field\"]}", 7)
+    val data = Array<(Int, String)>(2L) { index -> (index.toInt32(), "array") }
+    check(Json.encode(data) == "[[0,\"array\"],[1,\"array\"]]", 8)
+    check(Json.encode((Some((4, Unit)), data)) == "[{\"Some\":[[4,null]]},[[0,\"array\"],[1,\"array\"]]]", 9)
+    dynamicCases()
+    combinedCases()
+    println("tuple-encoding-ok")
+}

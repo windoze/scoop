@@ -1,0 +1,3 @@
+struct Opaque()
+fun encode(value: Array<(Int, Opaque)>, encoder: Encoder) { value.encode(encoder) }
+fun main() {}

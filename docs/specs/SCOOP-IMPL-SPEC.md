@@ -1827,6 +1827,37 @@ cross-cone-interface 升至 `/55`、cross-cone-type-semantics 升至 `/19`。
 MIR 类型桥比对复用同一共有继承查询；application 已在当前闭包继承图中时直接
 读取已验证的 edges，其他实际 application 仅作声明实参替换，不另建条件判定。
 
+非空 tuple 的条件接口由全部元素共同决定。HIR 成员查找和泛型检查使用同一
+Encodable 父接口，直接成员与绑定引用沿普通接口调用处理。生成器只为当前类型
+闭包实际出现的 tuple 元素数建立编码方法模板，每个元素参数显式具有 Encodable
+上界；模板具有独立 typed id、完整 receiver、参数和普通 HIR 正文。正文依次投影
+各元素，调用 unkeyed 容器的 element/encode/end，不创建名义包装类型或限定长度。
+这些方法及局部值没有源码声明；局部值使用既有 Synthetic 来源，this/参数保留
+普通 ABI selector，生成临时值使用既有 synthetic selector，不补造源码位置锚。
+
+具体化把合格 tuple 的完整普通接口实现与类型一起交给 MIR，即使该值只经 Any
+擦除而没有静态编码调用也如此。编码方法使用独立的 generated callable 类型键
+TupleEncoding(exact tuple)，与已有 equality 分开，沿 StructuralType 的普通 ODR
+group/member 合并。MIR 复用现有值装箱、adjust thunk 和接口表，LIR/runtime 不增加
+序列化操作。导入方按其实际 tuple 形状生成同一普通方法，调用处只保留已有的
+Encodable 接口引用，不复制新的跨阶段编码计划。
+
+结构 tuple 的 MIR 类型仍由原 exact tuple key 表示，不追加名义字段或类型记录。
+实际装箱类型从完整 MIR 接口表保存父接口，并以该装箱 exact identity 拥有普通
+dispatch schema；名义值继续复用其原声明的 schema。adjust thunk 的签名连接
+实际 box、tuple payload 与接口 receiver，LIR 直接消费这一份 schema。共有 reader
+沿既有 tuple 条件查询核对 box 的接口，不重建字段布局或重新降低编码正文。
+每个实际 box 在 MIR 完成时统一从完整 HIR conformance 取得接口并生成 thunk；
+正文装箱、函数适配和 shape support 只登记所需 box，不按偶然的目标接口补表。
+实际 tuple 装箱在 HIR 的既有表示依赖闭包中保留元素所需的私有名义声明，供
+结构 box 的普通 ODR 记录引用；这些声明不增加公开查找名，也不要求元素可编码。
+
+共有类型查询从 core 容器声明已保存的实际条件接口引用取得 Encodable，并按同一
+声明继承关系递归检查 tuple 元素；不通过类型打印名恢复身份。新增 generated key
+使 HIR identity-foundation 升至 `/7`，tuple 条件关系使 cross-cone-type-semantics
+升至 `/20`；MIR cross-cone-type-bridge 升至 `/13`，保存结构 tuple 装箱的普通
+接口与 dispatch schema。旧产物与缓存重建，其他格式及 runtime ABI 保持。
+
 Json是普通库的Encoder/Decoder实现。Json.decode接收源码可见的`Decodable<T>`实参，按正常interface调用；Json.encode仍使用Encodable bound。core登记和body检查不依赖JSON库。String/Char/List、格式数据树、异常、codec helper与DecodeFunction使用普通库/语言能力，没有compiler JSON builtin或runtime JSON C入口。
 
 **产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，解码器沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。

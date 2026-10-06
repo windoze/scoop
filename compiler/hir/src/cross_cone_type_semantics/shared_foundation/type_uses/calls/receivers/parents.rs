@@ -10,6 +10,17 @@ impl Graph<'_> {
             .current
             .identities
             .canonical_key::<_, ExactTypeKey>(receiver)?;
+        if matches!(key.as_ref(), ExactTypeKey::Tuple(_)) {
+            let dependencies = self
+                .providers
+                .values()
+                .map(|provider| provider.metadata)
+                .collect::<Vec<_>>();
+            return self
+                .current
+                .tuple_encoding_parent(receiver, &dependencies)
+                .map(|parent| parent.into_iter().collect());
+        }
         // Any has no source declaration; Unit members use its ordinary core declaration.
         if let ExactTypeKey::Nominal(owner) = key.as_ref() {
             self.resolve_nominal(*owner)?;

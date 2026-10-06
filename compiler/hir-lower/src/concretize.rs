@@ -95,6 +95,8 @@ struct Concretizer<'a> {
     coroutine_results: std::collections::BTreeSet<concrete::TypeId>,
     shared_types: std::collections::BTreeSet<concrete::TypeId>,
     types: Arena<concrete::Type>,
+    tuple_interface_implementations:
+        std::collections::BTreeMap<concrete::TypeId, concrete::InterfaceImplementation>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
     function_type_by_signature:
@@ -289,6 +291,7 @@ impl<'a> Concretizer<'a> {
             coroutine_results: std::collections::BTreeSet::new(),
             shared_types: std::collections::BTreeSet::new(),
             types: Arena::new(),
+            tuple_interface_implementations: std::collections::BTreeMap::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),
             function_type_by_signature: HashMap::new(),

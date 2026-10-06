@@ -124,6 +124,7 @@ pub enum HirFunctionIdentity {
     },
     /// Complete exact bindings; open source applications remain in the HIR arena.
     DerivedEquality(Vec<HirDerivedEqualityFunctionIdentity>),
+    TupleEncoding(crate::TupleEncodingTemplateId),
 }
 
 impl HirFunctionIdentity {
@@ -179,7 +180,10 @@ impl HirFunctionIdentity {
     pub const fn generated_record(&self) -> Option<&HirGeneratedFunctionIdentity> {
         match self {
             Self::LexicalGenerated(record) | Self::Initialization { record, .. } => Some(record),
-            Self::Source(_) | Self::PropertyAccessor(_) | Self::DerivedEquality(_) => None,
+            Self::Source(_)
+            | Self::PropertyAccessor(_)
+            | Self::DerivedEquality(_)
+            | Self::TupleEncoding(_) => None,
         }
     }
 
@@ -202,6 +206,7 @@ pub struct HirFunctionIdentityInputs<'a> {
     pub initialization_units: &'a Arena<InitializationUnit>,
     pub initialization_unit_identities: &'a HirInitializationUnitIdentities,
     pub derived_equality_applications: &'a Arena<DerivedEqualityApplication>,
+    pub tuple_encoding_templates: &'a Arena<crate::TupleEncodingTemplate>,
     pub structs: &'a Arena<StructDecl>,
     pub enums: &'a Arena<EnumDecl>,
     pub type_identities: &'a HirTypeIdentities,

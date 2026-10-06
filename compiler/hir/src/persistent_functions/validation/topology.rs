@@ -147,7 +147,9 @@ fn function_lexical_parent(
             LexicalCallableParent::from_generated_key(record.key())
                 .map_err(HirFunctionIdentityError::LexicalParent)
         }
-        HirFunctionIdentity::DerivedEquality(_) => Err(invalid()),
+        HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+            Err(invalid())
+        }
     }
 }
 
@@ -182,7 +184,9 @@ fn function_definition_owner(
         | HirFunctionIdentity::Initialization { record, .. } => {
             Ok(DefinitionOwnerAtom::GeneratedCallable(record.id()))
         }
-        HirFunctionIdentity::DerivedEquality(_) => Err(invalid()),
+        HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+            Err(invalid())
+        }
     }
 }
 
@@ -268,7 +272,9 @@ fn root_lexical_parent(
                     LexicalCallableParent::from_generated_key(record.key())
                         .map_err(HirFunctionIdentityError::LexicalParent)
                 }
-                HirFunctionIdentity::DerivedEquality(_) => Err(invalid()),
+                HirFunctionIdentity::DerivedEquality(_) | HirFunctionIdentity::TupleEncoding(_) => {
+                    Err(invalid())
+                }
             }
         }
         LexicalDefinitionRoot::ClassConstructor(root) => {

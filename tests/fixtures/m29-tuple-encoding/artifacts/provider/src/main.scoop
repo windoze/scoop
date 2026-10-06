@@ -1,0 +1,10 @@
+package tuple.provider
+
+public struct Envelope(val pair: (Int, String)) : Encodable {
+    public companion object : Decodable<Envelope>
+}
+public fun pair(): (Int, String) = (41, "provider")
+public fun <T> erasePair(value: T): Any = (value, Unit)
+public fun <T : Encodable> encoding(value: (T, String)): (Encoder) -> Unit = value::encode
+public fun array(): Array<(Int, String)> = Array<(Int, String)>(1L) { _ -> pair() }
+public object PairDecoder : Decodable<(Int, String)>

@@ -10,6 +10,7 @@ impl Lowerer {
             if index == self.imported_generic_templates.templates.len()
                 && constructor == self.imported_constructor_templates.templates.len()
             {
+                self.prepare_tuple_encoding_templates();
                 if let Err(error) = self.prepare_imported_encoding_inputs() {
                     self.error(
                         scoop_ast::Span::new(0, 0),

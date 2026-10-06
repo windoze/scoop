@@ -69,7 +69,8 @@ impl FunctionIdentityBuilder<'_> {
                     Err(self.failure(function, Detail::InvalidLexicalRoot))
                 }
             }
-            hir::HirFunctionIdentity::DerivedEquality(_) => {
+            hir::HirFunctionIdentity::DerivedEquality(_)
+            | hir::HirFunctionIdentity::TupleEncoding(_) => {
                 Err(self.failure(function, Detail::InvalidLexicalRoot))
             }
         }

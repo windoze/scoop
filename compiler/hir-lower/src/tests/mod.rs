@@ -96,6 +96,7 @@ mod m29_container_encoding;
 mod m29_derived_decoding;
 mod m29_derived_encoding;
 mod m29_static_shapes;
+mod m29_tuple_encoding;
 mod m29_unit_encoding;
 mod m3;
 mod m4;

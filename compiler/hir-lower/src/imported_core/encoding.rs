@@ -15,10 +15,19 @@ impl Lowerer {
                     .values()
                     .find_map(|loaded| loaded.definition.element_encoding.as_ref())
             })
-            .map(|encoding| encoding.implementation.interface);
+            .map(|encoding| encoding.implementation.interface)
+            .or_else(|| {
+                self.tuple_encoding_templates
+                    .values()
+                    .next()
+                    .map(|template| template.interface)
+            });
         let Some(interface) = interface else {
             return Ok(());
         };
+        if matches!(self.core, CoreLoweringAuthority::Defined) {
+            return Ok(());
+        }
         self.require_imported_bound_interface(interface)?;
 
         // A scalar may reach a container through a generic function without
@@ -63,6 +72,11 @@ impl Lowerer {
                 } => method_arguments,
             };
             arguments.extend(values.iter().copied());
+        }
+        for ty in self.types.values() {
+            if let hir::Type::Tuple(elements) = ty {
+                arguments.extend(elements.iter().copied());
+            }
         }
         for argument in arguments {
             self.resolve_imported_member_receiver_type(argument)?;

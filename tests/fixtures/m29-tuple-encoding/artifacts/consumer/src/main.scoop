@@ -1,0 +1,33 @@
+import scoop.json.Json
+import tuple.provider.Envelope
+import tuple.provider.PairDecoder
+import tuple.provider.pair
+import tuple.provider.array
+import tuple.provider.erasePair
+import tuple.provider.encoding
+import tuple.peer.combine
+import tuple.peer.erased
+
+private struct Opaque()
+private class Captured(private val write: (Encoder) -> Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { write(encoder) }
+}
+private fun check(value: Boolean) { if (!value) { throw IllegalStateException(None) } }
+
+fun main() {
+    check(Json.encode(pair()) == "[41,\"provider\"]")
+    check(Json.encode((44, "local")) == "[44,\"local\"]")
+    check(Json.encode(combine()) == "[[41,\"provider\"],[42,\"peer\"]]")
+    check(Json.encode(array()) == "[[41,\"provider\"]]")
+    check(Json.encode(Captured(encoding((45, "reference")))) == "[45,\"reference\"]")
+    val good = erasePair((46, "generic"))
+    check(good is Encodable)
+    if (good is Encodable) { check(Json.encode(good) == "[[46,\"generic\"],null]") }
+    check(!(erasePair(Opaque()) is Encodable))
+    val other = erased()
+    check(other is Encodable)
+    if (other is Encodable) { check(Json.encode(other) == "[43,\"erased\"]") }
+    check(Json.encode(Json.decode("[47,\"decode\"]", PairDecoder)) == "[47,\"decode\"]")
+    check(Json.encode(Json.decode("{\"pair\":[48,\"field\"]}", Envelope.Companion)) == "{\"pair\":[48,\"field\"]}")
+    println("tuple-encoding-artifacts-ok")
+}

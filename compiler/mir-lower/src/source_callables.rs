@@ -26,6 +26,7 @@ impl SourceCallableRegistry {
                     && matches!(
                         record.key(),
                         hir::GeneratedCallableKey::DerivedEquality { .. }
+                            | hir::GeneratedCallableKey::TupleEncoding { .. }
                     )
             })
         {
@@ -33,12 +34,27 @@ impl SourceCallableRegistry {
                 .receiver
                 .value_type()
                 .expect("derived equality has its exact owner as receiver");
-            let entry = mir::SourceCallableMaterialization::derived_equality(
-                function,
-                &module.exact_type_identities[owner],
-                module.exact_type_identities.nominal_specialization(owner),
-                signature,
-            )
+            let tuple = module.generated_callable_identities.iter().any(|record| {
+                record.id() == generated
+                    && matches!(
+                        record.key(),
+                        hir::GeneratedCallableKey::TupleEncoding { .. }
+                    )
+            });
+            let entry = if tuple {
+                mir::SourceCallableMaterialization::tuple_encoding(
+                    function,
+                    &module.exact_type_identities[owner],
+                    signature,
+                )
+            } else {
+                mir::SourceCallableMaterialization::derived_equality(
+                    function,
+                    &module.exact_type_identities[owner],
+                    module.exact_type_identities.nominal_specialization(owner),
+                    signature,
+                )
+            }
             .expect("derived equality retains its exact type ownership");
             debug_assert_eq!(entry.materialization(), declaration.materialization);
             self.entries.push(entry);

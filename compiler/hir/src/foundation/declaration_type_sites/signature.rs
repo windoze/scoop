@@ -57,7 +57,8 @@ pub(super) fn generated(
     let valid = match key {
         GeneratedCallableKey::Initialization { .. }
         | GeneratedCallableKey::ZeroArgumentConstructorAdapter { .. } => position == Part::Result,
-        GeneratedCallableKey::DerivedEquality { .. } => {
+        GeneratedCallableKey::DerivedEquality { .. }
+        | GeneratedCallableKey::TupleEncoding { .. } => {
             matches!(position, Part::Receiver | Part::Parameter(0) | Part::Result)
         }
         // Other generated keys do not contain a complete source signature.

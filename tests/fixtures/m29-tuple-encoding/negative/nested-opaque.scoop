@@ -1,0 +1,3 @@
+struct Opaque()
+fun encode(value: ((Int, Opaque), Unit), encoder: Encoder) { value.encode(encoder) }
+fun main() {}

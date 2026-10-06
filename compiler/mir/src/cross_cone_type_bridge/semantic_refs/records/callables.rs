@@ -52,7 +52,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
                 GeneratedCallableKey::Initialization { unit, .. } => {
                     collector.push(MirTypeBridgeTargetV1::InitializationUnit(*unit))?;
                 }
-                GeneratedCallableKey::DerivedEquality { exact_owner } => {
+                GeneratedCallableKey::DerivedEquality { exact_owner }
+                | GeneratedCallableKey::TupleEncoding { exact_owner } => {
                     collector.exact(*exact_owner)?
                 }
                 GeneratedCallableKey::DispatchAdjust {

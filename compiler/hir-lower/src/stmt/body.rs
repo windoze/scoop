@@ -89,7 +89,10 @@ impl Lowerer {
         id: FunctionId,
         generate: impl FnOnce(&mut Self) -> Vec<hir::Statement>,
     ) -> hir::Body {
-        let name = self.source_function_declarations[&id].name.clone();
+        let name = self.source_function_declarations.get(&id).map_or_else(
+            || self.functions[id].name.clone(),
+            |source| source.name.clone(),
+        );
         self.with_function_body(id, &name, generate)
     }
 

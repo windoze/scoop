@@ -4,6 +4,8 @@ use super::*;
 use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
 use std::collections::BTreeSet;
 
+mod tuples;
+
 impl<'a> SharedTypeMetadataV1<'a> {
     pub(crate) fn applied_encoding_parent(
         self,
@@ -43,6 +45,14 @@ impl<'a> SharedTypeMetadataV1<'a> {
     ) -> Result<bool, Error> {
         let key = self.identities.canonical_key::<_, ExactTypeKey>(exact)?;
         match key.as_ref() {
+            ExactTypeKey::Tuple(elements) => {
+                for element in elements.as_slice() {
+                    if !self.element_has_encoding(*element, interface, dependencies)? {
+                        return Ok(false);
+                    }
+                }
+                return Ok(true);
+            }
             ExactTypeKey::Nominal(owner)
                 if *owner == CoreBuiltinNominal::Any.identity_record().id() =>
             {

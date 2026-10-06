@@ -173,6 +173,7 @@ pub struct Module {
     /// target; concretization substitutes it mechanically and never performs
     /// member lookup or reconstructs aggregate semantics.
     pub derived_equality_applications: Arena<DerivedEqualityApplication>,
+    pub tuple_encoding_templates: Arena<TupleEncodingTemplate>,
     pub structs: Arena<StructDecl>,
     pub struct_constructors: Arena<StructConstructor>,
     pub struct_constructor_applications: Arena<StructConstructorApplication>,

@@ -24,8 +24,7 @@ impl MirDispatchSchemaAuthority<'_> {
             || (interface_owner && !record.itables().is_empty())
             || matches!(
                 representation,
-                MirTypeRepresentationV1::BoxedValue { .. }
-                    | MirTypeRepresentationV1::CoroutineStep { .. }
+                MirTypeRepresentationV1::CoroutineStep { .. }
                     | MirTypeRepresentationV1::CoroutineSlot { .. }
             )
         {
@@ -229,7 +228,15 @@ impl MirDispatchSchemaAuthority<'_> {
                         slot,
                         payload,
                         interface: expected,
-                    } => *slot == entry.slot() && *payload == owner && interface == Some(*expected),
+                    } => {
+                        let payload_owner = match self.type_export(owner)?.representation() {
+                            MirTypeRepresentationV1::BoxedValue { payload } => payload.value,
+                            _ => owner,
+                        };
+                        *slot == entry.slot()
+                            && *payload == payload_owner
+                            && interface == Some(*expected)
+                    }
                     _ => false,
                 };
                 if let Some(receiver) = target.semantic_signature().exact().receiver().into_option()

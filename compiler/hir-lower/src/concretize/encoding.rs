@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod tuples;
+
 impl Concretizer<'_> {
     pub(super) fn request_encoding_methods(
         &mut self,
@@ -48,6 +50,13 @@ impl Concretizer<'_> {
         // Recursive concrete declarations may still be under construction.
         // Their complete checked source conformances already determine this condition.
         let (implementations, conditional) = match self.types[element].kind {
+            concrete::TypeKind::Tuple(ref elements) => {
+                let elements = elements.clone();
+                return !elements.is_empty()
+                    && elements
+                        .into_iter()
+                        .all(|element| self.element_has_encoding(element, interface));
+            }
             concrete::TypeKind::Class(id) => {
                 let value = &self.classes[id];
                 let source = self.source.class_definition(value.origin.declaration_id());

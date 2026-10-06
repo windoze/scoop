@@ -317,3 +317,34 @@ MIR/LIR 指令或 runtime ABI。新增生产模块最长 161 行，导入泛型�
 114 项，以及 slib 的 macOS 601/Linux 602 项全部通过。报告已归档，本批 fixture
 工作目录清理后提交；tuple 的条件 Encodable 和完整 workspace/文件 fixture
 总验收继续实施。
+
+## tuple 的条件 Encodable
+
+非空 tuple 仅在全部元素的静态类型满足 Encodable 时取得该接口。直接成员、泛型
+上界、接口调用、绑定引用和 Any 擦除使用同一关系；按实际出现的元素数生成带完整
+receiver、元素上界和普通 typed body 的方法模板，没有名义包装或固定 arity 上限。
+模板与具体方法使用独立 typed identity，具体方法按完整 tuple 类型进入既有 ODR
+合并，生成局部值使用普通 Synthetic 来源。
+
+MIR 在完成实际 box 时统一读取 HIR 的全部接口并生成 adjust thunk；正文装箱、
+函数适配和 shape support 的重复补表逻辑已删除。结构 tuple 保持原 exact key，
+其 box 拥有普通 dispatch schema。实际装箱所需的私有元素声明沿原支持闭包保留，
+包括无编码能力的元素；不增加公开查找名，不收集无关的私有类型。跨库同一 tuple
+从静态调用或仅 Any 擦除进入时生成一致的表示和接口表。
+
+本批 HIR identity-foundation 升至 7，interface/semantics 为 55/20，MIR type bridge
+升至 13；旧产物与缓存重建，runtime ABI 不变。新增生产模块最长 169 行；成员
+查找由 488 行整理为 350 行及 147 行候选模块，装箱分派由 486 行整理为 381 行及
+113 行 conformance 模块。
+
+新增 10 个正式 fixture，其中 8 个 negative 锁定诊断位置和信息。组合覆盖单元素、
+嵌套和十二元素 tuple、Unit、接口元素、递归容器、泛型闭包、绑定方法、自动解码、
+副作用次序、异常、动态接口与 moving GC。独立产物用例删除 core、JSON、provider、
+peer 和 consumer 全部源码后链接运行，并覆盖私有非编码元素与跨库重复实例。
+macOS、Linux glibc/musl 各通过 21 个进程、8 份阶段 golden，并完成不更新快照的
+复验；6 份共有 HIR/MIR 字节一致，各平台另保存 2 份 LIR。
+
+两端 workspace 格式化/lint 通过；identity 340、HIR 877、HIR lowering 1361、MIR
+345、MIR lowering 114，以及 slib 的 macOS 601/Linux 602 项回归通过。报告归档并
+清理本批 fixture 工作目录后提交，完整 workspace、公共 runner 单测及全部正式
+文件 fixture 的总验收继续实施。

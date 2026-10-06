@@ -54,6 +54,9 @@ fn source<'a>(
 ) -> Result<Schema<'a>, Error> {
     match ty.representation() {
         mir::MirTypeRepresentationV1::BoxedValue { payload } => {
+            if let Some(schema) = schemas.get(ty.exact()) {
+                return Ok(Schema::Source(schema));
+            }
             let payload = types
                 .get(payload.value)
                 .ok_or(Error::MissingType(payload.value))?;

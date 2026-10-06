@@ -145,7 +145,8 @@ impl<'input> Concretizer<'input> {
             }
             export::HirFunctionIdentity::LexicalGenerated(_)
             | export::HirFunctionIdentity::Initialization { .. }
-            | export::HirFunctionIdentity::DerivedEquality(_) => false,
+            | export::HirFunctionIdentity::DerivedEquality(_)
+            | export::HirFunctionIdentity::TupleEncoding(_) => false,
         }
     }
 }

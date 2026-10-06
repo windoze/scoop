@@ -126,6 +126,9 @@ pub enum DecodedGeneratedCallableKey {
     DerivedEquality {
         exact_owner: DecodedPersistentId<PersistentExactTypeId>,
     },
+    TupleEncoding {
+        exact_owner: DecodedPersistentId<PersistentExactTypeId>,
+    },
     FunctionAdapter {
         source: DecodedExactCallableSignature,
         target: DecodedExactCallableSignature,
@@ -205,6 +208,9 @@ impl DecodedGeneratedCallableKey {
                 role,
             },
             Self::DerivedEquality { exact_owner } => GeneratedCallableKey::DerivedEquality {
+                exact_owner: resolve_id(resolver, exact_owner)?,
+            },
+            Self::TupleEncoding { exact_owner } => GeneratedCallableKey::TupleEncoding {
                 exact_owner: resolve_id(resolver, exact_owner)?,
             },
             Self::FunctionAdapter { source, target } => GeneratedCallableKey::FunctionAdapter {
@@ -308,6 +314,7 @@ impl WireEncode for DecodedGeneratedCallableKey {
             }
             Self::Initialization { unit, role } => encode_two_value_sum(encoder, 2, unit, role),
             Self::DerivedEquality { exact_owner } => encode_value_sum(encoder, 3, exact_owner),
+            Self::TupleEncoding { exact_owner } => encode_value_sum(encoder, 17, exact_owner),
             Self::FunctionAdapter { source, target } => {
                 encode_two_value_sum(encoder, 4, source, target)
             }
@@ -444,6 +451,9 @@ impl WireDecode for DecodedGeneratedCallableKey {
             }
             16 => decode_id_variant(decoder, fields, |constructor| {
                 Self::ZeroArgumentConstructorAdapter { constructor }
+            }),
+            17 => decode_id_variant(decoder, fields, |exact_owner| Self::TupleEncoding {
+                exact_owner,
             }),
             tag => Err(unknown_tag(decoder, tag)),
         }

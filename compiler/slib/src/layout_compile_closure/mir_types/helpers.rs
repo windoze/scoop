@@ -98,6 +98,7 @@ pub(super) fn validate(
 
 pub(super) fn generated(
     comparison: &mut Comparison<'_, '_>,
+    dependencies: &[hir::SharedTypeMetadataV1<'_>],
     record: &mir::ParamFreeMirTypeExportV1,
     role: &GeneratedNominalKey,
 ) -> Result<(), Error> {
@@ -114,6 +115,7 @@ pub(super) fn generated(
             let key = identities
                 .canonical_key::<_, ExactTypeKey>(*payload)
                 .map_err(hir::SharedTypeMetadataError::from)?;
+            let tuple_interfaces;
             let interfaces = match key.as_ref() {
                 ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                     &comparison
@@ -123,8 +125,16 @@ pub(super) fn generated(
                         .base_and_interfaces()
                         .interfaces[..]
                 }
-                ExactTypeKey::Tuple(_)
-                | ExactTypeKey::Function { .. }
+                ExactTypeKey::Tuple(_) => {
+                    tuple_interfaces = comparison
+                        .source
+                        .metadata()
+                        .tuple_encoding_parent(*payload, dependencies)?
+                        .into_iter()
+                        .collect::<Vec<_>>();
+                    &tuple_interfaces
+                }
+                ExactTypeKey::Function { .. }
                 | ExactTypeKey::RawPointer(_)
                 | ExactTypeKey::NativeFunctionPointer { .. } => &[],
             };

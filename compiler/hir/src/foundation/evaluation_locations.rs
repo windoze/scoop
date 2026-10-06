@@ -59,7 +59,11 @@ impl CanonicalHirFoundation {
         if let CallableTemplateOwner::Generated(id) = root.template()
             && materializations.generated_callables.iter().any(|record| {
                 record.id() == id
-                    && matches!(record.key(), GeneratedCallableKey::DerivedEquality { .. })
+                    && matches!(
+                        record.key(),
+                        GeneratedCallableKey::DerivedEquality { .. }
+                            | GeneratedCallableKey::TupleEncoding { .. }
+                    )
             })
         {
             // Derived bodies are owned by an exact type, without a lexical source

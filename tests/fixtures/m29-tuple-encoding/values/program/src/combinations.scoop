@@ -1,0 +1,35 @@
+import scoop.json.Json
+
+private var visits: Int = 0
+private struct Element(val value: Int) : Encodable {
+    public override fun encode(encoder: Encoder) {
+        visits += 1
+        if (value < 0) { throw IllegalStateException(Some("tuple element")) }
+        value.encode(encoder)
+    }
+}
+private class Captured(private val write: (Encoder) -> Unit) : Encodable {
+    public override fun encode(encoder: Encoder) { write(encoder) }
+}
+private fun <T : Encodable> capture(value: (T, Unit)): (Encoder) -> Unit = value::encode
+private fun <T : Encodable> encodeBound(value: T): String = Json.encode(value)
+
+fun combinedCases() {
+    val value = (Element(1), Element(2))
+    check(encodeBound(value) == "[1,2]", 40)
+    val bound = value::encode
+    check(Json.encode(Captured(bound)) == "[1,2]", 41)
+    check(Json.encode(Captured(capture((Element(3), Unit)))) == "[3,null]", 42)
+    check(visits == 5, 43)
+    try {
+        Json.encode((Element(4), Element(-1), Element(5)))
+        check(false, 44)
+    } catch (error: IllegalStateException) {
+        check(error.message == Some("tuple element"), 45)
+    }
+    check(visits == 7, 46)
+    val mutable = MutableArray<(Int, Unit)>(1L) { _ -> (6, Unit) }
+    val list = ArrayList<(Int, Unit)>()
+    list.add((7, Unit))
+    check(Json.encode((mutable, list)) == "[[[6,null]],[[7,null]]]", 47)
+}

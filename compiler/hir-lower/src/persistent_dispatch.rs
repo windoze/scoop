@@ -123,7 +123,8 @@ fn dispatch_key(
         hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Generic(_))
         | hir::HirFunctionIdentity::LexicalGenerated(_)
         | hir::HirFunctionIdentity::Initialization { .. }
-        | hir::HirFunctionIdentity::DerivedEquality(_) => {
+        | hir::HirFunctionIdentity::DerivedEquality(_)
+        | hir::HirFunctionIdentity::TupleEncoding(_) => {
             Err(PersistentDispatchSlotIdentityErrorDetail::InvalidOwner)
         }
     }

@@ -45,6 +45,18 @@ impl Lowerer {
     }
 
     pub(crate) fn element_encoding_parent(&mut self, ty: &Type) -> Option<TypeId> {
+        if let Type::Tuple(elements) = ty {
+            if elements.is_empty() {
+                return None;
+            }
+            let interface = self.core_coding_nominal("Encodable")?;
+            let application = self.intern_interface_application(interface, Vec::new());
+            let interface = self.interface_applications[application].canonical_type;
+            return elements
+                .iter()
+                .all(|element| self.is_subtype(*element, interface))
+                .then_some(interface);
+        }
         let (encoding, arguments) = self.element_encoding_for_type(ty)?;
         let (element, interface, arguments) = (
             encoding.element,

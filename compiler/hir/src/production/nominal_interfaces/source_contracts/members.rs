@@ -62,7 +62,8 @@ fn function(
         HirFunctionIdentity::PropertyAccessor(_)
         | HirFunctionIdentity::LexicalGenerated(_)
         | HirFunctionIdentity::Initialization { .. }
-        | HirFunctionIdentity::DerivedEquality(_) => return Ok(()),
+        | HirFunctionIdentity::DerivedEquality(_)
+        | HirFunctionIdentity::TupleEncoding(_) => return Ok(()),
     };
     let method = export.functions[id]
         .method

@@ -16,7 +16,8 @@ pub(in crate::production::type_semantics) fn project(export: &ExportHir) -> Resu
             HirFunctionIdentity::PropertyAccessor(_)
             | HirFunctionIdentity::LexicalGenerated(_)
             | HirFunctionIdentity::Initialization { .. }
-            | HirFunctionIdentity::DerivedEquality(_) => continue,
+            | HirFunctionIdentity::DerivedEquality(_)
+            | HirFunctionIdentity::TupleEncoding(_) => continue,
         };
         let declaration = match source {
             HirSourceFunctionIdentity::Plain(record) => {

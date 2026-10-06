@@ -121,7 +121,7 @@ impl Lowerer {
         function
     }
 
-    pub(in crate::class) fn core_coding_nominal(&self, name: &str) -> Option<hir::SourceNominalId> {
+    pub(crate) fn core_coding_nominal(&self, name: &str) -> Option<hir::SourceNominalId> {
         self.type_lookup_layers(name).into_iter().find_map(|layer| {
             layer
                 .candidates

@@ -14,20 +14,20 @@ fn source_interface_v55_retains_container_encoding_conditions() {
 }
 
 #[test]
-fn type_semantics_v19_retains_conditional_encoding_relations() {
+fn type_semantics_v20_retains_tuple_encoding_relations() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        19,
+        20,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v12_retains_intrinsic_unit_interfaces() {
+fn mir_type_bridge_v13_retains_tuple_box_dispatch() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        12,
+        13,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -115,10 +115,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v6_retains_intrinsic_unit_representation() {
+fn hir_foundation_v7_retains_structural_encoding_callables() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        6,
+        7,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

@@ -7,6 +7,8 @@ pub struct Module {
     /// use this identity rather than a request-local source or arena id.
     pub cone: scoop_identity::ConeIdentity,
     pub types: Arena<Type>,
+    pub tuple_interface_implementations:
+        std::collections::BTreeMap<TypeId, InterfaceImplementation>,
     /// Total persistent identity relation aligned with `types`. Local-
     /// concrete HIR cannot represent an open type, so every entry is exact.
     pub exact_type_identities: ExactTypeIdentities,

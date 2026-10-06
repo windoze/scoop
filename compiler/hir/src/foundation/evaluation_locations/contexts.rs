@@ -61,6 +61,7 @@ pub(super) fn source_subject(
                         root = CallableTemplateOwner::Constructor(*constructor)
                     }
                     GeneratedCallableKey::DerivedEquality { .. }
+                    | GeneratedCallableKey::TupleEncoding { .. }
                     | GeneratedCallableKey::FunctionAdapter { .. }
                     | GeneratedCallableKey::DynamicFunctionAdapter { .. }
                     | GeneratedCallableKey::ForeignCallbackManagedAdapter { .. }

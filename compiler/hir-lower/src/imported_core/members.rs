@@ -146,6 +146,9 @@ impl Lowerer {
                         pending.extend(source.interfaces.iter().rev().copied());
                     }
                 }
+                hir::Type::Tuple(_) => {
+                    pending.extend(self.direct_nominal_supertypes(ty));
+                }
                 hir::Type::Param(parameter) => {
                     if let Some(declaration) = self
                         .type_params_in_scope

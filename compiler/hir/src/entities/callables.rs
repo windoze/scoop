@@ -154,3 +154,15 @@ pub(crate) fn callable_function(module: &Module, callable: Callable) -> Function
         }
     }
 }
+
+/// A structural tuple method template. Its function contains the complete
+/// ordinary body and one bounded owner parameter for each tuple element.
+#[derive(Debug, Clone)]
+pub struct TupleEncodingTemplate {
+    pub function: FunctionId,
+    pub owner: TypeId,
+    pub interface: TypeId,
+    pub member: InterfaceMethodReference,
+}
+
+pub type TupleEncodingTemplateId = la_arena::Idx<TupleEncodingTemplate>;

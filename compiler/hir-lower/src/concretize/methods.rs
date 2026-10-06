@@ -133,6 +133,12 @@ impl Concretizer<'_> {
         receiver: concrete::TypeId,
     ) -> Vec<concrete::InterfaceImplementation> {
         match self.types[receiver].kind {
+            concrete::TypeKind::Tuple(_) => self
+                .tuple_interface_implementations
+                .get(&receiver)
+                .cloned()
+                .into_iter()
+                .collect(),
             concrete::TypeKind::Struct(id) => self.structs[id].interface_implementations.clone(),
             concrete::TypeKind::Enum(id) => self.enums[id].interface_implementations.clone(),
             concrete::TypeKind::Class(id) => self.classes[id].interface_implementations.clone(),
