@@ -3,6 +3,24 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：Linux 依赖失效用例迁移
+
+两个 generic ODR 依赖失效用例在 glibc、musl 各完成一次正确目标的更新复验，
+每个目标均为 2 项通过、28 个进程、54 次 golden 检查。严格诊断只同步实际
+HIR/MIR/LIR 摘要，保留同一 Cone/provider、位置、错误类别和其余消息。两个目标
+各有 48 个共有快照与 Darwin 正式全量结果逐字节一致。
+
+同步各平台的 8 份预期文件：产物与诊断 JSON 只改变摘要；链接计划只同步实际
+Cone 对象数量，core 从 638 降为 592、程序从 7 降为 3，与已验证的 Darwin
+计划一致，来自撤销旧实例编码后的实际机器产物。各平台其余链接计划内容保持。
+正确报告保存为 `/tmp/scoop-m29-saved-reports/` 下的
+`m29-generic-primitive-gnu-odr-update.json` 和
+`m29-generic-primitive-musl-odr-update-2.json`，普通全量随后统一验证。
+
+一次 musl 定向调用遗漏显式 target，实际使用默认 glibc 并失败；该轮单独归档，
+不计入 musl 验收。其误写的四份 glibc 链接快照已恢复，随后显式选择 musl 完成
+上述复验。完整 Darwin 报告和快照摘要归档后，清理了约 81.3 GiB 的完成目录。
+
 ## 2026-10-06：新协议 Darwin 正式全量完成
 
 泛型 primitive 声明保留和 fixture 清理修复后的普通 `--all` 已完整通过。全部
