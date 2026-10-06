@@ -163,6 +163,8 @@ object State Concrete(PersistentTypeId([220, 114, 159, 185, 255, 69, 55, 16, 166
   public property builds: Int 7441dc1c565b1d188a011fad1d50092900e66dc916d028495a11edbc14d5f7d8 stored e6f70f133dd1f1f693a345aff30e0d17d7e7596789bbcafb85ed0964d9ce728f
   public property provides: Int 351014d74e222c712df87994b5e926cca73cd5851197d60f3d312eba0f6cb302 stored 1d53978cc17948f20186eff1a299a7616e90062b492fdc0701c8930d86151756
   public property failures: Int a6ed935bdf22d1324f4eb36d201b0abeee9128fdbd6802a392f494b3407a92b0 stored fc9b2cb9fc10d3c62237b47cc4e6a190765006b97db2b5c67474f00d4af803ab
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
 == LocalConcrete ==
 LocalConcrete ffa0ec103545653b372e562db667f9a52c8cacc0304d7b0da030078fb3baf29a Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }

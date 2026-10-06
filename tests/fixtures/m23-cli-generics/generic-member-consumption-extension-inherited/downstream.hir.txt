@@ -126,6 +126,8 @@ class Inherited<T> GenericTemplate(PersistentGenericTypeId([215, 115, 59, 42, 13
   base Box<T>
   constructor Constructor(PersistentConstructorId([85, 171, 29, 239, 29, 52, 16, 196, 140, 15, 180, 139, 25, 106, 251, 61, 17, 132, 82, 215, 140, 222, 170, 225, 95, 174, 174, 199, 159, 155, 103, 209]))
     parameter value: T Plain
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
 == LocalConcrete ==
 LocalConcrete 840a02d49bdf885805a0ed4afdfd0d4640f87fcab6e30ea1f3694d2b33a04d4e Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }

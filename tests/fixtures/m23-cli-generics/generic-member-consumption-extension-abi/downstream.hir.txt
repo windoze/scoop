@@ -136,6 +136,8 @@ class Box<T> GenericTemplate(PersistentGenericTypeId([129, 119, 113, 252, 14, 40
   public property value: T 76fae0ffa8d4de2029f86dec13d4beddb587a21ae1647f93b6fa21b69bf71199 stored e2d5c0a10b59555bc90087f723565a3fd84f0734efd470cccb813e2da931cfbd
   constructor Constructor(PersistentConstructorId([142, 20, 17, 216, 26, 17, 206, 246, 204, 238, 50, 182, 164, 203, 13, 131, 169, 157, 181, 229, 129, 83, 60, 255, 115, 86, 119, 9, 204, 170, 185, 216]))
     parameter value: T Property(PersistentPropertyId([118, 250, 224, 255, 168, 212, 222, 32, 41, 248, 109, 236, 19, 212, 190, 221, 181, 135, 162, 26, 225, 100, 127, 147, 182, 250, 33, 182, 155, 247, 17, 153]))
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
 == LocalConcrete ==
 LocalConcrete 226a66635799b6a315a0304efd464eb7b6f4ad98ca8ef57a7651459cc9e2bbca Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }

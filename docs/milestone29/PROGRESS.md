@@ -3,6 +3,20 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：声明保留后的全仓库快照核对
+
+修复后的同一组固定 CLI 已覆盖 Darwin 全部 2,490 个适用 fixture；各批普通和
+更新结果的通过集合与 2,496 个当前声明逐项核对一致，另 6 个目标不适用。
+最后更新批次通过 2,171 项，唯一的清理竞争失败由独立普通复验覆盖；原始
+失败和中断报告保留，分批结果仍不替代最终普通 `--all`。
+
+本批变更限于 122 份 HIR 和 18 份产物摘要 JSON。HIR 增加实际 ToString/Hash
+接口及 primitive 的 toString/hash 方法声明引用；少数 LocalConcrete 表因此增长，
+两个既有调用的表内编号随之调整。按实际 callable ID 还原引用后，类型、方法正文
+和调用目标与原内容一致。MIR、LIR 无变化；JSON 只有实际内容摘要变化。所有
+文件均属于声明使用的 snapshot，核对结果保存为
+`/tmp/scoop-m29-generic-primitive-darwin-snapshot-audit.json`。
+
 ## 2026-10-06：保留产物用例的并发清理
 
 全仓库更新中，retained-artifacts 的递归 chmod 与后台构建删除 staging 目录
@@ -18,7 +32,7 @@
 ## 2026-10-06：声明保留后的产物回归与 workspace
 
 泛型 primitive 声明保留使部分 Export HIR dump 增加实际 ToString/Hash 声明，
-LocalConcrete、MIR 与 LIR 保持原输出；依赖失效用例同步实际完整产物摘要。
+六个相关产物用例的 LocalConcrete、MIR 与 LIR 保持原输出；依赖失效用例同步实际完整产物摘要。
 委托损坏向量由新 consumer 产物重新生成，四条删除记录逐字节不变，交换仍指向
 原初始化单元。两类 archive 向量及截断用例的产物摘要无需变化。
 
