@@ -40,3 +40,9 @@
 
 - LLVM 为大结构体 `byval` 生成的标准 `memcpy` 可以位于已有 LSDA 保护区间。根据直接调用指令及外部 `memcpy` 重定位识别该不展开调用，避免误报额外 LIR invoke；未知调用、managed site 和 landing pad 的检查保留。
 - 定向 EH 19 项通过，包含额外复制调用、未知调用拒绝和 managed site 缺失拒绝。528-byte 值的真实 `.slib` 编译通过；跨卡复制组合用例在 Darwin debug、release、full-moving 三个变体通过。
+
+## M31-3 局部清理：整数条件
+
+- 扩展原有局部布尔清理，传播 typed integer 常量与复制，并折叠 `IntegerCompare`、语言比较 lowering 使用的 `IntegerCompareTo`。按声明宽度及有无符号解释边界值，沿原取址和调用失效规则处理；不新增跨过程分析。
+- 已知条件的死边在 poll、root plan 和 site identity 定稿前删除，修复 release 删除不可能的异常路径后站点清单仍残留的问题。
+- 定向边界与复制测试 2 项通过；独立整数条件 fixture 在三 target 的 debug/release 下均通过，实际运行启用 full-moving，HIR/MIR/LIR 快照锁定删除死分支后的结构。数组长度与跨卡复制作为组合覆盖。完整 M31-3 的 LLVM pass 和最终 GC 发射计划仍待完成。
