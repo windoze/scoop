@@ -3,6 +3,25 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：声明保留后的产物回归与 workspace
+
+泛型 primitive 声明保留使部分 Export HIR dump 增加实际 ToString/Hash 声明，
+LocalConcrete、MIR 与 LIR 保持原输出；依赖失效用例同步实际完整产物摘要。
+委托损坏向量由新 consumer 产物重新生成，四条删除记录逐字节不变，交换仍指向
+原初始化单元。两类 archive 向量及截断用例的产物摘要无需变化。
+
+六个相关产物用例均已用修复后的固定工具完成普通复验，合计 84 个进程、105 次
+golden 检查，精确错误诊断保持。两份报告保存在
+`/tmp/scoop-m29-saved-reports/m29-generic-primitive-special-check-darwin.json`
+和 `m29-generic-primitive-artifacts-darwin.json`；后者仅取三项通过结果，其余三项
+的旧 HIR 快照失败保留在报告中，并由前者完整复验。
+
+修复后的 macOS workspace 已通过 43 组、5,346 项 Rust 测试，零失败、零忽略，
+公共 runner 的 38 项单测也通过。日志为
+`/tmp/scoop-m29-generic-primitive-darwin-workspace.log`。全仓库普通回归发现上述
+HIR 快照差异后，已归档完成结果并转入显式更新轮；更新完成后仍须重新执行完整
+普通 `--all`，没有把混合模式或分批通过记录视为正式验收。
+
 ## 2026-10-06：Darwin 全仓库快照迁移完成
 
 将本次各批更新和普通复验的通过集合与当前自动发现结果逐项比较，全部 2,496 个
