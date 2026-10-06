@@ -24,8 +24,11 @@ all-targets clippy 通过。自动派生及其 fixture 尚在迁移，本节不�
 
 此前 GNU/musl 旧协议的全量正式进程已中断；报告保存在 /tmp，清理约 63.7 GiB 的
 fixture 工作目录。两端源码和 golden 与已提交版本逐文件核对后备份现场，并同步到
-协议修订基线，保留 musl/M28 worktree 与 native unwind 文件。Linux 新协议验证待
-后续同步实现提交后执行；历史旧协议通过数不并入本次验收。
+协议修订基线，保留 musl/M28 worktree 与 native unwind 文件。首批协议实现提交为
+`e9fa5b645`；随后在 nuc12 构建配套 CLI，glibc/musl 各通过相同 8 个正式 fixture
+（各 22 个进程、4 份 golden），包含更新快照后的普通模式复验。共有 HIR/MIR 与
+macOS 一致，更新了两份目标相关 LIR。自动派生和其余新协议验证继续实施；历史
+旧协议通过数不并入本次验收。
 
 ## 2026-10-06：codec 协议修订，待实现迁移
 
