@@ -421,3 +421,19 @@ stale 诊断只更新实际 HIR/MIR/LIR 摘要，仍检查同一 Cone/provider �
 这三项 macOS 文件 fixture 全部通过，共 33 个进程、53 份 golden。最新完整
 workspace 的 5,332 项 Rust 测试通过，没有失败或忽略项；Linux workspace 与三平台
 最终文件验收继续运行。
+
+## companion 的完整宿主约束
+
+名义约束解析完成后，同步 companion backing type 及 initializer/ensure 的宿主
+参数，保留原参数 ID 和 generic callable ID。字段、父接口、方法及初始化复用
+同一结果；约束验证跳过共享宿主参数的 object backing，避免再次检查相同声明。
+该阶段整理为 103 行模块，主 pipeline 从 617 行缩至 567 行，无新格式或 ABI。
+
+新增独立运行 fixture 覆盖 struct/class/enum/interface companion、接口和类上界、
+value/ref kind、F-bound、受约束字段/父接口、默认参数与 exactly-once 初始化。
+原 source-nominal 的两个工厂用例迁移到完整宿主实参，保留私有构造、保护域、
+跨 Cone 产物消费与 moving GC 断言。
+
+四项 companion 单测通过；macOS 的全部 160 个 M29 fixture 及这两个组合用例
+共 162 项全部通过，实际执行 347 个进程、132 份 golden。新完整 workspace 和
+Linux 验证继续进行，最终结果在总验收后记录。

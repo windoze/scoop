@@ -212,63 +212,13 @@ impl Lowerer {
         }
         self.resolve_all_type_aliases();
 
-        // Type-parameter names and arities are declared in pass 1. Resolve
-        // their ordered constraints only after every nominal name is visible,
-        // then validate bound applications after all constraint sets are
-        // complete (F-bounds may form legal dependency cycles).
-        for &(id, decl, file_index) in &pending_structs {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Struct(id));
-            let declared = self.structs[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "struct",
-            );
-            self.structs[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_enums {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Enum(id));
-            let declared = self.enums[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "enum",
-            );
-            self.enums[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_classes {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Class(id));
-            let declared = self.classes[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "class",
-            );
-            self.classes[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_interfaces {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Interface(id));
-            let declared = self.interfaces[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "interface",
-            );
-            self.interfaces[id].type_params = params;
-        }
-        self.current_owner = None;
+        self.resolve_nominal_parameter_constraints(
+            &pending_structs,
+            &pending_enums,
+            &pending_classes,
+            &pending_interfaces,
+            &pending_objects,
+        );
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = if defines_core {
             self.validate_intrinsic_type_core(files)

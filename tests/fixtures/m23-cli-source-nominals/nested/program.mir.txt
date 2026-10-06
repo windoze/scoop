@@ -1,7 +1,12 @@
 Module
-  global0 $singleton$6cf32b6f225b160e21f6de73157005c1b89057012e13cdbe08e0e66ae866b506: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=ed72046e03e92713797e222808b0dee01cc17b272616dfae0d6774990ae54d41
+  global0 $singleton$Companion: Companion<Marker> managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 companion:Envelope.Box.Companion singleton lazy global0 initializer=@fn15 ensure=@fn16 failure=1 deps=[]
   enum Option<String>
     Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
     None()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
@@ -12,11 +17,20 @@ Module
   class GenericOuter<String> vtable=0 itables=0
   class Box<Marker> vtable=0 itables=0
   class GenericBase<Marker> vtable=0 itables=0
-  class Companion vtable=0 itables=0
+  class Companion<Marker> vtable=0 itables=0
   class ConcreteChild vtable=0 itables=0
   class GenericChild<String> vtable=0 itables=0
   class GenericChild<Int> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Marker
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -75,7 +89,7 @@ Module
       val $dependency.parameter.value: Marker
         Type Marker
         Local $dependency.argument.0
-      call $call.1: Marker = @fn2 direct
+      call $call.1: Marker = @fn3 direct
         Type Envelope
         Local $dependency.receiver
         Type Marker
@@ -182,8 +196,8 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: GenericOuter<Int> = @fn3 direct
-      call $dependency.receiver: Int = @fn4 direct
+      call $dependency.receiver: GenericOuter<Int> = @fn4 direct
+      call $dependency.receiver: Int = @fn5 direct
         Type GenericOuter<Int>
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -205,8 +219,8 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: GenericOuter<String> = @fn5 direct
-      call $dependency.receiver: Int = @fn6 direct
+      call $dependency.receiver: GenericOuter<String> = @fn6 direct
+      call $dependency.receiver: Int = @fn7 direct
         Type GenericOuter<String>
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -228,14 +242,14 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: GenericOuter<Int> = @fn3 direct
+      call $dependency.receiver: GenericOuter<Int> = @fn4 direct
       val $dependency.argument.0: String
         Type String
         StringConst @str1
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $dependency.receiver: String = @fn7 direct
+      call $dependency.receiver: String = @fn8 direct
         Type GenericOuter<Int>
         Local $dependency.receiver
         Type String
@@ -246,7 +260,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external7 direct
+      call $argument.0: Boolean = external8 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -257,14 +271,14 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: GenericOuter<String> = @fn5 direct
+      call $dependency.receiver: GenericOuter<String> = @fn6 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=17 bits=0x00000011
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn8 direct
+      call $dependency.receiver: Int = @fn9 direct
         Type GenericOuter<String>
         Local $dependency.receiver
         Type Int
@@ -289,27 +303,47 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun boxed @fn2(this: Envelope, value: Marker) -> Marker
+  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
     bb0 entry
-      call external10 direct
-      val $dependency.local.3: Companion
-        Type Companion
-        GlobalRead $singleton$6cf32b6f225b160e21f6de73157005c1b89057012e13cdbe08e0e66ae866b506
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn10 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun boxed @fn3(this: Envelope, value: Marker) -> Marker
+    bb0 entry
+      call @fn16 direct
+      val $dependency.local.3: Companion<Marker>
+        Type Companion<Marker>
+        GlobalRead $singleton$Companion
       val $dependency.local.4: Marker
         Type Marker
         Local value
       val $dependency.local.5: Marker
         Type Marker
         Local $dependency.local.4
-      call $dependency.local.2: Box<Marker> = @fn9 direct
-        Type Companion
+      call $dependency.local.2: Box<Marker> = @fn11 direct
+        Type Companion<Marker>
         Local $dependency.local.3
         Type Marker
         Local $dependency.local.5
       val $dependency.local.6: Box<Marker>
         Type Box<Marker>
         Local $dependency.local.2
-      call $dependency.local.7: Int = @fn10 direct
+      call $dependency.local.7: Int = @fn12 direct
         Type Box<Marker>
         Local $dependency.local.6
       val $dependency.local.8: Int
@@ -357,13 +391,13 @@ Module
       val $dependency.local.13: Box<Marker>
         Type Box<Marker>
         Local $dependency.local.2
-      call $dependency.local.15: Marker = @fn11 direct
+      call $dependency.local.15: Marker = @fn13 direct
         Type Box<Marker>
         Local $dependency.local.13
       val $dependency.local.16: Marker
         Type Marker
         Local $dependency.local.15
-      call $call.2: Marker = @fn12 direct
+      call $call.2: Marker = @fn14 direct
         Type Box<Marker>
         Local $dependency.local.14
         Type Marker
@@ -371,63 +405,63 @@ Module
       return
         Type Marker
         Local $call.2
-  fun outer @fn3() -> GenericOuter<Int>
+  fun outer @fn4() -> GenericOuter<Int>
     bb0 entry
       assign $new.1
         Type GenericOuter<Int>
         ClassAlloc GenericOuter<Int>
-      call @fn16 direct
+      call @fn22 direct
         Type GenericOuter<Int>
         Local $new.1
       return
         Type GenericOuter<Int>
         Local $new.1
-  fun childValue @fn4(this: GenericOuter<Int>) -> Int
+  fun childValue @fn5(this: GenericOuter<Int>) -> Int
     bb0 entry
       assign $new.1
         Type ConcreteChild
         ClassAlloc ConcreteChild
-      call external8 direct
+      call external9 direct
         Type ConcreteChild
         Local $new.1
       val $dependency.local.1: ConcreteChild
         Type ConcreteChild
         Local $new.1
-      call $call.2: Int = external9 direct
+      call $call.2: Int = external10 direct
         Type ConcreteChild
         Local $dependency.local.1
       return
         Type Int
         Local $call.2
-  fun outer @fn5() -> GenericOuter<String>
+  fun outer @fn6() -> GenericOuter<String>
     bb0 entry
       assign $new.1
         Type GenericOuter<String>
         ClassAlloc GenericOuter<String>
-      call @fn17 direct
+      call @fn23 direct
         Type GenericOuter<String>
         Local $new.1
       return
         Type GenericOuter<String>
         Local $new.1
-  fun childValue @fn6(this: GenericOuter<String>) -> Int
+  fun childValue @fn7(this: GenericOuter<String>) -> Int
     bb0 entry
       assign $new.1
         Type ConcreteChild
         ClassAlloc ConcreteChild
-      call external8 direct
+      call external9 direct
         Type ConcreteChild
         Local $new.1
       val $dependency.local.1: ConcreteChild
         Type ConcreteChild
         Local $new.1
-      call $call.2: Int = external9 direct
+      call $call.2: Int = external10 direct
         Type ConcreteChild
         Local $dependency.local.1
       return
         Type Int
         Local $call.2
-  fun genericValue @fn7(this: GenericOuter<Int>, value: String) -> String
+  fun genericValue @fn8(this: GenericOuter<Int>, value: String) -> String
     bb0 entry
       val $dependency.local.2: String
         Type String
@@ -438,7 +472,7 @@ Module
       assign $new.1
         Type GenericChild<String>
         ClassAlloc GenericChild<String>
-      call @fn18 direct
+      call @fn24 direct
         Type GenericChild<String>
         Local $new.1
         Type String
@@ -448,7 +482,7 @@ Module
         FieldAccess 0
           Type GenericChild<String>
           Local $new.1
-  fun genericValue @fn8(this: GenericOuter<String>, value: Int) -> Int
+  fun genericValue @fn9(this: GenericOuter<String>, value: Int) -> Int
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -459,7 +493,7 @@ Module
       assign $new.1
         Type GenericChild<Int>
         ClassAlloc GenericChild<Int>
-      call @fn19 direct
+      call @fn25 direct
         Type GenericChild<Int>
         Local $new.1
         Type Int
@@ -469,7 +503,116 @@ Module
         FieldAccess 0
           Type GenericChild<Int>
           Local $new.1
-  fun create @fn9(this: Companion, value: Marker) -> Box<Marker>
+  fun encodeOption @fn10(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external11 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str4
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external12 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external11 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external13 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external13 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str5
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external12 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external14 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external15 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external16 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external17 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun create @fn11(this: Companion<Marker>, value: Marker) -> Box<Marker>
     bb0 entry
       val $dependency.local.2: Marker
         Type Marker
@@ -480,7 +623,7 @@ Module
       assign $new.1
         Type Box<Marker>
         ClassAlloc Box<Marker>
-      call @fn20 direct
+      call @fn26 direct
         Type Box<Marker>
         Local $new.1
         Type Marker
@@ -488,18 +631,18 @@ Module
       return
         Type Box<Marker>
         Local $new.1
-  fun inspect @fn10(this: Box<Marker>) -> Int
+  fun inspect @fn12(this: Box<Marker>) -> Int
     bb0 entry
       val $dependency.local.1: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.3: Int = @fn13 direct
+      call $dependency.local.3: Int = @fn18 direct
         Type Box<Marker>
         Local $dependency.local.1
       val $dependency.local.2: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.4: Int = @fn14 direct
+      call $dependency.local.4: Int = @fn19 direct
         Type Box<Marker>
         Local $dependency.local.2
       val $dependency.local.5: Int
@@ -515,7 +658,7 @@ Module
       val $dependency.local.6: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.8: Int = @fn15 direct
+      call $dependency.local.8: Int = @fn20 direct
         Type Box<Marker>
         Local $dependency.local.6
       val $dependency.local.9: Int
@@ -528,40 +671,279 @@ Module
           Local $dependency.local.7
           Type Int
           Local $dependency.local.9
-  fun value @fn11(this: Box<Marker>) -> Marker
+  fun value @fn13(this: Box<Marker>) -> Marker
     bb0 entry
       return
         Type Marker
         FieldAccess 0
           Type Box<Marker>
           Local this
-  fun echo @fn12(this: Box<Marker>, value: Marker) -> Marker
+  fun echo @fn14(this: Box<Marker>, value: Marker) -> Marker
     bb0 entry
       return
         Type Marker
         Local value
-  fun helper @fn13(this: Box<Marker>) -> Int
+  fun Companion$initialize$Initializer @fn15() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Marker>
+        ClassAlloc Companion<Marker>
+      call @fn27 direct
+        Type Companion<Marker>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Marker>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn16() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn15 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      call external18 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun encode @fn17(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn21 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun helper @fn18(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun internalMethod @fn14(this: Box<Marker>) -> Int
+  fun internalMethod @fn19(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun protectedMethod @fn15(this: Box<Marker>) -> Int
+  fun protectedMethod @fn20(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-  fun init.GenericOuter.$c0 @fn16(this: GenericOuter<Int>) -> Unit
+  fun encodeOption @fn21(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external11 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str6
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external12 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external11 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external13 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external13 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str7
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external12 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external14 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external15 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external7 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external17 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.GenericOuter.$c1 @fn22(this: GenericOuter<Int>) -> Unit
     bb0 entry
       return
-  fun init.GenericOuter.$c0 @fn17(this: GenericOuter<String>) -> Unit
+  fun init.GenericOuter.$c1 @fn23(this: GenericOuter<String>) -> Unit
     bb0 entry
       return
-  fun init.GenericChild.$c1 @fn18(this: GenericChild<String>, item: String) -> Unit
+  fun init.GenericChild.$c2 @fn24(this: GenericChild<String>, item: String) -> Unit
     bb0 entry
       field_set 0
         Type GenericChild<String>
@@ -569,7 +951,7 @@ Module
         Type String
         Local item
       return
-  fun init.GenericChild.$c1 @fn19(this: GenericChild<Int>, item: Int) -> Unit
+  fun init.GenericChild.$c2 @fn25(this: GenericChild<Int>, item: Int) -> Unit
     bb0 entry
       field_set 0
         Type GenericChild<Int>
@@ -577,9 +959,9 @@ Module
         Type Int
         Local item
       return
-  fun init.Box.$c2 @fn20(this: Box<Marker>, item: Marker) -> Unit
+  fun init.Box.$c3 @fn26(this: Box<Marker>, item: Marker) -> Unit
     bb0 entry
-      call @fn21 direct
+      call @fn28 direct
         Type GenericBase<Marker>
         Retype GenericBase<Marker>
           Type Box<Marker>
@@ -590,25 +972,38 @@ Module
         Type Marker
         Local item
       return
-  fun init.GenericBase.$c3 @fn21(this: GenericBase<Marker>) -> Unit
+  fun init.Companion.$c0 @fn27(this: Companion<Marker>) -> Unit
     bb0 entry
       return
-  instance mi0 function=@fn2 <- boxed
-  instance mi1 function=@fn3 <- outer
-  instance mi2 function=@fn4 <- childValue
-  instance mi3 function=@fn5 <- outer
-  instance mi4 function=@fn6 <- childValue
-  instance mi5 function=@fn7 <- genericValue
+  fun init.GenericBase.$c4 @fn28(this: GenericBase<Marker>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn2 <- encode
+  instance mi1 function=@fn3 <- boxed
+  instance mi2 function=@fn4 <- outer
+  instance mi3 function=@fn5 <- childValue
+  instance mi4 function=@fn6 <- outer
+  instance mi5 function=@fn7 <- childValue
   instance mi6 function=@fn8 <- genericValue
-  instance mi7 function=@fn9 <- create
-  instance mi8 function=@fn10 <- inspect
-  instance mi9 function=@fn11 <- value
-  instance mi10 function=@fn12 <- echo
-  instance mi11 function=@fn13 <- helper
-  instance mi12 function=@fn14 <- internalMethod
-  instance mi13 function=@fn15 <- protectedMethod
+  instance mi7 function=@fn9 <- genericValue
+  instance mi8 function=@fn10 <- encodeOption
+  instance mi9 function=@fn11 <- create
+  instance mi10 function=@fn12 <- inspect
+  instance mi11 function=@fn13 <- value
+  instance mi12 function=@fn14 <- echo
+  instance mi13 function=@fn15 <- Companion$initialize$Initializer
+  instance mi14 function=@fn16 <- Companion$initialize$Ensure
+  instance mi15 function=@fn17 <- encode
+  instance mi16 function=@fn18 <- helper
+  instance mi17 function=@fn19 <- internalMethod
+  instance mi18 function=@fn20 <- protectedMethod
+  instance mi19 function=@fn21 <- encodeOption
   str @str0 "illegal state"
   str @str1 "child"
   str @str2 "child"
   str @str3 "illegal state"
+  str @str4 "None"
+  str @str5 "Some"
+  str @str6 "None"
+  str @str7 "Some"
   output executable @fn1

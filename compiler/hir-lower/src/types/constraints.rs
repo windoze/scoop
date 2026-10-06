@@ -181,6 +181,11 @@ impl Lowerer {
     /// of them have complete constraint sets. This is order-independent and
     /// permits legal F-bound cycles.
     pub(crate) fn validate_nominal_type_parameter_constraints(&mut self) {
+        let object_backings: std::collections::HashSet<_> = self
+            .objects
+            .values()
+            .map(|object| object.backing_class)
+            .collect();
         let declarations: Vec<_> = self
             .structs
             .iter()
@@ -200,14 +205,19 @@ impl Lowerer {
                     declaration.type_params.clone(),
                 )
             }))
-            .chain(self.classes.iter().map(|(id, declaration)| {
-                (
-                    self.class_files[&id],
-                    "class",
-                    declaration.name.clone(),
-                    declaration.type_params.clone(),
-                )
-            }))
+            .chain(
+                self.classes
+                    .iter()
+                    .filter(|(id, _)| !object_backings.contains(id))
+                    .map(|(id, declaration)| {
+                        (
+                            self.class_files[&id],
+                            "class",
+                            declaration.name.clone(),
+                            declaration.type_params.clone(),
+                        )
+                    }),
+            )
             .chain(self.interfaces.iter().map(|(id, declaration)| {
                 (
                     self.interface_files[&id],

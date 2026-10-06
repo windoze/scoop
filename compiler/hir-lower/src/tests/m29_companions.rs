@@ -153,3 +153,26 @@ fn companion_host_arguments_select_distinct_types_and_initialization_units() {
         scoop_identity::InitializationUnitKey::GenericCompanionApplication { .. }
     ));
 }
+
+#[test]
+fn companion_host_constraints_apply_to_fields_interfaces_methods_and_initialization() {
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m29-companions/bounds/program/src/main.scoop"
+    ));
+    let output = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()])
+        .expect("companion declarations inherit complete host constraints");
+    let local = &output.local;
+    let packet = local
+        .structs
+        .values()
+        .find(|declaration| declaration.name == "Packet")
+        .expect("the constrained packet application is materialized");
+    assert_eq!(packet.type_arguments.len(), 1);
+    assert!(
+        local
+            .functions
+            .values()
+            .any(|function| function.name == "mark")
+    );
+}

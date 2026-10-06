@@ -1,6 +1,7 @@
 use super::*;
 mod finish;
 mod run;
+mod type_parameters;
 
 impl Lowerer {
     pub(crate) fn fresh_type_param(&mut self, substitution_slot: usize) -> hir::TypeParamId {
