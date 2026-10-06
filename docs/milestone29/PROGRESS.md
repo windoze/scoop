@@ -437,3 +437,29 @@ value/ref kind、F-bound、受约束字段/父接口、默认参数与 exactly-o
 四项 companion 单测通过；macOS 的全部 160 个 M29 fixture 及这两个组合用例
 共 162 项全部通过，实际执行 347 个进程、132 份 golden。新完整 workspace 和
 Linux 验证继续进行，最终结果在总验收后记录。
+
+## Darwin 正式全量验收
+
+2026-10-06：Darwin 的普通 `--all` 已完整通过。发现并选择全部 2,480 个声明，
+2,474 个适用 fixture 全部通过，6 个目标不适用；没有失败、配置错误、环境错误
+或中断。实际执行 2,564 个变体、12,409 个进程和 12,409 次快照检查，包含全部
+160 个 M29 fixture；本轮没有使用更新快照、筛选或缩小 suite 的选项。
+
+已将报告的通过及不适用集合与当前声明逐项比较，并保存 11,864 份已验证快照的
+文件摘要，供 Linux 目标完成后比较共有输出。正式报告归档在
+`/tmp/scoop-m29-saved-reports/m29-final-darwin-all.json`，完整日志为
+`/tmp/scoop-m29-final-darwin-all.log`。
+
+最新 macOS workspace 的 5,333 项 Rust 测试全部通过，零失败、零忽略。测试使用
+`CARGO_PROFILE_DEV_OPT_LEVEL=1` 和 `CARGO_PROFILE_TEST_OPT_LEVEL=1`，保留默认的
+debug assertions 与 overflow checks；完整日志为
+`/tmp/scoop-m29-final-darwin-workspace4.log`。格式化、workspace clippy 和公共
+fixture runner 的 38 项单测也已通过。
+
+GNU 和 musl 的 14 个 companion fixture、两个 source-nominal 工厂用例均已通过。
+新增宿主约束用例的输入和 HIR/MIR 在三平台逐字节一致，两个 Linux LIR 已提交。
+两种 Linux 目标的三个旧产物失效用例也已在更新实际摘要后完整复验通过；诊断的
+错误类别、Cone/provider、消息结构和位置均保持原断言。
+
+Linux workspace 及 GNU/musl 最终文件验收继续进行；本节只记录已经取得的结果，
+M29 的完成状态将在全部验收结束后更新。
