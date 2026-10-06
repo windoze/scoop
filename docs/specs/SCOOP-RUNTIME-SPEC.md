@@ -437,7 +437,7 @@ best effort 不保证何时再次 GC、对象间顺序、执行线程、native r
 
 ---
 
-### 3.9 M31 nursery 与 minor GC（待实现）
+### 3.9 M31 nursery 与 minor GC
 
 nursery 使用现有 arena 中独立标记的一组 block，每个 mutator 的 TLAB 从 nursery 取得；代龄、object-start、精确 size、forwarding 与脏区索引都保存在 arena 外。它不增加 managed reference tag、对象头字段或 GC stackmap 格式。分配返回前完成清零、头部与精确 allocation metadata 发布，原 GC-leaf fast path 契约保持。
 
@@ -453,6 +453,10 @@ minor 在现有 STW 协议内执行：
 4. 完成后没有存活对象留在本轮 nursery；回收死亡对象与旧副本、重置可复用年轻 block，清理已经消费的卡。下一轮分配才建立新 TLAB。旧代已不可达对象允许保留至 full GC；minor 不执行旧代回收。
 
 nursery 满触发 minor；旧代／large-object 压力、晋升空间不足或显式 `gc.collect()` 触发 full GC。full 沿现有 Immix mark/evacuate/reclaim 收集两代，其年轻存活对象也进入旧代；空间不足时可原地保留合适 block，不遗失引用、不绕过既有分配失败出口。显式 full 在存在 eligible movable object 且 to-space 足够时仍满足 3.7 的移动要求。nursery 大小是内部性能参数，不进入语言语义或通用资源预算。
+
+首版按 block 保存 Young/Old，普通 nursery 的触发容量为 1 MiB；`SCOOP_GC_STRESS_MINOR=1` 将其缩为一个普通 block，仍走相同 TLAB/refill、脏卡与晋升路径。`SCOOP_GC_STRESS_MOVE=1` 继续使用原 full-moving/quarantine 模式；同时设置时 full stress 优先。带 hook 的小对象使用旧代 free run，generated fast path 只接受 null hook；此批 runtime ABI contract 7→8。minor 的空间规划和 full evacuation 共用真实对象大小/对齐的 to-space 预留，预留失败前不复制或发布 forwarding；normal full 无可用 to-space 时保留原位对象，full stress 仍要求移动全部未 pin 存活对象。
+
+诊断统计记录实际分配字节、nursery 分配、晋升、minor/full 次数、晋升失败转 full、脏卡、扫描引用槽与 STW 停顿。`scoop_rt_gc_debug_metrics` 复制这些计数供测试读取；`SCOOP_GC_STATS=1` 在正常程序退出时向 stderr 输出一行 JSON，供性能脚本采集。这些计数不决定程序是否合法，不进入对象 ABI 或产物身份。
 
 minor 的正常工作随根、脏区和年轻存活图增长，不能扫描所有旧代对象或所有旧代引用来弥补屏障遗漏。测试必须覆盖仅从 old→young 可达的对象、跨 card aggregate/array copy、构造中途晋升、多 mutator、Context、native root/handle/pin、callback/冻结栈段，以及 minor 与 full 的交替。性能记录包括 minor/full 次数、年轻分配与晋升量、扫描脏区、停顿、吞吐及实际堆占用；不得只用旧 full stress 证明分代正确。详细实施与验收见 [M31 设计](../milestone31/DESIGN.md)。
 

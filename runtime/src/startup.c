@@ -69,6 +69,7 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images,
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();
+    scoop_gc_report_metrics();
     scoop_image_unpublish();
     scoop_image_registry_dispose(registry);
     platform->metadata_images->dispose_images(&loaded);

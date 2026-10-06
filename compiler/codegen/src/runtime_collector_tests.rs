@@ -3,6 +3,9 @@ use std::process::{Command, Output};
 
 use crate::tests::platform_support::native_os_source;
 
+#[path = "runtime_collector_tests/nursery.rs"]
+mod nursery;
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -64,6 +67,11 @@ fn compile_and_run(
         "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/collector_roots.c",
+        "runtime/src/gc/scan.c",
+        "runtime/src/gc/remembered.c",
+        "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
         "runtime/src/gc/heap.c",
@@ -103,6 +111,8 @@ fn compile_and_run(
 
     let output = Command::new(&binary)
         .env_remove("SCOOP_GC_STRESS_MOVE")
+        .env_remove("SCOOP_GC_STRESS_MINOR")
+        .env_remove("SCOOP_GC_STATS")
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();
@@ -302,6 +312,11 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
     let generic_sources = [
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/collector_roots.c",
+        "runtime/src/gc/scan.c",
+        "runtime/src/gc/remembered.c",
+        "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
         "runtime/src/gc/heap.c",

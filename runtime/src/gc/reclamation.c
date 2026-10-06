@@ -43,7 +43,7 @@ static void free_run_push(uint32_t block_index, size_t first_line,
     free_runs = run;
 }
 
-static void release_block(uint32_t index) {
+void scoop_heap_release_block(uint32_t index) {
     ScoopGcBlockMeta *head = &blocks[index];
     uint32_t span = head->span_blocks;
     if (!active_head(head) || span == 0 ||
@@ -195,7 +195,7 @@ static bool finish_small_block(uint32_t index, bool stress) {
         if (stress) {
             quarantine_block(index);
         } else {
-            release_block(index);
+            scoop_heap_release_block(index);
         }
         return false;
     }
@@ -236,7 +236,7 @@ static bool finish_large_block(uint32_t index, bool stress) {
                    GC_POISON_BYTE, block->exact_size);
             quarantine_block(index);
         } else {
-            release_block(index);
+            scoop_heap_release_block(index);
         }
         return false;
     }
@@ -250,18 +250,29 @@ static bool finish_large_block(uint32_t index, bool stress) {
     return true;
 }
 
-void scoop_gc_heap_finish_collection_locked(uint64_t object_count) {
+void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
     if (!collection_active) {
         heap_fatal("heap collection finished without begin");
     }
-    free_run_nodes();
+    if (minor) {
+        object_count += atomic_load_explicit(&live_objects, memory_order_relaxed) -
+                        atomic_load_explicit(&scoop_gc_heap_state.nursery_objects, memory_order_relaxed);
+    } else {
+        free_run_nodes();
+    }
     for (uint32_t index = 0; index < arena_next_block;) {
         ScoopGcBlockMeta *block = &blocks[index];
-        if (!active_head(block)) {
+        if (!active_head(block) ||
+            (minor && block->generation == SCOOP_GC_OLD &&
+             block->state != SCOOP_BLOCK_EVACUATION_TARGET)) {
             index++;
             continue;
         }
         uint32_t span = block->span_blocks;
+        if (block->generation == SCOOP_GC_YOUNG) {
+            scoop_gc_heap_state.metrics.promoted_bytes += block->live_bytes;
+        }
+        block->generation = SCOOP_GC_OLD;
         if (block->kind == SCOOP_BLOCK_KIND_SMALL) {
             (void)finish_small_block(index, stress_move);
         } else if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
@@ -272,13 +283,17 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count) {
         index += span;
     }
     memset(card_table_storage, 0, GC_CARD_TABLE_SIZE);
+    scoop_gc_heap_state.nursery_bytes = 0;
+    atomic_store_explicit(&scoop_gc_heap_state.nursery_objects, 0, memory_order_relaxed);
     atomic_store_explicit(&live_objects, object_count,
                           memory_order_release);
     atomic_store_explicit(&last_moved_objects, moved_objects,
                           memory_order_release);
-    collection_threshold = committed_bytes * 2 > GC_INITIAL_THRESHOLD
-                               ? committed_bytes * 2
-                               : GC_INITIAL_THRESHOLD;
+    if (!minor) {
+        collection_threshold = committed_bytes * 2 > GC_INITIAL_THRESHOLD
+                                   ? committed_bytes * 2
+                                   : GC_INITIAL_THRESHOLD;
+    }
     evacuation_block = UINT32_MAX;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;

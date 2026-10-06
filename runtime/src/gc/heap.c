@@ -111,6 +111,10 @@ void scoop_gc_heap_init(void) {
     }
     const char *stress = getenv("SCOOP_GC_STRESS_MOVE");
     stress_move = stress != NULL && strcmp(stress, "1") == 0;
+    const char *minor = getenv("SCOOP_GC_STRESS_MINOR");
+    scoop_gc_heap_state.stress_minor = minor != NULL && strcmp(minor, "1") == 0;
+    const char *metrics = getenv("SCOOP_GC_STATS");
+    scoop_gc_heap_state.print_metrics = metrics != NULL && strcmp(metrics, "1") == 0;
     arena_init();
 }
 
@@ -271,6 +275,7 @@ uint32_t activate_small_block(ScoopGcBlockState state) {
     reset_small_metadata(block);
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_SMALL;
+    block->generation = SCOOP_GC_OLD;
     block->span_blocks = 1;
     block->owner_block = index;
     block->exact_size = 0;
@@ -308,6 +313,7 @@ uint32_t activate_large_block(size_t exact_size,
     head->forwarding = NULL;
     head->state = state;
     head->kind = SCOOP_BLOCK_KIND_LARGE;
+    head->generation = SCOOP_GC_OLD;
     head->span_blocks = span_blocks;
     head->owner_block = index;
     head->exact_size = exact_size;
@@ -334,38 +340,4 @@ uint32_t activate_large_block(size_t exact_size,
     committed_bytes += rounded;
     active_block_heads++;
     return index;
-}
-
-uint64_t scoop_rt_gc_stats(void) {
-    return atomic_load_explicit(&live_objects, memory_order_acquire);
-}
-
-uint64_t scoop_rt_gc_debug_last_moved_count(void) {
-    return atomic_load_explicit(&last_moved_objects,
-                                memory_order_acquire);
-}
-
-uint64_t scoop_rt_gc_debug_block_count(void) {
-    lock_heap();
-    uint64_t count = active_block_heads;
-    unlock_heap();
-    return count;
-}
-
-uintptr_t scoop_rt_gc_debug_arena_base(void) {
-    return arena_base;
-}
-
-bool scoop_rt_gc_debug_is_allocated(const void *object) {
-    lock_heap();
-    bool allocated = scoop_gc_is_object_start_locked(object);
-    unlock_heap();
-    return allocated;
-}
-
-uint64_t scoop_rt_gc_debug_allocation_size(const void *object) {
-    lock_heap();
-    uint64_t size = (uint64_t)scoop_gc_object_size_locked(object);
-    unlock_heap();
-    return size;
 }

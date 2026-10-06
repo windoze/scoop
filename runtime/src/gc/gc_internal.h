@@ -33,8 +33,9 @@ bool scoop_gc_is_object_start_locked(const void *object);
 size_t scoop_gc_object_size_locked(const void *object);
 bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_mark_object_locked(const void *object);
-void scoop_gc_heap_begin_collection_locked(void);
-void scoop_gc_heap_plan_moving_locked(void);
+bool scoop_gc_is_young_object_locked(const void *object);
+void scoop_gc_heap_begin_collection_locked(bool minor);
+bool scoop_gc_heap_plan_moving_locked(bool minor);
 void scoop_gc_heap_verify_stress_moved_locked(void);
 void *scoop_gc_forward_object_locked(void *object);
 bool scoop_gc_claim_object_scan_locked(void *object);
@@ -43,7 +44,7 @@ bool scoop_gc_is_forwarded_old_locked(const void *object);
 bool scoop_gc_is_current_live_object_locked(const void *object);
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor,
                                            void *context);
-void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
+void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor);
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 
 /* Collection holds this lock while it visits and rewrites root slots;
@@ -68,5 +69,17 @@ void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread,
                                     uintptr_t frame_pointer, uintptr_t managed_boundary,
                                     ScoopGcRootVisitor visitor);
 void scoop_gc_collect_internal(void);
+void scoop_gc_collect_minor_internal(void);
+void scoop_gc_report_metrics(void);
+
+/* Shared exact scans. Partial heap scans use a half-open card range. */
+void scoop_gc_scan_roots(ScoopGcRootVisitor visitor);
+void scoop_gc_scan_descriptor(void *base, const uint64_t *scan,
+                              ScoopGcSlotVisitor visitor, void *context,
+                              uintptr_t begin, uintptr_t end);
+typedef void (*ScoopGcObjectRangeVisitor)(void *object, uintptr_t begin,
+                                        uintptr_t end, void *context);
+void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context,
+                              bool count_cards);
 
 #endif

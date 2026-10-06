@@ -54,3 +54,13 @@
 - 分配、屏障及既有运行时组合定向测试 46 项通过；后补数组初始化/组装屏障的 codegen 14 项、runtime ABI 4 项、compatibility 4 项通过。C 使用严格告警语法检查，Rust fmt/clippy 通过。
 - 两个正式 CLI 用例在 Darwin、glibc、musl 各通过 debug、release、full-moving，合计 18 个运行变体。覆盖 80-byte 连续对象、跨 card 的 528-byte value/enum、引用数组、array clone、box/unbox 和 full GC 后内容保持。
 - 本批尚未消费 remembered set；其真实 old→young 存活性由后续 nursery 批次验收。再次清理约 10 GB 的 debug 增量产物，后续构建关闭增量编译。
+
+## M31-5：nursery 与晋升
+
+- 按 block 保存 Young/Old；普通对象通过真实 TLAB 进入 1 MiB nursery，large 和 release-hook 对象直接进入旧代。generated fast path 检查 null hook，runtime ABI contract 7→8。
+- minor 共享完整根访问，递归追踪仅限年轻对象；旧代沿脏卡、object-start/size 和精确 scan 访问相交引用，大数组按 card 裁剪元素区间。年轻存活对象首次晋升，含 pin 的 block 原地转旧，旧代垃圾留给 full。
+- minor/full 共用先预留、后复制的 evacuation plan。部分预留失败会释放目标且保持原图，在同一 STW 转 full；normal full 无 to-space 时可原位保留。normal 不再重复全堆 verification walk，显式 metadata 验证与 full stress 保留。
+- 拆分根访问、范围 scan、remembered set、空间规划与统计，修改后各 GC C 文件均约 350 行以内。新增实际分配/晋升/扫描/停顿计数与退出 JSON；计数不参与语言合法性或兼容性。
+- 首轮定向 48 项通过；随后新增多线程 native/callback/冻结段根和同一卡并发写入 2 项通过，native recursive region 补测通过。真实空间不足测试在已预留一个目标 block 后失败，再 full 并继续分配，数据保持。
+- Darwin 三个正式用例共 9 个变体通过；新增构造期间晋升、ready/unready release hook、宽值/数组/box/Context 组合的三个变体通过，包含真实 minor stress 与正常容量触发。runtime ABI 与 compatibility 各 4 项通过，JSON 统计已实际运行并解析。
+- Linux 本批验证待补：`nuc12w.0d0a.com:22` 连续连接超时，未把前一批 Linux 结果当作本批通过。继续其余实现后重试。清理新增的约 1.1 GiB debug 增量目录。

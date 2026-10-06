@@ -168,7 +168,14 @@ static TestLeaf *collect_with_stack_root(TestLeaf *root) {
     uintptr_t managed_boundary =
         (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     initialize_fake_frame(frame, root, managed_boundary);
+#ifdef TEST_MINOR_GC
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, 0x1010, (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
+    scoop_gc_collect_minor_internal();
+    scoop_thread_pop_managed_anchor(&anchor);
+#else
     scoop_rt_gc_collect_impl(0x1010, (uintptr_t)&frame[0], (uintptr_t)&frame[2]);
+#endif
     memcpy(&root, &frame[0], sizeof root);
     return root;
 }
@@ -234,6 +241,11 @@ int main(void) {
         assert(probes[index].passed);
     }
     assert(scoop_rt_thread_debug_count() == 1);
+#ifdef TEST_MINOR_GC
+    ScoopGcMetrics metrics;
+    scoop_rt_gc_debug_metrics(&metrics);
+    assert(metrics.minor_collections == 1 && metrics.full_collections == 0);
+#endif
 
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();

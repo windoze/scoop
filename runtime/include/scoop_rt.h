@@ -251,6 +251,25 @@ void scoop_runtime_gc_collect(void);
  * gcStats). */
 uint64_t scoop_rt_gc_stats(void);
 
+typedef struct ScoopGcMetrics {
+    uint64_t minor_collections;
+    uint64_t full_collections;
+    uint64_t promotion_fallbacks;
+    uint64_t allocated_bytes;
+    uint64_t nursery_allocated_bytes;
+    uint64_t promoted_bytes;
+    uint64_t dirty_cards;
+    uint64_t old_reference_slots;
+    uint64_t root_slots;
+    uint64_t traced_objects;
+    uint64_t pause_ns;
+    uint64_t maximum_pause_ns;
+    uint64_t heap_committed_bytes;
+} ScoopGcMetrics;
+
+/* Diagnostic snapshot; counters never control program validity. */
+void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result);
+
 /* Test hook: number of heap blocks currently live in the arena. */
 uint64_t scoop_rt_gc_debug_block_count(void);
 uint64_t scoop_rt_gc_debug_last_moved_count(void);

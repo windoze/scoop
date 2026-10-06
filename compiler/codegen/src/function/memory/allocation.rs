@@ -158,8 +158,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let within_limit = builder
             .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
             .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
+        let hook_slot = builder
+            .build_struct_gep(
+                metadata.type_descriptor(),
+                descriptor,
+                11,
+                "allocation_hook_ptr",
+            )
+            .map_err(|error| CodegenError(format!("allocation release hook: {error}")))?;
+        let hook = builder
+            .build_load(ptr, hook_slot, "allocation_hook")
+            .map_err(|error| CodegenError(format!("load allocation release hook: {error}")))?
+            .into_pointer_value();
+        let nursery_eligible = builder
+            .build_is_null(hook, "allocation_nursery_eligible")
+            .map_err(|error| CodegenError(format!("allocation generation: {error}")))?;
         let fast = builder
             .build_and(has_tlab, is_regular, "alloc_has_regular_tlab")
+            .and_then(|condition| {
+                builder.build_and(condition, nursery_eligible, "alloc_young_tlab")
+            })
             .and_then(|condition| builder.build_and(condition, within_limit, "alloc_within_limit"))
             .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
             .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;

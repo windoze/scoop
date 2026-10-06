@@ -155,19 +155,28 @@ bool object_marked(const ScoopGcBlockMeta *block, size_t word) {
                : bit_test(block->marks, word);
 }
 
-void scoop_gc_heap_begin_collection_locked(void) {
+bool scoop_gc_is_young_object_locked(const void *object) {
+    uint32_t index;
+    return pointer_block_index(object, &index) && blocks[index].generation == SCOOP_GC_YOUNG;
+}
+
+void scoop_gc_heap_begin_collection_locked(bool minor) {
     require_arena();
     if (collection_active) {
         heap_fatal("nested heap collection");
     }
-    free_run_nodes();
+    if (!minor) {
+        free_run_nodes();
+        scoop_gc_heap_state.old_cursor = NULL;
+        scoop_gc_heap_state.old_limit = NULL;
+    }
     evacuation_block = UINT32_MAX;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
     moved_objects = 0;
     for (uint32_t index = 0; index < arena_next_block; index++) {
         ScoopGcBlockMeta *block = &blocks[index];
-        if (!active_head(block)) {
+        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD)) {
             continue;
         }
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||
