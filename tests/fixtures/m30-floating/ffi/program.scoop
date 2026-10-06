@@ -1,0 +1,56 @@
+@CLayout struct Singles(val first: Float, val second: Float)
+@CLayout struct Doubles(val first: Double, val second: Double)
+@CLayout struct Mixed(val small: Float, val tag: Int, val wide: Double)
+struct Pair(val small: Float, val wide: Double)
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits") fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits") fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits") fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits") fun doubleBits(value: Double): ULong
+@NoGC @Extern(lib = "fixture_native", name = "round_singles") fun roundSingles(value: Singles): Singles
+@NoGC @Extern(lib = "fixture_native", name = "round_doubles") fun roundDoubles(value: Doubles): Doubles
+@NoGC @Extern(lib = "fixture_native", name = "round_mixed") fun roundMixed(value: Mixed): Mixed
+@NoGC @Extern(lib = "fixture_native", name = "pointer_single") fun pointerSingle(value: Ptr<Float>): Float
+@NoGC @Extern(lib = "fixture_native", name = "pointer_wide") fun pointerWide(value: Ptr<Double>): Double
+@NoGC @Extern(lib = "fixture_native", name = "tls_matches") fun tlsMatches(small: UInt, wide: ULong): Int
+@NoGC @Extern(lib = "fixture_native", name = "native_single") fun nativeSingle(): FunPtr<(Float) -> Float>
+@NoGC @Extern(lib = "fixture_native", name = "native_wide") fun nativeWide(): FunPtr<(Double) -> Double>
+@NoGC @Extern(lib = "fixture_native", name = "invoke_single") fun invokeSingle(callback: FunPtr<(Float) -> Float>, value: Float): Float
+@NoGC @Extern(lib = "fixture_native", name = "invoke_wide") fun invokeWide(callback: FunPtr<(Double) -> Double>, value: Double): Double
+@Extern(lib = "fixture_native", name = "invoke_managed") fun invokeManaged(callback: FunPtr<(Float, Ptr<Unit>) -> Float>, context: Ptr<Unit>, value: Float): Float
+@NoGC @Extern(lib = "fixture_native", name = "scalar_single", abi = "scoop") fun scoopSingle(value: Float): Float
+@NoGC @Extern(lib = "fixture_native", name = "scalar_wide", abi = "scoop") fun scoopWide(value: Double): Double
+@NoGC @Extern(lib = "fixture_native", name = "scoop_pair", abi = "scoop") fun scoopPair(value: Pair): Pair
+@Global @Extern(lib = "fixture_native", name = "global_single") var globalSingle: Float
+@Extern(lib = "fixture_native", name = "global_wide") val globalWide: Double
+@ThreadLocal @Extern(lib = "fixture_native", name = "tls_single") var tlsSingle: Float
+@ThreadLocal @Extern(lib = "fixture_native", name = "tls_wide") var tlsWide: Double
+@NoGC fun identitySingle(value: Float): Float = value
+@NoGC fun identityWide(value: Double): Double = value
+
+@Unsafe fun main() {
+    val single = fromFloatBits(0xff800123U)
+    val wide = fromDoubleBits(0x7ff0000000000123UL)
+    globalSingle = single
+    println(floatBits(globalSingle) == 0xff800123U && doubleBits(globalWide) == 0x8000000000000000UL)
+    var localSingle = single
+    var localWide = wide
+    addressOf(localSingle).store(single)
+    addressOf(localWide).store(wide)
+    println(floatBits(pointerSingle(addressOf(localSingle))) == 0xff800123U && doubleBits(pointerWide(addressOf(localWide))) == 0x7ff0000000000123UL)
+    val singles = roundSingles(Singles(single, -0f))
+    val doubles = roundDoubles(Doubles(wide, -0.0))
+    val mixed = roundMixed(Mixed(single, 42, wide))
+    println(floatBits(singles.first) == 0xff800123U && floatBits(singles.second) == 0x80000000U && doubleBits(doubles.first) == 0x7ff0000000000123UL && doubleBits(doubles.second) == 0x8000000000000000UL && mixed.tag == 42 && floatBits(mixed.small) == 0xff800123U && doubleBits(mixed.wide) == 0x7ff0000000000123UL)
+    val pair = scoopPair(Pair(single, wide))
+    println(floatBits(scoopSingle(single)) == 0xff800123U && doubleBits(scoopWide(wide)) == 0x7ff0000000000123UL && floatBits(pair.small) == 0xff800123U && doubleBits(pair.wide) == 0x7ff0000000000123UL)
+    tlsSingle = single
+    addressOf(tlsWide).store(wide)
+    println(tlsMatches(0xff800123U, 0x7ff0000000000123UL) == 1 && floatBits(tlsSingle) == 0xff800123U && doubleBits(tlsWide) == 0x7ff0000000000123UL)
+    val callbackSingle: FunPtr<(Float) -> Float> = ::identitySingle
+    val callbackWide: FunPtr<(Double) -> Double> = ::identityWide
+    println(floatBits(invokeSingle(callbackSingle, single)) == 0xff800123U && doubleBits(invokeWide(callbackWide, wide)) == 0x7ff0000000000123UL && floatBits(invokeSingle(nativeSingle(), single)) == 0xff800123U && doubleBits(invokeWide(nativeWide(), wide)) == 0x7ff0000000000123UL)
+    val managed = foreignCallback<(Float, Ptr<Unit>) -> Float>({ value: Float -> gcCollect(); value }, 1L, ForeignCallbackMode.Reusable)
+    println(floatBits(invokeManaged(managed.function, managed.context, single)) == 0xff800123U)
+    releaseForeignCallback(managed)
+}

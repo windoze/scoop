@@ -319,8 +319,8 @@ pub(crate) fn c_field_size(
     Ok(match ty {
         LirType::I1 | LirType::I8 => 1,
         LirType::I16 => 2,
-        LirType::I32 => 4,
-        LirType::I64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
+        LirType::I32 | LirType::F32 => 4,
+        LirType::I64 | LirType::F64 | LirType::MachineScalar(_) | LirType::Ptr(_) => 8,
         LirType::Struct(id) => structs[*id].size,
         LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
         other => {

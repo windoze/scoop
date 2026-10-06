@@ -76,3 +76,9 @@ Darwin 验证：格式化、workspace clippy、release CLI 构建通过；19 个
 Darwin 的 C 严格警告检查、workspace 格式化及 clippy 通过。新增 environment fixture 经正式 CLI 构建、普通／移动 GC 和四阶段 golden 通过，共 5 个进程；主线程检查 rounding/trap/subnormal 设置，foreign worker 在回调前故意改成向上舍入与 flush-to-zero，回调附着后验证 nearest-even、subnormal、Float/Double 参数／Double 结果及 GC 中的闭包捕获。native archive 仍不接收初始化 section，测试使用正常线程入口改变环境。
 
 随后在 nuc12 的 Linux/glibc x86_64 完成 release 构建；inference、annotation、pattern 与 environment 四个正例通过，共 14 进程、16 golden，并保存环境用例的 GNU LIR 快照。x86 SSE 的 rounding、trap mask 和 FTZ/DAZ 也通过实际线程回调验证。
+
+## D2：FFI、值容器与协程
+
+补齐 LLVM C-layout 字段大小及物理／canonical C storage 匹配中的浮点分支，继续使用既有 C 编译器分类 aggregate。三个独立 fixture 覆盖 C 同型／混合 aggregate、Scoop scalar／aggregate ABI、global/TLS、指针、原始与 managed callback，以及数组、ArrayList、泛型 aggregate、Option、boxing、引用字段、闭包和协程 frame。
+
+Darwin 格式化、workspace clippy、release CLI 构建通过。三个新 fixture 共 16 个进程、12 份阶段 golden 通过，均包含普通及移动 GC 运行。位型检查使用负 signaling NaN、正 signaling NaN、负零和最小 subnormal；协程在两个挂起点之间触发 GC，验证保留值与恢复结果。未改动不允许直接调用 FunPtr 或捕获 mutable local 的既有语言规则，测试通过正常 native 调用与显式引用状态表达这些组合。

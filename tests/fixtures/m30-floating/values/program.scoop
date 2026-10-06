@@ -1,0 +1,65 @@
+struct Packet<T>(val number: T, val stamp: Double, val label: String)
+class Holder(var small: Float, var wide: Double)
+enum Reading { Value(Float), Empty }
+@Global var storedSingle: Float = -0.0
+@Global var storedWide: Double = Double.MIN_NORMAL
+
+@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+fun fromFloatBits(value: UInt): Float
+@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+fun fromDoubleBits(value: ULong): Double
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): ULong
+fun <T> identity(value: T): T = value
+fun unpack(value: Reading): Float = when (value) { Value(number) -> number; Empty -> 0f }
+
+@Unsafe fun main() {
+    val single = fromFloatBits(0xff800123U)
+    val wide = fromDoubleBits(0x7ff0000000000123UL)
+    val singles = MutableArray<Float>(130L) { i -> if (i % 2L == 0L) { single } else { -0f } }
+    val doubles = Array<Double>(130L) { i -> wide }
+    val list = ArrayList<Float>()
+    for (value in singles) { list.add(value) }
+    val packet = identity(Packet(single, wide, "packet-" + "alive"))
+    val tuple = identity((Some(single), wide))
+    val variant = Reading.Value(single)
+    val holder = Holder(single, wide)
+    val boxed: ToString = single
+    val any: Any = single
+    val captured = Holder(single, wide)
+    val closure: () -> Packet<Float> = { gcCollect(); Packet(captured.small, wide, packet.label) }
+    captured.small = -0f
+    if (floatBits(storedSingle) != 0x80000000U || doubleBits(storedWide) != 0x0010000000000000UL) {
+        println("initializers"); return
+    }
+    storedSingle = single
+    storedWide = wide
+    gcCollect()
+    if (floatBits(packet.number) != 0xff800123U || doubleBits(packet.stamp) != 0x7ff0000000000123UL ||
+        floatBits(tuple._1!!) != 0xff800123U || doubleBits(tuple._2) != 0x7ff0000000000123UL ||
+        floatBits(unpack(variant)) != 0xff800123U || packet.label != "packet-alive") {
+        println("aggregates"); return
+    }
+    if (floatBits(any as Float) != 0xff800123U || any is Int || any is Double || boxed.toString() != "NaN") {
+        println("boxing"); return
+    }
+    var index = 0L
+    while (index < 130L) {
+        val expected = if (index % 2L == 0L) { 0xff800123U } else { 0x80000000U }
+        if (floatBits(singles[index]) != expected || floatBits(list[index]) != expected ||
+            doubleBits(doubles[index]) != 0x7ff0000000000123UL) { println("arrays"); return }
+        index = index + 1L
+    }
+    list[64L] = -0f
+    if (floatBits(list.removeAt(64L)) != 0x80000000U || list.size != 129L) { println("list"); return }
+    val capturedPacket = closure()
+    if (floatBits(capturedPacket.number) != 0x80000000U || doubleBits(capturedPacket.stamp) != 0x7ff0000000000123UL ||
+        capturedPacket.label != "packet-alive" || floatBits(holder.small) != 0xff800123U ||
+        doubleBits(holder.wide) != 0x7ff0000000000123UL) { println("closure"); return }
+    if (floatBits(storedSingle) != 0xff800123U || doubleBits(storedWide) != 0x7ff0000000000123UL) {
+        println("globals"); return
+    }
+    println("values-ok")
+}

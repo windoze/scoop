@@ -1,0 +1,299 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct Singles
+    field first: Float
+    field second: Float
+    @CLayout
+  struct Doubles
+    field first: Double
+    field second: Double
+    @CLayout
+  struct Mixed
+    field small: Float
+    field tag: Int
+    field wide: Double
+  struct Pair
+    field small: Float
+    field wide: Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_from_bits")
+  fun fromFloatBits(value: UInt): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_from_bits")
+  fun fromDoubleBits(value: ULong): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "float_bits")
+  fun floatBits(value: Float): UInt
+    @NoGC
+    @Extern(lib = "fixture_native", name = "double_bits")
+  fun doubleBits(value: Double): ULong
+    @NoGC
+    @Extern(lib = "fixture_native", name = "round_singles")
+  fun roundSingles(value: Singles): Singles
+    @NoGC
+    @Extern(lib = "fixture_native", name = "round_doubles")
+  fun roundDoubles(value: Doubles): Doubles
+    @NoGC
+    @Extern(lib = "fixture_native", name = "round_mixed")
+  fun roundMixed(value: Mixed): Mixed
+    @NoGC
+    @Extern(lib = "fixture_native", name = "pointer_single")
+  fun pointerSingle(value: Ptr<Float>): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "pointer_wide")
+  fun pointerWide(value: Ptr<Double>): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "tls_matches")
+  fun tlsMatches(small: UInt, wide: ULong): Int
+    @NoGC
+    @Extern(lib = "fixture_native", name = "native_single")
+  fun nativeSingle(): FunPtr<(Float) -> Float>
+    @NoGC
+    @Extern(lib = "fixture_native", name = "native_wide")
+  fun nativeWide(): FunPtr<(Double) -> Double>
+    @NoGC
+    @Extern(lib = "fixture_native", name = "invoke_single")
+  fun invokeSingle(callback: FunPtr<(Float) -> Float>, value: Float): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "invoke_wide")
+  fun invokeWide(callback: FunPtr<(Double) -> Double>, value: Double): Double
+    @Extern(lib = "fixture_native", name = "invoke_managed")
+  fun invokeManaged(callback: FunPtr<(Float, Ptr<Unit>) -> Float>, context: Ptr<Unit>, value: Float): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "scalar_single", abi = "scoop")
+  fun scoopSingle(value: Float): Float
+    @NoGC
+    @Extern(lib = "fixture_native", name = "scalar_wide", abi = "scoop")
+  fun scoopWide(value: Double): Double
+    @NoGC
+    @Extern(lib = "fixture_native", name = "scoop_pair", abi = "scoop")
+  fun scoopPair(value: Pair): Pair
+    @Global
+    @Extern(lib = "fixture_native", name = "global_single")
+  var globalSingle: Float
+    @Extern(lib = "fixture_native", name = "global_wide")
+  val globalWide: Double
+    @ThreadLocal
+    @Extern(lib = "fixture_native", name = "tls_single")
+  var tlsSingle: Float
+    @ThreadLocal
+    @Extern(lib = "fixture_native", name = "tls_wide")
+  var tlsWide: Double
+    @NoGC
+  fun identitySingle(value: Float): Float
+    =
+      Var value
+    @NoGC
+  fun identityWide(value: Double): Double
+    =
+      Var value
+    @Unsafe
+  fun main()
+    val single
+      Call fromFloatBits
+        IntLiteral 0xff800123u
+    val wide
+      Call fromDoubleBits
+        IntLiteral 0x7ff0000000000123uL
+    assign globalSingle
+      Var single
+    Call println
+      Binary And
+        Binary Eq
+          Call floatBits
+            Var globalSingle
+          IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            Var globalWide
+          IntLiteral 0x8000000000000000uL
+    var localSingle
+      Var single
+    var localWide
+      Var wide
+    MethodCall store
+      Call addressOf
+        Var localSingle
+      Var single
+    MethodCall store
+      Call addressOf
+        Var localWide
+      Var wide
+    Call println
+      Binary And
+        Binary Eq
+          Call floatBits
+            Call pointerSingle
+              Call addressOf
+                Var localSingle
+          IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            Call pointerWide
+              Call addressOf
+                Var localWide
+          IntLiteral 0x7ff0000000000123uL
+    val singles
+      Call roundSingles
+        Call Singles
+          Var single
+          Unary Neg
+            FloatLiteral 0f
+    val doubles
+      Call roundDoubles
+        Call Doubles
+          Var wide
+          Unary Neg
+            FloatLiteral 0.0
+    val mixed
+      Call roundMixed
+        Call Mixed
+          Var single
+          IntLiteral 42
+          Var wide
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary And
+                  Binary Eq
+                    Call floatBits
+                      FieldAccess first
+                        Var singles
+                    IntLiteral 0xff800123u
+                  Binary Eq
+                    Call floatBits
+                      FieldAccess second
+                        Var singles
+                    IntLiteral 0x80000000u
+                Binary Eq
+                  Call doubleBits
+                    FieldAccess first
+                      Var doubles
+                  IntLiteral 0x7ff0000000000123uL
+              Binary Eq
+                Call doubleBits
+                  FieldAccess second
+                    Var doubles
+                IntLiteral 0x8000000000000000uL
+            Binary Eq
+              FieldAccess tag
+                Var mixed
+              IntLiteral 42
+          Binary Eq
+            Call floatBits
+              FieldAccess small
+                Var mixed
+            IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            FieldAccess wide
+              Var mixed
+          IntLiteral 0x7ff0000000000123uL
+    val pair
+      Call scoopPair
+        Call Pair
+          Var single
+          Var wide
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              Call floatBits
+                Call scoopSingle
+                  Var single
+              IntLiteral 0xff800123u
+            Binary Eq
+              Call doubleBits
+                Call scoopWide
+                  Var wide
+              IntLiteral 0x7ff0000000000123uL
+          Binary Eq
+            Call floatBits
+              FieldAccess small
+                Var pair
+            IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            FieldAccess wide
+              Var pair
+          IntLiteral 0x7ff0000000000123uL
+    assign tlsSingle
+      Var single
+    MethodCall store
+      Call addressOf
+        Var tlsWide
+      Var wide
+    Call println
+      Binary And
+        Binary And
+          Binary Eq
+            Call tlsMatches
+              IntLiteral 0xff800123u
+              IntLiteral 0x7ff0000000000123uL
+            IntLiteral 1
+          Binary Eq
+            Call floatBits
+              Var tlsSingle
+            IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            Var tlsWide
+          IntLiteral 0x7ff0000000000123uL
+    val callbackSingle: FunPtr<(Float) -> Float>
+      CallableReference 0 identitySingle
+    val callbackWide: FunPtr<(Double) -> Double>
+      CallableReference 1 identityWide
+    Call println
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              Call floatBits
+                Call invokeSingle
+                  Var callbackSingle
+                  Var single
+              IntLiteral 0xff800123u
+            Binary Eq
+              Call doubleBits
+                Call invokeWide
+                  Var callbackWide
+                  Var wide
+              IntLiteral 0x7ff0000000000123uL
+          Binary Eq
+            Call floatBits
+              Call invokeSingle
+                Call nativeSingle
+                Var single
+            IntLiteral 0xff800123u
+        Binary Eq
+          Call doubleBits
+            Call invokeWide
+              Call nativeWide
+              Var wide
+          IntLiteral 0x7ff0000000000123uL
+    val managed
+      Call foreignCallback<(Float, Ptr<Unit>) -> Float>
+        Lambda 0 suspend=false
+          param value: Float
+          Call gcCollect
+          Var value
+        IntLiteral 1L
+        FieldAccess Reusable
+          Var ForeignCallbackMode
+    Call println
+      Binary Eq
+        Call floatBits
+          Call invokeManaged
+            FieldAccess function
+              Var managed
+            FieldAccess context
+              Var managed
+            Var single
+        IntLiteral 0xff800123u
+    Call releaseForeignCallback
+      Var managed

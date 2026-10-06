@@ -130,6 +130,10 @@ fn physical_storage_matches(
 ) -> bool {
     match (physical, canonical) {
         (
+            scoop_lir::CType::Float(kind),
+            scoop_lir::CanonicalCAbiStorageType::Float { kind: expected, .. },
+        ) => *kind == expected,
+        (
             scoop_lir::CType::Integer(kind),
             scoop_lir::CanonicalCAbiStorageType::Integer {
                 signedness,
