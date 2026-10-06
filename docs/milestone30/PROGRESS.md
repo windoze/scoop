@@ -144,3 +144,11 @@ Rust 格式化、workspace clippy 和 4 项定向测试通过（其中已有完�
 继续审查 Rust 中的固定哈希，删除泛型机器码端到端辅助函数中的 13 个哈希字面量及仅用于选择该表的 target 参数。真实对象、registration 和 safepoint 的 typed 引用、ABI／LIR 对应关系与补丁字节检查仍在；不同 Cone 的实际内容一致性，以及修改关联 EH／stackmap atom 后只使相应 definition 失效的断言全部保留。该辅助文件减少 69 行，不以另一张快照表替代。
 
 直接构造受控对象字节的 slib 指纹测试、identity／wire 编码向量与 cache key／receipt 的 canonical 向量仍保留。普通文件 fixture 的固定 fingerprint 检查再次扫描为零。格式化、workspace clippy 和 `actual_generic_library_emits_shared_odr_objects` 定向测试通过。
+
+## G5：过期依赖诊断的内容摘要
+
+三个依赖失效 fixture 的四个诊断步骤仍固定了某次构建的 HIR／MIR／LIR 摘要。先修订 M23-11 的测试约定，再增加仅供诊断使用的 `dependency-digests`：只匹配完整 `StaleDependency` 消息中的六个内容摘要，以首次出现编号保留 recorded 与 actual 的相等／变化关系；Cone／provider 的身份、依赖坐标、来源、阶段、code、notes 和其他消息内容保持精确。生产诊断与指纹计算不变。
+
+归一化后逐字节确认三平台期望相同，将 12 份固定摘要 JSON 合并为 4 份共同诊断文件。增加两个公共规则测试，覆盖失效变成相等、错误阶段摘要、交换 actual 字段、改变依赖身份／坐标、无关或不完整摘要，以及更新快照时仍拒绝不同诊断。
+
+Ruff 0.16.10 格式化与检查通过，44 项公共 runner 测试在 Darwin 和 Linux 均通过。三个实际 CLI 负例在 Darwin 普通模式复验通过，保留原产物图、原子失败、链接和运行步骤；Linux 的后续定向复验记入最终验收记录。

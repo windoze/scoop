@@ -112,6 +112,9 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 成员名称／顺序／范围、选择状态、动态库路径和绑定关系。它不处理普通 IR ID 或任意哈希。
 native 诊断中的 `native object` 引用及 `NativeInputId(Digest256(...))` 可通过进程步骤的
 `diagnostics_normalize = ["native-digests"]` 使用同一规则；完整诊断的其他字段仍精确比较。
+过期依赖诊断可用 `diagnostics_normalize = ["dependency-digests"]`，仅处理
+`StaleDependency` 中 recorded HIR/MIR/LIR 与 actual 的六个内容摘要，保留它们的相等／变化关系。
+该规则只允许用于诊断；Cone／provider 身份、坐标、来源、阶段、错误 code 和其他内容仍精确比较。
 摘要本身是被测行为的确定性或编码测试不启用此规则。显式
 `--update-snapshots` 仅更新选中的 snapshot 文件，不改 exit/signal、诊断和普通输出期望。
 

@@ -5,6 +5,7 @@ import glob
 import json
 import signal
 
+from .dependency_digests import normalize_dependency_digests
 from .model import AssertionFailure
 from .native_digests import normalize_native_digests
 from .schema import COMPARISONS
@@ -90,6 +91,8 @@ def normalize(data, rules, context):
             data = data.replace(original, replacement)
     if "native-digests" in rules:
         data = normalize_native_digests(data)
+    if "dependency-digests" in rules:
+        data = normalize_dependency_digests(data)
     return data
 
 

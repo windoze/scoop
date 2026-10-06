@@ -313,7 +313,8 @@ exit = 1
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "stale.diagnostics.${target}.json"}
+diagnostics = {"file" = "stale.diagnostics.json"}
+diagnostics_normalize = ["dependency-digests"]
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
 checks = [
   {"file" = "${work}/rejected-program", "exists" = false},

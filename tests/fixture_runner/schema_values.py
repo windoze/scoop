@@ -98,7 +98,7 @@ def process_values(step):
                 "diagnostics must be an array of complete records",
             )
     if "diagnostics_normalize" in step:
-        normalization_rules(step["diagnostics_normalize"], {"native-digests"})
+        normalization_rules(step["diagnostics_normalize"], {"native-digests", "dependency-digests"})
 
 
 def timeout(step):
