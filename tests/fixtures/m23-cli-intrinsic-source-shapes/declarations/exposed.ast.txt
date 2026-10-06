@@ -25,6 +25,7 @@ SourceFile
     public fun clear
     public operator fun iterator
     public companion object
+      public fun encoder
       public fun decoder
     @NoGC
     @Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
@@ -42,6 +43,7 @@ SourceFile
     public fun toMutableArray
     public operator fun iterator
     public companion object
+      public fun encoder
       public fun decoder
     @Intrinsic("core_mutable_array")
   public class MutableArray<T>(), List<T>
@@ -55,11 +57,12 @@ SourceFile
     public fun toArray
     public operator fun iterator
     public companion object
+      public fun encoder
       public fun decoder
 SourceFile
   RootPackage
     @Intrinsic("core_char")
-  public struct Char <representation omitted> : ToString, Hash, Encodable
+  public struct Char <representation omitted> : ToString, Hash
     private fun codeValue
     public val code: Int <computed>
       @NoGC
@@ -69,8 +72,8 @@ SourceFile
     public operator fun compareTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
   public fun Int.toChar(): Char
     if
@@ -193,7 +196,7 @@ SourceFile
       Var result
 SourceFile
   RootPackage
-  public interface Encodable
+  public interface Encodable<T>
     fun encode
   public interface Encoder
     fun keyed
@@ -213,6 +216,10 @@ SourceFile
     fun writeString
     fun writeNull
   public class EncodingException(val path: String, message: String) : Exception(<1 args>)
+  public class EncodeFunction<T>(val body: (T, Encoder) -> Unit), Encodable<T>
+    public fun encode
+  public object UnitEncoder
+    public fun encode
 SourceFile
   RootPackage
     @Intrinsic("core_ptr")
@@ -314,7 +321,7 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_int")
-  public struct Int <representation omitted> : ToString, Hash, Encodable
+  public struct Int <representation omitted> : ToString, Hash
     internal fun characterUnchecked
     public operator fun equals
     public operator fun unaryPlus
@@ -348,13 +355,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_int16")
-  public struct Int16 <representation omitted> : ToString, Hash, Encodable
+  public struct Int16 <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -387,13 +394,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_int8")
-  public struct Int8 <representation omitted> : ToString, Hash, Encodable
+  public struct Int8 <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -426,13 +433,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_long")
-  public struct Long <representation omitted> : ToString, Hash, Encodable
+  public struct Long <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -465,13 +472,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_uint")
-  public struct UInt <representation omitted> : ToString, Hash, Encodable
+  public struct UInt <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -503,13 +510,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_uint16")
-  public struct UInt16 <representation omitted> : ToString, Hash, Encodable
+  public struct UInt16 <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -541,13 +548,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_uint8")
-  public struct UInt8 <representation omitted> : ToString, Hash, Encodable
+  public struct UInt8 <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -579,13 +586,13 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_ulong")
-  public struct ULong <representation omitted> : ToString, Hash, Encodable
+  public struct ULong <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -617,8 +624,8 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
 SourceFile
   RootPackage
@@ -701,6 +708,7 @@ SourceFile
     Some(T)
     None
     public companion object
+      public fun encoder
       public fun decoder
 SourceFile
   RootPackage
@@ -708,32 +716,8 @@ SourceFile
     public fun decode
 SourceFile
   RootPackage
-  internal fun encodeOption<T : Encodable>(value: Option<T>, encoder: Encoder): Unit
-    val variants
-      MethodCall keyed
-        Var encoder
-    when
-      Var value
-      arm Option.None()
-        MethodCall end
-          MethodCall keyed
-            MethodCall field
-              Var variants
-              StringLiteral "None"
-      arm Option.Some(item)
-        val elements
-          MethodCall unkeyed
-            MethodCall field
-              Var variants
-              StringLiteral "Some"
-        MethodCall encode
-          Var item
-          MethodCall element
-            Var elements
-        MethodCall end
-          Var elements
-    MethodCall end
-      Var variants
+  internal class OptionEncoder<T>(val element: Encodable<T>), Encodable<Option<T>>
+    public fun encode
 SourceFile
   RootPackage
   public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
@@ -789,18 +773,25 @@ SourceFile
     public fun decode
 SourceFile
   RootPackage
-  public fun encodeList<T : Encodable>(values: List<T>, encoder: Encoder): Unit
+  public fun encodeList<T>(values: List<T>, element: Encodable<T>, encoder: Encoder): Unit
     val elements
       MethodCall unkeyed
         Var encoder
     for value
       Var values
       MethodCall encode
+        Var element
         Var value
         MethodCall element
           Var elements
     MethodCall end
       Var elements
+  internal class ArrayEncoder<T>(val element: Encodable<T>), Encodable<Array<T>>
+    public fun encode
+  internal class MutableArrayEncoder<T>(val element: Encodable<T>), Encodable<MutableArray<T>>
+    public fun encode
+  internal class ArrayListEncoder<T>(val element: Encodable<T>), Encodable<ArrayList<T>>
+    public fun encode
 SourceFile
   RootPackage
   public annotation class SerialName(val name: String)
@@ -834,7 +825,7 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_string")
-  public class String(), ToString, Hash, Iterable<Char>, Encodable
+  public class String(), ToString, Hash, Iterable<Char>
     public val byteLength: Long <computed>
       get()
         Call coreStringByteLength
@@ -853,8 +844,8 @@ SourceFile
     public operator fun iterator
     public fun toCharArray
     public fun toByteArray
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
       public fun fromChars
       public fun fromUtf8Unchecked
@@ -911,13 +902,13 @@ SourceFile
   public typealias UInt32 = UInt
   public typealias UInt64 = ULong
     @Intrinsic("core_boolean")
-  public struct Boolean <representation omitted> : ToString, Hash, Encodable
+  public struct Boolean <representation omitted> : ToString, Hash
     public operator fun equals
     public operator fun not
     public fun toString
     public fun hash
-    public fun encode
     public companion object
+      public fun encode
       public fun decode
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
@@ -936,5 +927,4 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_unit")
-  public struct Unit <representation omitted> : Encodable
-    public fun encode
+  public struct Unit <representation omitted>

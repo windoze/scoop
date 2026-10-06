@@ -3,9 +3,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -18,26 +15,17 @@ Module
   class DomainUnused<(String, String)> vtable=1 itables=0
   class Inner<String> vtable=1 itables=0
   class box<DomainValue<Int>> vtable=0 itables=1
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface DomainRight<Int> : DomainReader<(Int, Int)>
   interface DomainReader<(Int, Int)>
   interface DomainLeft<Int> : DomainReader<(Int, Int)>
   interface DomainReader<Int>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=class11 nominal_id=15a8168cd18e76c783663d334c50735cb2bb19677ec67b48d5a5bebfc4964648 exact_id=700960860b800f42a8689540450aebf577d56afd565b8a7552fa1953fdec1b17
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn36 id=86ef967a9283ba5e854495dac25791d37fa35cd66b48e06e2539ba90b23dc3f5
+  generated_callable gc0 function=@fn30 id=86ef967a9283ba5e854495dac25791d37fa35cd66b48e06e2539ba90b23dc3f5
   fun verifyDefault @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -75,7 +63,7 @@ Module
       return
   fun main @fn1() -> Unit
     bb0 entry
-      call diamond: DomainDiamond<Int> = @fn13 direct
+      call diamond: DomainDiamond<Int> = @fn10 direct
       val $dependency.receiver: DomainDiamond<Int>
         Type DomainDiamond<Int>
         Local diamond
@@ -92,14 +80,14 @@ Module
       val $dependency.parameter.value: (Int, Int)
         Type (Int, Int)
         Local $dependency.parameter.seed
-      call $call.1: (Int, Int) = @fn4 direct
+      call $call.1: (Int, Int) = @fn2 direct
         Type DomainDiamond<Int>
         Local $dependency.receiver
         Type (Int, Int)
         Local $dependency.parameter.seed
         Type (Int, Int)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn11 direct
         Type (Int, Int)
         Local $call.1
         Type (Int, Int)
@@ -140,14 +128,14 @@ Module
       val $dependency.parameter.value: (Int, Int)
         Type (Int, Int)
         Local $dependency.parameter.seed
-      call $call.2: (Int, Int) = @fn15 interface DomainLeft<Int>[0]
+      call $call.2: (Int, Int) = @fn12 interface DomainLeft<Int>[0]
         Type DomainLeft<Int>
         Local $dependency.receiver
         Type (Int, Int)
         Local $dependency.parameter.seed
         Type (Int, Int)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn11 direct
         Type (Int, Int)
         Local $call.2
         Type (Int, Int)
@@ -178,14 +166,14 @@ Module
       val $dependency.parameter.value: (Int, Int)
         Type (Int, Int)
         Local $dependency.parameter.seed
-      call $call.3: (Int, Int) = @fn16 interface DomainRight<Int>[0]
+      call $call.3: (Int, Int) = @fn13 interface DomainRight<Int>[0]
         Type DomainRight<Int>
         Local $dependency.receiver
         Type (Int, Int)
         Local $dependency.parameter.seed
         Type (Int, Int)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn11 direct
         Type (Int, Int)
         Local $call.3
         Type (Int, Int)
@@ -200,7 +188,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $call.4: DomainValue<Int> = @fn35 direct
+      call $call.4: DomainValue<Int> = @fn29 direct
       val value: DomainReader<Int>
         Type DomainReader<Int>
         Box
@@ -218,7 +206,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.parameter.seed
-      call $dependency.receiver: Int = @fn18 interface DomainReader<Int>[0]
+      call $dependency.receiver: Int = @fn15 interface DomainReader<Int>[0]
         Type DomainReader<Int>
         Local $dependency.receiver
         Type Int
@@ -244,7 +232,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call child: DomainChild<Int> = @fn19 direct
+      call child: DomainChild<Int> = @fn16 direct
       val parent: DomainBase<(Int, Int)>
         Type DomainBase<(Int, Int)>
         Retype DomainBase<(Int, Int)>
@@ -266,14 +254,14 @@ Module
       val $dependency.parameter.value: (Int, Int)
         Type (Int, Int)
         Local $dependency.parameter.seed
-      call $call.5: (Int, Int) = @fn5 virtual[0]
+      call $call.5: (Int, Int) = @fn3 virtual[0]
         Type DomainBase<(Int, Int)>
         Local $dependency.receiver
         Type (Int, Int)
         Local $dependency.parameter.seed
         Type (Int, Int)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn11 direct
         Type (Int, Int)
         Local $call.5
         Type (Int, Int)
@@ -304,14 +292,14 @@ Module
       val $dependency.parameter.value: (Int, Int)
         Type (Int, Int)
         Local $dependency.parameter.seed
-      call $call.6: (Int, Int) = @fn6 direct
+      call $call.6: (Int, Int) = @fn4 direct
         Type DomainChild<Int>
         Local $dependency.receiver
         Type (Int, Int)
         Local $dependency.parameter.seed
         Type (Int, Int)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn11 direct
         Type (Int, Int)
         Local $call.6
         Type (Int, Int)
@@ -340,7 +328,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.parameter.seed
-      call $dependency.receiver: String = @fn20 direct
+      call $dependency.receiver: String = @fn17 direct
         Type DomainBase<(Int, Int)>
         Local $dependency.receiver
         Type String
@@ -353,7 +341,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external2 direct
+      call $argument.0: Boolean = external1 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -364,11 +352,11 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: DomainUnusedChild<Int> = @fn21 direct
+      call $dependency.receiver: DomainUnusedChild<Int> = @fn18 direct
       val $dependency.parameter.value: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      call $dependency.receiver: Int = @fn8 direct
+      call $dependency.receiver: Int = @fn6 direct
         Type DomainUnusedChild<Int>
         Local $dependency.receiver
         Type Int
@@ -392,11 +380,11 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: DomainUnusedChild<String> = @fn22 direct
+      call $dependency.receiver: DomainUnusedChild<String> = @fn19 direct
       val $dependency.parameter.value: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      call $dependency.receiver: Int = @fn11 direct
+      call $dependency.receiver: Int = @fn8 direct
         Type DomainUnusedChild<String>
         Local $dependency.receiver
         Type Int
@@ -420,7 +408,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: Inner<String> = @fn23 direct
+      call $dependency.receiver: Inner<String> = @fn20 direct
       val $dependency.argument.0: String
         Type String
         StringConst @str3
@@ -430,7 +418,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.parameter.seed
-      call $dependency.receiver: String = @fn12 virtual[0]
+      call $dependency.receiver: String = @fn9 virtual[0]
         Type Inner<String>
         Local $dependency.receiver
         Type String
@@ -443,7 +431,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external2 direct
+      call $argument.0: Boolean = external1 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -455,184 +443,58 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn24 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun $tuple.2.encode @fn3(this: (Int, Int), encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encoder
-        Type Encoder
-        Local encoder
-      call __encoding_elements: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.receiver
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type (Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external8 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 1
-          Type (Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external8 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call external10 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      return
-  fun choose @fn4(this: DomainDiamond<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun choose @fn2(this: DomainDiamond<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
         Type (Int, Int)
         Local value
-  fun read @fn5(this: DomainBase<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun read @fn3(this: DomainBase<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
         Type (Int, Int)
         Local value
-  fun read @fn6(this: DomainChild<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun read @fn4(this: DomainChild<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
         Type (Int, Int)
         Local value
-  fun number @fn7(this: DomainUnused<(Int, Int)>, value: Int) -> Int
+  fun number @fn5(this: DomainUnused<(Int, Int)>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun number @fn8(this: DomainUnusedChild<Int>, value: Int) -> Int
+  fun number @fn6(this: DomainUnusedChild<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun $tuple.2.encode @fn9(this: (String, String), encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encoder
-        Type Encoder
-        Local encoder
-      call __encoding_elements: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.receiver
-      val $dependency.receiver: String
-        Type String
-        FieldAccess 0
-          Type (String, String)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external9 direct
-        Type String
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: String
-        Type String
-        FieldAccess 1
-          Type (String, String)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external9 direct
-        Type String
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call external10 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      return
-  fun number @fn10(this: DomainUnused<(String, String)>, value: Int) -> Int
+  fun number @fn7(this: DomainUnused<(String, String)>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun number @fn11(this: DomainUnusedChild<String>, value: Int) -> Int
+  fun number @fn8(this: DomainUnusedChild<String>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun nested @fn12(this: Inner<String>, seed: String, value: String) -> String
+  fun nested @fn9(this: Inner<String>, seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun domainDiamond @fn13() -> DomainDiamond<Int>
+  fun domainDiamond @fn10() -> DomainDiamond<Int>
     bb0 entry
       assign $new.1
         Type DomainDiamond<Int>
         ClassAlloc DomainDiamond<Int>
-      call @fn27 direct
+      call @fn21 direct
         Type DomainDiamond<Int>
         Local $new.1
       return
         Type DomainDiamond<Int>
         Local $new.1
-  fun $derived.equals.0 @fn14(this: (Int, Int), other: (Int, Int)) -> Boolean
+  fun $derived.equals.0 @fn11(this: (Int, Int), other: (Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -667,354 +529,116 @@ Module
       return
         Type Boolean
         Local $logic.1
-  fun DomainLeft.choose @fn15(this: DomainLeft<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun DomainLeft.choose @fn12(this: DomainLeft<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       trap "call to abstract method `DomainLeft.choose`"
-  fun DomainRight.choose @fn16(this: DomainRight<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun DomainRight.choose @fn13(this: DomainRight<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       trap "call to abstract method `DomainRight.choose`"
-  fun choose @fn17(this: DomainValue<Int>, seed: Int, value: Int) -> Int
+  fun choose @fn14(this: DomainValue<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun DomainReader.choose @fn18(this: DomainReader<Int>, seed: Int, value: Int) -> Int
+  fun DomainReader.choose @fn15(this: DomainReader<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       trap "call to abstract method `DomainReader.choose`"
-  fun domainChild @fn19() -> DomainChild<Int>
+  fun domainChild @fn16() -> DomainChild<Int>
     bb0 entry
       assign $new.1
         Type DomainChild<Int>
         ClassAlloc DomainChild<Int>
-      call @fn28 direct
+      call @fn22 direct
         Type DomainChild<Int>
         Local $new.1
       return
         Type DomainChild<Int>
         Local $new.1
-  fun keep @fn20(this: DomainBase<(Int, Int)>, seed: String, value: String) -> String
+  fun keep @fn17(this: DomainBase<(Int, Int)>, seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun domainUnusedChild @fn21() -> DomainUnusedChild<Int>
+  fun domainUnusedChild @fn18() -> DomainUnusedChild<Int>
     bb0 entry
       assign $new.1
         Type DomainUnusedChild<Int>
         ClassAlloc DomainUnusedChild<Int>
-      call @fn29 direct
+      call @fn23 direct
         Type DomainUnusedChild<Int>
         Local $new.1
       return
         Type DomainUnusedChild<Int>
         Local $new.1
-  fun domainUnusedChild @fn22() -> DomainUnusedChild<String>
+  fun domainUnusedChild @fn19() -> DomainUnusedChild<String>
     bb0 entry
       assign $new.1
         Type DomainUnusedChild<String>
         ClassAlloc DomainUnusedChild<String>
-      call @fn30 direct
+      call @fn24 direct
         Type DomainUnusedChild<String>
         Local $new.1
       return
         Type DomainUnusedChild<String>
         Local $new.1
-  fun domainInner @fn23() -> Inner<String>
+  fun domainInner @fn20() -> Inner<String>
     bb0 entry
       assign $new.1
         Type Inner<String>
         ClassAlloc Inner<String>
-      call @fn31 direct
+      call @fn25 direct
         Type Inner<String>
         Local $new.1
       return
         Type Inner<String>
         Local $new.1
-  fun encodeOption @fn24(value: Option<String>, encoder: Encoder) -> Unit
+  fun init.DomainDiamond.$c1 @fn21(this: DomainDiamond<Int>) -> Unit
     bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str5
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
       return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str6
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external9 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external10 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun encode @fn25(this: Option<Char>, encoder: Encoder) -> Unit
+  fun init.DomainChild.$c2 @fn22(this: DomainChild<Int>) -> Unit
     bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
       call @fn26 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn26(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str7
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str8
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external1 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external10 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.DomainDiamond.$c1 @fn27(this: DomainDiamond<Int>) -> Unit
-    bb0 entry
-      return
-  fun init.DomainChild.$c2 @fn28(this: DomainChild<Int>) -> Unit
-    bb0 entry
-      call @fn32 direct
         Type DomainBase<(Int, Int)>
         Retype DomainBase<(Int, Int)>
           Type DomainChild<Int>
           Local this
       return
-  fun init.DomainUnusedChild.$c3 @fn29(this: DomainUnusedChild<Int>) -> Unit
+  fun init.DomainUnusedChild.$c3 @fn23(this: DomainUnusedChild<Int>) -> Unit
     bb0 entry
-      call @fn33 direct
+      call @fn27 direct
         Type DomainUnused<(Int, Int)>
         Retype DomainUnused<(Int, Int)>
           Type DomainUnusedChild<Int>
           Local this
       return
-  fun init.DomainUnusedChild.$c3 @fn30(this: DomainUnusedChild<String>) -> Unit
+  fun init.DomainUnusedChild.$c3 @fn24(this: DomainUnusedChild<String>) -> Unit
     bb0 entry
-      call @fn34 direct
+      call @fn28 direct
         Type DomainUnused<(String, String)>
         Retype DomainUnused<(String, String)>
           Type DomainUnusedChild<String>
           Local this
       return
-  fun init.Inner.$c4 @fn31(this: Inner<String>) -> Unit
+  fun init.Inner.$c4 @fn25(this: Inner<String>) -> Unit
     bb0 entry
       return
-  fun init.DomainBase.$c5 @fn32(this: DomainBase<(Int, Int)>) -> Unit
+  fun init.DomainBase.$c5 @fn26(this: DomainBase<(Int, Int)>) -> Unit
     bb0 entry
       return
-  fun init.DomainUnused.$c6 @fn33(this: DomainUnused<(Int, Int)>) -> Unit
+  fun init.DomainUnused.$c6 @fn27(this: DomainUnused<(Int, Int)>) -> Unit
     bb0 entry
       return
-  fun init.DomainUnused.$c6 @fn34(this: DomainUnused<(String, String)>) -> Unit
+  fun init.DomainUnused.$c6 @fn28(this: DomainUnused<(String, String)>) -> Unit
     bb0 entry
       return
-  fun ctor.DomainValue.$c0 @fn35() -> DomainValue<Int> <no-gc>
+  fun ctor.DomainValue.$c0 @fn29() -> DomainValue<Int> <no-gc>
     bb0 entry
       return
         Type DomainValue<Int>
         StructInit DomainValue<Int>
-  fun thunk<DomainValue<Int>> DomainReader.choose(Int, Int) @fn36(this: DomainReader<Int>, seed: Int, value: Int) -> Int
+  fun thunk<DomainValue<Int>> DomainReader.choose(Int, Int) @fn30(this: DomainReader<Int>, seed: Int, value: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn14 direct
         Type DomainValue<Int>
         Unbox
           Type DomainReader<Int>
@@ -1026,35 +650,27 @@ Module
       return
         Type Int
         Local $call.1
-  instance mi0 function=@fn2 <- encode
-  instance mi1 function=@fn4 <- choose
-  instance mi2 function=@fn5 <- read
-  instance mi3 function=@fn6 <- read
-  instance mi4 function=@fn7 <- number
-  instance mi5 function=@fn8 <- number
-  instance mi6 function=@fn10 <- number
-  instance mi7 function=@fn11 <- number
-  instance mi8 function=@fn12 <- nested
-  instance mi9 function=@fn13 <- domainDiamond
-  instance mi10 function=@fn15 <- DomainLeft.choose
-  instance mi11 function=@fn16 <- DomainRight.choose
-  instance mi12 function=@fn17 <- choose
-  instance mi13 function=@fn18 <- DomainReader.choose
-  instance mi14 function=@fn19 <- domainChild
-  instance mi15 function=@fn20 <- keep
-  instance mi16 function=@fn21 <- domainUnusedChild
-  instance mi17 function=@fn22 <- domainUnusedChild
-  instance mi18 function=@fn23 <- domainInner
-  instance mi19 function=@fn24 <- encodeOption
-  instance mi20 function=@fn25 <- encode
-  instance mi21 function=@fn26 <- encodeOption
+  instance mi0 function=@fn2 <- choose
+  instance mi1 function=@fn3 <- read
+  instance mi2 function=@fn4 <- read
+  instance mi3 function=@fn5 <- number
+  instance mi4 function=@fn6 <- number
+  instance mi5 function=@fn7 <- number
+  instance mi6 function=@fn8 <- number
+  instance mi7 function=@fn9 <- nested
+  instance mi8 function=@fn10 <- domainDiamond
+  instance mi9 function=@fn12 <- DomainLeft.choose
+  instance mi10 function=@fn13 <- DomainRight.choose
+  instance mi11 function=@fn14 <- choose
+  instance mi12 function=@fn15 <- DomainReader.choose
+  instance mi13 function=@fn16 <- domainChild
+  instance mi14 function=@fn17 <- keep
+  instance mi15 function=@fn18 <- domainUnusedChild
+  instance mi16 function=@fn19 <- domainUnusedChild
+  instance mi17 function=@fn20 <- domainInner
   str @str0 "illegal state"
   str @str1 "kept"
   str @str2 "kept"
   str @str3 "nested"
   str @str4 "nested"
-  str @str5 "None"
-  str @str6 "Some"
-  str @str7 "None"
-  str @str8 "Some"
   output executable @fn1

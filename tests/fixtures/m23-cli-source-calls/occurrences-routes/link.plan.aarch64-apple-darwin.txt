@@ -1,9 +1,9 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone test:occurrence-provider:1.0.0 kind=Library objects=8
 cone test:occurrence-facade:1.0.0 kind=Library objects=1
 cone test:scoop-hir-lower:0.0.0 kind=Library objects=2
-cone test:source-calls-runtime-occurrences-routes:1.0.0 kind=Executable objects=8
+cone test:source-calls-runtime-occurrences-routes:1.0.0 kind=Executable objects=4
 runtime objects=63
 images=5 root=_scoop$1$re$49b1d31510c580def9511cc4cb9b2dde36485e77a177c412f6b2da9d295d23d0
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

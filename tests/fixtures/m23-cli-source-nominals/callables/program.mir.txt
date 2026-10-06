@@ -3,9 +3,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -15,17 +12,8 @@ Module
   class Box<String> vtable=1 itables=0
   class Reader<Int> vtable=0 itables=1
   class Reader<String> vtable=0 itables=1
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Bound
-  interface ToString
-  interface Hash
   interface View<Int>
-  interface Iterable<Char>
-  interface Iterator<Char>
   interface View<String>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -76,7 +64,7 @@ Module
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=17 bits=0x00000011
-      call external14 direct
+      call external5 direct
       val $dependency.argument.1: Argument
         Type Argument
         GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
@@ -86,7 +74,7 @@ Module
       val $dependency.parameter.other: Argument
         Type Argument
         Local $dependency.argument.1
-      call integer: (Int, Argument) = @fn3 direct
+      call integer: (Int, Argument) = @fn2 direct
         Type Envelope
         Local $dependency.receiver
         Type Int
@@ -104,7 +92,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call external14 direct
+      call external5 direct
       branch bb1 bb2
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
@@ -144,7 +132,7 @@ Module
       val $dependency.argument.0: String
         Type String
         StringConst @str1
-      call external14 direct
+      call external5 direct
       val $dependency.argument.1: Argument
         Type Argument
         GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
@@ -154,7 +142,7 @@ Module
       val $dependency.parameter.other: Argument
         Type Argument
         Local $dependency.argument.1
-      call text: (String, Argument) = @fn4 direct
+      call text: (String, Argument) = @fn3 direct
         Type Envelope
         Local $dependency.receiver
         Type String
@@ -172,8 +160,8 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call external14 direct
-      call $call.2: Boolean = external3 direct
+      call external5 direct
+      call $call.2: Boolean = external2 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -216,12 +204,12 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.4: (Int, Int, Int, Int) = @fn6 direct
+      call $call.4: (Int, Int, Int, Int) = @fn4 direct
         Type Envelope
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn7 direct
+      call $argument.0: Boolean = @fn5 direct
         Type (Int, Int, Int, Int)
         Local $call.4
         Type (Int, Int, Int, Int)
@@ -249,12 +237,12 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $call.5: (String, String, Int, Int) = @fn9 direct
+      call $call.5: (String, String, Int, Int) = @fn6 direct
         Type Envelope
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn10 direct
+      call $argument.0: Boolean = @fn7 direct
         Type (String, String, Int, Int)
         Local $call.5
         Type (String, String, Int, Int)
@@ -276,7 +264,7 @@ Module
       val $dependency.receiver: Envelope
         Type Envelope
         Local value
-      call $dependency.receiver: Int = external4 direct
+      call $dependency.receiver: Int = external3 direct
         Type Envelope
         Local $dependency.receiver
       val $dependency.argument.0: Int
@@ -307,7 +295,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Boolean = external5 direct
+      call $argument.0: Boolean = external4 direct
         Type Envelope
         Local $dependency.receiver
         Type Int
@@ -319,27 +307,7 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn11 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun exercise @fn3(this: Envelope, value: Int, other: Argument) -> (Int, Argument)
+  fun exercise @fn2(this: Envelope, value: Int, other: Argument) -> (Int, Argument)
     bb0 entry
       val $dependency.local.4: Int
         Type Int
@@ -350,7 +318,7 @@ Module
       assign $new.1
         Type Box<Int>
         ClassAlloc Box<Int>
-      call @fn42 direct
+      call @fn36 direct
         Type Box<Int>
         Local $new.1
         Type Int
@@ -370,7 +338,7 @@ Module
       val $dependency.local.8: Int
         Type Int
         Local $dependency.local.7
-      call $dependency.local.10: Int = @fn13 direct
+      call $dependency.local.10: Int = @fn9 direct
         Type Box<Int>
         Local $dependency.local.6
         Type Int
@@ -384,7 +352,7 @@ Module
       val $dependency.local.13: Argument
         Type Argument
         Local $dependency.local.11
-      call $dependency.local.17: Int = @fn14 direct
+      call $dependency.local.17: Int = @fn10 direct
         Type Box<Int>
         Local $dependency.local.9
         Type Int
@@ -400,7 +368,7 @@ Module
       val $dependency.local.16: Argument
         Type Argument
         Local $dependency.local.15
-      call $dependency.local.18: Argument = @fn15 direct
+      call $dependency.local.18: Argument = @fn11 direct
         Type Box<Int>
         Local $dependency.local.14
         Type Argument
@@ -412,7 +380,7 @@ Module
           Local $dependency.local.17
           Type Argument
           Local $dependency.local.18
-  fun exercise @fn4(this: Envelope, value: String, other: Argument) -> (String, Argument)
+  fun exercise @fn3(this: Envelope, value: String, other: Argument) -> (String, Argument)
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -423,7 +391,7 @@ Module
       assign $new.1
         Type Box<String>
         ClassAlloc Box<String>
-      call @fn43 direct
+      call @fn37 direct
         Type Box<String>
         Local $new.1
         Type String
@@ -443,7 +411,7 @@ Module
       val $dependency.local.8: String
         Type String
         Local $dependency.local.7
-      call $dependency.local.10: String = @fn17 direct
+      call $dependency.local.10: String = @fn13 direct
         Type Box<String>
         Local $dependency.local.6
         Type String
@@ -457,7 +425,7 @@ Module
       val $dependency.local.13: Argument
         Type Argument
         Local $dependency.local.11
-      call $dependency.local.17: String = @fn18 direct
+      call $dependency.local.17: String = @fn14 direct
         Type Box<String>
         Local $dependency.local.9
         Type String
@@ -473,7 +441,7 @@ Module
       val $dependency.local.16: Argument
         Type Argument
         Local $dependency.local.15
-      call $dependency.local.18: Argument = @fn19 direct
+      call $dependency.local.18: Argument = @fn15 direct
         Type Box<String>
         Local $dependency.local.14
         Type Argument
@@ -485,98 +453,7 @@ Module
           Local $dependency.local.17
           Type Argument
           Local $dependency.local.18
-  fun $tuple.4.encode @fn5(this: (Int, Int, Int, Int), encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encoder
-        Type Encoder
-        Local encoder
-      call __encoding_elements: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.receiver
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type (Int, Int, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 1
-          Type (Int, Int, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 2
-          Type (Int, Int, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 3
-          Type (Int, Int, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call external13 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      return
-  fun view @fn6(this: Envelope, value: Int) -> (Int, Int, Int, Int)
+  fun view @fn4(this: Envelope, value: Int) -> (Int, Int, Int, Int)
     bb0 entry
       val $dependency.local.3: Int
         Type Int
@@ -587,7 +464,7 @@ Module
       assign $new.1
         Type Reader<Int>
         ClassAlloc Reader<Int>
-      call @fn44 direct
+      call @fn38 direct
         Type Reader<Int>
         Local $new.1
         Type Int
@@ -598,21 +475,21 @@ Module
       val $dependency.local.5: Reader<Int>
         Type Reader<Int>
         Local $dependency.local.2
-      call $dependency.local.7: Int = @fn20 direct
+      call $dependency.local.7: Int = @fn16 direct
         Type Reader<Int>
         Local $dependency.local.5
-      call $dependency.local.8: Int = @fn22 direct
+      call $dependency.local.8: Int = @fn18 direct
         Type Reader<Int>
         Local $dependency.local.2
       val $dependency.local.6: Reader<Int>
         Type Reader<Int>
         Local $dependency.local.2
-      call $dependency.local.9: Int = @fn21 interface View<Int>[1]
+      call $dependency.local.9: Int = @fn17 interface View<Int>[1]
         Type View<Int>
         Retype View<Int>
           Type Reader<Int>
           Local $dependency.local.6
-      call $dependency.local.10: Int = @fn23 interface View<Int>[3]
+      call $dependency.local.10: Int = @fn19 interface View<Int>[3]
         Type View<Int>
         Retype View<Int>
           Type Reader<Int>
@@ -628,7 +505,7 @@ Module
           Local $dependency.local.9
           Type Int
           Local $dependency.local.10
-  fun $derived.equals.0 @fn7(this: (Int, Int, Int, Int), other: (Int, Int, Int, Int)) -> Boolean
+  fun $derived.equals.0 @fn5(this: (Int, Int, Int, Int), other: (Int, Int, Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -707,98 +584,7 @@ Module
       return
         Type Boolean
         Local $logic.3
-  fun $tuple.4.encode @fn8(this: (String, String, Int, Int), encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encoder
-        Type Encoder
-        Local encoder
-      call __encoding_elements: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.receiver
-      val $dependency.receiver: String
-        Type String
-        FieldAccess 0
-          Type (String, String, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external12 direct
-        Type String
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: String
-        Type String
-        FieldAccess 1
-          Type (String, String, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external12 direct
-        Type String
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 2
-          Type (String, String, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 3
-          Type (String, String, Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external11 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call external13 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      return
-  fun view @fn9(this: Envelope, value: String) -> (String, String, Int, Int)
+  fun view @fn6(this: Envelope, value: String) -> (String, String, Int, Int)
     bb0 entry
       val $dependency.local.3: String
         Type String
@@ -809,7 +595,7 @@ Module
       assign $new.1
         Type Reader<String>
         ClassAlloc Reader<String>
-      call @fn45 direct
+      call @fn39 direct
         Type Reader<String>
         Local $new.1
         Type String
@@ -820,21 +606,21 @@ Module
       val $dependency.local.5: Reader<String>
         Type Reader<String>
         Local $dependency.local.2
-      call $dependency.local.7: String = @fn25 direct
+      call $dependency.local.7: String = @fn20 direct
         Type Reader<String>
         Local $dependency.local.5
-      call $dependency.local.8: String = @fn27 direct
+      call $dependency.local.8: String = @fn22 direct
         Type Reader<String>
         Local $dependency.local.2
       val $dependency.local.6: Reader<String>
         Type Reader<String>
         Local $dependency.local.2
-      call $dependency.local.9: Int = @fn26 interface View<String>[1]
+      call $dependency.local.9: Int = @fn21 interface View<String>[1]
         Type View<String>
         Retype View<String>
           Type Reader<String>
           Local $dependency.local.6
-      call $dependency.local.10: Int = @fn28 interface View<String>[3]
+      call $dependency.local.10: Int = @fn23 interface View<String>[3]
         Type View<String>
         Retype View<String>
           Type Reader<String>
@@ -850,9 +636,9 @@ Module
           Local $dependency.local.9
           Type Int
           Local $dependency.local.10
-  fun $derived.equals.1 @fn10(this: (String, String, Int, Int), other: (String, String, Int, Int)) -> Boolean
+  fun $derived.equals.1 @fn7(this: (String, String, Int, Int), other: (String, String, Int, Int)) -> Boolean
     bb0 entry
-      call $call.1: Boolean = external3 direct
+      call $call.1: Boolean = external2 direct
         Type String
         FieldAccess 0
           Type (String, String, Int, Int)
@@ -865,7 +651,7 @@ Module
         Type Boolean
         Local $call.1
     bb1 logic.rhs.1
-      call $call.3: Boolean = external3 direct
+      call $call.3: Boolean = external2 direct
         Type String
         FieldAccess 1
           Type (String, String, Int, Int)
@@ -931,121 +717,12 @@ Module
       return
         Type Boolean
         Local $logic.5
-  fun encodeOption @fn11(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str6
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str7
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external12 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external13 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun virtual @fn12(this: Box<Int>, item: Int) -> Int
+  fun virtual @fn8(this: Box<Int>, item: Int) -> Int
     bb0 entry
       return
         Type Int
         Local item
-  fun inspect @fn13(this: Box<Int>, value: Int) -> Int
+  fun inspect @fn9(this: Box<Int>, value: Int) -> Int
     bb0 entry
       val $dependency.local.2: Box<Int>
         Type Box<Int>
@@ -1056,12 +733,12 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call $call.1: Int = @fn30 direct
+      call $call.1: Int = @fn25 direct
         Type Box<Int>
         Local $dependency.local.2
         Type Int
         Local $dependency.local.4
-      call @fn29 direct
+      call @fn24 direct
         Type Box<Int>
         Local this
         Type Int
@@ -1069,18 +746,18 @@ Module
       val $dependency.local.5: Box<Int>
         Type Box<Int>
         Local this
-      call $dependency.local.6: Int = @fn31 direct
+      call $dependency.local.6: Int = @fn26 direct
         Type Box<Int>
         Local this
       val $dependency.local.7: Int
         Type Int
         Local $dependency.local.6
-      call $call.2: Int = @fn32 direct
+      call $call.2: Int = @fn27 direct
         Type Box<Int>
         Local $dependency.local.5
         Type Int
         Local $dependency.local.7
-      call @fn29 direct
+      call @fn24 direct
         Type Box<Int>
         Local this
         Type Int
@@ -1088,13 +765,13 @@ Module
       val $dependency.local.8: Box<Int>
         Type Box<Int>
         Local this
-      call $dependency.local.9: Int = @fn31 direct
+      call $dependency.local.9: Int = @fn26 direct
         Type Box<Int>
         Local this
       val $dependency.local.10: Int
         Type Int
         Local $dependency.local.9
-      call $call.3: Int = @fn12 virtual[0]
+      call $call.3: Int = @fn8 virtual[0]
         Type Box<Int>
         Local $dependency.local.8
         Type Int
@@ -1102,22 +779,22 @@ Module
       return
         Type Int
         Local $call.3
-  fun combine @fn14(this: Box<Int>, first: Int, second: Argument) -> Int
+  fun combine @fn10(this: Box<Int>, first: Int, second: Argument) -> Int
     bb0 entry
       return
         Type Int
         Local first
-  fun echo @fn15(this: Box<Int>, other: Argument) -> Argument
+  fun echo @fn11(this: Box<Int>, other: Argument) -> Argument
     bb0 entry
       return
         Type Argument
         Local other
-  fun virtual @fn16(this: Box<String>, item: String) -> String
+  fun virtual @fn12(this: Box<String>, item: String) -> String
     bb0 entry
       return
         Type String
         Local item
-  fun inspect @fn17(this: Box<String>, value: String) -> String
+  fun inspect @fn13(this: Box<String>, value: String) -> String
     bb0 entry
       val $dependency.local.2: Box<String>
         Type Box<String>
@@ -1128,12 +805,12 @@ Module
       val $dependency.local.4: String
         Type String
         Local $dependency.local.3
-      call $call.1: String = @fn34 direct
+      call $call.1: String = @fn29 direct
         Type Box<String>
         Local $dependency.local.2
         Type String
         Local $dependency.local.4
-      call @fn33 direct
+      call @fn28 direct
         Type Box<String>
         Local this
         Type String
@@ -1141,18 +818,18 @@ Module
       val $dependency.local.5: Box<String>
         Type Box<String>
         Local this
-      call $dependency.local.6: String = @fn35 direct
+      call $dependency.local.6: String = @fn30 direct
         Type Box<String>
         Local this
       val $dependency.local.7: String
         Type String
         Local $dependency.local.6
-      call $call.2: String = @fn36 direct
+      call $call.2: String = @fn31 direct
         Type Box<String>
         Local $dependency.local.5
         Type String
         Local $dependency.local.7
-      call @fn33 direct
+      call @fn28 direct
         Type Box<String>
         Local this
         Type String
@@ -1160,13 +837,13 @@ Module
       val $dependency.local.8: Box<String>
         Type Box<String>
         Local this
-      call $dependency.local.9: String = @fn35 direct
+      call $dependency.local.9: String = @fn30 direct
         Type Box<String>
         Local this
       val $dependency.local.10: String
         Type String
         Local $dependency.local.9
-      call $call.3: String = @fn16 virtual[0]
+      call $call.3: String = @fn12 virtual[0]
         Type Box<String>
         Local $dependency.local.8
         Type String
@@ -1174,103 +851,83 @@ Module
       return
         Type String
         Local $call.3
-  fun combine @fn18(this: Box<String>, first: String, second: Argument) -> String
+  fun combine @fn14(this: Box<String>, first: String, second: Argument) -> String
     bb0 entry
       return
         Type String
         Local first
-  fun echo @fn19(this: Box<String>, other: Argument) -> Argument
+  fun echo @fn15(this: Box<String>, other: Argument) -> Argument
     bb0 entry
       return
         Type Argument
         Local other
-  fun read @fn20(this: Reader<Int>) -> Int
+  fun read @fn16(this: Reader<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Reader<Int>
           Local this
-  fun count @fn21(this: View<Int>) -> Int
+  fun count @fn17(this: View<Int>) -> Int
     bb0 entry
       val $dependency.local.1: View<Int>
         Type View<Int>
         Local this
-      call $call.1: Int = @fn37 direct
+      call $call.1: Int = @fn32 direct
         Type View<Int>
         Local $dependency.local.1
       return
         Type Int
         Local $call.1
-  fun item @fn22(this: Reader<Int>) -> Int
+  fun item @fn18(this: Reader<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Reader<Int>
           Local this
-  fun size @fn23(this: View<Int>) -> Int
+  fun size @fn19(this: View<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn38 direct
+      call $call.1: Int = @fn33 direct
         Type View<Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun encode @fn24(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn39 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun read @fn25(this: Reader<String>) -> String
+  fun read @fn20(this: Reader<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Reader<String>
           Local this
-  fun count @fn26(this: View<String>) -> Int
+  fun count @fn21(this: View<String>) -> Int
     bb0 entry
       val $dependency.local.1: View<String>
         Type View<String>
         Local this
-      call $call.1: Int = @fn40 direct
+      call $call.1: Int = @fn34 direct
         Type View<String>
         Local $dependency.local.1
       return
         Type Int
         Local $call.1
-  fun item @fn27(this: Reader<String>) -> String
+  fun item @fn22(this: Reader<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Reader<String>
           Local this
-  fun size @fn28(this: View<String>) -> Int
+  fun size @fn23(this: View<String>) -> Int
     bb0 entry
-      call $call.1: Int = @fn41 direct
+      call $call.1: Int = @fn35 direct
         Type View<String>
         Local this
       return
         Type Int
         Local $call.1
-  fun property @fn29(this: Box<Int>, replacement: Int) -> Unit
+  fun property @fn24(this: Box<Int>, replacement: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -1278,24 +935,24 @@ Module
         Type Int
         Local replacement
       return
-  fun helper @fn30(this: Box<Int>, item: Int) -> Int
+  fun helper @fn25(this: Box<Int>, item: Int) -> Int
     bb0 entry
       return
         Type Int
         Local item
-  fun property @fn31(this: Box<Int>) -> Int
+  fun property @fn26(this: Box<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Box<Int>
           Local this
-  fun raw @fn32(this: Box<Int>, item: Int) -> Int
+  fun raw @fn27(this: Box<Int>, item: Int) -> Int
     bb0 entry
       return
         Type Int
         Local item
-  fun property @fn33(this: Box<String>, replacement: String) -> Unit
+  fun property @fn28(this: Box<String>, replacement: String) -> Unit
     bb0 entry
       field_set 0
         Type Box<String>
@@ -1303,153 +960,44 @@ Module
         Type String
         Local replacement
       return
-  fun helper @fn34(this: Box<String>, item: String) -> String
+  fun helper @fn29(this: Box<String>, item: String) -> String
     bb0 entry
       return
         Type String
         Local item
-  fun property @fn35(this: Box<String>) -> String
+  fun property @fn30(this: Box<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Box<String>
           Local this
-  fun raw @fn36(this: Box<String>, item: String) -> String
+  fun raw @fn31(this: Box<String>, item: String) -> String
     bb0 entry
       return
         Type String
         Local item
-  fun helper @fn37(this: View<Int>) -> Int
+  fun helper @fn32(this: View<Int>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun secret @fn38(this: View<Int>) -> Int
+  fun secret @fn33(this: View<Int>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun encodeOption @fn39(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str8
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external8 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str9
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external2 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external13 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun helper @fn40(this: View<String>) -> Int
+  fun helper @fn34(this: View<String>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun secret @fn41(this: View<String>) -> Int
+  fun secret @fn35(this: View<String>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun init.Box.$c0 @fn42(this: Box<Int>, stored: Int) -> Unit
+  fun init.Box.$c0 @fn36(this: Box<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -1457,7 +1005,7 @@ Module
         Type Int
         Local stored
       return
-  fun init.Box.$c0 @fn43(this: Box<String>, stored: String) -> Unit
+  fun init.Box.$c0 @fn37(this: Box<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type Box<String>
@@ -1465,7 +1013,7 @@ Module
         Type String
         Local stored
       return
-  fun init.Reader.$c1 @fn44(this: Reader<Int>, stored: Int) -> Unit
+  fun init.Reader.$c1 @fn38(this: Reader<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reader<Int>
@@ -1473,7 +1021,7 @@ Module
         Type Int
         Local stored
       return
-  fun init.Reader.$c1 @fn45(this: Reader<String>, stored: String) -> Unit
+  fun init.Reader.$c1 @fn39(this: Reader<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type Reader<String>
@@ -1481,50 +1029,42 @@ Module
         Type String
         Local stored
       return
-  instance mi0 function=@fn2 <- encode
+  instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn3 <- exercise
-  instance mi2 function=@fn4 <- exercise
+  instance mi2 function=@fn4 <- view
   instance mi3 function=@fn6 <- view
-  instance mi4 function=@fn9 <- view
-  instance mi5 function=@fn11 <- encodeOption
-  instance mi6 function=@fn12 <- virtual
-  instance mi7 function=@fn13 <- inspect
-  instance mi8 function=@fn14 <- combine
-  instance mi9 function=@fn15 <- echo
-  instance mi10 function=@fn16 <- virtual
-  instance mi11 function=@fn17 <- inspect
-  instance mi12 function=@fn18 <- combine
-  instance mi13 function=@fn19 <- echo
-  instance mi14 function=@fn20 <- read
-  instance mi15 function=@fn21 <- count
-  instance mi16 function=@fn22 <- item
-  instance mi17 function=@fn23 <- size
-  instance mi18 function=@fn24 <- encode
-  instance mi19 function=@fn25 <- read
-  instance mi20 function=@fn26 <- count
-  instance mi21 function=@fn27 <- item
-  instance mi22 function=@fn28 <- size
-  instance mi23 function=@fn29 <- property
-  instance mi24 function=@fn30 <- helper
-  instance mi25 function=@fn31 <- property
-  instance mi26 function=@fn32 <- raw
-  instance mi27 function=@fn33 <- property
-  instance mi28 function=@fn34 <- helper
-  instance mi29 function=@fn35 <- property
-  instance mi30 function=@fn36 <- raw
-  instance mi31 function=@fn37 <- helper
-  instance mi32 function=@fn38 <- secret
-  instance mi33 function=@fn39 <- encodeOption
-  instance mi34 function=@fn40 <- helper
-  instance mi35 function=@fn41 <- secret
+  instance mi4 function=@fn8 <- virtual
+  instance mi5 function=@fn9 <- inspect
+  instance mi6 function=@fn10 <- combine
+  instance mi7 function=@fn11 <- echo
+  instance mi8 function=@fn12 <- virtual
+  instance mi9 function=@fn13 <- inspect
+  instance mi10 function=@fn14 <- combine
+  instance mi11 function=@fn15 <- echo
+  instance mi12 function=@fn16 <- read
+  instance mi13 function=@fn17 <- count
+  instance mi14 function=@fn18 <- item
+  instance mi15 function=@fn19 <- size
+  instance mi16 function=@fn20 <- read
+  instance mi17 function=@fn21 <- count
+  instance mi18 function=@fn22 <- item
+  instance mi19 function=@fn23 <- size
+  instance mi20 function=@fn24 <- property
+  instance mi21 function=@fn25 <- helper
+  instance mi22 function=@fn26 <- property
+  instance mi23 function=@fn27 <- raw
+  instance mi24 function=@fn28 <- property
+  instance mi25 function=@fn29 <- helper
+  instance mi26 function=@fn30 <- property
+  instance mi27 function=@fn31 <- raw
+  instance mi28 function=@fn32 <- helper
+  instance mi29 function=@fn33 <- secret
+  instance mi30 function=@fn34 <- helper
+  instance mi31 function=@fn35 <- secret
   str @str0 "illegal state"
   str @str1 "callable"
   str @str2 "callable"
   str @str3 "view"
   str @str4 "view"
   str @str5 "view"
-  str @str6 "None"
-  str @str7 "Some"
-  str @str8 "None"
-  str @str9 "Some"
   output executable @fn1

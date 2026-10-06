@@ -15,7 +15,7 @@ Module
   fun @scoop$1$cb$e7b17693c75e1d5cc8920da5a0fad59e1c3442874054de33450a6c18f2acbf2a(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td14)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td9)
     ret t0
   fun @scoop$1$cb$fa5ca93648dd532b235a9475f8273f2aaf5c0c05cb035599d722f358c1b27260() -> ptr<managed>
   block entry

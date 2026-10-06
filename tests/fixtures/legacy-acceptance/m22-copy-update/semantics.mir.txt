@@ -10,11 +10,6 @@ Module
   class Token vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Iterable<Char>
   interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
@@ -142,7 +137,7 @@ Module
       val $parameter.y: Int
         Type Int
         Local $argument.1
-      call original: Point = @fn12 direct
+      call original: Point = @fn10 direct
         Type Int
         Local $parameter.x
         Type Int
@@ -248,7 +243,7 @@ Module
         Type Int
         Local $argument.0
       call $parameter.marker: String = @fn3 direct
-      call stamped: Stamped = @fn13 direct
+      call stamped: Stamped = @fn11 direct
         Type Int
         Local $parameter.value
         Type String
@@ -302,7 +297,7 @@ Module
       val $parameter.text: String
         Type String
         Local $argument.1
-      call named: NamedEvent = @fn14 direct
+      call named: NamedEvent = @fn12 direct
         Type Int
         Local $parameter.code
         Type String
@@ -366,7 +361,7 @@ Module
       val $parameter.label: String
         Type String
         Local $argument.1
-      call constructor: ConstructorEvent = @fn15 direct
+      call constructor: ConstructorEvent = @fn13 direct
         Type Int
         Local $parameter.count
         Type String
@@ -427,7 +422,7 @@ Module
       assign $new.1
         Type Token
         ClassAlloc Token
-      call @fn11 direct
+      call @fn9 direct
         Type Token
         Local $new.1
         Type String
@@ -438,7 +433,7 @@ Module
       val $parameter.token: Token
         Type Token
         Local $argument.0
-      call managed: ManagedValue = @fn16 direct
+      call managed: ManagedValue = @fn14 direct
         Type Token
         Local $parameter.token
       val $copy.base.9: ManagedValue
@@ -453,7 +448,7 @@ Module
       assign $new.2
         Type Token
         ClassAlloc Token
-      call @fn11 direct
+      call @fn9 direct
         Type Token
         Local $new.2
         Type String
@@ -498,13 +493,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external2 direct
+      call $dependency.local.2: String = external1 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external3 direct
+      call external2 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -513,7 +508,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external3 direct
+      call external2 direct
         Type String
         Local $dependency.local.5
       return
@@ -522,13 +517,13 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external0 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external3 direct
+      call external2 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -537,140 +532,11 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external3 direct
+      call external2 direct
         Type String
         Local $dependency.local.5
       return
-  fun encode @fn9(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn10 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn10(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external4 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str15
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external5 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external4 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external6 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external6 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str16
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external5 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external7 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external8 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external0 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.Token.$c0 @fn11(this: Token, text: String) -> Unit
+  fun init.Token.$c0 @fn9(this: Token, text: String) -> Unit
     bb0 entry
       field_set 0
         Type Token
@@ -678,7 +544,7 @@ Module
         Type String
         Local text
       return
-  fun ctor.Point.$c0 @fn12(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @fn10(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point
@@ -687,7 +553,7 @@ Module
           Local x
           Type Int
           Local y
-  fun ctor.Stamped.$c1 @fn13(value: Int, marker: String) -> Stamped <no-gc>
+  fun ctor.Stamped.$c1 @fn11(value: Int, marker: String) -> Stamped <no-gc>
     bb0 entry
       return
         Type Stamped
@@ -696,7 +562,7 @@ Module
           Local value
           Type String
           Local marker
-  fun ctor.NamedEvent.$c2 @fn14(code: Int, text: String) -> NamedEvent <no-gc>
+  fun ctor.NamedEvent.$c2 @fn12(code: Int, text: String) -> NamedEvent <no-gc>
     bb0 entry
       return
         Type NamedEvent
@@ -705,7 +571,7 @@ Module
           Local code
           Type String
           Local text
-  fun ctor.ConstructorEvent.$c3 @fn15(count: Int, label: String) -> ConstructorEvent <no-gc>
+  fun ctor.ConstructorEvent.$c3 @fn13(count: Int, label: String) -> ConstructorEvent <no-gc>
     bb0 entry
       return
         Type ConstructorEvent
@@ -714,7 +580,7 @@ Module
           Local count
           Type String
           Local label
-  fun ctor.ManagedValue.$c4 @fn16(token: Token) -> ManagedValue <no-gc>
+  fun ctor.ManagedValue.$c4 @fn14(token: Token) -> ManagedValue <no-gc>
     bb0 entry
       return
         Type ManagedValue
@@ -723,8 +589,6 @@ Module
           Local token
   instance mi0 function=@fn7 <- println
   instance mi1 function=@fn8 <- println
-  instance mi2 function=@fn9 <- encode
-  instance mi3 function=@fn10 <- encodeOption
   str @str0 "base"
   str @str1 "default-marker"
   str @str2 "marker"
@@ -740,6 +604,4 @@ Module
   str @str12 "managed-after"
   str @str13 "\n"
   str @str14 "\n"
-  str @str15 "None"
-  str @str16 "Some"
   output executable @fn6

@@ -14,9 +14,6 @@ Module
   enum Option<Unit>
     Some(_0: Unit)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum CoroutineStep<Later>
     Completed(value: Later)
     Suspended()
@@ -53,11 +50,6 @@ Module
   interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface BothReader<Unit> : LeftReader<Unit>, RightReader<Unit>
   interface LeftReader<Unit> : Reader<Unit>
   interface Reader<Unit>
@@ -65,35 +57,31 @@ Module
   interface List<Unit> : Iterable<Unit>
   interface Iterable<Unit>
   interface Iterator<Unit>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn70 captures=0
-    bridge function_type1 -> @fn87 id=5d9860b8beb9452f71a48ad5b5fdae658fdac82a6d8c064c072e98a6c27fccdc
-  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn71 captures=0
-    bridge function_type1 -> @fn88 id=0f5a4a3b6a22b4e3e40ab3db0772469ac7db2a35eca941f6454c0dfe6d89520d
-  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn72 captures=0
-    bridge function_type1 -> @fn89 id=73595713f13aa285b326ab8f6fc17d9a665ee35ffb5bcae7be6c04cbf94209f9
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn56 captures=0
+    bridge function_type1 -> @fn73 id=5d9860b8beb9452f71a48ad5b5fdae658fdac82a6d8c064c072e98a6c27fccdc
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn57 captures=0
+    bridge function_type1 -> @fn74 id=0f5a4a3b6a22b4e3e40ab3db0772469ac7db2a35eca941f6454c0dfe6d89520d
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn58 captures=0
+    bridge function_type1 -> @fn75 id=73595713f13aa285b326ab8f6fc17d9a665ee35ffb5bcae7be6c04cbf94209f9
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum6 nominal_id=07b292414063419006b7b58627e3b37cdff8242c43a107ed1626b37d3d7ced84 exact_id=2d100e219981ef0a7bc4181005968392d321dfbb7cc604740baaeb2a141042ea
+  generated_exact_type get1 location=enum5 nominal_id=07b292414063419006b7b58627e3b37cdff8242c43a107ed1626b37d3d7ced84 exact_id=2d100e219981ef0a7bc4181005968392d321dfbb7cc604740baaeb2a141042ea
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get3 location=class17 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get4 location=closure0 nominal_id=053cae63bdb7d50297fb3c6807f95d4a82faa3bbe7882b852e93a3d1caa6f8e7 exact_id=4622039016ce5128b4f2b4e46e9111027aa867e02e23f4e0b0f35cf41bf6ee16
   generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get6 location=closure2 nominal_id=5760ecdc72fa4440321c890329184db9cc9bcd3b364ed8aef80864783ec78886 exact_id=6de14fd964a9d96dac16e679b2e9ddb232ed7ce5978c80dfbc49b938f4bd7beb
   generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get8 location=enum5 nominal_id=ffe768852f40600d180592f6f916359a5fcdbc11a250ab8fa16c339c7f7540bf exact_id=bdad21f9322566b4733f03d495360b6b11e72ea4c9a6f7dead952a136d4f995e
+  generated_exact_type get8 location=enum4 nominal_id=ffe768852f40600d180592f6f916359a5fcdbc11a250ab8fa16c339c7f7540bf exact_id=bdad21f9322566b4733f03d495360b6b11e72ea4c9a6f7dead952a136d4f995e
   generated_exact_type get9 location=closure1 nominal_id=9e9b3b1478b7ebdb68033b0a2305f86d14c83aff9d9c2ba003b9b082c8d3e3cf exact_id=cc8497fd3ad70264ccd97a4c0d4a07498b5e5049dba5ee14436f6ecbe4acc851
   generated_exact_type get10 location=class18 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn88 id=0f5a4a3b6a22b4e3e40ab3db0772469ac7db2a35eca941f6454c0dfe6d89520d
-  generated_callable gc1 function=@fn86 id=304798e39c1e0d1dbdd460b50fcf510873c3cc8df351f1c6b75574f5cb7a5438
-  generated_callable gc2 function=@fn87 id=5d9860b8beb9452f71a48ad5b5fdae658fdac82a6d8c064c072e98a6c27fccdc
-  generated_callable gc3 function=@fn89 id=73595713f13aa285b326ab8f6fc17d9a665ee35ffb5bcae7be6c04cbf94209f9
+  generated_callable gc0 function=@fn74 id=0f5a4a3b6a22b4e3e40ab3db0772469ac7db2a35eca941f6454c0dfe6d89520d
+  generated_callable gc1 function=@fn72 id=304798e39c1e0d1dbdd460b50fcf510873c3cc8df351f1c6b75574f5cb7a5438
+  generated_callable gc2 function=@fn73 id=5d9860b8beb9452f71a48ad5b5fdae658fdac82a6d8c064c072e98a6c27fccdc
+  generated_callable gc3 function=@fn75 id=73595713f13aa285b326ab8f6fc17d9a665ee35ffb5bcae7be6c04cbf94209f9
   fun readLater @fn0(value: Later) -> Int
     bb0 entry
       return
@@ -120,7 +108,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn73 direct
+      call @fn59 direct
         Type Later
         Local $new.1
         Type Int
@@ -248,7 +236,7 @@ Module
       assign $new.2
         Type Later
         ClassAlloc Later
-      call @fn73 direct
+      call @fn59 direct
         Type Later
         Local $new.2
         Type Int
@@ -287,7 +275,7 @@ Module
       assign $new.1
         Type Holder<Later>
         ClassAlloc Holder<Later>
-      call @fn74 direct
+      call @fn60 direct
         Type Holder<Later>
         Local $new.1
         Type Later
@@ -312,7 +300,7 @@ Module
       assign $new.2
         Type Cursor<Later>
         ClassAlloc Cursor<Later>
-      call @fn75 direct
+      call @fn61 direct
         Type Cursor<Later>
         Local $new.2
         Type Array<Later>
@@ -348,7 +336,7 @@ Module
       assign $new.1
         Type Holder<Int>
         ClassAlloc Holder<Int>
-      call @fn76 direct
+      call @fn62 direct
         Type Holder<Int>
         Local $new.1
         Type Int
@@ -359,7 +347,7 @@ Module
       val $dependency.local.6: Holder<Int>
         Type Holder<Int>
         Local $dependency.local.5
-      call $dependency.local.2: Int = @fn21 direct
+      call $dependency.local.2: Int = @fn19 direct
         Type Holder<Int>
         Local $dependency.local.6
       val $dependency.local.7: Array<Int>
@@ -373,7 +361,7 @@ Module
       assign $new.2
         Type Cursor<Int>
         ClassAlloc Cursor<Int>
-      call @fn77 direct
+      call @fn63 direct
         Type Cursor<Int>
         Local $new.2
         Type Array<Int>
@@ -390,7 +378,7 @@ Module
       val $dependency.local.12: (Int) -> Int
         Type (Int) -> Int
         Local $dependency.local.10
-      call $call.3: Int = @fn22 direct
+      call $call.3: Int = @fn20 direct
         Type Cursor<Int>
         Local $dependency.local.11
         Type (Int) -> Int
@@ -409,7 +397,7 @@ Module
       assign $new.1
         Type Holder<Unit>
         ClassAlloc Holder<Unit>
-      call @fn78 direct
+      call @fn64 direct
         Type Holder<Unit>
         Local $new.1
         Type Unit
@@ -420,7 +408,7 @@ Module
       val $dependency.local.6: Holder<Unit>
         Type Holder<Unit>
         Local $dependency.local.5
-      call @fn30 direct
+      call @fn26 direct
         Type Holder<Unit>
         Local $dependency.local.6
       val $dependency.local.2: Unit
@@ -437,7 +425,7 @@ Module
       assign $new.2
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn79 direct
+      call @fn65 direct
         Type Cursor<Unit>
         Local $new.2
         Type Array<Unit>
@@ -454,7 +442,7 @@ Module
       val $dependency.local.12: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.10
-      call $call.3: Int = @fn31 direct
+      call $call.3: Int = @fn27 direct
         Type Cursor<Unit>
         Local $dependency.local.11
         Type (Unit) -> Int
@@ -494,7 +482,7 @@ Module
       assign $new.1
         Type ListIterator<Later>
         ClassAlloc ListIterator<Later>
-      call @fn80 direct
+      call @fn66 direct
         Type ListIterator<Later>
         Local $new.1
         Type List<Later>
@@ -556,7 +544,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external13 direct
+      call external3 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -601,7 +589,7 @@ Module
         FieldAccess 1
           Type Cursor<Later>
           Local this
-      call $call.1: Array<Later> = @fn34 direct
+      call $call.1: Array<Later> = @fn29 direct
         Type Cursor<Later>
         Local this
       call $dependency.local.6: Long = @fn10 direct
@@ -622,7 +610,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Later> = @fn34 direct
+      call $dependency.local.8: Array<Later> = @fn29 direct
         Type Cursor<Later>
         Local this
       val $dependency.local.9: Long
@@ -683,7 +671,7 @@ Module
       val $dependency.local.2: Reader<Later>
         Type Reader<Later>
         Local $dependency.local.1
-      call $call.1: Later = @fn35 direct
+      call $call.1: Later = @fn30 direct
         Type Reader<Later>
         Local $dependency.local.2
       return
@@ -700,13 +688,13 @@ Module
       val $dependency.local.5: Cursor<Later>
         Type Cursor<Later>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Later>> = @fn83 direct
+      call $dependency.local.6: Direct<Cursor<Later>> = @fn69 direct
         Type Cursor<Later>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Later>>
         Type Direct<Cursor<Later>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Later> = @fn36 direct
+      call $dependency.local.8: Cursor<Later> = @fn31 direct
         Type Direct<Cursor<Later>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Later>
@@ -716,7 +704,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Later> = @fn37 interface Iterator<Later>[0]
+      call $dependency.local.10: Option<Later> = @fn32 interface Iterator<Later>[0]
         Type Iterator<Later>
         Local $dependency.local.9
       branch bb3 bb2
@@ -763,27 +751,7 @@ Module
         FieldAccess 0
           Type Holder<Int>
           Local this
-  fun encode @fn15(this: Option<Int>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Int>
-        Type Option<Int>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Int>
-        Type Option<Int>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn38 direct
-        Type Option<Int>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun iterator @fn16(this: Array<Int>) -> Iterator<Int>
+  fun iterator @fn15(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
         Type List<Int>
@@ -808,7 +776,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn81 direct
+      call @fn67 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -822,7 +790,7 @@ Module
         Retype Iterator<Int>
           Type ListIterator<Int>
           Local $new.1
-  fun get @fn17(this: Array<Int>, index: Long) -> Int
+  fun get @fn16(this: Array<Int>, index: Long) -> Int
     bb0 entry
       val $dependency.local.2: Array<Int>
         Type Array<Int>
@@ -870,7 +838,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external13 direct
+      call external3 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -884,7 +852,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn18(this: Array<Int>) -> Long
+  fun size @fn17(this: Array<Int>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Int>
         Type Array<Int>
@@ -894,29 +862,7 @@ Module
         ArrayLen Array<Int>
           Type Array<Int>
           Local $dependency.local.1
-  fun encode @fn19(this: Array<Int>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: List<Int>
-        Type List<Int>
-        Retype List<Int>
-          Type Array<Int>
-          Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: List<Int>
-        Type List<Int>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn40 direct
-        Type List<Int>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun next @fn20(this: Cursor<Int>) -> Option<Int>
+  fun next @fn18(this: Cursor<Int>) -> Option<Int>
     bb0 entry
       call $dependency.local.2: Int = external1 direct
       val $dependency.local.3: Int
@@ -937,10 +883,10 @@ Module
         FieldAccess 1
           Type Cursor<Int>
           Local this
-      call $call.1: Array<Int> = @fn41 direct
+      call $call.1: Array<Int> = @fn34 direct
         Type Cursor<Int>
         Local this
-      call $dependency.local.6: Long = @fn18 direct
+      call $dependency.local.6: Long = @fn17 direct
         Type Array<Int>
         Local $call.1
       val $dependency.local.7: Long
@@ -958,7 +904,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Int> = @fn41 direct
+      call $dependency.local.8: Array<Int> = @fn34 direct
         Type Cursor<Int>
         Local this
       val $dependency.local.9: Long
@@ -969,7 +915,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $dependency.local.1: Int = @fn17 direct
+      call $dependency.local.1: Int = @fn16 direct
         Type Array<Int>
         Local $dependency.local.8
         Type Long
@@ -1009,7 +955,7 @@ Module
       return
         Type Option<Int>
         VariantConstruct Option<Int> v1
-  fun readBound @fn21(value: Holder<Int>) -> Int
+  fun readBound @fn19(value: Holder<Int>) -> Int
     bb0 entry
       val $dependency.local.1: Reader<Int>
         Type Reader<Int>
@@ -1019,13 +965,13 @@ Module
       val $dependency.local.2: Reader<Int>
         Type Reader<Int>
         Local $dependency.local.1
-      call $call.1: Int = @fn42 direct
+      call $call.1: Int = @fn35 direct
         Type Reader<Int>
         Local $dependency.local.2
       return
         Type Int
         Local $call.1
-  fun boundTotal @fn22(iterator: Cursor<Int>, read: (Int) -> Int) -> Int
+  fun boundTotal @fn20(iterator: Cursor<Int>, read: (Int) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -1036,13 +982,13 @@ Module
       val $dependency.local.5: Cursor<Int>
         Type Cursor<Int>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Int>> = @fn84 direct
+      call $dependency.local.6: Direct<Cursor<Int>> = @fn70 direct
         Type Cursor<Int>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Int>>
         Type Direct<Cursor<Int>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Int> = @fn43 direct
+      call $dependency.local.8: Cursor<Int> = @fn36 direct
         Type Direct<Cursor<Int>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Int>
@@ -1052,7 +998,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Int> = @fn44 interface Iterator<Int>[0]
+      call $dependency.local.10: Option<Int> = @fn37 interface Iterator<Int>[0]
         Type Iterator<Int>
         Local $dependency.local.9
       branch bb3 bb2
@@ -1092,34 +1038,14 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun read @fn23(this: Holder<Unit>) -> Unit
+  fun read @fn21(this: Holder<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 0
         Type Holder<Unit>
         Local this
       return
-  fun encode @fn24(this: Option<Unit>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Unit>
-        Type Option<Unit>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Unit>
-        Type Option<Unit>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn45 direct
-        Type Option<Unit>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun iterator @fn25(this: Array<Unit>) -> Iterator<Unit>
+  fun iterator @fn22(this: Array<Unit>) -> Iterator<Unit>
     bb0 entry
       val $dependency.local.1: List<Unit>
         Type List<Unit>
@@ -1144,7 +1070,7 @@ Module
       assign $new.1
         Type ListIterator<Unit>
         ClassAlloc ListIterator<Unit>
-      call @fn82 direct
+      call @fn68 direct
         Type ListIterator<Unit>
         Local $new.1
         Type List<Unit>
@@ -1158,7 +1084,7 @@ Module
         Retype Iterator<Unit>
           Type ListIterator<Unit>
           Local $new.1
-  fun get @fn26(this: Array<Unit>, index: Long) -> Unit
+  fun get @fn23(this: Array<Unit>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Array<Unit>
         Type Array<Unit>
@@ -1206,7 +1132,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external13 direct
+      call external3 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -1220,7 +1146,7 @@ Module
         Type Long
         Local $idx.2
       return
-  fun size @fn27(this: Array<Unit>) -> Long
+  fun size @fn24(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
         Type Array<Unit>
@@ -1230,29 +1156,7 @@ Module
         ArrayLen Array<Unit>
           Type Array<Unit>
           Local $dependency.local.1
-  fun encode @fn28(this: Array<Unit>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: List<Unit>
-        Type List<Unit>
-        Retype List<Unit>
-          Type Array<Unit>
-          Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: List<Unit>
-        Type List<Unit>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn47 direct
-        Type List<Unit>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun next @fn29(this: Cursor<Unit>) -> Option<Unit>
+  fun next @fn25(this: Cursor<Unit>) -> Option<Unit>
     bb0 entry
       call $dependency.local.2: Int = external1 direct
       val $dependency.local.3: Int
@@ -1273,10 +1177,10 @@ Module
         FieldAccess 1
           Type Cursor<Unit>
           Local this
-      call $call.1: Array<Unit> = @fn48 direct
+      call $call.1: Array<Unit> = @fn39 direct
         Type Cursor<Unit>
         Local this
-      call $dependency.local.6: Long = @fn27 direct
+      call $dependency.local.6: Long = @fn24 direct
         Type Array<Unit>
         Local $call.1
       val $dependency.local.7: Long
@@ -1294,7 +1198,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Unit> = @fn48 direct
+      call $dependency.local.8: Array<Unit> = @fn39 direct
         Type Cursor<Unit>
         Local this
       val $dependency.local.9: Long
@@ -1305,7 +1209,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call @fn26 direct
+      call @fn23 direct
         Type Array<Unit>
         Local $dependency.local.8
         Type Long
@@ -1348,7 +1252,7 @@ Module
       return
         Type Option<Unit>
         VariantConstruct Option<Unit> v1
-  fun readBound @fn30(value: Holder<Unit>) -> Unit
+  fun readBound @fn26(value: Holder<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
         Type Reader<Unit>
@@ -1358,11 +1262,11 @@ Module
       val $dependency.local.2: Reader<Unit>
         Type Reader<Unit>
         Local $dependency.local.1
-      call @fn49 direct
+      call @fn40 direct
         Type Reader<Unit>
         Local $dependency.local.2
       return
-  fun boundTotal @fn31(iterator: Cursor<Unit>, read: (Unit) -> Int) -> Int
+  fun boundTotal @fn27(iterator: Cursor<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -1373,13 +1277,13 @@ Module
       val $dependency.local.5: Cursor<Unit>
         Type Cursor<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Unit>> = @fn85 direct
+      call $dependency.local.6: Direct<Cursor<Unit>> = @fn71 direct
         Type Cursor<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Unit>>
         Type Direct<Cursor<Unit>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Unit> = @fn50 direct
+      call $dependency.local.8: Cursor<Unit> = @fn41 direct
         Type Direct<Cursor<Unit>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Unit>
@@ -1389,7 +1293,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Unit> = @fn51 interface Iterator<Unit>[0]
+      call $dependency.local.10: Option<Unit> = @fn42 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.9
       branch bb3 bb2
@@ -1429,7 +1333,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun next @fn32(this: ListIterator<Later>) -> Option<Later>
+  fun next @fn28(this: ListIterator<Later>) -> Option<Later>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1446,7 +1350,7 @@ Module
         FieldAccess 1
           Type ListIterator<Later>
           Local this
-      call $dependency.local.3: Long = @fn52 interface List<Later>[2]
+      call $dependency.local.3: Long = @fn43 interface List<Later>[2]
         Type List<Later>
         FieldAccess 0
           Type ListIterator<Later>
@@ -1488,7 +1392,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Later = @fn53 interface List<Later>[1]
+      call $dependency.local.1: Later = @fn44 interface List<Later>[1]
         Type List<Later>
         Local $dependency.local.5
         Type Long
@@ -1524,164 +1428,35 @@ Module
         VariantConstruct Option<Later> v0
           Type Later
           Local $dependency.local.12
-  fun encode @fn33(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn54 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun values @fn34(this: Cursor<Later>) -> Array<Later>
+  fun values @fn29(this: Cursor<Later>) -> Array<Later>
     bb0 entry
       return
         Type Array<Later>
         FieldAccess 0
           Type Cursor<Later>
           Local this
-  fun readBase @fn35(value: Reader<Later>) -> Later
+  fun readBase @fn30(value: Reader<Later>) -> Later
     bb0 entry
       val $dependency.local.1: Reader<Later>
         Type Reader<Later>
         Local value
-      call $call.1: Later = @fn55 interface Reader<Later>[0]
+      call $call.1: Later = @fn45 interface Reader<Later>[0]
         Type Reader<Later>
         Local $dependency.local.1
       return
         Type Later
         Local $call.1
-  fun iterator @fn36(this: Direct<Cursor<Later>>) -> Cursor<Later>
+  fun iterator @fn31(this: Direct<Cursor<Later>>) -> Cursor<Later>
     bb0 entry
       return
         Type Cursor<Later>
         FieldAccess 0
           Type Direct<Cursor<Later>>
           Local this
-  fun Iterator.next @fn37(this: Iterator<Later>) -> Option<Later>
+  fun Iterator.next @fn32(this: Iterator<Later>) -> Option<Later>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun encodeOption @fn38(value: Option<Int>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Int>
-        Type Option<Int>
-        Local value
-      val $pattern.subject.2: Option<Int>
-        Type Option<Int>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Int> v1
-          Type Option<Int>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str0
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Int>
-        Type Option<Int>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str1
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Int
-        Type Int
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external8 direct
-        Type Int
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun next @fn39(this: ListIterator<Int>) -> Option<Int>
+  fun next @fn33(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1698,7 +1473,7 @@ Module
         FieldAccess 1
           Type ListIterator<Int>
           Local this
-      call $dependency.local.3: Long = @fn56 interface List<Int>[2]
+      call $dependency.local.3: Long = @fn46 interface List<Int>[2]
         Type List<Int>
         FieldAccess 0
           Type ListIterator<Int>
@@ -1740,7 +1515,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Int = @fn57 interface List<Int>[1]
+      call $dependency.local.1: Int = @fn47 interface List<Int>[1]
         Type List<Int>
         Local $dependency.local.5
         Type Long
@@ -1776,211 +1551,35 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun encodeList @fn40(values: List<Int>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.4: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.4
-      val $dependency.local.5: List<Int>
-        Type List<Int>
-        Local values
-      val $dependency.local.6: List<Int>
-        Type List<Int>
-        Local $dependency.local.5
-      call $dependency.local.7: Iterator<Int> = @fn58 interface Iterable<Int>[0]
-        Type Iterable<Int>
-        Retype Iterable<Int>
-          Type List<Int>
-          Local $dependency.local.6
-      val $dependency.local.8: Iterator<Int>
-        Type Iterator<Int>
-        Local $dependency.local.7
-      goto bb1
-    bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.9: Option<Int> = @fn44 interface Iterator<Int>[0]
-        Type Iterator<Int>
-        Local $dependency.local.8
-      branch bb3 bb2
-        Type Boolean
-        VariantTest Option<Int> v0
-          Type Option<Int>
-          Local $dependency.local.9
-    bb2 while.exit.2
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.2
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      return
-    bb3 while.body.3
-      val $dependency.local.10: Int
-        Type Int
-        VariantPayloadProject Option<Int> v0 f0
-          Type Option<Int>
-          Local $dependency.local.9
-      val $dependency.local.3: Int
-        Type Int
-        Local $dependency.local.10
-      val $dependency.local.12: Int
-        Type Int
-        Local $dependency.local.3
-      val $dependency.local.11: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.2
-      call $dependency.local.13: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.11
-      val $dependency.local.14: Encoder
-        Type Encoder
-        Local $dependency.local.13
-      call external8 direct
-        Type Int
-        Local $dependency.local.12
-        Type Encoder
-        Local $dependency.local.14
-      goto bb1
-  fun values @fn41(this: Cursor<Int>) -> Array<Int>
+  fun values @fn34(this: Cursor<Int>) -> Array<Int>
     bb0 entry
       return
         Type Array<Int>
         FieldAccess 0
           Type Cursor<Int>
           Local this
-  fun readBase @fn42(value: Reader<Int>) -> Int
+  fun readBase @fn35(value: Reader<Int>) -> Int
     bb0 entry
       val $dependency.local.1: Reader<Int>
         Type Reader<Int>
         Local value
-      call $call.1: Int = @fn59 interface Reader<Int>[0]
+      call $call.1: Int = @fn48 interface Reader<Int>[0]
         Type Reader<Int>
         Local $dependency.local.1
       return
         Type Int
         Local $call.1
-  fun iterator @fn43(this: Direct<Cursor<Int>>) -> Cursor<Int>
+  fun iterator @fn36(this: Direct<Cursor<Int>>) -> Cursor<Int>
     bb0 entry
       return
         Type Cursor<Int>
         FieldAccess 0
           Type Direct<Cursor<Int>>
           Local this
-  fun Iterator.next @fn44(this: Iterator<Int>) -> Option<Int>
+  fun Iterator.next @fn37(this: Iterator<Int>) -> Option<Int>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun encodeOption @fn45(value: Option<Unit>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Unit>
-        Type Option<Unit>
-        Local value
-      val $pattern.subject.2: Option<Unit>
-        Type Option<Unit>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Unit> v1
-          Type Option<Unit>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str2
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Unit>
-        Type Option<Unit>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Unit> v0
-          Type Option<Unit>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Unit
-        Type Unit
-        VariantPayloadProject Option<Unit> v0 f0
-          Type Option<Unit>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str3
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Unit
-        Type Unit
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external10 direct
-        Type Unit
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun next @fn46(this: ListIterator<Unit>) -> Option<Unit>
+  fun next @fn38(this: ListIterator<Unit>) -> Option<Unit>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1997,7 +1596,7 @@ Module
         FieldAccess 1
           Type ListIterator<Unit>
           Local this
-      call $dependency.local.3: Long = @fn60 interface List<Unit>[2]
+      call $dependency.local.3: Long = @fn49 interface List<Unit>[2]
         Type List<Unit>
         FieldAccess 0
           Type ListIterator<Unit>
@@ -2039,7 +1638,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call @fn61 interface List<Unit>[1]
+      call @fn50 interface List<Unit>[1]
         Type List<Unit>
         Local $dependency.local.5
         Type Long
@@ -2078,383 +1677,72 @@ Module
         VariantConstruct Option<Unit> v0
           Type Unit
           Local $dependency.local.12
-  fun encodeList @fn47(values: List<Unit>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.4: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.4
-      val $dependency.local.5: List<Unit>
-        Type List<Unit>
-        Local values
-      val $dependency.local.6: List<Unit>
-        Type List<Unit>
-        Local $dependency.local.5
-      call $dependency.local.7: Iterator<Unit> = @fn62 interface Iterable<Unit>[0]
-        Type Iterable<Unit>
-        Retype Iterable<Unit>
-          Type List<Unit>
-          Local $dependency.local.6
-      val $dependency.local.8: Iterator<Unit>
-        Type Iterator<Unit>
-        Local $dependency.local.7
-      goto bb1
-    bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.9: Option<Unit> = @fn51 interface Iterator<Unit>[0]
-        Type Iterator<Unit>
-        Local $dependency.local.8
-      branch bb3 bb2
-        Type Boolean
-        VariantTest Option<Unit> v0
-          Type Option<Unit>
-          Local $dependency.local.9
-    bb2 while.exit.2
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.2
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      return
-    bb3 while.body.3
-      val $dependency.local.10: Unit
-        Type Unit
-        VariantPayloadProject Option<Unit> v0 f0
-          Type Option<Unit>
-          Local $dependency.local.9
-      val $dependency.local.3: Unit
-        Type Unit
-        Local $dependency.local.10
-      val $dependency.local.12: Unit
-        Type Unit
-        Local $dependency.local.3
-      val $dependency.local.11: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.2
-      call $dependency.local.13: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.11
-      val $dependency.local.14: Encoder
-        Type Encoder
-        Local $dependency.local.13
-      call external10 direct
-        Type Unit
-        Local $dependency.local.12
-        Type Encoder
-        Local $dependency.local.14
-      goto bb1
-  fun values @fn48(this: Cursor<Unit>) -> Array<Unit>
+  fun values @fn39(this: Cursor<Unit>) -> Array<Unit>
     bb0 entry
       return
         Type Array<Unit>
         FieldAccess 0
           Type Cursor<Unit>
           Local this
-  fun readBase @fn49(value: Reader<Unit>) -> Unit
+  fun readBase @fn40(value: Reader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
         Type Reader<Unit>
         Local value
-      call @fn63 interface Reader<Unit>[0]
+      call @fn51 interface Reader<Unit>[0]
         Type Reader<Unit>
         Local $dependency.local.1
       return
-  fun iterator @fn50(this: Direct<Cursor<Unit>>) -> Cursor<Unit>
+  fun iterator @fn41(this: Direct<Cursor<Unit>>) -> Cursor<Unit>
     bb0 entry
       return
         Type Cursor<Unit>
         FieldAccess 0
           Type Direct<Cursor<Unit>>
           Local this
-  fun Iterator.next @fn51(this: Iterator<Unit>) -> Option<Unit>
+  fun Iterator.next @fn42(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun List.$get$size @fn52(this: List<Later>) -> Long
+  fun List.$get$size @fn43(this: List<Later>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn53(this: List<Later>, index: Long) -> Later
+  fun List.get @fn44(this: List<Later>, index: Long) -> Later
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun encodeOption @fn54(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str4
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str5
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external12 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun Reader.read @fn55(this: Reader<Later>) -> Later
+  fun Reader.read @fn45(this: Reader<Later>) -> Later
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun List.$get$size @fn56(this: List<Int>) -> Long
+  fun List.$get$size @fn46(this: List<Int>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn57(this: List<Int>, index: Long) -> Int
+  fun List.get @fn47(this: List<Int>, index: Long) -> Int
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun Iterable.iterator @fn58(this: Iterable<Int>) -> Iterator<Int>
-    bb0 entry
-      trap "call to abstract method `Iterable.iterator`"
-  fun Reader.read @fn59(this: Reader<Int>) -> Int
+  fun Reader.read @fn48(this: Reader<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun List.$get$size @fn60(this: List<Unit>) -> Long
+  fun List.$get$size @fn49(this: List<Unit>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn61(this: List<Unit>, index: Long) -> Unit
+  fun List.get @fn50(this: List<Unit>, index: Long) -> Unit
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun Iterable.iterator @fn62(this: Iterable<Unit>) -> Iterator<Unit>
-    bb0 entry
-      trap "call to abstract method `Iterable.iterator`"
-  fun Reader.read @fn63(this: Reader<Unit>) -> Unit
+  fun Reader.read @fn51(this: Reader<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun encode @fn64(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn65 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn65(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str6
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external5 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str7
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external11 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external9 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun Continuation.resume @fn66(this: Continuation<Later>, value: Later) -> Unit
+  fun Continuation.resume @fn52(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn67(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn53(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn68(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn54(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn69(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn55(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn70($closure: (Later) -> Int, arg0: Later) -> Int
+  fun $reference.0 @fn56($closure: (Later) -> Int, arg0: Later) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Later
@@ -2462,7 +1750,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn71($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn57($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Int
@@ -2470,7 +1758,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn72($closure: (Unit) -> Int, arg0: Unit) -> Int
+  fun $reference.2 @fn58($closure: (Unit) -> Int, arg0: Unit) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Unit
@@ -2478,7 +1766,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Later.$c0 @fn73(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn59(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -2486,7 +1774,7 @@ Module
         Type Int
         Local number
       return
-  fun init.Holder.$c0 @fn74(this: Holder<Later>, value: Later) -> Unit
+  fun init.Holder.$c0 @fn60(this: Holder<Later>, value: Later) -> Unit
     bb0 entry
       field_set 0
         Type Holder<Later>
@@ -2494,7 +1782,7 @@ Module
         Type Later
         Local value
       return
-  fun init.Cursor.$c1 @fn75(this: Cursor<Later>, values: Array<Later>) -> Unit
+  fun init.Cursor.$c1 @fn61(this: Cursor<Later>, values: Array<Later>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Later>
@@ -2507,7 +1795,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.Holder.$c0 @fn76(this: Holder<Int>, value: Int) -> Unit
+  fun init.Holder.$c0 @fn62(this: Holder<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Holder<Int>
@@ -2515,7 +1803,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Cursor.$c1 @fn77(this: Cursor<Int>, values: Array<Int>) -> Unit
+  fun init.Cursor.$c1 @fn63(this: Cursor<Int>, values: Array<Int>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Int>
@@ -2528,7 +1816,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.Holder.$c0 @fn78(this: Holder<Unit>, value: Unit) -> Unit
+  fun init.Holder.$c0 @fn64(this: Holder<Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Holder<Unit>
@@ -2536,7 +1824,7 @@ Module
         Type Unit
         Local value
       return
-  fun init.Cursor.$c1 @fn79(this: Cursor<Unit>, values: Array<Unit>) -> Unit
+  fun init.Cursor.$c1 @fn65(this: Cursor<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Unit>
@@ -2549,7 +1837,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.ListIterator.$c2 @fn80(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn66(this: ListIterator<Later>, source: List<Later>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Later>
@@ -2567,7 +1855,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c2 @fn81(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn67(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Int>
@@ -2585,7 +1873,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c2 @fn82(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c2 @fn68(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Unit>
@@ -2603,28 +1891,28 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Direct.$c3 @fn83(value: Cursor<Later>) -> Direct<Cursor<Later>> <no-gc>
+  fun ctor.Direct.$c3 @fn69(value: Cursor<Later>) -> Direct<Cursor<Later>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Later>>
         StructInit Direct<Cursor<Later>>
           Type Cursor<Later>
           Local value
-  fun ctor.Direct.$c3 @fn84(value: Cursor<Int>) -> Direct<Cursor<Int>> <no-gc>
+  fun ctor.Direct.$c3 @fn70(value: Cursor<Int>) -> Direct<Cursor<Int>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Int>>
         StructInit Direct<Cursor<Int>>
           Type Cursor<Int>
           Local value
-  fun ctor.Direct.$c3 @fn85(value: Cursor<Unit>) -> Direct<Cursor<Unit>> <no-gc>
+  fun ctor.Direct.$c3 @fn71(value: Cursor<Unit>) -> Direct<Cursor<Unit>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Unit>>
         StructInit Direct<Cursor<Unit>>
           Type Cursor<Unit>
           Local value
-  fun startCoroutine<Later> @fn86(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn72(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2647,7 +1935,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn66 interface Continuation<Later>[0]
+      call @fn52 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -2660,7 +1948,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn67 interface Continuation<Later>[1]
+      call @fn53 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -2679,7 +1967,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn68 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn54 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -2705,7 +1993,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn87($source: (Later) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn73($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Later) -> Int
@@ -2719,7 +2007,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn88($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn74($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -2733,7 +2021,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn89($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn75($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -2749,8 +2037,8 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn86
-  coroutine_fn cf0 @fn68 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn72
+  coroutine_fn cf0 @fn54 source_return=Later step=cs0 immediate
   instance mi0 function=@fn4 <- exercise
   instance mi1 function=@fn5 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -2762,67 +2050,45 @@ Module
   instance mi8 function=@fn12 <- readBound
   instance mi9 function=@fn13 <- boundTotal
   instance mi10 function=@fn14 <- read
-  instance mi11 function=@fn15 <- encode
-  instance mi12 function=@fn16 <- iterator
-  instance mi13 function=@fn17 <- get
-  instance mi14 function=@fn18 <- size
-  instance mi15 function=@fn19 <- encode
-  instance mi16 function=@fn20 <- next
-  instance mi17 function=@fn21 <- readBound
-  instance mi18 function=@fn22 <- boundTotal
-  instance mi19 function=@fn23 <- read
-  instance mi20 function=@fn24 <- encode
-  instance mi21 function=@fn25 <- iterator
-  instance mi22 function=@fn26 <- get
-  instance mi23 function=@fn27 <- size
-  instance mi24 function=@fn28 <- encode
-  instance mi25 function=@fn29 <- next
-  instance mi26 function=@fn30 <- readBound
-  instance mi27 function=@fn31 <- boundTotal
-  instance mi28 function=@fn32 <- next
-  instance mi29 function=@fn33 <- encode
+  instance mi11 function=@fn15 <- iterator
+  instance mi12 function=@fn16 <- get
+  instance mi13 function=@fn17 <- size
+  instance mi14 function=@fn18 <- next
+  instance mi15 function=@fn19 <- readBound
+  instance mi16 function=@fn20 <- boundTotal
+  instance mi17 function=@fn21 <- read
+  instance mi18 function=@fn22 <- iterator
+  instance mi19 function=@fn23 <- get
+  instance mi20 function=@fn24 <- size
+  instance mi21 function=@fn25 <- next
+  instance mi22 function=@fn26 <- readBound
+  instance mi23 function=@fn27 <- boundTotal
+  instance mi24 function=@fn28 <- next
+  instance mi25 function=@fn29 <- values
+  instance mi26 function=@fn30 <- readBase
+  instance mi27 function=@fn31 <- iterator
+  instance mi28 function=@fn32 <- Iterator.next
+  instance mi29 function=@fn33 <- next
   instance mi30 function=@fn34 <- values
   instance mi31 function=@fn35 <- readBase
   instance mi32 function=@fn36 <- iterator
   instance mi33 function=@fn37 <- Iterator.next
-  instance mi34 function=@fn38 <- encodeOption
-  instance mi35 function=@fn39 <- next
-  instance mi36 function=@fn40 <- encodeList
-  instance mi37 function=@fn41 <- values
-  instance mi38 function=@fn42 <- readBase
-  instance mi39 function=@fn43 <- iterator
-  instance mi40 function=@fn44 <- Iterator.next
-  instance mi41 function=@fn45 <- encodeOption
-  instance mi42 function=@fn46 <- next
-  instance mi43 function=@fn47 <- encodeList
-  instance mi44 function=@fn48 <- values
-  instance mi45 function=@fn49 <- readBase
-  instance mi46 function=@fn50 <- iterator
-  instance mi47 function=@fn51 <- Iterator.next
-  instance mi48 function=@fn52 <- List.$get$size
-  instance mi49 function=@fn53 <- List.get
-  instance mi50 function=@fn54 <- encodeOption
-  instance mi51 function=@fn55 <- Reader.read
-  instance mi52 function=@fn56 <- List.$get$size
-  instance mi53 function=@fn57 <- List.get
-  instance mi54 function=@fn58 <- Iterable.iterator
-  instance mi55 function=@fn59 <- Reader.read
-  instance mi56 function=@fn60 <- List.$get$size
-  instance mi57 function=@fn61 <- List.get
-  instance mi58 function=@fn62 <- Iterable.iterator
-  instance mi59 function=@fn63 <- Reader.read
-  instance mi60 function=@fn64 <- encode
-  instance mi61 function=@fn65 <- encodeOption
-  instance mi62 function=@fn66 <- Continuation.resume
-  instance mi63 function=@fn67 <- Continuation.resumeWithException
-  instance mi64 function=@fn68 <- SuspendTask.run
-  instance mi65 function=@fn69 <- SuspendRegistration.register
-  str @str0 "None"
-  str @str1 "Some"
-  str @str2 "None"
-  str @str3 "Some"
-  str @str4 "None"
-  str @str5 "Some"
-  str @str6 "None"
-  str @str7 "Some"
+  instance mi34 function=@fn38 <- next
+  instance mi35 function=@fn39 <- values
+  instance mi36 function=@fn40 <- readBase
+  instance mi37 function=@fn41 <- iterator
+  instance mi38 function=@fn42 <- Iterator.next
+  instance mi39 function=@fn43 <- List.$get$size
+  instance mi40 function=@fn44 <- List.get
+  instance mi41 function=@fn45 <- Reader.read
+  instance mi42 function=@fn46 <- List.$get$size
+  instance mi43 function=@fn47 <- List.get
+  instance mi44 function=@fn48 <- Reader.read
+  instance mi45 function=@fn49 <- List.$get$size
+  instance mi46 function=@fn50 <- List.get
+  instance mi47 function=@fn51 <- Reader.read
+  instance mi48 function=@fn52 <- Continuation.resume
+  instance mi49 function=@fn53 <- Continuation.resumeWithException
+  instance mi50 function=@fn54 <- SuspendTask.run
+  instance mi51 function=@fn55 <- SuspendRegistration.register
   output library

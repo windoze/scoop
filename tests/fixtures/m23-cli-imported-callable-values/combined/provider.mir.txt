@@ -12,9 +12,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum CoroutineStep<Adder>
     Completed(value: Adder)
     Suspended()
@@ -33,37 +30,28 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Continuation<Adder>
   interface SuspendTask<Adder>
   interface SuspendRegistration<Adder>
   interface Continuation<Singleton>
   interface SuspendTask<Singleton>
   interface SuspendRegistration<Singleton>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn14 captures=0
-    bridge function_type1 -> @fn31 id=093244a34bde4ff12717d41a6c0c088bfbda3064681084a269816515867bee83
-  generated_exact_type get0 location=enum5 nominal_id=7ae5a7e9841e5bbe0c8497bcf541d9b3059c4f61a1487b840801f34952160473 exact_id=02df281d0fbb6bdc4a86f512f4cac6ac596478d048d9b6caeae894f5c779d738
+    bridge function_type1 -> @fn27 id=093244a34bde4ff12717d41a6c0c088bfbda3064681084a269816515867bee83
+  generated_exact_type get0 location=enum4 nominal_id=7ae5a7e9841e5bbe0c8497bcf541d9b3059c4f61a1487b840801f34952160473 exact_id=02df281d0fbb6bdc4a86f512f4cac6ac596478d048d9b6caeae894f5c779d738
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get2 location=enum3 nominal_id=ade6367eeb406f59d69a08845936e811c532d0bf2e926f21eb443d138e213aef exact_id=1fe5b11185c4c0a1b3b32159d79a29c971f26d6e8f280e984449245e58c23a7f
+  generated_exact_type get2 location=enum2 nominal_id=ade6367eeb406f59d69a08845936e811c532d0bf2e926f21eb443d138e213aef exact_id=1fe5b11185c4c0a1b3b32159d79a29c971f26d6e8f280e984449245e58c23a7f
   generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=closure0 nominal_id=4a637cf8d47e3c26cedcdc76fd6ab8920908d7e8fbe9d9dd752df1d269db4456 exact_id=ab53ef9446e27556b28bb0d96beb9cc999f08fca8e613e3abef06f36e187c7b6
-  generated_exact_type get7 location=enum2 nominal_id=587720b891527d24eeb5506fc32e6733ae0321a53caa85ff35e5a692cb32c101 exact_id=cda96074020c2ee31c1c9d9d8d7b31e146eea4d5aeeb2934dd08a1d87667391a
-  generated_exact_type get8 location=enum4 nominal_id=9d1985e7eb3a2dcd8700eefcd11e93e54cca56d98febd4295e0a9b1f11dbf041 exact_id=d5576ce83a28794628c23e898ef337aa38af23157c9ae9c3199195282df7633d
+  generated_exact_type get7 location=enum1 nominal_id=587720b891527d24eeb5506fc32e6733ae0321a53caa85ff35e5a692cb32c101 exact_id=cda96074020c2ee31c1c9d9d8d7b31e146eea4d5aeeb2934dd08a1d87667391a
+  generated_exact_type get8 location=enum3 nominal_id=9d1985e7eb3a2dcd8700eefcd11e93e54cca56d98febd4295e0a9b1f11dbf041 exact_id=d5576ce83a28794628c23e898ef337aa38af23157c9ae9c3199195282df7633d
   generated_exact_type get9 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn31 id=093244a34bde4ff12717d41a6c0c088bfbda3064681084a269816515867bee83
-  generated_callable gc1 function=@fn30 id=52ed8ebbfca3787cae739532fe2ca855dde66e2dcd09da68548a252316a58229
-  generated_callable gc2 function=@fn29 id=c859ce70a0d4ba131bfc09aa42df3d839fe8b104dfdf41566b1365a0ccd36519
+  generated_callable gc0 function=@fn27 id=093244a34bde4ff12717d41a6c0c088bfbda3064681084a269816515867bee83
+  generated_callable gc1 function=@fn26 id=52ed8ebbfca3787cae739532fe2ca855dde66e2dcd09da68548a252316a58229
+  generated_callable gc2 function=@fn25 id=c859ce70a0d4ba131bfc09aa42df3d839fe8b104dfdf41566b1365a0ccd36519
   fun Adder.invoke @fn0(this: Adder, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int
@@ -137,7 +125,7 @@ Module
       assign $new.1
         Type Singleton
         ClassAlloc Singleton
-      call @fn28 direct
+      call @fn24 direct
         Type Singleton
         Local $new.1
       global_assign $singleton$Singleton
@@ -236,7 +224,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 object:Singleton
-      call external8 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable
@@ -373,7 +361,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:callback
-      call external8 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable
@@ -401,7 +389,7 @@ Module
       assign $new.1
         Type Adder
         ClassAlloc Adder
-      call @fn27 direct
+      call @fn23 direct
         Type Adder
         Local $new.1
       global_assign operation
@@ -500,7 +488,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 top-level:operation
-      call external8 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable
@@ -530,295 +518,37 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun encode @fn15(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn24 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun Continuation.resume @fn16(this: Continuation<Adder>, value: Adder) -> Unit
+  fun Continuation.resume @fn15(this: Continuation<Adder>, value: Adder) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn17(this: Continuation<Adder>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn16(this: Continuation<Adder>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn18(this: SuspendTask<Adder>, $completion: Continuation<Adder>) -> CoroutineStep<Adder>
+  fun SuspendTask.run @fn17(this: SuspendTask<Adder>, $completion: Continuation<Adder>) -> CoroutineStep<Adder>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Adder>, continuation: Continuation<Adder>) -> Unit
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Adder>, continuation: Continuation<Adder>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn20(this: Continuation<Singleton>, value: Singleton) -> Unit
+  fun Continuation.resume @fn19(this: Continuation<Singleton>, value: Singleton) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn21(this: Continuation<Singleton>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn20(this: Continuation<Singleton>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn22(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
+  fun SuspendTask.run @fn21(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun encodeOption @fn24(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str0
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str1
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external7 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun encode @fn25(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn26 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn26(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str2
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str3
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external6 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.Adder.$c0 @fn27(this: Adder) -> Unit
+  fun init.Adder.$c0 @fn23(this: Adder) -> Unit
     bb0 entry
       return
-  fun init.Singleton.$c1 @fn28(this: Singleton) -> Unit
+  fun init.Singleton.$c1 @fn24(this: Singleton) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Adder> @fn29(task: SuspendTask<Adder>, completion: Continuation<Adder>) -> Unit
+  fun startCoroutine<Adder> @fn25(task: SuspendTask<Adder>, completion: Continuation<Adder>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -841,7 +571,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn16 interface Continuation<Adder>[0]
+      call @fn15 interface Continuation<Adder>[0]
         Type Continuation<Adder>
         Local completion
         Type Adder
@@ -854,7 +584,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn17 interface Continuation<Adder>[1]
+      call @fn16 interface Continuation<Adder>[1]
         Type Continuation<Adder>
         Local completion
         Type Throwable
@@ -873,7 +603,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Adder> = @fn18 interface SuspendTask<Adder>[0]
+      call $step: CoroutineStep<Adder> = @fn17 interface SuspendTask<Adder>[0]
         Type SuspendTask<Adder>
         Local task
         Type Continuation<Adder>
@@ -899,7 +629,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Singleton> @fn30(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+  fun startCoroutine<Singleton> @fn26(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -922,7 +652,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn20 interface Continuation<Singleton>[0]
+      call @fn19 interface Continuation<Singleton>[0]
         Type Continuation<Singleton>
         Local completion
         Type Singleton
@@ -935,7 +665,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn21 interface Continuation<Singleton>[1]
+      call @fn20 interface Continuation<Singleton>[1]
         Type Continuation<Singleton>
         Local completion
         Type Throwable
@@ -954,7 +684,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Singleton> = @fn22 interface SuspendTask<Singleton>[0]
+      call $step: CoroutineStep<Singleton> = @fn21 interface SuspendTask<Singleton>[0]
         Type SuspendTask<Singleton>
         Local task
         Type Continuation<Singleton>
@@ -980,7 +710,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -998,24 +728,16 @@ Module
   coroutine_step cs1 CoroutineStep<Singleton> result=Singleton
   coroutine_slot cl0 CoroutineSlot<Adder> value=Adder
   coroutine_slot cl1 CoroutineSlot<Singleton> value=Singleton
-  coroutine_start ct0 result=Adder function=fn29
-  coroutine_start ct1 result=Singleton function=fn30
-  coroutine_fn cf0 @fn18 source_return=Adder step=cs0 immediate
-  coroutine_fn cf1 @fn22 source_return=Singleton step=cs1 immediate
-  instance mi0 function=@fn15 <- encode
-  instance mi1 function=@fn16 <- Continuation.resume
-  instance mi2 function=@fn17 <- Continuation.resumeWithException
-  instance mi3 function=@fn18 <- SuspendTask.run
-  instance mi4 function=@fn19 <- SuspendRegistration.register
-  instance mi5 function=@fn20 <- Continuation.resume
-  instance mi6 function=@fn21 <- Continuation.resumeWithException
-  instance mi7 function=@fn22 <- SuspendTask.run
-  instance mi8 function=@fn23 <- SuspendRegistration.register
-  instance mi9 function=@fn24 <- encodeOption
-  instance mi10 function=@fn25 <- encode
-  instance mi11 function=@fn26 <- encodeOption
-  str @str0 "None"
-  str @str1 "Some"
-  str @str2 "None"
-  str @str3 "Some"
+  coroutine_start ct0 result=Adder function=fn25
+  coroutine_start ct1 result=Singleton function=fn26
+  coroutine_fn cf0 @fn17 source_return=Adder step=cs0 immediate
+  coroutine_fn cf1 @fn21 source_return=Singleton step=cs1 immediate
+  instance mi0 function=@fn15 <- Continuation.resume
+  instance mi1 function=@fn16 <- Continuation.resumeWithException
+  instance mi2 function=@fn17 <- SuspendTask.run
+  instance mi3 function=@fn18 <- SuspendRegistration.register
+  instance mi4 function=@fn19 <- Continuation.resume
+  instance mi5 function=@fn20 <- Continuation.resumeWithException
+  instance mi6 function=@fn21 <- SuspendTask.run
+  instance mi7 function=@fn22 <- SuspendRegistration.register
   output library

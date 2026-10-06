@@ -4,9 +4,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum Choice<Int>
     Item(stored: Int)
   class IllegalStateException vtable=0 itables=0
@@ -19,19 +16,10 @@ Module
   class Singleton vtable=0 itables=1
   class box<Packet<String>> vtable=0 itables=1
   class box<Choice<Int>> vtable=0 itables=1
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Rich<Int> : Reading<Int>
   interface Reading<Int>
   interface Counter
   interface Reading<String>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=class9 nominal_id=73b05c311ecf99605f5c1fd506a0e6a3ceff6f36ab9ba42aac41da708b9c3da2 exact_id=4c992544dd3dbb199ba64d74d239af23bed70d67af75da0ee904e655f1b04fe4
@@ -39,12 +27,12 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=class8 nominal_id=b9374b42127122d6be1e14468d329212b841656318e21b9bc6a66c079d1ab478 exact_id=ba3f1927759d41cdeda4983c93a604fa26021e507233afe82a532c15025b6803
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn21 id=493df291e07e40743cd6383570e324347234c900752afb384f4e2ef2a8959b14
-  generated_callable gc1 function=@fn19 id=508712be1be47de9f7091b592a174ee1a328f12a07e55c98871bb86b01bc14fc
-  generated_callable gc2 function=@fn22 id=7d6ca6f096981570bd5b17bcca1695964437720f26a8206d9976188fa1f1cb6b
-  generated_callable gc3 function=@fn18 id=8d2c5dcef15007e845ea1f1002f71e85c8c7dc3cbf110ffaf7682f51bd7e72cd
-  generated_callable gc4 function=@fn20 id=bf61b5db5686c52d6ee17519ad4eacf1d608ad9647f5c016bb2dc24c6b2e59ed
-  generated_callable gc5 function=@fn23 id=d8d47d0051c006c0ba047fcd83a355af373f5bb75808cfc273c65d05e91076a8
+  generated_callable gc0 function=@fn17 id=493df291e07e40743cd6383570e324347234c900752afb384f4e2ef2a8959b14
+  generated_callable gc1 function=@fn15 id=508712be1be47de9f7091b592a174ee1a328f12a07e55c98871bb86b01bc14fc
+  generated_callable gc2 function=@fn18 id=7d6ca6f096981570bd5b17bcca1695964437720f26a8206d9976188fa1f1cb6b
+  generated_callable gc3 function=@fn14 id=8d2c5dcef15007e845ea1f1002f71e85c8c7dc3cbf110ffaf7682f51bd7e72cd
+  generated_callable gc4 function=@fn16 id=bf61b5db5686c52d6ee17519ad4eacf1d608ad9647f5c016bb2dc24c6b2e59ed
+  generated_callable gc5 function=@fn19 id=d8d47d0051c006c0ba047fcd83a355af373f5bb75808cfc273c65d05e91076a8
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -98,7 +86,7 @@ Module
       assign $new.1
         Type Reader<Int>
         ClassAlloc Reader<Int>
-      call @fn16 direct
+      call @fn12 direct
         Type Reader<Int>
         Local $new.1
         Type Int
@@ -111,7 +99,7 @@ Module
         Retype Reading<Int>
           Type Reader<Int>
           Local reader
-      call $dependency.receiver: Int = @fn4 interface Reading<Int>[1]
+      call $dependency.receiver: Int = @fn3 interface Reading<Int>[1]
         Type Reading<Int>
         Retype Reading<Int>
           Type Reader<Int>
@@ -130,7 +118,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb1 if.then.1
-      call $dependency.receiver: Int = @fn5 interface Rich<Int>[2]
+      call $dependency.receiver: Int = @fn4 interface Rich<Int>[2]
         Type Rich<Int>
         Retype Rich<Int>
           Type Reader<Int>
@@ -159,7 +147,7 @@ Module
         Type Boolean
         Local $shortCircuit.0
     bb4 if.then.4
-      call $dependency.receiver: Int = @fn4 interface Reading<Int>[1]
+      call $dependency.receiver: Int = @fn3 interface Reading<Int>[1]
         Type Reading<Int>
         Local view
       val $dependency.argument.0: Int
@@ -197,10 +185,10 @@ Module
       val $dependency.parameter.stored: String
         Type String
         Local $dependency.argument.0
-      call $call.2: Packet<String> = @fn17 direct
+      call $call.2: Packet<String> = @fn13 direct
         Type String
         Local $dependency.parameter.stored
-      call $dependency.receiver: String = @fn9 interface Reading<String>[1]
+      call $dependency.receiver: String = @fn8 interface Reading<String>[1]
         Type Reading<String>
         Box
           Type Packet<String>
@@ -211,7 +199,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external2 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -233,7 +221,7 @@ Module
         VariantConstruct Choice<Int> v0
           Type Int
           Local $dependency.parameter.stored
-      call $dependency.receiver: Int = @fn4 interface Reading<Int>[1]
+      call $dependency.receiver: Int = @fn3 interface Reading<Int>[1]
         Type Reading<Int>
         Box
           Type Choice<Int>
@@ -252,7 +240,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb7 if.then.7
-      call $dependency.receiver: Int = @fn7 interface Reading<Int>[2]
+      call $dependency.receiver: Int = @fn6 interface Reading<Int>[2]
         Type Reading<Int>
         Box
           Type Choice<Int>
@@ -289,10 +277,10 @@ Module
       assign $new.3
         Type Child
         ClassAlloc Child
-      call external6 direct
+      call external5 direct
         Type Child
         Local $new.3
-      call $dependency.receiver: Int = external5 virtual[1]
+      call $dependency.receiver: Int = external4 virtual[1]
         Type Base
         Retype Base
           Type Child
@@ -311,8 +299,8 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb10 if.then.10
-      call external18 direct
-      call $dependency.receiver: Int = @fn4 interface Reading<Int>[1]
+      call external10 direct
+      call $dependency.receiver: Int = @fn3 interface Reading<Int>[1]
         Type Reading<Int>
         Retype Reading<Int>
           Type Singleton
@@ -349,7 +337,7 @@ Module
       assign $new.4
         Type Store
         ClassAlloc Store
-      call external10 direct
+      call external9 direct
         Type Store
         Local $new.4
       val store: Store
@@ -358,7 +346,7 @@ Module
       val $place.4: Store
         Type Store
         Local store
-      call external9 interface Counter[1]
+      call external8 interface Counter[1]
         Type Counter
         Retype Counter
           Type Store
@@ -368,7 +356,7 @@ Module
       val $place.5: Store
         Type Store
         Local store
-      call $old.6: Int = external8 interface Counter[0]
+      call $old.6: Int = external7 interface Counter[0]
         Type Counter
         Retype Counter
           Type Store
@@ -382,7 +370,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call external9 interface Counter[1]
+      call external8 interface Counter[1]
         Type Counter
         Retype Counter
           Type Store
@@ -393,7 +381,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call $dependency.receiver: Int = external8 interface Counter[0]
+      call $dependency.receiver: Int = external7 interface Counter[0]
         Type Counter
         Retype Counter
           Type Store
@@ -418,47 +406,27 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn11 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun item @fn3(this: Reader<Int>) -> Int
+  fun item @fn2(this: Reader<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Reader<Int>
           Local this
-  fun fallback @fn4(this: Reading<Int>) -> Int
+  fun fallback @fn3(this: Reading<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn12 interface Reading<Int>[0]
+      call $call.1: Int = @fn10 interface Reading<Int>[0]
         Type Reading<Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun size @fn5(this: Rich<Int>) -> Int
+  fun size @fn4(this: Rich<Int>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun item @fn6(this: Choice<Int>) -> Int
+  fun item @fn5(this: Choice<Int>) -> Int
     bb0 entry
       val $when.1: Choice<Int>
         Type Choice<Int>
@@ -487,276 +455,38 @@ Module
       return
         Type Int
         Local $dependency.local.2
-  fun size @fn7(this: Reading<Int>) -> Int
+  fun size @fn6(this: Reading<Int>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun item @fn8(this: Packet<String>) -> String
+  fun item @fn7(this: Packet<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Packet<String>
           Local this
-  fun fallback @fn9(this: Reading<String>) -> String
+  fun fallback @fn8(this: Reading<String>) -> String
     bb0 entry
-      call $call.1: String = @fn13 interface Reading<String>[0]
+      call $call.1: String = @fn11 interface Reading<String>[0]
         Type Reading<String>
         Local this
       return
         Type String
         Local $call.1
-  fun size @fn10(this: Reading<String>) -> Int
+  fun size @fn9(this: Reading<String>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun encodeOption @fn11(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external11 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str3
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external12 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external11 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external13 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external13 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str4
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external12 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external14 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external15 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external16 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external17 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun Reading.$get$item @fn12(this: Reading<Int>) -> Int
+  fun Reading.$get$item @fn10(this: Reading<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Reading.$get$item`"
-  fun Reading.$get$item @fn13(this: Reading<String>) -> String
+  fun Reading.$get$item @fn11(this: Reading<String>) -> String
     bb0 entry
       trap "call to abstract method `Reading.$get$item`"
-  fun encode @fn14(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn15 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn15(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external11 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str5
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external12 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external11 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external13 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external13 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str6
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external12 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external14 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external15 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external2 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external17 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.Reader.$c0 @fn16(this: Reader<Int>, stored: Int) -> Unit
+  fun init.Reader.$c0 @fn12(this: Reader<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reader<Int>
@@ -764,16 +494,16 @@ Module
         Type Int
         Local stored
       return
-  fun ctor.Packet.$c1 @fn17(stored: String) -> Packet<String> <no-gc>
+  fun ctor.Packet.$c1 @fn13(stored: String) -> Packet<String> <no-gc>
     bb0 entry
       return
         Type Packet<String>
         StructInit Packet<String>
           Type String
           Local stored
-  fun thunk<Packet<String>> Reading.item() @fn18(this: Reading<String>) -> String
+  fun thunk<Packet<String>> Reading.item() @fn14(this: Reading<String>) -> String
     bb0 entry
-      call $call.1: String = @fn8 direct
+      call $call.1: String = @fn7 direct
         Type Packet<String>
         Unbox
           Type Reading<String>
@@ -781,9 +511,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<Packet<String>> Reading.fallback() @fn19(this: Reading<String>) -> String
+  fun thunk<Packet<String>> Reading.fallback() @fn15(this: Reading<String>) -> String
     bb0 entry
-      call $call.1: String = @fn9 direct
+      call $call.1: String = @fn8 direct
         Type Reading<String>
         Retype Reading<String>
           Type Reading<String>
@@ -791,9 +521,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<Packet<String>> Reading.size() @fn20(this: Reading<String>) -> Int
+  fun thunk<Packet<String>> Reading.size() @fn16(this: Reading<String>) -> Int
     bb0 entry
-      call $call.1: Int = @fn10 direct
+      call $call.1: Int = @fn9 direct
         Type Reading<String>
         Retype Reading<String>
           Type Reading<String>
@@ -801,9 +531,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.item() @fn21(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.item() @fn17(this: Reading<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn6 direct
+      call $call.1: Int = @fn5 direct
         Type Choice<Int>
         Unbox
           Type Reading<Int>
@@ -811,9 +541,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.fallback() @fn22(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.fallback() @fn18(this: Reading<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn4 direct
+      call $call.1: Int = @fn3 direct
         Type Reading<Int>
         Retype Reading<Int>
           Type Reading<Int>
@@ -821,9 +551,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<Choice<Int>> Reading.size() @fn23(this: Reading<Int>) -> Int
+  fun thunk<Choice<Int>> Reading.size() @fn19(this: Reading<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn7 direct
+      call $call.1: Int = @fn6 direct
         Type Reading<Int>
         Retype Reading<Int>
           Type Reading<Int>
@@ -831,25 +561,17 @@ Module
       return
         Type Int
         Local $call.1
-  instance mi0 function=@fn2 <- encode
-  instance mi1 function=@fn3 <- item
-  instance mi2 function=@fn4 <- fallback
-  instance mi3 function=@fn5 <- size
-  instance mi4 function=@fn6 <- item
-  instance mi5 function=@fn7 <- size
-  instance mi6 function=@fn8 <- item
-  instance mi7 function=@fn9 <- fallback
-  instance mi8 function=@fn10 <- size
-  instance mi9 function=@fn11 <- encodeOption
-  instance mi10 function=@fn12 <- Reading.$get$item
-  instance mi11 function=@fn13 <- Reading.$get$item
-  instance mi12 function=@fn14 <- encode
-  instance mi13 function=@fn15 <- encodeOption
+  instance mi0 function=@fn2 <- item
+  instance mi1 function=@fn3 <- fallback
+  instance mi2 function=@fn4 <- size
+  instance mi3 function=@fn5 <- item
+  instance mi4 function=@fn6 <- size
+  instance mi5 function=@fn7 <- item
+  instance mi6 function=@fn8 <- fallback
+  instance mi7 function=@fn9 <- size
+  instance mi8 function=@fn10 <- Reading.$get$item
+  instance mi9 function=@fn11 <- Reading.$get$item
   str @str0 "illegal state"
   str @str1 "remote"
   str @str2 "remote"
-  str @str3 "None"
-  str @str4 "Some"
-  str @str5 "None"
-  str @str6 "Some"
   output executable @fn1

@@ -1,6 +1,6 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=638
-cone dev.programlink:a-bad:0.1.0 kind=Library objects=14
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone dev.programlink:a-bad:0.1.0 kind=Library objects=10
 cone dev.programlink:b-later:0.1.0 kind=Library objects=8
 cone dev.programlink:root:0.1.0 kind=Executable objects=5
 runtime objects=63

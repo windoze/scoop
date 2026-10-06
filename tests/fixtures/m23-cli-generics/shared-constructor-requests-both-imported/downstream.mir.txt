@@ -5,9 +5,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum CoroutineStep<Later>
     Completed(value: Later)
     Suspended()
@@ -35,69 +32,60 @@ Module
   class Throwable vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn71 id=eaff9205046ef5a198c171dbc725592e80e5e09c35c8ae0222f0212f4e84c955
+    bridge function_type1 -> @fn67 id=eaff9205046ef5a198c171dbc725592e80e5e09c35c8ae0222f0212f4e84c955
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn72 id=29cc408c3b1a6a0f833156ef31e7ac5e4105c3ffc1625286c64137520766cd98
+    bridge function_type1 -> @fn68 id=29cc408c3b1a6a0f833156ef31e7ac5e4105c3ffc1625286c64137520766cd98
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn73 id=252bed39adafcf13528aadbd9fca4008ca9b066df49e14c26dffb21c6cffee5d
+    bridge function_type1 -> @fn69 id=252bed39adafcf13528aadbd9fca4008ca9b066df49e14c26dffb21c6cffee5d
   closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn18 captures=1
-    bridge function_type5 -> @fn74 id=bf3165087c7b532b5117ad81a8eb3a13b8bbbada65b5320e33b4dcd53f0e2387
+    bridge function_type5 -> @fn70 id=bf3165087c7b532b5117ad81a8eb3a13b8bbbada65b5320e33b4dcd53f0e2387
   closure cc4 $Closure$lambda5 type=function_type4 invoke=@fn21 captures=1
-    bridge function_type5 -> @fn75 id=b2c10351c77e2cfab9ae01a45679a57531bbb429e36a6313377311cda98a98bc
+    bridge function_type5 -> @fn71 id=b2c10351c77e2cfab9ae01a45679a57531bbb429e36a6313377311cda98a98bc
   closure cc5 $Closure$lambda6 type=function_type6 invoke=@fn24 captures=1
-    bridge function_type5 -> @fn76 id=3618b7500c6b0908fe9f4c814856a6cc5b2fc26f400fdcb05f837d7e617572f8
+    bridge function_type5 -> @fn72 id=3618b7500c6b0908fe9f4c814856a6cc5b2fc26f400fdcb05f837d7e617572f8
   closure cc6 $Closure$lambda8 type=function_type6 invoke=@fn27 captures=1
-    bridge function_type5 -> @fn77 id=cdae3bee649429ebe978c82d0b5d669fb2dd28b105c717848a9c3a7a1fe60b99
+    bridge function_type5 -> @fn73 id=cdae3bee649429ebe978c82d0b5d669fb2dd28b105c717848a9c3a7a1fe60b99
   closure cc7 $Closure$lambda9 type=function_type7 invoke=@fn30 captures=1
-    bridge function_type5 -> @fn78 id=ff70be931a4a927a34b5941cbe1b6529a6af4335053d87637189f5d5fa89ad19
+    bridge function_type5 -> @fn74 id=ff70be931a4a927a34b5941cbe1b6529a6af4335053d87637189f5d5fa89ad19
   closure cc8 $Closure$lambda11 type=function_type7 invoke=@fn33 captures=1
-    bridge function_type5 -> @fn79 id=cb67097c322a53510fa60d6180784a8418e2aff4c9f38ee81163ce355e9b61fd
+    bridge function_type5 -> @fn75 id=cb67097c322a53510fa60d6180784a8418e2aff4c9f38ee81163ce355e9b61fd
   closure cc9 $Closure$anonymous0 type=function_type4 invoke=@fn17 captures=1
-    bridge function_type5 -> @fn80 id=3c8eb1d0640c185db2bb9e7e5b85bac096c68e1b89293b91e1551d70e5853f63
+    bridge function_type5 -> @fn76 id=3c8eb1d0640c185db2bb9e7e5b85bac096c68e1b89293b91e1551d70e5853f63
   closure cc10 $Closure$anonymous2 type=function_type4 invoke=@fn20 captures=1
-    bridge function_type5 -> @fn81 id=e3199c6659f4a4f3e6c9b842bb96a47ad78d2ebfb5d6f3d65efe599c7a188962
+    bridge function_type5 -> @fn77 id=e3199c6659f4a4f3e6c9b842bb96a47ad78d2ebfb5d6f3d65efe599c7a188962
   closure cc11 $Closure$anonymous3 type=function_type6 invoke=@fn23 captures=1
-    bridge function_type5 -> @fn82 id=206c0e887fb66387e679e435c01b6389fc35575a1f230041f0c7d2baa955408d
+    bridge function_type5 -> @fn78 id=206c0e887fb66387e679e435c01b6389fc35575a1f230041f0c7d2baa955408d
   closure cc12 $Closure$anonymous5 type=function_type6 invoke=@fn26 captures=1
-    bridge function_type5 -> @fn83 id=80a4118dbce8c1f741a35bb0e80ad9286a3e2fb0006ee48b540131993aac635f
+    bridge function_type5 -> @fn79 id=80a4118dbce8c1f741a35bb0e80ad9286a3e2fb0006ee48b540131993aac635f
   closure cc13 $Closure$anonymous6 type=function_type7 invoke=@fn29 captures=1
-    bridge function_type5 -> @fn84 id=d467eeddaf3803aecb771841fef2fb4c9fddff08839911b4e964fffe0599db36
+    bridge function_type5 -> @fn80 id=d467eeddaf3803aecb771841fef2fb4c9fddff08839911b4e964fffe0599db36
   closure cc14 $Closure$anonymous8 type=function_type7 invoke=@fn32 captures=1
-    bridge function_type5 -> @fn85 id=94c06c11725af1600a7258079ecf57d6bc5817367f3def9757b28b5ca3cba5a7
-  closure cc15 $Closure$reference0 type=function_type4 invoke=@fn42 captures=1
-    bridge function_type5 -> @fn86 id=931608c89c6227bfb948ca89f5e8e8ea1f941cc5b64e398ec68f67d09109da20
-  closure cc16 $Closure$reference2 type=function_type4 invoke=@fn43 captures=1
-    bridge function_type5 -> @fn87 id=48cf892cd1e042506f9f185e6ac4a4bd40a75223fa1c8c5cd5d4ead46a927d96
-  closure cc17 $Closure$reference3 type=function_type6 invoke=@fn44 captures=1
-    bridge function_type5 -> @fn88 id=a7ca9c184f2db2681b7b551fcf43ee950b6a3d649814689b34992bcd4ba45f07
-  closure cc18 $Closure$reference5 type=function_type6 invoke=@fn45 captures=1
-    bridge function_type5 -> @fn89 id=bd5dcc8e527e459cce92ff8f9ce959407a0a2229744e95c3a594a922fb25b43c
-  closure cc19 $Closure$reference6 type=function_type7 invoke=@fn46 captures=1
-    bridge function_type5 -> @fn90 id=2609a80c576326762a0ce99930e36fa26cc158e34dae3920a32b4578fa33608b
-  closure cc20 $Closure$reference8 type=function_type7 invoke=@fn47 captures=1
-    bridge function_type5 -> @fn91 id=d997eb8ea7377c4104725655c2a3bb0abfa3726f12861e2fd2634bcb17b0c34a
+    bridge function_type5 -> @fn81 id=94c06c11725af1600a7258079ecf57d6bc5817367f3def9757b28b5ca3cba5a7
+  closure cc15 $Closure$reference0 type=function_type4 invoke=@fn38 captures=1
+    bridge function_type5 -> @fn82 id=931608c89c6227bfb948ca89f5e8e8ea1f941cc5b64e398ec68f67d09109da20
+  closure cc16 $Closure$reference2 type=function_type4 invoke=@fn39 captures=1
+    bridge function_type5 -> @fn83 id=48cf892cd1e042506f9f185e6ac4a4bd40a75223fa1c8c5cd5d4ead46a927d96
+  closure cc17 $Closure$reference3 type=function_type6 invoke=@fn40 captures=1
+    bridge function_type5 -> @fn84 id=a7ca9c184f2db2681b7b551fcf43ee950b6a3d649814689b34992bcd4ba45f07
+  closure cc18 $Closure$reference5 type=function_type6 invoke=@fn41 captures=1
+    bridge function_type5 -> @fn85 id=bd5dcc8e527e459cce92ff8f9ce959407a0a2229744e95c3a594a922fb25b43c
+  closure cc19 $Closure$reference6 type=function_type7 invoke=@fn42 captures=1
+    bridge function_type5 -> @fn86 id=2609a80c576326762a0ce99930e36fa26cc158e34dae3920a32b4578fa33608b
+  closure cc20 $Closure$reference8 type=function_type7 invoke=@fn43 captures=1
+    bridge function_type5 -> @fn87 id=d997eb8ea7377c4104725655c2a3bb0abfa3726f12861e2fd2634bcb17b0c34a
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure10 nominal_id=6eabc9756f0861b34d39e43a9b680208c3cf46191c4bdd8fc34acafd36748ba2 exact_id=1dffdcf3b7c42b93480e691f80b63a8e72f338e17d7f2f939fd18e8a637169a6
   generated_exact_type get2 location=closure3 nominal_id=5eda84a674d198c0fb9838d4fc0a4eba17ad3bf70b08a260c697844077d8f128 exact_id=2a2cab3bfa37881eabb80756d9f48b786edda873aab0c1de52c63de92169267b
   generated_exact_type get3 location=closure2 nominal_id=f84b8499dd7e78201620bb64e6a9416fe15280b75299b91e4d52b7885ea1ca85 exact_id=2a3156cffaa00169e71c3faafbe29513cc24ecb25ba7b8b277f2d112588e51df
-  generated_exact_type get4 location=enum2 nominal_id=59d03fbdad29611d4c2fceb152f8e0efeb9f6d4301eff0b08e0c752a83ae6997 exact_id=328489dbd7b02fd8a26e0e0391f8f2c79bfa3f72e1d0a27c56656a1637c493bc
+  generated_exact_type get4 location=enum1 nominal_id=59d03fbdad29611d4c2fceb152f8e0efeb9f6d4301eff0b08e0c752a83ae6997 exact_id=328489dbd7b02fd8a26e0e0391f8f2c79bfa3f72e1d0a27c56656a1637c493bc
   generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get6 location=class19 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get7 location=closure16 nominal_id=599655e5bf9f4894fca0e9da63bf2d9fc944a4ba12ccea2ad186dedb34820ca7 exact_id=44f86c64e5ae347ba397285168114bf20ca7476c2854c072955cd0873fc70211
-  generated_exact_type get8 location=enum3 nominal_id=b4a9e1e842c473935dd1da2cb81b01c445eea59bd1f311567694f0a7d3174ca0 exact_id=4d0532daa40fde6eba86fdbed27bdd7b71c58a033048f7097b6ea6d3e34424de
+  generated_exact_type get8 location=enum2 nominal_id=b4a9e1e842c473935dd1da2cb81b01c445eea59bd1f311567694f0a7d3174ca0 exact_id=4d0532daa40fde6eba86fdbed27bdd7b71c58a033048f7097b6ea6d3e34424de
   generated_exact_type get9 location=closure8 nominal_id=dbfa0e2dc2b8119983c2c031152508e588429997f6a7bc7dbc5af103e49c7519 exact_id=4f69235b5e98c5d8ed869411b9e491c06c1b580b474f2731b4304ca0c1603ff1
   generated_exact_type get10 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get11 location=closure14 nominal_id=069a47e6e441bd52f9c0d6e9b2e2cbaf4b2ac70f4b48d7c55ac23baf1bc70006 exact_id=5b7ada8cf9cdc947ac605376679851e390aac046edc6e285a25ba90335a38a09
@@ -119,28 +107,28 @@ Module
   generated_exact_type get27 location=closure15 nominal_id=8e603ee9a62b19edfe7237e8e38e2cbd33dafbebde2c1232d30a6542e7337e8a exact_id=f134815cdc244421b8695f91738b8d548b181d914e07c5dd78c7d8a82a20e0a9
   generated_exact_type get28 location=closure9 nominal_id=24e5000c0ab0b1abff06e559da2d9ea67e298bbbc1ba00c470226cbd91fe59a8 exact_id=f2f462af24ebdbfeb0c6ef25c6b1cdf8236e51e01958d6b909b3a0e9c71676a9
   generated_exact_type get29 location=closure1 nominal_id=1e77a5d2643a30db444aabeb6c2893ae004723304cd8e255d6bc9d7bf3314a6a exact_id=fda24aec2c56edcebded00d5a322c12968f18aabb03dfb3bb2ef3898bd38e2c6
-  generated_callable gc0 function=@fn82 id=206c0e887fb66387e679e435c01b6389fc35575a1f230041f0c7d2baa955408d
-  generated_callable gc1 function=@fn73 id=252bed39adafcf13528aadbd9fca4008ca9b066df49e14c26dffb21c6cffee5d
-  generated_callable gc2 function=@fn90 id=2609a80c576326762a0ce99930e36fa26cc158e34dae3920a32b4578fa33608b
-  generated_callable gc3 function=@fn72 id=29cc408c3b1a6a0f833156ef31e7ac5e4105c3ffc1625286c64137520766cd98
-  generated_callable gc4 function=@fn76 id=3618b7500c6b0908fe9f4c814856a6cc5b2fc26f400fdcb05f837d7e617572f8
-  generated_callable gc5 function=@fn80 id=3c8eb1d0640c185db2bb9e7e5b85bac096c68e1b89293b91e1551d70e5853f63
-  generated_callable gc6 function=@fn87 id=48cf892cd1e042506f9f185e6ac4a4bd40a75223fa1c8c5cd5d4ead46a927d96
-  generated_callable gc7 function=@fn83 id=80a4118dbce8c1f741a35bb0e80ad9286a3e2fb0006ee48b540131993aac635f
-  generated_callable gc8 function=@fn86 id=931608c89c6227bfb948ca89f5e8e8ea1f941cc5b64e398ec68f67d09109da20
-  generated_callable gc9 function=@fn85 id=94c06c11725af1600a7258079ecf57d6bc5817367f3def9757b28b5ca3cba5a7
-  generated_callable gc10 function=@fn88 id=a7ca9c184f2db2681b7b551fcf43ee950b6a3d649814689b34992bcd4ba45f07
-  generated_callable gc11 function=@fn75 id=b2c10351c77e2cfab9ae01a45679a57531bbb429e36a6313377311cda98a98bc
-  generated_callable gc12 function=@fn89 id=bd5dcc8e527e459cce92ff8f9ce959407a0a2229744e95c3a594a922fb25b43c
-  generated_callable gc13 function=@fn74 id=bf3165087c7b532b5117ad81a8eb3a13b8bbbada65b5320e33b4dcd53f0e2387
-  generated_callable gc14 function=@fn79 id=cb67097c322a53510fa60d6180784a8418e2aff4c9f38ee81163ce355e9b61fd
-  generated_callable gc15 function=@fn77 id=cdae3bee649429ebe978c82d0b5d669fb2dd28b105c717848a9c3a7a1fe60b99
-  generated_callable gc16 function=@fn84 id=d467eeddaf3803aecb771841fef2fb4c9fddff08839911b4e964fffe0599db36
-  generated_callable gc17 function=@fn91 id=d997eb8ea7377c4104725655c2a3bb0abfa3726f12861e2fd2634bcb17b0c34a
-  generated_callable gc18 function=@fn81 id=e3199c6659f4a4f3e6c9b842bb96a47ad78d2ebfb5d6f3d65efe599c7a188962
-  generated_callable gc19 function=@fn71 id=eaff9205046ef5a198c171dbc725592e80e5e09c35c8ae0222f0212f4e84c955
-  generated_callable gc20 function=@fn78 id=ff70be931a4a927a34b5941cbe1b6529a6af4335053d87637189f5d5fa89ad19
-  generated_callable gc21 function=@fn70 id=ffaee7675dda202a5960d5516646c468a1ee6639329079af9738823d2e01ffda
+  generated_callable gc0 function=@fn78 id=206c0e887fb66387e679e435c01b6389fc35575a1f230041f0c7d2baa955408d
+  generated_callable gc1 function=@fn69 id=252bed39adafcf13528aadbd9fca4008ca9b066df49e14c26dffb21c6cffee5d
+  generated_callable gc2 function=@fn86 id=2609a80c576326762a0ce99930e36fa26cc158e34dae3920a32b4578fa33608b
+  generated_callable gc3 function=@fn68 id=29cc408c3b1a6a0f833156ef31e7ac5e4105c3ffc1625286c64137520766cd98
+  generated_callable gc4 function=@fn72 id=3618b7500c6b0908fe9f4c814856a6cc5b2fc26f400fdcb05f837d7e617572f8
+  generated_callable gc5 function=@fn76 id=3c8eb1d0640c185db2bb9e7e5b85bac096c68e1b89293b91e1551d70e5853f63
+  generated_callable gc6 function=@fn83 id=48cf892cd1e042506f9f185e6ac4a4bd40a75223fa1c8c5cd5d4ead46a927d96
+  generated_callable gc7 function=@fn79 id=80a4118dbce8c1f741a35bb0e80ad9286a3e2fb0006ee48b540131993aac635f
+  generated_callable gc8 function=@fn82 id=931608c89c6227bfb948ca89f5e8e8ea1f941cc5b64e398ec68f67d09109da20
+  generated_callable gc9 function=@fn81 id=94c06c11725af1600a7258079ecf57d6bc5817367f3def9757b28b5ca3cba5a7
+  generated_callable gc10 function=@fn84 id=a7ca9c184f2db2681b7b551fcf43ee950b6a3d649814689b34992bcd4ba45f07
+  generated_callable gc11 function=@fn71 id=b2c10351c77e2cfab9ae01a45679a57531bbb429e36a6313377311cda98a98bc
+  generated_callable gc12 function=@fn85 id=bd5dcc8e527e459cce92ff8f9ce959407a0a2229744e95c3a594a922fb25b43c
+  generated_callable gc13 function=@fn70 id=bf3165087c7b532b5117ad81a8eb3a13b8bbbada65b5320e33b4dcd53f0e2387
+  generated_callable gc14 function=@fn75 id=cb67097c322a53510fa60d6180784a8418e2aff4c9f38ee81163ce355e9b61fd
+  generated_callable gc15 function=@fn73 id=cdae3bee649429ebe978c82d0b5d669fb2dd28b105c717848a9c3a7a1fe60b99
+  generated_callable gc16 function=@fn80 id=d467eeddaf3803aecb771841fef2fb4c9fddff08839911b4e964fffe0599db36
+  generated_callable gc17 function=@fn87 id=d997eb8ea7377c4104725655c2a3bb0abfa3726f12861e2fd2634bcb17b0c34a
+  generated_callable gc18 function=@fn77 id=e3199c6659f4a4f3e6c9b842bb96a47ad78d2ebfb5d6f3d65efe599c7a188962
+  generated_callable gc19 function=@fn67 id=eaff9205046ef5a198c171dbc725592e80e5e09c35c8ae0222f0212f4e84c955
+  generated_callable gc20 function=@fn74 id=ff70be931a4a927a34b5941cbe1b6529a6af4335053d87637189f5d5fa89ad19
+  generated_callable gc21 function=@fn66 id=ffaee7675dda202a5960d5516646c468a1ee6639329079af9738823d2e01ffda
   fun check @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -152,7 +140,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn48 direct
+      call @fn44 direct
         Type Later
         Local $new.1
         Type Int
@@ -290,7 +278,7 @@ Module
       assign $new.1
         Type Shell<Later, Unit>
         ClassAlloc Shell<Later, Unit>
-      call @fn49 direct
+      call @fn45 direct
         Type Shell<Later, Unit>
         Local $new.1
         Type Later
@@ -350,7 +338,7 @@ Module
       assign $new.3
         Type Shell<Later, Unit>
         ClassAlloc Shell<Later, Unit>
-      call @fn50 direct
+      call @fn46 direct
         Type Shell<Later, Unit>
         Local $new.3
         Type Later
@@ -375,7 +363,7 @@ Module
       assign $new.4
         Type Shell<Later, String>
         ClassAlloc Shell<Later, String>
-      call @fn51 direct
+      call @fn47 direct
         Type Shell<Later, String>
         Local $new.4
         Type Later
@@ -394,7 +382,7 @@ Module
       assign $new.5
         Type Current<Later, Unit>
         ClassAlloc Current<Later, Unit>
-      call @fn52 direct
+      call @fn48 direct
         Type Current<Later, Unit>
         Local $new.5
         Type Later
@@ -534,7 +522,7 @@ Module
       val $dependency.local.40: Shell<Later, Unit>
         Type Shell<Later, Unit>
         Local $dependency.local.39
-      call $dependency.local.7: Carrier<Shell<Later, Unit>, String> = @fn67 direct
+      call $dependency.local.7: Carrier<Shell<Later, Unit>, String> = @fn63 direct
         Type Shell<Later, Unit>
         Local $dependency.local.40
       call $call.10: Later = @fn7 direct
@@ -566,7 +554,7 @@ Module
       assign $new.1
         Type Shell<String, Unit>
         ClassAlloc Shell<String, Unit>
-      call @fn53 direct
+      call @fn49 direct
         Type Shell<String, Unit>
         Local $new.1
         Type String
@@ -626,7 +614,7 @@ Module
       assign $new.3
         Type Shell<String, Unit>
         ClassAlloc Shell<String, Unit>
-      call @fn54 direct
+      call @fn50 direct
         Type Shell<String, Unit>
         Local $new.3
         Type String
@@ -651,7 +639,7 @@ Module
       assign $new.4
         Type Shell<String, String>
         ClassAlloc Shell<String, String>
-      call @fn55 direct
+      call @fn51 direct
         Type Shell<String, String>
         Local $new.4
         Type String
@@ -670,7 +658,7 @@ Module
       assign $new.5
         Type Current<String, Unit>
         ClassAlloc Current<String, Unit>
-      call @fn56 direct
+      call @fn52 direct
         Type Current<String, Unit>
         Local $new.5
         Type String
@@ -810,7 +798,7 @@ Module
       val $dependency.local.40: Shell<String, Unit>
         Type Shell<String, Unit>
         Local $dependency.local.39
-      call $dependency.local.7: Carrier<Shell<String, Unit>, String> = @fn68 direct
+      call $dependency.local.7: Carrier<Shell<String, Unit>, String> = @fn64 direct
         Type Shell<String, Unit>
         Local $dependency.local.40
       call $call.10: String = @fn10 direct
@@ -842,7 +830,7 @@ Module
       assign $new.1
         Type Shell<Unit, Unit>
         ClassAlloc Shell<Unit, Unit>
-      call @fn57 direct
+      call @fn53 direct
         Type Shell<Unit, Unit>
         Local $new.1
         Type Unit
@@ -902,7 +890,7 @@ Module
       assign $new.2
         Type Shell<Unit, Unit>
         ClassAlloc Shell<Unit, Unit>
-      call @fn58 direct
+      call @fn54 direct
         Type Shell<Unit, Unit>
         Local $new.2
         Type Unit
@@ -927,7 +915,7 @@ Module
       assign $new.3
         Type Shell<Unit, String>
         ClassAlloc Shell<Unit, String>
-      call @fn59 direct
+      call @fn55 direct
         Type Shell<Unit, String>
         Local $new.3
         Type Unit
@@ -946,7 +934,7 @@ Module
       assign $new.4
         Type Current<Unit, Unit>
         ClassAlloc Current<Unit, Unit>
-      call @fn60 direct
+      call @fn56 direct
         Type Current<Unit, Unit>
         Local $new.4
         Type Unit
@@ -1086,7 +1074,7 @@ Module
       val $dependency.local.40: Shell<Unit, Unit>
         Type Shell<Unit, Unit>
         Local $dependency.local.39
-      call $dependency.local.7: Carrier<Shell<Unit, Unit>, String> = @fn69 direct
+      call $dependency.local.7: Carrier<Shell<Unit, Unit>, String> = @fn65 direct
         Type Shell<Unit, Unit>
         Local $dependency.local.40
       call @fn13 direct
@@ -1126,7 +1114,7 @@ Module
       assign $new.1
         Type Shell<Later, Unit>
         ClassAlloc Shell<Later, Unit>
-      call @fn50 direct
+      call @fn46 direct
         Type Shell<Later, Unit>
         Local $new.1
         Type Later
@@ -1167,7 +1155,7 @@ Module
       assign $new.1
         Type Shell<String, Unit>
         ClassAlloc Shell<String, Unit>
-      call @fn54 direct
+      call @fn50 direct
         Type Shell<String, Unit>
         Local $new.1
         Type String
@@ -1208,7 +1196,7 @@ Module
       assign $new.1
         Type Shell<Unit, Unit>
         ClassAlloc Shell<Unit, Unit>
-      call @fn58 direct
+      call @fn54 direct
         Type Shell<Unit, Unit>
         Local $new.1
         Type Unit
@@ -1367,277 +1355,19 @@ Module
           Type () -> Unit
           Local $argument.0
       return
-  fun encode @fn34(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn39 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun Continuation.resume @fn35(this: Continuation<Later>, value: Later) -> Unit
+  fun Continuation.resume @fn34(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn36(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn35(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn37(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn36(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn38(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun encodeOption @fn39(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str1
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external3 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external3 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str2
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external8 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external6 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun encode @fn40(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn41 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn41(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str3
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external3 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external3 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str4
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external7 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external6 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun $reference.0 @fn42($closure: () -> Later) -> Later
+  fun $reference.0 @fn38($closure: () -> Later) -> Later
     bb0 entry
       call $call.1: Later = @fn16 direct
         Type Later
@@ -1647,7 +1377,7 @@ Module
       return
         Type Later
         Local $call.1
-  fun $reference.2 @fn43($closure: () -> Later) -> Later
+  fun $reference.2 @fn39($closure: () -> Later) -> Later
     bb0 entry
       call $call.1: Later = @fn19 direct
         Type Later
@@ -1657,7 +1387,7 @@ Module
       return
         Type Later
         Local $call.1
-  fun $reference.3 @fn44($closure: () -> String) -> String
+  fun $reference.3 @fn40($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn22 direct
         Type String
@@ -1667,7 +1397,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.5 @fn45($closure: () -> String) -> String
+  fun $reference.5 @fn41($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @fn25 direct
         Type String
@@ -1677,7 +1407,7 @@ Module
       return
         Type String
         Local $call.1
-  fun $reference.6 @fn46($closure: () -> Unit) -> Unit
+  fun $reference.6 @fn42($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn28 direct
         Type Unit
@@ -1685,7 +1415,7 @@ Module
           Type () -> Unit
           Local $closure
       return
-  fun $reference.8 @fn47($closure: () -> Unit) -> Unit
+  fun $reference.8 @fn43($closure: () -> Unit) -> Unit
     bb0 entry
       call @fn31 direct
         Type Unit
@@ -1693,7 +1423,7 @@ Module
           Type () -> Unit
           Local $closure
       return
-  fun init.Later.$c0 @fn48(this: Later, value: Int) -> Unit
+  fun init.Later.$c0 @fn44(this: Later, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -1701,7 +1431,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Shell.$c0 @fn49(this: Shell<Later, Unit>, value: Later) -> Unit
+  fun init.Shell.$c0 @fn45(this: Shell<Later, Unit>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
         Type Later
@@ -1709,7 +1439,7 @@ Module
       val $dependency.constructor.local.1: Later
         Type Later
         Local $dependency.constructor.local.0
-      call @fn61 direct
+      call @fn57 direct
         Type Base<Later, Unit>
         Retype Base<Later, Unit>
           Type Shell<Later, Unit>
@@ -1768,7 +1498,7 @@ Module
         Type Later
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn50(this: Shell<Later, Unit>, value: Later, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn46(this: Shell<Later, Unit>, value: Later, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1790,7 +1520,7 @@ Module
       val $dependency.constructor.local.2: Later
         Type Later
         Local $dependency.constructor.local.1
-      call @fn61 direct
+      call @fn57 direct
         Type Base<Later, Unit>
         Retype Base<Later, Unit>
           Type Shell<Later, Unit>
@@ -1849,7 +1579,7 @@ Module
         Type Later
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn51(this: Shell<Later, String>, value: Later, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn47(this: Shell<Later, String>, value: Later, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1871,7 +1601,7 @@ Module
       val $dependency.constructor.local.2: Later
         Type Later
         Local $dependency.constructor.local.1
-      call @fn62 direct
+      call @fn58 direct
         Type Base<Later, String>
         Retype Base<Later, String>
           Type Shell<Later, String>
@@ -1930,7 +1660,7 @@ Module
         Type Later
         Local $dependency.constructor.local.4
       return
-  fun init.Current.$c2 @fn52(this: Current<Later, Unit>, value: Later) -> Unit
+  fun init.Current.$c2 @fn48(this: Current<Later, Unit>, value: Later) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Later
         Type Later
@@ -1944,7 +1674,7 @@ Module
       val $dependency.constructor.local.3: Boolean
         Type Boolean
         Local $dependency.constructor.local.1
-      call @fn50 direct
+      call @fn46 direct
         Type Shell<Later, Unit>
         Retype Shell<Later, Unit>
           Type Current<Later, Unit>
@@ -1954,7 +1684,7 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
-  fun init.Shell.$c0 @fn53(this: Shell<String, Unit>, value: String) -> Unit
+  fun init.Shell.$c0 @fn49(this: Shell<String, Unit>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
         Type String
@@ -1962,7 +1692,7 @@ Module
       val $dependency.constructor.local.1: String
         Type String
         Local $dependency.constructor.local.0
-      call @fn63 direct
+      call @fn59 direct
         Type Base<String, Unit>
         Retype Base<String, Unit>
           Type Shell<String, Unit>
@@ -2021,7 +1751,7 @@ Module
         Type String
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn54(this: Shell<String, Unit>, value: String, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn50(this: Shell<String, Unit>, value: String, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -2043,7 +1773,7 @@ Module
       val $dependency.constructor.local.2: String
         Type String
         Local $dependency.constructor.local.1
-      call @fn63 direct
+      call @fn59 direct
         Type Base<String, Unit>
         Retype Base<String, Unit>
           Type Shell<String, Unit>
@@ -2102,7 +1832,7 @@ Module
         Type String
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn55(this: Shell<String, String>, value: String, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn51(this: Shell<String, String>, value: String, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -2124,7 +1854,7 @@ Module
       val $dependency.constructor.local.2: String
         Type String
         Local $dependency.constructor.local.1
-      call @fn64 direct
+      call @fn60 direct
         Type Base<String, String>
         Retype Base<String, String>
           Type Shell<String, String>
@@ -2183,7 +1913,7 @@ Module
         Type String
         Local $dependency.constructor.local.4
       return
-  fun init.Current.$c2 @fn56(this: Current<String, Unit>, value: String) -> Unit
+  fun init.Current.$c2 @fn52(this: Current<String, Unit>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: String
         Type String
@@ -2197,7 +1927,7 @@ Module
       val $dependency.constructor.local.3: Boolean
         Type Boolean
         Local $dependency.constructor.local.1
-      call @fn54 direct
+      call @fn50 direct
         Type Shell<String, Unit>
         Retype Shell<String, Unit>
           Type Current<String, Unit>
@@ -2207,7 +1937,7 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
-  fun init.Shell.$c0 @fn57(this: Shell<Unit, Unit>, value: Unit) -> Unit
+  fun init.Shell.$c0 @fn53(this: Shell<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2215,7 +1945,7 @@ Module
       val $dependency.constructor.local.1: Unit
         Type Unit
         Local $dependency.constructor.local.0
-      call @fn65 direct
+      call @fn61 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Shell<Unit, Unit>
@@ -2274,7 +2004,7 @@ Module
         Type Unit
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn58(this: Shell<Unit, Unit>, value: Unit, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn54(this: Shell<Unit, Unit>, value: Unit, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -2296,7 +2026,7 @@ Module
       val $dependency.constructor.local.2: Unit
         Type Unit
         Local $dependency.constructor.local.1
-      call @fn65 direct
+      call @fn61 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Shell<Unit, Unit>
@@ -2355,7 +2085,7 @@ Module
         Type Unit
         Local $dependency.constructor.local.4
       return
-  fun init.Shell.$c1 @fn59(this: Shell<Unit, String>, value: Unit, flag: Boolean) -> Unit
+  fun init.Shell.$c1 @fn55(this: Shell<Unit, String>, value: Unit, flag: Boolean) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -2377,7 +2107,7 @@ Module
       val $dependency.constructor.local.2: Unit
         Type Unit
         Local $dependency.constructor.local.1
-      call @fn66 direct
+      call @fn62 direct
         Type Base<Unit, String>
         Retype Base<Unit, String>
           Type Shell<Unit, String>
@@ -2436,7 +2166,7 @@ Module
         Type Unit
         Local $dependency.constructor.local.4
       return
-  fun init.Current.$c2 @fn60(this: Current<Unit, Unit>, value: Unit) -> Unit
+  fun init.Current.$c2 @fn56(this: Current<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2450,7 +2180,7 @@ Module
       val $dependency.constructor.local.3: Boolean
         Type Boolean
         Local $dependency.constructor.local.1
-      call @fn58 direct
+      call @fn54 direct
         Type Shell<Unit, Unit>
         Retype Shell<Unit, Unit>
           Type Current<Unit, Unit>
@@ -2460,7 +2190,7 @@ Module
         Type Boolean
         Local $dependency.constructor.local.3
       return
-  fun init.Base.$c4 @fn61(this: Base<Later, Unit>, value: Later) -> Unit
+  fun init.Base.$c4 @fn57(this: Base<Later, Unit>, value: Later) -> Unit
     bb0 entry
       field_set 0
         Type Base<Later, Unit>
@@ -2468,7 +2198,7 @@ Module
         Type Later
         Local value
       return
-  fun init.Base.$c4 @fn62(this: Base<Later, String>, value: Later) -> Unit
+  fun init.Base.$c4 @fn58(this: Base<Later, String>, value: Later) -> Unit
     bb0 entry
       field_set 0
         Type Base<Later, String>
@@ -2476,7 +2206,7 @@ Module
         Type Later
         Local value
       return
-  fun init.Base.$c4 @fn63(this: Base<String, Unit>, value: String) -> Unit
+  fun init.Base.$c4 @fn59(this: Base<String, Unit>, value: String) -> Unit
     bb0 entry
       field_set 0
         Type Base<String, Unit>
@@ -2484,7 +2214,7 @@ Module
         Type String
         Local value
       return
-  fun init.Base.$c4 @fn64(this: Base<String, String>, value: String) -> Unit
+  fun init.Base.$c4 @fn60(this: Base<String, String>, value: String) -> Unit
     bb0 entry
       field_set 0
         Type Base<String, String>
@@ -2492,7 +2222,7 @@ Module
         Type String
         Local value
       return
-  fun init.Base.$c4 @fn65(this: Base<Unit, Unit>, value: Unit) -> Unit
+  fun init.Base.$c4 @fn61(this: Base<Unit, Unit>, value: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, Unit>
@@ -2500,7 +2230,7 @@ Module
         Type Unit
         Local value
       return
-  fun init.Base.$c4 @fn66(this: Base<Unit, String>, value: Unit) -> Unit
+  fun init.Base.$c4 @fn62(this: Base<Unit, String>, value: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, String>
@@ -2508,28 +2238,28 @@ Module
         Type Unit
         Local value
       return
-  fun ctor.Carrier.$c3 @fn67(value: Shell<Later, Unit>) -> Carrier<Shell<Later, Unit>, String> <no-gc>
+  fun ctor.Carrier.$c3 @fn63(value: Shell<Later, Unit>) -> Carrier<Shell<Later, Unit>, String> <no-gc>
     bb0 entry
       return
         Type Carrier<Shell<Later, Unit>, String>
         StructInit Carrier<Shell<Later, Unit>, String>
           Type Shell<Later, Unit>
           Local value
-  fun ctor.Carrier.$c3 @fn68(value: Shell<String, Unit>) -> Carrier<Shell<String, Unit>, String> <no-gc>
+  fun ctor.Carrier.$c3 @fn64(value: Shell<String, Unit>) -> Carrier<Shell<String, Unit>, String> <no-gc>
     bb0 entry
       return
         Type Carrier<Shell<String, Unit>, String>
         StructInit Carrier<Shell<String, Unit>, String>
           Type Shell<String, Unit>
           Local value
-  fun ctor.Carrier.$c3 @fn69(value: Shell<Unit, Unit>) -> Carrier<Shell<Unit, Unit>, String> <no-gc>
+  fun ctor.Carrier.$c3 @fn65(value: Shell<Unit, Unit>) -> Carrier<Shell<Unit, Unit>, String> <no-gc>
     bb0 entry
       return
         Type Carrier<Shell<Unit, Unit>, String>
         StructInit Carrier<Shell<Unit, Unit>, String>
           Type Shell<Unit, Unit>
           Local value
-  fun startCoroutine<Later> @fn70(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn66(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2552,7 +2282,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn35 interface Continuation<Later>[0]
+      call @fn34 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -2565,7 +2295,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn36 interface Continuation<Later>[1]
+      call @fn35 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -2584,7 +2314,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn37 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn36 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -2610,7 +2340,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn71($source: (Later) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn67($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Later) -> Int
@@ -2624,7 +2354,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn72($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn68($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (String) -> Int
@@ -2638,7 +2368,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn73($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn69($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -2652,7 +2382,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.() -> Any @fn74($source: () -> Later) -> Any
+  fun function_bridge.$Closure$lambda3.() -> Any @fn70($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2662,7 +2392,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$lambda5.() -> Any @fn75($source: () -> Later) -> Any
+  fun function_bridge.$Closure$lambda5.() -> Any @fn71($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2672,7 +2402,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$lambda6.() -> Any @fn76($source: () -> String) -> Any
+  fun function_bridge.$Closure$lambda6.() -> Any @fn72($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2682,7 +2412,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$lambda8.() -> Any @fn77($source: () -> String) -> Any
+  fun function_bridge.$Closure$lambda8.() -> Any @fn73($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2692,7 +2422,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$lambda9.() -> Any @fn78($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$lambda9.() -> Any @fn74($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2702,7 +2432,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$lambda11.() -> Any @fn79($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$lambda11.() -> Any @fn75($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2712,7 +2442,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$anonymous0.() -> Any @fn80($source: () -> Later) -> Any
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn76($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2722,7 +2452,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$anonymous2.() -> Any @fn81($source: () -> Later) -> Any
+  fun function_bridge.$Closure$anonymous2.() -> Any @fn77($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2732,7 +2462,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$anonymous3.() -> Any @fn82($source: () -> String) -> Any
+  fun function_bridge.$Closure$anonymous3.() -> Any @fn78($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2742,7 +2472,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$anonymous5.() -> Any @fn83($source: () -> String) -> Any
+  fun function_bridge.$Closure$anonymous5.() -> Any @fn79($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2752,7 +2482,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$anonymous6.() -> Any @fn84($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$anonymous6.() -> Any @fn80($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2762,7 +2492,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$anonymous8.() -> Any @fn85($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$anonymous8.() -> Any @fn81($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2772,7 +2502,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference0.() -> Any @fn86($source: () -> Later) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn82($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2782,7 +2512,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$reference2.() -> Any @fn87($source: () -> Later) -> Any
+  fun function_bridge.$Closure$reference2.() -> Any @fn83($source: () -> Later) -> Any
     bb0 entry
       call $call.1: Later = <closure:function_type4> closure[function_type4]
         Type () -> Later
@@ -2792,7 +2522,7 @@ Module
         Retype Any
           Type Later
           Local $call.1
-  fun function_bridge.$Closure$reference3.() -> Any @fn88($source: () -> String) -> Any
+  fun function_bridge.$Closure$reference3.() -> Any @fn84($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2802,7 +2532,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference5.() -> Any @fn89($source: () -> String) -> Any
+  fun function_bridge.$Closure$reference5.() -> Any @fn85($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type6> closure[function_type6]
         Type () -> String
@@ -2812,7 +2542,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$reference6.() -> Any @fn90($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$reference6.() -> Any @fn86($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2822,7 +2552,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$reference8.() -> Any @fn91($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$reference8.() -> Any @fn87($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type7> closure[function_type7]
         Type () -> Unit
@@ -2834,8 +2564,8 @@ Module
           UnitLiteral
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn70
-  coroutine_fn cf0 @fn37 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn66
+  coroutine_fn cf0 @fn36 source_return=Later step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -2866,17 +2596,9 @@ Module
   instance mi27 function=@fn31 <- read
   instance mi28 function=@fn32 <- $anonymous
   instance mi29 function=@fn33 <- $lambda
-  instance mi30 function=@fn34 <- encode
-  instance mi31 function=@fn35 <- Continuation.resume
-  instance mi32 function=@fn36 <- Continuation.resumeWithException
-  instance mi33 function=@fn37 <- SuspendTask.run
-  instance mi34 function=@fn38 <- SuspendRegistration.register
-  instance mi35 function=@fn39 <- encodeOption
-  instance mi36 function=@fn40 <- encode
-  instance mi37 function=@fn41 <- encodeOption
+  instance mi30 function=@fn34 <- Continuation.resume
+  instance mi31 function=@fn35 <- Continuation.resumeWithException
+  instance mi32 function=@fn36 <- SuspendTask.run
+  instance mi33 function=@fn37 <- SuspendRegistration.register
   str @str0 "retained"
-  str @str1 "None"
-  str @str2 "Some"
-  str @str3 "None"
-  str @str4 "Some"
   output library

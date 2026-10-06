@@ -22,9 +22,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum CoroutineStep<Choice>
     Completed(value: Choice)
     Suspended()
@@ -77,11 +74,6 @@ Module
   class box<Other> vtable=0 itables=0
   class box<Flag> vtable=0 itables=0
   class box<Draft> vtable=0 itables=0
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Continuation<Token>
   interface SuspendTask<Token>
   interface SuspendRegistration<Token>
@@ -103,43 +95,39 @@ Module
   interface Continuation<Draft>
   interface SuspendTask<Draft>
   interface SuspendRegistration<Draft>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   generated_exact_type get0 location=class4 nominal_id=67cea740050d5b0eb19430db811d94d2adf6f541e3c9a0dff35556812d6875f3 exact_id=0074628e839436c60f27fa96104633cb3cb9428bb0dd36adc323c561b47fc4f4
   generated_exact_type get1 location=class9 nominal_id=4f6ec29496d28518249d0d5b99cec5b0ec0a5d1ed480cd695c4dcb65fd69e9a7 exact_id=015def51a915d1add60a779c45a54ba4028ba0e22d49338d2cab6590e2cfe413
-  generated_exact_type get2 location=enum12 nominal_id=b11c18dd045af6a7917bafe64108308fe7bdb155c4f8a1af4b2b3a145a028995 exact_id=04d2c6b053712b5bcedab6bcc9929daf62729bd0e4254b16777b41645c08545b
-  generated_exact_type get3 location=enum18 nominal_id=28082a8cb7a8f7e0c8b3a3b53d4ed318b315fd03ffe91499fb7325a9248fd075 exact_id=0cc5929a6f2d33773d6fdb6dfd00793c7069a7af54b35b840fe478b225ae0203
+  generated_exact_type get2 location=enum11 nominal_id=b11c18dd045af6a7917bafe64108308fe7bdb155c4f8a1af4b2b3a145a028995 exact_id=04d2c6b053712b5bcedab6bcc9929daf62729bd0e4254b16777b41645c08545b
+  generated_exact_type get3 location=enum17 nominal_id=28082a8cb7a8f7e0c8b3a3b53d4ed318b315fd03ffe91499fb7325a9248fd075 exact_id=0cc5929a6f2d33773d6fdb6dfd00793c7069a7af54b35b840fe478b225ae0203
   generated_exact_type get4 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get5 location=class8 nominal_id=fcc73984b896039e8ec99f62db567a9ddd2fe326eae58f9bff1e8971d4cadf2f exact_id=1d1e7c39e91f398e6d1be81aa60921fec09b9d4af51157b9e415045850bf41f1
-  generated_exact_type get6 location=enum20 nominal_id=54744846772eb94b04f7afcfb713ea740791704a44e319a9efef9ee6ea2ef1d1 exact_id=250a07428b2a1132b571b87bfd6ec680522405ffda1fc1efd99a73012355e406
-  generated_exact_type get7 location=enum15 nominal_id=b6d5e1e45e0e76b3ba12c0360443eff68356e74da9542506ce9d308e97e011ad exact_id=2df761a1bd80e3552b1c11bcd2c13c670f52dd88854048d2a85f1ed099e48938
+  generated_exact_type get6 location=enum19 nominal_id=54744846772eb94b04f7afcfb713ea740791704a44e319a9efef9ee6ea2ef1d1 exact_id=250a07428b2a1132b571b87bfd6ec680522405ffda1fc1efd99a73012355e406
+  generated_exact_type get7 location=enum14 nominal_id=b6d5e1e45e0e76b3ba12c0360443eff68356e74da9542506ce9d308e97e011ad exact_id=2df761a1bd80e3552b1c11bcd2c13c670f52dd88854048d2a85f1ed099e48938
   generated_exact_type get8 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get9 location=class6 nominal_id=3aa076a47bbaf2c311472768118bb9b6feeb29e4987ffa0391e7b25d2b78ca95 exact_id=481df22511016d674eaae1f45e358f956c1064e7f500ddc8164fa49bf2385da6
-  generated_exact_type get10 location=enum9 nominal_id=8a65320feb58b950b9072839f2a18cc276cd5d56ce0afba7dc17e17cf086dfd9 exact_id=4c7fee686721afaae8001f9d4e49e47b4e5a6c472205abd81a5ecb7a3a79c5aa
+  generated_exact_type get10 location=enum8 nominal_id=8a65320feb58b950b9072839f2a18cc276cd5d56ce0afba7dc17e17cf086dfd9 exact_id=4c7fee686721afaae8001f9d4e49e47b4e5a6c472205abd81a5ecb7a3a79c5aa
   generated_exact_type get11 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get12 location=class7 nominal_id=1755d26221a12ecbaca470481b702c6a8c082362e06a69dbb431de82cac1e710 exact_id=5602c89be8069b8fa352b424d112c1263ecb8317f227b24ec70c039e654507ef
-  generated_exact_type get13 location=enum19 nominal_id=eee05fb4fe797fb3b03cf8a3f31bcf8cf8d5e24b5edba764cf51aaad328991d0 exact_id=57b768b9df7d3b6536b3e7fcf50d1908a4cfc110ac749cf9593469c8d175824a
-  generated_exact_type get14 location=enum13 nominal_id=103839c1d9d36a84ffe4cfd17b82abb9da5c780e5a03892b96d5f1b82fde39fe exact_id=6f850335dc028075ed81c218d065c42fb1b8052d8bfbf626633d835e5fd3664c
+  generated_exact_type get13 location=enum18 nominal_id=eee05fb4fe797fb3b03cf8a3f31bcf8cf8d5e24b5edba764cf51aaad328991d0 exact_id=57b768b9df7d3b6536b3e7fcf50d1908a4cfc110ac749cf9593469c8d175824a
+  generated_exact_type get14 location=enum12 nominal_id=103839c1d9d36a84ffe4cfd17b82abb9da5c780e5a03892b96d5f1b82fde39fe exact_id=6f850335dc028075ed81c218d065c42fb1b8052d8bfbf626633d835e5fd3664c
   generated_exact_type get15 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get16 location=enum8 nominal_id=f74f9441e553a70907a1e75f509d8c5d26c9ed01eceed6a1e6e4c29cb1306906 exact_id=8876e44e7736499bdbc8d9c3567013d053c3e3cff736fecc761339c22b033669
+  generated_exact_type get16 location=enum7 nominal_id=f74f9441e553a70907a1e75f509d8c5d26c9ed01eceed6a1e6e4c29cb1306906 exact_id=8876e44e7736499bdbc8d9c3567013d053c3e3cff736fecc761339c22b033669
   generated_exact_type get17 location=class3 nominal_id=5bf838505c15850ec364674298f78224c0c309e32946916f58206c7bfc3c687a exact_id=8f3d7551efb9904ff36bdb37a5cac045b920a377a7dfda1ed7f13bf689b4557c
-  generated_exact_type get18 location=enum17 nominal_id=6e38ea1fc41d65214ee866691e493327f641edebe8a7009d0ea90bb6f7848f01 exact_id=934264475104afcb32287eb289b90673be61f9ecc4e30df8e63633ce41401bce
-  generated_exact_type get19 location=enum11 nominal_id=0bd393e50a94e14711d355ef8ee4bc520286a91c4addcb20aaaa508bf7ec88e4 exact_id=9f4f4ee29465980cab5ce391b13e907ea5ad5ef4a583147ea623e57050337d45
-  generated_exact_type get20 location=enum10 nominal_id=766d34c6d1af1d4d7fc652773dd1f4a0d9723a944034ebcab3c0ec7ccfd15c92 exact_id=a9f8b8e0434c0dd8578f3b5b7f892e64683facf176867f9d5df0a30fc66741e9
-  generated_exact_type get21 location=enum14 nominal_id=f7583b76857f5773c0f7a8945df12665fe0de6b2d07406a0d7af828694fd5c27 exact_id=b58f076a67068eebed094b90d4796d65e93af5e6a0efae5d400649295134c01b
+  generated_exact_type get18 location=enum16 nominal_id=6e38ea1fc41d65214ee866691e493327f641edebe8a7009d0ea90bb6f7848f01 exact_id=934264475104afcb32287eb289b90673be61f9ecc4e30df8e63633ce41401bce
+  generated_exact_type get19 location=enum10 nominal_id=0bd393e50a94e14711d355ef8ee4bc520286a91c4addcb20aaaa508bf7ec88e4 exact_id=9f4f4ee29465980cab5ce391b13e907ea5ad5ef4a583147ea623e57050337d45
+  generated_exact_type get20 location=enum9 nominal_id=766d34c6d1af1d4d7fc652773dd1f4a0d9723a944034ebcab3c0ec7ccfd15c92 exact_id=a9f8b8e0434c0dd8578f3b5b7f892e64683facf176867f9d5df0a30fc66741e9
+  generated_exact_type get21 location=enum13 nominal_id=f7583b76857f5773c0f7a8945df12665fe0de6b2d07406a0d7af828694fd5c27 exact_id=b58f076a67068eebed094b90d4796d65e93af5e6a0efae5d400649295134c01b
   generated_exact_type get22 location=class5 nominal_id=fa826b4d34664af2927128457cb0f8d4c1d5d535d08e92e0177eba4d38157b23 exact_id=e09a29afb41ec59eb0476c308029091b7296548c8b394efb644dde2ca2d544eb
-  generated_exact_type get23 location=enum21 nominal_id=dddc38b952a1906db367f8b6d1b8a660f1bb447fe18fa9c3108b842e23be5fa2 exact_id=e31a7e5d3c4fea8371764883af087480b3e48fd0c818acd91feb2af6bb64c341
-  generated_exact_type get24 location=enum16 nominal_id=016244be7ce5a4a930b3fd645e58945838f723092c495f6e48404ec6bc37aee9 exact_id=ec30933cba59b8e508d582c1b5a41cba409d7206333c4f7e1e66886a8eb87291
+  generated_exact_type get23 location=enum20 nominal_id=dddc38b952a1906db367f8b6d1b8a660f1bb447fe18fa9c3108b842e23be5fa2 exact_id=e31a7e5d3c4fea8371764883af087480b3e48fd0c818acd91feb2af6bb64c341
+  generated_exact_type get24 location=enum15 nominal_id=016244be7ce5a4a930b3fd645e58945838f723092c495f6e48404ec6bc37aee9 exact_id=ec30933cba59b8e508d582c1b5a41cba409d7206333c4f7e1e66886a8eb87291
   generated_exact_type get25 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn49 id=531c597185956bb70fde1945c299aa3cfa4e293d57f5ee76a5407344f6e38136
-  generated_callable gc1 function=@fn52 id=5949f0e78cc2c31d8628eb9f99b6c23d94d5b6d162c1904726f133a1a66b06a0
-  generated_callable gc2 function=@fn48 id=714e4cb31eeb07eff58eeb9190cf2c4adf9d7776190703e71e1655a276f76ac2
-  generated_callable gc3 function=@fn50 id=a951a572c93c8a131e4b17c5e800683748c0c2c5bb25884b8d07671393f0f9bf
-  generated_callable gc4 function=@fn51 id=ab43a40f5b8d07f080179d9378324712d2069a04089ee1917f10b21cda3d5195
-  generated_callable gc5 function=@fn53 id=b1680058d1e6da5ce6272ee6eecd8ed2cd14b57a1004f3d6af0f0b1bdb3f6096
-  generated_callable gc6 function=@fn47 id=caf76eb0894640e37c72646e28db12e3e4c7c7b979c57498d33b716609759af6
+  generated_callable gc0 function=@fn45 id=531c597185956bb70fde1945c299aa3cfa4e293d57f5ee76a5407344f6e38136
+  generated_callable gc1 function=@fn48 id=5949f0e78cc2c31d8628eb9f99b6c23d94d5b6d162c1904726f133a1a66b06a0
+  generated_callable gc2 function=@fn44 id=714e4cb31eeb07eff58eeb9190cf2c4adf9d7776190703e71e1655a276f76ac2
+  generated_callable gc3 function=@fn46 id=a951a572c93c8a131e4b17c5e800683748c0c2c5bb25884b8d07671393f0f9bf
+  generated_callable gc4 function=@fn47 id=ab43a40f5b8d07f080179d9378324712d2069a04089ee1917f10b21cda3d5195
+  generated_callable gc5 function=@fn49 id=b1680058d1e6da5ce6272ee6eecd8ed2cd14b57a1004f3d6af0f0b1bdb3f6096
+  generated_callable gc6 function=@fn43 id=caf76eb0894640e37c72646e28db12e3e4c7c7b979c57498d33b716609759af6
   fun Token.equals @fn0(this: Token, other: Token) -> Boolean
     bb0 entry
       return
@@ -1072,7 +1060,7 @@ Module
       val $argument.0: Long
         Type Long
         Local left
-      call $argument.1: Token = @fn46 direct
+      call $argument.1: Token = @fn42 direct
       val $argument.2: Long
         Type Long
         Local right
@@ -1209,7 +1197,7 @@ Module
       goto bb3
   fun packet @fn13() -> Packet <no-gc>
     bb0 entry
-      call $call.1: Token = @fn46 direct
+      call $call.1: Token = @fn42 direct
       val $argument.0: (Long, Token, Long)
         Type (Long, Token, Long)
         TupleLiteral
@@ -1219,7 +1207,7 @@ Module
           Local $call.1
           Type Long
           IntegerLiteral Long value=42 bits=0x000000000000002a
-      call $argument.1: Token = @fn46 direct
+      call $argument.1: Token = @fn42 direct
       val $parameter._1: (Long, Token, Long)
         Type (Long, Token, Long)
         Local $argument.0
@@ -1233,354 +1221,96 @@ Module
           Local $parameter._1
           Type Token
           Local $parameter._2
-  fun encode @fn14(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn43 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun Continuation.resume @fn15(this: Continuation<Token>, value: Token) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Token>, value: Token) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn16(this: Continuation<Token>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn15(this: Continuation<Token>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn17(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+  fun SuspendTask.run @fn16(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn19(this: Continuation<Choice>, value: Choice) -> Unit
+  fun Continuation.resume @fn18(this: Continuation<Choice>, value: Choice) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn20(this: Continuation<Choice>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn19(this: Continuation<Choice>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn21(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
+  fun SuspendTask.run @fn20(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn23(this: Continuation<Other>, value: Other) -> Unit
+  fun Continuation.resume @fn22(this: Continuation<Other>, value: Other) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn24(this: Continuation<Other>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn23(this: Continuation<Other>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn25(this: SuspendTask<Other>, $completion: Continuation<Other>) -> CoroutineStep<Other>
+  fun SuspendTask.run @fn24(this: SuspendTask<Other>, $completion: Continuation<Other>) -> CoroutineStep<Other>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Other>, continuation: Continuation<Other>) -> Unit
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Other>, continuation: Continuation<Other>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn27(this: Continuation<Flag>, value: Flag) -> Unit
+  fun Continuation.resume @fn26(this: Continuation<Flag>, value: Flag) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn28(this: Continuation<Flag>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn27(this: Continuation<Flag>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn29(this: SuspendTask<Flag>, $completion: Continuation<Flag>) -> CoroutineStep<Flag>
+  fun SuspendTask.run @fn28(this: SuspendTask<Flag>, $completion: Continuation<Flag>) -> CoroutineStep<Flag>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Flag>, continuation: Continuation<Flag>) -> Unit
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Flag>, continuation: Continuation<Flag>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn31(this: Continuation<Packet>, value: Packet) -> Unit
+  fun Continuation.resume @fn30(this: Continuation<Packet>, value: Packet) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn32(this: Continuation<Packet>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn31(this: Continuation<Packet>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn33(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+  fun SuspendTask.run @fn32(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn35(this: Continuation<Marker>, value: Marker) -> Unit
+  fun Continuation.resume @fn34(this: Continuation<Marker>, value: Marker) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn36(this: Continuation<Marker>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn35(this: Continuation<Marker>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn37(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
+  fun SuspendTask.run @fn36(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn38(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn39(this: Continuation<Draft>, value: Draft) -> Unit
+  fun Continuation.resume @fn38(this: Continuation<Draft>, value: Draft) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn40(this: Continuation<Draft>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn39(this: Continuation<Draft>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn41(this: SuspendTask<Draft>, $completion: Continuation<Draft>) -> CoroutineStep<Draft>
+  fun SuspendTask.run @fn40(this: SuspendTask<Draft>, $completion: Continuation<Draft>) -> CoroutineStep<Draft>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn42(this: SuspendRegistration<Draft>, continuation: Continuation<Draft>) -> Unit
+  fun SuspendRegistration.register @fn41(this: SuspendRegistration<Draft>, continuation: Continuation<Draft>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun encodeOption @fn43(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str0
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str1
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external7 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun encode @fn44(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn45 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn45(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str2
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str3
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external6 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun ctor.Token.$c0 @fn46() -> Token <no-gc>
+  fun ctor.Token.$c0 @fn42() -> Token <no-gc>
     bb0 entry
       return
         Type Token
         StructInit Token
-  fun startCoroutine<Choice> @fn47(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn43(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1603,7 +1333,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn19 interface Continuation<Choice>[0]
+      call @fn18 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         Local completion
         Type Choice
@@ -1616,7 +1346,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn20 interface Continuation<Choice>[1]
+      call @fn19 interface Continuation<Choice>[1]
         Type Continuation<Choice>
         Local completion
         Type Throwable
@@ -1635,7 +1365,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Choice> = @fn21 interface SuspendTask<Choice>[0]
+      call $step: CoroutineStep<Choice> = @fn20 interface SuspendTask<Choice>[0]
         Type SuspendTask<Choice>
         Local task
         Type Continuation<Choice>
@@ -1661,7 +1391,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Marker> @fn48(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+  fun startCoroutine<Marker> @fn44(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1684,7 +1414,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn35 interface Continuation<Marker>[0]
+      call @fn34 interface Continuation<Marker>[0]
         Type Continuation<Marker>
         Local completion
         Type Marker
@@ -1697,7 +1427,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn36 interface Continuation<Marker>[1]
+      call @fn35 interface Continuation<Marker>[1]
         Type Continuation<Marker>
         Local completion
         Type Throwable
@@ -1716,7 +1446,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Marker> = @fn37 interface SuspendTask<Marker>[0]
+      call $step: CoroutineStep<Marker> = @fn36 interface SuspendTask<Marker>[0]
         Type SuspendTask<Marker>
         Local task
         Type Continuation<Marker>
@@ -1742,7 +1472,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Token> @fn49(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+  fun startCoroutine<Token> @fn45(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1765,7 +1495,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn15 interface Continuation<Token>[0]
+      call @fn14 interface Continuation<Token>[0]
         Type Continuation<Token>
         Local completion
         Type Token
@@ -1778,7 +1508,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn16 interface Continuation<Token>[1]
+      call @fn15 interface Continuation<Token>[1]
         Type Continuation<Token>
         Local completion
         Type Throwable
@@ -1797,7 +1527,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Token> = @fn17 interface SuspendTask<Token>[0]
+      call $step: CoroutineStep<Token> = @fn16 interface SuspendTask<Token>[0]
         Type SuspendTask<Token>
         Local task
         Type Continuation<Token>
@@ -1823,7 +1553,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Packet> @fn50(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+  fun startCoroutine<Packet> @fn46(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1846,7 +1576,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn31 interface Continuation<Packet>[0]
+      call @fn30 interface Continuation<Packet>[0]
         Type Continuation<Packet>
         Local completion
         Type Packet
@@ -1859,7 +1589,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn32 interface Continuation<Packet>[1]
+      call @fn31 interface Continuation<Packet>[1]
         Type Continuation<Packet>
         Local completion
         Type Throwable
@@ -1878,7 +1608,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Packet> = @fn33 interface SuspendTask<Packet>[0]
+      call $step: CoroutineStep<Packet> = @fn32 interface SuspendTask<Packet>[0]
         Type SuspendTask<Packet>
         Local task
         Type Continuation<Packet>
@@ -1904,7 +1634,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Other> @fn51(task: SuspendTask<Other>, completion: Continuation<Other>) -> Unit
+  fun startCoroutine<Other> @fn47(task: SuspendTask<Other>, completion: Continuation<Other>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1927,7 +1657,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn23 interface Continuation<Other>[0]
+      call @fn22 interface Continuation<Other>[0]
         Type Continuation<Other>
         Local completion
         Type Other
@@ -1940,7 +1670,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn24 interface Continuation<Other>[1]
+      call @fn23 interface Continuation<Other>[1]
         Type Continuation<Other>
         Local completion
         Type Throwable
@@ -1959,7 +1689,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Other> = @fn25 interface SuspendTask<Other>[0]
+      call $step: CoroutineStep<Other> = @fn24 interface SuspendTask<Other>[0]
         Type SuspendTask<Other>
         Local task
         Type Continuation<Other>
@@ -1985,7 +1715,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Flag> @fn52(task: SuspendTask<Flag>, completion: Continuation<Flag>) -> Unit
+  fun startCoroutine<Flag> @fn48(task: SuspendTask<Flag>, completion: Continuation<Flag>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2008,7 +1738,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn27 interface Continuation<Flag>[0]
+      call @fn26 interface Continuation<Flag>[0]
         Type Continuation<Flag>
         Local completion
         Type Flag
@@ -2021,7 +1751,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn28 interface Continuation<Flag>[1]
+      call @fn27 interface Continuation<Flag>[1]
         Type Continuation<Flag>
         Local completion
         Type Throwable
@@ -2040,7 +1770,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Flag> = @fn29 interface SuspendTask<Flag>[0]
+      call $step: CoroutineStep<Flag> = @fn28 interface SuspendTask<Flag>[0]
         Type SuspendTask<Flag>
         Local task
         Type Continuation<Flag>
@@ -2066,7 +1796,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Draft> @fn53(task: SuspendTask<Draft>, completion: Continuation<Draft>) -> Unit
+  fun startCoroutine<Draft> @fn49(task: SuspendTask<Draft>, completion: Continuation<Draft>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2089,7 +1819,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn39 interface Continuation<Draft>[0]
+      call @fn38 interface Continuation<Draft>[0]
         Type Continuation<Draft>
         Local completion
         Type Draft
@@ -2102,7 +1832,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn40 interface Continuation<Draft>[1]
+      call @fn39 interface Continuation<Draft>[1]
         Type Continuation<Draft>
         Local completion
         Type Throwable
@@ -2121,7 +1851,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Draft> = @fn41 interface SuspendTask<Draft>[0]
+      call $step: CoroutineStep<Draft> = @fn40 interface SuspendTask<Draft>[0]
         Type SuspendTask<Draft>
         Local task
         Type Continuation<Draft>
@@ -2161,54 +1891,46 @@ Module
   coroutine_slot cl4 CoroutineSlot<Other> value=Other
   coroutine_slot cl5 CoroutineSlot<Flag> value=Flag
   coroutine_slot cl6 CoroutineSlot<Draft> value=Draft
-  coroutine_start ct0 result=Choice function=fn47
-  coroutine_start ct1 result=Marker function=fn48
-  coroutine_start ct2 result=Token function=fn49
-  coroutine_start ct3 result=Packet function=fn50
-  coroutine_start ct4 result=Other function=fn51
-  coroutine_start ct5 result=Flag function=fn52
-  coroutine_start ct6 result=Draft function=fn53
-  coroutine_fn cf0 @fn17 source_return=Token step=cs2 immediate
-  coroutine_fn cf1 @fn21 source_return=Choice step=cs0 immediate
-  coroutine_fn cf2 @fn25 source_return=Other step=cs4 immediate
-  coroutine_fn cf3 @fn29 source_return=Flag step=cs5 immediate
-  coroutine_fn cf4 @fn33 source_return=Packet step=cs3 immediate
-  coroutine_fn cf5 @fn37 source_return=Marker step=cs1 immediate
-  coroutine_fn cf6 @fn41 source_return=Draft step=cs6 immediate
-  instance mi0 function=@fn14 <- encode
-  instance mi1 function=@fn15 <- Continuation.resume
-  instance mi2 function=@fn16 <- Continuation.resumeWithException
-  instance mi3 function=@fn17 <- SuspendTask.run
-  instance mi4 function=@fn18 <- SuspendRegistration.register
-  instance mi5 function=@fn19 <- Continuation.resume
-  instance mi6 function=@fn20 <- Continuation.resumeWithException
-  instance mi7 function=@fn21 <- SuspendTask.run
-  instance mi8 function=@fn22 <- SuspendRegistration.register
-  instance mi9 function=@fn23 <- Continuation.resume
-  instance mi10 function=@fn24 <- Continuation.resumeWithException
-  instance mi11 function=@fn25 <- SuspendTask.run
-  instance mi12 function=@fn26 <- SuspendRegistration.register
-  instance mi13 function=@fn27 <- Continuation.resume
-  instance mi14 function=@fn28 <- Continuation.resumeWithException
-  instance mi15 function=@fn29 <- SuspendTask.run
-  instance mi16 function=@fn30 <- SuspendRegistration.register
-  instance mi17 function=@fn31 <- Continuation.resume
-  instance mi18 function=@fn32 <- Continuation.resumeWithException
-  instance mi19 function=@fn33 <- SuspendTask.run
-  instance mi20 function=@fn34 <- SuspendRegistration.register
-  instance mi21 function=@fn35 <- Continuation.resume
-  instance mi22 function=@fn36 <- Continuation.resumeWithException
-  instance mi23 function=@fn37 <- SuspendTask.run
-  instance mi24 function=@fn38 <- SuspendRegistration.register
-  instance mi25 function=@fn39 <- Continuation.resume
-  instance mi26 function=@fn40 <- Continuation.resumeWithException
-  instance mi27 function=@fn41 <- SuspendTask.run
-  instance mi28 function=@fn42 <- SuspendRegistration.register
-  instance mi29 function=@fn43 <- encodeOption
-  instance mi30 function=@fn44 <- encode
-  instance mi31 function=@fn45 <- encodeOption
-  str @str0 "None"
-  str @str1 "Some"
-  str @str2 "None"
-  str @str3 "Some"
+  coroutine_start ct0 result=Choice function=fn43
+  coroutine_start ct1 result=Marker function=fn44
+  coroutine_start ct2 result=Token function=fn45
+  coroutine_start ct3 result=Packet function=fn46
+  coroutine_start ct4 result=Other function=fn47
+  coroutine_start ct5 result=Flag function=fn48
+  coroutine_start ct6 result=Draft function=fn49
+  coroutine_fn cf0 @fn16 source_return=Token step=cs2 immediate
+  coroutine_fn cf1 @fn20 source_return=Choice step=cs0 immediate
+  coroutine_fn cf2 @fn24 source_return=Other step=cs4 immediate
+  coroutine_fn cf3 @fn28 source_return=Flag step=cs5 immediate
+  coroutine_fn cf4 @fn32 source_return=Packet step=cs3 immediate
+  coroutine_fn cf5 @fn36 source_return=Marker step=cs1 immediate
+  coroutine_fn cf6 @fn40 source_return=Draft step=cs6 immediate
+  instance mi0 function=@fn14 <- Continuation.resume
+  instance mi1 function=@fn15 <- Continuation.resumeWithException
+  instance mi2 function=@fn16 <- SuspendTask.run
+  instance mi3 function=@fn17 <- SuspendRegistration.register
+  instance mi4 function=@fn18 <- Continuation.resume
+  instance mi5 function=@fn19 <- Continuation.resumeWithException
+  instance mi6 function=@fn20 <- SuspendTask.run
+  instance mi7 function=@fn21 <- SuspendRegistration.register
+  instance mi8 function=@fn22 <- Continuation.resume
+  instance mi9 function=@fn23 <- Continuation.resumeWithException
+  instance mi10 function=@fn24 <- SuspendTask.run
+  instance mi11 function=@fn25 <- SuspendRegistration.register
+  instance mi12 function=@fn26 <- Continuation.resume
+  instance mi13 function=@fn27 <- Continuation.resumeWithException
+  instance mi14 function=@fn28 <- SuspendTask.run
+  instance mi15 function=@fn29 <- SuspendRegistration.register
+  instance mi16 function=@fn30 <- Continuation.resume
+  instance mi17 function=@fn31 <- Continuation.resumeWithException
+  instance mi18 function=@fn32 <- SuspendTask.run
+  instance mi19 function=@fn33 <- SuspendRegistration.register
+  instance mi20 function=@fn34 <- Continuation.resume
+  instance mi21 function=@fn35 <- Continuation.resumeWithException
+  instance mi22 function=@fn36 <- SuspendTask.run
+  instance mi23 function=@fn37 <- SuspendRegistration.register
+  instance mi24 function=@fn38 <- Continuation.resume
+  instance mi25 function=@fn39 <- Continuation.resumeWithException
+  instance mi26 function=@fn40 <- SuspendTask.run
+  instance mi27 function=@fn41 <- SuspendRegistration.register
   output library

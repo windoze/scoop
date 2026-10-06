@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=638
-cone test:scoop-hir-lower:0.0.0 kind=Library objects=19
-cone test:implicit-array-capability-runtime-function:1.0.0 kind=Executable objects=21
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone test:scoop-hir-lower:0.0.0 kind=Library objects=9
+cone test:implicit-array-capability-runtime-function:1.0.0 kind=Executable objects=11
 runtime objects=63
 images=3 root=_scoop$1$re$81beec3e9dfd9f55eb37970cab289ed1344add7bbe81308e714212147298b02b
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

@@ -2,11 +2,6 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   closure cc0 $Closure$anonymous0 type=function_type0 invoke=@fn2 captures=1
     bridge function_type1 -> @fn5 id=6e2634912a6fb3718f383dee439f3798cb4d9a73784e14aa16c7f90e6813c4a7
   closure cc1 $Closure$anonymous1 type=function_type0 invoke=@fn3 captures=0

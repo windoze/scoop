@@ -8,17 +8,12 @@ Module
   class box<SourceLocation> vtable=0 itables=0
   interface ToString
   interface Hash
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn15 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn16 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn13 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn14 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure0 nominal_id=d0409f224489fdfb5fd8bc4c3d07c489806071e44045716c9e7301229e47f4b7 exact_id=2b9f2eeffaf6351e0d866f5bb862268f0458e9725c5cd688ea2d205ecad74328
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -27,8 +22,8 @@ Module
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=closure1 nominal_id=929f33073e29e93a09694087d1ca1cb14bfec8428f38006b3394e0af9461a2db exact_id=9ebcab15de8e05672ff944660c7338d9542e32b7dc4804adadfb5d654db6d593
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn15 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
-  generated_callable gc1 function=@fn16 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
+  generated_callable gc0 function=@fn13 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
+  generated_callable gc1 function=@fn14 id=8ea2777dac845f970a08877c06d9156b011a9547e6d8c7e007a7c736eddaa382
   fun show @fn0(label: String, location: SourceLocation) -> Unit
     bb0 entry
       val $dependency.argument.0: String
@@ -185,7 +180,7 @@ Module
           StringConst @str10
           Type String
           StringConst @str11
-      call $dependency.parameter.location: SourceLocation = external1 direct
+      call $dependency.parameter.location: SourceLocation = external0 direct
         Type SourceLocation
         Local $default.local.1
       call $argument.1: SourceLocation = @fn5 direct
@@ -230,7 +225,7 @@ Module
       assign $new.1
         Type Reporter
         ClassAlloc Reporter
-      call external2 direct
+      call external1 direct
         Type Reporter
         Local $new.1
       val reporter: Reporter
@@ -242,7 +237,7 @@ Module
       val $dependency.receiver: Reporter
         Type Reporter
         Local reporter
-      call $argument.1: SourceLocation = external3 direct
+      call $argument.1: SourceLocation = external2 direct
         Type Reporter
         Local $dependency.receiver
       val $parameter.label: String
@@ -275,7 +270,7 @@ Module
           StringConst @str17
           Type String
           StringConst @str18
-      call $argument.1: SourceLocation = external4 direct
+      call $argument.1: SourceLocation = external3 direct
         Type Reporter
         Local $dependency.receiver
         Type SourceLocation
@@ -294,7 +289,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str19
-      call $argument.1: SourceLocation = external5 direct
+      call $argument.1: SourceLocation = external4 direct
       val $parameter.label: String
         Type String
         Local $argument.0
@@ -338,7 +333,7 @@ Module
       assign $new.2
         Type GenericReporter<String>
         ClassAlloc GenericReporter<String>
-      call @fn14 direct
+      call @fn12 direct
         Type GenericReporter<String>
         Local $new.2
         Type String
@@ -395,13 +390,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external7 direct
+      call $dependency.local.2: String = external6 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external8 direct
+      call external7 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -410,7 +405,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external8 direct
+      call external7 direct
         Type String
         Local $dependency.local.5
       return
@@ -419,13 +414,13 @@ Module
       val $dependency.local.1: Long
         Type Long
         Local value
-      call $dependency.local.2: String = external6 direct
+      call $dependency.local.2: String = external5 direct
         Type Long
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external8 direct
+      call external7 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -434,7 +429,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external8 direct
+      call external7 direct
         Type String
         Local $dependency.local.5
       return
@@ -494,27 +489,7 @@ Module
       return
         Type () -> SourceLocation
         ClosureAlloc cc1 $Closure$lambda1
-  fun encode @fn10(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn13 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun $lambda @fn11($argument.0: () -> SourceLocation) -> SourceLocation
+  fun $lambda @fn10($argument.0: () -> SourceLocation) -> SourceLocation
     bb0 entry
       return
         Type SourceLocation
@@ -529,7 +504,7 @@ Module
           StringConst @str33
           Type String
           StringConst @str34
-  fun $lambda @fn12($argument.0: () -> SourceLocation) -> SourceLocation
+  fun $lambda @fn11($argument.0: () -> SourceLocation) -> SourceLocation
     bb0 entry
       return
         Type SourceLocation
@@ -544,116 +519,7 @@ Module
           StringConst @str36
           Type String
           StringConst @str37
-  fun encodeOption @fn13(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external9 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str38
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external10 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external9 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external11 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external11 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str39
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external10 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external12 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external13 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external0 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external14 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.GenericReporter.$c0 @fn14(this: GenericReporter<String>, value: String) -> Unit
+  fun init.GenericReporter.$c0 @fn12(this: GenericReporter<String>, value: String) -> Unit
     bb0 entry
       field_set 0
         Type GenericReporter<String>
@@ -661,7 +527,7 @@ Module
         Type String
         Local value
       return
-  fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> SourceLocation) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn13($source: () -> SourceLocation) -> Any
     bb0 entry
       call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]
         Type () -> SourceLocation
@@ -671,7 +537,7 @@ Module
         Box
           Type SourceLocation
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn16($source: () -> SourceLocation) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn14($source: () -> SourceLocation) -> Any
     bb0 entry
       call $call.1: SourceLocation = <closure:function_type0> closure[function_type0]
         Type () -> SourceLocation
@@ -689,10 +555,8 @@ Module
   instance mi5 function=@fn7 <- closureBody
   instance mi6 function=@fn8 <- body
   instance mi7 function=@fn9 <- closure
-  instance mi8 function=@fn10 <- encode
+  instance mi8 function=@fn10 <- $lambda
   instance mi9 function=@fn11 <- $lambda
-  instance mi10 function=@fn12 <- $lambda
-  instance mi11 function=@fn13 <- encodeOption
   str @str0 "直接"
   str @str1 "dev.locations:consumer:0.1.0/src/main.scoop"
   str @str2 "main"
@@ -731,6 +595,4 @@ Module
   str @str35 "dev.locations:provider:0.1.0/src/api.scoop"
   str @str36 "<lambda>"
   str @str37 "GenericReporter"
-  str @str38 "None"
-  str @str39 "Some"
   output executable @fn1

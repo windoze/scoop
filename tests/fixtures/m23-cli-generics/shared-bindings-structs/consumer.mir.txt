@@ -4,15 +4,8 @@ Module
   struct Nested<Int> (payload: (Int, Int), spare: Int, empty: Unit)
   struct LocalPair<Int> (left: Int, right: Int)
   class box<Int> vtable=0 itables=0
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
-  interface ToString
-  interface Hash
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn11 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn10 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -20,7 +13,7 @@ Module
   generated_exact_type get4 location=closure0 nominal_id=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b exact_id=9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b
   generated_exact_type get5 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn11 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
+  generated_callable gc0 function=@fn10 id=7fe24ecd55add103373a46c9a6f76dbf8fcafb1cfd4835ee800107bd168f7398
   fun marked @fn0() -> Pair<Int>
     bb0 entry
       call $dependency.receiver: Int = @fn2 direct
@@ -49,7 +42,7 @@ Module
       val $dependency.parameter.right: Int
         Type Int
         Local $dependency.argument.1
-      call $call.1: Pair<Int> = @fn8 direct
+      call $call.1: Pair<Int> = @fn7 direct
         Type Int
         Local $dependency.parameter.left
         Type Int
@@ -167,7 +160,7 @@ Module
       val $dependency.parameter.empty: Unit
         Type Unit
         Local $dependency.argument.2
-      call $binding.subject.10: Nested<Int> = @fn9 direct
+      call $binding.subject.10: Nested<Int> = @fn8 direct
         Type (Int, Int)
         Local $dependency.parameter.payload
         Type Int
@@ -209,7 +202,7 @@ Module
       val $dependency.parameter.empty: Unit
         Type Unit
         Local $dependency.argument.2
-      call $binding.subject.13: Nested<Int> = @fn9 direct
+      call $binding.subject.13: Nested<Int> = @fn8 direct
         Type (Int, Int)
         Local $dependency.parameter.payload
         Type Int
@@ -236,7 +229,7 @@ Module
       val $dependency.parameter.right: Int
         Type Int
         Local $dependency.argument.1
-      call $binding.subject.15: Pair<Int> = @fn8 direct
+      call $binding.subject.15: Pair<Int> = @fn7 direct
         Type Int
         Local $dependency.parameter.left
         Type Int
@@ -305,7 +298,7 @@ Module
       val $parameter.read: (Int) -> Int
         Type (Int) -> Int
         Local $argument.1
-      call $call.1: Int = @fn6 direct
+      call $call.1: Int = @fn5 direct
         Type Int
         Local $parameter.seed
         Type (Int) -> Int
@@ -324,65 +317,12 @@ Module
         Type Int
         Local value
       return
-  fun $tuple.2.encode @fn4(this: (Int, Int), encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encoder
-        Type Encoder
-        Local encoder
-      call __encoding_elements: UnkeyedEncodingContainer = external0 interface Encoder[1]
-        Type Encoder
-        Local $dependency.receiver
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type (Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external1 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external2 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 1
-          Type (Int, Int)
-          Local this
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call $dependency.argument.0: Encoder = external1 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.0
-      call external2 direct
-        Type Int
-        Local $dependency.receiver
-        Type Encoder
-        Local $dependency.parameter.encoder
-      val $dependency.receiver: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local __encoding_elements
-      call external3 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.receiver
-      return
-  fun $lambda.0 @fn5($closure: (Int) -> Int, item: Int) -> Int
+  fun $lambda.0 @fn4($closure: (Int) -> Int, item: Int) -> Int
     bb0 entry
       return
         Type Int
         Local item
-  fun exercise @fn6(seed: Int, read: (Int) -> Int) -> Int
+  fun exercise @fn5(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -396,7 +336,7 @@ Module
       val $dependency.parameter.right: Int
         Type Int
         Local $dependency.argument.1
-      call pair: Pair<Int> = @fn8 direct
+      call pair: Pair<Int> = @fn7 direct
         Type Int
         Local $dependency.parameter.left
         Type Int
@@ -432,7 +372,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call $binding.subject.3: LocalPair<Int> = @fn10 direct
+      call $binding.subject.3: LocalPair<Int> = @fn9 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -521,7 +461,7 @@ Module
       val $dependency.parameter.read: (Int) -> Int
         Type (Int) -> Int
         Local $dependency.argument.1
-      call $call.1: Int = @fn7 direct
+      call $call.1: Int = @fn6 direct
         Type Pair<Int>
         Local $dependency.parameter.pair
         Type (Int) -> Int
@@ -529,7 +469,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun fromDefinition @fn7(pair: Pair<Int>, read: (Int) -> Int) -> Int
+  fun fromDefinition @fn6(pair: Pair<Int>, read: (Int) -> Int) -> Int
     bb0 entry
       val $dependency.local.4: Pair<Int>
         Type Pair<Int>
@@ -568,7 +508,7 @@ Module
           Local $dependency.local.7
           Type Int
           Local $dependency.local.9
-  fun ctor.Pair.$c0 @fn8(left: Int, right: Int) -> Pair<Int> <no-gc>
+  fun ctor.Pair.$c0 @fn7(left: Int, right: Int) -> Pair<Int> <no-gc>
     bb0 entry
       return
         Type Pair<Int>
@@ -577,7 +517,7 @@ Module
           Local left
           Type Int
           Local right
-  fun ctor.Nested.$c1 @fn9(payload: (Int, Int), spare: Int, empty: Unit) -> Nested<Int> <no-gc>
+  fun ctor.Nested.$c1 @fn8(payload: (Int, Int), spare: Int, empty: Unit) -> Nested<Int> <no-gc>
     bb0 entry
       return
         Type Nested<Int>
@@ -588,7 +528,7 @@ Module
           Local spare
           Type Unit
           Local empty
-  fun ctor.LocalPair.$c0 @fn10(left: Int, right: Int) -> LocalPair<Int> <no-gc>
+  fun ctor.LocalPair.$c0 @fn9(left: Int, right: Int) -> LocalPair<Int> <no-gc>
     bb0 entry
       return
         Type LocalPair<Int>
@@ -597,7 +537,7 @@ Module
           Local left
           Type Int
           Local right
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn11($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn10($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -611,6 +551,6 @@ Module
         Box
           Type Int
           Local $call.1
-  instance mi0 function=@fn6 <- exercise
-  instance mi1 function=@fn7 <- fromDefinition
+  instance mi0 function=@fn5 <- exercise
+  instance mi1 function=@fn6 <- fromDefinition
   output library

@@ -17,9 +17,6 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
-  enum Option<Char>
-    Some(_0: Char)
-    None()
   enum CoroutineStep<Mixed>
     Completed(value: Mixed)
     Suspended()
@@ -47,54 +44,45 @@ Module
   interface Readable<String>
   interface Readable<Unit>
   interface Readable<Int>
-  interface Encodable
-  interface Encoder
-  interface KeyedEncodingContainer
-  interface UnkeyedEncodingContainer
-  interface SingleValueEncodingContainer
   interface Continuation<Mixed>
   interface SuspendTask<Mixed>
   interface SuspendRegistration<Mixed>
   interface Continuation<Nested>
   interface SuspendTask<Nested>
   interface SuspendRegistration<Nested>
-  interface ToString
-  interface Hash
-  interface Iterable<Char>
-  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn46 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
+    bridge function_type1 -> @fn42 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn47 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
+    bridge function_type1 -> @fn43 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn48 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
+    bridge function_type1 -> @fn44 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
   generated_exact_type get0 location=closure0 nominal_id=1e9cd6bd756793db9ce899b7858a992ce9792cda9ff3b69b18c13da76a847920 exact_id=01169a564068bec4f83306a21edb6fb1742075eead51ed17851a42c7a0be78bd
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=class7 nominal_id=9f4cd2462b2bfdfbdf954e5985c13b6712025981f79db5c516f41bab1709d6fd exact_id=18371271c5c47804c1fa1a3419faa8ff70a31ae1dcf6343a87ee0c74f7b4a584
-  generated_exact_type get3 location=enum6 nominal_id=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23 exact_id=1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d
+  generated_exact_type get3 location=enum5 nominal_id=3be4b18eb6f2f50029f53b80925edb051739ce9fd0c92861c97c483e0c4c9f23 exact_id=1ef20bf0693461bd9c127db4f16770526304db8b128fefcafbdb59b611faec2d
   generated_exact_type get4 location=closure1 nominal_id=af3d32633ddd81fbb38ecf57ccba61f2e776bdfafac933f0e3cd054fff0ed1d6 exact_id=2bb49a6813bd59076d11e383b0f91492fc086767b600e4e047cf65f3bd388c77
   generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get6 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get7 location=class6 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
   generated_exact_type get8 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get9 location=class4 nominal_id=9711e7a1e9bb3a93d6795a346be0dc2fa25af0cfbd365483e21c1d864347b120 exact_id=5a5cecfdd6db9dc7699d461fc272266c0b72c81cf3859d0594d6619c8a18f2f2
-  generated_exact_type get10 location=enum4 nominal_id=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f exact_id=5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5
+  generated_exact_type get10 location=enum3 nominal_id=1e0e1d5179faf7c4828b15a1ce10ce3b59712591a79fdcea15bc3372a462bb7f exact_id=5bf279ebfa36eaf5a55514d1762c2176288c2491d5e3d843f139d810a337c0a5
   generated_exact_type get11 location=class5 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
   generated_exact_type get12 location=class8 nominal_id=112b10a9a92a49802b9b379a1781e180ee43c95af6414ba7888e8486b9922bf5 exact_id=7c6a3a2fa2740eabcc4979620fc1a7bba7cd43fe64901bf03e6d88c7468605b4
   generated_exact_type get13 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get14 location=closure2 nominal_id=a01fd5dc89f2f6fbb7547c1ff9163f27b1172adefa2e774810b366cb661b3f18 exact_id=ae2e2c86a44e67285fa743926b1d5d7226542431c43846acdee30173f133d2c1
-  generated_exact_type get15 location=enum3 nominal_id=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1 exact_id=d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c
-  generated_exact_type get16 location=enum5 nominal_id=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b exact_id=dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c
+  generated_exact_type get15 location=enum2 nominal_id=26b391ba7e1568b76751e874f24004f2019c8f72b551480fc74362f369d4fbf1 exact_id=d7b759f818de00fb731c805b01519f6fed973fa2f867b2d84323c4bd276ea97c
+  generated_exact_type get16 location=enum4 nominal_id=507604de783e72c71899e53ad867830f00bb8c2fb7730e82d6b5114bb25fb28b exact_id=dcc70cb5433c5bc0341a306ee2f55ac41257785c140737938d97b34b64c42d1c
   generated_exact_type get17 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get18 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn48 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
-  generated_callable gc1 function=@fn44 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
-  generated_callable gc2 function=@fn43 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
-  generated_callable gc3 function=@fn45 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
-  generated_callable gc4 function=@fn42 id=a34ac8c86999b7ac04b3dc0d918b2c8f4c82c62b0e96b543cf6ab9cbb6135802
-  generated_callable gc5 function=@fn46 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
-  generated_callable gc6 function=@fn47 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
-  generated_callable gc7 function=@fn41 id=eb89ee8ae4ed1bc00d515886fafe0fde10aac0d1de27706678b3d9c8ec26fa57
+  generated_callable gc0 function=@fn44 id=101f3b02cead59334fd4e3b27ef102bde0a8f7aefdec400e915b53e8d0efd32e
+  generated_callable gc1 function=@fn40 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
+  generated_callable gc2 function=@fn39 id=29ee3f53954bc724fbe5a0b8368ee55f8c9ec95505e46a6d3026c74ac7f37344
+  generated_callable gc3 function=@fn41 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
+  generated_callable gc4 function=@fn38 id=a34ac8c86999b7ac04b3dc0d918b2c8f4c82c62b0e96b543cf6ab9cbb6135802
+  generated_callable gc5 function=@fn42 id=cad4568e99ee59cf4e9161269b2bf452fe8d392f0d0c43bd58445bf6aeb5d187
+  generated_callable gc6 function=@fn43 id=d29f1d5d360b903d98c0f14bea10823dff5d087daca04610e54aeb127f39ea7c
+  generated_callable gc7 function=@fn37 id=eb89ee8ae4ed1bc00d515886fafe0fde10aac0d1de27706678b3d9c8ec26fa57
   fun get @fn0(this: Wrapper<Phantom<Mixed>>) -> Phantom<Mixed>
     bb0 entry
       return
@@ -210,23 +198,23 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn4(seed: String, read: (String) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn30 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn31 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn32 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn29 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -270,7 +258,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn28 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -281,13 +269,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn33 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn34 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -404,13 +392,13 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Wrapper<String> = @fn35 direct
+      call $argument.0: Wrapper<String> = @fn31 direct
         Type String
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<String>
         Type Wrapper<String>
         Local $argument.0
-      call $call.2: Local<Wrapper<String>> = @fn36 direct
+      call $call.2: Local<Wrapper<String>> = @fn32 direct
         Type Wrapper<String>
         Local $parameter.payload
       val receiver: Readable<String>
@@ -444,23 +432,23 @@ Module
         IntegerLiteral Int value=42 bits=0x0000002a
   fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn30 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn31 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn32 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn29 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -504,7 +492,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn28 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -515,13 +503,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn33 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn34 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -638,13 +626,13 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Unit> = @fn37 direct
+      call $argument.0: Wrapper<Unit> = @fn33 direct
         Type Unit
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Unit>
         Type Wrapper<Unit>
         Local $argument.0
-      call $call.2: Local<Wrapper<Unit>> = @fn38 direct
+      call $call.2: Local<Wrapper<Unit>> = @fn34 direct
         Type Wrapper<Unit>
         Local $parameter.payload
       val receiver: Readable<Unit>
@@ -678,23 +666,23 @@ Module
         Local item
   fun exercise @fn8(seed: Int, read: (Int) -> Int) -> Int
     bb0 entry
-      call $dependency.argument.0: Phantom<Mixed> = @fn30 direct
+      call $dependency.argument.0: Phantom<Mixed> = @fn26 direct
       val $dependency.parameter.value: Phantom<Mixed>
         Type Phantom<Mixed>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Phantom<Mixed>> = @fn31 direct
+      call $argument.0: Wrapper<Phantom<Mixed>> = @fn27 direct
         Type Phantom<Mixed>
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Phantom<Mixed>>
         Type Wrapper<Phantom<Mixed>>
         Local $argument.0
-      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn32 direct
+      call $argument.0: Local<Wrapper<Phantom<Mixed>>> = @fn28 direct
         Type Wrapper<Phantom<Mixed>>
         Local $parameter.payload
       val $parameter.value: Local<Wrapper<Phantom<Mixed>>>
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $argument.0
-      call mixed: Mixed = @fn29 direct
+      call mixed: Mixed = @fn25 direct
         Type Local<Wrapper<Phantom<Mixed>>>
         Local $parameter.value
       val $argument.0: Mixed
@@ -738,7 +726,7 @@ Module
       assign $new.1
         Type Link<Nested>
         ClassAlloc Link<Nested>
-      call @fn28 direct
+      call @fn24 direct
         Type Link<Nested>
         Local $new.1
         Type Nested
@@ -749,13 +737,13 @@ Module
       val $dependency.parameter.link: Link<Nested>
         Type Link<Nested>
         Local $dependency.argument.0
-      call $argument.0: Reference<Nested> = @fn33 direct
+      call $argument.0: Reference<Nested> = @fn29 direct
         Type Link<Nested>
         Local $dependency.parameter.link
       val $parameter.payload: Reference<Nested>
         Type Reference<Nested>
         Local $argument.0
-      call $argument.0: Local<Reference<Nested>> = @fn34 direct
+      call $argument.0: Local<Reference<Nested>> = @fn30 direct
         Type Reference<Nested>
         Local $parameter.payload
       val $parameter._1: Local<Reference<Nested>>
@@ -872,13 +860,13 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Int> = @fn39 direct
+      call $argument.0: Wrapper<Int> = @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $parameter.payload: Wrapper<Int>
         Type Wrapper<Int>
         Local $argument.0
-      call $call.2: Local<Wrapper<Int>> = @fn40 direct
+      call $call.2: Local<Wrapper<Int>> = @fn36 direct
         Type Wrapper<Int>
         Local $parameter.payload
       val receiver: Readable<Int>
@@ -942,289 +930,31 @@ Module
   fun Readable.get @fn15(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun encode @fn16(this: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<String>
-        Type Option<String>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<String>
-        Type Option<String>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn25 direct
-        Type Option<String>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun Continuation.resume @fn17(this: Continuation<Mixed>, value: Mixed) -> Unit
+  fun Continuation.resume @fn16(this: Continuation<Mixed>, value: Mixed) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn18(this: Continuation<Mixed>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn17(this: Continuation<Mixed>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn19(this: SuspendTask<Mixed>, $completion: Continuation<Mixed>) -> CoroutineStep<Mixed>
+  fun SuspendTask.run @fn18(this: SuspendTask<Mixed>, $completion: Continuation<Mixed>) -> CoroutineStep<Mixed>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Mixed>, continuation: Continuation<Mixed>) -> Unit
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Mixed>, continuation: Continuation<Mixed>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn21(this: Continuation<Nested>, value: Nested) -> Unit
+  fun Continuation.resume @fn20(this: Continuation<Nested>, value: Nested) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn22(this: Continuation<Nested>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn21(this: Continuation<Nested>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn23(this: SuspendTask<Nested>, $completion: Continuation<Nested>) -> CoroutineStep<Nested>
+  fun SuspendTask.run @fn22(this: SuspendTask<Nested>, $completion: Continuation<Nested>) -> CoroutineStep<Nested>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Nested>, continuation: Continuation<Nested>) -> Unit
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Nested>, continuation: Continuation<Nested>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun encodeOption @fn25(value: Option<String>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<String>
-        Type Option<String>
-        Local value
-      val $pattern.subject.2: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<String> v1
-          Type Option<String>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str1
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<String>
-        Type Option<String>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<String> v0
-          Type Option<String>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: String
-        Type String
-        VariantPayloadProject Option<String> v0 f0
-          Type Option<String>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str2
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: String
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external7 direct
-        Type String
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun encode @fn26(this: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.2: Option<Char>
-        Type Option<Char>
-        Local this
-      val $dependency.local.3: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.local.4: Option<Char>
-        Type Option<Char>
-        Local $dependency.local.2
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local $dependency.local.3
-      call @fn27 direct
-        Type Option<Char>
-        Local $dependency.local.4
-        Type Encoder
-        Local $dependency.local.5
-      return
-  fun encodeOption @fn27(value: Option<Char>, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.local.5: Encoder
-        Type Encoder
-        Local encoder
-      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.5
-      val $when.1: Option<Char>
-        Type Option<Char>
-        Local value
-      val $pattern.subject.2: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option<Char> v1
-          Type Option<Char>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $dependency.local.6: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.7: String
-        Type String
-        StringConst @str3
-      val $dependency.local.8: String
-        Type String
-        Local $dependency.local.7
-      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.8
-      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
-        Type Encoder
-        Local $dependency.local.9
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.10
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option<Char>
-        Type Option<Char>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option<Char> v0
-          Type Option<Char>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      val $dependency.local.20: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      call external2 interface KeyedEncodingContainer[1]
-        Type KeyedEncodingContainer
-        Local $dependency.local.20
-      return
-    bb4 pattern.pass.4
-      val $dependency.local.3: Char
-        Type Char
-        VariantPayloadProject Option<Char> v0 f0
-          Type Option<Char>
-          Local $pattern.subject.3
-      val $dependency.local.11: KeyedEncodingContainer
-        Type KeyedEncodingContainer
-        Local $dependency.local.2
-      val $dependency.local.12: String
-        Type String
-        StringConst @str4
-      val $dependency.local.13: String
-        Type String
-        Local $dependency.local.12
-      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
-        Type KeyedEncodingContainer
-        Local $dependency.local.11
-        Type String
-        Local $dependency.local.13
-      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
-        Type Encoder
-        Local $dependency.local.14
-      val $dependency.local.16: Char
-        Type Char
-        Local $dependency.local.3
-      val $dependency.local.15: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.15
-      val $dependency.local.18: Encoder
-        Type Encoder
-        Local $dependency.local.17
-      call external6 direct
-        Type Char
-        Local $dependency.local.16
-        Type Encoder
-        Local $dependency.local.18
-      val $dependency.local.19: UnkeyedEncodingContainer
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.4
-      call external5 interface UnkeyedEncodingContainer[1]
-        Type UnkeyedEncodingContainer
-        Local $dependency.local.19
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  fun init.Link.$c3 @fn28(this: Link<Nested>, value: Nested) -> Unit
+  fun init.Link.$c3 @fn24(this: Link<Nested>, value: Nested) -> Unit
     bb0 entry
       field_set 0
         Type Link<Nested>
@@ -1232,89 +962,89 @@ Module
         Type Nested
         Local value
       return
-  fun ctor.Mixed.$c1 @fn29(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
+  fun ctor.Mixed.$c1 @fn25(value: Local<Wrapper<Phantom<Mixed>>>) -> Mixed <no-gc>
     bb0 entry
       return
         Type Mixed
         StructInit Mixed
           Type Local<Wrapper<Phantom<Mixed>>>
           Local value
-  fun ctor.Phantom.$c1 @fn30() -> Phantom<Mixed> <no-gc>
+  fun ctor.Phantom.$c1 @fn26() -> Phantom<Mixed> <no-gc>
     bb0 entry
       return
         Type Phantom<Mixed>
         StructInit Phantom<Mixed>
-  fun ctor.Wrapper.$c0 @fn31(value: Phantom<Mixed>) -> Wrapper<Phantom<Mixed>> <no-gc>
+  fun ctor.Wrapper.$c0 @fn27(value: Phantom<Mixed>) -> Wrapper<Phantom<Mixed>> <no-gc>
     bb0 entry
       return
         Type Wrapper<Phantom<Mixed>>
         StructInit Wrapper<Phantom<Mixed>>
           Type Phantom<Mixed>
           Local value
-  fun ctor.Local.$c0 @fn32(payload: Wrapper<Phantom<Mixed>>) -> Local<Wrapper<Phantom<Mixed>>> <no-gc>
+  fun ctor.Local.$c0 @fn28(payload: Wrapper<Phantom<Mixed>>) -> Local<Wrapper<Phantom<Mixed>>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Phantom<Mixed>>>
         StructInit Local<Wrapper<Phantom<Mixed>>>
           Type Wrapper<Phantom<Mixed>>
           Local payload
-  fun ctor.Reference.$c2 @fn33(link: Link<Nested>) -> Reference<Nested> <no-gc>
+  fun ctor.Reference.$c2 @fn29(link: Link<Nested>) -> Reference<Nested> <no-gc>
     bb0 entry
       return
         Type Reference<Nested>
         StructInit Reference<Nested>
           Type Link<Nested>
           Local link
-  fun ctor.Local.$c0 @fn34(payload: Reference<Nested>) -> Local<Reference<Nested>> <no-gc>
+  fun ctor.Local.$c0 @fn30(payload: Reference<Nested>) -> Local<Reference<Nested>> <no-gc>
     bb0 entry
       return
         Type Local<Reference<Nested>>
         StructInit Local<Reference<Nested>>
           Type Reference<Nested>
           Local payload
-  fun ctor.Wrapper.$c0 @fn35(value: String) -> Wrapper<String> <no-gc>
+  fun ctor.Wrapper.$c0 @fn31(value: String) -> Wrapper<String> <no-gc>
     bb0 entry
       return
         Type Wrapper<String>
         StructInit Wrapper<String>
           Type String
           Local value
-  fun ctor.Local.$c0 @fn36(payload: Wrapper<String>) -> Local<Wrapper<String>> <no-gc>
+  fun ctor.Local.$c0 @fn32(payload: Wrapper<String>) -> Local<Wrapper<String>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<String>>
         StructInit Local<Wrapper<String>>
           Type Wrapper<String>
           Local payload
-  fun ctor.Wrapper.$c0 @fn37(value: Unit) -> Wrapper<Unit> <no-gc>
+  fun ctor.Wrapper.$c0 @fn33(value: Unit) -> Wrapper<Unit> <no-gc>
     bb0 entry
       return
         Type Wrapper<Unit>
         StructInit Wrapper<Unit>
           Type Unit
           Local value
-  fun ctor.Local.$c0 @fn38(payload: Wrapper<Unit>) -> Local<Wrapper<Unit>> <no-gc>
+  fun ctor.Local.$c0 @fn34(payload: Wrapper<Unit>) -> Local<Wrapper<Unit>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Unit>>
         StructInit Local<Wrapper<Unit>>
           Type Wrapper<Unit>
           Local payload
-  fun ctor.Wrapper.$c0 @fn39(value: Int) -> Wrapper<Int> <no-gc>
+  fun ctor.Wrapper.$c0 @fn35(value: Int) -> Wrapper<Int> <no-gc>
     bb0 entry
       return
         Type Wrapper<Int>
         StructInit Wrapper<Int>
           Type Int
           Local value
-  fun ctor.Local.$c0 @fn40(payload: Wrapper<Int>) -> Local<Wrapper<Int>> <no-gc>
+  fun ctor.Local.$c0 @fn36(payload: Wrapper<Int>) -> Local<Wrapper<Int>> <no-gc>
     bb0 entry
       return
         Type Local<Wrapper<Int>>
         StructInit Local<Wrapper<Int>>
           Type Wrapper<Int>
           Local payload
-  fun startCoroutine<Mixed> @fn41(task: SuspendTask<Mixed>, completion: Continuation<Mixed>) -> Unit
+  fun startCoroutine<Mixed> @fn37(task: SuspendTask<Mixed>, completion: Continuation<Mixed>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1337,7 +1067,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn17 interface Continuation<Mixed>[0]
+      call @fn16 interface Continuation<Mixed>[0]
         Type Continuation<Mixed>
         Local completion
         Type Mixed
@@ -1350,7 +1080,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn18 interface Continuation<Mixed>[1]
+      call @fn17 interface Continuation<Mixed>[1]
         Type Continuation<Mixed>
         Local completion
         Type Throwable
@@ -1369,7 +1099,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Mixed> = @fn19 interface SuspendTask<Mixed>[0]
+      call $step: CoroutineStep<Mixed> = @fn18 interface SuspendTask<Mixed>[0]
         Type SuspendTask<Mixed>
         Local task
         Type Continuation<Mixed>
@@ -1395,7 +1125,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Nested> @fn42(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
+  fun startCoroutine<Nested> @fn38(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1418,7 +1148,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn21 interface Continuation<Nested>[0]
+      call @fn20 interface Continuation<Nested>[0]
         Type Continuation<Nested>
         Local completion
         Type Nested
@@ -1431,7 +1161,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn22 interface Continuation<Nested>[1]
+      call @fn21 interface Continuation<Nested>[1]
         Type Continuation<Nested>
         Local completion
         Type Throwable
@@ -1450,7 +1180,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Nested> = @fn23 interface SuspendTask<Nested>[0]
+      call $step: CoroutineStep<Nested> = @fn22 interface SuspendTask<Nested>[0]
         Type SuspendTask<Nested>
         Local task
         Type Continuation<Nested>
@@ -1476,7 +1206,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Wrapper<String>> Readable.get() @fn43(this: Readable<String>) -> String
+  fun thunk<Wrapper<String>> Readable.get() @fn39(this: Readable<String>) -> String
     bb0 entry
       call $call.1: String = @fn9 direct
         Type Wrapper<String>
@@ -1486,7 +1216,7 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<Wrapper<Unit>> Readable.get() @fn44(this: Readable<Unit>) -> Unit
+  fun thunk<Wrapper<Unit>> Readable.get() @fn40(this: Readable<Unit>) -> Unit
     bb0 entry
       call @fn12 direct
         Type Wrapper<Unit>
@@ -1494,7 +1224,7 @@ Module
           Type Readable<Unit>
           Local this
       return
-  fun thunk<Wrapper<Int>> Readable.get() @fn45(this: Readable<Int>) -> Int
+  fun thunk<Wrapper<Int>> Readable.get() @fn41(this: Readable<Int>) -> Int
     bb0 entry
       call $call.1: Int = @fn14 direct
         Type Wrapper<Int>
@@ -1504,7 +1234,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn46($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn42($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -1518,7 +1248,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn47($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn43($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -1532,7 +1262,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn48($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn44($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -1550,10 +1280,10 @@ Module
   coroutine_step cs1 CoroutineStep<Nested> result=Nested
   coroutine_slot cl0 CoroutineSlot<Mixed> value=Mixed
   coroutine_slot cl1 CoroutineSlot<Nested> value=Nested
-  coroutine_start ct0 result=Mixed function=fn41
-  coroutine_start ct1 result=Nested function=fn42
-  coroutine_fn cf0 @fn19 source_return=Mixed step=cs0 immediate
-  coroutine_fn cf1 @fn23 source_return=Nested step=cs1 immediate
+  coroutine_start ct0 result=Mixed function=fn37
+  coroutine_start ct1 result=Nested function=fn38
+  coroutine_fn cf0 @fn18 source_return=Mixed step=cs0 immediate
+  coroutine_fn cf1 @fn22 source_return=Nested step=cs1 immediate
   instance mi0 function=@fn0 <- get
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
@@ -1565,21 +1295,13 @@ Module
   instance mi8 function=@fn13 <- Readable.get
   instance mi9 function=@fn14 <- get
   instance mi10 function=@fn15 <- Readable.get
-  instance mi11 function=@fn16 <- encode
-  instance mi12 function=@fn17 <- Continuation.resume
-  instance mi13 function=@fn18 <- Continuation.resumeWithException
-  instance mi14 function=@fn19 <- SuspendTask.run
-  instance mi15 function=@fn20 <- SuspendRegistration.register
-  instance mi16 function=@fn21 <- Continuation.resume
-  instance mi17 function=@fn22 <- Continuation.resumeWithException
-  instance mi18 function=@fn23 <- SuspendTask.run
-  instance mi19 function=@fn24 <- SuspendRegistration.register
-  instance mi20 function=@fn25 <- encodeOption
-  instance mi21 function=@fn26 <- encode
-  instance mi22 function=@fn27 <- encodeOption
+  instance mi11 function=@fn16 <- Continuation.resume
+  instance mi12 function=@fn17 <- Continuation.resumeWithException
+  instance mi13 function=@fn18 <- SuspendTask.run
+  instance mi14 function=@fn19 <- SuspendRegistration.register
+  instance mi15 function=@fn20 <- Continuation.resume
+  instance mi16 function=@fn21 <- Continuation.resumeWithException
+  instance mi17 function=@fn22 <- SuspendTask.run
+  instance mi18 function=@fn23 <- SuspendRegistration.register
   str @str0 "value"
-  str @str1 "None"
-  str @str2 "Some"
-  str @str3 "None"
-  str @str4 "Some"
   output library

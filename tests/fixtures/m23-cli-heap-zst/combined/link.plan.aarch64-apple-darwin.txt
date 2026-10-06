@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=638
-cone dev.example:heap-zst-combined:0.1.0 kind=Library objects=67
-cone test:heap-zst-runtime-combined:1.0.0 kind=Executable objects=8
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone dev.example:heap-zst-combined:0.1.0 kind=Library objects=63
+cone test:heap-zst-runtime-combined:1.0.0 kind=Executable objects=4
 runtime objects=63
 images=3 root=_scoop$1$re$131d2f3d97c430cd7caec1b87f660e7cb985eb2863ef6e0053df4d3fc30a77f5
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
