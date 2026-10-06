@@ -3,6 +3,18 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：Unit 与显式 codec 的组合验收
+
+Unit fixture 改用 UnitEncoder，泛型数据取消实例编码 bound，通过普通 codec 的
+primary val 注入元素能力。绑定方法引用捕获实际 codec receiver，Unit 保持独立的
+零大小数据参数；保留求值次数、异常、Any 装箱、泛型类型身份及移动 GC 断言。
+三 Cone 用例继续覆盖 provider/peer/consumer 和删除源码后的独立链接运行。
+
+macOS 的两个正式 fixture 在不更新快照的模式下全部通过，执行 13 个进程、检查
+7 份 golden；源码最长 65 行，格式化与 workspace clippy 已通过。报告保存在
+`/tmp/scoop-m29-saved-reports/m29-unit-codecs-darwin.json`，完成后清理 172.4 MiB
+工作目录。Linux 两目标与整体新协议验收随后进行。
+
 ## 2026-10-06：companion 与普通 codec 的自动编码派生
 
 自动 encode 现在归请求实现的 codec，目标取 Encodable<R> 的 R，生成独立的 this、

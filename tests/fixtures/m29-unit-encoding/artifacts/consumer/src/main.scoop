@@ -13,22 +13,23 @@ private fun check(value: Boolean, code: Int) {
     if (!value) { throw IllegalStateException(Some(f"unit artifact assertion ${code}")) }
 }
 
-private class UsesReference public constructor(private val body: (Encoder) -> Unit) : Encodable {
-    public override fun encode(encoder: Encoder) { body(encoder) }
+private class UsesReference(private val body: (Unit, Encoder) -> Unit) : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) { body(value, encoder) }
 }
 
 fun main() {
     val providerValue = unitFromProvider()
-    check(providerValue is Encodable, 1)
-    check(Json.encode(providerValue as Encodable) == "null", 2)
-    check(peerUnit() is Encodable && erase(Unit) is Encodable, 3)
-    check(Json.encode(peerEncoding()) == "null", 4)
-    check(Json.encode(expose(Unit)) == "null", 5)
+    check(!(providerValue is Encodable<Unit>), 1)
+    check(Json.encode(providerValue as Unit, UnitEncoder) == "null", 2)
+    check(peerUnit() is Unit && erase(Unit) is Unit, 3)
+    check(Json.encode(Unit, peerEncoding()) == "null", 4)
+    check(Json.encode(Unit, expose<Unit>(UnitEncoder)) == "null", 5)
     val other = peerBox()
-    check(other is Box<Unit> && other is Encodable, 6)
-    check(Json.encode(other as Encodable) == "{\"value\":null}", 7)
-    check(Json.encode(makeBox(Unit)) == "{\"value\":null}", 8)
-    check(Json.encode(UsesReference(unitEncoder())) == "null", 9)
+    check(other is Box<Unit> && !(erase(other) is Encodable<Box<Unit>>), 6)
+    val boxCodec = Box<Unit>.Companion.encoder(UnitEncoder)
+    check(Json.encode(other as Box<Unit>, boxCodec) == "{\"value\":null}", 7)
+    check(Json.encode(makeBox(Unit), boxCodec) == "{\"value\":null}", 8)
+    check(Json.encode(Unit, UsesReference(unitEncoder())) == "null", 9)
     check(Json.decode("null", UnitDecoder) == Unit, 10)
     println("unit-artifacts-ok")
 }

@@ -12,57 +12,54 @@ private fun produce(fail: Boolean = false): Unit {
 }
 
 private fun <T> erase(value: T): Any = value
-private fun <T : Encodable> encoded(value: T): String = Json.encode(value)
+private fun <T> encoded(value: T, codec: Encodable<T>): String = Json.encode(value, codec)
 
-public struct Row(val empty: Unit, val count: Int) : Encodable {
-    public companion object : Decodable<Row>
+public struct Row(val empty: Unit, val count: Int) {
+    public companion object : Encodable<Row>, Decodable<Row>
 }
+public struct Generic<T>(val value: T)
+private class GenericEncoder<T>(private val element: Encodable<T>) : Encodable<Generic<T>>
 
-public struct Generic<T : Encodable>(val value: T) : Encodable
-
-private class Bound public constructor(private val value: Unit) : Encodable {
-    public override fun encode(encoder: Encoder) { value.encode(encoder) }
+private class Bound(private val codec: Encodable<Unit>) : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) { codec.encode(value, encoder) }
 }
-
-private class Throws public constructor() : Encodable {
-    public override fun encode(encoder: Encoder) {
-        produce(true).encode(encoder)
+private class Throws : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) {
+        UnitEncoder.encode(produce(true), encoder)
     }
+}
+private class UsesReference(private val body: (Unit, Encoder) -> Unit) : Encodable<Unit> {
+    public override fun encode(value: Unit, encoder: Encoder) { body(value, encoder) }
 }
 
 fun main() {
-    check(Json.encode(Unit) == "null", 1)
-    check(encoded(()) == "null", 2)
-    check(Json.encode(produce()) == "null" && evaluations == 1, 3)
+    check(Json.encode(Unit, UnitEncoder) == "null", 1)
+    check(encoded((), UnitEncoder) == "null", 2)
+    check(Json.encode(produce(), UnitEncoder) == "null" && evaluations == 1, 3)
     val fromAny = erase(Unit)
-    check(fromAny is Encodable, 4)
-    check(Json.encode(fromAny as Encodable) == "null", 5)
-    val boxed: Encodable = Unit
-    check(Json.encode(boxed) == "null", 6)
-    check(Json.encode(Bound(Unit)) == "null", 7)
+    check(!(fromAny is Encodable<Unit>), 4)
+    check(Json.encode(fromAny as Unit, UnitEncoder) == "null", 5)
+    val codec: Encodable<Unit> = UnitEncoder
+    check(Json.encode(Unit, codec) == "null", 6)
+    check(Json.encode(Unit, Bound(codec)) == "null", 7)
     val record = Json.decode("{\"count\":7,\"empty\":null}", Row.Companion)
-    check(record.empty == Unit && Json.encode(record) == "{\"empty\":null,\"count\":7}", 8)
-    check(Json.encode(Generic<Unit>(Unit)) == "{\"value\":null}", 9)
-    check(Json.decode(Json.encode(Unit), UnitDecoder) == (), 10)
-    val reference: (Encoder) -> Unit = Unit::encode
+    check(record.empty == Unit && Json.encode(record, Row.Companion) == "{\"empty\":null,\"count\":7}", 8)
+    check(Json.encode(Generic<Unit>(Unit), GenericEncoder<Unit>(UnitEncoder)) == "{\"value\":null}", 9)
+    check(Json.decode(Json.encode(Unit, UnitEncoder), UnitDecoder) == (), 10)
+    val reference: (Unit, Encoder) -> Unit = codec::encode
     val thunk: () -> Unit = { produce() }
-    check(Json.encode(thunk()) == "null" && evaluations == 2, 11)
-    try { Json.encode(Throws()); check(false, 12) }
+    check(Json.encode(thunk(), UnitEncoder) == "null" && evaluations == 2, 11)
+    try { Json.encode(Unit, Throws()); check(false, 12) }
     catch (error: IllegalStateException) { check(error.message == Some("unit argument"), 13) }
     check(evaluations == 3, 14)
     val sequence = Array<Unit>(3L) { _ -> Unit }
     check(sequence.size == 3L && sequence[2L] == Unit, 15)
-    // The bound callable reference has a zero-sized captured receiver.
-    val wrapper = UsesReference(reference)
-    check(Json.encode(wrapper) == "null", 16)
-    check(Unit is Encodable && !(Unit !is Encodable), 17)
-    check(produce() is Encodable && evaluations == 4, 18)
+    // The bound reference captures the codec and keeps Unit as a zero-sized argument.
+    check(Json.encode(Unit, UsesReference(reference)) == "null", 16)
+    check(erase(UnitEncoder) is Encodable<Unit> && !(erase(Unit) is Encodable<Unit>), 17)
+    check(!(erase(produce()) is Encodable<Unit>) && evaluations == 4, 18)
     val unrelated: Any = "unrelated"
-    check(!(unrelated is Generic<Unit> && unrelated is Encodable), 19)
-    check(Generic<Unit>(Unit) is Encodable, 20)
+    check(!(unrelated is Generic<Unit> && erase(unrelated) is Encodable<Generic<Unit>>), 19)
+    check(!(erase(Generic<Unit>(Unit)) is Encodable<Generic<Unit>>), 20)
     println("unit-values-ok")
-}
-
-private class UsesReference public constructor(private val body: (Encoder) -> Unit) : Encodable {
-    public override fun encode(encoder: Encoder) { body(encoder) }
 }

@@ -5,5 +5,5 @@ import units.expose
 import units.makeBox
 
 public fun peerUnit(): Any = erase(Unit)
-public fun peerEncoding(): Encodable = expose(Unit)
+public fun peerEncoding(): Encodable<Unit> = expose<Unit>(UnitEncoder)
 public fun peerBox(): Any = makeBox(Unit)

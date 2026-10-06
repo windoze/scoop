@@ -1,8 +1,16 @@
 package units
 
-public struct Box<T : Encodable>(val value: T) : Encodable
+public struct Box<T>(val value: T) {
+    public companion object {
+        public fun encoder(element: Encodable<T>): Encodable<Box<T>> = BoxEncoder<T>(element)
+    }
+}
+private class BoxEncoder<T>(private val element: Encodable<T>) : Encodable<Box<T>>
 public fun unitFromProvider(): Any = Unit
 public fun <T> erase(value: T): Any = value
-public fun <T : Encodable> expose(value: T): Encodable = value
-public fun <T : Encodable> makeBox(value: T): Box<T> = Box<T>(value)
-public fun unitEncoder(): (Encoder) -> Unit = Unit::encode
+public fun <T> expose(codec: Encodable<T>): Encodable<T> = codec
+public fun <T> makeBox(value: T): Box<T> = Box<T>(value)
+public fun unitEncoder(): (Unit, Encoder) -> Unit {
+    val codec = UnitEncoder
+    return codec::encode
+}
