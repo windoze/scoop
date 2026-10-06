@@ -25,9 +25,14 @@ import coreStringSliceBytes
 import coreStringByteAt
 import coreStringFromChars
 import coreStringFromBytes
+import Encodable
+import Encoder
+import Unit
+import Decodable
+import Decoder
 
 @Intrinsic("core_string")
-public class String : ToString, Hash, Iterable<Char> {
+public class String : ToString, Hash, Iterable<Char>, Encodable {
     public fun rebuiltAnswer(): Int = 42
 
     public val byteLength: Long get() = coreStringByteLength(this)
@@ -69,7 +74,13 @@ public class String : ToString, Hash, Iterable<Char> {
         return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
 
-    public companion object {
+    public override fun encode(encoder: Encoder): Unit =
+        encoder.singleValue().writeString(this)
+
+    public companion object : Decodable<String> {
+        public override fun decode(decoder: Decoder): String =
+            decoder.singleValue().readString()
+
         public fun fromChars(chars: List<Char>): String = coreStringFromChars(chars.toArray())
 
         @Unsafe

@@ -406,3 +406,18 @@ companion 不物化，以及 companion 成员缺少宿主实参仍报错。HIR l
 接口，并保留类型原有的 Encodable。只更新精确匹配的声明片段，没有改变原继承
 方法、默认实现或 NoGC/参数错误规则。六项 macOS 文件验收全部通过，覆盖重新
 生产 core、独立 provider/consumer、正常与 moving GC 运行及两项精确负例。
+
+## 跨库回归补充与旧测试输入迁移
+
+Linux glibc、musl 分别通过 43 个相关文件 fixture，各有 218 个进程、146 份
+golden，覆盖 enum 命名空间修复、companion 正反例、NoGC 诊断和六个核心继承
+用例；与 macOS 同步的 16 份改动文件逐字节一致。
+
+搬迁核心 String 的原有用例同步当前完整声明和编码接口，继续验证角色随实际
+声明与透明 alias 迁移。protected nested 用例改用完整 Generic<Int>/Generic<String>
+companion，并在方法中使用宿主参数；原保护域、构造与运行断言保留。产物图两条
+stale 诊断只更新实际 HIR/MIR/LIR 摘要，仍检查同一 Cone/provider 与相同错误规则。
+
+这三项 macOS 文件 fixture 全部通过，共 33 个进程、53 份 golden。最新完整
+workspace 的 5,332 项 Rust 测试通过，没有失败或忽略项；Linux workspace 与三平台
+最终文件验收继续运行。
