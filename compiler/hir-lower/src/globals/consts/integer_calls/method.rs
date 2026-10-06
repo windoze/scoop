@@ -71,6 +71,27 @@ impl Lowerer {
             states,
             stack,
         )?;
+        if let Some(resolved) = self.resolve_const_float_intrinsic(receiver.ty, &name.text) {
+            return self.evaluate_const_float_call(
+                resolved,
+                receiver,
+                args,
+                file,
+                declarations,
+                ordinary,
+                states,
+                stack,
+                span,
+            );
+        }
+        if self.float_kind(receiver.ty).is_some() {
+            self.error(
+                name.span,
+                "const initializer did not resolve to an exact typed core floating intrinsic"
+                    .into(),
+            );
+            return None;
+        }
         let hir::Type::Integer(source_kind) = self.types[receiver.ty] else {
             self.error(
                 name.span,

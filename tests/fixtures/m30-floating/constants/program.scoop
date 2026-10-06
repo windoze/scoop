@@ -1,0 +1,48 @@
+const val rounded: Float = 1.000000059604644775390625000001
+const val narrowStep: Float = (16777216f + 1f) - 16777216f
+const val wideStep: Double = (16777216.0 + 1.0) - 16777216.0
+const val quiet: Float = 0f / 0f
+const val negativeQuiet: Float = -quiet
+const val copiedQuiet: Float = negativeQuiet.toFloat()
+const val divided: Double = 1.0 / 0.0
+const val negativeZero: Double = -0.0
+const val remainder: Double = -4.0 % 2.0
+const val invalid: Boolean = (0.0 / 0.0).isNaN()
+const val unordered: Boolean = !((0.0 / 0.0) >= 0.0)
+const val total: Boolean = (-0.0).isTotallyOrdered(belowOrEqualTo = 0.0)
+const val clamp: Int8 = 1000.0.toInt8()
+const val unsignedClamp: UInt8 = (-1000f).toUInt8()
+const val longClamp: Int64 = divided.toInt64()
+const val nanInteger: Int32 = quiet.toInt32()
+const val incremented: Float = 2f.inc().times(3f).minus(1f)
+const val integerFloat: Float = 16777217UL.toFloat()
+const val integerDouble: Double = 16777217UL.toDouble()
+const val shortened: Float = 1e40.toFloat()
+const val enlarged: Double = 0.1f.toDouble()
+const val maximum: Float = Float.MAX_VALUE
+const val minimum: Double = Double.MIN_VALUE
+const val normal: Float32 = Float32.MIN_NORMAL
+const val importedNan: Double = Double.NaN
+@Global var globalSingle: Float = 0.1
+@Global var globalDouble: Double = -0.0
+
+@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+fun floatBits(value: Float): UInt32
+@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+fun doubleBits(value: Double): UInt64
+
+@Unsafe fun main() {
+    if (floatBits(rounded) != 0x3f800001U || floatBits(quiet) != 0x7fc00000U ||
+        floatBits(copiedQuiet) != 0xffc00000U || doubleBits(importedNan) != 0x7ff8000000000000UL ||
+        floatBits(maximum) != 0x7f7fffffU || doubleBits(minimum) != 1UL ||
+        floatBits(normal) != 0x00800000U) { println("bits"); return }
+    println(f"${rounded} ${narrowStep} ${wideStep} ${negativeZero} ${remainder}")
+    println(invalid && unordered && total && quiet.isNaN() && copiedQuiet.isNaN())
+    println(f"${clamp} ${unsignedClamp} ${longClamp} ${nanInteger} ${incremented}")
+    println(f"${integerFloat} ${integerDouble} ${shortened} ${enlarged}")
+    println(f"${maximum} ${minimum} ${normal} ${Float.MIN_VALUE} ${Double.MIN_NORMAL}")
+    println(f"${Float.NaN} ${Double.NaN} ${Float.POSITIVE_INFINITY} ${Double.NEGATIVE_INFINITY}")
+    println(importedNan.isNaN() && Float.NEGATIVE_INFINITY < -Float.MAX_VALUE)
+    gcCollect()
+    println(f"${globalSingle} ${globalDouble}")
+}

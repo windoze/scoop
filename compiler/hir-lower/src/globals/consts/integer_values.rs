@@ -289,7 +289,10 @@ pub(super) fn signed_value(kind: hir::IntegerKind, raw: u64) -> i128 {
     }
 }
 
-fn integer_from_raw(kind: hir::IntegerKind, raw: u64) -> hir::HirIntegerConstant {
+pub(in crate::globals) fn integer_from_raw(
+    kind: hir::IntegerKind,
+    raw: u64,
+) -> hir::HirIntegerConstant {
     match kind {
         hir::IntegerKind::SIGNED_8 => hir::HirIntegerConstant::Signed8(raw as u8),
         hir::IntegerKind::SIGNED_16 => hir::HirIntegerConstant::Signed16(raw as u16),

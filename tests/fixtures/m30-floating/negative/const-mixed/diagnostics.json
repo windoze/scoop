@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "const initializer must contain only literals, const references, built-in primitive operators, and exact core numeric intrinsic calls",
+    "message": "const operator operands must have the same type, found Float and Double",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 41,
+      "end": 46,
       "kind": "source",
       "path": "main.scoop",
-      "start": 23
+      "start": 27
     },
     "severity": "error"
   }

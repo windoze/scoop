@@ -1,0 +1,3 @@
+fun make(): Float = 1f
+const val invalid: Float = make()
+fun main() {}

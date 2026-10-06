@@ -42,3 +42,13 @@ Darwin/AArch64 验证：
 Darwin/AArch64 实际验证：格式化、workspace clippy、三个 release CLI 构建通过；profile 单元测试 19 项、target-support 单元测试 3 项通过。M30 文件 fixture 增至 19 个并全部通过，29 个实际进程、16 份阶段 golden。新增算术、八种整数转换、混合精度与非法运算诊断；totalOrder 对每种精度各 18 个代表位型执行 324 对比较，包含正负 signaling/quiet NaN 及不同 payload，同时检查一元符号和同型转换保留位型。四个正例均通过移动 GC 运行。
 
 本批完成运行期数值操作；const 与 companion 常量接着实施，不重复执行无关全量测试。
+
+## B2：const、companion 常量与静态初值
+
+以 rustc_apfloat 的 Single/Double 实现目标精度的 const 算术、比较、分类、totalOrder 和全部显式转换，算术 NaN 规范化为正 quiet NaN；一元符号和同精度转换保留位型。Float/Double companion 各提供六个普通 const val，含精确边界。修复依赖库 companion 常量在 const initializer 中的读取，沿普通 imported const 名称、可见性和类型规则消费；静态初值与 const 共用浮点求值函数，浮点全零初值按真实标量表示保存。
+
+将 const 表达式处理和静态整数调用按职责拆分，原相关大文件降至 404 / 282 行，拆出的文件为 240 / 265 行；新增浮点求值及调用模块为约 30～165 行。再次清理约 6.8 GiB 的 debug incremental 目录。
+
+Darwin/AArch64：格式化、workspace clippy 和 release CLI 构建通过。新增 const 正例包含普通／移动 GC、四阶段 golden、通过 C ABI 读取精确位型的检查；固定 NaN、负 NaN 复制、直接舍入、最大值、最小 subnormal 和最小 normal 位型均通过。五个 const 负例及两个既有整数 const CLI 回归通过，本轮共 8 fixture、14 进程、12 golden；两个整数 HIR golden 仅临时 imported identity index 改变。12 个既有 const 单元测试通过，期间补齐旧测试用 core 缺失的 Float/Double 与转换声明，并复用实际 core 的浮点源码。
+
+运行期与 const 的 B 批完成，下一批处理候选字面量定型、annotation 和递归 pattern 组合。
