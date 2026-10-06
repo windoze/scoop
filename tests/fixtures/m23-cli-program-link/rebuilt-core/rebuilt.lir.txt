@@ -53,7 +53,7 @@ Module
     t4 = aggregate () : {}
     store integer<Int>(0x00000028) -> local10
     store local10 -> local11
-    call managed-direct-target2 sp<managed-call:4> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td12, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:4> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t5 -> local17
     call managed-void-target2 sp<managed-call:5> live=[local17:ptr<managed>@0] sig=void3 (ptr<managed>, i32) external-fn2(local17, local11)
     t6 = aggregate () : {}

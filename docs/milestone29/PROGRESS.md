@@ -3,6 +3,17 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：core 重建与角色迁移回归
+
+核心 Int/String 的精确源码替换片段同步当前 companion codec 声明，继续验证
+移动到其他 package 后的 builtin 绑定、透明 alias、独立产物消费和链接。诊断
+规则与运行结果保持原断言；更新实际 core 摘要、stage dump 和链接计划。
+
+macOS 两项正式 fixture 在普通模式下通过，共 11 个进程、15 份 golden，包含
+删除源码后的链接及 moving GC。重用只读产物目录导致的一次权限失败已单独
+保存，干净目录复验通过，没有修改 fixture 规则。报告均归档到 /tmp；清理三个
+已完成工作目录，合计约 1.1 GiB。Linux 目标相关快照将在下一批同步验证。
+
 ## 2026-10-06：List 编码的显式元素依赖
 
 List 的普通 encoder 保存 Encodable<T>，通过三参数 encodeList 编码逻辑元素；
