@@ -64,7 +64,7 @@ Module
   block if.merge.6
     store local11 -> local12
     store local12 -> local13
-    call managed-direct-target4 sp<managed-call:5> live=[] t12 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:5> live=[] t12 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t12 -> local16
     call managed-void-target0 sp<managed-call:6> live=[local16:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local16, local13)
     t13 = aggregate () : {}

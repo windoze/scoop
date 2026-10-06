@@ -3,6 +3,17 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：早期跨库 core 替换输入迁移
+
+226 个 imported-class fixture 的 Long/Boolean/String 精确声明替换移除旧实例
+Encodable，同时保留原测试接口、继承、default、可见性及 NoGC 行为。完整 suite
+的 226 项均通过编译、运行及精确诊断检查，共 1,905 个进程，更新 715 份 golden；
+变化来自当前 core 的声明、普通 typed 依赖和实际产物摘要，未放宽 fixture 断言。
+
+格式化与 workspace clippy 已通过。更新轮报告保存为
+`/tmp/scoop-m29-saved-reports/m29-core-replacements-darwin-update.json`，这些
+快照将在随后完整 `--all` 的普通模式中统一复验；当前记录不替代最终验收。
+
 ## 2026-10-06：Darwin 的新协议 M29 统一验收
 
 全部 176 个 M29 fixture 已在干净工作目录以普通模式通过，共 363 个进程、
