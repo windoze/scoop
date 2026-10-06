@@ -331,6 +331,10 @@ schema 的首版字段围绕当前实际测试需要组织，不把不同里程�
 
 `native-digests` 只处理链接计划中 native input、archive member payload 及 dynamic provider 的内容摘要和对应引用，保留 requirement、源码声明身份、符号、成员范围与选择、动态库路径及绑定。native 诊断可以显式使用 `diagnostics_normalize`，仅归一化同一类 native object／NativeInputId 字段；其他诊断内容保持精确。规则与公共引用关系测试见 [fixture schema 1](../../../tests/fixture_runner/README.md)。
 
+文件损坏 fixture 不预先锁定整份编译产物或系统对象的 SHA-256。必要的损坏位置／字段、reader 诊断与原子输出检查承担具体正确性验证；固定编码和指纹向量由输入严格受控的 Rust 专门测试覆盖。没有实际用例后，删除公共 runner 的 `sha256` 比较及仅为它存在的测试代码。
+
+不能用嵌入整份旧 manifest、profile fingerprint、成员长度及摘要的二进制替换片段间接锁定普通功能产物。registration 缺项和初始化 callable 角色错配由 Rust reader／引用校验测试对当次编码的记录构造损坏输入；泛型委托的三 Cone 编译、移走源码后的产物消费、符号与 GC 运行仍由 CLI fixture 覆盖。未知 optional／link-required blob 的归档读回、对象目录选择和指纹相等／变化关系在现有 slib 测试中使用当次生成的成员验证；重复的冻结归档拼接 fixture 退役，CLI 的 artifact-only 链接、运行和失败时保留原输出仍由普通 program-link fixture 验证。
+
 正例通过 `--emit all --dump-dir ...` 从一次当前 root 编译取得四阶段 dump，再执行同次生成的 binary，保留 warning、stdout/stderr、exit 或 trap 覆盖。negative 从结构化诊断核对 canonical source/span、code、message 和 notes；不能让“任意非零退出”满足原语言错误期望。
 
 Python 从正式 CLI 的 JSON 记录、dump 文件和真实进程结果取得这些信息，阶段 golden 只比较当前编译实际产生的阶段输出，不启动第二套前端。原 Rust 代码中的断言和旧 directive 一次迁成相同 schema，不保留另一套长期解释器。快照更新是显式开发命令，只更新被选择的期望文件并生成可审阅 diff，不自动改写成功／失败分类或接受新诊断；正常运行和最终验收始终只读期望。

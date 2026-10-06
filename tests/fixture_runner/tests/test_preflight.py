@@ -51,7 +51,6 @@ class PreflightTests(unittest.TestCase):
             {"files": [{"patch": {"path": "x", "offset": -1, "hex": "00"}}]},
             {"files": [{"chmod": {"path": "x", "mode": "888"}}]},
             {"checks": [{"file": "x", "exists": "false"}]},
-            {"checks": [{"file": "x", "sha256": "invalid"}]},
             {"checks": [{"actual": "a", "equals": "a", "normalize": [{}]}]},
         ):
             with self.subTest(step=step):

@@ -2,7 +2,6 @@
 
 import difflib
 import glob
-import hashlib
 import json
 import signal
 
@@ -141,8 +140,6 @@ def check_all(checks, context, base, update):
         elif comparison in ("same_as", "different_from"):
             other = path(expected, base).read_bytes()
             equal(actual == other, comparison == "same_as", f"{subject} vs {expected}")
-        elif comparison == "sha256":
-            equal(hashlib.sha256(actual).hexdigest(), expected, str(subject))
         else:
             if isinstance(actual, bytes):
                 expected = byte_value(expected, base)

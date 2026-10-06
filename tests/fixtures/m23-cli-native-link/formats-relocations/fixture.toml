@@ -30,10 +30,6 @@ files = [{"copy" = {"from" = "${work}/objects/m23_final.o", "to" = "${work}/nati
 checks = []
 
 [[steps]]
-name = "original_object"
-checks = [{"file" = "${work}/native/m23_final.o", "sha256" = "bb933c2a5b59f778665313959d387e66f3dfb258aae05e4c5a7ce7bf995b98cf"}]
-
-[[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/final", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0

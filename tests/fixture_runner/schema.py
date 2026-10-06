@@ -60,7 +60,6 @@ COMPARISONS = {
     "different_from",
     "exists",
     "type",
-    "sha256",
 }
 BUILTINS = {
     "fixture",
@@ -280,8 +279,5 @@ def validate_step(step):
         if len(set(check) & {"actual", "file", "glob"}) != 1 or len(set(check) & COMPARISONS) != 1:
             raise ConfigurationError("check requires one subject and one comparison")
         values.check_values(check)
-        if (
-            set(check) & {"same_as", "different_from", "exists", "type", "sha256"}
-            and "file" not in check
-        ):
+        if set(check) & {"same_as", "different_from", "exists", "type"} and "file" not in check:
             raise ConfigurationError("file comparison requires a file subject")

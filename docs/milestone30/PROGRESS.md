@@ -128,3 +128,13 @@ Ruff 格式化与检查、runner 的 38 项公共测试及全部 2551 个 fixtur
 增加显式 `native-digests` 规则，仅替换 native 输入、归档成员内容和 dynamic provider 的摘要字段；按首次出现编号保留重复值、不同值及引用关系。requirement、源码 typed identity、符号、成员名称／顺序／范围、选择状态和动态绑定保持原样。生产指纹及同次 build/link、缓存、确定性的原值比较不变。迁移 560 个 fixture 声明中的 563 个计划检查和 21 个诊断步骤，共 1673 份计划／诊断期望；其余解析后的声明完全保留。
 
 Ruff、42 项公共规则测试和完整发现检查通过。新增反例确认错接引用、改变成员范围／选择、符号或额外诊断均仍失败。真实 CLI 普通复验通过 archive 冲突、direct 合同、dynamic loader／renamed、late archive 共 5 项；archive chain 已通过归一化计划比较，随后停在 M30 新符号的旧清单，另 3 个 callback 用例仍需迁移旧 HIR。后续按结构变化继续验证，不把快照更新作为通过结果。
+
+## G3：移除整份产物 SHA 及冻结的损坏输入
+
+删除 6 个旧 fixture 中 13 个无关的整份文件 SHA-256 比较、5 个因此为空的辅助步骤，并移除公共 runner 已无调用的 `sha256` 分支。native archive TOC、relocation、TLS 和 artifact-corruption 四项普通复验通过，仍精确验证目标损坏诊断和失败时的原输出。
+
+另外两项使用嵌入整份旧 manifest、profile 指纹、成员长度和摘要的替换片段，无法跨正常产物变更复用。按修订后的 M23-11 测试约定，将必要的格式／引用校验放到现有 Rust 测试入口：完整 registration reader 使用当次编码的表删除委托存储、失败根、initializer callable 或初始化单元；初始化引用测试区分正确角色、对调角色与另一个属性的来源；slib 测试构造实际 optional／link-required 成员，验证归档读回、对象目录、语义指纹不变／整个产物变化及精确拒绝结果。没有增加生产接口或测试用的通用产物修改框架。
+
+删除冻结片段和退役的重复 optional-members CLI fixture，共 73 个失用文件；泛型委托 fixture 的 27 个正常步骤完整保留，仍包含三 Cone 编译、移走源码、artifact-only 消费、完整阶段／符号和两种 GC。通用 program-link 的 artifact-only 运行及原子失败行为继续保留。公开语言错误的 negative fixture 未减少。
+
+Rust 格式化、workspace clippy 和 4 项定向测试通过（其中已有完整 reader 测试增加八个缺项组合，两个调度分别验证）；新增独立测试为 3 项。Ruff 和 42 项公共 runner 测试通过。Darwin CLI 最终定向验收继续复用此前成功结果，另行记录完整并集。

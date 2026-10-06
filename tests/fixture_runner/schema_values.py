@@ -144,13 +144,6 @@ def check_values(check):
             check["type"] in ("file", "directory", "symlink", "missing"),
             "type must be file, directory, symlink, or missing",
         )
-    if "sha256" in check:
-        value = check["sha256"]
-        string(value, "sha256")
-        require(
-            REFERENCE.fullmatch(value) or re.fullmatch(r"[0-9a-f]{64}", value),
-            "sha256 must be a lowercase hexadecimal digest",
-        )
     normalization_rules(check.get("normalize", []), {"paths", "newlines", "native-digests"})
 
 

@@ -58,10 +58,6 @@ files = [{"copy" = {"from" = "${work}/program", "to" = "${work}/previous-program
 checks = []
 
 [[steps]]
-name = "original_bytes"
-checks = [{"file" = "${work}/original.slib", "sha256" = "3cf90419ffd8dcd9358a957cca872601a0f5f2e2c7f383ebb3a2845b98344381"}]
-
-[[steps]]
 name = "damage_member"
 files = [{"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 20734, "hex" = "a2"}}]
 checks = []
