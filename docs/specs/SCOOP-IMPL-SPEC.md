@@ -1918,6 +1918,8 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 实际 code/stackmap plan 随所选实现进入 code/object 元数据；它不进入跨 Cone ABI 或 ODR 内容判等，也不反向污染 dependency semantic fingerprint。保持 frame pointer、stack-only writable root、精确 return PC、AS1 provenance、无 exceptional relocate、禁止 managed tail call/ICF 等已经验证的后端合同。
 
+LLVM 为大值 `byval` 参数生成的标准 `memcpy` 不展开异常，也不新增 LIR invoke。EH 对象检查依据真实的直接调用指令及 `memcpy` 符号重定位识别这类后端复制；它可以位于已有 LSDA 保护区间内，但不计入需要与 LIR 对应的可展开调用数。未知外部调用、实际 managed site、landing pad 与保护区间仍按原合同检查，不能把普通 NoGC effect 当作不展开异常的保证。
+
 **ODR 与依赖。** 普通依赖图确认模板 origin、完整 application 与 exact arguments 对应同一定义后，重复 ODR member 只比较完整 typed key 与共享 ABI。ABI 包括调用约定、参数/返回表示、GC 调用契约、共享 layout/alignment/scan/dispatch；不包含优化后的 LIR、机器码、私有帧、EH 或 stackmap。删除 `OdrDefinitionFingerprint` 及只服务正文相等的计算、leaf、补丁和测试，不另建“优化前语义正文摘要”。导出的模板、默认值、const、类型和调用合同仍由普通 HIR/MIR/LIR semantic projection 覆盖；优化设置与私有实现变化进入编译、Code/Artifact 及链接缓存。后端的兼容契约与 producer 优化设置分开，不能因 profile 或 pass 改变而错误报告 stale edge。
 
 program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。

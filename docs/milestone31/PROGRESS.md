@@ -17,7 +17,7 @@
 
 - 已读取设计与对应规范；工作区原有 M31 文档作为实施基准保存。
 - Linux `nuc12:~/repos/scoop` 留有 M30 测试变更；Linux 验证将使用独立目录，保留原目录内容。
-- 尚未完成 M31 功能；后续在此记录每批实际改动、版本与验证结果。
+- M31-1 已完成；ODR/image、完整优化和 nursery 尚在实施。各批实际改动、版本与验证结果记录如下。
 
 ## 性能基线与构建清理
 
@@ -35,3 +35,8 @@
 - Darwin 正式 profile 用例的两个变体通过，覆盖 C bridge、冷／热构建、普通与 child 产物一致、release full-moving GC；旧 CLI 用例与四份阶段快照通过。
 - `nuc12:~/repos/scoop-m31` 使用 LLVM 22.1.2 构建，glibc/musl 同一 profile 用例各两个变体、12 个进程均通过。原 `~/repos/scoop` 源码未修改；复用其 target 与 native sysroot。
 - 格式化及 workspace clippy 通过；定向 protocol 24、C bridge 16、manifest production 6、cache key 5、scoopc CLI 7、Mach-O optimization hint 1 项通过。后续批次复用这些结果，不重复全量测试。
+
+## 宽值参数的 EH 检查
+
+- LLVM 为大结构体 `byval` 生成的标准 `memcpy` 可以位于已有 LSDA 保护区间。根据直接调用指令及外部 `memcpy` 重定位识别该不展开调用，避免误报额外 LIR invoke；未知调用、managed site 和 landing pad 的检查保留。
+- 定向 EH 19 项通过，包含额外复制调用、未知调用拒绝和 managed site 缺失拒绝。528-byte 值的真实 `.slib` 编译通过；跨卡复制组合用例在 Darwin debug、release、full-moving 三个变体通过。
