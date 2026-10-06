@@ -11,33 +11,9 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-materialized-type-uses");
     for (name, expected) in [
         // Deferred has a finite coroutine start and an initializer returning Unit.
-        // Both value cases retain the signatures of core encoding bodies.
-        (
-            "standalone",
-            vec![
-                "Boolean",
-                "Char",
-                "Encoder",
-                "KeyedEncodingContainer",
-                "String",
-                "Throwable",
-                "Unit",
-                "UnkeyedEncodingContainer",
-            ],
-        ),
-        (
-            "combined",
-            vec![
-                "Any",
-                "Boolean",
-                "Char",
-                "Encoder",
-                "KeyedEncodingContainer",
-                "String",
-                "Unit",
-                "UnkeyedEncodingContainer",
-            ],
-        ),
+        // Ordinary values do not materialize any implicit encoding bodies.
+        ("standalone", vec!["Boolean", "String", "Throwable", "Unit"]),
+        ("combined", vec!["Any", "Boolean", "String", "Unit"]),
         ("initialization", vec!["Boolean", "String", "Unit"]),
     ] {
         let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
@@ -55,7 +31,7 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
                 for usage in uses {
                     let exact = match usage.target() {
                         mir::MirTypeBridgeTargetV1::Type(exact) => exact,
-                        // Core value encoding adds ordinary callable dependencies.
+                        // Ordinary methods can add callable dependencies.
                         mir::MirTypeBridgeTargetV1::Callable(_) => continue,
                         _ => panic!("fixture requires external types and their value methods"),
                     };

@@ -123,8 +123,8 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
             assert!(declarations[3] > 0);
         } else if name == "storage-standalone" {
-            // Finite coroutine and encoding support retain core Option storage.
-            assert_eq!(declarations[4..], [0, 2, 1, 0]);
+            // Finite coroutine support retains one core Option storage field.
+            assert_eq!(declarations[4..], [0, 1, 1, 0]);
         } else if name == "storage-combined" {
             assert!(declarations[4..].iter().all(|count| *count > 0));
         } else if name == "standalone" {

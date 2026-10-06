@@ -39,8 +39,8 @@ pub(super) fn check(
         assert_eq!(key.origin(), source.provider());
         objects += 1;
     }
-    // Include the ordinary scalar codec companions from core.
-    assert_eq!(objects, if name.ends_with("combined") { 15 } else { 14 });
+    // Include scalar companions and the independent UnitEncoder/UnitDecoder objects.
+    assert_eq!(objects, if name.ends_with("combined") { 16 } else { 15 });
     for object in section.object_values().records() {
         let remaining = mir::CanonicalMirObjectValuesV1::try_new(
             section

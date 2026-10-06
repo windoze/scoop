@@ -3,6 +3,17 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：正式产物断言同步新 codec surface
+
+两端完整 workspace 回归定位到相同五处旧测试预期：UnitEncoder 带来的一个普通
+object/初始化单元、12 个具体 Encodable<T> application，以及移除实例编码后
+减少的隐式编码类型和 Option 存储依赖。逐项核对实际产物后同步准确清单和数量，
+保留缺失对象/调用、初始化配对、typed identity、layout 和 ODR 的原断言。
+
+五项 macOS 定向测试全部通过，格式化与 workspace clippy 通过；其中组合数据
+亦已验证，没有修改编译器生产代码。随后重新执行完整 workspace 和公共 runner
+测试，前一轮的五项失败不计作总验收通过。
+
 ## 2026-10-06：早期跨库 core 替换输入迁移
 
 226 个 imported-class fixture 的 Long/Boolean/String 精确声明替换移除旧实例
