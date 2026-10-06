@@ -321,10 +321,10 @@ Module
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call $dependency.local.12: Int = @fn6 direct
-      val $dependency.local.13: Int
+      call $dependency.local.0: Int = @fn6 direct
+      val $dependency.local.1: Int
         Type Int
-        Local $dependency.local.12
+        Local $dependency.local.0
       assign $new.1
         Type Payload
         ClassAlloc Payload
@@ -332,16 +332,16 @@ Module
         Type Payload
         Local $new.1
         Type Int
-        Local $dependency.local.13
-      val $dependency.local.18: Payload
+        Local $dependency.local.1
+      val $dependency.local.6: Payload
         Type Payload
         Local $new.1
-      val $dependency.local.14: Int
+      val $dependency.local.2: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.15: Int
+      val $dependency.local.3: Int
         Type Int
-        Local $dependency.local.14
+        Local $dependency.local.2
       assign $new.2
         Type Payload
         ClassAlloc Payload
@@ -349,16 +349,16 @@ Module
         Type Payload
         Local $new.2
         Type Int
-        Local $dependency.local.15
-      val $dependency.local.19: Payload
+        Local $dependency.local.3
+      val $dependency.local.7: Payload
         Type Payload
         Local $new.2
-      val $dependency.local.16: Int
+      val $dependency.local.4: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.17: Int
+      val $dependency.local.5: Int
         Type Int
-        Local $dependency.local.16
+        Local $dependency.local.4
       assign $new.3
         Type Payload
         ClassAlloc Payload
@@ -366,82 +366,10 @@ Module
         Type Payload
         Local $new.3
         Type Int
-        Local $dependency.local.17
-      val $dependency.local.20: Payload
-        Type Payload
-        Local $new.3
-      val $dependency.local.21: Payload
-        Type Payload
-        Local $dependency.local.18
-      val $dependency.local.22: Payload
-        Type Payload
-        Local $dependency.local.19
-      val $dependency.local.23: Payload
-        Type Payload
-        Local $dependency.local.20
-      call $call.4: ReferenceSlot<Later> = @fn13 direct
-        Type Payload
-        Local $dependency.local.21
-        Type Payload
-        Local $dependency.local.22
-        Type Payload
-        Local $dependency.local.23
-      assign $dependency.local.24
-        Type ReferenceSlot<Later>
-        Local $call.4
-      goto bb3
-    bb2 if.else.2
-      val $dependency.local.0: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.1: Int
-        Type Int
-        Local $dependency.local.0
-      assign $new.5
-        Type Payload
-        ClassAlloc Payload
-      call external1 direct
-        Type Payload
-        Local $new.5
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.6: Payload
-        Type Payload
-        Local $new.5
-      val $dependency.local.2: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.3: Int
-        Type Int
-        Local $dependency.local.2
-      assign $new.6
-        Type Payload
-        ClassAlloc Payload
-      call external1 direct
-        Type Payload
-        Local $new.6
-        Type Int
-        Local $dependency.local.3
-      val $dependency.local.7: Payload
-        Type Payload
-        Local $new.6
-      val $dependency.local.4: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.5: Int
-        Type Int
-        Local $dependency.local.4
-      assign $new.7
-        Type Payload
-        ClassAlloc Payload
-      call external1 direct
-        Type Payload
-        Local $new.7
-        Type Int
         Local $dependency.local.5
       val $dependency.local.8: Payload
         Type Payload
-        Local $new.7
+        Local $new.3
       val $dependency.local.9: Payload
         Type Payload
         Local $dependency.local.6
@@ -451,13 +379,85 @@ Module
       val $dependency.local.11: Payload
         Type Payload
         Local $dependency.local.8
-      call $call.8: ReferenceSlot<Later> = @fn13 direct
+      call $call.4: ReferenceSlot<Later> = @fn13 direct
         Type Payload
         Local $dependency.local.9
         Type Payload
         Local $dependency.local.10
         Type Payload
         Local $dependency.local.11
+      assign $dependency.local.24
+        Type ReferenceSlot<Later>
+        Local $call.4
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      assign $new.5
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.5
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.18: Payload
+        Type Payload
+        Local $new.5
+      val $dependency.local.14: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.14
+      assign $new.6
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.6
+        Type Int
+        Local $dependency.local.15
+      val $dependency.local.19: Payload
+        Type Payload
+        Local $new.6
+      val $dependency.local.16: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.17: Int
+        Type Int
+        Local $dependency.local.16
+      assign $new.7
+        Type Payload
+        ClassAlloc Payload
+      call external1 direct
+        Type Payload
+        Local $new.7
+        Type Int
+        Local $dependency.local.17
+      val $dependency.local.20: Payload
+        Type Payload
+        Local $new.7
+      val $dependency.local.21: Payload
+        Type Payload
+        Local $dependency.local.18
+      val $dependency.local.22: Payload
+        Type Payload
+        Local $dependency.local.19
+      val $dependency.local.23: Payload
+        Type Payload
+        Local $dependency.local.20
+      call $call.8: ReferenceSlot<Later> = @fn13 direct
+        Type Payload
+        Local $dependency.local.21
+        Type Payload
+        Local $dependency.local.22
+        Type Payload
+        Local $dependency.local.23
       assign $dependency.local.24
         Type ReferenceSlot<Later>
         Local $call.8
