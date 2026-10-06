@@ -52,3 +52,5 @@ Darwin/AArch64 实际验证：格式化、workspace clippy、三个 release CLI 
 Darwin/AArch64：格式化、workspace clippy 和 release CLI 构建通过。新增 const 正例包含普通／移动 GC、四阶段 golden、通过 C ABI 读取精确位型的检查；固定 NaN、负 NaN 复制、直接舍入、最大值、最小 subnormal 和最小 normal 位型均通过。五个 const 负例及两个既有整数 const CLI 回归通过，本轮共 8 fixture、14 进程、12 golden；两个整数 HIR golden 仅临时 imported identity index 改变。12 个既有 const 单元测试通过，期间补齐旧测试用 core 缺失的 Float/Double 与转换声明，并复用实际 core 的浮点源码。
 
 运行期与 const 的 B 批完成，下一批处理候选字面量定型、annotation 和递归 pattern 组合。
+
+B 批 Linux/glibc x86_64 的 release 构建与四个正例通过：普通／移动 GC、16 个进程、16 份 golden。同步前三个 HIR 快照的 imported identity 临时编号，并为两个 C ABI 用例按 target 保存 LIR 桥接符号快照；Darwin 同组四个用例再次通过。未增加无关全量测试。
