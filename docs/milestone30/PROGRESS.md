@@ -74,3 +74,5 @@ Darwin 验证：格式化、workspace clippy、release CLI 构建通过；19 个
 主线程和首次附着的 foreign thread 通过同一创建入口安装 C 默认浮点环境，并显式关闭 x86 SSE 的 FTZ/DAZ 或 AArch64 的 FZ。调用期间不反复保存／恢复 fenv；已附着线程的 native 重入责任保持原规范。函数为 runtime 内部实现，不增加 ABI 字段。
 
 Darwin 的 C 严格警告检查、workspace 格式化及 clippy 通过。新增 environment fixture 经正式 CLI 构建、普通／移动 GC 和四阶段 golden 通过，共 5 个进程；主线程检查 rounding/trap/subnormal 设置，foreign worker 在回调前故意改成向上舍入与 flush-to-zero，回调附着后验证 nearest-even、subnormal、Float/Double 参数／Double 结果及 GC 中的闭包捕获。native archive 仍不接收初始化 section，测试使用正常线程入口改变环境。
+
+随后在 nuc12 的 Linux/glibc x86_64 完成 release 构建；inference、annotation、pattern 与 environment 四个正例通过，共 14 进程、16 golden，并保存环境用例的 GNU LIR 快照。x86 SSE 的 rounding、trap mask 和 FTZ/DAZ 也通过实际线程回调验证。
