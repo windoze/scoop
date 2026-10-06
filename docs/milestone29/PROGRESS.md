@@ -3,6 +3,20 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：修复后的两端 workspace 验收
+
+使用泛型 primitive 声明保留修复后的代码，macOS 完整 workspace 通过 43 组、
+5,346 项测试，Linux 完整 workspace 通过 43 组、5,374 项测试；两端均零失败、
+零忽略，公共 fixture runner 各 38 项测试通过。此前格式化与 workspace clippy
+均已通过。dev/test 使用 opt-level=1，保留 debug assertions 与 overflow checks。
+
+汇总保存为 `/tmp/scoop-m29-generic-primitive-workspace-results.json`；两端日志为
+`/tmp/scoop-m29-generic-primitive-darwin-workspace.log` 和
+`/tmp/scoop-m29-generic-primitive-linux-workspace.log`，runner 日志使用同前缀。
+macOS 已启动最新代码与快照的普通完整 `--all`；Linux 两目标继续全仓库更新和
+后续普通总验收。已归档完成报告并清理约 66.8 GiB 的 macOS 更新/复验目录，
+保留原有 worktree、固定 CLI 副本和必要构建缓存。
+
 ## 2026-10-06：声明保留后的全仓库快照核对
 
 修复后的同一组固定 CLI 已覆盖 Darwin 全部 2,490 个适用 fixture；各批普通和
