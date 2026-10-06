@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
 cone dev.example:delegate-combinations-provider:0.1.0 kind=Library objects=59
 cone dev.example:delegate-combined:0.1.0 kind=Library objects=30
 cone dev.example:delegate-downstream-combined:0.1.0 kind=Library objects=36

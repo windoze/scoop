@@ -1,0 +1,40 @@
+private var attempts: Int = 0
+
+private fun fail(): Int {
+    attempts += 1
+    throw IllegalStateException(Some(f"failure-${attempts}"))
+}
+
+struct Broken<T>(val value: T) {
+    companion object {
+        val state: Int = fail()
+    }
+}
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"failure caching assertion ${code} failed")
+        throw IllegalStateException(Some(f"failure caching assertion ${code} failed"))
+    }
+}
+
+fun main() {
+    var original: Option<IllegalStateException> = None
+    try { val state = Broken<Int>.state }
+    catch (error: IllegalStateException) { original = Some(error) }
+    check(when (original) { Some(_) -> true; None -> false } && attempts == 1, 1)
+    gcCollect()
+    try { val state = Broken<Int>.Companion.state }
+    catch (error: IllegalStateException) { check(error.message == original!!.message, 2) }
+    check(attempts == 1, 3)
+    var separate: Option<IllegalStateException> = None
+    try { val state = Broken<String>.state }
+    catch (error: IllegalStateException) { separate = Some(error) }
+    check(when (separate) { Some(_) -> true; None -> false } && attempts == 2, 4)
+    check(separate!!.message == Some("failure-2") && original!!.message == Some("failure-1"), 5)
+    gcCollect()
+    try { val state = Broken<String>.Companion.state }
+    catch (error: IllegalStateException) { check(error.message == separate!!.message, 6) }
+    check(attempts == 2, 7)
+    println("failure-ok")
+}

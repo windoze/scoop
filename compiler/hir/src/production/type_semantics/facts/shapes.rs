@@ -33,6 +33,9 @@ impl FactProjector<'_> {
                     }
                     concrete::StructRepresentation::Intrinsic { application, .. } => {
                         match application {
+                            concrete::IntrinsicTypeRepresentation::Unit => {
+                                ExactTypeFactShapeV1::Unit
+                            }
                             concrete::IntrinsicTypeRepresentation::Integer(_)
                             | concrete::IntrinsicTypeRepresentation::Char
                             | concrete::IntrinsicTypeRepresentation::Boolean => {

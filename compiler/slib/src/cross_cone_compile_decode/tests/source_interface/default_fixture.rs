@@ -199,6 +199,7 @@ pub(super) fn replace_references(
         &Default::default(),
         &Default::default(),
         &Default::default(),
+        &Default::default(),
     )
     .unwrap();
     fixture.interface = CrossConeHirInterfaceSectionV1::new(

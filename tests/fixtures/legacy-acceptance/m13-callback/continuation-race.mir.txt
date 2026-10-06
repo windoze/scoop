@@ -468,8 +468,10 @@ Module
       val $dependency.argument.0: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.6
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.6
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0

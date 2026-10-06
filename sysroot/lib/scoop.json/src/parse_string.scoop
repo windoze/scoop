@@ -1,0 +1,61 @@
+package scoop.json
+
+internal fun hexDigit(character: Char, parser: JsonParser, path: String): Int {
+    if (character >= '0' && character <= '9') { return character.code - 48 }
+    if (character >= 'a' && character <= 'f') { return character.code - 87 }
+    if (character >= 'A' && character <= 'F') { return character.code - 55 }
+    throw parser.error(path, "expected a hexadecimal digit")
+}
+
+internal fun readHexQuad(parser: JsonParser, path: String): Int {
+    var result: Int = 0
+    var count: Int = 0
+    while (count < 4) {
+        result = result * 16 + hexDigit(parser.take(path), parser, path)
+        count = count + 1
+    }
+    return result
+}
+
+internal fun readUnicodeEscape(parser: JsonParser, path: String): Char {
+    val first = readHexQuad(parser, path)
+    if (first >= 55296 && first <= 56319) {
+        parser.expect('\\', path)
+        parser.expect('u', path)
+        val second = readHexQuad(parser, path)
+        if (second < 56320 || second > 57343) {
+            throw parser.error(path, "expected a low surrogate")
+        }
+        return (65536 + (first - 55296) * 1024 + second - 56320).toChar()
+    }
+    if (first >= 56320 && first <= 57343) {
+        throw parser.error(path, "isolated low surrogate")
+    }
+    return first.toChar()
+}
+
+internal fun readJsonString(parser: JsonParser, path: String): String {
+    parser.expect('"', path)
+    val result = StringBuilder()
+    while (parser.peek() != None) {
+        val character = parser.take(path)
+        if (character == '"') { return result.build() }
+        if (character.code < 32) { throw parser.error(path, "unescaped control character") }
+        if (character == '\\') {
+            val escaped = parser.take(path)
+            when (escaped) {
+                '"' -> { result.add('"') }
+                '\\' -> { result.add('\\') }
+                '/' -> { result.add('/') }
+                'b' -> { result.add('\u{8}') }
+                'f' -> { result.add('\u{c}') }
+                'n' -> { result.add('\n') }
+                'r' -> { result.add('\r') }
+                't' -> { result.add('\t') }
+                'u' -> { result.add(readUnicodeEscape(parser, path)) }
+                else -> { throw parser.error(path, "invalid string escape") }
+            }
+        } else { result.add(character) }
+    }
+    throw parser.error(path, "unterminated string")
+}

@@ -1,0 +1,4 @@
+class Item(private val value: Int)
+object Codec : Encodable<Item>
+
+fun main() {}

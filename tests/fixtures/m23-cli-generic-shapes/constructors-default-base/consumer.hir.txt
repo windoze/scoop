@@ -24,6 +24,105 @@ Module
       ClassInit Box<T0> : Box<T0>
         Local $dependency.parameter.value : T0
   output library
+== Static Shapes ==
+unit Unit
+intrinsic core_int8 Int8 Concrete(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4]))
+  interface ToString
+  interface Hash
+intrinsic core_int16 Int16 Concrete(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70]))
+  interface ToString
+  interface Hash
+intrinsic core_int Int Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))
+  interface ToString
+  interface Hash
+intrinsic core_long Long Concrete(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))
+  interface ToString
+  interface Hash
+intrinsic core_uint8 UInt8 Concrete(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216]))
+  interface ToString
+  interface Hash
+intrinsic core_uint16 UInt16 Concrete(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53]))
+  interface ToString
+  interface Hash
+intrinsic core_uint UInt Concrete(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75]))
+  interface ToString
+  interface Hash
+intrinsic core_ulong ULong Concrete(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248]))
+  interface ToString
+  interface Hash
+intrinsic core_boolean Boolean Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))
+  interface ToString
+  interface Hash
+intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
+  public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
+any Any
+class Box<T> GenericTemplate(PersistentGenericTypeId([207, 85, 29, 14, 158, 115, 63, 91, 58, 64, 196, 142, 104, 166, 236, 13, 71, 76, 144, 71, 101, 64, 82, 27, 127, 138, 191, 111, 191, 106, 134, 92]))
+  parameter T: Any
+  field value: T Field(PersistentFieldId([193, 2, 208, 132, 67, 219, 152, 211, 242, 119, 53, 120, 127, 210, 71, 131, 235, 53, 174, 70, 220, 232, 39, 136, 85, 58, 120, 18, 232, 175, 48, 88])) PropertyBacking(PersistentPropertyId([70, 175, 173, 191, 37, 198, 253, 165, 129, 127, 218, 126, 234, 77, 115, 13, 218, 200, 36, 193, 176, 181, 75, 173, 26, 25, 72, 89, 145, 135, 224, 240]))
+  field echoed: T Field(PersistentFieldId([178, 231, 240, 221, 253, 222, 213, 175, 53, 60, 37, 115, 162, 20, 78, 109, 229, 33, 130, 198, 236, 180, 218, 250, 131, 226, 235, 210, 53, 71, 139, 175])) PropertyBacking(PersistentPropertyId([115, 237, 17, 120, 89, 0, 113, 109, 205, 188, 249, 131, 156, 145, 5, 199, 4, 81, 0, 135, 107, 40, 153, 235, 234, 180, 84, 51, 66, 16, 158, 20]))
+  field count: Int Field(PersistentFieldId([107, 114, 222, 37, 23, 152, 78, 223, 155, 149, 198, 2, 60, 108, 48, 219, 73, 193, 208, 69, 43, 79, 144, 113, 43, 0, 3, 225, 244, 7, 116, 43])) PropertyBacking(PersistentPropertyId([167, 255, 16, 26, 0, 199, 64, 236, 159, 172, 104, 202, 251, 205, 150, 14, 215, 150, 25, 158, 74, 9, 23, 89, 54, 188, 83, 127, 35, 69, 249, 80]))
+  public property value: T 46afadbf25c6fda5817fda7eea4d730ddac824c1b0b54bad1a1948599187e0f0 stored c102d08443db98d3f27735787fd24783eb35ae46dce82788553a7812e8af3058
+  public property echoed: T 73ed11785900716dcdbcf9839c9105c7045100876b2899ebeab4543342109e14 stored b2e7f0ddfdded5af353c2573a2144e6de52182c6ecb4dafa83e2ebd235478baf
+  public property count: Int a7ff101a00c740ec9fac68cafbcd960ed796199e4a09175936bc537f2345f950 stored 6b72de2517984edf9b95c6023c6c30db49c1d0452b4f90712b0003e1f407742b
+  constructor Constructor(PersistentConstructorId([246, 97, 181, 124, 143, 70, 101, 111, 250, 6, 105, 33, 225, 180, 117, 163, 63, 230, 20, 215, 195, 173, 96, 34, 66, 166, 52, 136, 142, 94, 146, 18]))
+    parameter value: T Property(PersistentPropertyId([70, 175, 173, 191, 37, 198, 253, 165, 129, 127, 218, 126, 234, 77, 115, 13, 218, 200, 36, 193, 176, 181, 75, 173, 26, 25, 72, 89, 145, 135, 224, 240]))
+class DefaultDerived<T> GenericTemplate(PersistentGenericTypeId([41, 7, 236, 123, 203, 220, 88, 18, 234, 80, 43, 200, 83, 96, 40, 123, 154, 103, 65, 163, 200, 122, 15, 26, 23, 5, 188, 198, 237, 179, 13, 59]))
+  parameter T: Any
+  base DefaultBase<T>
+  constructor Constructor(PersistentConstructorId([0, 232, 112, 49, 45, 18, 54, 216, 60, 236, 2, 100, 134, 169, 98, 124, 70, 44, 119, 135, 169, 67, 9, 11, 73, 31, 184, 70, 0, 218, 205, 93]))
+class DefaultBase<T> GenericTemplate(PersistentGenericTypeId([77, 59, 63, 82, 210, 30, 173, 162, 177, 94, 225, 226, 89, 110, 107, 39, 68, 165, 7, 130, 126, 209, 98, 182, 115, 121, 204, 160, 135, 70, 104, 71]))
+  parameter T: Any
+  field count: Int Field(PersistentFieldId([141, 46, 13, 246, 141, 77, 79, 144, 32, 126, 97, 114, 178, 28, 73, 31, 25, 223, 69, 247, 80, 234, 249, 70, 11, 211, 58, 232, 12, 13, 122, 210])) PropertyBacking(PersistentPropertyId([53, 18, 195, 122, 219, 200, 233, 54, 232, 76, 182, 51, 0, 236, 82, 108, 123, 233, 154, 117, 97, 237, 47, 13, 47, 134, 99, 175, 86, 239, 178, 221]))
+  public property count: Int 3512c37adbc8e936e84cb63300ec526c7be99a7561ed2f0d2f8663af56efb2dd stored 8d2e0df68d4d4f90207e6172b21c491f19df45f750eaf9460bd33ae80c0d7ad2
+  constructor Constructor(PersistentConstructorId([225, 190, 157, 118, 63, 216, 27, 113, 129, 45, 76, 251, 27, 124, 212, 1, 95, 109, 163, 27, 126, 2, 198, 155, 33, 86, 84, 93, 232, 81, 77, 13]))
+    parameter count: Int Property(PersistentPropertyId([53, 18, 195, 122, 219, 200, 233, 54, 232, 76, 182, 51, 0, 236, 82, 108, 123, 233, 154, 117, 97, 237, 47, 13, 47, 134, 99, 175, 86, 239, 178, 221])) default parameter0
+class DefaultDerived<Int> GenericTemplate(PersistentGenericTypeId([41, 7, 236, 123, 203, 220, 88, 18, 234, 80, 43, 200, 83, 96, 40, 123, 154, 103, 65, 163, 200, 122, 15, 26, 23, 5, 188, 198, 237, 179, 13, 59]))
+  base DefaultBase<Int>
+  constructor Constructor(PersistentConstructorId([0, 232, 112, 49, 45, 18, 54, 216, 60, 236, 2, 100, 134, 169, 98, 124, 70, 44, 119, 135, 169, 67, 9, 11, 73, 31, 184, 70, 0, 218, 205, 93]))
+class DefaultBase<Int> GenericTemplate(PersistentGenericTypeId([77, 59, 63, 82, 210, 30, 173, 162, 177, 94, 225, 226, 89, 110, 107, 39, 68, 165, 7, 130, 126, 209, 98, 182, 115, 121, 204, 160, 135, 70, 104, 71]))
+  field count: Int Field(PersistentFieldId([141, 46, 13, 246, 141, 77, 79, 144, 32, 126, 97, 114, 178, 28, 73, 31, 25, 223, 69, 247, 80, 234, 249, 70, 11, 211, 58, 232, 12, 13, 122, 210])) PropertyBacking(PersistentPropertyId([53, 18, 195, 122, 219, 200, 233, 54, 232, 76, 182, 51, 0, 236, 82, 108, 123, 233, 154, 117, 97, 237, 47, 13, 47, 134, 99, 175, 86, 239, 178, 221]))
+  public property count: Int 3512c37adbc8e936e84cb63300ec526c7be99a7561ed2f0d2f8663af56efb2dd stored 8d2e0df68d4d4f90207e6172b21c491f19df45f750eaf9460bd33ae80c0d7ad2
+  constructor Constructor(PersistentConstructorId([225, 190, 157, 118, 63, 216, 27, 113, 129, 45, 76, 251, 27, 124, 212, 1, 95, 109, 163, 27, 126, 2, 198, 155, 33, 86, 84, 93, 232, 81, 77, 13]))
+    parameter count: Int Property(PersistentPropertyId([53, 18, 195, 122, 219, 200, 233, 54, 232, 76, 182, 51, 0, 236, 82, 108, 123, 233, 154, 117, 97, 237, 47, 13, 47, 134, 99, 175, 86, 239, 178, 221])) default parameter0
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
+  parameter T: Any
+interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
+  parameter T: Any
+class Throwable Concrete(PersistentTypeId([52, 14, 197, 53, 40, 145, 114, 19, 48, 106, 128, 71, 51, 154, 164, 217, 17, 163, 145, 23, 194, 20, 73, 185, 182, 162, 42, 38, 51, 7, 173, 29]))
+  constructor Constructor(PersistentConstructorId([84, 32, 196, 202, 149, 144, 64, 117, 54, 82, 22, 147, 35, 209, 86, 184, 221, 238, 244, 15, 59, 13, 237, 67, 24, 60, 35, 116, 204, 149, 117, 27]))
+interface SuspendRegistration<T> GenericTemplate(PersistentGenericTypeId([80, 188, 252, 189, 116, 121, 224, 49, 66, 155, 150, 60, 205, 4, 57, 70, 147, 131, 203, 206, 75, 84, 41, 8, 74, 156, 94, 112, 217, 199, 183, 207]))
+  parameter T: Any
+class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
+  base Exception
+  constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
+    parameter message: Option<String> Plain default parameter0
+class Exception Concrete(PersistentTypeId([142, 87, 2, 76, 204, 55, 50, 96, 83, 32, 249, 205, 109, 172, 122, 28, 68, 54, 57, 231, 7, 212, 7, 34, 32, 169, 251, 228, 229, 149, 81, 121]))
+  base Throwable
+  field message: Option<String> Field(PersistentFieldId([149, 203, 168, 111, 213, 200, 80, 53, 248, 73, 183, 41, 242, 24, 158, 120, 189, 140, 149, 120, 95, 21, 186, 148, 67, 186, 139, 239, 80, 120, 208, 131])) PropertyBacking(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+  public property message: Option<String> 2a3930f700cfe99e457bcbae3b6c7cbb78cbecb5e7f0f8be2f06284b9add2026 stored 95cba86fd5c85035f849b729f2189e78bd8c95785f15ba9443ba8bef5078d083
+  constructor Constructor(PersistentConstructorId([25, 35, 17, 109, 201, 110, 78, 21, 232, 210, 177, 220, 71, 252, 25, 233, 177, 47, 203, 166, 101, 159, 77, 84, 16, 179, 84, 175, 235, 207, 71, 95]))
+    parameter message: Option<String> Property(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  parameter T: Any
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: String VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
 == LocalConcrete ==
 LocalConcrete d6fa0eb79897d1eee1a2142d0bfbe42d49464650e0ca99fa597b40d5c3ddfdff Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }

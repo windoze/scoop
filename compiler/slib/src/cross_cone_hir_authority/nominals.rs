@@ -34,9 +34,13 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             })?;
         let expected_arity = key.duplicate_signature().type_parameter_count();
         let interface = self.provider_interface(origin)?;
-        // Unit and Any are intrinsic language types without source declaration
-        // arena entries. All source-defined nominals use the provider table.
-        if let SourceNominalId::Concrete(id) = declaration
+        // Prefer source declarations, including core Unit. Builtin identities
+        // also occur in interfaces that do not contain their declarations.
+        if interface
+            .nominal_interfaces()
+            .declaration(declaration)
+            .is_none()
+            && let SourceNominalId::Concrete(id) = declaration
             && [
                 scoop_identity::CoreBuiltinNominal::Unit,
                 scoop_identity::CoreBuiltinNominal::Any,

@@ -64,7 +64,7 @@ fn parents(edges: &NominalInheritanceEdgesV1) -> impl Iterator<Item = Persistent
         .chain(edges.direct_interfaces().iter().copied())
 }
 
-fn project(
+pub(super) fn project(
     types: MetadataTypes<'_, '_>,
     exact: PersistentExactTypeId,
 ) -> Result<NominalInheritanceEdgesV1, Error> {

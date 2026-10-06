@@ -40,6 +40,7 @@ pub struct HirExportBindingIdentityInputs<'a> {
     pub function_identities: &'a HirFunctionIdentities,
     pub property_identities: &'a HirPropertyIdentities,
     pub type_alias_identities: &'a crate::HirTypeAliasIdentities,
+    pub annotations: &'a crate::SourceAnnotations,
 }
 
 /// Canonically ordered direct package bindings for the public HIR surface.
@@ -254,6 +255,27 @@ impl HirExportBindingIdentities {
             )?;
         }
 
+        for (index, annotation) in inputs.annotations.declarations.iter().enumerate() {
+            if inputs
+                .surface
+                .annotations
+                .contains(&annotation.identity.id())
+            {
+                let declaration = annotation.identity.key();
+                require_public_binding_declaration(
+                    declaration,
+                    HirExportBindingEntityKind::Annotation,
+                    index as u32,
+                )?;
+                push_binding(
+                    declaration,
+                    BindingTarget::annotation(declaration),
+                    HirExportBindingEntityKind::Annotation,
+                    index as u32,
+                    &mut records,
+                )?;
+            }
+        }
         Self::canonicalize(records)
     }
 

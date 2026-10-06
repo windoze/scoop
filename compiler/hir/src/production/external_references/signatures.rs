@@ -46,38 +46,11 @@ where
                 &path.clone().field(4).index(signature_index),
             )?;
         }
-        for (selection_index, selection) in record
-            .declaration_details()
-            .dispatch_selections()
-            .records()
-            .iter()
-            .enumerate()
-        {
-            observe(
-                accumulator,
-                selection.receiver(),
-                &path
-                    .clone()
-                    .field(9)
-                    .field(7)
-                    .index(selection_index as u64)
-                    .field(3),
-            )?;
-            if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role()
-            {
-                observe(
-                    accumulator,
-                    interface,
-                    &path
-                        .clone()
-                        .field(9)
-                        .field(7)
-                        .index(selection_index as u64)
-                        .field(0)
-                        .field(1),
-                )?;
-            }
-        }
+        collect_dispatch_signatures(
+            accumulator,
+            record.declaration_details().dispatch_selections(),
+            &path.clone().field(9).field(7),
+        )?;
         for (field_index, field) in (0_u64..).zip(record.source_shape().declared_fields()) {
             observe(
                 accumulator,
@@ -114,6 +87,24 @@ where
             | NominalSourceShapeV1::Interface
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Intrinsic(_) => continue,
+        }
+    }
+    Ok(())
+}
+
+fn collect_dispatch_signatures<A, E>(
+    accumulator: &mut ExternalReferenceAccumulator<'_, A>,
+    selections: &crate::CanonicalNominalDispatchSelectionsV1,
+    path: &WirePath,
+) -> Result<(), ExternalHirReferenceProductionError<E>>
+where
+    A: ExternalHirReferenceSemanticAuthority<E>,
+{
+    for (index, selection) in selections.records().iter().enumerate() {
+        let path = path.clone().index(index as u64);
+        observe(accumulator, selection.receiver(), &path.clone().field(3))?;
+        if let crate::NominalDispatchSelectionRoleV1::Interface { interface } = selection.role() {
+            observe(accumulator, interface, &path.field(0).field(1))?;
         }
     }
     Ok(())

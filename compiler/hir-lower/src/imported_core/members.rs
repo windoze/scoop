@@ -122,9 +122,13 @@ impl Lowerer {
                     }
                     pending.extend(self.direct_nominal_supertypes(ty).into_iter().rev());
                 }
-                hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String => {
+                hir::Type::Unit
+                | hir::Type::Integer(_)
+                | hir::Type::Boolean
+                | hir::Type::String => {
                     let kind = match self.types[ty] {
                         hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                        hir::Type::Unit => hir::IntrinsicTypeKind::Unit,
                         hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                         hir::Type::String => hir::IntrinsicTypeKind::String,
                         _ => unreachable!("intrinsic member receiver kind"),
@@ -132,6 +136,9 @@ impl Lowerer {
                     if let Some(source) = self.imported_intrinsic_types.get(&kind) {
                         pending.extend(source.interfaces.iter().rev().copied());
                     }
+                }
+                hir::Type::Tuple(_) => {
+                    pending.extend(self.direct_nominal_supertypes(ty));
                 }
                 hir::Type::Param(parameter) => {
                     if let Some(declaration) = self

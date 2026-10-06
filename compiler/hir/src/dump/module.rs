@@ -1,6 +1,7 @@
 use super::body::{dump_statements, generic_method_owner_arguments};
 use super::*;
 
+mod annotations;
 mod functions;
 mod properties;
 use properties::dump_property;
@@ -24,6 +25,7 @@ pub fn dump_module(module: &Module) -> String {
 
 fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) -> String {
     let mut out = String::from("Module\n");
+    annotations::dump_annotations(module, &mut out);
     let defined_core = match &module.core_protocols {
         CoreProtocols::Defined(protocols) => Some(protocols),
         CoreProtocols::Imported(_) => None,

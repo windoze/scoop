@@ -3,6 +3,7 @@
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.1 and
 //! `docs/milestone2/DESIGN.md` for the M2 subset.
 
+mod annotations;
 mod context;
 mod declarations;
 mod dump;
@@ -14,6 +15,7 @@ mod source;
 mod statements;
 mod types;
 
+pub use annotations::*;
 pub use context::*;
 pub use declarations::*;
 pub use dump::{dump, dump_pattern};

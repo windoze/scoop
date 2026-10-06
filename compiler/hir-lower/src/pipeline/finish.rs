@@ -318,6 +318,7 @@ impl Lowerer {
             property_identities,
             property_accessor_identities,
             type_alias_identities,
+            annotations: self.annotation_metadata,
             enum_member_identities: self
                 .enum_member_identities
                 .expect("completed HIR retains original enum member identities"),
@@ -351,6 +352,7 @@ impl Lowerer {
             imported_constructor_templates: self.imported_constructor_templates.into_completed(),
             imported_generic_templates: self.imported_generic_templates.into_completed(),
             imported_generic_delegate_templates: self.imported_generic_delegate_templates,
+            imported_companion_templates: self.imported_companion_templates,
             imported_generic_applications: self.imported_generic_applications,
             bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,

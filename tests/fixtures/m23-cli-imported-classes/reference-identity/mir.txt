@@ -34,8 +34,10 @@ Module
       assign $logic.1
         Type Boolean
         IsInstance VirtualCounter
-          Type VirtualBase
-          Local value
+          Type Any
+          Retype Any
+            Type VirtualBase
+            Local value
       goto bb3
     bb2 logic.short.2
       assign $logic.1

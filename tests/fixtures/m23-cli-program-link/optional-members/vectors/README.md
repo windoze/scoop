@@ -6,7 +6,7 @@
 将对应 payload 插入片段之间。原产物和重组产物均检查完整 SHA-256。
 
 输入为 `dev.programlink:root:0.1.0`、`read-println.scoop` 的当前完整产物，
-原 SHA-256 为 `48a543351ecbfb378aec2d6541714306ce98885429adbda3f42b9a2f7ff5ea64`。
+原 SHA-256 为 `3cf90419ffd8dcd9358a957cca872601a0f5f2e2c7f383ebb3a2845b98344381`。
 保留 compatibility、Cone、direct dependencies、原 members、semantic fingerprints
 和 sections，producer 改为 `m23-program-link-repack`。
 
@@ -34,3 +34,7 @@ M26 迁移使用当前正式产物和同一组 writer API 重建 manifest、head
 M27 迁移保留同样的 optional/required 能力声明，使用当前 runtime ABI 的实际产物
 重新生成片段。物理 member 顺序变化后，TOML 同步引用当前第一个 LinkObject 的 payload，
 并核对所有片段拼接与正式 writer 产物逐字节一致。
+
+M29 迁移保留原有 optional/required 成员、用途与 payload 顺序，重建当前 core
+依赖对应的 manifest 和归档 header。最后一个奇数字节数的 metadata member
+包含正常 archive padding；TOML 拼接也保留该字节，完整结果与正式 writer 一致。

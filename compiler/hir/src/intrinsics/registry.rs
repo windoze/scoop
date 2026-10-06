@@ -7,6 +7,10 @@ use super::*;
 /// nominal declaration contract emitted as typed HIR.
 pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
+        name: "core_unit",
+        kind: IntrinsicTypeKind::Unit,
+    },
+    IntrinsicTypeSpec {
         name: "core_char",
         kind: IntrinsicTypeKind::Char,
     },

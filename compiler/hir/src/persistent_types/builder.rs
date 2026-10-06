@@ -260,7 +260,7 @@ impl<'a> TypeIdentityBuilder<'a> {
             return self.nominal_application(
                 ty,
                 self.inputs.nominal_identities[object].clone(),
-                0,
+                parameter_count,
                 &application.arguments,
             );
         }

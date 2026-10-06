@@ -1,0 +1,2 @@
+class Coding<T> : Encodable<(Int, T)>
+fun main() {}

@@ -1,0 +1,3 @@
+open class Item(val value: Int) { companion object : Encodable<Item> }
+
+fun main() {}

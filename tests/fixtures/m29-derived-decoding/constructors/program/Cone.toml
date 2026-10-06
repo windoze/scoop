@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "derived-decoding-constructors"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"

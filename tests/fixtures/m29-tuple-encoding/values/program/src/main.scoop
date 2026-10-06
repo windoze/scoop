@@ -1,0 +1,38 @@
+import scoop.json.Json
+
+fun check(value: Boolean, code: Int) {
+    if (!value) { throw IllegalStateException(Some("tuple case " + code.toString())) }
+}
+public struct Record(@SerialName("point") val value: (Int, String)) {
+    public companion object : Encodable<Record>, Decodable<Record>
+}
+class PairEncoder<A, B>(private val first: Encodable<A>, private val second: Encodable<B>)
+    : Encodable<(A, B)>
+private object Single : Encodable<(Int,)>
+private object PairCodec : Encodable<(Int, String)>, Decodable<(Int, String)>
+private object NestedCodec : Encodable<((Int, String), Unit)>, Decodable<((Int, String), Unit)>
+private object Twelve : Encodable<(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int, Int)>
+
+fun main() {
+    check(Json.encode((5,), Single) == "[5]", 0)
+    check(Json.encode((7, "tuple"), PairCodec) == "[7,\"tuple\"]", 1)
+    check(Json.encode((Unit, Unit), PairEncoder(UnitEncoder, UnitEncoder)) == "[null,null]", 2)
+    val nestedCodec = PairEncoder(PairCodec, PairEncoder(Boolean.Companion, Char.Companion))
+    check(Json.encode(((1, "nested"), (true, '中')), nestedCodec) == "[[1,\"nested\"],[true,\"中\"]]", 3)
+    check(Json.encode((1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), Twelve)
+        == "[1,2,3,4,5,6,7,8,9,10,11,12]", 4)
+    val pair = Json.decode("[9,\"decode\"]", PairCodec)
+    check(pair._1 == 9 && pair._2 == "decode", 5)
+    check(Json.encode(Json.decode("[[8,\"nested\"],null]", NestedCodec), NestedCodec) == "[[8,\"nested\"],null]", 6)
+    check(Json.encode(Json.decode("{\"point\":[3,\"field\"]}", Record.Companion), Record.Companion)
+        == "{\"point\":[3,\"field\"]}", 7)
+    val data = Array<(Int, String)>(2L) { index -> (index.toInt32(), "array") }
+    val arrayCodec = Array<(Int, String)>.encoder(PairCodec)
+    check(Json.encode(data, arrayCodec) == "[[0,\"array\"],[1,\"array\"]]", 8)
+    val optionCodec = Option<(Int, Unit)>.encoder(PairEncoder(Int.Companion, UnitEncoder))
+    check(Json.encode((Some((4, Unit)), data), PairEncoder(optionCodec, arrayCodec))
+        == "[{\"Some\":[[4,null]]},[[0,\"array\"],[1,\"array\"]]]", 9)
+    dynamicCases()
+    combinedCases()
+    println("tuple-encoding-ok")
+}

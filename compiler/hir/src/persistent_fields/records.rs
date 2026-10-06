@@ -93,11 +93,19 @@ pub(super) fn class_field_record(
             }
         }
         crate::HirNominalIdentity::Generated(owner) => {
-            let GeneratedNominalKey::ObjectBackingClass { object } = owner.key() else {
-                return Err(HirFieldIdentityError::UnsupportedGeneratedClassOwner {
-                    class,
-                    field: field_index,
-                });
+            let object = match owner.key() {
+                GeneratedNominalKey::ObjectBackingClass { object } => {
+                    crate::SourceNominalId::Concrete(*object)
+                }
+                GeneratedNominalKey::GenericObjectBackingClass { object } => {
+                    crate::SourceNominalId::GenericTemplate(*object)
+                }
+                _ => {
+                    return Err(HirFieldIdentityError::UnsupportedGeneratedClassOwner {
+                        class,
+                        field: field_index,
+                    });
+                }
             };
             let PropertyOwner::Object(object_id) = property.owner else {
                 return Err(HirFieldIdentityError::ObjectBackingPropertyOwner {
@@ -114,7 +122,7 @@ pub(super) fn class_field_record(
                 });
             }
             if objects[object_id].backing_class != class_id
-                || nominal_identities[object_id].concrete_type_id() != Some(*object)
+                || nominal_identities[object_id].declaration_id() != object
             {
                 return Err(HirFieldIdentityError::ObjectBackingRelation {
                     class,

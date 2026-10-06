@@ -46,6 +46,12 @@ pub(super) fn intrinsic_layout(
     family: IntrinsicTypeKind,
 ) -> Result<PhysicalType, NativeBoundaryCompileError> {
     match family {
+        IntrinsicTypeKind::Unit => Ok(PhysicalType {
+            size: 0,
+            alignment: 1,
+            shape: ScoopAbiValueShape::Aggregate,
+            gc_free: true,
+        }),
         IntrinsicTypeKind::Integer(kind) => {
             let (_, width) = integer_representation(kind);
             Ok(scalar(

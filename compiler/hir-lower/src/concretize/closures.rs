@@ -100,7 +100,7 @@ impl Concretizer<'_> {
             return id;
         }
         let key = &self.function_keys[function.into_raw().into_u32() as usize];
-        let span = self.resolved_function_definition(key).signature.span;
+        let span = self.resolved_function_definition(key).signature().span;
         let id = self.local_functions.alloc(concrete::LocalFunction {
             definition_path,
             function,

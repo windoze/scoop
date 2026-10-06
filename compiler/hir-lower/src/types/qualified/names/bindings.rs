@@ -8,14 +8,19 @@ impl Lowerer {
         supplied_type_arguments: bool,
     ) -> Option<ResolvedTypeName> {
         match binding {
+            TypeLookupTarget::Current(TopLevelTypeTarget::Annotation(id)) => {
+                Some(ResolvedTypeName::Annotation(id))
+            }
             TypeLookupTarget::Current(TopLevelTypeTarget::Nominal(target)) => Some(
                 ResolvedTypeName::Nominal(self.nominal_identity(target.owner()).declaration_id()),
             ),
             TypeLookupTarget::Current(TopLevelTypeTarget::Alias(alias)) => self
                 .resolve_type_alias_id_reference(alias, name, supplied_type_arguments)
-                .map(ResolvedTypeName::Alias),
+                .map(ResolvedTypeName::Applied),
             TypeLookupTarget::Dependency(binding) => {
-                if let Some(owner) = binding.target().source_nominal() {
+                if let hir::ImportedTarget::Annotation(id) = binding.target() {
+                    Some(ResolvedTypeName::Annotation(id.persistent()))
+                } else if let Some(owner) = binding.target().source_nominal() {
                     Some(ResolvedTypeName::Nominal(owner))
                 } else {
                     self.resolve_imported_dependency_type_target(
@@ -23,19 +28,25 @@ impl Lowerer {
                         name,
                         supplied_type_arguments,
                     )
-                    .map(ResolvedTypeName::Alias)
+                    .map(ResolvedTypeName::Applied)
                 }
             }
         }
     }
 
-    pub(super) fn resolve_nested_type_name(
+    pub(in crate::types) fn resolve_nested_type_name(
         &mut self,
         owner: hir::SourceNominalId,
         name: &ast::Ident,
         supplied_type_arguments: bool,
     ) -> Result<Option<ResolvedTypeName>, ()> {
         if let Some(owner) = self.nominal_owners.get(&owner).copied() {
+            if let Some(id) = self
+                .nested_annotations_by_owner
+                .get(&(owner, name.text.clone()))
+            {
+                return Ok(Some(ResolvedTypeName::Annotation(*id)));
+            }
             return Ok(self.nested_nominal_target(owner, &name.text).map(|target| {
                 ResolvedTypeName::Nominal(self.nominal_identity(target.owner()).declaration_id())
             }));

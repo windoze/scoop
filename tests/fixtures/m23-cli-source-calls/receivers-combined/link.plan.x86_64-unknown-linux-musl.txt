@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone test:source-receivers:1.0.0 kind=Library objects=5
 cone test:scoop-hir-lower:0.0.0 kind=Library objects=4
 cone test:source-calls-runtime-receivers-combined:1.0.0 kind=Executable objects=4

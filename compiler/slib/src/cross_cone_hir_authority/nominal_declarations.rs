@@ -2,6 +2,8 @@ use super::*;
 use scoop_hir::{DeclaredVisibilityV1, NestedSourceMemberRefV1, NominalInterfaceRecordV1};
 use scoop_identity::DefinitionOriginSubject;
 
+mod class_primary;
+
 type Error = CrossConeHirNominalAuthorityError;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
@@ -94,6 +96,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 ));
             }
         }
+        self.validate_class_primary_constructor(record)?;
         for member in details.members().values() {
             if self.member_owner(public_member(*member))? != expected {
                 return Err(invalid(
@@ -166,6 +169,23 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                         .map_err(Error::Identity)?;
                     SourceNominalId::from_source_declaration(&key)
                         .map_err(|_| invalid(owner, "nested object value has no source nominal"))?
+                }
+                BindableEntity::Annotation(id) => {
+                    let key = self.identities.canonical_key::<scoop_identity::PersistentAnnotationId, SourceDeclarationKey>(id).map_err(Error::Identity)?;
+                    let annotation = self
+                        .current_interface
+                        .annotations()
+                        .declaration(id)
+                        .ok_or_else(|| invalid(owner, "nested annotation has no declaration"))?;
+                    if self.source_key_owner("annotation", &key)? != expected
+                        || annotation.visibility != DeclaredVisibilityV1::Public
+                    {
+                        return Err(invalid(
+                            owner,
+                            "nested annotation binding has a different owner or visibility",
+                        ));
+                    }
+                    continue;
                 }
                 BindableEntity::EnumVariant(id) => {
                     let scoop_hir::NominalSourceShapeV1::Enum(shape) = record.source_shape() else {

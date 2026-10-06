@@ -419,27 +419,28 @@ fn materialization_odr_group(
                 .group(),
         ),
         hir::CallableMaterializationContext::InitializationApplication(unit) => {
-            let unit = module
-                .initialization_units
-                .iter()
-                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
-                .expect("an initialization materialization references its unit");
-            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
-                property,
-                receiver_arguments,
-            } = unit.identity.key()
-            else {
-                panic!("an initialization materialization belongs to a generic delegated extension")
-            };
-            Some(
-                hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
-                    origin: *property,
-                    receiver_arguments: receiver_arguments.clone(),
-                })
-                .expect("a delegated-property ODR group identity is hashable"),
-            )
+            Some(initialization_odr_group(module, unit))
         }
     }
+}
+
+fn initialization_odr_group(
+    module: &hir::Module,
+    identity: hir::PersistentInitializationUnitId,
+) -> hir::OdrGroupId {
+    let unit = module
+        .initialization_units
+        .iter()
+        .find_map(|(_, unit)| (unit.identity.id() == identity).then_some(unit))
+        .expect("an initialization application retains its concrete unit");
+    hir::OdrGroupId::from_key(
+        &unit
+            .identity
+            .key()
+            .specialization_key()
+            .expect("an initialization application has a specialization"),
+    )
+    .expect("an initialization specialization key is hashable")
 }
 
 fn finish_cfg_body(

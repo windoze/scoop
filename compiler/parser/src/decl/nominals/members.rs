@@ -66,6 +66,12 @@ impl Parser {
                     self.parse_secondary_constructor(prefix.annotations, prefix.visibility)
                 })
                 .map(ClassMember::SecondaryConstructor),
+            TokenKind::Ident(text) if text == "annotation" => self
+                .parse_annotation_class(prefix)
+                .map(Box::new)
+                .map(NestedNominalDecl::AnnotationClass)
+                .map(Box::new)
+                .map(ClassMember::Nested),
             TokenKind::Ident(text) if text == "typealias" => self.unsupported_nested_type_alias(),
             TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => self
                 .parse_nested_nominal(prefix)
@@ -283,6 +289,7 @@ impl Parser {
                         .map(Box::new)
                         .map(StructMember::Nested)
                 }
+                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(Box::new).map(StructMember::Nested),
                 TokenKind::Ident(text) if text == "companion" => {
                     self.require_unmodified_nominal_prefix(&prefix, "companion object")?;
                     self.parse_companion_object(prefix.annotations, prefix.visibility)

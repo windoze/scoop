@@ -1,0 +1,16 @@
+schema = 1
+name = "m29-companion-missing-host-call"
+root = "missing-host-call.scoop"
+inputs = ["missing-host-call.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "companion", "negative"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "missing-host-call.diagnostics.json"}

@@ -32,7 +32,6 @@ fn host_class() -> ast::ClassDecl {
         unreachable!("class builder returns a class")
     };
     host.visibility = public_visibility();
-    host.type_params = vec![type_param("T")];
     host.members.push(ast::ClassMember::Companion(Box::new(
         ast::CompanionObjectDecl {
             annotations: Vec::new(),
@@ -108,7 +107,7 @@ fn companion_relation_alias_and_forwarding_are_typed() {
         ),
         fun("main", Vec::new()),
     ]))
-    .expect("a generic host must own one non-generic companion singleton");
+    .expect("a non-generic host owns one companion singleton");
 
     let module = &output.export;
     let (host, _) = module

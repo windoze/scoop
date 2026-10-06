@@ -25,6 +25,13 @@ pub enum TypeRefKind {
         path: Vec<Ident>,
         arguments: Vec<TypeRef>,
     },
+    /// A member qualified by an applied host, e.g. `Box<Int>.Companion`.
+    /// Ordinary declaration-only paths retain the compact `Qualified` form.
+    AppliedMember {
+        owner: Box<TypeRef>,
+        name: Ident,
+        arguments: Vec<TypeRef>,
+    },
     Tuple(Vec<TypeRef>),
     /// The `Unit` type name (also written `()` in type position).
     Unit,
@@ -43,6 +50,13 @@ impl TypeRef {
     pub fn split_qualified_tail(self) -> Result<(Self, Ident), Self> {
         let Self { kind, span } = self;
         let (mut path, arguments) = match kind {
+            TypeRefKind::AppliedMember {
+                owner,
+                name,
+                arguments,
+            } if arguments.is_empty() => {
+                return Ok((*owner, name));
+            }
             TypeRefKind::Qualified { path, arguments } => (path, arguments),
             kind => return Err(Self { kind, span }),
         };
@@ -78,6 +92,32 @@ impl TypeRef {
             },
             name,
         ))
+    }
+
+    pub fn with_member(self, name: Ident, arguments: Vec<TypeRef>, end: u32) -> Self {
+        let span = Span::new(self.span.start, end);
+        let kind = match self.kind {
+            TypeRefKind::Named(first) => TypeRefKind::Qualified {
+                path: vec![first, name],
+                arguments,
+            },
+            TypeRefKind::Qualified {
+                mut path,
+                arguments: previous,
+            } if previous.is_empty() => {
+                path.push(name);
+                TypeRefKind::Qualified { path, arguments }
+            }
+            kind => TypeRefKind::AppliedMember {
+                owner: Box::new(Self {
+                    kind,
+                    span: self.span,
+                }),
+                name,
+                arguments,
+            },
+        };
+        Self { kind, span }
     }
 }
 

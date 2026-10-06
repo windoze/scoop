@@ -1,0 +1,4 @@
+interface Required {}
+struct Plain(val value: Int)
+struct Box<T : Required>(val value: T) { companion object }
+fun main() { val value = Box<Plain>.Companion }

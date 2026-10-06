@@ -87,19 +87,21 @@ pub(crate) struct BackingFieldContext {
 
 impl Lowerer {
     pub(crate) fn qualified_object_const_property(
-        &self,
+        &mut self,
         receiver: &ast::Expr,
         name: &str,
-    ) -> Option<hir::PropertyId> {
-        let target = self.nominal_qualifier_target(receiver)?;
+    ) -> Result<Option<hir::PropertyId>, ()> {
+        let Some((target, _)) = self.complete_companion_qualifier(receiver)? else {
+            return Ok(None);
+        };
         let direct = match target {
             crate::NominalTarget::Object(object) => self.object_const_property(object, name),
             _ => None,
         };
-        direct.or_else(|| {
+        Ok(direct.or_else(|| {
             let companion = self.companion_object(target.owner())?;
             self.object_const_property(companion, name)
-        })
+        }))
     }
 
     fn object_const_property(&self, object: hir::ObjectId, name: &str) -> Option<hir::PropertyId> {
@@ -177,6 +179,7 @@ impl Lowerer {
                 })
             }
             hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 match (owner_application, receiver) {
@@ -256,6 +259,7 @@ impl Lowerer {
                 unreachable!("const properties never expose a setter")
             }
             hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function)
             | hir::PropertyAccessorImplementation::AbstractSlot(function) => {
                 self.check_call_effects(hir::Callable::Function(function), span);
                 let expression = match (owner_application, receiver) {
@@ -337,6 +341,7 @@ impl Lowerer {
         {
             dependencies.push(hir::InitializationDependency {
                 unit: dependency,
+                type_arguments: Vec::new(),
                 span,
             });
         }

@@ -50,7 +50,12 @@ pub fn validate_shared_mir_type_exports(
         }
     }
     for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-        if builtin.declaration_key().origin() == source.provider() {
+        if builtin.declaration_key().origin() == source.provider()
+            && source
+                .representations()
+                .get(builtin.identity_record().id())
+                .is_none()
+        {
             comparison.builtin(builtin)?;
         }
     }

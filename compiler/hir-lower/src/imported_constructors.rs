@@ -1,5 +1,6 @@
 //! Constructor requests retain the provider's declaration and applied owner.
 
+mod companions;
 mod prepare;
 
 use std::collections::BTreeMap;
@@ -134,7 +135,15 @@ impl Lowerer {
 
     pub(crate) fn complete_imported_constructor(&mut self, index: usize) {
         let template = self.imported_constructor_templates.templates[index].clone();
-        match self.materialize_imported_constructor(&template) {
+        let id = Idx::from_raw(RawIdx::from(index as u32));
+        let result = self
+            .materialize_imported_constructor(&template)
+            .map_err(|error| error.to_string())
+            .and_then(|kind| {
+                self.complete_companion_dependencies(id, &template)?;
+                Ok(kind)
+            });
+        match result {
             Ok(kind) => self.imported_constructor_templates.templates[index].kind = Some(kind),
             Err(error) => {
                 self.current_file = template.signature.origin.file as usize;

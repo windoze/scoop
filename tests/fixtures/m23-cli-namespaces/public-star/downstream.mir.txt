@@ -1,5 +1,7 @@
 Module
-  global0 $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec: Companion imported provider=e429b7993b201ed951fc2cbd33a5e0b8f530943b78e1a45bfb328774c95b3116 storage=6b18b233a02dee66ac76643165cbaa33e6cb0d010b447e73a2031e7aac5c6f4f
+  global0 $singleton$Companion: Companion<Int> managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 companion:Outer.Companion singleton lazy global0 initializer=@fn9 ensure=@fn10 failure=1 deps=[]
   struct Box<Later> (value: Later)
   struct Leaf (number: Int)
   struct Box<Int> (value: Int)
@@ -14,7 +16,7 @@ Module
     Empty()
     Value(value: Later)
   class Later vtable=0 itables=0
-  class Companion vtable=0 itables=0
+  class Companion<Int> vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -23,12 +25,12 @@ Module
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn19 id=81497cb6538fe2aee67f2e0b31441d353c187216e58ee9bb454ede7a03bdbf0d
-  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn20 id=95eff3ac6287bec977b4005dd3685ef2a36a4bbdc8183f6559d95f9ba1fa9e1d
-  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn13 captures=0
-    bridge function_type1 -> @fn21 id=c4f69e3832598eb1e59e7b953fd5139f0762ad295276ed27c1bcff96095f3d7d
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn15 captures=0
+    bridge function_type1 -> @fn24 id=81497cb6538fe2aee67f2e0b31441d353c187216e58ee9bb454ede7a03bdbf0d
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn25 id=95eff3ac6287bec977b4005dd3685ef2a36a4bbdc8183f6559d95f9ba1fa9e1d
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn17 captures=0
+    bridge function_type1 -> @fn26 id=c4f69e3832598eb1e59e7b953fd5139f0762ad295276ed27c1bcff96095f3d7d
   generated_exact_type get0 location=closure0 nominal_id=ee5b8ccf2989dfd99dd9cc34f4245baf4ee05cc40e4a1c2ac3c0c7d6f2f0e7b6 exact_id=02162b6e37fa10f6166ef4882b1051d042f6aad815465875ba095eb29579adcf
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=enum2 nominal_id=3b7f331f8e22b4246998a0718d605d9d0927636b948de4bb1983e546e5c13bb0 exact_id=1be6089c6df5198133d2c1ddf060bee328cf86ee2acdf803c23d5575110eefc4
@@ -41,10 +43,10 @@ Module
   generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get10 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn19 id=81497cb6538fe2aee67f2e0b31441d353c187216e58ee9bb454ede7a03bdbf0d
-  generated_callable gc1 function=@fn20 id=95eff3ac6287bec977b4005dd3685ef2a36a4bbdc8183f6559d95f9ba1fa9e1d
-  generated_callable gc2 function=@fn21 id=c4f69e3832598eb1e59e7b953fd5139f0762ad295276ed27c1bcff96095f3d7d
-  generated_callable gc3 function=@fn18 id=f70f27942728505a7567f7ada6830b33ac265d0e30b83a9a4878a8845f88b252
+  generated_callable gc0 function=@fn24 id=81497cb6538fe2aee67f2e0b31441d353c187216e58ee9bb454ede7a03bdbf0d
+  generated_callable gc1 function=@fn25 id=95eff3ac6287bec977b4005dd3685ef2a36a4bbdc8183f6559d95f9ba1fa9e1d
+  generated_callable gc2 function=@fn26 id=c4f69e3832598eb1e59e7b953fd5139f0762ad295276ed27c1bcff96095f3d7d
+  generated_callable gc3 function=@fn23 id=f70f27942728505a7567f7ada6830b33ac265d0e30b83a9a4878a8845f88b252
   fun readLater @fn0(value: Later) -> Int
     bb0 entry
       return
@@ -73,7 +75,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn14 direct
+      call @fn18 direct
         Type Later
         Local $new.1
         Type Int
@@ -87,7 +89,7 @@ Module
       val $dependency.parameter.value: Later
         Type Later
         Local $dependency.argument.0
-      call box: Box<Later> = @fn15 direct
+      call box: Box<Later> = @fn20 direct
         Type Later
         Local $dependency.parameter.value
       val $dependency.argument.0: Later
@@ -241,22 +243,22 @@ Module
       val $dependency.local.5: Later
         Type Later
         Local $dependency.local.4
-      call $dependency.local.2: Box<Later> = @fn15 direct
+      call $dependency.local.2: Box<Later> = @fn20 direct
         Type Later
         Local $dependency.local.5
-      call external3 direct
-      val $dependency.local.6: Companion
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
-      call external3 direct
-      call $dependency.local.7: Int = external1 direct
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      call @fn10 direct
+      val $dependency.local.6: Companion<Int>
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+      call @fn10 direct
+      call $dependency.local.7: Int = @fn7 direct
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
       val $dependency.local.8: Int
         Type Int
         Local $dependency.local.7
-      call $dependency.local.9: Int = external2 direct
-        Type Companion
+      call $dependency.local.9: Int = @fn8 direct
+        Type Companion<Int>
         Local $dependency.local.6
         Type Int
         Local $dependency.local.8
@@ -310,22 +312,22 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call $dependency.local.2: Box<Int> = @fn16 direct
+      call $dependency.local.2: Box<Int> = @fn21 direct
         Type Int
         Local $dependency.local.5
-      call external3 direct
-      val $dependency.local.6: Companion
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
-      call external3 direct
-      call $dependency.local.7: Int = external1 direct
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      call @fn10 direct
+      val $dependency.local.6: Companion<Int>
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+      call @fn10 direct
+      call $dependency.local.7: Int = @fn7 direct
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
       val $dependency.local.8: Int
         Type Int
         Local $dependency.local.7
-      call $dependency.local.9: Int = external2 direct
-        Type Companion
+      call $dependency.local.9: Int = @fn8 direct
+        Type Companion<Int>
         Local $dependency.local.6
         Type Int
         Local $dependency.local.8
@@ -379,22 +381,22 @@ Module
       val $dependency.local.5: Unit
         Type Unit
         Local $dependency.local.4
-      call $dependency.local.2: Box<Unit> = @fn17 direct
+      call $dependency.local.2: Box<Unit> = @fn22 direct
         Type Unit
         Local $dependency.local.5
-      call external3 direct
-      val $dependency.local.6: Companion
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
-      call external3 direct
-      call $dependency.local.7: Int = external1 direct
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      call @fn10 direct
+      val $dependency.local.6: Companion<Int>
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+      call @fn10 direct
+      call $dependency.local.7: Int = @fn7 direct
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
       val $dependency.local.8: Int
         Type Int
         Local $dependency.local.7
-      call $dependency.local.9: Int = external2 direct
-        Type Companion
+      call $dependency.local.9: Int = @fn8 direct
+        Type Companion<Int>
         Local $dependency.local.6
         Type Int
         Local $dependency.local.8
@@ -440,19 +442,152 @@ Module
       return
         Type Int
         Local $dependency.local.14
-  fun Continuation.resume @fn7(this: Continuation<Later>, value: Later) -> Unit
+  fun companionBase @fn7(this: Companion<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+  fun companionAdd @fn8(this: Companion<Int>, value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun Companion$initialize$Initializer @fn9() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Int>
+        ClassAlloc Companion<Int>
+      call @fn19 direct
+        Type Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Int>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn10() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn9 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn11(this: Continuation<Later>, value: Later) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn8(this: Continuation<Later>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn12(this: Continuation<Later>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn9(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+  fun SuspendTask.run @fn13(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn11($closure: (Later) -> Int, arg0: Later) -> Int
+  fun $reference.0 @fn15($closure: (Later) -> Int, arg0: Later) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Later
@@ -460,7 +595,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn12($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn16($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Int
@@ -468,7 +603,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn13($closure: (Unit) -> Int, arg0: Unit) -> Int
+  fun $reference.2 @fn17($closure: (Unit) -> Int, arg0: Unit) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type Unit
@@ -476,7 +611,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Later.$c0 @fn14(this: Later, number: Int) -> Unit
+  fun init.Later.$c0 @fn18(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -484,28 +619,31 @@ Module
         Type Int
         Local number
       return
-  fun ctor.Box.$c0 @fn15(value: Later) -> Box<Later> <no-gc>
+  fun init.Companion.$c1 @fn19(this: Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.Box.$c0 @fn20(value: Later) -> Box<Later> <no-gc>
     bb0 entry
       return
         Type Box<Later>
         StructInit Box<Later>
           Type Later
           Local value
-  fun ctor.Box.$c0 @fn16(value: Int) -> Box<Int> <no-gc>
+  fun ctor.Box.$c0 @fn21(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return
         Type Box<Int>
         StructInit Box<Int>
           Type Int
           Local value
-  fun ctor.Box.$c0 @fn17(value: Unit) -> Box<Unit> <no-gc>
+  fun ctor.Box.$c0 @fn22(value: Unit) -> Box<Unit> <no-gc>
     bb0 entry
       return
         Type Box<Unit>
         StructInit Box<Unit>
           Type Unit
           Local value
-  fun startCoroutine<Later> @fn18(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+  fun startCoroutine<Later> @fn23(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -528,7 +666,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn7 interface Continuation<Later>[0]
+      call @fn11 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
         Type Later
@@ -541,7 +679,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn8 interface Continuation<Later>[1]
+      call @fn12 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
@@ -560,7 +698,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Later> = @fn9 interface SuspendTask<Later>[0]
+      call $step: CoroutineStep<Later> = @fn13 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
@@ -586,7 +724,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn19($source: (Later) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn24($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Later) -> Int
@@ -600,7 +738,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn25($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -614,7 +752,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn21($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn26($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Unit) -> Int
@@ -630,13 +768,17 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Later> result=Later
   coroutine_slot cl0 CoroutineSlot<Later> value=Later
-  coroutine_start ct0 result=Later function=fn18
-  coroutine_fn cf0 @fn9 source_return=Later step=cs0 immediate
+  coroutine_start ct0 result=Later function=fn23
+  coroutine_fn cf0 @fn13 source_return=Later step=cs0 immediate
   instance mi0 function=@fn4 <- exercise
   instance mi1 function=@fn5 <- exercise
   instance mi2 function=@fn6 <- exercise
-  instance mi3 function=@fn7 <- Continuation.resume
-  instance mi4 function=@fn8 <- Continuation.resumeWithException
-  instance mi5 function=@fn9 <- SuspendTask.run
-  instance mi6 function=@fn10 <- SuspendRegistration.register
+  instance mi3 function=@fn7 <- companionBase
+  instance mi4 function=@fn8 <- companionAdd
+  instance mi5 function=@fn9 <- Companion$initialize$Initializer
+  instance mi6 function=@fn10 <- Companion$initialize$Ensure
+  instance mi7 function=@fn11 <- Continuation.resume
+  instance mi8 function=@fn12 <- Continuation.resumeWithException
+  instance mi9 function=@fn13 <- SuspendTask.run
+  instance mi10 function=@fn14 <- SuspendRegistration.register
   output library

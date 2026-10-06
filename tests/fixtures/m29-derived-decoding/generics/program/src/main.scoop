@@ -1,0 +1,54 @@
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"generic decode assertion ${code}")
+        throw IllegalStateException(Some(f"generic decode assertion ${code}"))
+    }
+}
+
+public struct Pair<A, B>(val first: A, val second: B)
+public class PairDecoder<A, B>(private val first: Decodable<A>, private val second: Decodable<B>)
+    : Decodable<Pair<A, B>>
+
+private class Offset(private val amount: Int) : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int = Int.Companion.decode(decoder) + amount
+}
+
+public struct Nested<T>(
+    val pair: (T, Option<Array<T>>),
+    val units: MutableArray<Unit>,
+    val functions: ArrayList<() -> Int>
+)
+public struct NestedDecoder<T>(val element: Decodable<T>, val function: Decodable<() -> Int>)
+    : Decodable<Nested<T>>
+
+public struct Phantom<T>(val value: Int) {
+    public companion object : Decodable<Phantom<T>>
+}
+public struct Envelope<T>(val item: Phantom<T>)
+public class EnvelopeDecoder<T>() : Decodable<Envelope<T>>
+
+fun main() {
+    val first = PairDecoder<Int, Int>(Offset(10), Offset(100))
+    val a = Json.decode("{\"second\":2,\"first\":1}", first)
+    check(a.first == 11 && a.second == 102, 1)
+    val second = PairDecoder<Int, Int>(Offset(1000), Offset(10000))
+    val b = Json.decode("{\"first\":1,\"second\":2}", second)
+    check(b.first == 1001 && b.second == 10002, 2)
+    val c = Json.decode("{\"first\":3,\"second\":4}", first)
+    check(c.first == 13 && c.second == 104, 3)
+    val functions = DecodeFunction<() -> Int>({ decoder ->
+        val value = Int.Companion.decode(decoder)
+        val function: () -> Int = { -> value + 1 }
+        function
+    })
+    val codec = NestedDecoder<Int>(Offset(10), functions)
+    val nested = Json.decode("{\"pair\":[1,{\"Some\":[[2,3]]}],\"units\":[null],\"functions\":[4,5]}", codec)
+    check(nested.pair._1 == 11 && nested.pair._2!![0L] == 12 && nested.pair._2!![1L] == 13, 4)
+    check(nested.units.size == 1L && nested.functions[0L]() == 5 && nested.functions[1L]() == 6, 5)
+    val phantom = Json.decode("{\"item\":{\"value\":9}}", EnvelopeDecoder<Any>())
+    check(phantom.item.value == 9, 6)
+    check(Json.decode("{\"value\":8}", Phantom<() -> Int>.Companion).value == 8, 7)
+    println("generics-ok")
+}

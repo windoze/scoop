@@ -1099,8 +1099,10 @@ Module
       val $dependency.local.30: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       val $dependency.local.31: Boolean
         Type Boolean
         Unary BoolNot
@@ -1197,8 +1199,10 @@ Module
       val $dependency.local.39: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.6
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.6
       val $dependency.local.40: Boolean
         Type Boolean
         Unary BoolNot
@@ -1298,8 +1302,10 @@ Module
       val $dependency.local.48: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.49: Boolean
         Type Boolean
         Unary BoolNot
@@ -1399,8 +1405,10 @@ Module
       val $dependency.local.57: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.10
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.10
       val $dependency.local.58: Boolean
         Type Boolean
         Unary BoolNot
@@ -1891,8 +1899,10 @@ Module
       val $dependency.local.30: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       val $dependency.local.31: Boolean
         Type Boolean
         Unary BoolNot
@@ -1989,8 +1999,10 @@ Module
       val $dependency.local.39: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.6
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.6
       val $dependency.local.40: Boolean
         Type Boolean
         Unary BoolNot
@@ -2090,8 +2102,10 @@ Module
       val $dependency.local.48: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.49: Boolean
         Type Boolean
         Unary BoolNot
@@ -2191,8 +2205,10 @@ Module
       val $dependency.local.57: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.10
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.10
       val $dependency.local.58: Boolean
         Type Boolean
         Unary BoolNot
@@ -2683,8 +2699,10 @@ Module
       val $dependency.local.30: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       val $dependency.local.31: Boolean
         Type Boolean
         Unary BoolNot
@@ -2781,8 +2799,10 @@ Module
       val $dependency.local.39: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.6
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.6
       val $dependency.local.40: Boolean
         Type Boolean
         Unary BoolNot
@@ -2882,8 +2902,10 @@ Module
       val $dependency.local.48: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.49: Boolean
         Type Boolean
         Unary BoolNot
@@ -2983,8 +3005,10 @@ Module
       val $dependency.local.57: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.10
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.10
       val $dependency.local.58: Boolean
         Type Boolean
         Unary BoolNot

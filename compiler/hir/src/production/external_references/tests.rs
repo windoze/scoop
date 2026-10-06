@@ -145,6 +145,7 @@ struct EmptyParts {
     generic_callable_bodies: crate::CanonicalExportGenericCallableBodiesV1,
     generic_initializations: crate::CanonicalExportGenericInitializationsV1,
     generic_delegates: crate::CanonicalExportGenericDelegatesV1,
+    annotations: crate::CanonicalAnnotationsV1,
 }
 
 impl EmptyParts {
@@ -161,6 +162,7 @@ impl EmptyParts {
             generic_callable_bodies: Default::default(),
             generic_initializations: Default::default(),
             generic_delegates: Default::default(),
+            annotations: Default::default(),
         }
     }
 
@@ -177,6 +179,7 @@ impl EmptyParts {
             &self.generic_callable_bodies,
             &self.generic_initializations,
             &self.generic_delegates,
+            &self.annotations,
         )
     }
 }

@@ -1,0 +1,5 @@
+public open class Base public constructor()
+public class Item public constructor(public val value: Int) : Base()
+public object Reader : Decodable<Item>
+
+fun main() {}

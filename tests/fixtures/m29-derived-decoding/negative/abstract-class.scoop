@@ -1,0 +1,4 @@
+public abstract class Item public constructor(public val value: Int)
+public object Reader : Decodable<Item>
+
+fun main() {}

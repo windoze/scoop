@@ -96,6 +96,7 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
 
 fn expr_contains_return(expr: &ast::Expr) -> bool {
     match expr {
+        ast::Expr::TypeQualifier(_) => false,
         ast::Expr::ContextScope { value, body, .. } => {
             expr_contains_return(value) || block_contains_return(body)
         }

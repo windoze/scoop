@@ -8,7 +8,8 @@ mod bindings;
 #[derive(Clone, Copy)]
 pub(crate) enum ResolvedTypeName {
     Nominal(hir::SourceNominalId),
-    Alias(TypeId),
+    Applied(TypeId),
+    Annotation(scoop_identity::PersistentAnnotationId),
 }
 
 impl Lowerer {
@@ -59,7 +60,24 @@ impl Lowerer {
                 );
                 return Err(());
             };
-            target = nested;
+            target = if let ResolvedTypeName::Applied(host) = target
+                && let ResolvedTypeName::Nominal(nominal) = nested
+                && self.nominal_is_companion(nominal)
+            {
+                if supplied_type_arguments && index + 1 == path.len() {
+                    self.error(
+                        name.span,
+                        "companion type arguments belong to its host".into(),
+                    );
+                    return Err(());
+                }
+                ResolvedTypeName::Applied(
+                    self.apply_companion_type(host, nominal, name.span)
+                        .ok_or(())?,
+                )
+            } else {
+                nested
+            };
         }
         if !self.resolved_type_name_is_accessible(target) {
             let first = path.first().expect("a type path has an initial name");
@@ -106,6 +124,12 @@ impl Lowerer {
             };
             return Ok(Some((binding, length)));
         }
+        if let Some(annotation) = self.lexical_annotation_named(&first.text) {
+            return Ok(Some((
+                TypeLookupTarget::Current(TopLevelTypeTarget::Annotation(annotation)),
+                0,
+            )));
+        }
         if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
             return Ok(Some((
                 TypeLookupTarget::Current(TopLevelTypeTarget::Nominal(target)),
@@ -135,8 +159,9 @@ impl Lowerer {
         target: ResolvedTypeName,
     ) -> Option<hir::SourceNominalId> {
         match target {
+            ResolvedTypeName::Annotation(_) => None,
             ResolvedTypeName::Nominal(owner) => Some(owner),
-            ResolvedTypeName::Alias(ty) => self
+            ResolvedTypeName::Applied(ty) => self
                 .nominal_target_for_type(ty)
                 .map(|target| self.nominal_identity(target.owner()).declaration_id())
                 .or_else(|| self.imported_nominal_owner(ty)),
@@ -145,8 +170,9 @@ impl Lowerer {
 
     fn resolved_type_name_is_accessible(&self, target: ResolvedTypeName) -> bool {
         let identity = match target {
+            ResolvedTypeName::Annotation(id) => return self.annotation_is_accessible(id),
             ResolvedTypeName::Nominal(identity) => identity,
-            ResolvedTypeName::Alias(ty) => return self.nominal_is_accessible(ty),
+            ResolvedTypeName::Applied(ty) => return self.nominal_is_accessible(ty),
         };
         if let Some(owner) = self.nominal_owners.get(&identity) {
             return self.access_domain_allows(self.owner_lookup_domain(*owner));

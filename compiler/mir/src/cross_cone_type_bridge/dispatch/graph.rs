@@ -51,8 +51,14 @@ impl MirDispatchSchemaAuthority<'_> {
         owner: PersistentExactTypeId,
         receiver: PersistentExactTypeId,
     ) -> Result<Vec<PersistentExactTypeId>, MirDispatchSchemaError> {
-        let source = self.type_export(receiver)?;
         let backing = self.type_export(owner)?;
+        if let MirTypeRepresentationV1::BoxedValue { payload } = backing.representation()
+            && payload.value == receiver
+        {
+            // An adjust thunk unboxes the exact payload, including structural tuples.
+            return Ok(vec![owner, receiver]);
+        }
+        let source = self.type_export(receiver)?;
         if let (
             MirTypeOriginV1::SourceNominal(nominal),
             MirTypeRepresentationV1::Object { backing: expected },

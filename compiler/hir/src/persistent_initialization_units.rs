@@ -345,11 +345,12 @@ fn singleton_key(
     if object.singleton_value != value_id {
         return Err(HirInitializationUnitIdentityError::SingletonRelation { unit });
     }
-    let persistent_type = nominal_identities[value.declaration]
-        .concrete_type_id()
-        .ok_or(HirInitializationUnitIdentityError::ObjectIdentity { unit })?;
+    let identity = &nominal_identities[value.declaration];
+    let persistent_type = identity.concrete_type_id();
     match object.kind {
-        ObjectKind::Standalone => Ok(InitializationUnitKey::Object(persistent_type)),
+        ObjectKind::Standalone => persistent_type
+            .map(InitializationUnitKey::Object)
+            .ok_or(HirInitializationUnitIdentityError::ObjectIdentity { unit }),
         ObjectKind::Companion(companion) => {
             if local_index(companion) >= companions.len() {
                 return Err(HirInitializationUnitIdentityError::UnknownReference {
@@ -361,7 +362,12 @@ fn singleton_key(
             if companions[companion].object != value.declaration {
                 return Err(HirInitializationUnitIdentityError::CompanionRelation { unit });
             }
-            Ok(InitializationUnitKey::Companion(persistent_type))
+            match identity.declaration_id() {
+                crate::SourceNominalId::Concrete(id) => Ok(InitializationUnitKey::Companion(id)),
+                crate::SourceNominalId::GenericTemplate(id) => {
+                    Ok(InitializationUnitKey::GenericCompanionTemplate(id))
+                }
+            }
         }
     }
 }

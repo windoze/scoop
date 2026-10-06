@@ -23,7 +23,9 @@ pub(super) fn semantic_module(lazy: bool) -> Module {
         .unwrap(),
         InitializationUnitKey::ExtensionProperty(_)
         | InitializationUnitKey::Companion(_)
-        | InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => unreachable!(),
+        | InitializationUnitKey::GenericDelegatedExtensionApplication { .. }
+        | InitializationUnitKey::GenericCompanionTemplate(_)
+        | InitializationUnitKey::GenericCompanionApplication { .. } => unreachable!(),
     };
     let mut globals = Arena::new();
     let storage = globals.alloc(storage_global(

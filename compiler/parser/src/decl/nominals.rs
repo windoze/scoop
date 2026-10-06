@@ -33,6 +33,7 @@ impl Parser {
             let mut vararg_span = None;
             if !matches!(self.peek().kind, TokenKind::RParen) {
                 loop {
+                    let annotations = self.parse_annotations()?;
                     let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                     if matches!(self.peek().kind, TokenKind::Var) {
                         return Err(Diagnostic::at(
@@ -46,6 +47,7 @@ impl Parser {
                     let ty = self.parse_type_ref()?;
                     let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                     fields.push(FieldDecl {
+                        annotations,
                         span: Span::new(
                             modifier_span.map_or(val.span.start, |span| span.start),
                             end,
@@ -159,6 +161,7 @@ impl Parser {
             let mut vararg_span = None;
             if !matches!(self.peek().kind, TokenKind::RParen) {
                 loop {
+                    let annotations = self.parse_annotations()?;
                     let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                     let member_visibility = self.parse_visibility()?;
                     let override_span = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "override")
@@ -193,6 +196,7 @@ impl Parser {
                     let ty = self.parse_type_ref()?;
                     let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                     parameters.push(PrimaryClassParameter {
+                        annotations,
                         property,
                         member_visibility: property.is_property().then_some(member_visibility),
                         is_override: override_span.is_some(),
@@ -403,6 +407,7 @@ impl Parser {
                     self.parse_nested_nominal(prefix)
                         .map(|declaration| nested.push(declaration))
                 }
+                TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedNominalDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
                 TokenKind::Ident(text) if text == "object" => {
                     self.require_unmodified_nominal_prefix(&prefix, "object")?;
                     self.parse_object(prefix.annotations, prefix.visibility)

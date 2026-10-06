@@ -200,6 +200,22 @@ fn build_unit(
     validate_failure_shape(target, id, failure)?;
 
     let (declaration_unit, group) = match unit.identity.key() {
+        InitializationUnitKey::GenericCompanionApplication { companion, .. } => (
+            PersistentInitializationUnitId::from_key(
+                &InitializationUnitKey::GenericCompanionTemplate(*companion),
+            )
+            .expect("a companion template key is encodable"),
+            Some(
+                scoop_identity::OdrGroupId::from_key(
+                    &unit
+                        .identity
+                        .key()
+                        .specialization_key()
+                        .expect("a generic companion is a nominal specialization"),
+                )
+                .map_err(StrongInitializationUnitSemanticPlanBuildError::Hash)?,
+            ),
+        ),
         InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } => (
             PersistentInitializationUnitId::from_key(&InitializationUnitKey::ExtensionProperty(
                 *property,

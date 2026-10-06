@@ -1,5 +1,8 @@
 //! Cloneable selection transactions for executable ordinary dependency uses.
 
+mod annotations;
+pub use annotations::ImportedAnnotationDeclaration;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -74,6 +77,8 @@ impl ImportedDependencySelectionPlan {
                 properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
                 type_aliases: BTreeMap::new(),
+                annotations: BTreeMap::new(),
+                annotated_targets: BTreeMap::new(),
             }),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),

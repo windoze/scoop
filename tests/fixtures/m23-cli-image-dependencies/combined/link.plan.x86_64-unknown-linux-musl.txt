@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.example:image-provider:0.1.0 kind=Library objects=2
 cone dev.example:image-unused:0.1.0 kind=Library objects=2
 cone dev.example:image-consumer:0.1.0 kind=Library objects=2

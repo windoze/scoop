@@ -685,10 +685,10 @@ fn non_static_top_level_initializer_is_kept_out_of_image_storage() {
     ));
 
     let getter = module.properties[property].capability.getter();
-    let hir::PropertyAccessorImplementation::Body(getter) =
+    let hir::PropertyAccessorImplementation::StorageBody(getter) =
         module.property_getters[getter].implementation
     else {
-        panic!("runtime-backed getter must be a body");
+        panic!("runtime-backed getter must have its implicit storage body");
     };
     let hir::FunctionKind::User(getter) = &module.functions[getter].kind else {
         panic!("runtime-backed getter must be an ordinary function");

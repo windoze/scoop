@@ -1,6 +1,9 @@
 use super::*;
 mod abstract_methods;
+mod coding;
 mod context;
+mod decoding;
+mod encoding;
 mod imported;
 mod interfaces;
 mod order;
@@ -105,8 +108,12 @@ impl Lowerer {
         for (id, decl, file_index, owner) in methods {
             self.current_file = file_index;
             self.current_owner = Some(owner);
+            let diagnostics_before = self.diagnostics.len();
             self.check_member_access_contract(id, decl, owner);
             self.check_override_rules(id, decl, owner);
+            if decl.is_override && self.diagnostics.len() != diagnostics_before {
+                self.invalid_override_methods.insert(id);
+            }
         }
         for &(owner, file) in &owners {
             self.current_file = file;

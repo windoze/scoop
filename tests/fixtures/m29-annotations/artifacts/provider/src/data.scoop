@@ -1,0 +1,9 @@
+package metadata
+public const val DEFAULT_LABEL: String = "provider-constant"
+public annotation class Label(val text: String = DEFAULT_LABEL, val category: Int = 7)
+private annotation class Detail(val text: String = "private support")
+@Detail
+public struct Value(@Label("field") @Detail val value: Int)
+public struct Names() { public annotation class Range(val minimum: Int = -1) }
+@Names.Range
+public enum Choice { @Label("variant") Some(@Detail val value: String), None }

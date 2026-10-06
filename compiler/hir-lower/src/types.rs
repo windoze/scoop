@@ -77,6 +77,7 @@ mod relations;
 mod resolution;
 mod substitution;
 mod variants;
+pub(crate) use variants::EnumVariant;
 
 pub(crate) use qualified::ResolvedTypeName;
 

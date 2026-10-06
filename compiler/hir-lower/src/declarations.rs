@@ -58,8 +58,11 @@ impl Lowerer {
                 NominalTarget::Object(_) => "an object",
             });
         }
-        if owner.is_some() {
-            return None;
+        if let Some(owner) = owner {
+            return self
+                .nested_annotations_by_owner
+                .contains_key(&(owner, name.to_owned()))
+                .then_some("an annotation class");
         }
         if matches!(name, "Unit" | "Any") {
             Some("a built-in type")

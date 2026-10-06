@@ -5,7 +5,7 @@
     "notes": [],
     "origin": {
       "kind": "artifact",
-      "member": "lir/cone-production/6/registrations/StaticStorage",
+      "member": "lir/cone-production/7/registrations/StaticStorage",
       "path": "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"
     },
     "severity": "error"

@@ -65,7 +65,11 @@ impl<'a> MetadataTypes<'a, '_> {
         self,
         exact: PersistentExactTypeId,
     ) -> Result<AppliedNominal<'a>, Error> {
-        self.current.applied_nominal(
+        SharedTypeMetadataV1 {
+            identities: self.identity_graph(exact),
+            ..self.current
+        }
+        .applied_nominal(
             exact,
             self.dependencies
                 .iter()

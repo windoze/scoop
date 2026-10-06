@@ -18,6 +18,7 @@ mod callables;
 mod context;
 mod interpolation;
 mod primary;
+mod qualifiers;
 
 /// Precedence tier of the comparison operators — shared by the type
 /// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside
@@ -245,7 +246,7 @@ impl Parser {
 
     /// Postfix operators share the highest precedence tier and chain left
     /// to right: `.name` / `._n`, `?.name`, `!!`, and `[index]`.
-    fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
+    pub(crate) fn parse_postfix(&mut self) -> Result<Expr, Diagnostic> {
         let mut receiver = self.parse_atom()?;
         loop {
             match self.peek().kind {
@@ -324,6 +325,10 @@ impl Parser {
                     receiver = self.parse_index(receiver)?;
                 }
                 TokenKind::Less if !self.peek().newline_before => {
+                    if let Some(qualifier) = self.parse_applied_qualifier(&receiver)? {
+                        receiver = Expr::TypeQualifier(qualifier);
+                        continue;
+                    }
                     let type_args = self.parse_explicit_call_type_args()?;
                     if type_args.is_empty() {
                         break;

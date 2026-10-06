@@ -76,6 +76,7 @@ impl Concretizer<'_> {
                         concrete::TypeKind::Integer(*kind)
                     }
                     concrete::IntrinsicTypeRepresentation::Char => concrete::TypeKind::Struct(id),
+                    concrete::IntrinsicTypeRepresentation::Unit => concrete::TypeKind::Unit,
                     concrete::IntrinsicTypeRepresentation::Boolean => concrete::TypeKind::Boolean,
                     concrete::IntrinsicTypeRepresentation::Ptr { pointee } => {
                         concrete::TypeKind::Ptr(*pointee)

@@ -57,15 +57,7 @@ impl BodyLowerer<'_> {
             return self.adapt_function_value(value, *source, *target, span);
         }
         if is_boxable(source) && is_reference_mir(target) {
-            self.register_boxed(source, source_identity, None);
-            if let mir::Type::Interface(interface) = target {
-                let boxed =
-                    self.boxed
-                        .get_or_create(self.classes, self.shell, source, source_identity);
-                if !self.classes[boxed].interfaces.contains(interface) {
-                    self.classes[boxed].interfaces.push(*interface);
-                }
-            }
+            self.register_boxed(source, source_identity);
             return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }
         if is_reference_mir(source) && is_reference_mir(target) {

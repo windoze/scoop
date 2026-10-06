@@ -157,10 +157,9 @@ struct Concretizer<'a> {
     initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
     objects: Arena<concrete::ObjectDecl>,
     object_types: Arena<concrete::ObjectType>,
-    object_type_map: HashMap<export::ObjectTypeId, concrete::ObjectTypeId>,
-    singleton_value_map: HashMap<export::SingletonValueId, concrete::SingletonValueId>,
-    singleton_root_map:
-        HashMap<export::SingletonPublishedRootId, concrete::SingletonPublishedRootId>,
+    object_type_map: HashMap<concrete::ClassId, concrete::ObjectTypeId>,
+    singleton_value_map: HashMap<concrete::ObjectTypeId, concrete::SingletonValueId>,
+    singleton_root_map: HashMap<concrete::SingletonValueId, concrete::SingletonPublishedRootId>,
     companion_relations: Arena<concrete::CompanionRelation>,
     singleton_values: Arena<concrete::SingletonValue>,
     singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,

@@ -43,11 +43,39 @@ impl Lowerer {
                 return None;
             }
         };
+        self.lower_imported_singleton_application(value, ty, span)
+    }
+
+    pub(in crate::expr) fn lower_imported_singleton_application(
+        &mut self,
+        value: PersistentObjectValueId,
+        ty: TypeId,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        if let Some(hir::SourceNominalId::GenericTemplate(owner)) = self.imported_nominal_owner(ty)
+            && let Err(error) = self.request_imported_companion(owner)
+        {
+            self.error(span, format!("invalid dependency companion: {error}"));
+            return None;
+        }
         Some(hir::Expr {
             kind: ExprKind::SingletonValue(hir::SingletonValueTarget::Dependency(value)),
             ty,
             span,
             origin: self.expression_origin(span),
         })
+    }
+
+    pub(crate) fn lower_imported_singleton_type(
+        &mut self,
+        ty: TypeId,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let owner = self.imported_nominal_owner(ty)?;
+        let declaration = self.dependencies.as_ref()?.nominal_declaration(owner)?;
+        let hir::NominalSourceShapeV1::Object(shape) = declaration.interface.source_shape() else {
+            return None;
+        };
+        self.lower_imported_singleton_application(shape.value(), ty, span)
     }
 }

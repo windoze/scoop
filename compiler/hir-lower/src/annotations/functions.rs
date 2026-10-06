@@ -106,7 +106,7 @@ impl Lowerer {
                 ),
                 _ => self.error(
                     annotation.span,
-                    format!("unsupported annotation `@{name}` in milestone M12"),
+                    format!("user annotation `@{name}` is not allowed on a function"),
                 ),
             }
         }

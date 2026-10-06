@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=389
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
 cone dev.example:lazy-failure-provider:0.1.0 kind=Library objects=29
 cone dev.example:unused-lazy-root:0.1.0 kind=Executable objects=5
 runtime objects=65

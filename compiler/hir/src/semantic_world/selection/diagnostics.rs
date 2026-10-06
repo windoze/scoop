@@ -57,6 +57,14 @@ impl ImportedDependencySelectionPlan {
                     .get(&PropertyOwner::ExtensionProperty(id.persistent()))?
                     .definition_origin
             }
+            ImportedTarget::Annotation(id) => {
+                &self
+                    .catalog
+                    .annotations
+                    .get(&id.persistent())?
+                    .declaration
+                    .definition_origin
+            }
             ImportedTarget::TypeAlias(id) => self
                 .catalog
                 .type_aliases

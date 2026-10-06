@@ -83,6 +83,15 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 use scoop_hir::HirDependencyTypeSiteV1 as Site;
                 let expression = site.as_expression();
                 if let Some(expression) = expression {
+                    // Materialized core generic bodies retain their provider
+                    // positions. Count the fixture's own evaluation sites below.
+                    if expression.origin().evaluation().source().cone() == ConeIdentity::CORE {
+                        assert_eq!(
+                            expression.origin().definition().source().cone(),
+                            ConeIdentity::CORE
+                        );
+                        continue;
+                    }
                     roles.insert(expression.role());
                 } else {
                     let index = match site {
@@ -100,7 +109,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                     continue;
                 }
                 let site = expression.unwrap();
-                roles.insert(site.role());
                 sites += 1;
                 let foreign = site.origin().definition().source().cone() != current;
                 foreign_definitions += usize::from(foreign);
@@ -115,7 +123,7 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
             assert!(declarations[3] > 0);
         } else if name == "storage-standalone" {
-            // The finite coroutine start also needs core Option<String> storage.
+            // Finite coroutine support retains one core Option storage field.
             assert_eq!(declarations[4..], [0, 1, 1, 0]);
         } else if name == "storage-combined" {
             assert!(declarations[4..].iter().all(|count| *count > 0));

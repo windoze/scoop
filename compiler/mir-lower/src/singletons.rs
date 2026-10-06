@@ -81,10 +81,16 @@ impl Lowerer {
 
         for (source_id, source) in module.singleton_published_roots.iter() {
             let value = &module.singleton_values[source.value];
-            let owner = module.objects[value.declaration]
-                .origin
-                .concrete_type_id()
-                .expect("a materialized singleton has a concrete nominal identity");
+            let exact = &module.exact_type_identities[source.ty];
+            let storage_owner = match exact.key() {
+                scoop_identity::ExactTypeKey::Nominal(owner) => {
+                    mir::StaticStorageOwner::SingletonPublishedRoot(*owner)
+                }
+                scoop_identity::ExactTypeKey::NominalApplication { .. } => {
+                    mir::StaticStorageOwner::SingletonApplicationPublishedRoot(exact.id())
+                }
+                _ => unreachable!("a singleton retains its nominal exact type"),
+            };
             let ty = {
                 let types = Types {
                     module,
@@ -102,7 +108,7 @@ impl Lowerer {
             };
             let global = self.globals.alloc(mir::Global {
                 name: format!("$singleton${}", module.objects[value.declaration].name),
-                storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(owner),
+                storage_owner,
                 ty,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {

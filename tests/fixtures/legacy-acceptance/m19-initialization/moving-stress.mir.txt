@@ -18,8 +18,10 @@ Module
       return
         Type Boolean
         IsInstance MovingDerived
-          Type MovingDerived
-          Local this
+          Type Any
+          Retype Any
+            Type MovingDerived
+            Local this
   fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: String

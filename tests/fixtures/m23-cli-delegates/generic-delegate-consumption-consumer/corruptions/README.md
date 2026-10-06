@@ -20,3 +20,7 @@ M26 迁移逐表确认原有 initialization、storage 和 callable registration 
 M27 迁移逐字节核对被删除的原 registration 记录，保持原有五种删除或交换以及错误断言；
 保留新的 context key 信息和 runtime ABI，以正式 Slib writer 重算摘要。每组替换片段
 均确认唯一匹配，组合后的完整产物与 writer 输出一致。
+
+M29 迁移保留相同的五种删除或交换。四条被删除的 registration 记录均与原向量
+逐字节相同，交换仍针对原 initialization unit；普通 Slib writer 更新当前 core
+依赖、member、LIR semantic 和 artifact 摘要，完整替换结果与 writer 输出一致。

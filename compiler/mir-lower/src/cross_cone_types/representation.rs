@@ -13,6 +13,11 @@ pub(super) fn project(
 ) -> Result<(Repr, Option<Backing>), SourceMirTypeProductionError> {
     let mismatch = || SourceMirTypeProductionError::RepresentationMismatch(source.owner());
     let shape = match (ty, source.shape()) {
+        (mir::Type::Unit, Source::Intrinsic { representation })
+            if representation.family() == hir::IntrinsicTypeKind::Unit =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
+        }
         (mir::Type::Unit, Source::Object { .. } | Source::Struct { .. }) => {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
         }

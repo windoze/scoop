@@ -232,7 +232,7 @@ fn is_c_identifier(value: &str) -> bool {
         && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
 }
 
-pub(super) fn is_core_annotation(name: &str) -> bool {
+pub(crate) fn is_core_annotation(name: &str) -> bool {
     matches!(
         name,
         "Intrinsic"

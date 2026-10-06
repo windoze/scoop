@@ -33,7 +33,7 @@ impl Lowerer {
                 if let Some(&object) = self.object_by_backing_class.get(&class) {
                     (
                         declaration.parameters.clone(),
-                        Vec::new(),
+                        self.classes[class].type_params.clone(),
                         Owner::Object(object),
                         self.objects[object].name.clone(),
                     )

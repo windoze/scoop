@@ -132,6 +132,9 @@ impl Parser {
                     self.parse_property(prefix, PropertyContext::TopLevel)?,
                 ))
             }
+            TokenKind::Ident(text) if text == "annotation" => self
+                .parse_annotation_class(prefix)
+                .map(Decl::AnnotationClass),
             TokenKind::Ident(text) if text == "typealias" => {
                 self.parse_type_alias(prefix).map(Decl::TypeAlias)
             }

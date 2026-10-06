@@ -898,8 +898,10 @@ Module
       val $dependency.local.36: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.37: Boolean
         Type Boolean
         Unary BoolNot
@@ -1293,8 +1295,10 @@ Module
       val $dependency.local.36: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.37: Boolean
         Type Boolean
         Unary BoolNot
@@ -1688,8 +1692,10 @@ Module
       val $dependency.local.36: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $dependency.local.37: Boolean
         Type Boolean
         Unary BoolNot

@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "derived-decoding-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"
+"dev.m29:derived-decoding" = "0.1.0"
+"dev.m29:derived-decoding-peer" = "0.1.0"

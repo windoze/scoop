@@ -262,6 +262,7 @@ impl StructDef {
             StructRepresentation::Declared { .. } => Type::Struct(id),
             StructRepresentation::Intrinsic(representation) => match representation {
                 IntrinsicTypeRepresentation::Integer(kind) => Type::Integer(*kind),
+                IntrinsicTypeRepresentation::Unit => Type::Unit,
                 IntrinsicTypeRepresentation::Boolean => Type::Boolean,
                 IntrinsicTypeRepresentation::Char => Type::Struct(id),
                 IntrinsicTypeRepresentation::Ptr { pointee } => {
@@ -421,6 +422,7 @@ impl ClassDef {
 /// specialized nominal type. Family variants carry their MIR element type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntrinsicTypeRepresentation {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,

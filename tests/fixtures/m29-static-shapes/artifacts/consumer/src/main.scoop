@@ -1,0 +1,29 @@
+package shape.use
+import shape.Parcel
+import shape.Choice
+import shape.Functions
+import shape.Row
+import shape.Node
+import shape.Empty
+import shape.Secondary
+
+fun main() {
+    val parcel = Parcel<String>.Factory.make("parcel")
+    val other = Parcel<Int>.Factory.make(7)
+    val choice = Choice<String>.Named("chosen")
+    val positional = Choice<Int>.Pair(8, 9)
+    val functions = Functions<String>(("pair", 5), { value -> value + "!" })
+    val row = Row<String>(7, "text")
+    val second = Row<String>("next")
+    val node = Node()
+    val next = Node(Some(node))
+    val empty = Empty()
+    val secondary = Secondary(1)
+    if (parcel.value != "parcel" || parcel.count != 4 || other.value != 7) { throw Throwable() }
+    if (Parcel<String>.Companion.visits != 1 || Parcel<Int>.Companion.visits != 1) { throw Throwable() }
+    if (choice != Choice<String>.Named("chosen", 3)) { throw Throwable() }
+    if (functions.apply("call") != "call!") { throw Throwable() }
+    if (row.copy != "text" || row.count != 7 || row.inherited != 7 || row.size != 12L) { throw Throwable() }
+    if (second.count != 3 || second.copy != "next") { throw Throwable() }
+    println("static-shapes-ok")
+}

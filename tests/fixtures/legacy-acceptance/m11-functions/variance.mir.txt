@@ -538,8 +538,10 @@ Module
       val $dependency.argument.0: Boolean
         Type Boolean
         IsInstance Dog
-          Type Animal
-          Local $call.8
+          Type Any
+          Retype Any
+            Type Animal
+            Local $call.8
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0

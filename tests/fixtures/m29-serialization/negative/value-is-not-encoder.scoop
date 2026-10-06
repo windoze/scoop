@@ -1,0 +1,2 @@
+fun accept(codec: Encodable<Long>) { println("unreachable") }
+fun main() { accept(7L) }

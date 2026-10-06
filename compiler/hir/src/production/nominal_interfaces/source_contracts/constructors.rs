@@ -47,7 +47,19 @@ pub(super) fn project(
                 push(&mut constructors, record.id())?;
             }
         }
-        LocalNominalId::Interface(_) | LocalNominalId::Enum(_) | LocalNominalId::Object(_) => {
+        LocalNominalId::Object(id) => {
+            if matches!(owner, SourceNominalId::GenericTemplate(_)) {
+                let class = &export.classes[export.objects[id].backing_class];
+                for &constructor in &class.constructors {
+                    let record = export.constructor_identities[constructor]
+                        .source_record()
+                        .ok_or_else(|| invalid("object initializer has no source identity"))?;
+                    validate_owner(export, owner, record.key())?;
+                    push(&mut constructors, record.id())?;
+                }
+            }
+        }
+        LocalNominalId::Interface(_) | LocalNominalId::Enum(_) => {
             return Ok(CanonicalPersistentIdsV1::empty());
         }
     }

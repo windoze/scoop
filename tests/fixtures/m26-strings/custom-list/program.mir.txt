@@ -6,11 +6,14 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum Option<Decoder>
+    Some(_0: Decoder)
+    None()
   class Characters vtable=0 itables=2
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Companion vtable=0 itables=0
+  class Companion vtable=0 itables=2
   class ListIterator<Char> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   interface ToString
@@ -18,6 +21,19 @@ Module
   interface List<Char> : Iterable<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Decodable<String>
+  interface Decoder
+  interface KeyedDecodingContainer
+  interface List<String> : Iterable<String>
+  interface Iterable<String>
+  interface Iterator<String>
+  interface UnkeyedDecodingContainer
+  interface SingleValueDecodingContainer
+  interface Encodable<String>
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -33,7 +49,7 @@ Module
       val $dependency.receiver: Long
         Type Long
         Local index
-      call $dependency.argument.0: String = external5 direct
+      call $dependency.argument.0: String = external7 direct
         Type Long
         Local $dependency.receiver
       val $dependency.parameter.other: String
@@ -96,7 +112,7 @@ Module
       assign $new.2
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call external6 direct
+      call external8 direct
         Type IllegalStateException
         Local $new.2
         Type Option<String>
@@ -199,7 +215,7 @@ Module
       val source: Characters
         Type Characters
         Local $new.1
-      call external10 direct
+      call external12 direct
       val $dependency.receiver: Companion
         Type Companion
         GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
@@ -211,7 +227,7 @@ Module
       val $dependency.parameter.chars: List<Char>
         Type List<Char>
         Local $dependency.argument.0
-      call value: String = external1 direct
+      call value: String = external3 direct
         Type Companion
         Local $dependency.receiver
         Type List<Char>
@@ -227,7 +243,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.2: Boolean = external4 direct
+      call $call.2: Boolean = external6 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -252,7 +268,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.3: Boolean = external4 direct
+      call $call.3: Boolean = external6 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -360,7 +376,7 @@ Module
           Type Boolean
           Local $dependency.receiver
     bb16 try.body.16 unwind bb9
-      call external10 direct
+      call external12 direct
       val $dependency.receiver: Companion
         Type Companion
         GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
@@ -372,7 +388,7 @@ Module
       val $dependency.parameter.chars: List<Char>
         Type List<Char>
         Local $dependency.argument.0
-      call $call.4: String = external1 direct
+      call $call.4: String = external3 direct
         Type Companion
         Local $dependency.receiver
         Type List<Char>
@@ -415,7 +431,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.6: Boolean = external4 direct
+      call $call.6: Boolean = external6 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -539,7 +555,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external9 direct
+      call external11 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -574,7 +590,7 @@ Module
       val $dependency.receiver: String
         Type String
         Local $for.source.0
-      call $for.iterator.result.1: Iterator<Char> = external3 direct
+      call $for.iterator.result.1: Iterator<Char> = external5 direct
         Type String
         Local $dependency.receiver
       val $for.iterator.2: Iterator<Char>
@@ -630,13 +646,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external2 direct
+      call $dependency.local.2: String = external4 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external8 direct
+      call external10 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -645,7 +661,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external8 direct
+      call external10 direct
         Type String
         Local $dependency.local.5
       return
@@ -654,13 +670,13 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external7 direct
+      call $dependency.local.2: String = external9 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external8 direct
+      call external10 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -669,7 +685,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external8 direct
+      call external10 direct
         Type String
         Local $dependency.local.5
       return

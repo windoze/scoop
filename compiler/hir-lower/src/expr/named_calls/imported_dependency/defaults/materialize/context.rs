@@ -2,7 +2,7 @@ use super::*;
 
 impl Lowerer {
     pub(super) fn materialize_context_lookup(
-        &self,
+        &mut self,
         declaration: hir::DefaultCallableDeclarationV1,
         parameter: hir::ContextParameterIndex,
         diagnostic: &hir::ContextDiagnostic,
@@ -25,6 +25,12 @@ impl Lowerer {
                 "context lookup does not match its declaration and requirement index".into(),
             ));
         }
+        self.prepare_missing_context_exception_type()
+            .map_err(|error| {
+                ImportedDefaultMaterializationError::Plan(
+                    error.diagnostic("missing context exception type"),
+                )
+            })?;
         Ok(hir::ExprKind::ContextLookup(hir::ContextRequirementRef {
             declaration: hir::ContextRequirementOwner::Imported(declaration),
             parameter,

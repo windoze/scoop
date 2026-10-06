@@ -168,6 +168,24 @@ impl CrossConeHirInterfaceSectionV1 {
             );
         }
 
+        for (declaration_index, declaration) in self.annotations().declarations().iter().enumerate()
+        {
+            validator.observe(
+                &declaration.definition_origin,
+                ExportDefinitionSourceUseSiteV1::AnnotationDeclaration { declaration_index },
+            );
+        }
+        for (target_index, target) in self.annotations().targets().iter().enumerate() {
+            for (application_index, application) in target.annotations.iter().enumerate() {
+                validator.observe(
+                    &application.definition_origin,
+                    ExportDefinitionSourceUseSiteV1::AnnotationApplication {
+                        target_index,
+                        application_index,
+                    },
+                );
+            }
+        }
         validator.finish()
     }
 }
@@ -257,6 +275,13 @@ struct MissingDefinitionSource {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportDefinitionSourceUseSiteV1 {
+    AnnotationDeclaration {
+        declaration_index: usize,
+    },
+    AnnotationApplication {
+        target_index: usize,
+        application_index: usize,
+    },
     GenericInitialization {
         body_index: usize,
     },

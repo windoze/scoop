@@ -26,6 +26,7 @@ impl CanonicalHirFoundation {
             extension_properties,
             object_values,
             type_aliases,
+            annotations,
             property_accessors,
             fields,
             enum_variants,

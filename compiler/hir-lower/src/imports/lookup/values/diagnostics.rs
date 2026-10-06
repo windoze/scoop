@@ -223,6 +223,12 @@ impl Lowerer {
             | NonValueTarget::ImportedDependency(hir::ImportedTarget::GenericType(_)) => {
                 format!("type `{}` is a type, not a value", name.text)
             }
+            NonValueTarget::ImportedDependency(hir::ImportedTarget::Annotation(_)) => {
+                format!(
+                    "annotation `{}` is only usable as a static annotation",
+                    name.text
+                )
+            }
             NonValueTarget::ImportedDependency(hir::ImportedTarget::TypeAlias(_)) => {
                 format!("typealias `{}` is a type, not a value", name.text)
             }
@@ -235,6 +241,10 @@ impl Lowerer {
                 | hir::ImportedTarget::EnumVariant(_),
             ) => format!(
                 "dependency value `{}` requires a later cross-Cone capability",
+                name.text
+            ),
+            NonValueTarget::Type(TopLevelTypeTarget::Annotation(_)) => format!(
+                "annotation `{}` is only usable as a static annotation",
                 name.text
             ),
             NonValueTarget::Type(TopLevelTypeTarget::Alias(_)) => {

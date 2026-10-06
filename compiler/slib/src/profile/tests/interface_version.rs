@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v50_retains_context_contracts() {
+fn source_interface_v57_distinguishes_implicit_storage_bodies() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        50,
+        57,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v50_retains_context_contracts() {
 }
 
 #[test]
-fn type_semantics_v16_retains_context_slot_contracts() {
+fn type_semantics_v21_removes_tuple_encoding_relations() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        16,
+        21,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v10_retains_task_frames() {
+fn mir_type_bridge_v14_uses_only_declared_box_dispatch() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        10,
+        14,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,20 +48,20 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v7_retains_character_scalars() {
+fn lir_layout_abi_v8_retains_character_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        7,
+        8,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn compiler_protocol_v8_retains_missing_context_exception() {
+fn compiler_protocol_v9_retains_intrinsic_unit_declaration() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        8,
+        9,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
@@ -115,10 +115,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v4_rejects_retired_native_witnesses_in_every_profile_and_view() {
+fn hir_foundation_v8_retires_structural_encoding_callables() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        4,
+        8,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

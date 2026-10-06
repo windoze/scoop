@@ -3,8 +3,8 @@
 use std::fmt;
 
 use crate::{
-    CallableInterfaceBuildError, CallableSourceInterfaceProductionError,
-    CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
+    AnnotationProductionError, CallableInterfaceBuildError, CallableSourceInterfaceProductionError,
+    CanonicalAnnotationsV1, CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
     CanonicalExportDefinitionSourcesV1, CanonicalExternalHirReferencesV1,
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalTypeAliasInterfacesV1,
@@ -113,6 +113,12 @@ impl CrossConeHirInterfaceSectionV1 {
         .map_err(CrossConeHirInterfaceProductionError::Defaults)?;
         let constants = CanonicalExportConstValuesV1::from_export_hir(export)
             .map_err(CrossConeHirInterfaceProductionError::Constants)?;
+        let annotations = CanonicalAnnotationsV1::from_export_hir(
+            export,
+            &nominal_interfaces,
+            &property_interfaces,
+        )
+        .map_err(CrossConeHirInterfaceProductionError::Annotations)?;
         let definition_sources = CanonicalExportDefinitionSourcesV1::from_interface_parts(
             &type_aliases,
             &source_interfaces,
@@ -121,6 +127,7 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_callable_bodies,
             generic_initializations,
             generic_delegates,
+            &annotations,
         )
         .map_err(CrossConeHirInterfaceProductionError::DefinitionSources)?;
         let external_references =
@@ -137,6 +144,7 @@ impl CrossConeHirInterfaceSectionV1 {
                     generic_callable_bodies,
                     generic_initializations,
                     generic_delegates,
+                    &annotations,
                 ),
                 witness_uses,
                 dependency_output,
@@ -144,7 +152,7 @@ impl CrossConeHirInterfaceSectionV1 {
             )
             .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;
 
-        Ok(Self::new(
+        let mut section = Self::new(
             export.public_export_bindings.clone(),
             nominal_interfaces,
             callable_interfaces,
@@ -158,7 +166,9 @@ impl CrossConeHirInterfaceSectionV1 {
             generic_callable_bodies.clone(),
             generic_initializations.clone(),
             generic_delegates.clone(),
-        ))
+        );
+        section.set_annotations(annotations);
+        Ok(section)
     }
 }
 
@@ -172,6 +182,7 @@ pub enum CrossConeHirInterfaceProductionError<E> {
     Defaults(DefaultTemplateProductionError),
     GenericBodies(GenericTemplateProductionError),
     Constants(ExportConstValueBuildError),
+    Annotations(AnnotationProductionError),
     DefinitionSources(ExportDefinitionSourceProductionError),
     ExternalReferences(ExternalHirReferenceProductionError<E>),
 }
@@ -187,6 +198,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirInterfaceProductionError<E> {
             Self::Defaults(source) => ("default templates", source),
             Self::GenericBodies(source) => ("generic callable bodies", source),
             Self::Constants(source) => ("constant values", source),
+            Self::Annotations(source) => ("annotations", source),
             Self::DefinitionSources(source) => ("definition sources", source),
             Self::ExternalReferences(source) => ("external references", source),
         };

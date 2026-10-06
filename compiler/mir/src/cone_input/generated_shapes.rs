@@ -86,7 +86,8 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
             | GeneratedNominalKey::CallableAdapterEnvironment { .. }
             | GeneratedNominalKey::ContinuationAdapterEnvironment { .. }
             | GeneratedNominalKey::CoroutineFrame { .. }
-            | GeneratedNominalKey::ObjectBackingClass { .. } => {
+            | GeneratedNominalKey::ObjectBackingClass { .. }
+            | GeneratedNominalKey::GenericObjectBackingClass { .. } => {
                 local.push(GeneratedNominalShapeRoot::Cone(shape));
                 continue;
             }

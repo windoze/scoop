@@ -1,0 +1,22 @@
+internal fun <T> decodeSequence(decoder: Decoder, element: Decodable<T>): ArrayList<T> {
+    val elements = decoder.unkeyed()
+    val result = ArrayList<T>()
+    while (elements.hasNext) {
+        result.add(element.decode(elements.element()))
+    }
+    elements.end()
+    return result
+}
+
+internal class ArrayDecoder<T>(private val element: Decodable<T>) : Decodable<Array<T>> {
+    public override fun decode(decoder: Decoder): Array<T> = decodeSequence(decoder, element).toArray()
+}
+
+internal class MutableArrayDecoder<T>(private val element: Decodable<T>) : Decodable<MutableArray<T>> {
+    public override fun decode(decoder: Decoder): MutableArray<T> =
+        decodeSequence(decoder, element).toMutableArray()
+}
+
+internal class ArrayListDecoder<T>(private val element: Decodable<T>) : Decodable<ArrayList<T>> {
+    public override fun decode(decoder: Decoder): ArrayList<T> = decodeSequence(decoder, element)
+}

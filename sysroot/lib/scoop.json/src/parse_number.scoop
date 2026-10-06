@@ -1,0 +1,34 @@
+package scoop.json
+
+internal fun isJsonDigit(character: Option<Char>): Boolean {
+    return when (character) {
+        Some(value) -> value >= '0' && value <= '9'
+        None -> false
+    }
+}
+
+internal fun appendJsonDigits(parser: JsonParser, result: StringBuilder, path: String) {
+    if (!isJsonDigit(parser.peek())) { throw parser.error(path, "expected a digit") }
+    while (isJsonDigit(parser.peek())) { result.add(parser.take(path)) }
+}
+
+internal fun readJsonNumber(parser: JsonParser, path: String): String {
+    val result = StringBuilder()
+    if (parser.accept('-')) { result.add('-') }
+    if (parser.accept('0')) {
+        result.add('0')
+        if (isJsonDigit(parser.peek())) { throw parser.error(path, "leading zero in number") }
+    } else { appendJsonDigits(parser, result, path) }
+    if (parser.accept('.')) {
+        result.add('.')
+        appendJsonDigits(parser, result, path)
+    }
+    if (parser.peek() == Some('e') || parser.peek() == Some('E')) {
+        result.add(parser.take(path))
+        if (parser.peek() == Some('+') || parser.peek() == Some('-')) {
+            result.add(parser.take(path))
+        }
+        appendJsonDigits(parser, result, path)
+    }
+    return result.build()
+}

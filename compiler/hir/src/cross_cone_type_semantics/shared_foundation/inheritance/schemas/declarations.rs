@@ -82,6 +82,7 @@ fn insert<'a>(
         .declaration_details()
         .dispatch_selections()
         .records()
+        .iter()
     {
         let role = match selection.role() {
             crate::NominalDispatchSelectionRoleV1::ClassVtable => {

@@ -142,6 +142,9 @@ fn make_property_public(property: &mut ast::PropertyDecl) {
 
 fn make_nested_public(declaration: &mut ast::NestedNominalDecl) {
     match declaration {
+        ast::NestedNominalDecl::AnnotationClass(declaration) => {
+            declaration.visibility = public_visibility()
+        }
         ast::NestedNominalDecl::Struct(declaration) => make_struct_public(declaration),
         ast::NestedNominalDecl::Enum(declaration) => make_enum_public(declaration),
         ast::NestedNominalDecl::Class(declaration) => make_class_public(declaration),
@@ -246,6 +249,7 @@ fn make_declaration_public(declaration: &mut Decl) {
         }
         Decl::Function(_) => {}
         Decl::TypeAlias(declaration) => declaration.visibility = public_visibility(),
+        Decl::AnnotationClass(declaration) => declaration.visibility = public_visibility(),
         Decl::Struct(declaration) => make_struct_public(declaration),
         Decl::Enum(declaration) => make_enum_public(declaration),
         Decl::Class(declaration) => make_class_public(declaration),

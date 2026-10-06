@@ -160,8 +160,8 @@ impl CrossConeHirInterfaceSectionV1 {
     }
 }
 
-struct DefaultReferenceClosureValidator<'references, 'validation, A> {
-    role: ExternalHirReferenceRoleV1,
+pub(super) struct DefaultReferenceClosureValidator<'references, 'validation, A> {
+    pub(super) role: ExternalHirReferenceRoleV1,
     references: &'references CanonicalExternalHirReferencesV1,
     seen: Vec<bool>,
     current: scoop_identity::ConeIdentity,
@@ -169,7 +169,7 @@ struct DefaultReferenceClosureValidator<'references, 'validation, A> {
 }
 
 impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 'validation, A> {
-    fn new<E>(
+    pub(super) fn new<E>(
         references: &'references CanonicalExternalHirReferencesV1,
         authority: &'validation mut A,
 
@@ -211,7 +211,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
         Ok(())
     }
 
-    fn observe<E>(
+    pub(super) fn observe<E>(
         &mut self,
         target: ExternalHirTargetV1,
         site: ExternalHirDefaultUseSiteV1,
@@ -260,7 +260,7 @@ impl<'references, 'validation, A> DefaultReferenceClosureValidator<'references, 
         Ok(())
     }
 
-    fn finish<E>(self) -> Result<(), ExternalHirDefaultClosureValidationError<E>> {
+    pub(super) fn finish<E>(self) -> Result<(), ExternalHirDefaultClosureValidationError<E>> {
         for (record_index, record) in self.references.records().iter().enumerate() {
             if record.roles().contains(self.role) && !self.seen[record_index] {
                 return Err(ExternalHirDefaultClosureValidationError::ExtraRole {
@@ -357,6 +357,9 @@ const fn field_target(field: &DefaultFieldRefV1) -> Option<ExternalHirTargetV1> 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalHirDefaultUseSiteV1 {
+    Annotation {
+        reference_index: usize,
+    },
     GenericDelegate {
         body_index: usize,
     },

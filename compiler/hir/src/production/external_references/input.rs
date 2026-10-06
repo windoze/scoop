@@ -21,6 +21,7 @@ pub struct ExternalHirReferenceProductionInput<'a> {
     pub(super) generic_callable_bodies: &'a CanonicalExportGenericCallableBodiesV1,
     pub(super) generic_initializations: &'a crate::CanonicalExportGenericInitializationsV1,
     pub(super) generic_delegates: &'a crate::CanonicalExportGenericDelegatesV1,
+    pub(super) annotations: &'a crate::CanonicalAnnotationsV1,
 }
 
 impl<'a> ExternalHirReferenceProductionInput<'a> {
@@ -37,6 +38,7 @@ impl<'a> ExternalHirReferenceProductionInput<'a> {
         generic_callable_bodies: &'a CanonicalExportGenericCallableBodiesV1,
         generic_initializations: &'a crate::CanonicalExportGenericInitializationsV1,
         generic_delegates: &'a crate::CanonicalExportGenericDelegatesV1,
+        annotations: &'a crate::CanonicalAnnotationsV1,
     ) -> Self {
         Self {
             public_bindings,
@@ -50,6 +52,7 @@ impl<'a> ExternalHirReferenceProductionInput<'a> {
             generic_callable_bodies,
             generic_initializations,
             generic_delegates,
+            annotations,
         }
     }
 }

@@ -315,7 +315,7 @@ override省略visibility时也严格得到internal，不继承或复制base decl
 
 getter visibility就是property visibility，不能单独修改。`var` setter可省略modifier继承property visibility，或声明一个不更宽的`private`/`internal`/`protected` visibility；`public set`只有property本身public时有意义。读取候选选中property后，setter不可见产生assignment诊断，不改选其他property。
 
-public/internal/protected declaration的签名中出现的parameter、return、receiver、property、base/bound、annotation type及default直接绑定实体必须覆盖该声明的完整direct lookup domain，以及它承担的更宽slot contract domain。该统一规则继续支撑M17的`CallDomain ⊆ AccessDomain` witness；const folding、companion forwarding、default或implicit accessor都不能绕过visibility。普通function/accessor/default-interface body是实现依赖，可以调用同owner的narrower实体，不因此导出它们。
+public/internal/protected declaration的签名中出现的parameter、return、receiver、property、base/bound及annotation type必须覆盖该声明的完整direct lookup domain。M29修订明确：经base/interface分派时暴露的是该静态声明的签名和完整类型实参，override的slot coverage不扩大实现者签名的名称可见范围。因此internal/private实现者可实现带非public实参的public泛型接口，公开声明仍不得泄漏不可见类型。default直接绑定实体按实际展开default的call domain检查；const folding、companion forwarding、default或implicit accessor都不能绕过visibility。普通function/accessor/default-interface body是实现依赖，可以调用同owner的narrower实体，不因此导出它们。访问检查不另生成跨阶段witness。
 
 ### 5.3 constructor与property modifier
 

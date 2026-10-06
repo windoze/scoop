@@ -248,7 +248,7 @@ impl Lowerer {
             Owner::Enum(id) => self.enum_applications[self.enums[id].self_application]
                 .arguments
                 .clone(),
-            Owner::Object(_) => Vec::new(),
+            Owner::Object(id) => self.owner_type_args(Owner::Class(self.objects[id].backing_class)),
         }
     }
 
@@ -271,11 +271,20 @@ impl Lowerer {
                 hir::MethodOwnerApplication::Interface(self.interface_application_id(id, arguments))
             }
             Owner::Object(id) => {
-                assert!(
-                    arguments.is_empty(),
-                    "object owners cannot have type arguments"
-                );
-                hir::MethodOwnerApplication::Object(self.objects[id].object_type)
+                let representation =
+                    self.class_application_id(self.objects[id].backing_class, arguments);
+                let existing = self
+                    .object_types
+                    .iter()
+                    .find_map(|(id, ty)| (ty.representation == representation).then_some(id));
+                let object_type = existing.unwrap_or_else(|| {
+                    self.object_types.alloc(hir::ObjectType {
+                        declaration: id,
+                        representation,
+                        canonical_type: self.class_applications[representation].canonical_type,
+                    })
+                });
+                hir::MethodOwnerApplication::Object(object_type)
             }
         }
     }
@@ -288,7 +297,9 @@ impl Lowerer {
             hir::MethodOwnerApplication::Interface(id) => {
                 &self.interface_applications[id].arguments
             }
-            hir::MethodOwnerApplication::Object(_) => &[],
+            hir::MethodOwnerApplication::Object(id) => {
+                &self.class_applications[self.object_types[id].representation].arguments
+            }
         }
     }
 
@@ -325,7 +336,9 @@ impl Lowerer {
             Owner::Struct(id) => self.structs[id].type_params.clone(),
             Owner::Enum(id) => self.enums[id].type_params.clone(),
             Owner::Interface(id) => self.interfaces[id].type_params.clone(),
-            Owner::Object(_) => Vec::new(),
+            Owner::Object(id) => self.classes[self.objects[id].backing_class]
+                .type_params
+                .clone(),
         }
     }
 }

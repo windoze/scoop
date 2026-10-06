@@ -442,7 +442,12 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
             )
         })
         .collect::<Vec<_>>();
+    let mut unit = strukt("Unit", "core_unit", Vec::new());
+    if let Decl::Struct(declaration) = &mut unit {
+        declaration.supertypes.clear();
+    }
     declarations.extend([
+        unit,
         strukt(
             "Boolean",
             "core_boolean",

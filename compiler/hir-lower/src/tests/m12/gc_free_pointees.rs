@@ -800,6 +800,7 @@ fn closed_pointee_applications_are_replayed_in_class_initialization_regions() {
         unreachable!()
     };
     parameter_host_decl.constructor = vec![ast::PrimaryClassParameter {
+        annotations: Vec::new(),
         property: ast::PrimaryParameterProperty::Plain,
         member_visibility: None,
         is_override: false,

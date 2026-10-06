@@ -2,7 +2,7 @@ Module
   global0 eager: Int managed initial=zeroed-for-runtime-unit
   global1 $singleton$DeferredRegistry: DeferredRegistry managed initial=zeroed-for-runtime-unit
   global2 $singleton$ReadyRegistry: ReadyRegistry managed initial=zeroed-for-runtime-unit
-  global3 $singleton$ReadyFactory: DeferredHost.ReadyFactory managed initial=zeroed-for-runtime-unit
+  global3 $singleton$ReadyFactory: ReadyHost.ReadyFactory managed initial=zeroed-for-runtime-unit
   global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global6 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
@@ -10,10 +10,16 @@ Module
   init0 top-level:eager eager global0 initializer=@fn11 ensure=@fn12 failure=4 deps=[2]
   init1 object:DeferredRegistry singleton lazy global1 initializer=@fn5 ensure=@fn6 failure=5 deps=[]
   init2 object:ReadyRegistry singleton lazy global2 initializer=@fn7 ensure=@fn8 failure=6 deps=[3]
-  init3 companion:DeferredHost.ReadyFactory singleton lazy global3 initializer=@fn9 ensure=@fn10 failure=7 deps=[]
+  init3 companion:ReadyHost.ReadyFactory singleton lazy global3 initializer=@fn9 ensure=@fn10 failure=7 deps=[]
   enum Option<String>
     Some(_0: String)
     None()
+  enum CoroutineStep<ReadyHost.ReadyFactory>
+    Completed(value: ReadyHost.ReadyFactory)
+    Suspended()
+  enum CoroutineSlot<ReadyHost.ReadyFactory>
+    Empty()
+    Value(value: ReadyHost.ReadyFactory)
   enum CoroutineStep<DeferredSuspend>
     Completed(value: DeferredSuspend)
     Suspended()
@@ -26,24 +32,25 @@ Module
   enum CoroutineSlot<DeferredRegistry>
     Empty()
     Value(value: DeferredRegistry)
+  enum CoroutineStep<ReadyHost>
+    Completed(value: ReadyHost)
+    Suspended()
+  enum CoroutineSlot<ReadyHost>
+    Empty()
+    Value(value: ReadyHost)
   enum CoroutineStep<ReadyRegistry>
     Completed(value: ReadyRegistry)
     Suspended()
   enum CoroutineSlot<ReadyRegistry>
     Empty()
     Value(value: ReadyRegistry)
-  enum CoroutineStep<DeferredHost.ReadyFactory>
-    Completed(value: DeferredHost.ReadyFactory)
-    Suspended()
-  enum CoroutineSlot<DeferredHost.ReadyFactory>
-    Empty()
-    Value(value: DeferredHost.ReadyFactory)
   enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
   class DeferredRegistry vtable=0 itables=1
+  class ReadyHost vtable=0 itables=0
   class ReadyRegistry vtable=0 itables=0
-  class DeferredHost.ReadyFactory vtable=0 itables=0
+  class ReadyHost.ReadyFactory vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -57,30 +64,36 @@ Module
   interface Continuation<DeferredRegistry>
   interface SuspendTask<DeferredRegistry>
   interface SuspendRegistration<DeferredRegistry>
+  interface Continuation<ReadyHost>
+  interface SuspendTask<ReadyHost>
+  interface SuspendRegistration<ReadyHost>
   interface Continuation<ReadyRegistry>
   interface SuspendTask<ReadyRegistry>
   interface SuspendRegistration<ReadyRegistry>
-  interface Continuation<DeferredHost.ReadyFactory>
-  interface SuspendTask<DeferredHost.ReadyFactory>
-  interface SuspendRegistration<DeferredHost.ReadyFactory>
+  interface Continuation<ReadyHost.ReadyFactory>
+  interface SuspendTask<ReadyHost.ReadyFactory>
+  interface SuspendRegistration<ReadyHost.ReadyFactory>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum6 nominal_id=24eb89e43cdb705d705772a65d49955fc639fb3af670a67cde2884cbbb75ad6d exact_id=16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e
+  generated_exact_type get1 location=enum10 nominal_id=24eb89e43cdb705d705772a65d49955fc639fb3af670a67cde2884cbbb75ad6d exact_id=16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get3 location=enum3 nominal_id=809183f6c6ae2c776c2fa9d853c8d33dbca5319c5914e7908f402c20196753e5 exact_id=42f45fee94a72b8c75a6f482a150d28657a3d945ee4497728f184d8ea376aaca
+  generated_exact_type get3 location=enum5 nominal_id=809183f6c6ae2c776c2fa9d853c8d33dbca5319c5914e7908f402c20196753e5 exact_id=42f45fee94a72b8c75a6f482a150d28657a3d945ee4497728f184d8ea376aaca
   generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get5 location=enum1 nominal_id=f05a8d9f0d3d552adfa36f059841dd203b39ae2bd0242da8f0bb467ed95f1c6f exact_id=7c12c5e42a637c34811ac3a37fdcf3c138b33fe3f9206f8252565eb2f8966ef1
-  generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get7 location=enum2 nominal_id=2b307f603fdf179d57611cf1942c29ca2a2ab7634c2febe077a5bff26d512c85 exact_id=a835e7af2449c8188650f46035b6e1f58b070d0e34a2210c1eef12ad40cee10e
-  generated_exact_type get8 location=enum9 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
-  generated_exact_type get9 location=enum8 nominal_id=60745410a69ab8c3172bce1608cf435f83b38b78ad1d558f522ce6e4186d06bb exact_id=ba48e0d43232e084e60b8ac7d23cc5644feafd7f6e9c9ac4268c112b7f215916
-  generated_exact_type get10 location=enum5 nominal_id=f7f0b0dc5bcd6331f83088bc91e0410128a246684f53a85706de7950978a45e6 exact_id=bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b
-  generated_exact_type get11 location=enum4 nominal_id=d1f0b611e1b0789de2e98c56da69a14bdd4b4e1c63bfd189b119d7c9caa84edb exact_id=c38f21816fe00b9d943f41132cb26fd583c19b14e2db989ebe9006293bb55f01
-  generated_exact_type get12 location=enum7 nominal_id=dd4056c46f6a26679f782d0d852ae38c08c82fb336d613c250c4e62fd4146979 exact_id=d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73
-  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn40 id=549f2dfb92dd30367a68569dc78bd7a93559f72f6259eb1b6f6e6546d36dbb29
-  generated_callable gc1 function=@fn38 id=962662872d1a913d3fed754ac0e5863e8b1024cfdf80c44dbe5d9f156ff12a98
-  generated_callable gc2 function=@fn39 id=cd4f50a102a2b835de96b7a4170d806eb335953d0bd9eb44cb26c0745b283732
-  generated_callable gc3 function=@fn41 id=e7effb7477014a5314381ad78848bc2ae7c0515647cb80115a4137aa67551fbf
+  generated_exact_type get5 location=enum2 nominal_id=6dfff3d1afb16726a809475015043a1fcc30c1f51f1577432eb195774c0d444d exact_id=752e1f50ebb4466c82fed88f709ed96ef404462f27ef6f3eb80b4dfea359d9f6
+  generated_exact_type get6 location=enum3 nominal_id=f05a8d9f0d3d552adfa36f059841dd203b39ae2bd0242da8f0bb467ed95f1c6f exact_id=7c12c5e42a637c34811ac3a37fdcf3c138b33fe3f9206f8252565eb2f8966ef1
+  generated_exact_type get7 location=enum1 nominal_id=2f7149356fd5a726b709ca7bcad07d1afa5b2e2bd6fa70921c17a698d960cf50 exact_id=8016605385cfb2b94101dec8ee11c3a699c3f078c875f16780a1f0c5a0d6e1cc
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=enum8 nominal_id=79d5435eb82be1e03f4b06aeb16791320fbbb6634214bbac43dc342f6713e658 exact_id=8ceea237ec5851a0e4d6c0fc48a5beb9ba69618dac94fad2e4e04b6ce801455d
+  generated_exact_type get10 location=enum4 nominal_id=2b307f603fdf179d57611cf1942c29ca2a2ab7634c2febe077a5bff26d512c85 exact_id=a835e7af2449c8188650f46035b6e1f58b070d0e34a2210c1eef12ad40cee10e
+  generated_exact_type get11 location=enum11 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get12 location=enum9 nominal_id=f7f0b0dc5bcd6331f83088bc91e0410128a246684f53a85706de7950978a45e6 exact_id=bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b
+  generated_exact_type get13 location=enum7 nominal_id=577fb1104fef14d19bddd5b195aa948dcc12fb4f690d9c6798b9792e24d1829f exact_id=c389b005deeabfe1e4673e4211e81d6173d23657bf315ce3eee6e783c265865d
+  generated_exact_type get14 location=enum6 nominal_id=d1f0b611e1b0789de2e98c56da69a14bdd4b4e1c63bfd189b119d7c9caa84edb exact_id=c38f21816fe00b9d943f41132cb26fd583c19b14e2db989ebe9006293bb55f01
+  generated_exact_type get15 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn47 id=549f2dfb92dd30367a68569dc78bd7a93559f72f6259eb1b6f6e6546d36dbb29
+  generated_callable gc1 function=@fn43 id=82454e54dceec55d6fa5b338dcd8a9d4447f9884db4160fc1094cbb93acd5552
+  generated_callable gc2 function=@fn44 id=962662872d1a913d3fed754ac0e5863e8b1024cfdf80c44dbe5d9f156ff12a98
+  generated_callable gc3 function=@fn46 id=c87ab55ce15a220bf789a3d555612716da3b6aa4c29f015f7c4c0e14ff11c721
+  generated_callable gc4 function=@fn45 id=cd4f50a102a2b835de96b7a4170d806eb335953d0bd9eb44cb26c0745b283732
   fun DeferredRegistry.fetch @fn0(this: DeferredRegistry, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       return
@@ -103,27 +116,27 @@ Module
         FieldAccess 0
           Type ReadyRegistry
           Local this
-  fun DeferredHost.ReadyFactory.read @fn3(this: DeferredHost.ReadyFactory) -> Int
+  fun ReadyHost.ReadyFactory.read @fn3(this: ReadyHost.ReadyFactory) -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct
-        Type DeferredHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
         Local this
       return
         Type Int
         Local $call.1
-  fun DeferredHost.ReadyFactory.$get$seed @fn4(this: DeferredHost.ReadyFactory) -> Int
+  fun ReadyHost.ReadyFactory.$get$seed @fn4(this: ReadyHost.ReadyFactory) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
-          Type DeferredHost.ReadyFactory
+          Type ReadyHost.ReadyFactory
           Local this
   fun $init$body$0 @fn5() -> Unit
     bb0 entry
       assign $new.1
         Type DeferredRegistry
         ClassAlloc DeferredRegistry
-      call @fn35 direct
+      call @fn39 direct
         Type DeferredRegistry
         Local $new.1
       global_assign $singleton$DeferredRegistry
@@ -233,7 +246,7 @@ Module
       assign $new.1
         Type ReadyRegistry
         ClassAlloc ReadyRegistry
-      call @fn36 direct
+      call @fn41 direct
         Type ReadyRegistry
         Local $new.1
       global_assign $singleton$ReadyRegistry
@@ -341,20 +354,20 @@ Module
   fun $init$body$2 @fn9() -> Unit
     bb0 entry
       assign $new.1
-        Type DeferredHost.ReadyFactory
-        ClassAlloc DeferredHost.ReadyFactory
-      call @fn37 direct
-        Type DeferredHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
+        ClassAlloc ReadyHost.ReadyFactory
+      call @fn42 direct
+        Type ReadyHost.ReadyFactory
         Local $new.1
       global_assign $singleton$ReadyFactory
-        Type DeferredHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
         Local $new.1
       return
   fun $init$ensure$2 @fn10() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        InitializationUnitAddress init3 companion:ReadyHost.ReadyFactory
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -398,7 +411,7 @@ Module
       call @fn9 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        InitializationUnitAddress init3 companion:ReadyHost.ReadyFactory
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -413,7 +426,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        InitializationUnitAddress init3 companion:ReadyHost.ReadyFactory
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -434,14 +447,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        InitializationUnitAddress init3 companion:ReadyHost.ReadyFactory
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init3 companion:DeferredHost.ReadyFactory
+        InitializationUnitAddress init3 companion:ReadyHost.ReadyFactory
       call external0 direct
         Type String
         Local $init.message
@@ -601,44 +614,59 @@ Module
   fun SuspendRegistration.register @fn25(this: SuspendRegistration<DeferredRegistry>, continuation: Continuation<DeferredRegistry>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn26(this: Continuation<ReadyRegistry>, value: ReadyRegistry) -> Unit
+  fun Continuation.resume @fn26(this: Continuation<ReadyHost>, value: ReadyHost) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn27(this: Continuation<ReadyRegistry>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn27(this: Continuation<ReadyHost>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn28(this: SuspendTask<ReadyRegistry>, $completion: Continuation<ReadyRegistry>) -> CoroutineStep<ReadyRegistry>
+  fun SuspendTask.run @fn28(this: SuspendTask<ReadyHost>, $completion: Continuation<ReadyHost>) -> CoroutineStep<ReadyHost>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn29(this: SuspendRegistration<ReadyRegistry>, continuation: Continuation<ReadyRegistry>) -> Unit
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<ReadyHost>, continuation: Continuation<ReadyHost>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn30(this: Continuation<DeferredHost.ReadyFactory>, value: DeferredHost.ReadyFactory) -> Unit
+  fun Continuation.resume @fn30(this: Continuation<ReadyRegistry>, value: ReadyRegistry) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn31(this: Continuation<DeferredHost.ReadyFactory>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn31(this: Continuation<ReadyRegistry>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn32(this: SuspendTask<DeferredHost.ReadyFactory>, $completion: Continuation<DeferredHost.ReadyFactory>) -> CoroutineStep<DeferredHost.ReadyFactory>
+  fun SuspendTask.run @fn32(this: SuspendTask<ReadyRegistry>, $completion: Continuation<ReadyRegistry>) -> CoroutineStep<ReadyRegistry>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn33(this: SuspendRegistration<DeferredHost.ReadyFactory>, continuation: Continuation<DeferredHost.ReadyFactory>) -> Unit
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<ReadyRegistry>, continuation: Continuation<ReadyRegistry>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun DeferredSuspend.fetch @fn34(this: DeferredSuspend, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun Continuation.resume @fn34(this: Continuation<ReadyHost.ReadyFactory>, value: ReadyHost.ReadyFactory) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn35(this: Continuation<ReadyHost.ReadyFactory>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn36(this: SuspendTask<ReadyHost.ReadyFactory>, $completion: Continuation<ReadyHost.ReadyFactory>) -> CoroutineStep<ReadyHost.ReadyFactory>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<ReadyHost.ReadyFactory>, continuation: Continuation<ReadyHost.ReadyFactory>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun DeferredSuspend.fetch @fn38(this: DeferredSuspend, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `DeferredSuspend.fetch`"
-  fun init.DeferredRegistry.$c1 @fn35(this: DeferredRegistry) -> Unit
+  fun init.DeferredRegistry.$c2 @fn39(this: DeferredRegistry) -> Unit
     bb0 entry
       return
-  fun init.ReadyRegistry.$c2 @fn36(this: ReadyRegistry) -> Unit
+  fun init.ReadyHost.$c1 @fn40(this: ReadyHost) -> Unit
+    bb0 entry
+      return
+  fun init.ReadyRegistry.$c3 @fn41(this: ReadyRegistry) -> Unit
     bb0 entry
       call @fn10 direct
-      val $receiver: DeferredHost.ReadyFactory
-        Type DeferredHost.ReadyFactory
+      val $receiver: ReadyHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
         GlobalRead $singleton$ReadyFactory
       call $dependency.receiver: Int = @fn3 direct
-        Type DeferredHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
         Local $receiver
       val $dependency.argument.0: Int
         Type Int
@@ -656,15 +684,96 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
-  fun init.DeferredHost.ReadyFactory.$c3 @fn37(this: DeferredHost.ReadyFactory) -> Unit
+  fun init.ReadyHost.ReadyFactory.$c4 @fn42(this: ReadyHost.ReadyFactory) -> Unit
     bb0 entry
       field_set 0
-        Type DeferredHost.ReadyFactory
+        Type ReadyHost.ReadyFactory
         Local this
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
       return
-  fun startCoroutine<DeferredSuspend> @fn38(task: SuspendTask<DeferredSuspend>, completion: Continuation<DeferredSuspend>) -> Unit
+  fun startCoroutine<ReadyHost.ReadyFactory> @fn43(task: SuspendTask<ReadyHost.ReadyFactory>, completion: Continuation<ReadyHost.ReadyFactory>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn34 interface Continuation<ReadyHost.ReadyFactory>[0]
+        Type Continuation<ReadyHost.ReadyFactory>
+        Local completion
+        Type ReadyHost.ReadyFactory
+        EnumField v0 f0
+          Type CoroutineStep<ReadyHost.ReadyFactory>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn35 interface Continuation<ReadyHost.ReadyFactory>[1]
+        Type Continuation<ReadyHost.ReadyFactory>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<ReadyHost.ReadyFactory> = @fn36 interface SuspendTask<ReadyHost.ReadyFactory>[0]
+        Type SuspendTask<ReadyHost.ReadyFactory>
+        Local task
+        Type Continuation<ReadyHost.ReadyFactory>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReadyHost.ReadyFactory>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<DeferredSuspend> @fn44(task: SuspendTask<DeferredSuspend>, completion: Continuation<DeferredSuspend>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -745,7 +854,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<DeferredRegistry> @fn39(task: SuspendTask<DeferredRegistry>, completion: Continuation<DeferredRegistry>) -> Unit
+  fun startCoroutine<DeferredRegistry> @fn45(task: SuspendTask<DeferredRegistry>, completion: Continuation<DeferredRegistry>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -826,7 +935,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<ReadyRegistry> @fn40(task: SuspendTask<ReadyRegistry>, completion: Continuation<ReadyRegistry>) -> Unit
+  fun startCoroutine<ReadyHost> @fn46(task: SuspendTask<ReadyHost>, completion: Continuation<ReadyHost>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -849,7 +958,88 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn26 interface Continuation<ReadyRegistry>[0]
+      call @fn26 interface Continuation<ReadyHost>[0]
+        Type Continuation<ReadyHost>
+        Local completion
+        Type ReadyHost
+        EnumField v0 f0
+          Type CoroutineStep<ReadyHost>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn27 interface Continuation<ReadyHost>[1]
+        Type Continuation<ReadyHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<ReadyHost> = @fn28 interface SuspendTask<ReadyHost>[0]
+        Type SuspendTask<ReadyHost>
+        Local task
+        Type Continuation<ReadyHost>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReadyHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<ReadyRegistry> @fn47(task: SuspendTask<ReadyRegistry>, completion: Continuation<ReadyRegistry>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn30 interface Continuation<ReadyRegistry>[0]
         Type Continuation<ReadyRegistry>
         Local completion
         Type ReadyRegistry
@@ -862,7 +1052,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn27 interface Continuation<ReadyRegistry>[1]
+      call @fn31 interface Continuation<ReadyRegistry>[1]
         Type Continuation<ReadyRegistry>
         Local completion
         Type Throwable
@@ -881,7 +1071,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<ReadyRegistry> = @fn28 interface SuspendTask<ReadyRegistry>[0]
+      call $step: CoroutineStep<ReadyRegistry> = @fn32 interface SuspendTask<ReadyRegistry>[0]
         Type SuspendTask<ReadyRegistry>
         Local task
         Type Continuation<ReadyRegistry>
@@ -907,107 +1097,30 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<DeferredHost.ReadyFactory> @fn41(task: SuspendTask<DeferredHost.ReadyFactory>, completion: Continuation<DeferredHost.ReadyFactory>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn30 interface Continuation<DeferredHost.ReadyFactory>[0]
-        Type Continuation<DeferredHost.ReadyFactory>
-        Local completion
-        Type DeferredHost.ReadyFactory
-        EnumField v0 f0
-          Type CoroutineStep<DeferredHost.ReadyFactory>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn31 interface Continuation<DeferredHost.ReadyFactory>[1]
-        Type Continuation<DeferredHost.ReadyFactory>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<DeferredHost.ReadyFactory> = @fn32 interface SuspendTask<DeferredHost.ReadyFactory>[0]
-        Type SuspendTask<DeferredHost.ReadyFactory>
-        Local task
-        Type Continuation<DeferredHost.ReadyFactory>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<DeferredHost.ReadyFactory>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  coroutine_step cs0 CoroutineStep<DeferredSuspend> result=DeferredSuspend
-  coroutine_step cs1 CoroutineStep<DeferredRegistry> result=DeferredRegistry
-  coroutine_step cs2 CoroutineStep<ReadyRegistry> result=ReadyRegistry
-  coroutine_step cs3 CoroutineStep<DeferredHost.ReadyFactory> result=DeferredHost.ReadyFactory
-  coroutine_step cs4 CoroutineStep<Int> result=Int
-  coroutine_slot cl0 CoroutineSlot<DeferredSuspend> value=DeferredSuspend
-  coroutine_slot cl1 CoroutineSlot<DeferredRegistry> value=DeferredRegistry
-  coroutine_slot cl2 CoroutineSlot<ReadyRegistry> value=ReadyRegistry
-  coroutine_slot cl3 CoroutineSlot<DeferredHost.ReadyFactory> value=DeferredHost.ReadyFactory
-  coroutine_start ct0 result=DeferredSuspend function=fn38
-  coroutine_start ct1 result=DeferredRegistry function=fn39
-  coroutine_start ct2 result=ReadyRegistry function=fn40
-  coroutine_start ct3 result=DeferredHost.ReadyFactory function=fn41
-  coroutine_fn cf0 @fn0 source_return=Int step=cs4 immediate
-  coroutine_fn cf1 @fn16 source_return=Int step=cs4 immediate
-  coroutine_fn cf2 @fn20 source_return=DeferredSuspend step=cs0 immediate
-  coroutine_fn cf3 @fn24 source_return=DeferredRegistry step=cs1 immediate
-  coroutine_fn cf4 @fn28 source_return=ReadyRegistry step=cs2 immediate
-  coroutine_fn cf5 @fn32 source_return=DeferredHost.ReadyFactory step=cs3 immediate
-  coroutine_fn cf6 @fn34 source_return=Int step=cs4 immediate
+  coroutine_step cs0 CoroutineStep<ReadyHost.ReadyFactory> result=ReadyHost.ReadyFactory
+  coroutine_step cs1 CoroutineStep<DeferredSuspend> result=DeferredSuspend
+  coroutine_step cs2 CoroutineStep<DeferredRegistry> result=DeferredRegistry
+  coroutine_step cs3 CoroutineStep<ReadyHost> result=ReadyHost
+  coroutine_step cs4 CoroutineStep<ReadyRegistry> result=ReadyRegistry
+  coroutine_step cs5 CoroutineStep<Int> result=Int
+  coroutine_slot cl0 CoroutineSlot<ReadyHost.ReadyFactory> value=ReadyHost.ReadyFactory
+  coroutine_slot cl1 CoroutineSlot<DeferredSuspend> value=DeferredSuspend
+  coroutine_slot cl2 CoroutineSlot<DeferredRegistry> value=DeferredRegistry
+  coroutine_slot cl3 CoroutineSlot<ReadyHost> value=ReadyHost
+  coroutine_slot cl4 CoroutineSlot<ReadyRegistry> value=ReadyRegistry
+  coroutine_start ct0 result=ReadyHost.ReadyFactory function=fn43
+  coroutine_start ct1 result=DeferredSuspend function=fn44
+  coroutine_start ct2 result=DeferredRegistry function=fn45
+  coroutine_start ct3 result=ReadyHost function=fn46
+  coroutine_start ct4 result=ReadyRegistry function=fn47
+  coroutine_fn cf0 @fn0 source_return=Int step=cs5 immediate
+  coroutine_fn cf1 @fn16 source_return=Int step=cs5 immediate
+  coroutine_fn cf2 @fn20 source_return=DeferredSuspend step=cs1 immediate
+  coroutine_fn cf3 @fn24 source_return=DeferredRegistry step=cs2 immediate
+  coroutine_fn cf4 @fn28 source_return=ReadyHost step=cs3 immediate
+  coroutine_fn cf5 @fn32 source_return=ReadyRegistry step=cs4 immediate
+  coroutine_fn cf6 @fn36 source_return=ReadyHost.ReadyFactory step=cs0 immediate
+  coroutine_fn cf7 @fn38 source_return=Int step=cs5 immediate
   instance mi0 function=@fn14 <- Continuation.resume
   instance mi1 function=@fn15 <- Continuation.resumeWithException
   instance mi2 function=@fn16 <- SuspendTask.run
@@ -1028,4 +1141,8 @@ Module
   instance mi17 function=@fn31 <- Continuation.resumeWithException
   instance mi18 function=@fn32 <- SuspendTask.run
   instance mi19 function=@fn33 <- SuspendRegistration.register
+  instance mi20 function=@fn34 <- Continuation.resume
+  instance mi21 function=@fn35 <- Continuation.resumeWithException
+  instance mi22 function=@fn36 <- SuspendTask.run
+  instance mi23 function=@fn37 <- SuspendRegistration.register
   output library

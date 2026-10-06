@@ -54,6 +54,10 @@ impl Lowerer {
                     unreachable!("the M22 core lookup layer contains only current HIR targets")
                 }
                 TypeLookupTarget::Current(target) => match *target {
+                    TopLevelTypeTarget::Annotation(id) => {
+                        let declaration = &self.source_annotations[&id];
+                        (declaration.file, declaration.declaration.span)
+                    }
                     TopLevelTypeTarget::Alias(id) => {
                         let origin = self.source_type_aliases[id].origin;
                         (origin.file as usize, origin.span)

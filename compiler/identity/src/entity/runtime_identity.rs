@@ -254,6 +254,13 @@ impl StaticStorageKey {
         )
     }
 
+    pub const fn singleton_application_root(owner: PersistentExactTypeId) -> Self {
+        Self::new(
+            DefinitionOwner::Nominal(NominalOwner::ExactApplication(owner)),
+            StorageRole::SingletonPublishedRoot,
+        )
+    }
+
     pub const fn initialization_failure_root(unit: PersistentInitializationUnitId) -> Self {
         Self::new(
             DefinitionOwner::InitializationUnit(unit),

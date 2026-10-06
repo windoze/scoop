@@ -13,6 +13,7 @@ use crate::{
     PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
 };
 
+mod annotation;
 mod decode;
 
 pub use decode::{DecodedSourceDeclarationKey, SourceDeclarationResolutionError};
@@ -75,12 +76,7 @@ impl SourceDeclarationKind {
     pub const fn is_nominal(self) -> bool {
         matches!(
             self,
-            Self::Class
-                | Self::Interface
-                | Self::Struct
-                | Self::Enum
-                | Self::Object
-                | Self::AnnotationClass
+            Self::Class | Self::Interface | Self::Struct | Self::Enum | Self::Object
         )
     }
 }
@@ -301,6 +297,7 @@ pub enum SourceDeclarationIdentityError {
     ExpectedProperty,
     ExpectedExtensionProperty,
     ExpectedTypeAlias,
+    ExpectedAnnotation,
     ExpectedObject,
     Hash(HashError),
 }
@@ -320,6 +317,7 @@ impl fmt::Display for SourceDeclarationIdentityError {
                 "identity requires an extension property source declaration key"
             }
             Self::ExpectedTypeAlias => "identity requires a type-alias source declaration key",
+            Self::ExpectedAnnotation => "identity requires an annotation source declaration key",
             Self::ExpectedObject => "identity requires a non-generic source object declaration key",
             Self::Hash(error) => return error.fmt(formatter),
         })
@@ -441,10 +439,12 @@ impl PersistentObjectValueId {
         if key.declaration_kind != SourceDeclarationKind::Object {
             return Err(SourceDeclarationIdentityError::ExpectedObject);
         }
-        require_non_generic(key).map_err(|_| SourceDeclarationIdentityError::ExpectedObject)?;
-        let type_id = PersistentTypeId::from_source_declaration(key)?;
-        derive_persistent_id("scoop-object-value-id-v1", &ObjectValueKey(type_id))
-            .map_err(Into::into)
+        let value = if key.duplicate_signature().type_parameter_count() == 0 {
+            ObjectValueKey::Concrete(PersistentTypeId::from_source_declaration(key)?)
+        } else {
+            ObjectValueKey::Template(PersistentGenericTypeId::from_source_declaration(key)?)
+        };
+        derive_persistent_id("scoop-object-value-id-v1", &value).map_err(Into::into)
     }
 }
 
@@ -460,13 +460,24 @@ impl WireEncode for SourceTypeIdentityKey<'_> {
     }
 }
 
-struct ObjectValueKey(PersistentTypeId);
+enum ObjectValueKey {
+    Concrete(PersistentTypeId),
+    Template(PersistentGenericTypeId),
+}
 
 impl WireEncode for ObjectValueKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
-        encoder.field(1)?;
-        self.0.encode(encoder)
+        match self {
+            Self::Concrete(id) => {
+                encoder.field(1)?;
+                id.encode(encoder)
+            }
+            Self::Template(id) => {
+                encoder.field(2)?;
+                id.encode(encoder)
+            }
+        }
     }
 }
 
@@ -546,6 +557,19 @@ mod tests {
             hex(&encode(&class_key(0)).unwrap()),
             "a7015820730c104d0d63b08d3ac5eecd4f73859a83715e34cb775d5e988d3dd139d28301028163617070038004a20001016455736572050106a20001010007a10001"
         );
+    }
+
+    #[test]
+    fn annotation_identity_cannot_be_used_as_a_runtime_type() {
+        let mut annotation = class_key(0);
+        annotation.declaration_kind = super::SourceDeclarationKind::AnnotationClass;
+        assert!(crate::PersistentAnnotationId::from_source_declaration(&annotation).is_ok());
+        assert_eq!(
+            PersistentTypeId::from_source_declaration(&annotation),
+            Err(SourceDeclarationIdentityError::ExpectedNominal)
+        );
+        assert!(crate::BindingTarget::type_name(&annotation).is_err());
+        assert!(crate::BindingTarget::annotation(&annotation).is_ok());
     }
 
     #[test]

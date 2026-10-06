@@ -147,6 +147,103 @@ Module
   instance readAction<T0>
   instance referenceItem<T0>
   instance exercise<Int>
+== Static Shapes ==
+unit Unit
+intrinsic core_int8 Int8 Concrete(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4]))
+  interface ToString
+  interface Hash
+intrinsic core_int16 Int16 Concrete(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70]))
+  interface ToString
+  interface Hash
+intrinsic core_int Int Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))
+  interface ToString
+  interface Hash
+intrinsic core_long Long Concrete(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))
+  interface ToString
+  interface Hash
+intrinsic core_uint8 UInt8 Concrete(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216]))
+  interface ToString
+  interface Hash
+intrinsic core_uint16 UInt16 Concrete(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53]))
+  interface ToString
+  interface Hash
+intrinsic core_uint UInt Concrete(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75]))
+  interface ToString
+  interface Hash
+intrinsic core_ulong ULong Concrete(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248]))
+  interface ToString
+  interface Hash
+intrinsic core_boolean Boolean Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))
+  interface ToString
+  interface Hash
+intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
+  public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
+any Any
+class Local<T> GenericTemplate(PersistentGenericTypeId([218, 67, 221, 131, 148, 187, 127, 159, 86, 127, 27, 14, 23, 129, 111, 255, 214, 80, 223, 162, 204, 221, 127, 51, 86, 7, 24, 20, 80, 148, 139, 202]))
+  parameter T: Any
+  base Base<T>
+  constructor Constructor(PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203]))
+    parameter item: Item<T> Plain
+class Item<T> GenericTemplate(PersistentGenericTypeId([16, 67, 185, 247, 201, 129, 193, 175, 119, 55, 76, 147, 181, 117, 233, 62, 201, 47, 73, 152, 38, 180, 99, 26, 188, 217, 0, 158, 79, 255, 232, 55]))
+  parameter T: Any
+  field value: T Field(PersistentFieldId([139, 102, 174, 54, 111, 11, 39, 235, 49, 183, 127, 95, 177, 123, 35, 94, 238, 173, 7, 44, 173, 194, 150, 106, 221, 150, 174, 237, 212, 3, 239, 166])) PropertyBacking(PersistentPropertyId([246, 139, 39, 141, 111, 254, 44, 23, 226, 164, 21, 119, 237, 100, 70, 67, 136, 22, 43, 252, 236, 242, 70, 45, 32, 6, 146, 40, 237, 48, 89, 1]))
+  public property value: T f68b278d6ffe2c17e2a41577ed64464388162bfcecf2462d20069228ed305901 stored 8b66ae366f0b27eb31b77f5fb17b235eeead072cadc2966add96aeedd403efa6
+  constructor Constructor(PersistentConstructorId([192, 33, 255, 156, 79, 193, 78, 5, 126, 14, 159, 24, 11, 204, 73, 16, 141, 211, 124, 32, 219, 214, 11, 95, 110, 85, 206, 164, 127, 127, 228, 11]))
+    parameter value: T Property(PersistentPropertyId([246, 139, 39, 141, 111, 254, 44, 23, 226, 164, 21, 119, 237, 100, 70, 67, 136, 22, 43, 252, 236, 242, 70, 45, 32, 6, 146, 40, 237, 48, 89, 1]))
+class Base<T> GenericTemplate(PersistentGenericTypeId([158, 161, 184, 32, 54, 169, 113, 181, 149, 235, 9, 6, 172, 90, 91, 237, 241, 211, 212, 233, 6, 39, 134, 243, 135, 210, 139, 208, 239, 130, 234, 24]))
+  parameter T: Any
+  field item: Item<T> Field(PersistentFieldId([33, 27, 240, 132, 44, 202, 122, 81, 103, 227, 27, 156, 26, 161, 142, 176, 189, 208, 68, 252, 206, 217, 73, 7, 49, 111, 203, 87, 56, 26, 93, 169])) PropertyBacking(PersistentPropertyId([97, 184, 5, 62, 203, 177, 122, 50, 194, 165, 125, 116, 179, 42, 14, 147, 113, 166, 186, 226, 201, 197, 44, 157, 128, 46, 224, 172, 202, 3, 184, 26]))
+  public property item: Item<T> 61b8053ecbb17a32c2a57d74b32a0e9371a6bae2c9c52c9d802ee0acca03b81a stored 211bf0842cca7a5167e31b9c1aa18eb0bdd044fcced94907316fcb57381a5da9
+  constructor Constructor(PersistentConstructorId([172, 248, 57, 215, 204, 78, 191, 4, 35, 180, 115, 176, 49, 115, 225, 131, 219, 51, 120, 12, 1, 150, 206, 150, 223, 116, 98, 117, 164, 207, 182, 85]))
+    parameter item: Item<T> Property(PersistentPropertyId([97, 184, 5, 62, 203, 177, 122, 50, 194, 165, 125, 116, 179, 42, 14, 147, 113, 166, 186, 226, 201, 197, 44, 157, 128, 46, 224, 172, 202, 3, 184, 26]))
+class Host<T> GenericTemplate(PersistentGenericTypeId([86, 17, 131, 242, 100, 181, 162, 149, 22, 252, 242, 170, 87, 6, 84, 50, 130, 177, 157, 7, 4, 192, 146, 146, 48, 255, 100, 255, 82, 124, 116, 25]))
+  parameter T: Any
+  base Base<T>
+  field action: () -> T Field(PersistentFieldId([219, 188, 218, 185, 81, 147, 147, 198, 1, 242, 120, 252, 180, 32, 143, 45, 81, 152, 242, 46, 79, 184, 5, 203, 191, 218, 247, 152, 201, 51, 150, 28])) PropertyBacking(PersistentPropertyId([226, 32, 41, 45, 190, 60, 137, 244, 18, 72, 139, 242, 88, 193, 105, 35, 188, 76, 40, 210, 93, 191, 9, 32, 232, 88, 58, 186, 116, 233, 144, 148]))
+  public property action: () -> T e220292dbe3c89f412488bf258c16923bc4c28d25dbf0920e8583aba74e99094 stored dbbcdab9519393c601f278fcb4208f2d5198f22e4fb805cbbfdaf798c933961c
+  constructor Constructor(PersistentConstructorId([21, 135, 174, 137, 106, 40, 213, 186, 246, 245, 250, 54, 53, 253, 186, 45, 104, 161, 145, 178, 118, 251, 68, 77, 23, 128, 150, 183, 70, 77, 157, 35]))
+    parameter item: Item<T> Plain
+    parameter action: () -> T Property(PersistentPropertyId([226, 32, 41, 45, 190, 60, 137, 244, 18, 72, 139, 242, 88, 193, 105, 35, 188, 76, 40, 210, 93, 191, 9, 32, 232, 88, 58, 186, 116, 233, 144, 148]))
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+function (Int) -> Int
+interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
+  parameter T: Any
+interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
+  parameter T: Any
+class Throwable Concrete(PersistentTypeId([52, 14, 197, 53, 40, 145, 114, 19, 48, 106, 128, 71, 51, 154, 164, 217, 17, 163, 145, 23, 194, 20, 73, 185, 182, 162, 42, 38, 51, 7, 173, 29]))
+  constructor Constructor(PersistentConstructorId([84, 32, 196, 202, 149, 144, 64, 117, 54, 82, 22, 147, 35, 209, 86, 184, 221, 238, 244, 15, 59, 13, 237, 67, 24, 60, 35, 116, 204, 149, 117, 27]))
+interface SuspendRegistration<T> GenericTemplate(PersistentGenericTypeId([80, 188, 252, 189, 116, 121, 224, 49, 66, 155, 150, 60, 205, 4, 57, 70, 147, 131, 203, 206, 75, 84, 41, 8, 74, 156, 94, 112, 217, 199, 183, 207]))
+  parameter T: Any
+class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
+  base Exception
+  constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
+    parameter message: Option<String> Plain default parameter0
+class Exception Concrete(PersistentTypeId([142, 87, 2, 76, 204, 55, 50, 96, 83, 32, 249, 205, 109, 172, 122, 28, 68, 54, 57, 231, 7, 212, 7, 34, 32, 169, 251, 228, 229, 149, 81, 121]))
+  base Throwable
+  field message: Option<String> Field(PersistentFieldId([149, 203, 168, 111, 213, 200, 80, 53, 248, 73, 183, 41, 242, 24, 158, 120, 189, 140, 149, 120, 95, 21, 186, 148, 67, 186, 139, 239, 80, 120, 208, 131])) PropertyBacking(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+  public property message: Option<String> 2a3930f700cfe99e457bcbae3b6c7cbb78cbecb5e7f0f8be2f06284b9add2026 stored 95cba86fd5c85035f849b729f2189e78bd8c95785f15ba9443ba8bef5078d083
+  constructor Constructor(PersistentConstructorId([25, 35, 17, 109, 201, 110, 78, 21, 232, 210, 177, 220, 71, 252, 25, 233, 177, 47, 203, 166, 101, 159, 77, 84, 16, 179, 84, 175, 235, 207, 71, 95]))
+    parameter message: Option<String> Property(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  parameter T: Any
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: String VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
 == LocalConcrete ==
 LocalConcrete 778f0305a5416999d64f7bfa9678377f5e8b05c831174f2a3e987290350d12d8 Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }
@@ -218,7 +315,7 @@ CrossCone 778f0305a5416999d64f7bfa9678377f5e8b05c831174f2a3e987290350d12d8
     public_bindings[4] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([205, 204, 142, 51, 252, 25, 183, 0, 145, 78, 53, 146, 81, 165, 68, 242, 130, 14, 138, 120, 146, 169, 160, 161, 112, 215, 47, 5, 136, 197, 231, 57]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([97, 15, 193, 174, 61, 95, 225, 180, 192, 230, 87, 173, 142, 96, 132, 222, 128, 202, 170, 168, 191, 21, 22, 253, 131, 130, 28, 88, 8, 133, 65, 94])) } }
     public_bindings[5] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([250, 156, 150, 206, 48, 46, 63, 153, 147, 87, 159, 215, 235, 168, 175, 149, 100, 118, 179, 17, 76, 212, 128, 140, 219, 227, 219, 139, 221, 115, 5, 85]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([226, 75, 93, 55, 107, 220, 56, 23, 33, 39, 192, 75, 155, 103, 125, 221, 236, 53, 220, 86, 44, 33, 5, 246, 10, 174, 214, 165, 176, 215, 190, 249])) } }
   nominal_interfaces count=1
-    nominal_interfaces[0] NominalInterfaceRecordV1 { declaration: GenericTemplate(PersistentGenericTypeId([218, 67, 221, 131, 148, 187, 127, 159, 86, 127, 27, 14, 23, 129, 111, 255, 214, 80, 223, 162, 204, 221, 127, 51, 86, 7, 24, 20, 80, 148, 139, 202])), kind: Class, type_parameters: CanonicalBinderListV1 { binders: [TypeParameterBinderV1 { name: CanonicalIdentifier("T"), bounds: Unconstrained }] }, exact_supertypes: CanonicalSignatureTypesV1 { values: [NominalApplication { origin: PersistentGenericTypeId([158, 161, 184, 32, 54, 169, 113, 181, 149, 235, 9, 6, 172, 90, 91, 237, 241, 211, 212, 233, 6, 39, 134, 243, 135, 210, 139, 208, 239, 130, 234, 24]), arguments: NonEmptyVec([Binder { depth: 0, index: 0 }]) }] }, constructors: CanonicalPersistentIdsV1 { values: [PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203])] }, members: CanonicalPublicMemberRefsV1 { members: [Callable(Function(PersistentFunctionId([253, 159, 197, 169, 228, 70, 114, 224, 146, 224, 66, 154, 191, 147, 174, 5, 141, 188, 59, 228, 92, 20, 7, 21, 186, 223, 241, 148, 94, 161, 165, 249])))] }, nested_bindings: CanonicalPersistentIdsV1 { values: [] }, source_shape: Class(NominalSourceFieldsV1 { fields: [] }), details: NominalDeclarationDetailsV1 { modality: Final, visibility: Public, constructors: CanonicalPersistentIdsV1 { values: [PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203])] }, members: CanonicalNestedMemberRefsV1 { values: [Function(PersistentFunctionId([253, 159, 197, 169, 228, 70, 114, 224, 146, 224, 66, 154, 191, 147, 174, 5, 141, 188, 59, 228, 92, 20, 7, 21, 186, 223, 241, 148, 94, 161, 165, 249]))] }, children: CanonicalNestedNominalRefsV1 { values: [] }, dispatch_order: Class { slots: [] }, dispatch_selections: CanonicalNominalDispatchSelectionsV1 { records: [] }, primary_value_constructor: None, instantiation_conditions: NominalInstantiationConditionsV1 { no_gc: false, gc_free_pointees: CanonicalBinderUseListV1 { arguments: [], len: 0 } }, release_policy: None } }
+    nominal_interfaces[0] NominalInterfaceRecordV1 { declaration: GenericTemplate(PersistentGenericTypeId([218, 67, 221, 131, 148, 187, 127, 159, 86, 127, 27, 14, 23, 129, 111, 255, 214, 80, 223, 162, 204, 221, 127, 51, 86, 7, 24, 20, 80, 148, 139, 202])), kind: Class, type_parameters: CanonicalBinderListV1 { binders: [TypeParameterBinderV1 { name: CanonicalIdentifier("T"), bounds: Unconstrained }] }, exact_supertypes: CanonicalSignatureTypesV1 { values: [NominalApplication { origin: PersistentGenericTypeId([158, 161, 184, 32, 54, 169, 113, 181, 149, 235, 9, 6, 172, 90, 91, 237, 241, 211, 212, 233, 6, 39, 134, 243, 135, 210, 139, 208, 239, 130, 234, 24]), arguments: NonEmptyVec([Binder { depth: 0, index: 0 }]) }] }, constructors: CanonicalPersistentIdsV1 { values: [PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203])] }, members: CanonicalPublicMemberRefsV1 { members: [Callable(Function(PersistentFunctionId([253, 159, 197, 169, 228, 70, 114, 224, 146, 224, 66, 154, 191, 147, 174, 5, 141, 188, 59, 228, 92, 20, 7, 21, 186, 223, 241, 148, 94, 161, 165, 249])))] }, nested_bindings: CanonicalPersistentIdsV1 { values: [] }, source_shape: Class(NominalSourceFieldsV1 { fields: [] }), details: NominalDeclarationDetailsV1 { modality: Final, visibility: Public, constructors: CanonicalPersistentIdsV1 { values: [PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203])] }, members: CanonicalNestedMemberRefsV1 { values: [Function(PersistentFunctionId([253, 159, 197, 169, 228, 70, 114, 224, 146, 224, 66, 154, 191, 147, 174, 5, 141, 188, 59, 228, 92, 20, 7, 21, 186, 223, 241, 148, 94, 161, 165, 249]))] }, children: CanonicalNestedNominalRefsV1 { values: [] }, dispatch_order: Class { slots: [] }, dispatch_selections: CanonicalNominalDispatchSelectionsV1 { records: [] }, primary_value_constructor: None, instantiation_conditions: NominalInstantiationConditionsV1 { no_gc: false, gc_free_pointees: CanonicalBinderUseListV1 { arguments: [], len: 0 } }, release_policy: None, class_primary_constructor: Some(ClassPrimaryConstructorV1 { constructor: PersistentConstructorId([155, 85, 126, 1, 212, 107, 7, 251, 244, 104, 210, 142, 223, 202, 187, 66, 131, 9, 156, 103, 160, 237, 225, 102, 195, 247, 200, 89, 203, 213, 173, 203]), properties: [None] }) } }
   callable_interfaces count=7
     callable_interfaces[0] CallableInterfaceRecordV1 { data: CallableDeclarationRecordV1 { declaration: Function(PersistentFunctionId([221, 206, 102, 233, 1, 58, 240, 210, 232, 247, 49, 90, 94, 49, 34, 170, 6, 109, 32, 140, 186, 245, 5, 235, 48, 124, 186, 114, 72, 39, 97, 64])), owner: TopLevel, type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, parameters: CanonicalSourceParameterShapesV1 { parameters: [], len: 0 }, result: Nominal(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247])), effects: CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary, release_callability: Unavailable }, modality: Final, visibility: Public, slots: CanonicalPersistentIdsV1 { values: [] }, context_parameters: [] }, access: DirectOnly }
     callable_interfaces[1] CallableInterfaceRecordV1 { data: CallableDeclarationRecordV1 { declaration: Function(PersistentFunctionId([253, 159, 197, 169, 228, 70, 114, 224, 146, 224, 66, 154, 191, 147, 174, 5, 141, 188, 59, 228, 92, 20, 7, 21, 186, 223, 241, 148, 94, 161, 165, 249])), owner: Nominal(GenericTemplate(PersistentGenericTypeId([218, 67, 221, 131, 148, 187, 127, 159, 86, 127, 27, 14, 23, 129, 111, 255, 214, 80, 223, 162, 204, 221, 127, 51, 86, 7, 24, 20, 80, 148, 139, 202]))), type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, parameters: CanonicalSourceParameterShapesV1 { parameters: [], len: 0 }, result: Binder { depth: 0, index: 0 }, effects: CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary, release_callability: Unavailable }, modality: Final, visibility: Public, slots: CanonicalPersistentIdsV1 { values: [] }, context_parameters: [] }, access: DirectOnly }

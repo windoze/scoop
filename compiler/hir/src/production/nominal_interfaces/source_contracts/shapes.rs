@@ -46,7 +46,7 @@ pub(super) fn project(
 
             (
                 source_shape::object_supertypes(&projection, owner, backing, binders),
-                source_shape::object_shape(&projection, id, d, owner),
+                source_shape::object_shape(&projection, id, d, owner, binders),
             )
         }
     };

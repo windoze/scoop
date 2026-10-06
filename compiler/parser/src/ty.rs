@@ -111,7 +111,16 @@ impl Parser {
     /// lists use the same generic-application grammar as annotations.
     pub(crate) fn parse_named_type_ref_tail(&mut self, name: Ident) -> Result<TypeRef, Diagnostic> {
         let start = name.span.start;
-        let mut path = vec![name];
+        let (arguments, end) = self.parse_nominal_arguments(name.span.end)?;
+        let kind = if !arguments.is_empty() {
+            TypeRefKind::Generic(name, arguments)
+        } else {
+            TypeRefKind::Named(name)
+        };
+        let mut ty = TypeRef {
+            kind,
+            span: Span::new(start, end),
+        };
         while matches!(self.peek().kind, TokenKind::Dot)
             && matches!(
                 self.tokens.get(self.pos + 1).map(|token| &token.kind),
@@ -119,47 +128,31 @@ impl Parser {
             )
         {
             self.bump();
-            path.push(self.expect_ident("nested type name after `.`")?);
+            let name = self.expect_ident("nested type name after `.`")?;
+            let (arguments, end) = self.parse_nominal_arguments(name.span.end)?;
+            ty = ty.with_member(name, arguments, end);
         }
+        if matches!(&ty.kind, TypeRefKind::Named(name) if name.text == "Unit") {
+            ty.kind = TypeRefKind::Unit;
+        }
+        Ok(ty)
+    }
 
-        let mut arguments = Vec::new();
-        let mut end = path
-            .last()
-            .expect("a named type path is non-empty")
-            .span
-            .end;
-        if matches!(self.peek().kind, TokenKind::Less) {
+    pub(crate) fn parse_nominal_arguments(
+        &mut self,
+        end: u32,
+    ) -> Result<(Vec<TypeRef>, u32), Diagnostic> {
+        if !matches!(self.peek().kind, TokenKind::Less) {
+            return Ok((Vec::new(), end));
+        }
+        self.bump();
+        let mut arguments = vec![self.parse_nominal_type_argument()?];
+        while matches!(self.peek().kind, TokenKind::Comma) {
             self.bump();
             arguments.push(self.parse_nominal_type_argument()?);
-            while matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                arguments.push(self.parse_nominal_type_argument()?);
-            }
-            let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-            end = close.span.end;
         }
-
-        if path.len() > 1 {
-            Ok(TypeRef {
-                kind: TypeRefKind::Qualified { path, arguments },
-                span: Span::new(start, end),
-            })
-        } else if path[0].text == "Unit" && arguments.is_empty() {
-            Ok(TypeRef {
-                kind: TypeRefKind::Unit,
-                span: path[0].span,
-            })
-        } else if !arguments.is_empty() {
-            Ok(TypeRef {
-                kind: TypeRefKind::Generic(path.pop().expect("one named type"), arguments),
-                span: Span::new(start, end),
-            })
-        } else {
-            Ok(TypeRef {
-                span: path[0].span,
-                kind: TypeRefKind::Named(path.pop().expect("one named type")),
-            })
-        }
+        let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
+        Ok((arguments, close.span.end))
     }
 
     fn parse_nominal_type_argument(&mut self) -> Result<TypeRef, Diagnostic> {

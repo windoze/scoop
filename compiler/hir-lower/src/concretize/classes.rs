@@ -31,13 +31,19 @@ impl Concretizer<'_> {
             self.class_source.insert(id, source);
             if let Some(object) = self.object_by_backing_class.get(&source).copied() {
                 self.register_object(object, id, self.class_type[&id]);
-                concrete::MethodOwner::Object(
-                    self.object_type_map[&self.source.objects[object].object_type],
-                )
+                concrete::MethodOwner::Object(self.object_type_map[&id])
             } else {
                 concrete::MethodOwner::Class(id)
             }
         } else {
+            if let Some((template, _)) = self
+                .source
+                .imported_companion_templates
+                .iter()
+                .find(|(_, template)| template.declaration.owner() == origin)
+            {
+                self.register_imported_companion(template, id);
+            }
             concrete::MethodOwner::Class(id)
         };
         self.complete_class_definition(id, definition, &arguments, method_owner);
@@ -144,7 +150,7 @@ impl Concretizer<'_> {
             .into_iter()
             .map(concrete::ClassMethod::Local)
             .collect::<Vec<_>>();
-        let direct_interfaces = definition
+        let direct_interfaces: Vec<_> = definition
             .interfaces
             .iter()
             .map(|interface| self.lower_type(*interface, substitution))

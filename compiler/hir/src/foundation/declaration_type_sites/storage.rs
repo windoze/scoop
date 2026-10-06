@@ -22,15 +22,16 @@ impl Input<'_> {
             }
             FieldIdentityView::Generated { owner, key } => {
                 let generated = self.key(&foundation.generated_types, owner)?;
-                let GeneratedNominalKey::ObjectBackingClass { object } = generated else {
-                    return Err(Error::StoragePosition(at));
+                let owner = match generated {
+                    GeneratedNominalKey::ObjectBackingClass { object } => {
+                        NominalDeclarationOwner::Concrete(*object)
+                    }
+                    GeneratedNominalKey::GenericObjectBackingClass { object } => {
+                        NominalDeclarationOwner::GenericTemplate(*object)
+                    }
+                    _ => return Err(Error::StoragePosition(at)),
                 };
-                if self.key(&self.foundation.exact_types, exact_owner)?
-                    != &ExactTypeKey::Nominal(*object)
-                {
-                    return Err(Error::StoragePosition(at));
-                }
-                self.nominal(NominalDeclarationOwner::Concrete(*object))?;
+                self.storage_owner(exact_owner, owner, at)?;
                 let property = key
                     .object_backing_property()
                     .ok_or(Error::StoragePosition(at))?;
@@ -121,6 +122,27 @@ impl Input<'_> {
             }
             InitializationUnitKey::ExtensionProperty(property) => {
                 self.property(PropertyOwner::ExtensionProperty(*property))?
+            }
+            InitializationUnitKey::GenericCompanionTemplate(owner) => {
+                let key = self.nominal(NominalDeclarationOwner::GenericTemplate(*owner))?;
+                if key.declaration_kind() != SourceDeclarationKind::Object {
+                    return Err(Error::StoragePosition(at));
+                }
+            }
+            InitializationUnitKey::GenericCompanionApplication { companion, .. } => {
+                let (foundation, _) =
+                    self.source_record(*companion, |foundation| &foundation.generic_types)?;
+                let declaration = foundation
+                    .initialization_units
+                    .iter()
+                    .find(|record| {
+                        record.key() == &InitializationUnitKey::GenericCompanionTemplate(*companion)
+                    })
+                    .ok_or(Error::StoragePosition(at))?;
+                return Self::source_origin(
+                    foundation,
+                    DefinitionOriginSubject::InitializationUnit(declaration.id()),
+                );
             }
             InitializationUnitKey::Object(owner) | InitializationUnitKey::Companion(owner) => {
                 let key = self.nominal(NominalDeclarationOwner::Concrete(*owner))?;

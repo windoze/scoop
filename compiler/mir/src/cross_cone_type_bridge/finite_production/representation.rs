@@ -30,9 +30,17 @@ pub(super) fn project(
             let [payload] = fields else {
                 unreachable!("validated boxes have exactly one payload field")
             };
-            reserve(&mut bases.interfaces, source_interfaces.len())?;
-
-            bases.interfaces.extend_from_slice(source_interfaces);
+            if matches!(payload.ty, Type::Tuple(_)) {
+                bases.interfaces = module.classes[class]
+                    .interfaces
+                    .iter()
+                    .map(|interface| exact(module, &Type::Interface(*interface)))
+                    .collect();
+                bases.interfaces.sort_unstable();
+            } else {
+                reserve(&mut bases.interfaces, source_interfaces.len())?;
+                bases.interfaces.extend_from_slice(source_interfaces);
+            }
             (
                 MirTypeFactsV1::try_new(
                     MirValueKindV1::Reference,

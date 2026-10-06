@@ -62,11 +62,24 @@ fn positional_arguments_must_precede_named_arguments() {
 }
 
 #[test]
-fn annotation_arguments_are_literals_only() {
-    let (_, message) = err("@Extern(name = symbol) fun f()");
+fn annotation_constant_paths_are_preserved_for_hir() {
+    let file = ok("@Label(name = symbol) struct Value()");
+    let Decl::Struct(value) = &file.declarations[0] else {
+        panic!("expected struct");
+    };
+    assert!(matches!(
+        &value.annotations[0].args[0].value,
+        AnnotationLiteral::ConstReference(reference)
+            if matches!(reference.as_ref(), scoop_ast::Expr::Var(name) if name.text == "symbol")
+    ));
+}
+
+#[test]
+fn annotation_arguments_reject_calls() {
+    let (_, message) = err("@Label(name = symbol()) struct Value()");
     assert_eq!(
         message,
-        "annotation argument must be a string, integer or boolean literal"
+        "annotation argument must be a scalar literal or const val reference"
     );
 }
 

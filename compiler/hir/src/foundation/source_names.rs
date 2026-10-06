@@ -90,6 +90,13 @@ impl CanonicalHirFoundation {
             | InitializationUnitKey::GenericDelegatedExtensionApplication {
                 property: id, ..
             } => self.property_names(PropertyOwner::ExtensionProperty(*id)),
+            InitializationUnitKey::GenericCompanionTemplate(id)
+            | InitializationUnitKey::GenericCompanionApplication { companion: id, .. } => {
+                Some(SourceContextNames {
+                    function: String::new(),
+                    type_name: self.nominal_name(NominalDeclarationOwner::GenericTemplate(*id))?,
+                })
+            }
             InitializationUnitKey::Object(id) | InitializationUnitKey::Companion(id) => {
                 Some(SourceContextNames {
                     function: String::new(),

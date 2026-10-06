@@ -28,6 +28,7 @@ pub struct Module {
     pub property_accessor_identities: HirPropertyAccessorIdentities,
     /// Total persistent identity relation for transparent source aliases.
     pub type_alias_identities: HirTypeAliasIdentities,
+    pub annotations: SourceAnnotations,
     /// Total persistent identity relation for source enum variants and fields.
     pub enum_member_identities: HirEnumMemberIdentities,
     /// Total persistent identity relation for struct and class storage fields.
@@ -107,6 +108,7 @@ pub struct Module {
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub imported_generic_templates: Arena<ImportedGenericCallableTemplate>,
     pub imported_generic_delegate_templates: Arena<ImportedGenericDelegateTemplate>,
+    pub imported_companion_templates: Arena<ImportedCompanionTemplate>,
     pub imported_generic_applications: Arena<ImportedGenericCallableApplication>,
     pub imported_constructor_templates: Arena<ImportedConstructorTemplate>,
     /// Template-only calls through a class or interface upper bound. Entries

@@ -163,6 +163,12 @@ impl Lowerer {
             | Kind::SizeOf(_)
             | Kind::AlignOf(_)) => self.materialize_imported_pointer_expression(kind, context)?,
             Kind::SingletonValue(value) => {
+                if let Some(hir::SourceNominalId::GenericTemplate(owner)) =
+                    self.imported_nominal_owner(ty)
+                {
+                    self.request_imported_companion(owner)
+                        .map_err(ImportedDefaultMaterializationError::Plan)?;
+                }
                 hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Dependency(*value))
             }
             Kind::SomeWrap(value) => hir::ExprKind::SomeWrap(Box::new(

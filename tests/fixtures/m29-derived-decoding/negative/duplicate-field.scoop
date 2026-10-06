@@ -1,0 +1,4 @@
+public struct Item(@SerialName("same") val first: Int, @SerialName("same") val second: Int)
+public object Reader : Decodable<Item>
+
+fun main() {}

@@ -403,8 +403,10 @@ Module
       val $argument.0: Boolean
         Type Boolean
         IsInstance MissingContextException
-          Type Throwable
-          Local exception
+          Type Any
+          Retype Any
+            Type Throwable
+            Local exception
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0

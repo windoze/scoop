@@ -108,7 +108,11 @@ pub(in crate::cross_cone_type_bridge) fn unit_provider(
             }
             source
         }
-        InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
+        InitializationUnitKey::GenericCompanionTemplate(id) => {
+            identities.canonical_key::<_, SourceDeclarationKey>(*id)?
+        }
+        InitializationUnitKey::GenericCompanionApplication { .. }
+        | InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
             // Each consumer materializes this unit. Its complete local root
             // is checked against the actual MIR or LIR registration inventory.
             return Ok(None);

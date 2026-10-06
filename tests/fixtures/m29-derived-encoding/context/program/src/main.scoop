@@ -1,0 +1,41 @@
+import scoop.json.Json
+
+class EncodeState(public val offset: Int)
+
+private fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("context encoding assertion")) }
+}
+
+context(state: EncodeState)
+private fun contextualValue(value: Int, encoder: Encoder) {
+    if (value < 0) { throw IllegalStateException(Some("context element")) }
+    Int.encode(value + state.offset, encoder)
+}
+
+private object Contextual : Encodable<Int> {
+    public override fun encode(value: Int, encoder: Encoder) { contextualValue(value, encoder) }
+}
+
+struct Item<T>(val pair: (T, Array<T>))
+class ItemEncoder<T>(private val element: Encodable<T>) : Encodable<Item<T>>
+
+fun main() {
+    val codec = ItemEncoder<Int>(Contextual)
+    val value = Item<Int>((1, Array<Int>(2L) { index -> index.toInt32() + 2 }))
+    context(EncodeState(10)) {
+        check(Json.encode(value, codec) == "{\"pair\":[11,[12,13]]}")
+        context(EncodeState(100)) {
+            check(Json.encode(value, codec) == "{\"pair\":[101,[102,103]]}")
+        }
+        check(Json.encode(value, codec) == "{\"pair\":[11,[12,13]]}")
+    }
+    try { Json.encode(value, codec); check(false) }
+    catch (error: MissingContextException) {}
+    context(EncodeState(20)) {
+        val failing = Item<Int>((1, Array<Int>(2L) { index -> if (index == 0L) { 2 } else { -1 } }))
+        try { Json.encode(failing, codec); check(false) }
+        catch (error: IllegalStateException) { check(error.message == Some("context element")) }
+        check(Json.encode(value, codec) == "{\"pair\":[21,[22,23]]}")
+    }
+    println("encoding-context-ok")
+}

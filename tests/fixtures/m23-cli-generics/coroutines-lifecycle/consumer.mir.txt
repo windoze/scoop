@@ -497,8 +497,10 @@ Module
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       val $shortCircuit.1: Boolean
         Type Boolean
         Unary BoolNot
@@ -595,8 +597,10 @@ Module
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.6
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.6
       val $shortCircuit.2: Boolean
         Type Boolean
         Unary BoolNot
@@ -696,8 +700,10 @@ Module
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.8
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.8
       val $shortCircuit.3: Boolean
         Type Boolean
         Unary BoolNot
@@ -797,8 +803,10 @@ Module
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance IllegalStateException
-          Type Throwable
-          Local $uw.10
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.10
       val $shortCircuit.4: Boolean
         Type Boolean
         Unary BoolNot

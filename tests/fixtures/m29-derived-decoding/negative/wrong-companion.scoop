@@ -1,0 +1,9 @@
+public struct Element(val value: Int) {
+    public companion object : Decodable<Int> {
+        public override fun decode(decoder: Decoder): Int = Int.Companion.decode(decoder)
+    }
+}
+public struct Item(val value: Element)
+public object Reader : Decodable<Item>
+
+fun main() {}

@@ -15,12 +15,14 @@ impl CanonicalNominalInterfacesV1 {
         reserve(&mut backing, self.declaration_count(), &path)?;
         for record in self.all_records() {
             if record.kind() == PublicNominalKindV1::Object {
-                let SourceNominalId::Concrete(object) = record.declaration() else {
-                    return Err(NominalSourceFieldInventoryError::ObjectOwner(
-                        record.declaration(),
-                    ));
+                let key = match record.declaration() {
+                    SourceNominalId::Concrete(object) => {
+                        GeneratedNominalKey::ObjectBackingClass { object }
+                    }
+                    SourceNominalId::GenericTemplate(object) => {
+                        GeneratedNominalKey::GenericObjectBackingClass { object }
+                    }
                 };
-                let key = GeneratedNominalKey::ObjectBackingClass { object };
 
                 let id = PersistentTypeId::from_generated_key(&key).map_err(|_| {
                     NominalSourceFieldInventoryError::ObjectOwner(record.declaration())

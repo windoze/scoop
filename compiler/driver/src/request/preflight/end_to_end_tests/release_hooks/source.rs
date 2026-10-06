@@ -28,10 +28,16 @@ pub(super) fn lower(
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();
+    let world = request
+        .dependencies()
+        .semantic()
+        .imported_semantic_world()
+        .unwrap();
     let hir = parsed
         .lower_hir(
             scoop_identity::RequestedConeKind::Library,
             request.protocols(),
+            &world,
         )
         .unwrap();
     let closure = request.dependencies().semantic();

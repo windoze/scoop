@@ -1042,8 +1042,10 @@ Module
       assign $result.5
         Type Boolean
         IsInstance CompletionError
-          Type Throwable
-          Local error
+          Type Any
+          Retype Any
+            Type Throwable
+            Local error
       goto bb33
     bb32 pattern.else.32 unwind bb13
       val $pattern.subject.9: Option<Throwable>

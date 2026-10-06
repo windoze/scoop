@@ -1,4 +1,5 @@
 use super::super::*;
+use super::types::{dump_annotation_class, dump_annotation_prefix};
 use super::{
     dump_annotations, dump_block, dump_expr, dump_headers, dump_type_param, dump_type_params,
     dump_type_ref, dump_where_clause,
@@ -12,6 +13,7 @@ pub fn dump(file: &SourceFile) -> String {
             Decl::Global(g) => {
                 dump_global_property(g, &mut out);
             }
+            Decl::AnnotationClass(declaration) => dump_annotation_class(declaration, 1, &mut out),
             Decl::TypeAlias(alias) => {
                 out.push_str(&format!(
                     "  {}typealias {} = {}\n",
@@ -50,12 +52,22 @@ pub fn dump(file: &SourceFile) -> String {
                     where_clause
                 ));
                 for variant in &e.variants {
+                    dump_annotations(&variant.annotations, 2, &mut out);
                     match &variant.kind {
                         VariantDeclKind::Unit => {
                             out.push_str(&format!("    {}\n", variant.name.text))
                         }
                         VariantDeclKind::Positional(types) => {
-                            let types: Vec<String> = types.iter().map(dump_type_ref).collect();
+                            let types: Vec<String> = types
+                                .iter()
+                                .map(|field| {
+                                    format!(
+                                        "{}{}",
+                                        dump_annotation_prefix(&field.annotations),
+                                        dump_type_ref(&field.ty)
+                                    )
+                                })
+                                .collect();
                             out.push_str(&format!(
                                 "    {}({})\n",
                                 variant.name.text,
@@ -70,6 +82,7 @@ pub fn dump(file: &SourceFile) -> String {
                             };
                             out.push_str(&format!("    {} <{}>\n", variant.name.text, kind));
                             for field in fields {
+                                dump_annotations(&field.annotations, 3, &mut out);
                                 out.push_str(&format!(
                                     "      {}\n",
                                     dump_parameter(&field.name.text, &field.ty, &field.syntax)
@@ -104,7 +117,8 @@ pub fn dump(file: &SourceFile) -> String {
                             .parameters
                             .iter()
                             .map(|p| format!(
-                                "{}{}",
+                                "{}{}{}",
+                                dump_annotation_prefix(&p.annotations),
                                 match p.property {
                                     PrimaryParameterProperty::Plain => "",
                                     PrimaryParameterProperty::Val => "val ",
@@ -239,6 +253,7 @@ pub fn dump(file: &SourceFile) -> String {
                     where_clause
                 ));
                 for field in &s.fields {
+                    dump_annotations(&field.annotations, 2, &mut out);
                     out.push_str(&format!(
                         "    field {}\n",
                         dump_parameter(&field.name.text, &field.ty, &field.syntax)
@@ -450,6 +465,9 @@ fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String
 fn dump_nested_nominal(declaration: &NestedNominalDecl, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match declaration {
+        NestedNominalDecl::AnnotationClass(declaration) => {
+            dump_annotation_class(declaration, indent, out)
+        }
         NestedNominalDecl::Struct(declaration) => out.push_str(&format!(
             "{pad}{}nested struct {}\n",
             dump_visibility(declaration.visibility),
@@ -617,7 +635,7 @@ fn dump_property_body_suffix(body: &PropertyBodySyntax) -> &'static str {
     }
 }
 
-fn dump_visibility(visibility: VisibilitySyntax) -> &'static str {
+pub(super) fn dump_visibility(visibility: VisibilitySyntax) -> &'static str {
     match visibility {
         VisibilitySyntax::Explicit {
             visibility: DeclaredVisibility::Public,

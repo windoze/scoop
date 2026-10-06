@@ -1,0 +1,124 @@
+@Intrinsic("core_ulong")
+public struct ULong : ToString, Hash {
+    @NoGC
+    @Intrinsic("ulong_equals")
+    public operator fun equals(other: ULong): Boolean
+
+    @NoGC
+    @Intrinsic("ulong_unary_plus")
+    public operator fun unaryPlus(): ULong
+
+    @NoGC
+    @Intrinsic("ulong_unary_minus")
+    public operator fun unaryMinus(): ULong
+
+    @NoGC
+    @Intrinsic("ulong_inc")
+    public operator fun inc(): ULong
+
+    @NoGC
+    @Intrinsic("ulong_dec")
+    public operator fun dec(): ULong
+
+    @NoGC
+    @Intrinsic("ulong_add")
+    public operator fun plus(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_sub")
+    public operator fun minus(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_mul")
+    public operator fun times(other: ULong): ULong
+
+    @Intrinsic("ulong_div")
+    public operator fun div(other: ULong): ULong
+
+    @Intrinsic("ulong_rem")
+    public operator fun rem(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_compare_to")
+    public operator fun compareTo(other: ULong): Long
+
+    @NoGC
+    @Intrinsic("ulong_and")
+    public infix fun and(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_or")
+    public infix fun or(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_xor")
+    public infix fun xor(other: ULong): ULong
+
+    @NoGC
+    @Intrinsic("ulong_inv")
+    public fun inv(): ULong
+
+    @NoGC
+    @Intrinsic("ulong_shl")
+    public infix fun shl(count: Long): ULong
+
+    @NoGC
+    @Intrinsic("ulong_shr")
+    public infix fun shr(count: Long): ULong
+
+    @NoGC
+    @Intrinsic("ulong_to_int8")
+    public fun toInt8(): Int8
+
+    @NoGC
+    @Intrinsic("ulong_to_int16")
+    public fun toInt16(): Int16
+
+    @NoGC
+    @Intrinsic("ulong_to_int")
+    public fun toInt32(): Int
+
+    @NoGC
+    @Intrinsic("ulong_to_long")
+    public fun toInt64(): Long
+
+    @NoGC
+    @Intrinsic("ulong_to_uint8")
+    public fun toUInt8(): UInt8
+
+    @NoGC
+    @Intrinsic("ulong_to_uint16")
+    public fun toUInt16(): UInt16
+
+    @NoGC
+    @Intrinsic("ulong_to_uint")
+    public fun toUInt32(): UInt
+
+    @NoGC
+    @Intrinsic("ulong_to_ulong")
+    public fun toUInt64(): ULong
+
+    public operator fun rangeTo(endpoint: ULong): ULongRange =
+        ULongRange(this, endpoint, 1uL, false, true)
+
+    public operator fun rangeUntil(endpoint: ULong): ULongRange =
+        ULongRange(this, endpoint, 1uL, false, false)
+
+    public infix fun until(endpoint: ULong): ULongRange =
+        ULongRange(this, endpoint, 1uL, false, false)
+
+    public infix fun downTo(endpoint: ULong): ULongRange =
+        ULongRange(this, endpoint, 1uL, true, true)
+
+    public override fun toString(): String = coreULongToString(this)
+
+    public override fun hash(): Long = coreULongHash(this)
+
+    public companion object : Encodable<ULong>, Decodable<ULong> {
+        public override fun encode(value: ULong, encoder: Encoder): Unit =
+            encoder.singleValue().writeULong(value.toUInt64())
+
+        public override fun decode(decoder: Decoder): ULong =
+            decoder.singleValue().readULong()
+    }
+}

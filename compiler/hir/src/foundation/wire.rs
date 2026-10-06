@@ -36,6 +36,8 @@ type DecodedExtensionPropertyRecord =
     DecodedCborIdentityRecord<PersistentExtensionPropertyId, DecodedSourceDeclarationKey>;
 type DecodedObjectValueRecord =
     DecodedCborIdentityRecord<PersistentObjectValueId, DecodedSourceDeclarationKey>;
+type DecodedAnnotationRecord =
+    DecodedCborIdentityRecord<PersistentAnnotationId, DecodedSourceDeclarationKey>;
 type DecodedTypeAliasRecord =
     DecodedCborIdentityRecord<PersistentTypeAliasId, DecodedSourceDeclarationKey>;
 type DecodedPropertyAccessorRecord =
@@ -83,6 +85,7 @@ struct DecodedHirFoundationWire {
     extension_properties: Vec<DecodedExtensionPropertyRecord>,
     object_values: Vec<DecodedObjectValueRecord>,
     type_aliases: Vec<DecodedTypeAliasRecord>,
+    annotations: Vec<DecodedAnnotationRecord>,
     property_accessors: Vec<DecodedPropertyAccessorRecord>,
     fields: Vec<DecodedFieldRecord>,
     enum_variants: Vec<DecodedEnumVariantRecord>,
@@ -160,6 +163,7 @@ impl DecodedHirFoundation {
             extension_properties,
             object_values,
             type_aliases,
+            annotations,
             property_accessors,
             fields,
             enum_variants,
@@ -210,6 +214,7 @@ impl DecodedHirFoundation {
             extension_properties,
             object_values,
             type_aliases,
+            annotations,
             property_accessors,
             exact_types,
             callable_applications,
@@ -237,7 +242,7 @@ impl DecodedHirFoundation {
 
 impl WireEncode for DecodedHirFoundationWire {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(32)?;
+        encoder.map(33)?;
         encode_table_field(encoder, 1, &self.sources)?;
         encode_table_field(encoder, 2, &self.types)?;
         encode_table_field(encoder, 3, &self.generic_types)?;
@@ -269,13 +274,14 @@ impl WireEncode for DecodedHirFoundationWire {
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 31, &self.external_source_types)?;
         encode_table_field(encoder, 32, &self.external_generic_types)?;
-        encode_table_field(encoder, 34, &self.native_boundary_types)
+        encode_table_field(encoder, 34, &self.native_boundary_types)?;
+        encode_table_field(encoder, 35, &self.annotations)
     }
 }
 
 impl WireDecode for DecodedHirFoundationWire {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(32)?;
+        decoder.expect_map(33)?;
         Ok(Self {
             sources: decode_table_field(decoder, 1)?,
             types: decode_table_field(decoder, 2)?,
@@ -309,6 +315,7 @@ impl WireDecode for DecodedHirFoundationWire {
             external_source_types: decode_table_field(decoder, 31)?,
             external_generic_types: decode_table_field(decoder, 32)?,
             native_boundary_types: decode_table_field(decoder, 34)?,
+            annotations: decode_table_field(decoder, 35)?,
         })
     }
 }
@@ -427,15 +434,15 @@ mod tests {
     #[test]
     fn rejects_a_different_closed_product_length() {
         let mut bytes = encode(&CanonicalHirFoundation::empty()).unwrap();
-        assert_eq!(&bytes[..2], &[0xb8, 32]);
-        bytes[1] = 31;
+        assert_eq!(&bytes[..2], &[0xb8, 33]);
+        bytes[1] = 32;
 
         let error = decode_canonical::<DecodedHirFoundation>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 32,
-                actual: 31,
+                expected: 33,
+                actual: 32,
             }
         );
     }

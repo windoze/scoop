@@ -21,11 +21,7 @@ fn shared_object_units_retain_source_only_keys_without_materializing_them() {
         assert_eq!(units.len(), 2);
         let mut source_only = 0;
         for owner in units.keys() {
-            if public
-                .nominal_interfaces()
-                .declaration(hir::SourceNominalId::Concrete(*owner))
-                .is_none()
-            {
+            if public.nominal_interfaces().declaration(*owner).is_none() {
                 source_only += 1;
             }
         }
@@ -98,11 +94,11 @@ fn shared_object_units_reject_conflicting_roles_and_non_object_owners() {
             .object_initialization_units();
             if duplicate {
                 assert!(
-                    matches!(result, Err(hir::SharedTypeMetadataError::DuplicateObjectInitialization(owner)) if owner == object)
+                    matches!(result, Err(hir::SharedTypeMetadataError::DuplicateObjectInitialization(owner)) if owner == hir::SourceNominalId::Concrete(object))
                 );
             } else {
                 assert!(
-                    matches!(result, Err(hir::SharedTypeMetadataError::ObjectInitializationOwner(owner)) if owner == class)
+                    matches!(result, Err(hir::SharedTypeMetadataError::ObjectInitializationOwner(owner)) if owner == hir::SourceNominalId::Concrete(class))
                 );
             }
         }

@@ -1,0 +1,4 @@
+const val SYMBOL: String = "native"
+@Extern(name = SYMBOL)
+fun native(): Int
+fun main() {}

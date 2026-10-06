@@ -279,8 +279,10 @@ Module
       val $dependency.argument.0: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type UnwrapException
-          Local exception
+          Type Any
+          Retype Any
+            Type UnwrapException
+            Local exception
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0

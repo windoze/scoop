@@ -1,0 +1,7 @@
+package sequences
+
+public fun <T> sequence(element: Encodable<T>): Encodable<List<T>> = SequenceEncoder<T>(element)
+private class SequenceEncoder<T>(private val element: Encodable<T>) : Encodable<List<T>> {
+    public override fun encode(value: List<T>, encoder: Encoder) { encodeList(value, element, encoder) }
+}
+public fun <T> capture(): (List<T>, Encodable<T>, Encoder) -> Unit = ::encodeList

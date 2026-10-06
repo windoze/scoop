@@ -84,6 +84,7 @@ fn reject(
             details.primary_value_constructor(),
             details.instantiation_conditions().clone(),
             Default::default(),
+            None,
         ),
     )
 }

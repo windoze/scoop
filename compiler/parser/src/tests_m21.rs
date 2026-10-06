@@ -281,3 +281,23 @@ fn duplicate_companion_recovers_at_the_body_item_boundary() {
         "a nominal declaration may contain at most one companion object"
     );
 }
+
+#[test]
+fn builtin_spelling_can_begin_a_qualified_package_path() {
+    let file = ok("fun use(value: Unit.names.Item): Unit {}\n");
+    let function = only_function(&file);
+    let scoop_ast::TypeRefKind::Qualified { path, arguments } = &function.params[0].ty.kind else {
+        panic!("a multi-segment name is a declaration path")
+    };
+    assert_eq!(
+        path.iter()
+            .map(|name| name.text.as_str())
+            .collect::<Vec<_>>(),
+        ["Unit", "names", "Item"]
+    );
+    assert!(arguments.is_empty());
+    assert!(matches!(
+        function.return_ty.as_ref().unwrap().kind,
+        scoop_ast::TypeRefKind::Unit
+    ));
+}

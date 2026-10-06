@@ -505,6 +505,7 @@ pub enum StaticStorageOwner {
     PropertyDelegate(scoop_identity::PropertyOwner),
     GenericDelegate(scoop_identity::PersistentInitializationUnitId),
     SingletonPublishedRoot(scoop_identity::PersistentTypeId),
+    SingletonApplicationPublishedRoot(scoop_identity::PersistentExactTypeId),
     InitializationFailureRoot(scoop_identity::PersistentInitializationUnitId),
 }
 

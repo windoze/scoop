@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=592
 cone dev.programlink:scoopabi-provider:0.1.0 kind=Library objects=20
 cone dev.programlink:scoopabi-facade:0.1.0 kind=Library objects=1
 cone dev.programlink:scoopabi-root:0.1.0 kind=Executable objects=8

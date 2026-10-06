@@ -150,11 +150,12 @@ impl Lowerer {
         let implementations =
             self.resolve_imported_interface_implementations(self_type, &declaration, &interfaces);
         self.type_params_in_scope.truncate(scope_len);
-        self.loaded_enum_definitions
+        let definition = &mut self
+            .loaded_enum_definitions
             .get_mut(&owner)
             .expect("the enum builder registered its identity")
-            .definition
-            .interface_implementations = implementations?;
+            .definition;
+        definition.interface_implementations = implementations?;
         Ok(())
     }
 }

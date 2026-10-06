@@ -40,9 +40,10 @@ pub enum InitializationUnitKind {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InitializationDependency {
     pub unit: InitializationUnitId,
+    pub type_arguments: Vec<TypeId>,
     pub span: Span,
 }
 

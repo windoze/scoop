@@ -30,7 +30,23 @@ impl Projection<'_> {
                 declared_fields, ..
             }
             | Kind::ObjectBacking { declared_fields } => {
-                self.class(identity, source, declared_fields, None)?
+                let backing = if let mir::MirTypeOriginV1::NominalApplication(object) =
+                    source.origin()
+                {
+                    let key = GeneratedNominalKey::GenericObjectBackingClass { object: *object };
+                    let id = PersistentTypeId::from_generated_key(&key)
+                        .map_err(|_| ExactLayoutLoweringError::SourceObject(source.exact()))?;
+                    self.identities
+                        .contains_resolved_identity(id)
+                        .then(|| {
+                            self.identities
+                                .canonical_record::<PersistentTypeId, GeneratedNominalKey>(id)
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
+                self.class(identity, source, declared_fields, backing.as_ref())?
             }
             Kind::Object { backing } => {
                 let backing_shape = self.shape(*backing)?;

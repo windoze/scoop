@@ -1,0 +1,22 @@
+public fun <T> encodeList(values: List<T>, element: Encodable<T>, encoder: Encoder): Unit {
+    val elements = encoder.unkeyed()
+    for (value in values) {
+        element.encode(value, elements.element())
+    }
+    elements.end()
+}
+
+internal class ArrayEncoder<T>(private val element: Encodable<T>) : Encodable<Array<T>> {
+    public override fun encode(value: Array<T>, encoder: Encoder): Unit =
+        encodeList(value, element, encoder)
+}
+
+internal class MutableArrayEncoder<T>(private val element: Encodable<T>) : Encodable<MutableArray<T>> {
+    public override fun encode(value: MutableArray<T>, encoder: Encoder): Unit =
+        encodeList(value, element, encoder)
+}
+
+internal class ArrayListEncoder<T>(private val element: Encodable<T>) : Encodable<ArrayList<T>> {
+    public override fun encode(value: ArrayList<T>, encoder: Encoder): Unit =
+        encodeList(value, element, encoder)
+}

@@ -1,0 +1,107 @@
+private var initializations: Int = 0
+
+public interface Readable {
+    public fun read(): Int
+}
+
+public struct Sample(val number: Int) : Readable {
+    public override fun read(): Int = number
+}
+
+private fun <T : Readable> mark(): Int {
+    initializations += 1
+    return initializations
+}
+
+public interface Factory<T : Readable> {
+    public fun make(value: T): Packet<T>
+}
+
+public struct Packet<T : Readable>(val item: T) {
+    public companion object : Factory<T> {
+        public val ordinal: Int = mark<T>()
+        public var cached: Option<Packet<T>> = None
+
+        public override fun make(value: T): Packet<T> {
+            val result = Packet<T>(value)
+            cached = Some(result)
+            return result
+        }
+
+        public fun read(value: T = cached!!.item): Int = value.read()
+    }
+}
+
+public enum Choice<T : Readable> {
+    Value(T)
+    public companion object {
+        public fun make(value: T): Choice<T> = Choice.Value(value)
+    }
+}
+
+public interface Reader<T : Readable> {
+    public companion object {
+        public fun read(value: T): Int = value.read()
+    }
+}
+
+public open class Base(val number: Int)
+public class Child(value: Int) : Base(value)
+
+public class ObjectPacket<T : Base>(val item: T) {
+    public companion object {
+        public fun make(value: T): ObjectPacket<T> = ObjectPacket(value)
+        public fun read(value: T): Int = value.number
+    }
+}
+
+public struct Inline<T : value>(val item: T) {
+    public companion object {
+        public fun make(value: T): Inline<T> = Inline(value)
+    }
+}
+
+public struct Reference<T : ref>(val item: T) {
+    public companion object {
+        public fun make(value: T): Reference<T> = Reference(value)
+    }
+}
+
+public interface SelfRead<T> {
+    public fun read(value: T): Int
+}
+
+public struct Recursive(val number: Int) : SelfRead<Recursive> {
+    public override fun read(value: Recursive): Int = number + value.number
+}
+
+public struct FBound<T : SelfRead<T>>(val item: T) {
+    public companion object {
+        public fun make(value: T): FBound<T> = FBound(value)
+        public fun read(value: T): Int = value.read(value)
+    }
+}
+
+private fun check(condition: Boolean) {
+    if (!condition) { throw IllegalStateException(Some("companion bound assertion failed")) }
+}
+
+fun main() {
+    check(initializations == 0)
+    val factory: Factory<Sample> = Packet<Sample>.Companion
+    check(initializations == 1 && Packet<Sample>.ordinal == 1)
+    check(factory.make(Sample(42)).item.read() == 42)
+    gcCollect()
+    check(Packet<Sample>.read() == 42)
+    check(Packet<Sample>.Companion === Packet<Sample>.Companion && initializations == 1)
+    val choice = Choice<Sample>.make(Sample(7))
+    check(when (choice) { Value(value) -> value.read() == 7 })
+    check(Reader<Sample>.read(Sample(9)) == 9)
+    val objectPacket = ObjectPacket<Child>.make(Child(13))
+    check(ObjectPacket<Child>.read(objectPacket.item) == 13)
+    check(Inline<Int>.make(17).item == 17)
+    check(Reference<String>.make("ref").item == "ref")
+    check(FBound<Recursive>.make(Recursive(11)).item.number == 11)
+    check(FBound<Recursive>.read(Recursive(11)) == 22)
+    println("companion-bounds-ok")
+}

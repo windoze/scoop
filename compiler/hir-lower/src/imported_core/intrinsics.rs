@@ -41,6 +41,7 @@ impl Lowerer {
     ) -> Result<(), ImportedSignatureTypeError> {
         let kind = match self.types[ty] {
             hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+            hir::Type::Unit => hir::IntrinsicTypeKind::Unit,
             hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
             hir::Type::String => hir::IntrinsicTypeKind::String,
             _ => return Ok(()),
@@ -54,6 +55,7 @@ impl Lowerer {
     ) -> Result<(), ImportedSignatureTypeError> {
         let kind = match self.types[ty] {
             hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+            hir::Type::Unit => hir::IntrinsicTypeKind::Unit,
             hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
             _ => return Ok(()),
         };
@@ -73,6 +75,7 @@ impl Lowerer {
         let fundamental = protocols.fundamental_types();
         let identity = match kind {
             hir::IntrinsicTypeKind::Integer(kind) => fundamental.integer(kind).persistent(),
+            hir::IntrinsicTypeKind::Unit => fundamental.unit().persistent(),
             hir::IntrinsicTypeKind::Boolean => fundamental.boolean().persistent(),
             hir::IntrinsicTypeKind::String => fundamental.string().persistent(),
             hir::IntrinsicTypeKind::Char
@@ -125,6 +128,7 @@ impl Lowerer {
         let interfaces = source.interfaces.clone();
         let ty = match kind {
             hir::IntrinsicTypeKind::Integer(kind) => self.intern_type(hir::Type::Integer(kind)),
+            hir::IntrinsicTypeKind::Unit => self.unit,
             hir::IntrinsicTypeKind::Boolean => self.boolean,
             hir::IntrinsicTypeKind::String => self.intern_type(hir::Type::String),
             _ => unreachable!("non-generic intrinsic declarations are scalar types"),

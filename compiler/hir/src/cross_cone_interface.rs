@@ -1,9 +1,11 @@
 //! Canonical public semantic interface shared across Cone boundaries.
 
+mod annotations;
 mod binders;
 mod callable_interfaces;
 mod callable_source_interfaces;
 mod canonical_ids;
+pub use annotations::*;
 mod const_values;
 mod declaration_common;
 mod declaration_references;
@@ -260,7 +262,9 @@ pub use nominal_callables::{
 pub use nominal_interfaces::{
     CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1,
     CanonicalNominalDispatchSelectionsV1, CanonicalNominalInterfacesV1,
-    DecodedCanonicalNominalDispatchSelectionsV1, DecodedCanonicalNominalInterfacesV1,
+    ClassPrimaryConstructorBuildError, ClassPrimaryConstructorResolutionError,
+    ClassPrimaryConstructorV1, DecodedCanonicalNominalDispatchSelectionsV1,
+    DecodedCanonicalNominalInterfacesV1, DecodedClassPrimaryConstructorV1,
     DecodedInterfaceSourceMemberV1, DecodedNestedSourceMemberRefV1,
     DecodedNominalDeclarationDetailsV1, DecodedNominalDispatchOrderV1,
     DecodedNominalInstantiationConditionsV1, DecodedNominalInterfaceRecordV1,

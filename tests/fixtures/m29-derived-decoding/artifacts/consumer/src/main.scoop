@@ -1,0 +1,61 @@
+package decoded
+
+import scoop.json.Json
+import decoded.Packet
+import decoded.Batch
+import decoded.PacketDecoder
+import decoded.Row
+import decoded.Event
+import decoded.NestDecoder
+import decoded.Phantom
+import decoded.ForeignCollision as ImportedCollision
+import decoded.LocalCollision
+import decoded.defaults
+
+private fun check(value: Boolean, code: Int) {
+    if (!value) {
+        println(f"artifact decode assertion ${code}")
+        throw IllegalStateException(Some(f"artifact decode assertion ${code}"))
+    }
+}
+
+public class BatchDecoder<T>(private val element: Decodable<T>) : Decodable<Batch<T>>
+public class LocalPacketDecoder<T>(private val element: Decodable<T>) : Decodable<Packet<T>>
+public class RowDecoder<T>(private val element: Decodable<T>) : Decodable<Row<T>>
+public class EventDecoder<T>(private val element: Decodable<T>) : Decodable<Event<T>>
+private class Offset(private val amount: Int) : Decodable<Int> {
+    public override fun decode(decoder: Decoder): Int = Int.Companion.decode(decoder) + amount
+}
+public struct Combined(val foreign: ImportedCollision, val local: LocalCollision, val phantom: Phantom<Any>)
+public object CombinedDecoder : Decodable<Combined>
+public object ForeignDecoder : Decodable<ImportedCollision>
+
+fun main() {
+    val provider = Json.decode("{\"item\":1}", PacketDecoder<Int>(Offset(10)))
+    check(provider.value == 11 && provider.count == 7 && provider.ignored == 8 && defaults == 1, 1)
+    val local = Json.decode("{\"item\":2}", LocalPacketDecoder<Int>(Offset(100)))
+    check(local.value == 102 && local.count == 7 && local.ignored == 8 && defaults == 2, 2)
+    val supplied = Json.decode("{\"item\":\"text\",\"count\":20}", LocalPacketDecoder<String>(String.Companion))
+    check(supplied.value == "text" && supplied.ignored == 21 && defaults == 2, 3)
+    val row = Json.decode("{\"id\":4,\"value\":\"row\"}", RowDecoder<String>(String.Companion))
+    check(row.value == "row" && row.computed == 7 && defaults == 3, 4)
+    val event = Json.decode("{\"Named\":{\"item\":1}}", EventDecoder<Int>(Offset(10)))
+    check(when (event) { Event.Named(value, count, ignored) -> value == 11 && count == 9 && ignored == 10; else -> false }, 5)
+    check(defaults == 4, 6)
+    val pair = Json.decode("{\"Pair\":[1,2]}", EventDecoder<Int>(Offset(10)))
+    check(when (pair) { Event.Pair(first, second) -> first == 11 && second == 2; else -> false }, 7)
+    val empty = Json.decode("{\"empty\":{}}", EventDecoder<Int>(Offset(10)))
+    check(when (empty) { Event.Empty -> true; else -> false }, 8)
+    val record = Json.decode("{\"Record\":{\"value\":2,\"count\":3}}", EventDecoder<Int>(Offset(10)))
+    check(when (record) { Event.Record { value, count } -> value == 12 && count == 3; else -> false }, 9)
+    val nested = Json.decode("{\"values\":[1,{\"Some\":[[2,3]]}]}", NestDecoder<Int>(Offset(10)))
+    check(nested.values._1 == 11 && nested.values._2!![1L] == 13, 10)
+    val combined = Json.decode("{\"foreign\":{\"remote\":4},\"local\":{\"local\":5},\"phantom\":{\"value\":6}}", CombinedDecoder)
+    check(combined.foreign.value == 4 && combined.local.value == 5 && combined.phantom.value == 6, 11)
+    check(Json.decode("{\"remote\":7}", ForeignDecoder).value == 7, 12)
+    val batch = Json.decode("{\"seed\":3}", BatchDecoder<Int>(Offset(10)))
+    check(batch.seed == 13 && batch.values[0L] == 13, 13)
+    val suppliedBatch = Json.decode("{\"seed\":3,\"values\":[4,5]}", BatchDecoder<Int>(Offset(10)))
+    check(suppliedBatch.values.size == 2L && suppliedBatch.values[1L] == 15, 14)
+    println("artifacts-ok")
+}

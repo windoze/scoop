@@ -1,5 +1,5 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=481
+cone scoop:scoop.core:0.1.0 kind=Library objects=686
 cone test:direct-library:1.0.0 kind=Library objects=2
 cone dev.example:core-direct-reader:0.1.0 kind=Executable objects=3
 runtime objects=63

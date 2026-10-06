@@ -1,0 +1,3 @@
+annotation class Label
+class Value(@Label value: Int)
+fun main() {}

@@ -147,6 +147,13 @@ pub(super) fn validate(
                 DefinitionOriginSubject::Type(record.id()),
                 OriginExpectation::declaration(record.key()),
             )?;
+        } else if record.id() == CoreBuiltinNominal::Unit.identity_record().id() {
+            // The language key also exists without a local declaration. When
+            // core publishes Unit's source declaration, retain its normal source location.
+            requirements.allow(
+                DefinitionOriginSubject::Type(record.id()),
+                OriginExpectation::declaration(record.key()),
+            )?;
         }
     }
     macro_rules! declarations {
@@ -293,6 +300,10 @@ fn initialization_subject(key: &InitializationUnitKey) -> DefinitionOriginSubjec
         InitializationUnitKey::ExtensionProperty(id)
         | InitializationUnitKey::GenericDelegatedExtensionApplication { property: id, .. } => {
             DefinitionOriginSubject::ExtensionProperty(*id)
+        }
+        InitializationUnitKey::GenericCompanionTemplate(id)
+        | InitializationUnitKey::GenericCompanionApplication { companion: id, .. } => {
+            DefinitionOriginSubject::GenericType(*id)
         }
         InitializationUnitKey::Object(id) | InitializationUnitKey::Companion(id) => {
             DefinitionOriginSubject::Type(*id)

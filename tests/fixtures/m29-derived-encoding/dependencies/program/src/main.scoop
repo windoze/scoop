@@ -1,0 +1,49 @@
+import scoop.json.Json
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("codec dependency assertion failed")) }
+}
+
+class Offset(private val amount: Int) : Encodable<Int> {
+    public override fun encode(value: Int, encoder: Encoder) {
+        Int.encode(value + amount, encoder)
+    }
+}
+struct Pair<A, B>(val first: A, val second: B)
+class PairEncoder<A, B>(private val first: Encodable<A>, private val second: Encodable<B>)
+    : Encodable<Pair<A, B>>
+
+struct Packet<T>(val parts: (T, Option<T>, Unit), val values: Array<T>)
+struct PacketEncoder<T>(val element: Encodable<T>) : Encodable<Packet<T>>
+
+struct Leaf(val value: Int) {
+    public companion object : Encodable<Leaf>
+}
+object LeafOverride : Encodable<Leaf> {
+    public override fun encode(value: Leaf, encoder: Encoder) { Int.encode(-100, encoder) }
+}
+struct Wrapper(val value: Leaf)
+class WrapperEncoder(private val leaf: Encodable<Leaf>) : Encodable<Wrapper>
+
+class Node(public val children: Array<Node>) {
+    public companion object : Encodable<Node>
+}
+object NodeOverride : Encodable<Node> {
+    public override fun encode(value: Node, encoder: Encoder) { Int.encode(-200, encoder) }
+}
+class NodeEncoder(private val child: Encodable<Node>) : Encodable<Node>
+
+fun main() {
+    val pair = Pair<Int, Int>(1, 2)
+    val pairEncoder = PairEncoder<Int, Int>(Offset(10), Offset(20))
+    check(Json.encode(pair, pairEncoder) == "{\"first\":11,\"second\":22}")
+    val packet = Packet<Int>((5, Some(6), Unit), Array<Int>(1L) { _ -> 7 })
+    check(Json.encode(packet, PacketEncoder<Int>(Offset(10))) ==
+        "{\"parts\":[15,{\"Some\":[16]},null],\"values\":[17]}")
+    check(Json.encode(Wrapper(Leaf(1)), WrapperEncoder(LeafOverride)) == "{\"value\":-100}")
+    val node = Node(Array<Node>(1L) { _ -> Node(Array<Node>(0L) { _ -> throw IllegalStateException(None) }) })
+    check(Json.encode(node, NodeEncoder(NodeOverride)) == "{\"children\":[-200]}")
+    check(Json.encode(node, Node.Companion) == "{\"children\":[{\"children\":[]}]}")
+    orderingCases()
+    println("dependencies-ok")
+}

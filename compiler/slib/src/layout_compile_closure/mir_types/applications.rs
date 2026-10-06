@@ -1,10 +1,7 @@
 //! Joins actual MIR applications to the original shared declaration and facts.
 
 use scoop_hir as hir;
-use scoop_identity::{
-    ExactTypeKey, PersistentExactTypeId, SignatureTypeKey, SourceDeclarationKey,
-    SourceDeclarationKind,
-};
+use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SignatureTypeKey, SourceDeclarationKey};
 use scoop_mir as mir;
 
 use super::{
@@ -116,6 +113,26 @@ pub(super) fn validate(
             )?;
             Some((source.fields(), declared_fields.as_slice()))
         }
+        (
+            Source::Object(source),
+            Repr::Class {
+                kind,
+                declared_fields,
+                release_policy,
+            },
+        ) => {
+            Error::require(
+                exact,
+                Component::ClassKind,
+                *kind == mir::MirClassKindV1::Final,
+            )?;
+            Error::require(
+                exact,
+                Component::ReleasePolicy,
+                *release_policy == mir::MirClassReleasePolicyV1::None,
+            )?;
+            Some((source.fields(), declared_fields.as_slice()))
+        }
         (Source::Enum(source), Repr::Enum { variants }) => {
             Error::require(
                 exact,
@@ -192,43 +209,16 @@ pub(super) fn validate(
             )?;
         }
     }
-    let mut base = mir::MirBaseClassV1::None;
-    let mut interfaces = Vec::new();
-    for signature in declaration.exact_supertypes().values() {
-        let parent = resolve(signature)?;
-        let key = metadata
-            .identities
-            .canonical_key::<_, ExactTypeKey>(parent)
-            .map_err(hir::SharedTypeMetadataError::from)?;
-        let declaration = match key.as_ref() {
-            ExactTypeKey::Nominal(owner) => metadata
-                .identities
-                .canonical_key::<_, SourceDeclarationKey>(*owner),
-            ExactTypeKey::NominalApplication { origin, .. } => {
-                metadata
-                    .identities
-                    .canonical_key::<_, SourceDeclarationKey>(*origin)
-            }
-            _ => {
-                return Err(Error::Mismatch {
-                    exact,
-                    component: Component::Base,
-                });
-            }
-        }
-        .map_err(hir::SharedTypeMetadataError::from)?;
-        match declaration.declaration_kind() {
-            SourceDeclarationKind::Class => base = mir::MirBaseClassV1::Base(parent),
-            SourceDeclarationKind::Interface => interfaces.push(parent),
-            _ => {
-                return Err(Error::Mismatch {
-                    exact,
-                    component: Component::Base,
-                });
-            }
-        }
+    if comparison.inheritance.get(exact).is_some() {
+        return comparison.inheritance(exact, record);
     }
-    interfaces.sort_unstable();
+    let expected = comparison
+        .source
+        .nominal_application_inheritance(exact, dependencies)?;
+    let base = match expected.direct_base() {
+        hir::DirectClassBaseV1::NoClassBase => mir::MirBaseClassV1::None,
+        hir::DirectClassBaseV1::ClassBase { exact } => mir::MirBaseClassV1::Base(exact),
+    };
     Error::require(
         exact,
         Component::Base,
@@ -237,6 +227,6 @@ pub(super) fn validate(
     Error::require(
         exact,
         Component::Interfaces,
-        record.base_and_interfaces().interfaces == interfaces,
+        record.base_and_interfaces().interfaces == expected.direct_interfaces(),
     )
 }

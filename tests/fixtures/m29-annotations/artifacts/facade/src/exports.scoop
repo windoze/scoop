@@ -1,0 +1,5 @@
+package bridge
+public import metadata.Label as Note
+public import metadata.Names.Range as Range
+public import metadata.Value as Value
+public import metadata.DEFAULT_LABEL as DEFAULT_LABEL

@@ -1,4 +1,4 @@
-//! Declaration-site checks for types exposed by lookup and dispatch slots.
+//! Declaration-site checks for types exposed by the static lookup signature.
 
 use super::*;
 
@@ -24,27 +24,19 @@ impl Lowerer {
         span: ast::Span,
         declaration: &str,
     ) {
-        let mut requirements = vec![access.lookup.0.clone()];
-        if let Some(slot) = &access.slot
-            && !requirements.contains(&slot.0)
-        {
-            requirements.push(slot.0.clone());
-        }
         let mut dependencies = Vec::new();
         for &ty in signature_types {
             self.collect_type_dependencies(ty, &mut dependencies);
         }
         for (dependency, provided) in dependencies {
-            for required in &requirements {
-                if !self.access_domain_is_subset(required, &provided) {
-                    let dependency_name = self.type_name(dependency);
-                    self.error(
-                        span,
-                        format!(
-                            "signature of {declaration} exposes type `{dependency_name}` outside its access domain"
-                        ),
-                    );
-                }
+            if !self.access_domain_is_subset(&access.lookup.0, &provided) {
+                let dependency_name = self.type_name(dependency);
+                self.error(
+                    span,
+                    format!(
+                        "signature of {declaration} exposes type `{dependency_name}` outside its access domain"
+                    ),
+                );
             }
         }
     }

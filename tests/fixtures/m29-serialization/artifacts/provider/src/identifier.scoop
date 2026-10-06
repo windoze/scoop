@@ -1,0 +1,23 @@
+package model
+
+public struct Identifier(val value: Long) {
+    public companion object Factory : Encodable<Identifier>, Decodable<Identifier> {
+        public override fun encode(value: Identifier, encoder: Encoder) {
+            val fields = encoder.keyed()
+            Long.encode(value.value, fields.field("id"))
+            fields.end()
+        }
+
+        public var calls: Long = 0L
+
+        public override fun decode(decoder: Decoder): Identifier {
+            calls = calls + 1L
+            val fields = decoder.keyed()
+            val result = Identifier(Long.decode(fields.required("id")))
+            fields.end()
+            return result
+        }
+    }
+}
+
+public fun <T> reader(body: (Decoder) -> T): Decodable<T> = DecodeFunction<T>(body)

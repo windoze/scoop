@@ -245,6 +245,14 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                         } => {
                             self.property_resolution(PropertyOwner::ExtensionProperty(*id), target)
                         }
+                        InitializationUnitKey::GenericCompanionTemplate(id)
+                        | InitializationUnitKey::GenericCompanionApplication {
+                            companion: id,
+                            ..
+                        } => self.nominal_resolution(
+                            NominalDeclarationOwner::GenericTemplate(*id),
+                            target,
+                        ),
                         InitializationUnitKey::Object(id)
                         | InitializationUnitKey::Companion(id) => {
                             self.nominal_resolution(NominalDeclarationOwner::Concrete(*id), target)
@@ -277,6 +285,12 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                     .object_value_key(id)
                     .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
                 self.source_resolution(key, BindingTarget::object_value(key))
+            }
+            ExternalHirTargetV1::Annotation(id) => {
+                let key = self
+                    .annotation_key(id)
+                    .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
+                self.source_resolution(key, BindingTarget::annotation(key))
             }
             ExternalHirTargetV1::TypeAlias(id) => {
                 let key = self

@@ -18,6 +18,7 @@ mod nominal_signatures;
 mod production_authority;
 mod provider;
 mod selection;
+mod static_shapes;
 mod witness;
 
 pub use entities::*;

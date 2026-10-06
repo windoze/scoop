@@ -24,6 +24,9 @@ SourceFile
     public fun removeAt
     public fun clear
     public operator fun iterator
+    public companion object
+      public fun encoder
+      public fun decoder
     @NoGC
     @Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
   internal fun coreAllocationOverflow()
@@ -39,6 +42,9 @@ SourceFile
     public operator fun get
     public fun toMutableArray
     public operator fun iterator
+    public companion object
+      public fun encoder
+      public fun decoder
     @Intrinsic("core_mutable_array")
   public class MutableArray<T>(), List<T>
     private fun arrayLength
@@ -50,6 +56,9 @@ SourceFile
     public operator fun set
     public fun toArray
     public operator fun iterator
+    public companion object
+      public fun encoder
+      public fun decoder
 SourceFile
   RootPackage
     @Intrinsic("core_char")
@@ -63,6 +72,9 @@ SourceFile
     public operator fun compareTo
     public fun toString
     public fun hash
+    public companion object
+      public fun encode
+      public fun decode
   public fun Int.toChar(): Char
     if
       Binary Or
@@ -117,6 +129,97 @@ SourceFile
       Call suspendCoroutine
         Call FunctionSuspendRegistration
           Var registration
+SourceFile
+  RootPackage
+  public interface Decodable<T>
+    fun decode
+  public interface Decoder
+    fun keyed
+    fun unkeyed
+    fun singleValue
+    public open val path: String <computed>
+  public interface KeyedDecodingContainer
+    fun required
+    fun optional
+    fun end
+    public open val keys: List<String> <computed>
+  public interface UnkeyedDecodingContainer
+    fun element
+    fun end
+    public open val hasNext: Boolean <computed>
+  public interface SingleValueDecodingContainer
+    fun readBoolean
+    fun readLong
+    fun readULong
+    fun readString
+    fun readNull
+  public class DecodingException(val path: String, message: String) : Exception(<1 args>)
+  public class DecodeFunction<T>(val body: (Decoder) -> T), Decodable<T>
+    public fun decode
+  public object UnitDecoder
+    public fun decode
+  internal fun decodeSigned(decoder: Decoder, minimum: Long, maximum: Long): Long
+    val result
+      MethodCall readLong
+        MethodCall singleValue
+          Var decoder
+    if
+      Binary Or
+        Binary Lt
+          Var result
+          Var minimum
+        Binary Gt
+          Var result
+          Var maximum
+      throw
+        Call DecodingException
+          FieldAccess path
+            Var decoder
+          StringLiteral "integer is out of range"
+    return
+      Var result
+  internal fun decodeUnsigned(decoder: Decoder, maximum: ULong): ULong
+    val result
+      MethodCall readULong
+        MethodCall singleValue
+          Var decoder
+    if
+      Binary Gt
+        Var result
+        Var maximum
+      throw
+        Call DecodingException
+          FieldAccess path
+            Var decoder
+          StringLiteral "integer is out of range"
+    return
+      Var result
+SourceFile
+  RootPackage
+  public interface Encodable<T>
+    fun encode
+  public interface Encoder
+    fun keyed
+    fun unkeyed
+    fun singleValue
+    public open val path: String <computed>
+  public interface KeyedEncodingContainer
+    fun field
+    fun end
+  public interface UnkeyedEncodingContainer
+    fun element
+    fun end
+  public interface SingleValueEncodingContainer
+    fun writeBoolean
+    fun writeLong
+    fun writeULong
+    fun writeString
+    fun writeNull
+  public class EncodingException(val path: String, message: String) : Exception(<1 args>)
+  public class EncodeFunction<T>(val body: (T, Encoder) -> Unit), Encodable<T>
+    public fun encode
+  public object UnitEncoder
+    public fun encode
 SourceFile
   RootPackage
     @Intrinsic("core_ptr")
@@ -217,74 +320,6 @@ SourceFile
   public fun gcStats(): ULong
 SourceFile
   RootPackage
-    @Intrinsic("core_int8")
-  public struct Int8 <representation omitted> : ToString, Hash
-    public operator fun equals
-    public operator fun unaryPlus
-    public operator fun unaryMinus
-    public operator fun inc
-    public operator fun dec
-    public operator fun plus
-    public operator fun minus
-    public operator fun times
-    public operator fun div
-    public operator fun rem
-    public operator fun compareTo
-    public infix fun and
-    public infix fun or
-    public infix fun xor
-    public fun inv
-    public infix fun shl
-    public infix fun shr
-    public infix fun ushr
-    public fun toInt8
-    public fun toInt16
-    public fun toInt32
-    public fun toInt64
-    public fun toUInt8
-    public fun toUInt16
-    public fun toUInt32
-    public fun toUInt64
-    public operator fun rangeTo
-    public operator fun rangeUntil
-    public infix fun until
-    public infix fun downTo
-    public fun toString
-    public fun hash
-    @Intrinsic("core_int16")
-  public struct Int16 <representation omitted> : ToString, Hash
-    public operator fun equals
-    public operator fun unaryPlus
-    public operator fun unaryMinus
-    public operator fun inc
-    public operator fun dec
-    public operator fun plus
-    public operator fun minus
-    public operator fun times
-    public operator fun div
-    public operator fun rem
-    public operator fun compareTo
-    public infix fun and
-    public infix fun or
-    public infix fun xor
-    public fun inv
-    public infix fun shl
-    public infix fun shr
-    public infix fun ushr
-    public fun toInt8
-    public fun toInt16
-    public fun toInt32
-    public fun toInt64
-    public fun toUInt8
-    public fun toUInt16
-    public fun toUInt32
-    public fun toUInt64
-    public operator fun rangeTo
-    public operator fun rangeUntil
-    public infix fun until
-    public infix fun downTo
-    public fun toString
-    public fun hash
     @Intrinsic("core_int")
   public struct Int <representation omitted> : ToString, Hash
     internal fun characterUnchecked
@@ -320,6 +355,89 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
+    @Intrinsic("core_int16")
+  public struct Int16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public operator fun rangeTo
+    public operator fun rangeUntil
+    public infix fun until
+    public infix fun downTo
+    public fun toString
+    public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
+    @Intrinsic("core_int8")
+  public struct Int8 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public infix fun ushr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public operator fun rangeTo
+    public operator fun rangeUntil
+    public infix fun until
+    public infix fun downTo
+    public fun toString
+    public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
     @Intrinsic("core_long")
   public struct Long <representation omitted> : ToString, Hash
     public operator fun equals
@@ -354,6 +472,85 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
+    @Intrinsic("core_uint")
+  public struct UInt <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public operator fun rangeTo
+    public operator fun rangeUntil
+    public infix fun until
+    public infix fun downTo
+    public fun toString
+    public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
+    @Intrinsic("core_uint16")
+  public struct UInt16 <representation omitted> : ToString, Hash
+    public operator fun equals
+    public operator fun unaryPlus
+    public operator fun unaryMinus
+    public operator fun inc
+    public operator fun dec
+    public operator fun plus
+    public operator fun minus
+    public operator fun times
+    public operator fun div
+    public operator fun rem
+    public operator fun compareTo
+    public infix fun and
+    public infix fun or
+    public infix fun xor
+    public fun inv
+    public infix fun shl
+    public infix fun shr
+    public fun toInt8
+    public fun toInt16
+    public fun toInt32
+    public fun toInt64
+    public fun toUInt8
+    public fun toUInt16
+    public fun toUInt32
+    public fun toUInt64
+    public operator fun rangeTo
+    public operator fun rangeUntil
+    public infix fun until
+    public infix fun downTo
+    public fun toString
+    public fun hash
+    public companion object
+      public fun encode
+      public fun decode
 SourceFile
   RootPackage
     @Intrinsic("core_uint8")
@@ -389,72 +586,11 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
-    @Intrinsic("core_uint16")
-  public struct UInt16 <representation omitted> : ToString, Hash
-    public operator fun equals
-    public operator fun unaryPlus
-    public operator fun unaryMinus
-    public operator fun inc
-    public operator fun dec
-    public operator fun plus
-    public operator fun minus
-    public operator fun times
-    public operator fun div
-    public operator fun rem
-    public operator fun compareTo
-    public infix fun and
-    public infix fun or
-    public infix fun xor
-    public fun inv
-    public infix fun shl
-    public infix fun shr
-    public fun toInt8
-    public fun toInt16
-    public fun toInt32
-    public fun toInt64
-    public fun toUInt8
-    public fun toUInt16
-    public fun toUInt32
-    public fun toUInt64
-    public operator fun rangeTo
-    public operator fun rangeUntil
-    public infix fun until
-    public infix fun downTo
-    public fun toString
-    public fun hash
-    @Intrinsic("core_uint")
-  public struct UInt <representation omitted> : ToString, Hash
-    public operator fun equals
-    public operator fun unaryPlus
-    public operator fun unaryMinus
-    public operator fun inc
-    public operator fun dec
-    public operator fun plus
-    public operator fun minus
-    public operator fun times
-    public operator fun div
-    public operator fun rem
-    public operator fun compareTo
-    public infix fun and
-    public infix fun or
-    public infix fun xor
-    public fun inv
-    public infix fun shl
-    public infix fun shr
-    public fun toInt8
-    public fun toInt16
-    public fun toInt32
-    public fun toInt64
-    public fun toUInt8
-    public fun toUInt16
-    public fun toUInt32
-    public fun toUInt64
-    public operator fun rangeTo
-    public operator fun rangeUntil
-    public infix fun until
-    public infix fun downTo
-    public fun toString
-    public fun hash
+    public companion object
+      public fun encode
+      public fun decode
+SourceFile
+  RootPackage
     @Intrinsic("core_ulong")
   public struct ULong <representation omitted> : ToString, Hash
     public operator fun equals
@@ -488,6 +624,9 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
+    public companion object
+      public fun encode
+      public fun decode
 SourceFile
   RootPackage
     @Extern(name = "scoop_rt_write", abi = "scoop")
@@ -581,6 +720,17 @@ SourceFile
   public enum Option<T>
     Some(T)
     None
+    public companion object
+      public fun encoder
+      public fun decoder
+SourceFile
+  RootPackage
+  internal class OptionDecoder<T>(val element: Decodable<T>), Decodable<Option<T>>
+    public fun decode
+SourceFile
+  RootPackage
+  internal class OptionEncoder<T>(val element: Encodable<T>), Encodable<Option<T>>
+    public fun encode
 SourceFile
   RootPackage
   public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
@@ -607,6 +757,58 @@ SourceFile
     public operator fun contains
   internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
     public fun next
+SourceFile
+  RootPackage
+  internal fun decodeSequence<T>(decoder: Decoder, element: Decodable<T>): ArrayList<T>
+    val elements
+      MethodCall unkeyed
+        Var decoder
+    val result
+      Call ArrayList<T>
+    while
+      FieldAccess hasNext
+        Var elements
+      MethodCall add
+        Var result
+        MethodCall decode
+          Var element
+          MethodCall element
+            Var elements
+    MethodCall end
+      Var elements
+    return
+      Var result
+  internal class ArrayDecoder<T>(val element: Decodable<T>), Decodable<Array<T>>
+    public fun decode
+  internal class MutableArrayDecoder<T>(val element: Decodable<T>), Decodable<MutableArray<T>>
+    public fun decode
+  internal class ArrayListDecoder<T>(val element: Decodable<T>), Decodable<ArrayList<T>>
+    public fun decode
+SourceFile
+  RootPackage
+  public fun encodeList<T>(values: List<T>, element: Encodable<T>, encoder: Encoder): Unit
+    val elements
+      MethodCall unkeyed
+        Var encoder
+    for value
+      Var values
+      MethodCall encode
+        Var element
+        Var value
+        MethodCall element
+          Var elements
+    MethodCall end
+      Var elements
+  internal class ArrayEncoder<T>(val element: Encodable<T>), Encodable<Array<T>>
+    public fun encode
+  internal class MutableArrayEncoder<T>(val element: Encodable<T>), Encodable<MutableArray<T>>
+    public fun encode
+  internal class ArrayListEncoder<T>(val element: Encodable<T>), Encodable<ArrayList<T>>
+    public fun encode
+SourceFile
+  RootPackage
+  public annotation class SerialName(val name: String)
+  public annotation class Transient()
 SourceFile
   RootPackage
   public struct SourceLocation
@@ -664,6 +866,8 @@ SourceFile
     public fun toCharArray
     public fun toByteArray
     public companion object
+      public fun encode
+      public fun decode
       public fun fromChars
       public fun fromUtf8Unchecked
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
@@ -724,6 +928,9 @@ SourceFile
     public operator fun not
     public fun toString
     public fun hash
+    public companion object
+      public fun encode
+      public fun decode
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
     @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
@@ -738,3 +945,7 @@ SourceFile
   internal fun coreULongHash(value: ULong): Long
     @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
   internal fun coreBooleanHash(value: Boolean): Long
+SourceFile
+  RootPackage
+    @Intrinsic("core_unit")
+  public struct Unit <representation omitted>

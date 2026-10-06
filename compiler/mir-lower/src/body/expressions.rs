@@ -519,14 +519,10 @@ impl BodyLowerer<'_> {
             // `Box` / `Unbox` / `is` stay dedicated MIR nodes; LIR
             // lowers them (the runtime box call, the payload load,
             // the `scoop_rt_is_instance` call). Boxing registers the
-            // boxed value type (and the target interface) on the way.
+            // boxed value type; finalization supplies its interface tables.
             hir::ExprKind::Box(operand) => {
                 let payload = self.lower_type(operand.ty);
-                self.register_boxed(
-                    &payload,
-                    self.module.exact_type_identities[operand.ty].id(),
-                    Some(expr.ty),
-                );
+                self.register_boxed(&payload, self.module.exact_type_identities[operand.ty].id());
                 smir::ExprKind::Box(Box::new(self.lower_expr(operand)))
             }
             // Smart casts unbox inline wherever the narrowed local is read

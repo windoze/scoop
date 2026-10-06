@@ -214,6 +214,6 @@ fn unknown_annotation_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "unsupported annotation `@Unknown` in milestone M12"
+        "user annotation `@Unknown` is not allowed on a function"
     );
 }

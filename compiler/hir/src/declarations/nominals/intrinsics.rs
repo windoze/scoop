@@ -3,6 +3,7 @@ use super::*;
 /// Closed semantic identity of every compiler-represented nominal type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntrinsicTypeKind {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,
@@ -16,6 +17,7 @@ pub enum IntrinsicTypeKind {
 impl IntrinsicTypeKind {
     pub const fn name(self) -> &'static str {
         match self {
+            Self::Unit => "core_unit",
             Self::Integer(kind) => kind.intrinsic_name(),
             Self::Boolean => "core_boolean",
             Self::Char => "core_char",
@@ -29,6 +31,7 @@ impl IntrinsicTypeKind {
 
     pub const fn source_name(self) -> &'static str {
         match self {
+            Self::Unit => "Unit",
             Self::Integer(kind) => kind.canonical_name(),
             Self::Boolean => "Boolean",
             Self::Char => "Char",
@@ -42,16 +45,19 @@ impl IntrinsicTypeKind {
 
     pub const fn target(self) -> IntrinsicTypeTarget {
         match self {
-            Self::Integer(_) | Self::Boolean | Self::Char | Self::Ptr | Self::FunPtr => {
-                IntrinsicTypeTarget::Struct
-            }
+            Self::Unit
+            | Self::Integer(_)
+            | Self::Boolean
+            | Self::Char
+            | Self::Ptr
+            | Self::FunPtr => IntrinsicTypeTarget::Struct,
             Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
         }
     }
 
     pub const fn parameters(self) -> IntrinsicTypeParameters {
         match self {
-            Self::Integer(_) | Self::Boolean | Self::Char | Self::String => {
+            Self::Unit | Self::Integer(_) | Self::Boolean | Self::Char | Self::String => {
                 IntrinsicTypeParameters::None
             }
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
@@ -62,6 +68,7 @@ impl IntrinsicTypeKind {
 
     pub fn application(self, arguments: &[TypeId]) -> IntrinsicTypeRepresentation {
         match (self, arguments) {
+            (Self::Unit, []) => IntrinsicTypeRepresentation::Unit,
             (Self::Integer(kind), []) => IntrinsicTypeRepresentation::Integer(kind),
             (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
             (Self::Char, []) => IntrinsicTypeRepresentation::Char,
@@ -83,6 +90,7 @@ impl IntrinsicTypeKind {
 /// family variants contain their concrete element type directly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    Unit,
     Integer(IntegerKind),
     Boolean,
     Char,

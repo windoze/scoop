@@ -10,6 +10,7 @@ impl FunctionIdentityBuilder<'_> {
             if matches!(
                 declaration.implementation,
                 hir::PropertyAccessorImplementation::Body(actual)
+                    | hir::PropertyAccessorImplementation::StorageBody(actual)
                     | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                     if actual == function
             ) {
@@ -24,6 +25,7 @@ impl FunctionIdentityBuilder<'_> {
             if matches!(
                 declaration.implementation,
                 hir::PropertyAccessorImplementation::Body(actual)
+                    | hir::PropertyAccessorImplementation::StorageBody(actual)
                     | hir::PropertyAccessorImplementation::AbstractSlot(actual)
                     if actual == function
             ) {

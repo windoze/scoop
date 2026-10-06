@@ -1,6 +1,6 @@
 use crate::{
-    Block, CallArgument, Expr, Ident, ImportSyntax, IntegerLiteralSyntax, PackageSyntax, Span,
-    TypeRef,
+    Annotation, AnnotationClassDecl, Block, CallArgument, Expr, Ident, ImportSyntax, PackageSyntax,
+    Span, TypeRef,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -16,6 +16,7 @@ pub enum Decl {
     Global(GlobalDecl),
     Function(FunctionDecl),
     TypeAlias(TypeAliasDecl),
+    AnnotationClass(AnnotationClassDecl),
     Struct(StructDecl),
     Enum(EnumDecl),
     Class(ClassDecl),
@@ -306,6 +307,7 @@ impl FromIterator<PrimaryClassParameter> for ClassConstructorDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrimaryClassParameter {
+    pub annotations: Vec<Annotation>,
     pub property: PrimaryParameterProperty,
     /// `None` for a plain parameter. Property parameters always retain an
     /// explicit-or-omitted member visibility node.
@@ -493,6 +495,7 @@ pub enum NestedNominalDecl {
     Class(Box<ClassDecl>),
     Interface(Box<InterfaceDecl>),
     Object(Box<ObjectDecl>),
+    AnnotationClass(Box<AnnotationClassDecl>),
 }
 
 impl NestedNominalDecl {
@@ -503,6 +506,7 @@ impl NestedNominalDecl {
             Self::Class(declaration) => declaration.span,
             Self::Interface(declaration) => declaration.span,
             Self::Object(declaration) => declaration.span,
+            Self::AnnotationClass(declaration) => declaration.span,
         }
     }
 }
@@ -560,6 +564,7 @@ pub struct EnumDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub kind: VariantDeclKind,
     pub span: Span,
@@ -570,7 +575,7 @@ pub enum VariantDeclKind {
     /// `SimpleVariant`
     Unit,
     /// `VariantWithValue(Int, String)` — unnamed fields.
-    Positional(Vec<TypeRef>),
+    Positional(Vec<crate::PositionalVariantFieldDecl>),
     /// `Variant { f1: Int, f2: String }` — block-style named fields.
     Named(Vec<VariantFieldDecl>),
     /// `Variant(val f1: Int, val f2: String = "...")` —
@@ -581,6 +586,7 @@ pub enum VariantDeclKind {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariantFieldDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub ty: TypeRef,
     /// Constructor-style variants use the full source parameter protocol;
@@ -671,6 +677,7 @@ impl FromIterator<FieldDecl> for StructRepresentationDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub ty: TypeRef,
     pub syntax: ParameterSyntax,
@@ -718,28 +725,6 @@ pub struct OperatorModifier {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InfixModifier {
     pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Annotation {
-    pub name: Ident,
-    pub args: Vec<AnnotationArg>,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct AnnotationArg {
-    /// A named argument (`name = value`), or `None` for a positional one.
-    pub name: Option<Ident>,
-    pub value: AnnotationLiteral,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum AnnotationLiteral {
-    String(String),
-    Int(IntegerLiteralSyntax),
-    Boolean(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]

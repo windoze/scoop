@@ -116,32 +116,37 @@ impl AbiMetadataValidator<'_> {
             }
             StructShape::Intrinsic(representation) => {
                 let profile = self.module.meta.target_profile;
-                let layout = match representation {
+                let scalar = |layout: scoop_lir::ScalarLayout| StorageFacts {
+                    size: layout.size_bytes(),
+                    align: layout.alignment_bytes(),
+                    scan: RefScan::None,
+                };
+                match representation {
+                    scoop_lir::IntrinsicTypeRepresentation::Unit => StorageFacts {
+                        size: 0,
+                        align: 1,
+                        scan: RefScan::None,
+                    },
                     scoop_lir::IntrinsicTypeRepresentation::Integer(kind) => {
-                        profile.integer_layout(kind)
+                        scalar(profile.integer_layout(kind))
                     }
                     scoop_lir::IntrinsicTypeRepresentation::Char => {
-                        profile.scalar_layout(scoop_lir::BackendScalarKind::I32)
+                        scalar(profile.scalar_layout(scoop_lir::BackendScalarKind::I32))
                     }
                     scoop_lir::IntrinsicTypeRepresentation::Boolean => {
-                        profile.scalar_layout(scoop_lir::BackendScalarKind::I1)
+                        scalar(profile.scalar_layout(scoop_lir::BackendScalarKind::I1))
                     }
                     scoop_lir::IntrinsicTypeRepresentation::Ptr { .. } => {
-                        profile.pointer_layout(PointerKind::Raw)
+                        scalar(profile.pointer_layout(PointerKind::Raw))
                     }
                     scoop_lir::IntrinsicTypeRepresentation::FunPtr { .. } => {
-                        profile.pointer_layout(PointerKind::Code)
+                        scalar(profile.pointer_layout(PointerKind::Code))
                     }
                     scoop_lir::IntrinsicTypeRepresentation::String => {
                         return Err(CodegenError(format!(
                             "{owner} uses intrinsic String declaration `{name}` as value storage"
                         )));
                     }
-                };
-                StorageFacts {
-                    size: layout.size_bytes(),
-                    align: layout.alignment_bytes(),
-                    scan: RefScan::None,
                 }
             }
         };

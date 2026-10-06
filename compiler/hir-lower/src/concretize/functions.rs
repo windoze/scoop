@@ -70,7 +70,12 @@ impl Concretizer<'_> {
                 self.source.functions[id].span,
             );
         }
-        let definition = self.resolved_function_definition(key);
+        let definition = match self.resolved_function_definition(key) {
+            definition::ResolvedFunctionDefinition::Body(body) => body,
+            definition::ResolvedFunctionDefinition::Companion { template, role, .. } => {
+                return self.lower_companion_function(key, template, role);
+            }
+        };
         let signature = definition.signature;
         let arguments = self.function_key_arguments(key);
         let context_owner = match self.function_source(key) {
@@ -79,6 +84,13 @@ impl Concretizer<'_> {
                 self.source.imported_generic_templates[template]
                     .declaration
                     .body_owner(),
+            ),
+            FunctionSource::Companion(template, role) => export::ContextRequirementOwner::Imported(
+                export::DefaultCallableDeclarationV1::Generated(
+                    self.source.imported_companion_templates[template]
+                        .callable(role)
+                        .id(),
+                ),
             ),
         };
         self.check_context_instantiation(

@@ -92,7 +92,8 @@ impl Lowerer {
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
         match self.top_level_type_target_for_reference(name)? {
             crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
-            crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
+            crate::namespace::TopLevelTypeTarget::Nominal(_)
+            | crate::namespace::TopLevelTypeTarget::Annotation(_) => None,
         }
     }
 
@@ -108,7 +109,8 @@ impl Lowerer {
             crate::imports::lookup::TypeLookupTarget::Dependency(binding) => self
                 .resolve_imported_dependency_type_target(&binding, name, supplied_type_arguments),
             crate::imports::lookup::TypeLookupTarget::Current(
-                crate::namespace::TopLevelTypeTarget::Nominal(_),
+                crate::namespace::TopLevelTypeTarget::Nominal(_)
+                | crate::namespace::TopLevelTypeTarget::Annotation(_),
             ) => None,
         }
     }
@@ -238,6 +240,7 @@ impl Lowerer {
                 }
             }
             ast::TypeRefKind::Generic(_, _)
+            | ast::TypeRefKind::AppliedMember { .. }
             | ast::TypeRefKind::Qualified { .. }
             | ast::TypeRefKind::Tuple(_)
             | ast::TypeRefKind::Unit
@@ -259,12 +262,15 @@ impl Lowerer {
                     hir::ImportedTarget::TypeAlias(alias) => {
                         Some(ResolvedTypeAliasSource::ImportedAlias(alias.persistent()))
                     }
-                    hir::ImportedTarget::Type(_) | hir::ImportedTarget::GenericType(_) => None,
+                    hir::ImportedTarget::Type(_)
+                    | hir::ImportedTarget::GenericType(_)
+                    | hir::ImportedTarget::Annotation(_) => None,
                     _ => unreachable!("type lookup returns only dependency type targets"),
                 }
             }
             crate::imports::lookup::TypeLookupTarget::Current(
-                crate::namespace::TopLevelTypeTarget::Nominal(_),
+                crate::namespace::TopLevelTypeTarget::Nominal(_)
+                | crate::namespace::TopLevelTypeTarget::Annotation(_),
             ) => None,
         }
     }
@@ -307,9 +313,10 @@ impl Lowerer {
 
     pub(crate) fn nominal_target_for_type(&self, ty: hir::TypeId) -> Option<NominalTarget> {
         match self.types[ty] {
-            Type::Integer(_) | Type::Boolean | Type::String => {
+            Type::Unit | Type::Integer(_) | Type::Boolean | Type::String => {
                 let kind = match self.types[ty] {
                     Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
+                    Type::Unit => hir::IntrinsicTypeKind::Unit,
                     Type::Boolean => hir::IntrinsicTypeKind::Boolean,
                     Type::String => hir::IntrinsicTypeKind::String,
                     _ => unreachable!("the outer match selected an intrinsic primitive type"),
@@ -340,7 +347,7 @@ impl Lowerer {
                 .map(NominalTarget::Interface),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::Unit | Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
+            Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
         }
     }
 }

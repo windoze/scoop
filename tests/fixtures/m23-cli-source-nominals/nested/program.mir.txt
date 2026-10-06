@@ -1,5 +1,7 @@
 Module
-  global0 $singleton$6cf32b6f225b160e21f6de73157005c1b89057012e13cdbe08e0e66ae866b506: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=ed72046e03e92713797e222808b0dee01cc17b272616dfae0d6774990ae54d41
+  global0 $singleton$Companion: Companion<Marker> managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 companion:Envelope.Box.Companion singleton lazy global0 initializer=@fn13 ensure=@fn14 failure=1 deps=[]
   enum Option<String>
     Some(_0: String)
     None()
@@ -12,7 +14,7 @@ Module
   class GenericOuter<String> vtable=0 itables=0
   class Box<Marker> vtable=0 itables=0
   class GenericBase<Marker> vtable=0 itables=0
-  class Companion vtable=0 itables=0
+  class Companion<Marker> vtable=0 itables=0
   class ConcreteChild vtable=0 itables=0
   class GenericChild<String> vtable=0 itables=0
   class GenericChild<Int> vtable=0 itables=0
@@ -291,10 +293,10 @@ Module
       return
   fun boxed @fn2(this: Envelope, value: Marker) -> Marker
     bb0 entry
-      call external10 direct
-      val $dependency.local.3: Companion
-        Type Companion
-        GlobalRead $singleton$6cf32b6f225b160e21f6de73157005c1b89057012e13cdbe08e0e66ae866b506
+      call @fn14 direct
+      val $dependency.local.3: Companion<Marker>
+        Type Companion<Marker>
+        GlobalRead $singleton$Companion
       val $dependency.local.4: Marker
         Type Marker
         Local value
@@ -302,7 +304,7 @@ Module
         Type Marker
         Local $dependency.local.4
       call $dependency.local.2: Box<Marker> = @fn9 direct
-        Type Companion
+        Type Companion<Marker>
         Local $dependency.local.3
         Type Marker
         Local $dependency.local.5
@@ -376,7 +378,7 @@ Module
       assign $new.1
         Type GenericOuter<Int>
         ClassAlloc GenericOuter<Int>
-      call @fn16 direct
+      call @fn18 direct
         Type GenericOuter<Int>
         Local $new.1
       return
@@ -404,7 +406,7 @@ Module
       assign $new.1
         Type GenericOuter<String>
         ClassAlloc GenericOuter<String>
-      call @fn17 direct
+      call @fn19 direct
         Type GenericOuter<String>
         Local $new.1
       return
@@ -438,7 +440,7 @@ Module
       assign $new.1
         Type GenericChild<String>
         ClassAlloc GenericChild<String>
-      call @fn18 direct
+      call @fn20 direct
         Type GenericChild<String>
         Local $new.1
         Type String
@@ -459,7 +461,7 @@ Module
       assign $new.1
         Type GenericChild<Int>
         ClassAlloc GenericChild<Int>
-      call @fn19 direct
+      call @fn21 direct
         Type GenericChild<Int>
         Local $new.1
         Type Int
@@ -469,7 +471,7 @@ Module
         FieldAccess 0
           Type GenericChild<Int>
           Local $new.1
-  fun create @fn9(this: Companion, value: Marker) -> Box<Marker>
+  fun create @fn9(this: Companion<Marker>, value: Marker) -> Box<Marker>
     bb0 entry
       val $dependency.local.2: Marker
         Type Marker
@@ -480,7 +482,7 @@ Module
       assign $new.1
         Type Box<Marker>
         ClassAlloc Box<Marker>
-      call @fn20 direct
+      call @fn22 direct
         Type Box<Marker>
         Local $new.1
         Type Marker
@@ -493,13 +495,13 @@ Module
       val $dependency.local.1: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.3: Int = @fn13 direct
+      call $dependency.local.3: Int = @fn15 direct
         Type Box<Marker>
         Local $dependency.local.1
       val $dependency.local.2: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.4: Int = @fn14 direct
+      call $dependency.local.4: Int = @fn16 direct
         Type Box<Marker>
         Local $dependency.local.2
       val $dependency.local.5: Int
@@ -515,7 +517,7 @@ Module
       val $dependency.local.6: Box<Marker>
         Type Box<Marker>
         Local this
-      call $dependency.local.8: Int = @fn15 direct
+      call $dependency.local.8: Int = @fn17 direct
         Type Box<Marker>
         Local $dependency.local.6
       val $dependency.local.9: Int
@@ -540,28 +542,138 @@ Module
       return
         Type Marker
         Local value
-  fun helper @fn13(this: Box<Marker>) -> Int
+  fun Companion$initialize$Initializer @fn13() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Marker>
+        ClassAlloc Companion<Marker>
+      call @fn23 direct
+        Type Companion<Marker>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Marker>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Envelope.Box.Companion
+      call external10 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun helper @fn15(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun internalMethod @fn14(this: Box<Marker>) -> Int
+  fun internalMethod @fn16(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun protectedMethod @fn15(this: Box<Marker>) -> Int
+  fun protectedMethod @fn17(this: Box<Marker>) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-  fun init.GenericOuter.$c0 @fn16(this: GenericOuter<Int>) -> Unit
+  fun init.GenericOuter.$c1 @fn18(this: GenericOuter<Int>) -> Unit
     bb0 entry
       return
-  fun init.GenericOuter.$c0 @fn17(this: GenericOuter<String>) -> Unit
+  fun init.GenericOuter.$c1 @fn19(this: GenericOuter<String>) -> Unit
     bb0 entry
       return
-  fun init.GenericChild.$c1 @fn18(this: GenericChild<String>, item: String) -> Unit
+  fun init.GenericChild.$c2 @fn20(this: GenericChild<String>, item: String) -> Unit
     bb0 entry
       field_set 0
         Type GenericChild<String>
@@ -569,7 +681,7 @@ Module
         Type String
         Local item
       return
-  fun init.GenericChild.$c1 @fn19(this: GenericChild<Int>, item: Int) -> Unit
+  fun init.GenericChild.$c2 @fn21(this: GenericChild<Int>, item: Int) -> Unit
     bb0 entry
       field_set 0
         Type GenericChild<Int>
@@ -577,9 +689,9 @@ Module
         Type Int
         Local item
       return
-  fun init.Box.$c2 @fn20(this: Box<Marker>, item: Marker) -> Unit
+  fun init.Box.$c3 @fn22(this: Box<Marker>, item: Marker) -> Unit
     bb0 entry
-      call @fn21 direct
+      call @fn24 direct
         Type GenericBase<Marker>
         Retype GenericBase<Marker>
           Type Box<Marker>
@@ -590,7 +702,10 @@ Module
         Type Marker
         Local item
       return
-  fun init.GenericBase.$c3 @fn21(this: GenericBase<Marker>) -> Unit
+  fun init.Companion.$c0 @fn23(this: Companion<Marker>) -> Unit
+    bb0 entry
+      return
+  fun init.GenericBase.$c4 @fn24(this: GenericBase<Marker>) -> Unit
     bb0 entry
       return
   instance mi0 function=@fn2 <- boxed
@@ -604,9 +719,11 @@ Module
   instance mi8 function=@fn10 <- inspect
   instance mi9 function=@fn11 <- value
   instance mi10 function=@fn12 <- echo
-  instance mi11 function=@fn13 <- helper
-  instance mi12 function=@fn14 <- internalMethod
-  instance mi13 function=@fn15 <- protectedMethod
+  instance mi11 function=@fn13 <- Companion$initialize$Initializer
+  instance mi12 function=@fn14 <- Companion$initialize$Ensure
+  instance mi13 function=@fn15 <- helper
+  instance mi14 function=@fn16 <- internalMethod
+  instance mi15 function=@fn17 <- protectedMethod
   str @str0 "illegal state"
   str @str1 "child"
   str @str2 "child"

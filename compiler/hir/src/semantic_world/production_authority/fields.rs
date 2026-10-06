@@ -21,23 +21,30 @@ impl CrossConeHirProductionAuthority<'_, '_> {
             FieldIdentityView::Generated { owner, key } => {
                 let property = key.object_backing_property().ok_or_else(no_root)?;
                 let generated = self.generated_type_key(owner).ok_or_else(missing)?;
-                let GeneratedNominalKey::ObjectBackingClass { object } = generated else {
-                    return Err(no_root());
+                let (object, atom) = match generated {
+                    GeneratedNominalKey::ObjectBackingClass { object } => (
+                        NominalDeclarationOwner::Concrete(*object),
+                        DefinitionOwnerAtom::Type(*object),
+                    ),
+                    GeneratedNominalKey::GenericObjectBackingClass { object } => (
+                        NominalDeclarationOwner::GenericTemplate(*object),
+                        DefinitionOwnerAtom::GenericType(*object),
+                    ),
+                    _ => return Err(no_root()),
                 };
-                let object_key = self.source_type_key(*object).ok_or_else(missing)?;
+                let object_key = self.nominal_source_key(object, target)?;
                 if object_key.declaration_kind() != SourceDeclarationKind::Object {
                     return Err(no_root());
                 }
                 let property_key = self.property_key(property).ok_or_else(missing)?;
-                if property_key.owners().owners().last()
-                    != Some(&DefinitionOwnerAtom::Type(*object))
+                if property_key.owners().owners().last() != Some(&atom)
                     || property_key.origin() != object_key.origin()
                 {
                     return Err(
                         CrossConeHirProductionAuthorityError::InvalidObjectFieldOwner(field),
                     );
                 }
-                NominalDeclarationOwner::Concrete(*object)
+                object
             }
         };
         self.nominal_resolution(owner, target)

@@ -62,8 +62,10 @@ Module
       val $argument.0: Boolean
         Type Boolean
         IsInstance LeftRole
-          Type RootRole
-          Local marker
+          Type Any
+          Retype Any
+            Type RootRole
+            Local marker
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -73,8 +75,10 @@ Module
       val $argument.0: Boolean
         Type Boolean
         IsInstance RightRole
-          Type RootRole
-          Local marker
+          Type Any
+          Retype Any
+            Type RootRole
+            Local marker
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -146,8 +150,10 @@ Module
       val $argument.0: Boolean
         Type Boolean
         IsInstance LeftRole
-          Type RootRole
-          Local other
+          Type Any
+          Retype Any
+            Type RootRole
+            Local other
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -157,8 +163,10 @@ Module
       val $argument.0: Boolean
         Type Boolean
         IsInstance RightRole
-          Type RootRole
-          Local other
+          Type Any
+          Retype Any
+            Type RootRole
+            Local other
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0

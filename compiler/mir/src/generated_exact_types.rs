@@ -70,7 +70,8 @@ impl GeneratedExactTypeIdentity {
             | GeneratedNominalKey::BoxedValue { .. } => GeneratedExactTypeKind::Class,
             GeneratedNominalKey::CoroutineStep { .. }
             | GeneratedNominalKey::CoroutineSlot { .. } => GeneratedExactTypeKind::Enum,
-            GeneratedNominalKey::ObjectBackingClass { .. } => {
+            GeneratedNominalKey::ObjectBackingClass { .. }
+            | GeneratedNominalKey::GenericObjectBackingClass { .. } => {
                 return Err(GeneratedExactTypeIdentityError::HirOwnedNominal);
             }
         };

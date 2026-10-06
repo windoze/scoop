@@ -27,15 +27,6 @@ impl LocalNominalDeclarations {
         inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
     ) -> Result<Self, HirNativeBoundaryTypeDefinitionError> {
         let mut declarations = BTreeMap::new();
-        for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-            insert(
-                &mut declarations,
-                NativeBoundaryNominalOwner::Concrete(
-                    inputs.nominal_identities.core_builtin(builtin).id(),
-                ),
-                LocalNominalDeclaration::CoreBuiltin(builtin),
-            )?;
-        }
         for (id, _) in inputs.structs.iter() {
             insert_source(
                 &mut declarations,
@@ -72,6 +63,13 @@ impl LocalNominalDeclarations {
                 &inputs.nominal_identities[id],
                 LocalNominalDeclaration::Object(id),
             )?;
+        }
+        for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+            declarations
+                .entry(NativeBoundaryNominalOwner::Concrete(
+                    inputs.nominal_identities.core_builtin(builtin).id(),
+                ))
+                .or_insert(LocalNominalDeclaration::CoreBuiltin(builtin));
         }
         Ok(Self { declarations })
     }

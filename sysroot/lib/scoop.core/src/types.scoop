@@ -25,6 +25,14 @@ public struct Boolean : ToString, Hash {
     public override fun toString(): String = coreBooleanToString(this)
 
     public override fun hash(): Long = coreBooleanHash(this)
+
+    public companion object : Encodable<Boolean>, Decodable<Boolean> {
+        public override fun encode(value: Boolean, encoder: Encoder): Unit =
+            encoder.singleValue().writeBoolean(value)
+
+        public override fun decode(decoder: Decoder): Boolean =
+            decoder.singleValue().readBoolean()
+    }
 }
 
 // Representation-level fallbacks used by ordinary source methods. Integer

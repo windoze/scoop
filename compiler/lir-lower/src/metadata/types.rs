@@ -311,6 +311,7 @@ pub(crate) fn lower_intrinsic_type_representation(
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
         mir::IntrinsicTypeRepresentation::Char => lir::IntrinsicTypeRepresentation::Char,
+        mir::IntrinsicTypeRepresentation::Unit => lir::IntrinsicTypeRepresentation::Unit,
         mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
         mir::IntrinsicTypeRepresentation::String => lir::IntrinsicTypeRepresentation::String,
         mir::IntrinsicTypeRepresentation::Ptr { pointee } => {

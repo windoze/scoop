@@ -205,27 +205,7 @@ pub(super) fn materialization_context_odr_group(
                 .group(),
         ),
         hir::CallableMaterializationContext::InitializationApplication(unit) => {
-            let unit = module
-                .initialization_units
-                .iter()
-                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
-                .expect("a callback materialization references a concrete initialization unit");
-            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
-                property,
-                receiver_arguments,
-            } = unit.identity.key()
-            else {
-                panic!(
-                    "an initialization callback materialization belongs to a generic delegated extension"
-                )
-            };
-            Some(
-                hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
-                    origin: *property,
-                    receiver_arguments: receiver_arguments.clone(),
-                })
-                .expect("a delegated-property ODR group identity is hashable"),
-            )
+            Some(crate::initialization_odr_group(module, unit))
         }
     }
 }

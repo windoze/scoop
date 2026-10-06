@@ -56,6 +56,7 @@ impl Lowerer {
         // namespace and must not collide; functions occupy a separate
         // namespace where one name may collect several overloads (M7), and
         // member functions live in per-owner namespaces.
+        let mut pending_annotations = Vec::new();
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
@@ -69,6 +70,9 @@ impl Lowerer {
             let is_core = self.source_is_core(file_index);
             for decl in &file.declarations {
                 match decl {
+                    ast::Decl::AnnotationClass(decl) => {
+                        pending_annotations.push((decl, file_index, None))
+                    }
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
                     ast::Decl::Struct(decl) => {
                         let _ = self.declare_struct(
@@ -137,6 +141,7 @@ impl Lowerer {
         let root_interfaces = pending_interfaces.clone();
         let root_objects = pending_objects.clone();
         let mut nested_queues = crate::declarations::NestedDeclarationQueues {
+            annotations: &mut pending_annotations,
             structs: &mut pending_structs,
             enums: &mut pending_enums,
             classes: &mut pending_classes,
@@ -171,6 +176,11 @@ impl Lowerer {
             return Err(vec![diagnostic]);
         }
 
+        for (declaration, file, owner) in pending_annotations {
+            self.current_file = file;
+            self.declare_annotation_class(declaration, file, owner);
+        }
+
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
             files,
@@ -202,63 +212,13 @@ impl Lowerer {
         }
         self.resolve_all_type_aliases();
 
-        // Type-parameter names and arities are declared in pass 1. Resolve
-        // their ordered constraints only after every nominal name is visible,
-        // then validate bound applications after all constraint sets are
-        // complete (F-bounds may form legal dependency cycles).
-        for &(id, decl, file_index) in &pending_structs {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Struct(id));
-            let declared = self.structs[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "struct",
-            );
-            self.structs[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_enums {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Enum(id));
-            let declared = self.enums[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "enum",
-            );
-            self.enums[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_classes {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Class(id));
-            let declared = self.classes[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "class",
-            );
-            self.classes[id].type_params = params;
-        }
-        for &(id, decl, file_index) in &pending_interfaces {
-            self.current_file = file_index;
-            self.current_owner = Some(Owner::Interface(id));
-            let declared = self.interfaces[id].type_params.clone();
-            let params = self.resolve_type_parameter_constraints(
-                declared,
-                0,
-                &decl.type_params,
-                decl.where_clause.as_ref(),
-                "interface",
-            );
-            self.interfaces[id].type_params = params;
-        }
-        self.current_owner = None;
+        self.resolve_nominal_parameter_constraints(
+            &pending_structs,
+            &pending_enums,
+            &pending_classes,
+            &pending_interfaces,
+            &pending_objects,
+        );
         self.validate_nominal_type_parameter_constraints();
         let intrinsic_type_core = if defines_core {
             self.validate_intrinsic_type_core(files)
@@ -442,6 +402,24 @@ impl Lowerer {
             "body-capable passes require a frozen declaration surface"
         );
 
+        self.resolve_annotation_declarations();
+        for &(id, declaration, file) in &pending_structs {
+            self.annotate_struct(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_enums {
+            self.annotate_enum(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_classes {
+            self.annotate_class(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_interfaces {
+            self.annotate_interface(id, declaration, file);
+        }
+        for &(id, declaration, file) in &pending_objects {
+            self.annotate_object(id, declaration, file);
+        }
+        self.current_owner = None;
+
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface
         // implementation (classes and value types alike). Needs every
@@ -510,6 +488,8 @@ impl Lowerer {
             let body = self.lower_body(id, decl);
             self.functions[id].kind = FunctionKind::User(body);
         }
+        self.lower_derived_encoding_bodies();
+        self.lower_derived_decoding_bodies();
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
         if self.diagnostics.is_empty()

@@ -254,7 +254,9 @@ impl Concretizer<'_> {
                 )
             }
             export::AssignTarget::SingletonPublishedRoot(root) => {
-                concrete::AssignTarget::SingletonPublishedRoot(self.lower_singleton_root(*root))
+                concrete::AssignTarget::SingletonPublishedRoot(
+                    self.lower_singleton_root(*root, substitution),
+                )
             }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
                 array: Box::new(self.lower_expr(array, substitution, locals)),

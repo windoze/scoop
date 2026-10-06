@@ -20,6 +20,11 @@ pub enum InitializationUnitKey {
     ExtensionProperty(PersistentExtensionPropertyId),
     Object(PersistentTypeId),
     Companion(PersistentTypeId),
+    GenericCompanionTemplate(crate::PersistentGenericTypeId),
+    GenericCompanionApplication {
+        companion: crate::PersistentGenericTypeId,
+        arguments: NonEmptyVec<PersistentExactTypeId>,
+    },
     GenericDelegatedExtensionApplication {
         property: PersistentExtensionPropertyId,
         receiver_arguments: NonEmptyVec<PersistentExactTypeId>,
@@ -33,6 +38,22 @@ impl WireEncode for InitializationUnitKey {
             Self::ExtensionProperty(id) => encode_id_sum(encoder, 2, id),
             Self::Object(id) => encode_id_sum(encoder, 3, id),
             Self::Companion(id) => encode_id_sum(encoder, 4, id),
+            Self::GenericCompanionTemplate(id) => encode_id_sum(encoder, 6, id),
+            Self::GenericCompanionApplication {
+                companion,
+                arguments,
+            } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 7)?;
+                encoder.field(1)?;
+                companion.encode(encoder)?;
+                encoder.field(2)?;
+                encoder.array(arguments.as_slice().len() as u64)?;
+                for argument in arguments.as_slice() {
+                    argument.encode(encoder)?;
+                }
+                Ok(())
+            }
             Self::GenericDelegatedExtensionApplication {
                 property,
                 receiver_arguments,
@@ -55,6 +76,13 @@ impl WireEncode for InitializationUnitKey {
 impl InitializationUnitKey {
     pub fn specialization_key(&self) -> Option<SpecializationKey> {
         match self {
+            Self::GenericCompanionApplication {
+                companion,
+                arguments,
+            } => Some(SpecializationKey::Nominal {
+                origin: *companion,
+                arguments: arguments.clone(),
+            }),
             Self::GenericDelegatedExtensionApplication {
                 property,
                 receiver_arguments,
@@ -65,7 +93,8 @@ impl InitializationUnitKey {
             Self::TopLevelProperty(_)
             | Self::ExtensionProperty(_)
             | Self::Object(_)
-            | Self::Companion(_) => None,
+            | Self::Companion(_)
+            | Self::GenericCompanionTemplate(_) => None,
         }
     }
 }

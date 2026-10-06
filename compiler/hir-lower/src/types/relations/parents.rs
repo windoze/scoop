@@ -70,14 +70,12 @@ impl Lowerer {
             Type::Integer(kind) => {
                 self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
             }
+            Type::Unit => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Unit),
             Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
             Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Unit
-            | Type::Any
-            | Type::Tuple(_)
-            | Type::Function(_)
-            | Type::Ptr(_)
-            | Type::FunPtr(_) => Vec::new(),
+            Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Ptr(_) | Type::FunPtr(_) => {
+                Vec::new()
+            }
         }
     }
 

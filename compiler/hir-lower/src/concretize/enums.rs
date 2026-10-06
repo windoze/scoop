@@ -110,7 +110,7 @@ impl Concretizer<'_> {
         self.check_completed_no_gc_type("enum", &definition.name, definition.no_gc, gc_free);
         let methods =
             self.request_concrete_methods(definition.methods, concrete::MethodOwner::Enum(id));
-        let direct_interfaces = definition
+        let direct_interfaces: Vec<_> = definition
             .interfaces
             .iter()
             .map(|interface| self.lower_type(*interface, substitution))

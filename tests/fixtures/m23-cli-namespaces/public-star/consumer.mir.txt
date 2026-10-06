@@ -1,11 +1,13 @@
 Module
-  global0 $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec: Companion imported provider=e429b7993b201ed951fc2cbd33a5e0b8f530943b78e1a45bfb328774c95b3116 storage=6b18b233a02dee66ac76643165cbaa33e6cb0d010b447e73a2031e7aac5c6f4f
+  global0 $singleton$Companion: Companion<Int> managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 companion:Outer.Companion singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
   struct Box<Int> (value: Int)
   struct Leaf (number: Int)
-  class Companion vtable=0 itables=0
+  class Companion<Int> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn5 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn7 captures=0
+    bridge function_type1 -> @fn10 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -13,7 +15,7 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn5 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
+  generated_callable gc0 function=@fn10 id=1f51f381c8ad5a1d2f36cbfbcd37ebe78d559711098e31ab013f526651783cb2
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -49,29 +51,29 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call box: Box<Int> = @fn4 direct
+      call box: Box<Int> = @fn9 direct
         Type Int
         Local $dependency.parameter.value
-      call external3 direct
-      val $dependency.receiver: Companion
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
-      call external3 direct
-      call $dependency.argument.0: Int = external0 direct
-        Type Companion
-        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      call @fn6 direct
+      val $dependency.receiver: Companion<Int>
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+      call @fn6 direct
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Int = external1 direct
-        Type Companion
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Companion<Int>
         Local $dependency.receiver
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.number: Int
         Type Int
         Local $dependency.argument.0
-      call leaf: Leaf = external2 direct
+      call leaf: Leaf = external0 direct
         Type Int
         Local $dependency.parameter.number
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -110,7 +112,140 @@ Module
       return
         Type Int
         Local $result.0
-  fun $reference.0 @fn3($closure: (Int) -> Int, arg0: Int) -> Int
+  fun companionBase @fn3(this: Companion<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+  fun companionAdd @fn4(this: Companion<Int>, value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun Companion$initialize$Initializer @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Int>
+        ClassAlloc Companion<Int>
+      call @fn8 direct
+        Type Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Int>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Outer.Companion
+      call external1 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $reference.0 @fn7($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Int
@@ -118,14 +253,17 @@ Module
       return
         Type Int
         Local $call.1
-  fun ctor.Box.$c0 @fn4(value: Int) -> Box<Int> <no-gc>
+  fun init.Companion.$c1 @fn8(this: Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.Box.$c0 @fn9(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return
         Type Box<Int>
         StructInit Box<Int>
           Type Int
           Local value
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn10($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -140,4 +278,8 @@ Module
           Type Int
           Local $call.1
   instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- companionBase
+  instance mi2 function=@fn4 <- companionAdd
+  instance mi3 function=@fn5 <- Companion$initialize$Initializer
+  instance mi4 function=@fn6 <- Companion$initialize$Ensure
   output library

@@ -180,11 +180,17 @@ impl Concretizer<'_> {
             }
             export::ExprKind::SingletonValue(value) => {
                 concrete::ExprKind::SingletonValue(match *value {
-                    export::SingletonValueTarget::Local(value) => {
-                        concrete::SingletonValueTarget::Local(self.lower_singleton_value(value))
+                    export::SingletonValueTarget::Local(_) => {
+                        concrete::SingletonValueTarget::Local(self.singleton_value_for_type(ty))
                     }
                     export::SingletonValueTarget::Dependency(value) => {
-                        concrete::SingletonValueTarget::Dependency(value)
+                        if let concrete::TypeKind::Class(class) = self.types[ty].kind
+                            && self.object_type_map.contains_key(&class)
+                        {
+                            concrete::SingletonValueTarget::Local(self.singleton_value_for_type(ty))
+                        } else {
+                            concrete::SingletonValueTarget::Dependency(value)
+                        }
                     }
                 })
             }

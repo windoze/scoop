@@ -227,8 +227,8 @@ fn generated_callable_resolution_rejects_nonlexical_generated_parent() {
 
 #[test]
 fn generated_callable_decoder_rejects_unknown_tags_and_roles() {
-    let outer = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x11").unwrap_err();
-    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 17 });
+    let outer = decode_canonical::<DecodedGeneratedCallableKey>(b"\xa1\x00\x12").unwrap_err();
+    assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 18 });
 
     let parent_bytes = [b"\xa2\x00\x07\x01\x58\x20".as_slice(), &[0; 32]].concat();
     let parent = decode_canonical::<DecodedLexicalCallableParent>(&parent_bytes).unwrap_err();

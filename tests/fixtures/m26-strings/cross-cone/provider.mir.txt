@@ -6,10 +6,13 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum Option<Decoder>
+    Some(_0: Decoder)
+    None()
   enum Option<Int8>
     Some(_0: Int8)
     None()
-  class Companion vtable=0 itables=0
+  class Companion vtable=0 itables=2
   class ListIterator<Int8> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
@@ -18,6 +21,19 @@ Module
   interface Hash
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Decodable<String>
+  interface Decoder
+  interface KeyedDecodingContainer
+  interface List<String> : Iterable<String>
+  interface Iterable<String>
+  interface Iterator<String>
+  interface UnkeyedDecodingContainer
+  interface SingleValueDecodingContainer
+  interface Encodable<String>
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface List<Int8> : Iterable<Int8>
   interface Iterable<Int8>
   interface Iterator<Int8>
@@ -34,7 +50,7 @@ Module
       val $dependency.argument.0: Long
         Type Long
         Local start
-      call $dependency.argument.1: Long = external0 direct
+      call $dependency.argument.1: Long = external2 direct
         Type String
         Local value
       val $dependency.parameter.start: Long
@@ -43,7 +59,7 @@ Module
       val $dependency.parameter.endExclusive: Long
         Type Long
         Local $dependency.argument.1
-      call $call.1: String = external1 direct
+      call $call.1: String = external3 direct
         Type String
         Local $dependency.receiver
         Type Long
@@ -96,7 +112,7 @@ Module
       val $dependency.receiver: Long
         Type Long
         Local count
-      call $dependency.receiver: Int = external2 direct
+      call $dependency.receiver: Int = external4 direct
         Type Char
         Local character
       val $dependency.argument.0: Long
@@ -117,14 +133,14 @@ Module
       goto bb1
   fun roundTrip @fn2(value: String) -> String
     bb0 entry
-      call external6 direct
+      call external8 direct
       val $dependency.receiver: Companion
         Type Companion
         GlobalRead $singleton$36fca7330da37e2fa2117814d03512ea0533e38e6846f2e1b64162ba4b97dddc
       val $dependency.receiver: String
         Type String
         Local value
-      call $call.1: MutableArray<Int8> = external3 direct
+      call $call.1: MutableArray<Int8> = external5 direct
         Type String
         Local $dependency.receiver
       val $dependency.argument.0: List<Int8>
@@ -135,7 +151,7 @@ Module
       val $dependency.parameter.bytes: List<Int8>
         Type List<Int8>
         Local $dependency.argument.0
-      call $call.2: String = external4 direct
+      call $call.2: String = external6 direct
         Type Companion
         Local $dependency.receiver
         Type List<Int8>
@@ -236,7 +252,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external5 direct
+      call external7 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw

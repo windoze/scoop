@@ -24,6 +24,7 @@ fn public(mut declaration: ast::Decl) -> ast::Decl {
         ast::Decl::Global(declaration) => declaration.visibility = explicit_public(),
         ast::Decl::Function(declaration) => declaration.visibility = explicit_public(),
         ast::Decl::TypeAlias(declaration) => declaration.visibility = explicit_public(),
+        ast::Decl::AnnotationClass(declaration) => declaration.visibility = explicit_public(),
         ast::Decl::Struct(declaration) => declaration.visibility = explicit_public(),
         ast::Decl::Enum(declaration) => declaration.visibility = explicit_public(),
         ast::Decl::Class(declaration) => declaration.visibility = explicit_public(),
@@ -360,6 +361,7 @@ fn export_binding_relation_rejects_duplicate_public_surface_entries() {
             function_identities: &module.function_identities,
             property_identities: &module.property_identities,
             type_alias_identities: &module.type_alias_identities,
+            annotations: &module.annotations,
         });
     assert!(matches!(
         result,

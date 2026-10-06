@@ -1162,8 +1162,10 @@ Module
       val $dependency.local.80: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       branch bb35 bb36
         Type Boolean
         Unary BoolNot
@@ -1776,8 +1778,10 @@ Module
       val $dependency.local.80: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       branch bb35 bb36
         Type Boolean
         Unary BoolNot
@@ -2390,8 +2394,10 @@ Module
       val $dependency.local.80: Boolean
         Type Boolean
         IsInstance UnwrapException
-          Type Throwable
-          Local $uw.4
+          Type Any
+          Retype Any
+            Type Throwable
+            Local $uw.4
       branch bb35 bb36
         Type Boolean
         Unary BoolNot

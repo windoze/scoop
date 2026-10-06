@@ -11,7 +11,7 @@ mod arguments;
 mod constructors;
 mod functions;
 
-use arguments::is_core_annotation;
+pub(crate) use arguments::is_core_annotation;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FunctionTarget {
@@ -145,7 +145,11 @@ impl Lowerer {
         let mut attributes = hir::StructAttributes::default();
         let mut intrinsic = None;
         let mut seen = HashSet::new();
-        for annotation in &decl.annotations {
+        for annotation in decl
+            .annotations
+            .iter()
+            .filter(|annotation| is_core_annotation(&annotation.name.text))
+        {
             let name = annotation.name.text.as_str();
             if !seen.insert(name.to_string()) {
                 self.error(
@@ -206,7 +210,11 @@ impl Lowerer {
     ) -> CheckedClassAnnotations {
         let mut intrinsic = None;
         let mut seen = HashSet::new();
-        for annotation in &decl.annotations {
+        for annotation in decl
+            .annotations
+            .iter()
+            .filter(|annotation| is_core_annotation(&annotation.name.text))
+        {
             let name = annotation.name.text.as_str();
             if !seen.insert(name.to_string()) {
                 self.error(
@@ -275,7 +283,11 @@ impl Lowerer {
     pub(crate) fn check_enum_annotations(&mut self, decl: &ast::EnumDecl) -> bool {
         let mut no_gc = false;
         let mut seen = HashSet::new();
-        for annotation in &decl.annotations {
+        for annotation in decl
+            .annotations
+            .iter()
+            .filter(|annotation| is_core_annotation(&annotation.name.text))
+        {
             let name = annotation.name.text.as_str();
             if !seen.insert(name.to_string()) {
                 self.error(
@@ -301,7 +313,10 @@ impl Lowerer {
 
     pub(crate) fn reject_type_annotations(&mut self, kind: &str, annotations: &[ast::Annotation]) {
         let mut seen = HashSet::new();
-        for annotation in annotations {
+        for annotation in annotations
+            .iter()
+            .filter(|annotation| is_core_annotation(&annotation.name.text))
+        {
             let name = annotation.name.text.as_str();
             if !seen.insert(name.to_string()) {
                 self.error(
@@ -328,7 +343,10 @@ impl Lowerer {
         annotations: &[ast::Annotation],
     ) {
         let mut seen = HashSet::new();
-        for annotation in annotations {
+        for annotation in annotations
+            .iter()
+            .filter(|annotation| is_core_annotation(&annotation.name.text))
+        {
             let name = annotation.name.text.as_str();
             if !seen.insert(name.to_string()) {
                 self.error(

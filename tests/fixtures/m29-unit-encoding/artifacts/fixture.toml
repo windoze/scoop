@@ -1,0 +1,124 @@
+schema = 1
+name = "m29-unit-encoding-artifacts"
+inputs = ["provider", "peer", "consumer", "../../../../sysroot/lib/scoop.json"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m29", "serialization", "json", "artifact-only", "gc", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {mkdir = {path = "${work}/standalone"}},
+  {remove = {path = "${work}/standalone"}},
+  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/sources/core"}},
+  {copy = {from = "${repo}/sysroot/lib/scoop.json", to = "${work}/sources/json"}},
+  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/peer", to = "${work}/sources/peer"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_core"
+files = [{remove = {path = "${work}/sources/core"}}]
+
+[[steps]]
+name = "json"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/json", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-json", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.json/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_json"
+files = [{remove = {path = "${work}/sources/json"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/unit-encoding/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"}]
+
+[[steps]]
+name = "remove_provider"
+files = [{remove = {path = "${work}/sources/provider"}}]
+
+[[steps]]
+name = "peer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/peer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-peer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m29/unit-encoding-peer/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_peer"
+files = [{remove = {path = "${work}/sources/peer"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/consumer-dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/consumer-dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
+  {file = "${work}/consumer-dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/consumer-dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer"
+files = [{remove = {path = "${work}/sources/consumer"}}]
+
+[[steps]]
+name = "isolate"
+files = [
+  {copy = {from = "${consumer.result.root.path}", to = "${work}/standalone/root.slib"}},
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {remove = {path = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", {each = "${link_args}"}, "--root-slib", "${work}/standalone/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {PATH = "/usr/bin:/bin", LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${consumer.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "unit-artifacts-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/program"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "unit-artifacts-ok\n"
+stderr = ""

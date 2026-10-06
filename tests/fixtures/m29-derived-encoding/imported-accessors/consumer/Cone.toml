@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m29"
+name = "accessor-consumer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.m29:accessor-provider" = "0.1.0"

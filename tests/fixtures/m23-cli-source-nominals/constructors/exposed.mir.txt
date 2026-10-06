@@ -1,16 +1,16 @@
 Module
   global0 $singleton$Companion: Envelope.Companion managed initial=zeroed-for-runtime-unit
-  global1 $singleton$Companion: Envelope.Box.Companion managed initial=zeroed-for-runtime-unit
-  global2 $singleton$Companion: Envelope.Pair.Companion managed initial=zeroed-for-runtime-unit
-  global3 $singleton$Singleton: Envelope.Singleton managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Singleton: Envelope.Singleton managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Companion: Envelope.Box.Companion<Int> managed initial=zeroed-for-runtime-unit
+  global3 $singleton$Companion: Envelope.Pair.Companion<Int> managed initial=zeroed-for-runtime-unit
   global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global6 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
   global7 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
   init0 companion:Envelope.Companion singleton lazy global0 initializer=@fn8 ensure=@fn9 failure=4 deps=[]
-  init1 companion:Envelope.Box.Companion singleton lazy global1 initializer=@fn10 ensure=@fn11 failure=5 deps=[]
-  init2 companion:Envelope.Pair.Companion singleton lazy global2 initializer=@fn12 ensure=@fn13 failure=6 deps=[]
-  init3 object:Envelope.Singleton singleton lazy global3 initializer=@fn14 ensure=@fn15 failure=7 deps=[]
+  init1 object:Envelope.Singleton singleton lazy global1 initializer=@fn10 ensure=@fn11 failure=5 deps=[]
+  init2 companion:Envelope.Box.Companion singleton lazy global2 initializer=@fn13 ensure=@fn14 failure=6 deps=[]
+  init3 companion:Envelope.Pair.Companion singleton lazy global3 initializer=@fn16 ensure=@fn17 failure=7 deps=[]
   struct Empty ()
   struct Envelope.Pair<Int> (value: Int, count: Int)
   enum Option<String>
@@ -22,12 +22,6 @@ Module
   enum CoroutineSlot<Envelope.Companion>
     Empty()
     Value(value: Envelope.Companion)
-  enum CoroutineStep<Envelope.Pair.Companion>
-    Completed(value: Envelope.Pair.Companion)
-    Suspended()
-  enum CoroutineSlot<Envelope.Pair.Companion>
-    Empty()
-    Value(value: Envelope.Pair.Companion)
   enum CoroutineStep<Envelope.Outer.Static>
     Completed(value: Envelope.Outer.Static)
     Suspended()
@@ -52,20 +46,14 @@ Module
   enum CoroutineSlot<Envelope>
     Empty()
     Value(value: Envelope)
-  enum CoroutineStep<Envelope.Box.Companion>
-    Completed(value: Envelope.Box.Companion)
-    Suspended()
-  enum CoroutineSlot<Envelope.Box.Companion>
-    Empty()
-    Value(value: Envelope.Box.Companion)
   class Derived vtable=0 itables=0
   class Envelope vtable=0 itables=0
   class Envelope.Companion vtable=0 itables=0
-  class Envelope.Box.Companion vtable=0 itables=0
-  class Envelope.Pair.Companion vtable=0 itables=0
   class Envelope.Outer.Static vtable=0 itables=0
   class Envelope.Singleton vtable=0 itables=0
+  class Envelope.Box.Companion<Int> vtable=0 itables=0
   class Envelope.Box<Int> vtable=0 itables=0
+  class Envelope.Pair.Companion<Int> vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -79,12 +67,6 @@ Module
   interface Continuation<Envelope.Companion>
   interface SuspendTask<Envelope.Companion>
   interface SuspendRegistration<Envelope.Companion>
-  interface Continuation<Envelope.Box.Companion>
-  interface SuspendTask<Envelope.Box.Companion>
-  interface SuspendRegistration<Envelope.Box.Companion>
-  interface Continuation<Envelope.Pair.Companion>
-  interface SuspendTask<Envelope.Pair.Companion>
-  interface SuspendRegistration<Envelope.Pair.Companion>
   interface Continuation<Envelope.Outer.Static>
   interface SuspendTask<Envelope.Outer.Static>
   interface SuspendRegistration<Envelope.Outer.Static>
@@ -92,32 +74,26 @@ Module
   interface SuspendTask<Envelope.Singleton>
   interface SuspendRegistration<Envelope.Singleton>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum3 nominal_id=af69184ec4e989c8d9caea75451e0744fa8917b752692fca64e54747050c3617 exact_id=1bd79492dfb06713ca1d4db4c2c7e71766980c0cb424514613e2dbdbde96ae18
-  generated_exact_type get2 location=enum2 nominal_id=e271da49ba90f4bc7af44a1d4f2fc76a5e706de362be5538046e2858a0485ee3 exact_id=1be23fc959b0549d6155495ed4f6023ef1f6d735f3a129beec87bcf12315a70a
-  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get4 location=enum5 nominal_id=c4450e12535001bdf3f6b457acc1c7fb42f579743af9a7c70a005202ce5c0aa6 exact_id=466935646517400aa94310aab163cd7277227f39f83e0868a6ece74a748f54da
-  generated_exact_type get5 location=enum6 nominal_id=545520fd0aca38023a981f500060ea6ef9c9c5d28c0580fa215bf4b92ba98fc3 exact_id=46ad8646287f97c890c6c483872a707b3f86c49cd3c2cfe61f426c7456ba5ac9
-  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get7 location=enum9 nominal_id=81201f8f95ad8b418c91197021316e85765f2d87bec2a91d2c703fc77b8905a6 exact_id=601c8158aafa2b797830be68d20557a8bee7aee9649b1ff8a98f93fd40512d96
-  generated_exact_type get8 location=enum14 nominal_id=ac974c338e1acfddfffea1deb579b0c9d7c493eb8ab591f62c5ca76cc6ee617a exact_id=695b1d2e74ac83e78672b6a5345957c04a84cc9d33c37142ef3c89ae4adf389d
-  generated_exact_type get9 location=enum10 nominal_id=4cf6a5490409656accf7e012c49323f554d1e8ce40e3959cc6476f354b5b332b exact_id=6ebfe4c8a3b0cafd5592d77a85ed5a01f7c933466f26762c6150af53bf4e58a1
-  generated_exact_type get10 location=enum13 nominal_id=774924f1c6476c65287362101cc7974ff645a08d4d7d9f419c6d967611af234f exact_id=7c6525ad95895368e6cebb663aa936b1a9bfa7eceb7c77f459831f127417df90
-  generated_exact_type get11 location=class11 nominal_id=7fa9141f327d10fdeb2b49af7215b71e17bc331cf4221ce275375eb73b5c599b exact_id=7eb196feb293fe874fa0fdd0828019f71d020dff68ea6a06b4e2363b10f111d9
-  generated_exact_type get12 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get13 location=enum7 nominal_id=267c382bd8da9e9bd687c4e65f177cce8dd9cb0e533bb8e96f43c494a2825442 exact_id=c8975f5822216f6c15f8cf0bc80ee5e62974b197fd493958fa07ba3695a5bbac
-  generated_exact_type get14 location=enum12 nominal_id=b60618b10887730831f30b4f56dc6ca7971fe2f5d704186e8fd331a6f1c2509f exact_id=cf463f9d71d251a3e14bc63622da5d82176fa031b8b5dc4110cdf13b09168c13
-  generated_exact_type get15 location=enum8 nominal_id=035ad5daf091cd8b3228f97d6e8d8b3e9fd1aba5c26e104cdfdf08d6a7c1e934 exact_id=d5bf0bf20a3896eb2214a12cac5aa14e674b7148937eb724d6bc98939e7c59f1
-  generated_exact_type get16 location=enum4 nominal_id=ae48462cc59d0e51b0cb5576d39ab0fbbb9d5f60752d48b43721b0f7eebe7e83 exact_id=e52b3dc7269195da5d0e5ae92bd76659e713de16fba083a20eaba98fbf54f065
-  generated_exact_type get17 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get18 location=enum11 nominal_id=ae806aa70c5520717505eea9c83cbdb05a9ca55b887346b070365bc0415ade56 exact_id=f16b9e27267901690a7e42336239eaa98301c1931c9e1a8b43deac39b010988b
-  generated_exact_type get19 location=enum1 nominal_id=74afbd724a3b52b5f885f733f54cbc895e183669662907b19baaca5736857609 exact_id=fb0602044aac0ab47d2bd1596f48efe5cb12abe0b1a40b54fb79adfe77f8fd18
-  generated_callable gc0 function=@fn69 id=1f623697873bf2e1629fa2b702d437f024e972765105b5f12ef8ba7cb0d96525
-  generated_callable gc1 function=@fn67 id=373255922f0d26fb726f94e950405a5c22c992518632d59361f700db98065fc4
-  generated_callable gc2 function=@fn65 id=6eb32216b1ffe391119d1264c436f62d9778116fc7b23733549ae690500452ee
-  generated_callable gc3 function=@fn70 id=78e274f4d161b405fb7637c5d58592762a5abcaf2b00a52568290a670b3737a9
-  generated_callable gc4 function=@fn68 id=8707f0ea8567e7321466a093b8e533a3a858d9ca2ea0932979636f308b35ab03
-  generated_callable gc5 function=@fn64 id=90f69cf2929b7e6125b067e620ed499582d038f94315438167b2c9f263a519dc
-  generated_callable gc6 function=@fn66 id=b7f6fd3b13be1addd31711c136b2a7006c89c3ee199557c5ad12bc3a99fc05b4
+  generated_exact_type get1 location=enum2 nominal_id=e271da49ba90f4bc7af44a1d4f2fc76a5e706de362be5538046e2858a0485ee3 exact_id=1be23fc959b0549d6155495ed4f6023ef1f6d735f3a129beec87bcf12315a70a
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=enum3 nominal_id=c4450e12535001bdf3f6b457acc1c7fb42f579743af9a7c70a005202ce5c0aa6 exact_id=466935646517400aa94310aab163cd7277227f39f83e0868a6ece74a748f54da
+  generated_exact_type get4 location=enum4 nominal_id=545520fd0aca38023a981f500060ea6ef9c9c5d28c0580fa215bf4b92ba98fc3 exact_id=46ad8646287f97c890c6c483872a707b3f86c49cd3c2cfe61f426c7456ba5ac9
+  generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get6 location=enum7 nominal_id=81201f8f95ad8b418c91197021316e85765f2d87bec2a91d2c703fc77b8905a6 exact_id=601c8158aafa2b797830be68d20557a8bee7aee9649b1ff8a98f93fd40512d96
+  generated_exact_type get7 location=enum8 nominal_id=4cf6a5490409656accf7e012c49323f554d1e8ce40e3959cc6476f354b5b332b exact_id=6ebfe4c8a3b0cafd5592d77a85ed5a01f7c933466f26762c6150af53bf4e58a1
+  generated_exact_type get8 location=class11 nominal_id=7fa9141f327d10fdeb2b49af7215b71e17bc331cf4221ce275375eb73b5c599b exact_id=7eb196feb293fe874fa0fdd0828019f71d020dff68ea6a06b4e2363b10f111d9
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=enum5 nominal_id=267c382bd8da9e9bd687c4e65f177cce8dd9cb0e533bb8e96f43c494a2825442 exact_id=c8975f5822216f6c15f8cf0bc80ee5e62974b197fd493958fa07ba3695a5bbac
+  generated_exact_type get11 location=enum10 nominal_id=b60618b10887730831f30b4f56dc6ca7971fe2f5d704186e8fd331a6f1c2509f exact_id=cf463f9d71d251a3e14bc63622da5d82176fa031b8b5dc4110cdf13b09168c13
+  generated_exact_type get12 location=enum6 nominal_id=035ad5daf091cd8b3228f97d6e8d8b3e9fd1aba5c26e104cdfdf08d6a7c1e934 exact_id=d5bf0bf20a3896eb2214a12cac5aa14e674b7148937eb724d6bc98939e7c59f1
+  generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get14 location=enum9 nominal_id=ae806aa70c5520717505eea9c83cbdb05a9ca55b887346b070365bc0415ade56 exact_id=f16b9e27267901690a7e42336239eaa98301c1931c9e1a8b43deac39b010988b
+  generated_exact_type get15 location=enum1 nominal_id=74afbd724a3b52b5f885f733f54cbc895e183669662907b19baaca5736857609 exact_id=fb0602044aac0ab47d2bd1596f48efe5cb12abe0b1a40b54fb79adfe77f8fd18
+  generated_callable gc0 function=@fn60 id=1f623697873bf2e1629fa2b702d437f024e972765105b5f12ef8ba7cb0d96525
+  generated_callable gc1 function=@fn58 id=373255922f0d26fb726f94e950405a5c22c992518632d59361f700db98065fc4
+  generated_callable gc2 function=@fn59 id=8707f0ea8567e7321466a093b8e533a3a858d9ca2ea0932979636f308b35ab03
+  generated_callable gc3 function=@fn56 id=90f69cf2929b7e6125b067e620ed499582d038f94315438167b2c9f263a519dc
+  generated_callable gc4 function=@fn57 id=b7f6fd3b13be1addd31711c136b2a7006c89c3ee199557c5ad12bc3a99fc05b4
   fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
     bb0 entry
       return
@@ -125,9 +101,9 @@ Module
         BoolLiteral true
   fun Envelope.boxes @fn1(this: Envelope) -> Int
     bb0 entry
-      call @fn11 direct
-      val $receiver: Envelope.Box.Companion
-        Type Envelope.Box.Companion
+      call @fn14 direct
+      val $receiver: Envelope.Box.Companion<Int>
+        Type Envelope.Box.Companion<Int>
         GlobalRead $singleton$Companion
       val $argument.0: Int
         Type Int
@@ -135,8 +111,8 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Envelope.Box<Int> = @fn16 direct
-        Type Envelope.Box.Companion
+      call $call.1: Envelope.Box<Int> = @fn12 direct
+        Type Envelope.Box.Companion<Int>
         Local $receiver
         Type Int
         Local $parameter.value
@@ -154,7 +130,7 @@ Module
       assign $new.2
         Type Envelope.Box<Int>
         ClassAlloc Envelope.Box<Int>
-      call @fn56 direct
+      call @fn46 direct
         Type Envelope.Box<Int>
         Local $new.2
         Type Int
@@ -189,7 +165,7 @@ Module
       assign $new.3
         Type Envelope.Box<Int>
         ClassAlloc Envelope.Box<Int>
-      call @fn57 direct
+      call @fn47 direct
         Type Envelope.Box<Int>
         Local $new.3
         Type Int
@@ -225,7 +201,7 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.1
-      call $call.1: Envelope.Pair<Int> = @fn61 direct
+      call $call.1: Envelope.Pair<Int> = @fn53 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -247,7 +223,7 @@ Module
       val $parameter.flag: Boolean
         Type Boolean
         Local $argument.1
-      call $call.2: Envelope.Pair<Int> = @fn62 direct
+      call $call.2: Envelope.Pair<Int> = @fn54 direct
         Type Int
         Local $parameter.value
         Type Boolean
@@ -267,9 +243,9 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-      call @fn13 direct
-      val $receiver: Envelope.Pair.Companion
-        Type Envelope.Pair.Companion
+      call @fn17 direct
+      val $receiver: Envelope.Pair.Companion<Int>
+        Type Envelope.Pair.Companion<Int>
         GlobalRead $singleton$Companion
       val $argument.0: Int
         Type Int
@@ -277,8 +253,8 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.3: Envelope.Pair<Int> = @fn17 direct
-        Type Envelope.Pair.Companion
+      call $call.3: Envelope.Pair<Int> = @fn15 direct
+        Type Envelope.Pair.Companion<Int>
         Local $receiver
         Type Int
         Local $parameter.value
@@ -299,8 +275,8 @@ Module
           Local $dependency.parameter.other
   fun Envelope.singleton @fn3(this: Envelope) -> Boolean
     bb0 entry
-      call @fn15 direct
-      call @fn15 direct
+      call @fn11 direct
+      call @fn11 direct
       return
         Type Boolean
         Binary RefEq
@@ -326,7 +302,7 @@ Module
       assign $new.1
         Type Envelope
         ClassAlloc Envelope
-      call @fn47 direct
+      call @fn39 direct
         Type Envelope
         Local $new.1
         Type Boolean
@@ -339,7 +315,7 @@ Module
       assign $new.1
         Type Derived
         ClassAlloc Derived
-      call @fn50 direct
+      call @fn42 direct
         Type Derived
         Local $new.1
       return
@@ -358,7 +334,7 @@ Module
       assign $new.1
         Type Envelope
         ClassAlloc Envelope
-      call @fn48 direct
+      call @fn40 direct
         Type Envelope
         Local $new.1
         Type Long
@@ -371,7 +347,7 @@ Module
       assign $new.1
         Type Envelope.Companion
         ClassAlloc Envelope.Companion
-      call @fn51 direct
+      call @fn43 direct
         Type Envelope.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -476,23 +452,23 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$1 @fn10() -> Unit
+  fun $init$body$3 @fn10() -> Unit
     bb0 entry
       assign $new.1
-        Type Envelope.Box.Companion
-        ClassAlloc Envelope.Box.Companion
-      call @fn52 direct
-        Type Envelope.Box.Companion
+        Type Envelope.Singleton
+        ClassAlloc Envelope.Singleton
+      call @fn45 direct
+        Type Envelope.Singleton
         Local $new.1
-      global_assign $singleton$Companion
-        Type Envelope.Box.Companion
+      global_assign $singleton$Singleton
+        Type Envelope.Singleton
         Local $new.1
       return
-  fun $init$ensure$1 @fn11() -> Unit
+  fun $init$ensure$3 @fn11() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Envelope.Box.Companion
+        InitializationUnitAddress init1 object:Envelope.Singleton
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -536,7 +512,7 @@ Module
       call @fn10 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Envelope.Box.Companion
+        InitializationUnitAddress init1 object:Envelope.Singleton
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -551,7 +527,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Envelope.Box.Companion
+        InitializationUnitAddress init1 object:Envelope.Singleton
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -572,241 +548,21 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Envelope.Box.Companion
+        InitializationUnitAddress init1 object:Envelope.Singleton
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Envelope.Box.Companion
+        InitializationUnitAddress init1 object:Envelope.Singleton
       call external0 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $init$body$2 @fn12() -> Unit
-    bb0 entry
-      assign $new.1
-        Type Envelope.Pair.Companion
-        ClassAlloc Envelope.Pair.Companion
-      call @fn53 direct
-        Type Envelope.Pair.Companion
-        Local $new.1
-      global_assign $singleton$Companion
-        Type Envelope.Pair.Companion
-        Local $new.1
-      return
-  fun $init$ensure$2 @fn13() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Envelope.Pair.Companion
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn12 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Envelope.Pair.Companion
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Envelope.Pair.Companion
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Envelope.Pair.Companion
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Envelope.Pair.Companion
-      call external0 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun $init$body$3 @fn14() -> Unit
-    bb0 entry
-      assign $new.1
-        Type Envelope.Singleton
-        ClassAlloc Envelope.Singleton
-      call @fn55 direct
-        Type Envelope.Singleton
-        Local $new.1
-      global_assign $singleton$Singleton
-        Type Envelope.Singleton
-        Local $new.1
-      return
-  fun $init$ensure$3 @fn15() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 object:Envelope.Singleton
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn14 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 object:Envelope.Singleton
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 object:Envelope.Singleton
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 object:Envelope.Singleton
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 object:Envelope.Singleton
-      call external0 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun Envelope.Box.Companion.defaulted @fn16(this: Envelope.Box.Companion, value: Int) -> Envelope.Box<Int>
+  fun Envelope.Box.Companion.defaulted @fn12(this: Envelope.Box.Companion<Int>, value: Int) -> Envelope.Box<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -820,7 +576,7 @@ Module
       assign $new.1
         Type Envelope.Box<Int>
         ClassAlloc Envelope.Box<Int>
-      call @fn58 direct
+      call @fn48 direct
         Type Envelope.Box<Int>
         Local $new.1
         Type Int
@@ -830,7 +586,117 @@ Module
       return
         Type Envelope.Box<Int>
         Local $new.1
-  fun Envelope.Pair.Companion.privatePair @fn17(this: Envelope.Pair.Companion, value: Int) -> Envelope.Pair<Int>
+  fun $init$body$1 @fn13() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Envelope.Box.Companion<Int>
+        ClassAlloc Envelope.Box.Companion<Int>
+      call @fn49 direct
+        Type Envelope.Box.Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Envelope.Box.Companion<Int>
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Envelope.Box.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Envelope.Box.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Envelope.Box.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Envelope.Box.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Envelope.Box.Companion
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Envelope.Pair.Companion.privatePair @fn15(this: Envelope.Pair.Companion<Int>, value: Int) -> Envelope.Pair<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -838,12 +704,122 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Envelope.Pair<Int> = @fn63 direct
+      call $call.1: Envelope.Pair<Int> = @fn55 direct
         Type Int
         Local $parameter.value
       return
         Type Envelope.Pair<Int>
         Local $call.1
+  fun $init$body$2 @fn16() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Envelope.Pair.Companion<Int>
+        ClassAlloc Envelope.Pair.Companion<Int>
+      call @fn50 direct
+        Type Envelope.Pair.Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Envelope.Pair.Companion<Int>
+        Local $new.1
+      return
+  fun $init$ensure$2 @fn17() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Envelope.Pair.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn16 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Envelope.Pair.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Envelope.Pair.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Envelope.Pair.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 companion:Envelope.Pair.Companion
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
   fun Continuation.resume @fn18(this: Continuation<Empty>, value: Empty) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -880,55 +856,31 @@ Module
   fun SuspendRegistration.register @fn29(this: SuspendRegistration<Envelope.Companion>, continuation: Continuation<Envelope.Companion>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn30(this: Continuation<Envelope.Box.Companion>, value: Envelope.Box.Companion) -> Unit
+  fun Continuation.resume @fn30(this: Continuation<Envelope.Outer.Static>, value: Envelope.Outer.Static) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn31(this: Continuation<Envelope.Box.Companion>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn31(this: Continuation<Envelope.Outer.Static>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn32(this: SuspendTask<Envelope.Box.Companion>, $completion: Continuation<Envelope.Box.Companion>) -> CoroutineStep<Envelope.Box.Companion>
+  fun SuspendTask.run @fn32(this: SuspendTask<Envelope.Outer.Static>, $completion: Continuation<Envelope.Outer.Static>) -> CoroutineStep<Envelope.Outer.Static>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Envelope.Box.Companion>, continuation: Continuation<Envelope.Box.Companion>) -> Unit
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Envelope.Outer.Static>, continuation: Continuation<Envelope.Outer.Static>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn34(this: Continuation<Envelope.Pair.Companion>, value: Envelope.Pair.Companion) -> Unit
+  fun Continuation.resume @fn34(this: Continuation<Envelope.Singleton>, value: Envelope.Singleton) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn35(this: Continuation<Envelope.Pair.Companion>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn35(this: Continuation<Envelope.Singleton>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn36(this: SuspendTask<Envelope.Pair.Companion>, $completion: Continuation<Envelope.Pair.Companion>) -> CoroutineStep<Envelope.Pair.Companion>
+  fun SuspendTask.run @fn36(this: SuspendTask<Envelope.Singleton>, $completion: Continuation<Envelope.Singleton>) -> CoroutineStep<Envelope.Singleton>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Envelope.Pair.Companion>, continuation: Continuation<Envelope.Pair.Companion>) -> Unit
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Envelope.Singleton>, continuation: Continuation<Envelope.Singleton>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn38(this: Continuation<Envelope.Outer.Static>, value: Envelope.Outer.Static) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn39(this: Continuation<Envelope.Outer.Static>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn40(this: SuspendTask<Envelope.Outer.Static>, $completion: Continuation<Envelope.Outer.Static>) -> CoroutineStep<Envelope.Outer.Static>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn41(this: SuspendRegistration<Envelope.Outer.Static>, continuation: Continuation<Envelope.Outer.Static>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn42(this: Continuation<Envelope.Singleton>, value: Envelope.Singleton) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn43(this: Continuation<Envelope.Singleton>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn44(this: SuspendTask<Envelope.Singleton>, $completion: Continuation<Envelope.Singleton>) -> CoroutineStep<Envelope.Singleton>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn45(this: SuspendRegistration<Envelope.Singleton>, continuation: Continuation<Envelope.Singleton>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Envelope.$c1 @fn46(this: Envelope, count: Int) -> Unit
+  fun init.Envelope.$c1 @fn38(this: Envelope, count: Int) -> Unit
     bb0 entry
       field_set 0
         Type Envelope
@@ -936,7 +888,7 @@ Module
         Type Int
         Local count
       return
-  fun init.Envelope.$c2 @fn47(this: Envelope, flag: Boolean) -> Unit
+  fun init.Envelope.$c2 @fn39(this: Envelope, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -944,13 +896,13 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.0
-      call @fn46 direct
+      call @fn38 direct
         Type Envelope
         Local this
         Type Int
         Local $parameter.count
       return
-  fun init.Envelope.$c3 @fn48(this: Envelope, value: Long) -> Unit
+  fun init.Envelope.$c3 @fn40(this: Envelope, value: Long) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -958,13 +910,13 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.0
-      call @fn46 direct
+      call @fn38 direct
         Type Envelope
         Local this
         Type Int
         Local $parameter.count
       return
-  fun init.Envelope.$c4 @fn49(this: Envelope, text: String) -> Unit
+  fun init.Envelope.$c4 @fn41(this: Envelope, text: String) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -972,18 +924,18 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.0
-      call @fn46 direct
+      call @fn38 direct
         Type Envelope
         Local this
         Type Int
         Local $parameter.count
       return
-  fun init.Derived.$c0 @fn50(this: Derived) -> Unit
+  fun init.Derived.$c0 @fn42(this: Derived) -> Unit
     bb0 entry
       val $parameter.count: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      call @fn46 direct
+      call @fn38 direct
         Type Envelope
         Retype Envelope
           Type Derived
@@ -991,22 +943,16 @@ Module
         Type Int
         Local $parameter.count
       return
-  fun init.Envelope.Companion.$c10 @fn51(this: Envelope.Companion) -> Unit
+  fun init.Envelope.Companion.$c10 @fn43(this: Envelope.Companion) -> Unit
     bb0 entry
       return
-  fun init.Envelope.Box.Companion.$c11 @fn52(this: Envelope.Box.Companion) -> Unit
+  fun init.Envelope.Outer.Static.$c9 @fn44(this: Envelope.Outer.Static, count: Int) -> Unit
     bb0 entry
       return
-  fun init.Envelope.Pair.Companion.$c12 @fn53(this: Envelope.Pair.Companion) -> Unit
+  fun init.Envelope.Singleton.$c13 @fn45(this: Envelope.Singleton) -> Unit
     bb0 entry
       return
-  fun init.Envelope.Outer.Static.$c9 @fn54(this: Envelope.Outer.Static, count: Int) -> Unit
-    bb0 entry
-      return
-  fun init.Envelope.Singleton.$c13 @fn55(this: Envelope.Singleton) -> Unit
-    bb0 entry
-      return
-  fun init.Envelope.Box.$c6 @fn56(this: Envelope.Box<Int>, value: Int) -> Unit
+  fun init.Envelope.Box.$c6 @fn46(this: Envelope.Box<Int>, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1020,7 +966,7 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.1
-      call @fn58 direct
+      call @fn48 direct
         Type Envelope.Box<Int>
         Local this
         Type Int
@@ -1028,7 +974,7 @@ Module
         Type Int
         Local $parameter.count
       return
-  fun init.Envelope.Box.$c7 @fn57(this: Envelope.Box<Int>, value: Int, flag: Boolean) -> Unit
+  fun init.Envelope.Box.$c7 @fn47(this: Envelope.Box<Int>, value: Int, flag: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1042,7 +988,7 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.1
-      call @fn58 direct
+      call @fn48 direct
         Type Envelope.Box<Int>
         Local this
         Type Int
@@ -1050,7 +996,7 @@ Module
         Type Int
         Local $parameter.count
       return
-  fun init.Envelope.Box.$c5 @fn58(this: Envelope.Box<Int>, stored: Int, count: Int) -> Unit
+  fun init.Envelope.Box.$c5 @fn48(this: Envelope.Box<Int>, stored: Int, count: Int) -> Unit
     bb0 entry
       field_set 0
         Type Envelope.Box<Int>
@@ -1063,18 +1009,24 @@ Module
         Type Int
         Local count
       return
-  fun ctor.Empty.$c0 @fn59() -> Empty <no-gc>
+  fun init.Envelope.Box.Companion.$c11 @fn49(this: Envelope.Box.Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.Envelope.Pair.Companion.$c12 @fn50(this: Envelope.Pair.Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.Empty.$c0 @fn51() -> Empty <no-gc>
     bb0 entry
       return
         Type Empty
         StructInit Empty
-  fun ctor.Empty.$c1 @fn60(flag: Boolean) -> Empty <no-gc>
+  fun ctor.Empty.$c1 @fn52(flag: Boolean) -> Empty <no-gc>
     bb0 entry
-      call $this: Empty = @fn59 direct
+      call $this: Empty = @fn51 direct
       return
         Type Empty
         Local $this
-  fun ctor.Envelope.Pair.$c2 @fn61(value: Int, count: Int) -> Envelope.Pair<Int> <no-gc>
+  fun ctor.Envelope.Pair.$c2 @fn53(value: Int, count: Int) -> Envelope.Pair<Int> <no-gc>
     bb0 entry
       return
         Type Envelope.Pair<Int>
@@ -1083,7 +1035,7 @@ Module
           Local value
           Type Int
           Local count
-  fun ctor.Envelope.Pair.$c4 @fn62(value: Int, flag: Boolean) -> Envelope.Pair<Int>
+  fun ctor.Envelope.Pair.$c4 @fn54(value: Int, flag: Boolean) -> Envelope.Pair<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1097,7 +1049,7 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.1
-      call $this: Envelope.Pair<Int> = @fn61 direct
+      call $this: Envelope.Pair<Int> = @fn53 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -1105,7 +1057,7 @@ Module
       return
         Type Envelope.Pair<Int>
         Local $this
-  fun ctor.Envelope.Pair.$c3 @fn63(value: Int) -> Envelope.Pair<Int> <no-gc>
+  fun ctor.Envelope.Pair.$c3 @fn55(value: Int) -> Envelope.Pair<Int> <no-gc>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1119,7 +1071,7 @@ Module
       val $parameter.count: Int
         Type Int
         Local $argument.1
-      call $this: Envelope.Pair<Int> = @fn61 direct
+      call $this: Envelope.Pair<Int> = @fn53 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -1127,7 +1079,7 @@ Module
       return
         Type Envelope.Pair<Int>
         Local $this
-  fun startCoroutine<Envelope.Companion> @fn64(task: SuspendTask<Envelope.Companion>, completion: Continuation<Envelope.Companion>) -> Unit
+  fun startCoroutine<Envelope.Companion> @fn56(task: SuspendTask<Envelope.Companion>, completion: Continuation<Envelope.Companion>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1208,7 +1160,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Pair.Companion> @fn65(task: SuspendTask<Envelope.Pair.Companion>, completion: Continuation<Envelope.Pair.Companion>) -> Unit
+  fun startCoroutine<Envelope.Outer.Static> @fn57(task: SuspendTask<Envelope.Outer.Static>, completion: Continuation<Envelope.Outer.Static>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1231,88 +1183,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn34 interface Continuation<Envelope.Pair.Companion>[0]
-        Type Continuation<Envelope.Pair.Companion>
-        Local completion
-        Type Envelope.Pair.Companion
-        EnumField v0 f0
-          Type CoroutineStep<Envelope.Pair.Companion>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn35 interface Continuation<Envelope.Pair.Companion>[1]
-        Type Continuation<Envelope.Pair.Companion>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Envelope.Pair.Companion> = @fn36 interface SuspendTask<Envelope.Pair.Companion>[0]
-        Type SuspendTask<Envelope.Pair.Companion>
-        Local task
-        Type Continuation<Envelope.Pair.Companion>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Envelope.Pair.Companion>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Envelope.Outer.Static> @fn66(task: SuspendTask<Envelope.Outer.Static>, completion: Continuation<Envelope.Outer.Static>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn38 interface Continuation<Envelope.Outer.Static>[0]
+      call @fn30 interface Continuation<Envelope.Outer.Static>[0]
         Type Continuation<Envelope.Outer.Static>
         Local completion
         Type Envelope.Outer.Static
@@ -1325,7 +1196,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn39 interface Continuation<Envelope.Outer.Static>[1]
+      call @fn31 interface Continuation<Envelope.Outer.Static>[1]
         Type Continuation<Envelope.Outer.Static>
         Local completion
         Type Throwable
@@ -1344,7 +1215,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Envelope.Outer.Static> = @fn40 interface SuspendTask<Envelope.Outer.Static>[0]
+      call $step: CoroutineStep<Envelope.Outer.Static> = @fn32 interface SuspendTask<Envelope.Outer.Static>[0]
         Type SuspendTask<Envelope.Outer.Static>
         Local task
         Type Continuation<Envelope.Outer.Static>
@@ -1370,7 +1241,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Singleton> @fn67(task: SuspendTask<Envelope.Singleton>, completion: Continuation<Envelope.Singleton>) -> Unit
+  fun startCoroutine<Envelope.Singleton> @fn58(task: SuspendTask<Envelope.Singleton>, completion: Continuation<Envelope.Singleton>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1393,7 +1264,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn42 interface Continuation<Envelope.Singleton>[0]
+      call @fn34 interface Continuation<Envelope.Singleton>[0]
         Type Continuation<Envelope.Singleton>
         Local completion
         Type Envelope.Singleton
@@ -1406,7 +1277,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn43 interface Continuation<Envelope.Singleton>[1]
+      call @fn35 interface Continuation<Envelope.Singleton>[1]
         Type Continuation<Envelope.Singleton>
         Local completion
         Type Throwable
@@ -1425,7 +1296,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Envelope.Singleton> = @fn44 interface SuspendTask<Envelope.Singleton>[0]
+      call $step: CoroutineStep<Envelope.Singleton> = @fn36 interface SuspendTask<Envelope.Singleton>[0]
         Type SuspendTask<Envelope.Singleton>
         Local task
         Type Continuation<Envelope.Singleton>
@@ -1451,7 +1322,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Empty> @fn68(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
+  fun startCoroutine<Empty> @fn59(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1532,7 +1403,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope> @fn69(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+  fun startCoroutine<Envelope> @fn60(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1613,143 +1484,50 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Envelope.Box.Companion> @fn70(task: SuspendTask<Envelope.Box.Companion>, completion: Continuation<Envelope.Box.Companion>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn30 interface Continuation<Envelope.Box.Companion>[0]
-        Type Continuation<Envelope.Box.Companion>
-        Local completion
-        Type Envelope.Box.Companion
-        EnumField v0 f0
-          Type CoroutineStep<Envelope.Box.Companion>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn31 interface Continuation<Envelope.Box.Companion>[1]
-        Type Continuation<Envelope.Box.Companion>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Envelope.Box.Companion> = @fn32 interface SuspendTask<Envelope.Box.Companion>[0]
-        Type SuspendTask<Envelope.Box.Companion>
-        Local task
-        Type Continuation<Envelope.Box.Companion>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Envelope.Box.Companion>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
   coroutine_step cs0 CoroutineStep<Envelope.Companion> result=Envelope.Companion
-  coroutine_step cs1 CoroutineStep<Envelope.Pair.Companion> result=Envelope.Pair.Companion
-  coroutine_step cs2 CoroutineStep<Envelope.Outer.Static> result=Envelope.Outer.Static
-  coroutine_step cs3 CoroutineStep<Envelope.Singleton> result=Envelope.Singleton
-  coroutine_step cs4 CoroutineStep<Empty> result=Empty
-  coroutine_step cs5 CoroutineStep<Envelope> result=Envelope
-  coroutine_step cs6 CoroutineStep<Envelope.Box.Companion> result=Envelope.Box.Companion
+  coroutine_step cs1 CoroutineStep<Envelope.Outer.Static> result=Envelope.Outer.Static
+  coroutine_step cs2 CoroutineStep<Envelope.Singleton> result=Envelope.Singleton
+  coroutine_step cs3 CoroutineStep<Empty> result=Empty
+  coroutine_step cs4 CoroutineStep<Envelope> result=Envelope
   coroutine_slot cl0 CoroutineSlot<Envelope.Companion> value=Envelope.Companion
-  coroutine_slot cl1 CoroutineSlot<Envelope.Pair.Companion> value=Envelope.Pair.Companion
-  coroutine_slot cl2 CoroutineSlot<Envelope.Outer.Static> value=Envelope.Outer.Static
-  coroutine_slot cl3 CoroutineSlot<Envelope.Singleton> value=Envelope.Singleton
-  coroutine_slot cl4 CoroutineSlot<Empty> value=Empty
-  coroutine_slot cl5 CoroutineSlot<Envelope> value=Envelope
-  coroutine_slot cl6 CoroutineSlot<Envelope.Box.Companion> value=Envelope.Box.Companion
-  coroutine_start ct0 result=Envelope.Companion function=fn64
-  coroutine_start ct1 result=Envelope.Pair.Companion function=fn65
-  coroutine_start ct2 result=Envelope.Outer.Static function=fn66
-  coroutine_start ct3 result=Envelope.Singleton function=fn67
-  coroutine_start ct4 result=Empty function=fn68
-  coroutine_start ct5 result=Envelope function=fn69
-  coroutine_start ct6 result=Envelope.Box.Companion function=fn70
-  coroutine_fn cf0 @fn20 source_return=Empty step=cs4 immediate
-  coroutine_fn cf1 @fn24 source_return=Envelope step=cs5 immediate
+  coroutine_slot cl1 CoroutineSlot<Envelope.Outer.Static> value=Envelope.Outer.Static
+  coroutine_slot cl2 CoroutineSlot<Envelope.Singleton> value=Envelope.Singleton
+  coroutine_slot cl3 CoroutineSlot<Empty> value=Empty
+  coroutine_slot cl4 CoroutineSlot<Envelope> value=Envelope
+  coroutine_start ct0 result=Envelope.Companion function=fn56
+  coroutine_start ct1 result=Envelope.Outer.Static function=fn57
+  coroutine_start ct2 result=Envelope.Singleton function=fn58
+  coroutine_start ct3 result=Empty function=fn59
+  coroutine_start ct4 result=Envelope function=fn60
+  coroutine_fn cf0 @fn20 source_return=Empty step=cs3 immediate
+  coroutine_fn cf1 @fn24 source_return=Envelope step=cs4 immediate
   coroutine_fn cf2 @fn28 source_return=Envelope.Companion step=cs0 immediate
-  coroutine_fn cf3 @fn32 source_return=Envelope.Box.Companion step=cs6 immediate
-  coroutine_fn cf4 @fn36 source_return=Envelope.Pair.Companion step=cs1 immediate
-  coroutine_fn cf5 @fn40 source_return=Envelope.Outer.Static step=cs2 immediate
-  coroutine_fn cf6 @fn44 source_return=Envelope.Singleton step=cs3 immediate
-  instance mi0 function=@fn16 <- Envelope.Box.Companion.defaulted
-  instance mi1 function=@fn17 <- Envelope.Pair.Companion.privatePair
-  instance mi2 function=@fn18 <- Continuation.resume
-  instance mi3 function=@fn19 <- Continuation.resumeWithException
-  instance mi4 function=@fn20 <- SuspendTask.run
-  instance mi5 function=@fn21 <- SuspendRegistration.register
-  instance mi6 function=@fn22 <- Continuation.resume
-  instance mi7 function=@fn23 <- Continuation.resumeWithException
-  instance mi8 function=@fn24 <- SuspendTask.run
-  instance mi9 function=@fn25 <- SuspendRegistration.register
-  instance mi10 function=@fn26 <- Continuation.resume
-  instance mi11 function=@fn27 <- Continuation.resumeWithException
-  instance mi12 function=@fn28 <- SuspendTask.run
-  instance mi13 function=@fn29 <- SuspendRegistration.register
-  instance mi14 function=@fn30 <- Continuation.resume
-  instance mi15 function=@fn31 <- Continuation.resumeWithException
-  instance mi16 function=@fn32 <- SuspendTask.run
-  instance mi17 function=@fn33 <- SuspendRegistration.register
-  instance mi18 function=@fn34 <- Continuation.resume
-  instance mi19 function=@fn35 <- Continuation.resumeWithException
-  instance mi20 function=@fn36 <- SuspendTask.run
-  instance mi21 function=@fn37 <- SuspendRegistration.register
-  instance mi22 function=@fn38 <- Continuation.resume
-  instance mi23 function=@fn39 <- Continuation.resumeWithException
-  instance mi24 function=@fn40 <- SuspendTask.run
-  instance mi25 function=@fn41 <- SuspendRegistration.register
-  instance mi26 function=@fn42 <- Continuation.resume
-  instance mi27 function=@fn43 <- Continuation.resumeWithException
-  instance mi28 function=@fn44 <- SuspendTask.run
-  instance mi29 function=@fn45 <- SuspendRegistration.register
+  coroutine_fn cf3 @fn32 source_return=Envelope.Outer.Static step=cs1 immediate
+  coroutine_fn cf4 @fn36 source_return=Envelope.Singleton step=cs2 immediate
+  instance mi0 function=@fn12 <- Envelope.Box.Companion.defaulted
+  instance mi1 function=@fn13 <- $init$body$1
+  instance mi2 function=@fn14 <- $init$ensure$1
+  instance mi3 function=@fn15 <- Envelope.Pair.Companion.privatePair
+  instance mi4 function=@fn16 <- $init$body$2
+  instance mi5 function=@fn17 <- $init$ensure$2
+  instance mi6 function=@fn18 <- Continuation.resume
+  instance mi7 function=@fn19 <- Continuation.resumeWithException
+  instance mi8 function=@fn20 <- SuspendTask.run
+  instance mi9 function=@fn21 <- SuspendRegistration.register
+  instance mi10 function=@fn22 <- Continuation.resume
+  instance mi11 function=@fn23 <- Continuation.resumeWithException
+  instance mi12 function=@fn24 <- SuspendTask.run
+  instance mi13 function=@fn25 <- SuspendRegistration.register
+  instance mi14 function=@fn26 <- Continuation.resume
+  instance mi15 function=@fn27 <- Continuation.resumeWithException
+  instance mi16 function=@fn28 <- SuspendTask.run
+  instance mi17 function=@fn29 <- SuspendRegistration.register
+  instance mi18 function=@fn30 <- Continuation.resume
+  instance mi19 function=@fn31 <- Continuation.resumeWithException
+  instance mi20 function=@fn32 <- SuspendTask.run
+  instance mi21 function=@fn33 <- SuspendRegistration.register
+  instance mi22 function=@fn34 <- Continuation.resume
+  instance mi23 function=@fn35 <- Continuation.resumeWithException
+  instance mi24 function=@fn36 <- SuspendTask.run
+  instance mi25 function=@fn37 <- SuspendRegistration.register
   output library

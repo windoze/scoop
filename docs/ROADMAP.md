@@ -458,20 +458,21 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 验收覆盖正式 CLI、跨 Cone/ODR、artifact-only、FFI/TLS/异常、moving GC、Context/协程及缓存目标隔离，已完成 Linux 三种链接配置及真实 macOS/AArch64 回归。
 - 全部适用文件 fixture 验证通过：glibc 2,295 个、musl 2,297 个、Darwin 2,314 个；glibc 全量中的 8 份旧产物指纹修正后普通复验通过。Linux workspace 5,318 项、Darwin workspace 5,290 项及 Python runner 38 项通过，原始运行与修复说明见验收记录。
 
-### M29 静态类型描述与序列化基础设施（设计完成，待实现，[设计](milestone29/DESIGN.md)）
+### M29 静态类型描述与序列化基础设施 ✅（2026-10-06 完成，[设计](milestone29/DESIGN.md)，[验收记录](milestone29/ACCEPTANCE.md)，[实施记录](milestone29/PROGRESS.md)）
 
 - 为每个类型提供编译期结构描述，统一源码与`.slib`中的字段名称、类型、annotation、variant及构造关系。复用共有HIR及typed identity，不建立运行期反射表或扩展runtime TypeDescriptor；通用源码编译期查询/遍历语法后续单独设计。
 - 增加编译期annotation class及字段/variant/property注解；SerialName和Transient提供默认编码的最小定制，其余用户注解保留为静态数据。
-- 数据类型显式实现Encodable，companion或普通解码器显式实现`Decodable<T>`。合法手写/继承/default实现优先，缺少的方法在HIR中合成为普通typed body；decode写完整返回类型，具有正常receiver/itable。复用companion object，不增加Self、static成员或类型级工厂requirement。
+- companion或普通codec显式实现`Encodable<T>` / `Decodable<T>`；encode接收显式数据值，decode返回目标T。两个方向都有真实codec receiver和普通itable，合法手写/继承/default实现优先，缺少的方法在HIR中按T的shape合成为普通typed body。数据继承不传递codec关系，不增加Self、static成员或类型级工厂requirement。
 - companion按完整宿主application分别具有类型、singleton状态及exactly-once初始化；可直接使用宿主类型参数与bound，同一application跨Cone沿ODR共享状态，不同实参各自独立。此项修订M21的共享companion选择，普通static nested作用域保持；历史milestone设计保留原文。
-- 泛型编码使用显式Encodable bound，泛型解码显式传入`Decodable<T>`对象。`Box<T>.Companion`的方法可使用宿主T，并把元素codec传给普通解码器helper；按宿主具体化不自动提供裸T的解码能力。完成struct、enum、tuple及构造映射明确的final class，核心容器保持原无bound用途。
-- keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，decode入口显式接收codec。不依赖Any map、反射类型名或工厂注册表，不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
-- 按设计第9节分批实施，覆盖正式CLI、negative/golden、跨Cone/ODR、artifact-only link/run、companion初始化、普通接口调用、异常与moving GC；当前仅完成设计和规范，没有实现或验收结果。
+- 泛型的两个方向都显式传入codec，数据类型无需编码bound。`Box<T>.Companion`把元素codec交给普通encoder/decoder helper，宿主具体化不自动提供裸T的字段能力。支持struct、enum、tuple及原范围内的final class；核心容器保持无bound用途，撤销容器/tuple条件编码，Unit使用普通UnitEncoder/UnitDecoder。
+- keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，encode/decode入口均显式接收codec。字段按声明类型选定codec，不回退到基类companion或运行期类型查找。不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
+- 2026-10-06协议修订已完成，设计与三份spec同步，按功能迁移并提交。全部适用fixture覆盖：Darwin 2,490项、glibc 2,471项、musl 2,473项，每个平台均含176项M29用例；Darwin使用普通完整`--all`，Linux使用完整更新轮、快照审阅与定向复验，原始结果见验收记录。既有实例编码和条件conformance的实现/测试保留为历史，不计作新协议验收。
 
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
-- 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为后续目标；此项尚未实现。
+- 2026-10-05 M29后续修订：`Box<Int>.Companion`与`Box<String>.Companion`改为不同类型、不同singleton，companion可使用宿主T；成员、初始化及跨Cone物化按完整宿主application处理。M21设计§3.2及M23相关历史设计不回写，以[M29设计](milestone29/DESIGN.md)和当前language 9.1.3/runtime 2.7/impl 2.17为当前规则；M29完整实现与实际验证见[验收记录](milestone29/ACCEPTANCE.md)。
+- 2026-10-06 M29后续修订：`Encodable<T>`与`Decodable<T>`统一由companion/普通codec对象实现，数据类型继承不决定编码策略。移除旧实例编码、编码bound及容器/tuple条件接口，采用显式codec组合；当前语言9.5/11.13、runtime 2.2、impl 2.17与[M29设计](milestone29/DESIGN.md)同步，旧实施记录保留，修订后的实现与验证已完成。
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。其后（同日）再调整：新增 M12"泛型上界约束与接口化"（ToString/Hash/equals，spec 11.11 已定稿），字符串插值顺延为 M13、多 Cone 顺延为 M14。
 - 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。
@@ -617,7 +618,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - class upper bound → M20；M14的upper bound只接受完整interface application；
 - 可作为普通表达式静态类型的交叉类型；M14的多个interface bound只构成type parameter能力集合；
-- interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类。M29复用普通generic Decodable<T>与companion对象，不开放method-level generic interface dispatch；
+- interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类。M29复用普通generic `Encodable<T>` / `Decodable<T>`与companion对象，不开放method-level generic interface dispatch；
 - generic `typealias`：M22只落地top-level非generic透明alias；带type parameter/bound的alias、递归generic alias及跨Cone打包/re-export仍待后续。alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
 - generic extension property；普通member/top-level property自身不允许method式type parameter。该能力随extension property基础语义落地，并须定义receiver参数如何参与推导及getter/setter单态化；
 - static nested generic type作用域沿M21保持独立，不隐式继承宿主参数；generic companion由M29修订为可使用直接宿主类型参数、每个完整宿主application各有singleton。普通nested object不随外层实参复制；`inner` type及outer instance/ref捕获仍待后续；
