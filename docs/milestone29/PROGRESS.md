@@ -463,3 +463,20 @@ GNU 和 musl 的 14 个 companion fixture、两个 source-nominal 工厂用例�
 
 Linux workspace 及 GNU/musl 最终文件验收继续进行；本节只记录已经取得的结果，
 M29 的完成状态将在全部验收结束后更新。
+
+## Linux workspace 与原生链接复验
+
+最新 Linux workspace 已完整通过：43 组、5,361 项测试，零失败、零忽略。同样使用
+dev/test `opt-level=1` 并保留 debug assertions 和 overflow checks。完整日志已在
+两个宿主保存为 `/tmp/scoop-m29-final-linux-workspace5.log`。
+
+GNU/musl 文件 fixture 与 Rust 端到端测试同时运行时，GNU 的十个原生链接用例
+达到原有 120 秒构建时限。停止该更新轮后保存所有完成结果；将代表性的
+`native-link-cabi-packed` 改为单用例复验，在原时限内通过普通与 moving GC 的
+构建、运行及删除源码后的独立链接，共 2 个变体、10 个进程、10 次快照检查。
+没有修改 fixture 的时限或断言。GNU 后续更新使用最新固定工具和 4 个并发任务，
+只运行尚未取得通过结果的用例；其余超时项及最终普通 `--all` 仍继续验证。
+
+已归档中断更新轮和复验报告，清理约 33 GB 的旧 GNU 工作目录。Darwin 正式全量
+工作目录约 79 GB 也已清理，日志、报告、已验证的快照摘要和最新工具保留；原有
+M28 worktree 不在清理范围内。
