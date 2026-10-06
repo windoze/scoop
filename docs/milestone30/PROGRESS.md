@@ -84,3 +84,9 @@ Darwin 的 C 严格警告检查、workspace 格式化及 clippy 通过。新增 
 Darwin 格式化、workspace clippy、release CLI 构建通过。三个新 fixture 共 16 个进程、12 份阶段 golden 通过，均包含普通及移动 GC 运行。位型检查使用负 signaling NaN、正 signaling NaN、负零和最小 subnormal；协程在两个挂起点之间触发 GC，验证保留值与恢复结果。未改动不允许直接调用 FunPtr 或捕获 mutable local 的既有语言规则，测试通过正常 native 调用与显式引用状态表达这些组合。
 
 同批三个 fixture 随后在 nuc12 的 Linux/glibc x86_64 通过 release 构建、16 个进程和 12 份 golden，含两种 GC 模式；GNU 的 C bridge LIR 快照独立保存。
+
+## E：单值 codec 与 JSON
+
+SingleValueEncodingContainer／SingleValueDecodingContainer 增加 Float 与 Double 的独立读写方法，Float／Double companion 以普通 core body 显式实现 codec；既有 JSON 和手写容器实现同时补齐，不增加默认方法。JSON 用原始 number 文本直接解析目标精度，整数路径保持原有精确解析。解析后备复用 String 结果适配的方式，按实际 16 字节、8 对齐的 tagged Option 布局提供两平台 sret 入口；C locale 通过 pthread_once 初始化，临时 NUL 缓冲区按真实文本长度分配。新增 C 实现 68 行，ABI header 和两个平台适配文件各不超过 35 行，不新增通用 FFI 框架。
+
+Darwin 的格式化、workspace clippy、严格 C 告警检查和 release CLI 构建通过。四个新 fixture 共 14 进程、7 份阶段 golden 通过：独立格式保留 NaN payload／Infinity，JSON 只编码有限数，检查直接 F32 舍入、nearest-even 两侧、边界及抽样位型往返、负零、subnormal／underflow、overflow、411 位数字和逗号 locale 下解析；派生 record／enum、泛型 codec、Option、Array、ArrayList 和嵌套错误 path 均经普通／移动 GC 运行。两个负例锁定缺失 Float／Double 单值方法的精确诊断。旧序列化容器与派生依赖两项回归另有 10 进程、3 份 golden 通过；手写 encoder 的快照同步新增方法、浮点类型和相关函数编号。

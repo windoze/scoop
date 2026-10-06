@@ -49,6 +49,14 @@ internal class JsonEncoder(public override val path: String)
     public override fun writeBoolean(value: Boolean): Unit = write(JsonValue.BooleanValue(value))
     public override fun writeLong(value: Long): Unit = write(JsonValue.Number(value.toString()))
     public override fun writeULong(value: ULong): Unit = write(JsonValue.Number(value.toString()))
+    public override fun writeFloat(value: Float) {
+        if (!value.isFinite()) { throw EncodingException(path, "expected a finite Float") }
+        write(JsonValue.Number(value.toString()))
+    }
+    public override fun writeDouble(value: Double) {
+        if (!value.isFinite()) { throw EncodingException(path, "expected a finite Double") }
+        write(JsonValue.Number(value.toString()))
+    }
     public override fun writeString(value: String): Unit = write(JsonValue.Text(value))
     public override fun writeNull(): Unit = write(JsonValue.Null)
 }

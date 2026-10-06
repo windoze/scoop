@@ -1,0 +1,32 @@
+import scoop.json.Json
+
+@Unsafe fun roundTrips() {
+    val singles = [0U, 0x80000000U, 1U, 0x80000001U, 0x007fffffU, 0x00800000U,
+        0x00800001U, 0x3f7fffffU, 0x3f800000U, 0x3f800001U, 0x7f7fffffU, 0xff7fffffU]
+    val doubles = [0UL, 0x8000000000000000UL, 1UL, 0x8000000000000001UL,
+        0x000fffffffffffffUL, 0x0010000000000000UL, 0x0010000000000001UL,
+        0x3fefffffffffffffUL, 0x3ff0000000000000UL, 0x3ff0000000000001UL,
+        0x7fefffffffffffffUL, 0xffefffffffffffffUL]
+    for (bits in singles) {
+        val value = fromFloatBits(bits)
+        check(floatBits(Json.decode(Json.encode(value, Float.Companion), Float.Companion)) == bits)
+    }
+    for (bits in doubles) {
+        val value = fromDoubleBits(bits)
+        check(doubleBits(Json.decode(Json.encode(value, Double.Companion), Double.Companion)) == bits)
+    }
+    var bits = 123456789UL
+    var index = 0L
+    while (index < 64L) {
+        bits = bits * 6364136223846793005UL + 1442695040888963407UL
+        val single = fromFloatBits(bits.toUInt32())
+        val wide = fromDoubleBits(bits)
+        if (single.isFinite()) {
+            check(floatBits(Json.decode(single.toString(), Float.Companion)) == floatBits(single))
+        }
+        if (wide.isFinite()) {
+            check(doubleBits(Json.decode(wide.toString(), Double.Companion)) == bits)
+        }
+        index = index + 1L
+    }
+}

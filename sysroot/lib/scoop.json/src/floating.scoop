@@ -1,0 +1,7 @@
+package scoop.json
+
+@Extern(name = "scoop_rt_json_parse_float", abi = "scoop")
+internal fun parseFloat(text: String): Float?
+
+@Extern(name = "scoop_rt_json_parse_double", abi = "scoop")
+internal fun parseDouble(text: String): Double?
