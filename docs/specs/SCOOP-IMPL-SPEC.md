@@ -1,5 +1,7 @@
 # Scoop 实现大纲
 
+2026-10-07，M31 设计已制定、待实现：首批优化、按身份与 ABI 合并 ODR、nursery/minor GC，详见 2.19 和 [M31 设计](../milestone31/DESIGN.md)。本次只更新文档，M30 为当前已实现基线；历史阶段的正文摘要判等和单代 GC 约束按 M31 条款迁移。
+
 2026-10-07，M30 已实现并通过验收：Float/Double 的 typed representation、常量、运算、codec 与完整产物消费贯通，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
@@ -763,6 +765,8 @@ LIR中String与Array的可变长度表示不因源码integer重命名而改变�
 
 ### 2.5 codegen
 
+M31 的普通 IR 优化、最终 GC 发射计划、ODR 物理选择和登记格式见 2.19。本节的 M15/M23 固定清单与摘要 tag 描述 M30 及以前的实现；原 OdrDefinition/StrongRegistration、预先固定的 image 表及“所有 LIR site 均一对一发射”的要求按 2.19 迁移，其余真实 ABI、relocation 与 GC 检查继续适用。
+
 M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每个函数的实际 section、symbol extent 与 RELA addend，不能把多个 `.text.*` 中相同的相对地址混为同一个 PC。LLVM v3 stackmap 的字段、LIR 站点及 LSDA action 校验共用；架构负责 frame size、SP/FP 寄存器、保存帧区域和调用指令边界。amd64 使用 LLVM 自带的解码器识别实际 call 及其结束地址，不使用固定 `return_pc - 4/-5`；该解码仅在 codegen 对新生成的对象执行，不使 artifact-only linker 依赖 LLVM。ELF `.eh_frame` 的 PC-relative signed-32 FDE/LSDA 引用和 personality 间接引用按真实 relocation 解析；`zR` 的普通 unwind-only FDE 与 `zPLR` 的 Scoop 异常 FDE 分开处理。两种 libc 复用同一 amd64 机器规则，后续 ELF AArch64 只需选择相应架构规则。
 
 物理 definition atom 清单按目标对象格式投影。Darwin 保持既有 compact-unwind、必要 EH-frame 和 TLV descriptor/template 分离；ELF 的非 release callable 使用 EH-frame，不产生 CompactUnwind atom，含 invoke 时另有 LSDA。ELF raw TLS 的 primary atom 是实际 TLS storage，不另造 Darwin template atom。ELF 边界符号使用实际 section 和 symbol extent，end label 的 symbol size 为零；新增符号及 section flags 不改变已有 relocation/symbol 索引。ODR definition 和同 member 的 associated LLVM globals 使用同一 COMDAT，后端生成的 callable stackmap/EH section 在对象物化时关联到其实际 group。stackmap 输入可写以允许 PIE relocation，最终按 §2.8 的脚本进入只读区域。Linux backend contract 的 CPU 字段明确为 `x86-64`；Darwin 的 `generic` 字段与既有 fingerprint 保持。
@@ -846,16 +850,16 @@ validated LLVM backend profile 的 frame-pointer=all 策略适用于全部 Scoop
 - LIR 在构造 root plan 与分配 safepoint 身份前折叠同一基本块内已知的布尔条件，包括默认实参物化产生的局部值复制链、布尔取反与相等比较。同块内直接取得的局部地址及其复制可以关联到原存储，只有类型相同的 load/store 才沿该关联传播；未知地址写入、调用和 GC 站点使可取地址存储的已有常量失效。基本块之间不推测未建立的数据流事实。随后由已有 CFG 可达性处理删除死分支及其 safepoint，避免 LLVM 的 SSA/SROA 先删除这些站点后才发现清单不一致。该处理不改变源码求值顺序，post-RS4GC 和对象边界仍精确核对实际站点。
 - M25增加EH artifact verifier：每个含landingpad的function必须使用Scoop personality，LSDA只能含`backend`声明的catch-all/cleanup encoding、call-site与action链，landing pad地址必须位于所属function。最终链接产物不得导入C++ EH的`__cxa_*`接口、gxx/gcc personality或C++ terminate，也不得加载libc++abi；Linux CRT/libc的`__cxa_finalize`、`__cxa_atexit`退出清理沿runtime spec 5.5允许；Darwin/AArch64的`final_link`由默认`libSystem`解析允许的Level I `_Unwind_*`集合，linker args不含`-lc++abi`或显式`-lunwind`。
 - LLVM 22.1 statepoint machine lowering是固定后端契约而不是artifact启发式：SelectionDAG保持`max-registers-for-gc-values=0`，标准TargetMachine machine pipeline在register allocation后运行`FixupStatepointCallerSaved`且保持`fixup-allow-gcptr-in-csr=false`。Scoop不向用户暴露或透传LLVM command-line option，不为statepoint设置`DeoptLiveIn`；若未来内部配置允许GC pointer进入vreg，仍必须由该post-RA pass把全部GC register operand改写为stack spill。codegen不能改用GlobalISel、自定义缺失该pass的machine pipeline或依赖hidden option的外部进程状态。
-- 每个statepoint使用LIR的`SafepointId`设置callsite `statepoint-id`。最终LIR先构造唯一的`StrongSafepointSemanticPlanSetV1`：每个function-local reference恰有一条instruction use、每个site identity恰被使用一次，owner/role与instruction逐项相等，NoGc body不能含site；managed poll/call及array allocation类site的root-pair count来自完整`StatepointLiveSet` managed leaf数，managed invoke与native transition为零。object verifier只能消费该typed proof核对真实LLVM v3 stack map，不能从object location count反推LIR语义；检查覆盖ID、前三个header location、零deopt输入、root count、location kind与return PC；只有GC base/derived pair必须是可写的8-byte `Indirect [SP/FP + checked offset]`，不能把deopt、普通stackmap location或live-out中的`Register`与GC root混为一谈。违反profile是compiler/toolchain invariant failure，object检查是防御性断言而不是编译到最后才做的能力协商；runtime以最终链接/ASLR relocation后的**原始return PC**作为查找主键，不做`PC-4`/nearest/range修正，也不以ID代替地址定位。
+- 每个 statepoint 使用其 typed site 的 `SafepointId` 设置 `statepoint-id`。M31 在 LIR 根需求和最后一次普通 IR 变换后得到最终发射计划，每个保留 site 有唯一 owner/role、实际 instruction 与完整 managed leaf；已证明不可达的 site 从实际清单移除。managed poll/call/array allocation 的 root-pair count 来自最终 typed managed leaf，invoke/native transition 为零；NoGC body 不得含 site。object verifier 用该计划核对 v3 stackmap 的 ID、header、零 deopt、root count、location 与原始 return PC，不能从输出数量反推根需求。当前 GC pair 仍要求相同、可写的 8-byte SP/FP Indirect slot；普通 deopt/live-out 不得误分类。profile 违规仍为 compiler/toolchain invariant failure，runtime 按精确原始 return PC 查询，不以 ID、PC 偏移或地址范围猜测。
 
 codegen **不需要任何上游 meta**：上游信息已逐层吸收进本Cone的LIR；MIR只保留typed persistent origin，LIR在body/layout/site等最终owner形成并完成Strong/ODR分类后集中产生symbol request。对上游函数/TypeDescriptor的引用一律发射为external symbol，链接期解析。所有Scoop-owned linker-visible symbol都由kind-specific persistent entity/ODR id按版本化mangler产生；FQN、短名、arena序号和Cone-local overload discriminator不能进入跨Cone判等。链接层规则：
 
-- **重复实例去重**：M23-7 沿用 nominal、callable、delegated-property、structural-type 四类 specialization 及其 group/member identity。producer 按实际使用发射完整定义，合并器比较每个重复 member 的 key、ABI、canonical LIR 和规范化对象；独立 helper 的成员集合取并集，不要求两个 artifact 的整个 group 集合相等。每个实际操作的类型、dispatch、静态存储、registration、EH/stackmap 及其他必要引用必须闭合，generic delegate 的状态与初始化成员必须完整。Darwin 使用逐 member 的既有 symbol 与 `weak_odr`；现有 Strong profile 继续拒绝 ODR，新生产只使用 2.13 的完整 generic 路径。
-- `OdrDefinitionFingerprint` 使用 `DomainSeparatedCborHash("scoop-odr-member-definition-v1", {1=group, 2=member, 3=role, 4=canonical LIR leaves by atom, 5=definition-input leaves by digest node, 6=stackmap leaves by site})`，只覆盖当前 member。对应 ABI 摘要使用 `scoop-odr-member-abi-v1`；旧整组摘要退役。canonical LIR 使用原 `scoop-lir-definition-v1`，最终摘要、物理 member/range/placement 不反向进入 LIR。typed relocation 保留实际 Strong owner 或 ODR member；generated-C bridge 经原核对规则规范化为 unit，普通调用不递归包含目标定义摘要。`ObjectDefinitionPlan` 与单写入者 patch plan 继续不含物理 offset；每个 Mach-O 对象按现有规则保存 boundary、atom、关联 EH/stackmap 与 materialization，reader 在实际对象范围内检查符号、relocation pair、padding 和 checked addend，拒绝缺失、重复、越界或跨成员引用。
+- **重复实例去重（M31）**：沿用四类 specialization 及原 group/member identity。普通依赖语义一致后，只比较重复 member 的完整 typed key 与 ABI；独立 helper 取并集。正文与其 EH/stackmap/registration 必须同选，泛型状态与初始化的必要引用闭合。物理选择由 2.19 的 artifact-only program-link 完成，不再以 canonical LIR 或对象字节相等为准。
+- M31 删除 `OdrDefinitionFingerprint` 与仅服务 ODR 内容判等的 canonical LIR/object/stackmap 汇总；ABI 摘要和各自产物实际格式、符号、typed relocation、范围、EH 与 stackmap 正确性检查保留。代码内容仍进入普通 Code/Artifact 和链接缓存，不新增优化前正文指纹。M23-7 的摘要公式与 tag 作为退役格式记录，不再生产或消费，迁移见 2.19。
 
 callable-body member 的 ABI payload 为 `{1=GC effect, 2=ScoopAbiSignature}`，直接复用最终 Function 的 GC effect、调用约定、参数/结果、物理类型、布局和 scan 编码，不遍历正文或 CFG。production field 13 的 Strong record 仍为 `{1=body, 2=LIR fingerprint}`，ODR record 必需追加 `3=OdrAbiFingerprint`；实际 group/member/role 从同一 foundation 的 body/member key 恢复，不能在 wire 复制或猜测。refined `CallableOdrMemberId` 由实际 member key 构造或解析时保留 group/role，wire 仍只有原 ID；后续计算直接消费已解析 body key，不把上游 key 重复发布到 LIR 表。reader 拒绝 Strong 带 ODR ABI、ODR 缺少 ABI；验证后的记录以完整 sum 保存分类和必需数据。body 的 ODR definition 组合自身 primary atom 的 LIR leaf、body ObjectDefinition leaf 和按 site 排序的全部所属 normalized-stackmap leaves，复用既有对象与 stackmap 结果。生产与读取共用计算入口，Strong callable 记录编码保持；当前 ODR 分支由 cone-production/3 与实际 shape 内容一并发布。
 
-callable/safepoint registration 从既有 production plan 直接计算 canonical LIR，分别覆盖 body 与 typed entry、site/runtime-id/owner/role/root-pair count。注册 ABI 只描述实际 record kind/version/byte size，函数签名由 body member 的 ABI 覆盖。逐 member definition 的 leaf 分别编码 `{atom,fingerprint}`、`{digest node,fingerprint}`、`{site,fingerprint}`；两种 registration 各含自身唯一 LIR/object leaf，只有 safepoint 包含其实际 site 的 stackmap leaf。ODR 对象摘要保留实际写入的上游 body/stackmap 值并仅将自身最终 definition 槽置零；最终汇总不把被引用正文当成 registration 自身的 object leaf。callable registration 的 body-definition 字段对 Strong/ODR 都取 body ObjectDefinition，不写入 ODR member definition。补丁与 RuntimeImage 依实际 owner 区分 StrongRegistration/OdrDefinition，旧 Strong manifest 表拒收 ODR 摘要，不能借中间生产路径绕过正式泛型 profile。固定编码见 M23-7 设计 8.2。
+M31 的 callable/safepoint registration 从实际 production/GC 发射计划取得 body/entry、site/runtime-id/owner/role/root-pair count。注册 ABI 只描述 record kind/version/byte size，函数签名属于 body 的 ABI；site/root 数量与 normalized stackmap 是该实现的数据，不能用于跨优化 ODR 判等。登记公共 definition 字段及专用摘要按 2.19 删除，保留的 body/stackmap 字段只核对自身实现，正文与登记同选。
 - 任一function owner的associated record闭包同时覆盖`__gcc_except_tab` LSDA、`__eh_frame` FDE/CIE relation、`__compact_unwind`与LLVM stackmap function/callsite payload，并按typed strong/ODR owner与relocation归属；共享CIE等用canonical support fingerprint引用。safepoint registration的normalized fingerprint须与stackmap payload一致。group可typed-ref其他canonical group，但不能把自身产生的runtime identity漏在组外；object测试从真实Mach-O重算strong/ODR definition map/fingerprint并对primary atom和每类associated metadata做篡改测试，link后再验证TypeDescriptor与storage allocation range确实唯一。
 - **符号可见性**：`internal`符号可本地化；被导出的generic body通过其既有typed dependency closure保留必要的可链接名字。导出default在HIR已被限制为只引用export/re-export实体，不得以强制导出内部符号补救非法可见性（spec 8.5、12.5）。
 
@@ -989,7 +993,7 @@ M23-11 的详细设计见 [公开 CLI、单文件模式与总验收](../mileston
 
 `scoop build [root-input]` 和 `scoop run [root-input]` 省略输入时，CLI 先补为调用者 cwd 下的 `Cone.toml`，再进入同一 manifest 读取与图构建流程；不向父目录查找，也不通过扫描源码推断 single-file。该文件缺失、错类型或内容无效时报告正常输入错误。显式目录／manifest／`.scoop` 的分类规则保持；`run -- <args>` 同样使用当前 `Cone.toml`，`--` 后参数不参与 root 选择。低层 `scoopc build` 的输入仍必需。
 
-build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价于选择 release，与显式 `--profile` 同时出现时是参数错误。`BuildProfile::{Debug,Release}` 属于 umbrella 构建配置，与 target/ABI 的 `ResolvedTargetProfile` 和 `.slib` artifact profile 分开。M23-11 只落实选择、输出布局和结果展示，两者使用相同的既有 Scoop codegen、generated-C、runtime 与链接设置，不新增优化、调试信息或 runtime 检查差异。编译／runtime 缓存仍按实际生产配置决定，当前两种 profile 可以复用；以后引入优化时，必须将生效设置传入实际 producer 并纳入对应缓存键和代码内容规则，不能只改目录或展示名称。本阶段不为尚未生效的优化选项增加 child 协议字段或写入语言 IR。
+build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价于 release，与显式 `--profile` 同时出现时是参数错误。`BuildProfile::{Debug,Release}` 属于 umbrella 构建配置，与 `ResolvedTargetProfile` 和 `.slib` artifact profile 分开。M23-11～M30 只落实输出布局，两者使用相同编译设置；M31 按 2.19 将实际优化配置传入 child 与 producer，并更新对应缓存、Code 和链接输入。源码实体与 ABI 不因 profile 改变；runtime 构建配置独立，当前默认 O2 不应被误写为随 release 才开启。
 
 公开 `scoop link` 接受 `--root-slib`、重复的 `--dependency-slib`／`--cone-path`、必需的 `--runtime-objects`、target、native library search roots 和 `-o`。它只沿产物的 exact dependency 表定位其余 `.slib`，复用普通 artifact search 规则；core 可从显式产物或已有 sysroot artifact 位置取得，不能回退到源码构建。它只解析 Link 所需 target/final-link projection，不启动或探测配套 `scoopc`、不读取 runtime/Scoop 源码。`build/run` 的 runtime 输入则为封闭的“列明源码构建”或“显式 runtime 对象索引”两种选择，交给同一个 program-link。
 
@@ -1177,17 +1181,17 @@ Link reader 检查外部字节的 envelope/hash、required inventory、identity/
 
 每个 Cone 按该顺序、每个目录按 `SlibMemberId` 顺序，将全部 `LinkObject` 恰好提取一次。对象集合包括 Scoop 与已经物化的 generated-C bridge；不按文件名、扩展名、ordinal 或固定数量选择。diagnostic、opaque 和 unknown optional 成员不作为对象；当前 Link purpose 所需但不能处理的 capability 失败。私有临时目录中的文件以实际 Cone/member 分隔、create-new 写入；不同归档内相同物理成员名不发生覆盖。路径只用于 I/O 与诊断，不承担实体身份。
 
-**定义、引用与 ODR：**复用 Stage 7 的逐 `(OdrGroupId, OdrMemberId)` 合并器，比较完整 key、ABI 与 `OdrDefinitionFingerprint`，保留独立 member 的合法并集及所有兼容物理候选。Strong 定义必须由原 provider 提供。引用覆盖来自完整 typed import 与真实 relocation，metadata-only import 可以没有机器 relocation。缺失引用、同符号不同 owner、Strong 重复或 ODR 内容差异在系统 linker 前失败；不能由 consumer 补定义，也不重读对象重算已经取得的摘要。ABI 相同而 body、layout、scan、initializer、EH、stackmap 或 relocation 不同仍是冲突。
+**定义、引用与 ODR：**M31 复用原逐 `(OdrGroupId, OdrMemberId)` 归属与引用解析，在普通依赖语义一致后比较完整 key/ABI，并按 2.19 选择兼容物理定义及其附属数据。删除 OdrDefinitionFingerprint 比较；独立 helper 保留合法并集，Strong 定义仍由原 provider 提供。引用覆盖来自完整 typed import 与真实 relocation，metadata-only import 可以没有机器引用，不能强迫每项语义查询都物化 callable。已经读取的对象、ABI 和引用结果复用，最终链接只验证本次选择与加载产生的新事实。
 
 所有 `SourceExtern` 按同一规则处理：先按实际 target/symbol 合并完整 library、function/data/TLS/mutability、C/Scoop ABI、calling convention、GC effect 及 signature/storage，再从本次实际对象和 provider export 中解析定义。M23-9 只提供 runtime 对象和固定 SDK 系统 provider，不按 core 身份、函数名或 core 已用 API 建立白名单。未被 core/runtime 使用的系统 export 同样可由普通 extern 引用；缺失定义、合同冲突及既有保留符号冲突对所有 Cone 同样报错。与实际 `RuntimeAbi`／target support 需求共用符号时，继续比较已有完整合同，不改变 SourceExtern 分类。普通外部对象没有完整函数类型时，不伪造 ABI 证明，外部实现遵守声明仍按语言 FFI 契约负责。M23-10 增加新逻辑 library、archive 等物理输入的供应，复用同一合并与解析器。
 
 定义方 MIR 为参数自由的 source extern 生成普通 Scoop ABI 薄入口，沿原 extern lowering 转发参数和结果；C ABI 继续使用已有 generated-C bridge。该入口是原 source function 的 Strong callable body，参数与结果来自同一声明；入口包含 native transition 与 caller-root publication，因此其 Scoop callable GC effect 固定为 Managed。原 native callee 的 GC effect 继续保存在 HIR source effects 与 native requirement 中，C leaf 或 Scoop NoGc 声明均不能把此入口降为普通 NoGc 调用。HIR implementation 仍保留 SourceExtern 身份。消费者通过已有 HIR/MIR/LIR callable bridge 调用这个原 provider 的入口，普通 import、泛型正文和默认参数不另行生成包装或复制 native 声明。额外 library 的输入供应由 Link 决定；不再在 HIR 以 M23-10 阶段限制笼统拒绝 native dependency call。 generated-C 的 canonical flags 同时包含 `-fno-builtin`，禁止系统 C compiler 按普通 extern 名称（如 `abs`）用 builtin 替换实际调用；flag contract 新增 tag 13，fingerprint 随之变化，旧 bridge 产物与缓存重建。
 
-本地具体化的普通 managed 泛型正文及其生成闭包调用参数自由 source extern 时，也必须使用上述原 provider 的 Scoop 薄入口，使同一 specialization 在定义 Cone 和消费 Cone 具有相同调用边界、GC effect 与 safepoint 序列。不能因 native 声明恰好位于当前 Cone 而绕过该入口。NoGc 正文与 release block 的直接 native 调用仍遵守既有调用规则；release leaf 见 2.13。
+本地具体化的普通 managed 泛型正文及其生成闭包调用参数自由 source extern 时，也必须使用上述原 provider 的 Scoop 薄入口，使同一 specialization 在定义 Cone 和消费 Cone 具有相同调用边界和对外 GC effect；M31 允许不同优化实现具有不同的合法 safepoint 序列。不能因 native 声明恰好位于当前 Cone 而绕过该入口。NoGc 正文与 release block 的直接 native 调用仍遵守既有调用规则；release leaf 见 2.13。
 
 **runtime-build：**输入为实际 target、C toolchain、构建规则、列明的 C/assembly 源文件及所依赖头文件内容；输出为任意非空数量的普通 relocatable object 和完整定义／引用摘要。runtime 不再定义 C main、Scoop main 或第二份 image。源码和头文件、实际 compiler/SDK、flags、runtime ABI 与 build-rule 变化使缓存失效，修改 mtime 不代替内容检查。构建 key 与对象内容 fingerprint 分开；一次成功构建的完整结果直接交给 linker，缓存或独立进程读入对象时检查 bytes、格式、符号、ABI 和引用。普通对象索引只是缓存／进程交接记录，不是新的可分发容器、来源授权或不可伪造凭证。
 
-program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态 image pointer array，以及唯一 root entry 的 extern 引用，精确调用 2.14 的 `scoop_rt_run_program(images, image_count, root_entry)` 并返回其结果。生成代码只使用标准 C 类型和 opaque descriptor 声明，不读取 runtime header/source，不复制 descriptor、registration、初始化状态或 gateway 正文。startup 编译器及实际 options 由 final-link projection 明确给出并进入链接输入记录；不要求安装 LLVM 或运行 Scoop codegen。
+program-link 生成普通 C main、静态 image pointer array 与唯一 root entry 引用，调用 `scoop_rt_run_program(images, image_count, root_entry)` 并返回结果。M31 增加 ODR 物理选择后最终 image descriptor/producer pointer 表的生成，数据来自已验证 artifact 的实际所选记录；不复制 TD、storage、初始化状态或 gateway 正文，不运行 HIR/MIR/LIR 或 LLVM，也不读取 runtime 源码/header。startup/native-object 输出工具与实际选项仍来自 final-link projection，选择结果和新生成 metadata 一同进入链接缓存；详见 2.19。
 
 现有 `scoop_td_String` 保持同地址的符号 alias：定义方从已解析 LIR String 引用保存实际 TD target，linker 据此绑定固定 runtime 数据符号。alias 不分配 TD、pointer slot 或新类型；不从 CORE identity、FQN、诊断名或 InlineBytes 布局猜 target。它按普通 definition/reference 与既有 String 表示合同检查，不能成为 runtime/program 来源证明。
 
@@ -1203,7 +1207,7 @@ program-link 生成一个普通 C main、位于 `__DATA_CONST,__const` 的静态
 
 系统 linker 的 map/trace、symbol/load-command/binding 信息用来核对实际输入、输出定义与动态导入。最终 verifier 只处理链接新产生的事实：Mach-O target/entry，唯一 C main、root 与每个 image 的实际引用，所有受控 definition/use 的解析，String alias 同址，重复 ODR 的唯一 winner 地址，不同 type/body/storage 的必要地址区别，保留的完整 stackmap section、EH/GC 所需段，以及没有额外动态 provider 或禁止依赖。最终文件中的指针按该 profile 的 rebase/bind 或 chained-fixup 格式读取；不能把磁盘编码直接当 ASLR 后地址。
 
-同一个受控 ODR atom 在多个输入对象中出现时，从实际 link map 的保留符号取得唯一的 Cone／member，核对它属于已读取的候选集合、地址与最终符号表相同，再使用该候选的原 relocation 检查最终引用。被合并掉的候选不再描述最终字节，不能用其物理引用重复校验 winner；例如相同泛型正文可以分别引用本 Cone 生成、语义相同的 C trampoline。单一候选与 Strong 引用保持原检查，缺失、重复、错误 owner 或地址不一致的 map 记录仍拒绝。不改变已有 ODR 内容兼容规则，也不重新生产或比较所有候选的语义。
+M31 在 native link 前已选定 ODR 定义及其附属对象；最终 link map 必须与该选择一致，核对实际 Cone/member、地址与符号表，再使用所选候选的原 relocation 检查引用。落选对象不得进入最终输入或用于解释最终字节，native linker 不能重新选择另一份实现。generated-C trampoline 等引用继续沿各自真实 provider 和 typed unit 解析；单一候选、Strong、缺失定义及非法重定位仍复用原检查。
 
 链接前的 canonical identity、ABI、ODR body 与对象内容检查不在最终 verifier 再执行。stackmap 的对象 payload 已由 reader 核对；最终 verifier 检查完整 blob 保留和可定位的链接目标，Stage 8 runtime 在实际加载地址／权限边界执行全量 site/owner/PC/payload 与 registry 检查。runtime 不重算 RuntimeImage/Graph/ODR 全图；正常链接也不运行用户程序来取得“通过证明”。完整静态交叉核对可以用于显式验证或测试，不能成为每次发布和启动的重复门禁。
 
@@ -1423,6 +1427,8 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 
 ### 2.13 M23-7：跨 Cone 模板实例化与 ODR 定义
 
+M31 的 ODR 合并与物理实现选择以 2.19 为准。本节保留 M23～M30 的模板、typed identity、物化和格式迁移记录；将 canonical LIR／机器码／EH／stackmap 内容相等作为 ODR 条件的旧算法、字段与版本在 M31 退出，不能以这些历史条款阻止兼容的优化实例互换。
+
 现行 archive 生产由同一个完整 layout writer 消费实际 Strong/ODR 定义、三层 metadata 和对象集合。
 没有实际生产调用的旧 SingleConeStrong 专用 writer、driver 的 Strong-profile 收窄错误及无构造点的 HIR `GenericOdrRequired` 错误项已删除；
 底层格式测试使用原 canonical archive 构造器，不保留另一套生产链或发布条件。
@@ -1535,13 +1541,13 @@ MIR 共有机器输入消费依赖输出中唯一的 canonical foundation；call
 
 共有 LIR 输出保存实际 producer 与唯一 canonical foundation，直接生成 Strong/ODR 物理定义图。源 callable 的实际 group/member 沿 MIR 物化记录传入，原 member 不由 LIR 重复发布；callable/safepoint registration 使用同组各自的新 member。kind-specific primary symbol、trap 字符串、runtime scan 和 EH/stackmap atom 均沿实际定义 plan 生成，关联 atom 使用稳定局部路径，边界 symbol 继承 plan linkage。历史 Strong section 在生产与读取边界继续检查其限制，不能为通过旧入口把 ODR 定义改成消费 Cone 的 Strong。 物理依赖选择直接使用 MIR 的实际类型、callable、dispatch 与初始化 unit 引用及已读取的依赖记录，不要求先构造整个参数自由类型导出 section。 普通 callable bridge 只核对其实际导出项的 body、符号、Strong definition plan 与 primary atom；完整物理定义和关联 atom 的验证保留在共有产物边界，不为读取参数自由子集重建整张 Strong symbol 表。 从已完成读取验证的 foundation 构造共有输出时，直接保留已验证的 producer 和 canonical 数据，不再次遍历归属。
 
-`SpecializationKey` 的四个 variant、`OdrGroupId`、`OdrMemberKey`、`OdrMemberId` 与 `PersistentV1` 保持。group 表达语义归属，member 表达实际可合并定义；每个 artifact 记录本次实际发射的成员集合。不同 Cone 可以只需要同组的不同 helper，例如不同 source signature 到同一 target function shape 的 adapter。合并按 `(group, member)` 检查重复定义的完整 ABI、canonical LIR、对象及关联 EH/stackmap，兼容成员取并集；不要求不同 artifact 的整个 group 集合相同。每个实际物化操作所需的 TD、scan、dispatch、body、registration 和静态存储引用仍须闭合，不能省略已使用成员。泛型委托 unit 的 storage、cell、failure root、initializer、ensure 与全部登记是每次物化都必须具备的固定整体。
+`SpecializationKey` 的四个 variant、`OdrGroupId`、`OdrMemberKey`、`OdrMemberId` 与 `PersistentV1` 保持。group 表达语义归属，member 表达实际共享定义；各 artifact 记录本次实际发射成员。M31 按普通依赖定义一致性与重复 member 的 key/ABI 合并，独立 helper 取并集。每个实际操作的 TD、scan、dispatch、body、storage 与初始化引用仍须闭合；实现附属的 site/EH/registration 随正文一同选择。泛型委托 unit 的 storage、cell、failure root、initializer、ensure 和登记每次物化完整，不比较不同 producer 的实现内容。
 
-`OdrAbiFingerprint` 与 `OdrDefinitionFingerprint` 改为逐 member 内容摘要，分别使用 `scoop-odr-member-abi-v1` 与 `scoop-odr-member-definition-v1`。定义摘要包含 group/member/role、该成员 canonical LIR、按 typed atom/node 排序的对象定义及按 site 排序的 stackmap；不包含同组其他独立成员、producer Cone、`SlibMemberId`、物理分片或最终地址。旧 group 摘要不再生产。`DigestKind::OdrDefinition` 保留 tag 8；旧 `DigestOwnerAndRoleKey::OdrDefinition(OdrGroupId)` 的 owner tag 8 退役，新增 `OdrMemberDefinition(OdrMemberId)` 的 owner tag 11，映射到同一个 digest kind。静态存储 ODR 登记的 definition-input leaves 同时包含其 storage ObjectDefinition、layout 和 scan，节点的种类由原 digest graph 确定；初始化 ODR 登记包含 registration、cell 和 descriptor 的实际对象 leaves。canonical shape 表覆盖这些实际 storage/cell/descriptor 定义，存储语义排除使用 Cone 的 layout-provider 路由信息；类型布局与扫描沿 exact type 归属。各对象 leaves 复用已经计算的结果。注册记录的 definition 字段由其自身 registration member 的 ODR node 填写；body/descriptor definition 字段继续使用原 ObjectDefinition node。图只表示实际摘要输入，typed relocation 目标以身份编码，不递归纳入被调用者摘要；正常递归调用、互相引用的 TD 和初始化依赖不会成为摘要环。自身及非上游补丁槽归零，既有对象范围、单写入者和 checked arithmetic 规则保持。
+M23-7 曾将 ABI 与 definition 摘要改为逐 member；M31 仅保留真正跨定义共享的 `OdrAbiFingerprint`，移除 `OdrDefinitionFingerprint`、`DigestKind::OdrDefinition` 及对应 member owner/输入 leaves/补丁。registration 公共 definition 字段及只用于该字段的 StrongRegistration 节点一并删除，普通 body/descriptor/layout/scan/stackmap 字段按其自身消费者保留。退役 tag 不复用，RuntimeImage/Code/Artifact 继续覆盖实际记录内容；不以另一份正文 hash 代替旧 ODR 相等规则。
 
 结构类型的实际托管静态存储同装箱 payload、数组元素一样，需要在 LIR 中具备完整的 inline value layout 和 scan。例如只存放在顶层属性中的函数值，也必须从该属性的实际值类型生成布局；不能只有全局存储的 layout identity 而缺少对应内容。相同 exact type 的静态存储、装箱和数组元素共用原布局生成算法与既有 ODR 身份，内容不依赖属性声明或消费 Cone；外来 Strong 布局继续引用原提供方，不重复发射。此项补齐既有定义的内容，不改变 wire 编码或 runtime ABI。
 
-代码生成按实际发射的块和指令顺序，以局部值首次使用或定义的次序分配函数栈槽；同一指令先读取操作数，再处理结果定义。该顺序复用既有 use/def 遍历，未引用的局部槽最后处理，不依赖源码或导入模板的 arena 编号。局部值重新编号不能改变同一 ODR 正文的栈偏移及对象摘要；这项代码生成修正不改变 LIR 编码、摘要格式或 runtime ABI。
+代码生成继续按实际块、指令与 use/def 顺序确定局部槽，避免依赖无语义的 arena 编号。M31 允许不同优化实例具有不同栈槽、布局、安全点和对象摘要；这些变化由各自 code/stackmap 验证覆盖，不再要求为 ODR 合并固定私有栈偏移。
 
 对象摘要中的 relocation 按已解析目标的实际实体身份与 definition role 编码。Strong callable、layout、scan、类型描述符、派发表、类型登记、静态存储及其登记、初始化 cell 与 descriptor 统一使用既有 runtime target tag 1；ODR callable 和 shape 使用既有 tag 14 及原 member。同一已解析目标在定义 Cone 和消费 Cone 必须得到相同字节，泛型正文对普通 object 静态根的引用不能因再次发布而改变对象摘要。实体、role 和符号的对应关系复用共有 target 查询，provider 与声明目标仍保留在普通依赖记录中，承担既有引用、ABI 和符号检查。原普通依赖 callable tag 11 与 shape tag 12 均退役且不复用，原服务 tag 2、13 保持退役。完整 shape 引用正规化将 link-identity-closure 从 /6 升至 /7，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
 
@@ -1603,11 +1609,11 @@ profile 的 required inventory 随实际 section 生产分步迁移，具体当�
 
 每次 C coordinator 调用 gateway 单独建立 native→managed boundary。thread attachment 本身只进入 native-safe；新段以 `EntryPending` 表示尚无 managed frame，在既有 registry mutex/epoch 协议下完成进入握手。gateway 入口 poll 发布真实 PC/SP/FP 后进入活动段；返回时由同一协议发布 native-safe 并恢复外层边界。collector 只把明确的 EntryPending 当成空段，活动段缺少 anchor 仍是错误。callback 的嵌套段复用同一线程状态和 LIFO 规则。
 
-**登记与平台：**Darwin image adapter 从最终主 Mach-O 的实际映射取得只读、可写、可执行区间和完整 stackmap section；通用 runtime 不包含 Mach-O/VM 分支。先检查 prefix/span 的算术、范围与权限，再按六类记录建立 semantic ID、record address 和实际 storage/cell/TD/entry 的必要索引，解析引用及去重，最后一次性供 GC、初始化和调用消费。Strong 重复失败；ODR 只接受相同 member 的同址 record，且其关键目标地址、字段和 definition fingerprint 一致。同组独立 member 可以取并集，不按整组表集合相等去重。`PersistentExactTypeId ↔ TD`、`PersistentCallableBodyId ↔ entry`、两种 64-bit type/site ID 与各自完整 ID 的映射必须一一对应。
+**登记与平台：**Darwin/ELF image adapter 提供最终程序的实际映射与 stackmap；通用 runtime 按 prefix/span、权限、typed identity、owner 和实际 storage/cell/TD/entry 建立唯一索引。M31 只登记 program-link 所选实现，不在 runtime 比较不同 producer 的正文摘要。重复的同址 ODR 引用复用已验证记录；同 identity 不同关键地址、Strong 重复与 body/entry 映射冲突仍失败。独立 helper 可取并集，不比较整组表集合。
 
 实际链接后才成立的地址、权限、连续 blob 与 GC 引用在 runtime 边界检查一次；canonical key、类型语言规则、ODR body 内容和 ObjectDefinition 摘要由 compiler/reader/linker 负责。runtime 不重算 RuntimeImage/Graph/ODR 全图，也不从诊断名或 symbol 猜 typed owner。无变化的 scan/shape、同址 ODR record 和最终 PC 索引直接复用。仅有实际溢出、越界、非法环和分配失败处理，不增加遍历预算或计费。
 
-**stackmap：**扩展现有 v3 parser，使登记时保留规范化所需的 instruction offset、完整 locations 和 live-outs。先关联六类记录中的 site/body，再按运行时规范 2.8 的现有公式计算 normalized-stackmap fingerprint。相同 ODR site 只有 owner/group/member、原始 return PC、规范化 payload 和 fingerprint 全同才去重；Strong 重复、64-bit collision、缺失/额外 site、同 PC 不同 site 均拒绝。NoGC callable 可以没有 safepoint，不能要求每个 callable 都有 raw record。解析全部连续 blob 后形成供 GC 按原始 PC 查询的唯一索引；不在 heap 初始化时重新解析。当前 target 继续禁止 `-dead_strip`、不同 body 的 function ICF 和 managed tail call。
+**stackmap：**v3 parser 保留 instruction offset、完整 locations 与 live-outs，按运行时规范 2.8 核对所选 site/body 和 normalized fingerprint。M31 的落选正文及其原始 stackmap blob 不进入最终输入；不能在 runtime 通过忽略额外 raw records 来掩盖错误选择。同一所选 record 的重复引用须具有一致 owner、return PC 与 payload；Strong 重复、64-bit collision、缺失/额外 site、同 PC 不同 site 均拒绝。NoGC body 允许无 safepoint。完整连续 blob 只解析一次，最终唯一 PC 索引供 GC 复用；tail call、不同 body 的 ICF 与 section GC 限制保持。
 
 **格式迁移：**以下为 M23-8 实施目标，M23-7 验收记录中的版本是历史基线。
 
@@ -1900,9 +1906,35 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 浮点 pattern 为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。
 
+### 2.19 M31：首批优化、ODR 合并与 nursery（设计已制定，待实现）
+
+本节与 [M31 设计](../milestone31/DESIGN.md)、语言规范 12.3/12.5/14.3、运行时规范 2.8/3.6/3.9 同步；当前实现基线仍为 M30。本轮不实现编译器或 runtime。M23～M30 的历史 wire、摘要与行为记录在本节明确替代的范围内不再作为后续要求。
+
+**构建配置与首批优化。** 保留公开 debug/release，使用实际生效的 typed optimization 配置贯通 umbrella、single-Cone child 协议、scoopc、MIR/LIR 优化和各 producer。debug 保留当前 Scoop 机器 O0 与必要 SSA/GC lowering；release 使用 LLVM machine O2 与经过精确 GC/EH 验证的函数内 IR pass 组合。IR 优化和 machine O2 分别验收，不将裸 `default<O2>` 作为既有 statepoint 合同下自动安全的开关。generated-C 的 O0/O2 与必要 ABI、`-fno-builtin` 等约束一并进入实际 producer 配置；runtime 当前默认已经 O2，首版两个 build profile 沿用相同 runtime 优化设置，独立记录其实际构建键。
+
+首批复用 LLVM 的 SROA/mem2reg、常量与指令简化、公共表达式/死代码/死存储消除；Scoop 侧只补当前表示必要的常量/复制传播、已知 enum/Option 分支和死路径清理。可能改变调用与 CFG 的 Scoop 变换位于 root plan、poll 与 site identity 定稿之前。当前每 callable 一个 LLVM module/object 的生产方式不提供普通跨函数内联；自动内联、通用去虚拟化、循环边界检查优化、LTO/PGO、逃逸分析和协程 frame elision 均不作为 M31 的完成门。
+
+**优化与精确 GC。** LIR 输出仍完整表达 typed 值、调用 effect、控制流及 GC 根需求。codegen 复用这些事实和现有 ExpectedSafepoints，在最后一次允许的普通 IR 变换后形成该实现的最终发射计划，再执行 RS4GC。已删除的不可达站点不能继续留在实际站点清单；现存站点必须具有明确 owner/role 和完整 managed leaf，不能根据输出 stackmap 的数量反推根语义。首批 pass 不复制/合并 GC 站点，不凭优化等级改变外部 callable GC effect；poll 在实际入口与循环路径的覆盖、normal/unwind、native transition 与 frozen segment 的协议继续检查。RS4GC 后保留现有 relocation/use 和对象 stackmap/EH 检查，不再运行任意会改写 site、call 或 GC liveness 的通用 IR pipeline。单纯用来钉住旧 root identity 的临时 volatile/alloca 可以在实际 SSA 与最终计划能保证正确时消除；已发布、可由 collector 回写的 compiler/native/caller root storage 继续保持内存可见性与 reload。
+
+实际 code/stackmap plan 随所选实现进入 code/object 元数据；它不进入跨 Cone ABI 或 ODR 内容判等，也不反向污染 dependency semantic fingerprint。保持 frame pointer、stack-only writable root、精确 return PC、AS1 provenance、无 exceptional relocate、禁止 managed tail call/ICF 等已经验证的后端合同。
+
+**ODR 与依赖。** 普通依赖图确认模板 origin、完整 application 与 exact arguments 对应同一定义后，重复 ODR member 只比较完整 typed key 与共享 ABI。ABI 包括调用约定、参数/返回表示、GC 调用契约、共享 layout/alignment/scan/dispatch；不包含优化后的 LIR、机器码、私有帧、EH 或 stackmap。删除 `OdrDefinitionFingerprint` 及只服务正文相等的计算、leaf、补丁和测试，不另建“优化前语义正文摘要”。导出的模板、默认值、const、类型和调用合同仍由普通 HIR/MIR/LIR semantic projection 覆盖；优化设置与私有实现变化进入编译、Code/Artifact 及链接缓存。后端的兼容契约与 producer 优化设置分开，不能因 profile 或 pass 改变而错误报告 stale edge。
+
+program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。
+
+`.slib` 保留候选 image/registration 数据与物理 owner，program-link 在选择后通过现有 native-object 输出路径生成最终 image descriptor 和六类 pointer 表，不启动 LLVM/Scoop codegen、不读取源码或 runtime header，也不修改已发布 artifact。落选正文及其站点/EH/Context 数据不进入最终对象集合；所有引用指向唯一 TD、storage/cell、callable 和登记。最终 image fingerprint 根据实际表计算并进入既有 link plan，普通 eager 初始化顺序和 lazy unit 的 exactly-once 语义保持。Mach-O 不能依赖独立 weak coalesce 模拟这项关联选择；ELF 采用相同显式规则，不把平台 COMDAT 能力变为另一套语义。
+
+**nursery。** runtime 在现有 arena 中按 block 区分 nursery/旧代，TLAB 从 nursery 分配；minor 只追踪完整根、旧代脏区和年轻存活图。首轮存活即晋升到 Immix 旧代，不增加 survivor 区或年龄字段。无法放入普通 block 的大对象及带 release hook 的对象直接进入旧代；pin 不得移动已暴露的地址，含 pinned 对象的 block 在 STW 中原地转旧代。普通中小对象及其晋升须支持跨 line 分配：调整旧 64-byte small 上限和仅 `uint8_t` size-units 表示，精确 size、占用 line 和 forwarding 在原 side metadata 中表达。
+
+编译器只对可能含 managed ref 的 heap 写入发射范围正确的 card barrier；runtime Context、array/box copy 与 Scoop ABI native 使用同一协议，多 mutator 标记为 atomic monotonic。构造过程中可能晋升，不能按“新对象”永久省略屏障。minor 在同一 STW 中先标记与规划晋升空间、再回写，空间不足从完整原图执行 full；正常 minor 不扫描全旧代来验证屏障。全存活年轻对象晋升后才重置年轻区和卡。显式 `gc.collect()` 保持 full；minor/full stress 分别执行真实路径，release hook、native root、pin/handle、frozen segment 的合同保持。
+
+**版本与验收。** M31 metadata ABI 4→5 删除 registration 公共 identity 的 definition fingerprint；删除 OdrDefinition 和仅回填该字段的 StrongRegistration 节点，普通 RuntimeImage/Code/Artifact 内容保护保持。调整实际发生变化的 child protocol、producer 配置、manifest/production、code GC plan、image/registration wire、runtime ABI 与 cache 版本；不为未改变的实体 id、对象头、TD、managed ref 或 stackmap v3 增加新格式。ABI 5 的具体字段顺序、section 版本和普通编码向量随各实现批次记录，旧不完整屏障与旧 ODR 产物必须拒绝或重建，不能靠优化 profile 名辨别。
+
+完成门包括三 target 的 debug/release 功能与正式 CLI fixture、混合优化 ODR 和 artifact-only link、真实 minor/full moving/多 mutator/FFI/Context/release 组合，以及可复跑的性能基线。性能记录运行与编译时间、代码/产物大小、分配/晋升/扫描量及 GC 停顿，不设置噪声毫秒门槛，也不把完整代码摘要 golden 当成优化正确性测试。详细批次、非目标和验收矩阵见 M31 设计。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。
-2. **后续 GC 演进**：M15基线为macOS/AArch64上的单代、STW、单线程moving Immix与精确stackmap；其他target adapter、分代/晋升及parallel/concurrent collector仍需另行设计，并与runtime spec 3.6的屏障契约同步。
+2. **后续 GC 演进**：M31 已设计 nursery、晋升与 remembered set，见 2.19 和 runtime spec 3.6/3.9；M30 的三 target 单代基线仍为当前实现。survivor、arena 扩容及 parallel/concurrent collector 留待后续，不作为 M31 完成门。
 3. **off-heap ByteBuffer 与外部内存反馈**：已移出 M26，后续单独设计增长、borrow/view、close、失败原子性、external-memory pressure accounting 与 managed 侧 GC 反馈；它不改变 M24 release hook 的 best-effort 时机。
 4. **Windows 异常**（catchpad）与调试信息（line table 等）留待后续。

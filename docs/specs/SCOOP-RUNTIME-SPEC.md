@@ -1,5 +1,7 @@
 # Scoop Runtime 规范
 
+2026-10-07，M31 设计已制定、待实现，见 [M31 设计](../milestone31/DESIGN.md)。本次只更新文档，当前实现基线仍为 M30 的单代 moving Immix。M31 的 nursery／minor GC 见 3.9，写屏障见 3.6，ODR 与最终 image 选择见 2.8；历史版本记录不代表这些目标已经实现。
+
 2026-10-07，M30 已实现并通过验收：binary32/binary64 标量、线程浮点环境、字符串转换和必要的数学后备复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备，128 位类型仅作调研。契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。
 
 2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
@@ -92,7 +94,7 @@ Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专
 
 对象摘要中的 relocation 按已解析目标的实际实体身份与 definition role 编码。Strong callable、layout、scan、类型描述符、派发表、类型登记、静态存储及其登记、初始化 cell 与 descriptor 统一使用既有 runtime target tag 1；ODR callable 和 shape 使用既有 tag 14 及原 member。同一已解析目标在定义 Cone 和消费 Cone 必须得到相同字节，泛型正文对普通 object 静态根的引用不能因再次发布而改变对象摘要。实体、role 和符号的对应关系复用共有 target 查询，provider 与声明目标仍保留在普通依赖记录中，承担既有引用、ABI 和符号检查。原普通依赖 callable tag 11 与 shape tag 12 均退役且不复用，原服务 tag 2、13 保持退役。完整 shape 引用正规化将 link-identity-closure 从 /6 升至 /7，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
 
-ODR callable-body 的 ABI/LIR 摘要由最终 LIR 产生，产物读取复用 production 中的值，并与实际 body ObjectDefinition 和所属 normalized stackmap 组合为该 member 的定义摘要。此项只补齐逐 member 链接比较需要的内容；callable registration 的 body-definition 字段继续保存 ObjectDefinition，runtime record layout、GC 和 C ABI 不变。Strong production field 13 记录保持原编码，ODR 的必需 ABI 字段随完整泛型 profile 发布，具体编码见实现规范 2.5。
+M23～M30 历史实现（M31 的内容 ODR 判等由 2.8 取代）：ODR callable-body 的 ABI/LIR 摘要由最终 LIR 产生，产物读取复用 production 中的值，并与实际 body ObjectDefinition 和所属 normalized stackmap 组合为该 member 的定义摘要。此项只补齐逐 member 链接比较需要的内容；callable registration 的 body-definition 字段继续保存 ObjectDefinition，runtime record layout、GC 和 C ABI 不变。Strong production field 13 记录保持原编码，ODR 的必需 ABI 字段随完整泛型 profile 发布，具体编码见实现规范 2.5。
 
 core与其他library Cone使用相同image、registration与ABI检查。runtime和linker只关心实际typed表示及调用契约，不检查core源码来自哪个目录，不消费core专用授权token或缓存receipt；用户重建core后按普通依赖fingerprint更新产物。
 
@@ -124,7 +126,7 @@ Runtime 是编译产物的支撑层，职责包括：
 
 明确**不在**本文范围：
 
-- 第 3 章所定单代、STW、单线程 moving Immix 基线之外的替代 GC 算法及优化；
+- 第 3 章 M31 nursery + Immix 之外的替代 GC 算法，以及 parallel/concurrent collector；
 - 协程调度器、集合、IO 等标准库内容；
 - 普通 outbound C ABI callee 的内部实现；spec 14.3 的 managed callback 是经 runtime gateway 重新进入 Scoop 的独立反向边界；
 - 编译器 intrinsic（`@Intrinsic`，spec 13.1）由编译器生成实现，不经 runtime。
@@ -241,13 +243,19 @@ initializer抛异常时，singleton不发布，top-level storage不被视为可�
 
 同线程重入由dependency stack检测并产生带稳定unit path的cycle结果。跨线程等待由init coordinator登记wait edge；加入新edge形成cycle时，该访问产生同类结果。generated ensure把path复制为普通managed `String`后交给编译器协议已经解析的core cycle thrower；该target在core内构造并抛出`message`包含完整cycle的`IllegalStateException`。它若未被initializer内的普通`try`捕获，才使当前unit失败并逐步唤醒其他waiter。runtime不按名称查找或构造core对象，也不认识该thrower的symbol。无环等待必须使用与3.5 epoch/STW handshake兼容的park；不能持有未登记managed pointer睡眠，不能busy-spin阻止safepoint。
 
-每个Cone image在2.8的typed descriptor中提供init-unit span；unit identity与初始化排序键只使用kind-specific `PersistentInitializationUnitId`，ODR去重另使用其group/member，不再另造“Cone coordinate前缀字符串key”。该persistent id的definition key已经包含origin `ConeIdentity`或specialization identity；coordinate/declaration path只放在独立`diagnostic_path`用于cycle/错误显示，不参与unit identity或排序，但仍是descriptor definition、RuntimeImage hash及ODR逐字段判等的record内容。descriptor还必须关联cell、generated initializer/ensure entry、no-throw startup gateway以及其published/property与failure storage registration。所有storage都进入2.8的static-storage descriptor span；`scan_kind == Recursive`者才按3.3成为GC root，init descriptor中的opaque状态不能代替root登记。
+每个Cone image在2.8的typed descriptor中提供init-unit span；unit identity与初始化排序键只使用kind-specific `PersistentInitializationUnitId`，ODR去重另使用其group/member，不再另造“Cone coordinate前缀字符串key”。该persistent id的definition key已经包含origin `ConeIdentity`或specialization identity；coordinate/declaration path只放在独立`diagnostic_path`用于cycle/错误显示，不参与unit identity或排序，但仍作为普通 descriptor/RuntimeImage 内容被验证；M31 不将诊断路径内容加入跨实现 ODR 判等。descriptor还必须关联cell、generated initializer/ensure entry、no-throw startup gateway以及其published/property与failure storage registration。所有storage都进入2.8的static-storage descriptor span；`scan_kind == Recursive`者才按3.3成为GC root，init descriptor中的opaque状态不能代替root登记。
 
-generic delegated extension specialization 是 lazy unit，其 storage、cell、failure root、initializer/ensure 与单一 initialization registration 按既有角色属于同一 ODR group，每次物化必须完整。多个 image 对同一 registration member 的引用须经 linker 指向同一记录；registry 以 semantic id、group/member、该 member 的 definition fingerprint 和全部关键地址判等后只登记一次。相同 id 地址不同必须 fatal，不能运行两次或扫描两份 storage 掩盖错误。同组独立 helper 可以出现在不同 image，表集合不同本身不是错误。`by` 与 provide 不接收某次访问的 receiver；get/set 先按普通调用求值参数，再经 ensure 取得 effective delegate，失败与等待沿用本节状态机。
+generic delegated extension specialization 是 lazy unit，其 storage、cell、failure root、initializer/ensure 与初始化登记按既有角色属于同一 ODR group，每次物化必须完整。M31 由 linker 选择兼容定义并将全部引用解析到唯一 storage/cell/registration，runtime 按实际 semantic id、group/member 与关键地址验证后只登记一次；相同 id 地址不同仍 fatal。独立 helper 可来自不同 image，初始化正文及其自身 GC/EH 数据随正文选择；不比较各 producer 的机器实现内容。`by` 与 provide 不接收某次访问的 receiver；get/set 先按普通调用求值参数，再经 ensure 取得 effective delegate，失败与等待沿用本节状态机。
 
 M23-8 起上述 coordinator API 直接接收 `const ScoopInitializationUnitDescriptorV1 *`，其参数就是六类表中实际登记的 unit record。旧 coordinator descriptor、独立 `id` symbol 与相应对象/摘要计划删除；schedule 使用已有 Eager=1/Lazy=2 tag，diagnostic path 使用 byte span。state/result code、cell 与失败发布语义保持，热点只检查实际 record 引用和本次状态，不能重复验证会改变的初态。
 
 ### 2.8 M23 多 image 登记与启动
+
+**M31 修订（待实现）：**ODR 只在普通依赖定义一致的前提下比较 typed key 与共享 ABI，不比较不同 producer 的 LIR、机器码、EH 或 stackmap。artifact-only program-link 先选定每个兼容定义，再将 callable 正文、EH、stackmap、callable/safepoint registration 和 Context cell 等实现附属数据作为同一物理选择保留；runtime 只看到所选实现。不同优化级别不能让同一 body 使用另一份实现的栈图，也不能产生两个 TD、static storage 或初始化状态。独立 helper 仍可取并集，不要求整个泛型 group 选择同一 producer。
+
+M31 的 `.slib` 保存各 Cone 的完整候选登记数据与物理归属，最终链接按所选定义生成每 Cone 的 image descriptor 和 pointer 表。落选正文及其私有站点不进入最终对象或登记集合；共享登记只在实际选中 provider 的 image 中列一次。image identity、依赖顺序和初始化协议保持；选择结果与最终 image 内容进入现有链接缓存和内容摘要，不改写输入 `.slib`。本节历史版本中“每个输入 image 已固定全部登记表、native linker 独立 weak coalesce”的做法由此取代，具体产物分工见实现规范 2.19。
+
+M31 将 metadata ABI 从 4 升至 5，删除六类 registration 公共 identity 中仅用于内容判等的 `definition_fingerprint[32]`，保留 linkage、semantic id 与 ODR group/member。`OdrDefinition` 以及仅用于回填该公共字段的 `StrongRegistration` 摘要节点一并退出；记录内容由已有 RuntimeImage／Code／Artifact 摘要覆盖，不增加替代正文摘要。仍有实际消费者的 body、descriptor、layout、scan 和 normalized-stackmap 字段保留，用于所选实现自身的格式、引用和 GC 检查。共同结构缩短 32 bytes，callable record 由 208 变为 176 bytes，其余五类登记按同样删除位置更新；TypeDescriptor、对象头与 managed reference 表示不因此改变。canonical record 同步删除该公共字段；修改 RuntimeImage 编码域及受影响 section/profile，旧产物和缓存重建。以下 ABI 2～4 的字段与摘要公式保留为迁移记录，M31 不再消费其中退役字段。
 
 M23-8/9 继承 M23-6a 的共同 HIR 和 M23-7 的完整机器定义闭包。登记与启动不接收 AST、模板或待推断类型，不补造缺失 callable、scan、TD 或初始化服务；这些缺口在编译／产物消费边界报告。六类 registration、普通与 ODR 定义的去重和动态 GC 检查沿本节实际数据执行，不另建来源专用路径。
 
@@ -265,7 +273,7 @@ M28 的 Linux ELF image adapter 从 `dl_iterate_phdr` 取得当前 executable �
 
 M23-11 的公开 `scoop build/run/link` 复用上述正式启动对象和 `scoop_rt_run_program`，不增加 CLI 专用 runtime 入口、registration 或第二份初始化顺序。`run` 在新的程序进程内执行 binary；默认当前 `Cone.toml`、debug/release 构建 profile、输出布局、缓存、诊断、argv 转交和退出状态由工具层处理，详见实现规范 2.7 及 [阶段设计](../milestone23/stage11/DESIGN.md)。两种构建 profile 当前沿用相同 runtime 构建设置，不按 profile 名切换 GC／检查／异常行为；后续优化设置由实际 runtime-build 输入表达。CLI 统一消费当前 metadata ABI 及 GC／FFI／异常合同和 native 装载规则，历史 fixture 迁移同样消费实际多 image 启动。
 
-登记只检查当前加载边界的格式、实际地址、引用、唯一性、扫描与初始化契约。编译器和 reader 已完成的语言、canonical definition、布局摘要及 ODR 内容比较不在 runtime 重放；runtime 不重算 RuntimeImage/Graph/ObjectDefinition fingerprint，不重建 canonical exact-type key 或程序来源证明。实际 stackmap 的规范化摘要核对用于确认链接后的 PC、owner 和 root locations，与重放编译语义不同。完整不可变记录检查一次，ODR 的同址重复引用和 GC 热点直接复用结果。
+登记只检查当前加载边界的格式、实际地址、引用、唯一性、扫描与初始化契约。编译器、reader 和 linker 已完成的语言、布局、ABI 与 ODR 选择不在 runtime 重放；runtime 不重算 RuntimeImage／Graph／ObjectDefinition fingerprint，也不验证两份不同优化正文是否等价。实际 stackmap 的规范化核对用于确认所选实现的 PC、owner 与 root locations。完整不可变记录检查一次，同址重复引用与 GC 热点直接复用结果。
 
 空接口仍保留以真实 interface TD 为键的 itable entry，其无槽派发表沿既有 codegen 表示为 null；空 vtable 同理。runtime 检查非空 dispatch pointer 的只读起点，不拒绝合法的 null 空表，也不从地址或接口名称推测槽数。实际槽清单、空表与接口契约的一致性由编译器及对象 reader 验证。
 
@@ -279,7 +287,7 @@ image 字段顺序为 `prefix, canonical {group bytes, name bytes, version bytes
 
 这些digest字段不各自定义临时算法：per-Cone source/layout/scan字段分别由typed DAG的`SourceSignature`/`Layout`/`Scan`节点写入；TypeDescriptor的`descriptor_fingerprint`与每个callable record的`body_definition_fingerprint`由对应atom的`ObjectDefinition`节点写入；root/Eager-init gateway fingerprint是同一gateway callable的同一个ObjectDefinition digest在另一patch site的逐byte镜像，必须等于其callable record中的body digest；Lazy-init gateway fingerprint是固定全零tagged encoding，不是graph slot；safepoint normalized字段由`StackmapRecord`写入；registration identity 中的 definition 字段由 strong record 的 `StrongRegistration` 或该 ODR registration member 自身的 `OdrDefinition` node 写入；image字段由`RuntimeImage`写入。strong registration精确使用M23设计3.4的`scoop-strong-registration-v1`公式：对应canonical record强制Strong linkage、零ODR group/member并只把own definition slot归零，其他声明的上游digest保留，direct input按`DigestKind tag + DigestNodeId`排序编码。`LirDefinition`与`ObjectSupport`可以只存在verifier index。每个object slot固定32 bytes、无relocation、初始为零且只有一个writer；同一node写入多个镜像slot时最终bytes必须一致。M23-7 的 ODR 摘要采用实现规范 2.13 的逐 member 算法，不把整组成员集合写入每条记录；旧 group digest owner 退役。该变化启用此前尚未发布的 ODR 生产，不改变 Strong 编码、metadata C 字段顺序、prefix 或实际 runtime C 调用约定。
 
-每个image只列出由该Cone实际发射的strong或ODR producer record，普通external reference不重复登记；table是**record pointer** span而不是by-value record。一个Cone的image descriptor可位于其任一已验证link-object成员，但该Cone全部link-object成员合计必须恰好定义一个，并由`.slib`的typed member/owner relation唯一指出；runtime不按archive成员名、扩展名、顺序或数量发现image。两个 Cone 重复发射同一 ODR registration member 时，其 pointer 经 link relocation 必须指向同一 coalesced record；独立 helper 的登记集合可以不同。runtime为六种semantic id分别建立`id -> record address`及反向map；另为callable建立`PersistentCallableBodyId <-> entry address`双向map，entry必须non-null、位于最终程序某个executable segment且同一entry不能属于两个body。callable全集精确等于该Cone LIR跨全部由对应verifier capability管理的link-object成员声明的`RegisteredCallableBody`：普通managed/NoGC Scoop body、compiler adapter/trampoline与root/init gateway即使没有safepoint也必须登记。声明的native extern、validated runtime artifact函数及C/C++等其他native producer的`LinkObject`不会仅因可链接、文件名或来源而成为Scoop registered callable；opaque blob则根本不是object/link input。它们分别遵守final-input origin或typed member capability的验证边界。所有registered callable atom都是address-significant：不得使用`unnamed_addr`、跨不同body id的MergeFunctions/function alias folding或function ICF；只有完整验证为同一ODR callable member的winner可以共址。TypeDescriptor地址也只能对应一个`PersistentExactTypeId`，`runtime_type_id`必须非零且等于`descriptor->type_id`，64-bit id/full key一对一。strong重复、同id不同地址、不同type id同TD地址、body/entry非一一对应、ODR group/member/fingerprint或关键storage/cell/entry/TD地址不一致均为fatal，不能靠登记两份、constant merge或ICF掩盖。
+M31 的最终 image 只列出本 Cone 被 program-link 选中的 Strong/ODR producer record，普通 external reference 不重复登记；table 仍为 record pointer span。输入 artifact 保存候选表与物理归属，最终 descriptor 和表由 program-link 在选择后生成；runtime 不按 archive 名称、扩展名或顺序发现 image。六类 semantic id 分别建立 id/record-address 索引，callable 建立 body-id/entry 双向映射；entry 非空、位于 executable segment，不同 body 不得共用 entry。同一 ODR 登记只保留实际 provider 的记录，独立 helper 允许来自不同 image。所选 callable 集合完整覆盖实际保留的 Scoop body、NoGC body、adapter/trampoline 与 root/init gateway；无 safepoint 的 body 也须登记。普通 native extern、runtime C body 和其他 native producer 仍按其自身对象/ABI 合同消费，不伪造 Scoop callable registration。
 
 safepoint还必须独立建立非零`SafepointId <-> PersistentSafepointSiteId`双向map；这里与上一段runtime type一样要求u64/full key全程序一一对应。不同full site key映射到同一u64时，即使owner、ODR group或return PC不同，也必须在用该ID匹配raw stackmap record之前fatal，不能让后续PC判等消歧。
 
@@ -299,7 +307,7 @@ producer/reader把canonical key中的pointer替换为上述own atom/scan/cross-r
 
 普通内容 fingerprint 用于产物一致性和缓存失效，不承担 String 资格或完整程序来源证明。删除没有生产用途的 program/core binding key、Graph fingerprint 编码及逐层反向重放要求；编译、Link 和 runtime 各自只验证当前消费边界需要的格式、符号、ABI、地址范围与 GC 契约。
 
-callable/safepoint 的 compiler finalizer 按 registration 的实际 owner 选择 StrongRegistration 或逐 member OdrDefinition。RuntimeImage 的这两类记录保留真实 linkage、group/member 与最终 definition，不能统一编码成 Strong；image DAG 的直接输入 kind 同样遵循实际 registration node。ODR safepoint 对象 leaf 已代入其 normalized-stackmap 上游字段，自身 definition 仍置零，最终按实现规范 2.5 汇总并回填；此计算不改变上述 C record 布局或32-byte字段宽度。
+M31 的 callable/safepoint registration 继续保存真实 linkage、group/member、body/site owner 及各自实现所需字段；公共 definition 字段和 OdrDefinition/StrongRegistration 节点按本节 ABI 5 删除。RuntimeImage 根据本次选择后的实际记录及保留的 body/stackmap 等内容计算，不能把不同实现的登记混在一起，也不将全部记录伪装成 Strong。各记录的 typed identity 和物理入口关系在原读取及加载边界检查。
 
 root entry不是裸Scoop function pointer。`ScoopRootEntryDescriptorV1`保存root Cone、persistent main body、ordinary `() -> Unit` source signature fingerprint、由root image producer表拥有的已登记failure root，以及gateway body id/fingerprint和精确`uint32_t(void)` C-callable gateway。gateway ID 由 producer/reader 从 `RootGateway { root_cone, main_body_id }` 推导，runtime 核对其实际登记引用，pointer逐bit等于该body的callable registration entry，两个位置的ObjectDefinition digest逐byte相等。gateway以自己的body identity登记内部managed call/异常路径全部safepoint，再调用namespaced main：成功返回0；未捕获异常必须在 generated landing pad 内使用已有 MaterializeException 物化为 managed 对象，发布 failure root 并结束 native catch 后返回 1；不能在 failure slot 保存 BeginCatch 的 native payload 地址；其他值fatal。
 
@@ -321,7 +329,7 @@ String 由前端解析为实际 typed class，MIR/LIR 与 Link 使用同一 prov
 
 ## 3. GC 契约
 
-参考实现由M9的单代非移动Immix和M13的多mutator STW演进而来；M15基线为单代、STW、单线程collector的moving Immix。以下是编译器与runtime共同遵守的长期契约；后续分代或parallel/concurrent实现可以替换算法，但不得破坏root、safepoint、native借用、pin与handle语义。M15首个runtime target为macOS/AArch64；其他target在拥有等价的精确frame/location adapter前不得退回保守扫描运行moving collector。
+参考实现由 M9 的单代非移动 Immix 和 M13 的多 mutator STW 演进而来；M15～M30 的已实现基线为单代、STW、单线程 collector 的 moving Immix。M31 设计在相同 arena 中增加 nursery，并以 minor GC 晋升到 Immix 旧代，见 3.9；仍采用 STW、单线程 collector 和多个 mutator。root、safepoint、native 借用、pin、handle 与 release hook 的语义同时约束 minor/full GC。现有 Darwin/AArch64、Linux/amd64 glibc 和 musl 使用精确 frame/location adapter，不允许保守扫描回退。
 
 ### 3.1 分配入口
 
@@ -358,7 +366,7 @@ stackmap 通用 decoder 只检查非零、已知的固定 frame size；对齐属
 
 M23以后不再引用固定`scoop_image_*`符号；runtime 只遍历 2.8 启动参数强引用的实际 image 集合。static-storage/immortal/type/init/safepoint/callable全部使用2.8带prefix、typed registration identity及kind-specific字段的v1 record；不能再接受旧`{base, scan}`、`{start, size, td}`by-value table、裸TypeDescriptor/SafepointId span或未经登记的function address。count是唯一权威，空span使用addressable sentinel。runtime必须先对全部image完成DAG、table、range、TD与callable双向identity、ODR与duplicate验证并建立static metadata registry，才初始化GC heap或执行任一managed initializer；不能验证一个image后立即运行其副作用。
 
-普通不同storage/unit semantic id必须全程序唯一；不同identity的storage allocation range与immortal range分别不得重叠，TD/header必须匹配，只读immortal object不得含managed出站引用。ODR重复先按record variant验证后去重：storage要求record地址、group/member/id、definition、base、logical size/allocation extent/alignment、scan/layout、initial-state tag、template span地址/长度/逐byte内容、relocation-array地址/count及每项offset/target registration全同；immortal要求record地址、identity/definition、start/size/alignment及type registration全同；init要求record地址、identity/definition、schedule/path、cell、storage/failure、body id/entry/gateway全同；type要求record/TD地址、identity/definition、runtime id、descriptor/layout全同；safepoint要求record地址、identity/definition、site/body owner/root count/stackmap fingerprint全同；callable要求record地址、body id、registration/body definition fingerprint与entry全同。只有已经这样确认的同一ODR record才可共享range/address；同id不同地址、不同body id共址或同一body id对应不同entry都是fatal metadata error，不能同时登记两个slot来掩盖链接失败。**静态program/image metadata registry**在进入managed startup前冻结，M23不接受后续静态image/static-storage/immortal/type/init/safepoint/callable登记；native root frame、active exception stable external root、handle与pin仍按既有API动态增删，不受该冻结影响。
+普通不同 storage/unit semantic id 必须全程序唯一；不同 identity 的 storage allocation range 与 immortal range 分别不得重叠，TD/header 必须匹配，只读 immortal object 不得含 managed 出站引用。M31 只登记 program-link 已选择的定义，仍检查 record variant、typed identity、owner、实际 base/entry/TD/cell、size/alignment、scan、初始化引用与 stackmap 的一致关系。若 image 中存在同一 ODR record 的重复引用，只能复用同一记录地址及其已经验证的内容；同 id 对应不同地址、不同 body 对应同 entry 或存储范围重叠仍是错误。不得以跨 producer 的 definition fingerprint 或 stackmap 内容相同作为 ODR 前提。
 
 ### 3.4 保活机制（两级）
 
@@ -383,7 +391,11 @@ M15的platform bundle由object-image、OS thread/VM与architecture/ABI frame三�
 
 ### 3.6 屏障
 
-是否需要写/读屏障取决于 GC 算法；编译器侧预留插桩点（具体形式随 GC 方案确定）。M15的单代collector仍不消费card table，但多mutator对card的标记必须使用atomic monotonic store/RMW；多个线程写入同一个普通byte即使值都为1也不能视为无数据竞争。
+M30 的单代 collector 尚不消费 card table；M31 的 minor GC 必须消费旧代脏卡，保证每个 old→young 引用可被找到。向 managed heap 写入可能含引用的数据后，必须在下一个可 park/collect 边界或向其他线程发布该对象前，标记实际被写引用槽所在的 card；连续 aggregate/array copy 标记整个可能含引用的写入范围，不能只标对象头或范围起点。普通 scalar、GC-free value 和零长度写入不产生屏障。首版允许保守标记 young 目标或不含 young 值的引用写入，collector 仅消费旧代脏区；不要求热路径检查每个 RHS 的代龄。
+
+编译器的字段、含引用 value/enum/array 写入，runtime 的 Context、array/box clone/copy，以及 Scoop ABI native 的 managed heap 引用写入遵守同一范围语义。native 提供一个不分配、不 GC、不 park 的范围屏障入口；root registration、pin 或“刚分配”均不能替代它。构造器和复制操作中途可发生 GC，只有现有控制流能证明写入前目标一直在 nursery 且尚未发布时，才可省略该次屏障。
+
+多个 mutator 标记同一卡必须使用 atomic monotonic store/RMW；Context 的普通 byte store 必须迁移。引用写入与标记之间不得插入 safepoint，屏障不能被优化移到可能 park 或发布之后。STW handshake 建立 collector 读取引用与脏位的可见性；collector 在所有 mutator 停止后消费和清理脏位。脏卡通过 object-start、精确 size 与 scan metadata 找到所有相交对象中的引用槽，正确处理跨 card/line 的对象及大数组；根表和 stable external region 仍直接按精确 root 扫描，不伪装为 heap card。
 
 ### 3.7 moving collection与side metadata
 
@@ -391,7 +403,7 @@ M15 collector为选中的from-space对象建立arena外forwarding关系，把未
 
 block state、object-start、每个对象的精确normalized allocation size、line/free-run信息与forwarding均位于GC arena外。block header、free-block node或hole node不得存放在可能poison/保护的arena内。可变长String/Array及large object的复制长度直接读取allocation metadata，不能从TypeDescriptor fixed size、block span或payload内容反推。
 
-collection在释放world前必须重新验证所有合法slot不再指向forwarded旧地址。stress mode在每次mutator-visible managed allocation前执行full moving collection；evacuation allocation不可递归触发collection。验证完成后用固定字节`0xA5` poison旧副本；不再含live/pinned对象的source block整块`PROT_NONE`并永久quarantine，partial pinned block中的已搬span同样poison且在stress进程中不复用。
+M31 的 normal collection 在实际 root/heap slot 遍历与回写时检查 forwarding 和引用合法性，不为再次证明刚完成的扫描额外全堆遍历；minor 尤其不得调用全旧代 verification walk。全堆交叉验证、逐分配强制 moving、旧地址 `0xA5` poison 与 `PROT_NONE` quarantine 用于现有 stress 或显式验证模式。minor stress 必须执行真实 nursery、remembered set 与晋升路径，不能被旧 full-stress allocator 的独立分配路径替代；full stress 继续覆盖全部未 pin live object 的移动。回收前必须完成所有实际存活引用的更新，evacuation allocation 不得递归触发 collection。
 
 ### 3.8 finalizer与资源释放
 
@@ -422,6 +434,23 @@ hook 在现有 collector 的 heap/root 锁仍被持有、world 未恢复时执�
 best effort 不保证何时再次 GC、对象间顺序、执行线程、native release 成功或退出时调用；但正常 collection 一旦决定回收 ready 对象，就必须在其 storage 失效前尝试一次。进程 abort、native fault、foreign unwind 或不返回的调用不会得到重试或恢复保证。shutdown 直接沿既有协议销毁运行时状态，不追加 collection，不为 live/uncollected/unready 对象补调 hook。确定性释放使用显式 close/release 与 try/finally，显式路径先写 inert state 再释放资源；不增加 arm/disarm、手动触发、排序、重试、后台执行器或 finalizer。
 
 ---
+
+### 3.9 M31 nursery 与 minor GC（待实现）
+
+nursery 使用现有 arena 中独立标记的一组 block，每个 mutator 的 TLAB 从 nursery 取得；代龄、object-start、精确 size、forwarding 与脏区索引都保存在 arena 外。它不增加 managed reference tag、对象头字段或 GC stackmap 格式。分配返回前完成清零、头部与精确 allocation metadata 发布，原 GC-leaf fast path 契约保持。
+
+普通中小对象进入 nursery；能放入普通 block 的对象不能继续仅因超过旧 `GC_SMALL_MAX == 64` 就各占一个 large span。普通分配与旧代晋升均须支持跨 line 的中小对象、准确标记占用 line 和完整 size metadata。无法放入普通 block 的大对象直接进入旧代 large-object 路径。带 release hook 的对象首版直接在旧代分配，沿 3.8 的 ready/reclaim 规则释放；不能因重置 nursery 漏掉 hook。
+
+minor 在现有 STW 协议内执行：
+
+1. 停止全部 mutator，废止全部 TLAB，沿 3.3 的完整精确根及旧代脏区追踪 nursery 可达图；根指向旧对象不意味着递归扫描整个旧图。
+2. 为年轻存活对象安排晋升。第一次 minor 存活即进入旧代，不设置 survivor 区、年龄计数或多级晋升。空间规划成功后才发布 forwarding 和修改引用；不足时释放未使用的目标预留、清理工作标记，从仍完整的原图执行 full GC，不允许半搬迁后退回普通分配或递归 GC。
+3. 未 pin 的年轻存活对象复制到旧代，统一更新根、旧代脏槽和年轻存活对象内的引用。含 pinned 对象的 nursery block 在 STW 中转为旧代，其中存活对象可原地保留、死亡对象删除；全部留下的存活引用同样更新。pin 返回后已暴露的地址绝不改变。
+4. 完成后没有存活对象留在本轮 nursery；回收死亡对象与旧副本、重置可复用年轻 block，清理已经消费的卡。下一轮分配才建立新 TLAB。旧代已不可达对象允许保留至 full GC；minor 不执行旧代回收。
+
+nursery 满触发 minor；旧代／large-object 压力、晋升空间不足或显式 `gc.collect()` 触发 full GC。full 沿现有 Immix mark/evacuate/reclaim 收集两代，其年轻存活对象也进入旧代；空间不足时可原地保留合适 block，不遗失引用、不绕过既有分配失败出口。显式 full 在存在 eligible movable object 且 to-space 足够时仍满足 3.7 的移动要求。nursery 大小是内部性能参数，不进入语言语义或通用资源预算。
+
+minor 的正常工作随根、脏区和年轻存活图增长，不能扫描所有旧代对象或所有旧代引用来弥补屏障遗漏。测试必须覆盖仅从 old→young 可达的对象、跨 card aggregate/array copy、构造中途晋升、多 mutator、Context、native root/handle/pin、callback/冻结栈段，以及 minor 与 full 的交替。性能记录包括 minor/full 次数、年轻分配与晋升量、扫描脏区、停顿、吞吐及实际堆占用；不得只用旧 full stress 证明分代正确。详细实施与验收见 [M31 设计](../milestone31/DESIGN.md)。
 
 ## 4. Scoop ABI FFI runtime functions
 
@@ -668,7 +697,7 @@ callback token 以 `Empty | RootHandle` 保存快照，handle 的空分支不尝
 
 仍待后续里程碑补充：
 
-- macOS/AArch64以外target的精确frame/location adapter；分代/晋升、parallel/concurrent collector及相应屏障消费策略仍待后续；
+- nursery／minor GC 与晋升已在 M31 设计中排期，见 3.9；其后的 survivor 策略、parallel/concurrent collector、arena 扩容与更多 target adapter 另行设计；
 - off-heap ByteBuffer 的增长、borrow/view、close、失败原子性、external-memory pressure accounting、managed 侧 GC 反馈与 hook 路径只扣减的 release-safe 入口，整体留待 M26 之后另行排期；
 - runtime functions 的完整签名表与错误处理矩阵；
 - 异常穿越 Scoop ABI frame 的最终规则。
