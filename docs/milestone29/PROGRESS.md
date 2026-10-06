@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：Linux 新协议 M29 快照更新
+
+GNU 与 musl 各自完成全部 176 个 M29 fixture，分别执行 363 个进程、113 次
+golden 检查。两个目标各有 81 个共有快照文件与已通过普通模式的 Darwin 逐字节
+一致，其余 32 个为目标 LIR；同步变化的目标文件。更新轮报告分别保存为
+`/tmp/scoop-m29-saved-reports/m29-revised-all-gnu-update.json` 和
+`/tmp/scoop-m29-saved-reports/m29-revised-all-musl-update.json`，普通全量验收待
+泛型 primitive 装箱修复后的统一工具执行。
+
+修复前的 Linux 完整 workspace 已通过 43 组、5,372 项测试，零失败、零忽略；
+公共 runner 的 38 项单测通过。对应日志为
+`/tmp/scoop-m29-revised-linux-workspace-2.log`，后续验证不沿用旧协议报告。
+
 ## 2026-10-06：产物依赖图回归
 
 产物依赖图用例的两处 StaleDependency 诊断同步实际 HIR/MIR/LIR 摘要，保持
