@@ -1,15 +1,15 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:cycle-recovery-provider:0.1.0 kind=Library objects=6
 cone dev.example:cycle-recovery-root:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=3 root=scoop$1$re$89b1fd4d505e986fa3f51fc23176d75680d6f1356ddb7576f943299e90004ac4
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_runtime_images requirement=453f09278a8bf953e368c5c520694e3dd22cf2e1dd05e7245892bba49c11aab9 input=$NATIVE_INPUT_0 origins=dev.example:cycle-recovery-root:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([51, 234, 60, 187, 220, 3, 158, 64, 84, 75, 252, 11, 214, 225, 156, 26, 172, 51, 208, 167, 95, 211, 234, 181, 56, 93, 105, 162, 110, 83, 189, 221])])
 native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..1748 name="trace.o" digest=$NATIVE_MEMBER_0 selected=true
-ELF system imports=51
+ELF system imports=58
 startup object references:
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
   scoop$1$im$89b1fd4d505e986fa3f51fc23176d75680d6f1356ddb7576f943299e90004ac4

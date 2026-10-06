@@ -1,9 +1,9 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:type-sites-provider:0.1.0 kind=Library objects=3
 cone dev.example:storage-combined:0.1.0 kind=Library objects=25
 cone dev.example:executable-site-reader:0.1.0 kind=Executable objects=3
-runtime objects=63
+runtime objects=68
 images=4 root=_scoop$1$re$62683d5f99ed26c8a0d681f598c51f1c679f53d011ab77528592f3dd8b9b67e3
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem

@@ -1,12 +1,12 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone test:scoop-hir-lower:0.0.0 kind=Library objects=39
 cone test:mir-object-production-runtime-combined:1.0.0 kind=Executable objects=6
-runtime objects=65
+runtime objects=70
 images=3 root=scoop$1$re$bcce678404ff4671096f4fc0999897dfb89c8daf6fa399a23f20226fa6e64138
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
-ELF system imports=49
+ELF system imports=56
 startup object references:
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
   scoop$1$im$911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006

@@ -1,9 +1,9 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:scoopabi-provider:0.1.0 kind=Library objects=20
 cone dev.programlink:scoopabi-facade:0.1.0 kind=Library objects=1
 cone dev.programlink:scoopabi-root:0.1.0 kind=Executable objects=8
-runtime objects=65
+runtime objects=70
 images=4 root=scoop$1$re$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
@@ -13,7 +13,7 @@ native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..3220 name="managed.o" digest=$NATIVE_MEMBER_0 selected=true
 native archive $NATIVE_INPUT_1 members=1
   member 0 header=8 payload=68..1300 name="leaf.o" digest=$NATIVE_MEMBER_1 selected=true
-ELF system imports=50
+ELF system imports=57
 startup object references:
   scoop$1$im$39593d0c8c8f5ba9376931be1388e4c34e3b9c80ccb65efd362f5f1a4921a09e
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

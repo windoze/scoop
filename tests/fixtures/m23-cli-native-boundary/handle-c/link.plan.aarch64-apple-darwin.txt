@@ -1,8 +1,8 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone test:scoop-hir-lower:0.0.0 kind=Library objects=9
 cone test:native-boundary-runtime-handle-c:1.0.0 kind=Executable objects=4
-runtime objects=63
+runtime objects=68
 images=3 root=_scoop$1$re$e566abc242697f0de05e9e873e02f4c0c6e65517255948e6717ee1fd5e2d5251
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem

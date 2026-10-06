@@ -1,11 +1,11 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:delegate-siblings-provider:0.1.0 kind=Library objects=30
 cone dev.example:delegate-siblings-left:0.1.0 kind=Library objects=18
 cone dev.example:delegate-siblings-right:0.1.0 kind=Library objects=41
 cone dev.example:delegate-siblings-consumer:0.1.0 kind=Library objects=2
 cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=7
-runtime objects=65
+runtime objects=70
 images=6 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
@@ -15,7 +15,7 @@ native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..1684 name="gc.o" digest=$NATIVE_MEMBER_0 selected=true
 native archive $NATIVE_INPUT_1 members=1
   member 0 header=8 payload=68..2444 name="siblings.o" digest=$NATIVE_MEMBER_1 selected=true
-ELF system imports=49
+ELF system imports=56
 startup object references:
   scoop$1$im$0e526bad7c8ef1e62f708019e876041518f20b88feba3d6612378391bd365aca
   scoop$1$im$10d75b4a5d435f80c02258340ec20368b3cdff1c63bc4d9a11bb62c40f3e57d5

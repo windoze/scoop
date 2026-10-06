@@ -1,15 +1,15 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:native-provider:0.1.0 kind=Library objects=3
 cone dev.programlink:native-facade:0.1.0 kind=Library objects=1
 cone dev.programlink:native-root:0.1.0 kind=Executable objects=6
-runtime objects=65
+runtime objects=70
 images=4 root=scoop$1$re$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_math requirement=f7c478a79d5776baf2d1b94cf8c391cc48d482c39b820e8d65a14393d64edb18 input=$NATIVE_INPUT_0 origins=dev.programlink:native-provider:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([27, 188, 2, 30, 49, 4, 63, 29, 66, 108, 48, 174, 82, 181, 116, 173, 151, 37, 134, 126, 242, 50, 110, 31, 91, 8, 246, 89, 169, 33, 202, 194])])
 native object $NATIVE_INPUT_0 slice=0..1232
-ELF system imports=49
+ELF system imports=56
 startup object references:
   scoop$1$im$4bd4b0e9232bc185d710ac0e4e0b391c01d74a072798b0e7910a5dbf72de871f
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

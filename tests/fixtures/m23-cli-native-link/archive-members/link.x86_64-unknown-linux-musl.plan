@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=592
+cone scoop:scoop.core:0.1.0 kind=Library objects=632
 cone dev.programlink:same:0.1.0 kind=Executable objects=6
-runtime objects=65
+runtime objects=70
 images=2 root=scoop$1$re$025e39b44b1274d986944eaa62e32417caa55301464fae73dda613700a99e0d0
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
@@ -9,7 +9,7 @@ native library m23_math requirement=5efff7f6f6024613bdade487eebc6e75566a06c1a137
 native archive $NATIVE_INPUT_0 members=2
   member 0 header=8 payload=68..1292 name="same.o" digest=$NATIVE_MEMBER_0 selected=true
   member 1 header=1292 payload=1352..2576 name="same.o" digest=$NATIVE_MEMBER_0 selected=false
-ELF system imports=47
+ELF system imports=54
 startup object references:
   scoop$1$im$025e39b44b1274d986944eaa62e32417caa55301464fae73dda613700a99e0d0
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

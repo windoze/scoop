@@ -1,16 +1,16 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:standalone:0.1.0 kind=Library objects=1
 cone dev.example:hir-nested-identities-standalone:0.1.0 kind=Library objects=5
 cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=4 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_class_gc requirement=c0c9c1d2116c29291f460665240175006335909846a5ccd7d9e78692c05e6c4e input=$NATIVE_INPUT_0 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
 native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..1684 name="gc.o" digest=$NATIVE_MEMBER_0 selected=true
-ELF system imports=47
+ELF system imports=54
 startup object references:
   scoop$1$im$3837f7c86126da491b66be4eea384ecf2ea428ada736899378093735ca0b11f5
   scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

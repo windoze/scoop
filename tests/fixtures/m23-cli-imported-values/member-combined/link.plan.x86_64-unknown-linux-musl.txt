@@ -1,17 +1,17 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone scoop:scoop.core:0.1.0 kind=Library objects=634
 cone dev.example:member-provider:0.1.0 kind=Library objects=41
 cone dev.example:members-combined:0.1.0 kind=Library objects=24
 cone dev.example:downstream-combined:0.1.0 kind=Library objects=5
 cone dev.example:value-runtime-member-combined:0.1.0 kind=Executable objects=5
-runtime objects=65
+runtime objects=70
 images=5 root=scoop$1$re$99b0db9f5225d37a124fcd287e5fdcb0d6883db8492de6606a18021b741655ff
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_member_abi requirement=3ae1e2213ec6d42d37cd5cfd55ab750e495078058f724d55eb8f19e37c84f6db input=$NATIVE_INPUT_0 origins=dev.example:value-runtime-member-combined:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([196, 89, 210, 1, 107, 16, 94, 98, 222, 100, 2, 127, 232, 129, 112, 246, 2, 7, 172, 141, 69, 71, 219, 29, 255, 29, 184, 89, 245, 64, 128, 246])])
 native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..3340 name="abi.o" digest=$NATIVE_MEMBER_0 selected=true
-ELF system imports=47
+ELF system imports=54
 startup object references:
   scoop$1$im$17d7a94eb75638d5ca36a6054c2c586942631f023ea8c06bf6063e212f013baf
   scoop$1$im$1b7cb089408c08d1412b9e580a862abfea6cd9f78b063e5fd14098e647b03fae

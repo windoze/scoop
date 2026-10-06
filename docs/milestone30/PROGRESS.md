@@ -160,3 +160,13 @@ Ruff 0.16.10 格式化与检查通过，44 项公共 runner 测试在 Darwin 和
 主要定向轮为 B：707 项中 181 项通过；C：1085 项中 369 项通过；D：708 项中 516 项通过；E：192 项中 171 项通过；F：21 项中 18 项通过；H：最后 3 项全部通过。另保留四轮指纹清理与 core 可见性回归的有效通过结果。最后三个多步骤用例先更新并审阅快照，只发现三处 ImportedIdentityId 编号变化，再以普通模式通过 58 个进程、70 份阶段／计划 golden。
 
 迁移完整 HIR／MIR／LIR，保留实际 typed identity、字段、顺序、布局、符号与引用。只涉及 imported identity 临时编号的更新先确认其余字节相同；core 新增浮点与 codec 方法引起的类型／函数索引、源码区间，以及构造器推导修复引起的闭包路径另行审阅。多 Cone 的 consumer dump 按完整 HIR 对应到实际产物；三个 M29 编码 consumer 的 LIR 与原始基线比较，差异仅为已审阅的 struct、external function 和 external type descriptor 索引，完整指令与控制流保持。
+
+## H2：平台链接计划、完整符号与最终收尾
+
+core 新增 40 个对象，runtime 新增 5 个对象；Linux 的实际系统导入增加 7 个。按对应的原始基线同步明确计数字段，其他计划结构保持；删除两个 Darwin-only fixture 不再引用的旧 GNU 计划。没有通过隐藏对象、符号或动态绑定来稳定计划。
+
+Darwin 的完整／strong 符号清单从本轮实际程序提取，四个闭包作用域变动按已审阅的阶段输出更新。Linux 在 namespace、继承／ZST 与 core library 三个实际程序上确认共同新增符号，再补齐 GNU／musl 的 1372 份标准 nm 清单。四个闭包用例的 Linux 专属 byte-string、layout 和 stackmap 名称从实际目标程序取回，全部符号类别及数量保持；helper 的完整 nm 清单只有新增内容。更新后不丢弃旧符号、不折叠身份或结构。
+
+GNU 与 musl 最后各选 11 个实际 CLI 样本，覆盖不同 core 配置、四种闭包初始化、完整 helper 符号和三组过期依赖。更新轮后审阅了 18 份目标符号文件，源码、诊断、共享 IR 与其他快照均无新增变化；随后在两个新目录中并行普通复验，各 11 项全部通过、11 个变体、143 个进程、188 份阶段／计划 golden。Linux 没有重跑无关全仓库 CLI 全量，之前的 M30、M29、native 与 GC 有效结果继续复用。
+
+完成前再次确认两台机器无活动 Rust 构建，清理约 1.6 GiB／6.5 GiB 的闲置 debug incremental，保留 release 命令及复用依赖。实现、指纹清理、完整 Darwin 验收与 Linux 专项／受影响范围均已完成，最终范围、版本和复现入口见[验收记录](ACCEPTANCE.md)。
