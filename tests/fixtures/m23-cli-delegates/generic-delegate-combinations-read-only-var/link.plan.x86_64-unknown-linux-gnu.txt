@@ -1,9 +1,9 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=640
-cone dev.example:delegate-combinations-provider:0.1.0 kind=Library objects=63
+cone scoop:scoop.core:0.1.0 kind=Library objects=594
+cone dev.example:delegate-combinations-provider:0.1.0 kind=Library objects=59
 cone dev.example:delegate-read-only-var:0.1.0 kind=Library objects=12
-cone dev.example:delegate-downstream-read-only-var:0.1.0 kind=Library objects=22
-cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=11
+cone dev.example:delegate-downstream-read-only-var:0.1.0 kind=Library objects=18
+cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=7
 runtime objects=65
 images=5 root=scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias scoop_td_String -> scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

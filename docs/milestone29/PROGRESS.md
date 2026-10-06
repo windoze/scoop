@@ -3,6 +3,19 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：glibc 全仓库快照迁移完成
+
+更新轮与独立复验的通过集合已覆盖全部 2,471 个适用 fixture，另 25 个目标不适用。
+共核对 11,654 个实际快照文件，其中 9,641 份共有输出与 Darwin 正式结果逐字节一致。
+本批提交 1,909 份平台快照：343 份产物 JSON 仅改变摘要，823 份链接计划仅改变
+实际 Cone 对象数量，另有 688 份符号、51 份 LIR、1 份 HIR 和 3 份归档成员清单。
+这些变化来自撤销旧实例编码及条件派生后的实际产物，不增加语言或链接规则。
+
+通过集合、共有输出比较及差异检查分别记录在 `/tmp/` 的
+`scoop-m29-generic-primitive-gnu-update-verification.json`、`-golden-comparison.json`
+和 `-snapshot-audit.json`；后两个文件沿用同一 `scoop-m29-generic-primitive-gnu` 前缀。
+分批更新不替代正式验收，后续仍执行普通完整 `--all`。
+
 ## 2026-10-06：Linux artifact-graph 诊断迁移
 
 glibc、musl 的 artifact-graph 各完整复验通过，均执行 17 个进程、25 次快照检查；
