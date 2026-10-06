@@ -49,9 +49,7 @@ impl Lowerer {
             if elements.is_empty() {
                 return None;
             }
-            let interface = self.core_coding_nominal("Encodable")?;
-            let application = self.intern_interface_application(interface, Vec::new());
-            let interface = self.interface_applications[application].canonical_type;
+            let interface = self.core_coding_type("Encodable")?;
             return elements
                 .iter()
                 .all(|element| self.is_subtype(*element, interface))

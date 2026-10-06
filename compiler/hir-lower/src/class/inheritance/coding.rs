@@ -121,6 +121,13 @@ impl Lowerer {
         function
     }
 
+    pub(crate) fn core_coding_type(&mut self, name: &str) -> Option<TypeId> {
+        let source = self.core_coding_nominal(name)?;
+        self.apply_nominal_type(source, Vec::new())
+            .map_err(|error| self.error(ast::Span::new(0, 0), error.diagnostic(name)))
+            .ok()
+    }
+
     pub(crate) fn core_coding_nominal(&self, name: &str) -> Option<hir::SourceNominalId> {
         self.type_lookup_layers(name).into_iter().find_map(|layer| {
             layer

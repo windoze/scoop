@@ -22,16 +22,12 @@ impl Lowerer {
         if arities.is_empty() {
             return;
         }
-        let Some(encodable) = self.core_coding_nominal("Encodable") else {
+        let Some(encodable) = self.core_coding_type("Encodable") else {
             return;
         };
-        let Some(encoder) = self.core_coding_nominal("Encoder") else {
+        let Some(encoder) = self.core_coding_type("Encoder") else {
             return;
         };
-        let encodable = self.intern_interface_application(encodable, Vec::new());
-        let encoder = self.intern_interface_application(encoder, Vec::new());
-        let encodable = self.interface_applications[encodable].canonical_type;
-        let encoder = self.interface_applications[encoder].canonical_type;
         let members = self.conformance_members(encodable);
         let [member] = members.as_slice() else { return };
         if member.signature.name != "encode"
