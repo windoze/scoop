@@ -46,6 +46,9 @@ Module
   enum Option<Unit>
     Some(_0: Unit)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Reference>
     Completed(value: Reference)
     Suspended()
@@ -95,6 +98,11 @@ Module
   interface List<Large> : Iterable<Large>
   interface Iterable<Large>
   interface Iterator<Large>
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Diamond<Large> : Left<Large>, Right<Large>
   interface Left<Large> : Iterator<Large>
   interface Right<Large> : Iterator<Large>
@@ -116,29 +124,33 @@ Module
   interface Diamond<Unit> : Left<Unit>, Right<Unit>
   interface Left<Unit> : Iterator<Unit>
   interface Right<Unit> : Iterator<Unit>
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Large>
   interface SuspendTask<Large>
   interface SuspendRegistration<Large>
   interface Continuation<Reference>
   interface SuspendTask<Reference>
   interface SuspendRegistration<Reference>
-  closure cc0 $Closure$lambda0 type=function_type5 invoke=@fn27 captures=2
-    bridge function_type6 -> @fn186 id=985e5571cebeda3703e7f4616693596a093f063a89a29acc33e997c7904b5df8
-  closure cc1 $Closure$lambda1 type=function_type5 invoke=@fn43 captures=2
-    bridge function_type6 -> @fn187 id=4cb01565deb760949e152daa346ae98316a4e3bded0301a8361e15c7ba722d8a
-  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn59 captures=2
-    bridge function_type6 -> @fn188 id=a670e54e62762864511091ba95789dc72663115e0f443a790a6e36811bb6c929
-  closure cc3 $Closure$lambda3 type=function_type5 invoke=@fn75 captures=2
-    bridge function_type6 -> @fn189 id=69ea23a0441f46c681ede390ae86e5fa29c570383dd30c97853743823c323cbb
-  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn134 captures=0
-    bridge function_type1 -> @fn190 id=d98ce490f6dbc30055c8d19ec2b5d4639f3f392c355deb21275d9205c70ce600
-  closure cc5 $Closure$reference1 type=function_type2 invoke=@fn135 captures=0
-    bridge function_type1 -> @fn191 id=b15244883344ed4ffd871ade90b802167f51b3ef9d83deb55420be746102fbae
-  closure cc6 $Closure$reference2 type=function_type3 invoke=@fn136 captures=0
-    bridge function_type1 -> @fn192 id=6c2d0b034304e4df378ebbd7a4c5c0124c4a3a57562c441ba640070faf9d4232
-  closure cc7 $Closure$reference3 type=function_type4 invoke=@fn137 captures=0
-    bridge function_type1 -> @fn193 id=9bf1d950b14cfab782dd76d21994531206f1e6962a2d77b02636a5e742847a0a
-  generated_exact_type get0 location=enum10 nominal_id=f5fd7053832697faa14ac31e9582288409e71eb3a747c73ef66721bc37869be0 exact_id=0540200de50cc9d6e629ae797df299d7f10e180689708880753d83c341732edc
+  closure cc0 $Closure$lambda0 type=function_type5 invoke=@fn29 captures=2
+    bridge function_type6 -> @fn194 id=985e5571cebeda3703e7f4616693596a093f063a89a29acc33e997c7904b5df8
+  closure cc1 $Closure$lambda1 type=function_type5 invoke=@fn45 captures=2
+    bridge function_type6 -> @fn195 id=4cb01565deb760949e152daa346ae98316a4e3bded0301a8361e15c7ba722d8a
+  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn61 captures=2
+    bridge function_type6 -> @fn196 id=a670e54e62762864511091ba95789dc72663115e0f443a790a6e36811bb6c929
+  closure cc3 $Closure$lambda3 type=function_type5 invoke=@fn79 captures=2
+    bridge function_type6 -> @fn197 id=69ea23a0441f46c681ede390ae86e5fa29c570383dd30c97853743823c323cbb
+  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn142 captures=0
+    bridge function_type1 -> @fn198 id=d98ce490f6dbc30055c8d19ec2b5d4639f3f392c355deb21275d9205c70ce600
+  closure cc5 $Closure$reference1 type=function_type2 invoke=@fn143 captures=0
+    bridge function_type1 -> @fn199 id=b15244883344ed4ffd871ade90b802167f51b3ef9d83deb55420be746102fbae
+  closure cc6 $Closure$reference2 type=function_type3 invoke=@fn144 captures=0
+    bridge function_type1 -> @fn200 id=6c2d0b034304e4df378ebbd7a4c5c0124c4a3a57562c441ba640070faf9d4232
+  closure cc7 $Closure$reference3 type=function_type4 invoke=@fn145 captures=0
+    bridge function_type1 -> @fn201 id=9bf1d950b14cfab782dd76d21994531206f1e6962a2d77b02636a5e742847a0a
+  generated_exact_type get0 location=enum11 nominal_id=f5fd7053832697faa14ac31e9582288409e71eb3a747c73ef66721bc37869be0 exact_id=0540200de50cc9d6e629ae797df299d7f10e180689708880753d83c341732edc
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=class36 nominal_id=da85fe9fae84bf64695bb27dd60b993c75b6ef9ab6157970aa90453de8e2ca20 exact_id=14ef66bf355ee5a43cd9945b58731113afe368926d4cbe5121a32eeda007cdfb
   generated_exact_type get3 location=class25 nominal_id=9e68820032a9ec367822188d6a770d5177dcc9720c7c7ebc2d892f9874429d31 exact_id=224fae4067bae6924a339037f679c1bbafffd788cdb5c303a08a3cca483fb80f
@@ -157,10 +169,10 @@ Module
   generated_exact_type get16 location=closure4 nominal_id=f17d6ed6a7fa1db2e8958b123bebbabcfe7afbb3777c8431d701cb58c5b75568 exact_id=9941623da6cf35f90b3cb3ebcc44766e45429a8096f8a70a13da11d025ccbe01
   generated_exact_type get17 location=closure6 nominal_id=9565462ba31c91b518e5e7d24dfb1b0d638ea6a73409cfae7cc2d34aadc8368a exact_id=9a5c948fe17aeb08baf1dc0f18bece27110a05d9c272da434d630d06411303c7
   generated_exact_type get18 location=closure5 nominal_id=5b0cac4bb29caa351bab1c79189ebd1155cf1ecb3ca5f42cd458da24b10c2310 exact_id=b187b20501076555cd472fcfdf61e1b072c7412275e995c4e2c1f812d3754d37
-  generated_exact_type get19 location=enum13 nominal_id=3645c05ab525b7f315200170f16518351639069e6e7bb4defc8b4073c3aa5fd9 exact_id=b6b9015619bbc024431f1ce3e6940b9d95ea0491a88723d22a0416664334b450
+  generated_exact_type get19 location=enum14 nominal_id=3645c05ab525b7f315200170f16518351639069e6e7bb4defc8b4073c3aa5fd9 exact_id=b6b9015619bbc024431f1ce3e6940b9d95ea0491a88723d22a0416664334b450
   generated_exact_type get20 location=closure1 nominal_id=3f14e72164aba8d3d641818198ba1631aed4e6857b1e356ef8f32a63f1fd4cef exact_id=c82d168a2a7b2351af0b297fed341eff73a8996a697217e060fb00d4df4e4970
-  generated_exact_type get21 location=enum12 nominal_id=e3ed49bb7add2d78074b61f5de53b02f18ab403969f87f9993f9ac2896d364e1 exact_id=d167970b41d03cd96883f11424e7be603be88a228bafbaa0b950af0617070493
-  generated_exact_type get22 location=enum11 nominal_id=d8c728411f8072441be83fb376af1792f9f6b76028c4a13a14b7bdc98bbb17bf exact_id=e0015f299db9c2beb1304e0c37aba88fc5d2ae077c85f80c86c1ee165ab3f3ed
+  generated_exact_type get21 location=enum13 nominal_id=e3ed49bb7add2d78074b61f5de53b02f18ab403969f87f9993f9ac2896d364e1 exact_id=d167970b41d03cd96883f11424e7be603be88a228bafbaa0b950af0617070493
+  generated_exact_type get22 location=enum12 nominal_id=d8c728411f8072441be83fb376af1792f9f6b76028c4a13a14b7bdc98bbb17bf exact_id=e0015f299db9c2beb1304e0c37aba88fc5d2ae077c85f80c86c1ee165ab3f3ed
   generated_exact_type get23 location=class35 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get24 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get25 location=class27 nominal_id=cd1ce1bf4e4671f12f40fd1aa8d65e38bdaaeaec1c0ddba257950cd0531b8639 exact_id=f03fdbadd5b88b6dbf9d778d1de48cc95153f929e23130c6d2d7e69970b7e6e1
@@ -168,24 +180,24 @@ Module
   generated_exact_type get27 location=closure7 nominal_id=f4ddf88d69420c82c11212445298fd23736c02ca88bfd1284bed8066b9c3e2f3 exact_id=fad05ed91f008c1b296e70c826df14ecb105bf153c468181a7b01c9cc62e969f
   generated_exact_type get28 location=closure0 nominal_id=decb828fedcc0d84c7eb689973b86ec78badda2a5af35b96ac607e27b4b70857 exact_id=fad1ff272f8166089a38e59db70fb6bfc3cdc32fea616b7ed89fe1c254902e52
   generated_exact_type get29 location=class28 nominal_id=f25679b5e568c98265648620cacf3d6f84781b5af8450b3a1a98784530a7a82d exact_id=febb015014222fe23fa4febced50e78eec792bfa89453d95175f9738c5c4e025
-  generated_callable gc0 function=@fn183 id=0e19c6586f8f2458126476158a96d2b644fb007b5efe50f29296476f67757c4c
-  generated_callable gc1 function=@fn178 id=2052a83b2d0d02eeb56ab827e989b5b4892399f5ab45d3098ae63e1524cb1529
-  generated_callable gc2 function=@fn179 id=312a668d54354a9abad9217b9d9b32d6fc9bee9ea831ac00e158cc22499b96c7
-  generated_callable gc3 function=@fn177 id=467598c148b17766dd37d7a0cf14e69a1c51bc6e4718e55478a1d4dfd117fd4b
-  generated_callable gc4 function=@fn187 id=4cb01565deb760949e152daa346ae98316a4e3bded0301a8361e15c7ba722d8a
-  generated_callable gc5 function=@fn189 id=69ea23a0441f46c681ede390ae86e5fa29c570383dd30c97853743823c323cbb
-  generated_callable gc6 function=@fn192 id=6c2d0b034304e4df378ebbd7a4c5c0124c4a3a57562c441ba640070faf9d4232
-  generated_callable gc7 function=@fn185 id=83149983345dbf2461f09be80d990b6b123d75c991cb2ea2009e4b022ee1778f
-  generated_callable gc8 function=@fn186 id=985e5571cebeda3703e7f4616693596a093f063a89a29acc33e997c7904b5df8
-  generated_callable gc9 function=@fn193 id=9bf1d950b14cfab782dd76d21994531206f1e6962a2d77b02636a5e742847a0a
-  generated_callable gc10 function=@fn188 id=a670e54e62762864511091ba95789dc72663115e0f443a790a6e36811bb6c929
-  generated_callable gc11 function=@fn176 id=aa2ee2f8895b9b7cdc734a24b0037724fc82cc43a01f6890736473aa69c0d001
-  generated_callable gc12 function=@fn191 id=b15244883344ed4ffd871ade90b802167f51b3ef9d83deb55420be746102fbae
-  generated_callable gc13 function=@fn184 id=b2e25d8e3751353a4974326a29a193405a5c84f409746062a7482b328ca18ae6
-  generated_callable gc14 function=@fn181 id=c2e9d2dbd09d954625bce53255b45ee94164317cc3189ad234e63bd3031be475
-  generated_callable gc15 function=@fn182 id=c3d36ca283ad4aed0846c5827cdd6e7eb024a9e6576ceaed867140ca1e24254d
-  generated_callable gc16 function=@fn180 id=c3dab6e2cbf5a645f93ad581c3140b09aa0f066fd380b2b1e8aec7be611fcf4d
-  generated_callable gc17 function=@fn190 id=d98ce490f6dbc30055c8d19ec2b5d4639f3f392c355deb21275d9205c70ce600
+  generated_callable gc0 function=@fn191 id=0e19c6586f8f2458126476158a96d2b644fb007b5efe50f29296476f67757c4c
+  generated_callable gc1 function=@fn186 id=2052a83b2d0d02eeb56ab827e989b5b4892399f5ab45d3098ae63e1524cb1529
+  generated_callable gc2 function=@fn187 id=312a668d54354a9abad9217b9d9b32d6fc9bee9ea831ac00e158cc22499b96c7
+  generated_callable gc3 function=@fn185 id=467598c148b17766dd37d7a0cf14e69a1c51bc6e4718e55478a1d4dfd117fd4b
+  generated_callable gc4 function=@fn195 id=4cb01565deb760949e152daa346ae98316a4e3bded0301a8361e15c7ba722d8a
+  generated_callable gc5 function=@fn197 id=69ea23a0441f46c681ede390ae86e5fa29c570383dd30c97853743823c323cbb
+  generated_callable gc6 function=@fn200 id=6c2d0b034304e4df378ebbd7a4c5c0124c4a3a57562c441ba640070faf9d4232
+  generated_callable gc7 function=@fn193 id=83149983345dbf2461f09be80d990b6b123d75c991cb2ea2009e4b022ee1778f
+  generated_callable gc8 function=@fn194 id=985e5571cebeda3703e7f4616693596a093f063a89a29acc33e997c7904b5df8
+  generated_callable gc9 function=@fn201 id=9bf1d950b14cfab782dd76d21994531206f1e6962a2d77b02636a5e742847a0a
+  generated_callable gc10 function=@fn196 id=a670e54e62762864511091ba95789dc72663115e0f443a790a6e36811bb6c929
+  generated_callable gc11 function=@fn184 id=aa2ee2f8895b9b7cdc734a24b0037724fc82cc43a01f6890736473aa69c0d001
+  generated_callable gc12 function=@fn199 id=b15244883344ed4ffd871ade90b802167f51b3ef9d83deb55420be746102fbae
+  generated_callable gc13 function=@fn192 id=b2e25d8e3751353a4974326a29a193405a5c84f409746062a7482b328ca18ae6
+  generated_callable gc14 function=@fn189 id=c2e9d2dbd09d954625bce53255b45ee94164317cc3189ad234e63bd3031be475
+  generated_callable gc15 function=@fn190 id=c3d36ca283ad4aed0846c5827cdd6e7eb024a9e6576ceaed867140ca1e24254d
+  generated_callable gc16 function=@fn188 id=c3dab6e2cbf5a645f93ad581c3140b09aa0f066fd380b2b1e8aec7be611fcf4d
+  generated_callable gc17 function=@fn198 id=d98ce490f6dbc30055c8d19ec2b5d4639f3f392c355deb21275d9205c70ce600
   fun readInt @fn0(value: Int) -> Int
     bb0 entry
       return
@@ -330,7 +342,7 @@ Module
       assign $new.1
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.1
         Type Int
@@ -347,7 +359,7 @@ Module
       assign $new.2
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.2
         Type Int
@@ -364,7 +376,7 @@ Module
       assign $new.3
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.3
         Type Int
@@ -381,7 +393,7 @@ Module
       val $parameter.third: Reference
         Type Reference
         Local $argument.2
-      call large: Large = @fn155 direct
+      call large: Large = @fn163 direct
         Type Reference
         Local $parameter.first
         Type Reference
@@ -479,7 +491,7 @@ Module
       assign $new.4
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.4
         Type Int
@@ -496,7 +508,7 @@ Module
       assign $new.5
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.5
         Type Int
@@ -634,7 +646,7 @@ Module
       assign $new.6
         Type Reference
         ClassAlloc Reference
-      call @fn138 direct
+      call @fn146 direct
         Type Reference
         Local $new.6
         Type Int
@@ -705,7 +717,7 @@ Module
       assign $new.1
         Type ListIterator<Large>
         ClassAlloc ListIterator<Large>
-      call @fn139 direct
+      call @fn147 direct
         Type ListIterator<Large>
         Local $new.1
         Type List<Large>
@@ -767,7 +779,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external4 direct
+      call external13 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -805,7 +817,7 @@ Module
       val $dependency.parameter.read: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.argument.1
-      call $call.1: Int = @fn15 direct
+      call $call.1: Int = @fn16 direct
         Type Large
         Local $dependency.parameter.seed
         Type (Large) -> Int
@@ -827,7 +839,7 @@ Module
       val $dependency.parameter.read: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.argument.1
-      call $call.1: Int = @fn16 direct
+      call $call.1: Int = @fn17 direct
         Type Payload<Large>
         Local $dependency.parameter.seed
         Type (Payload<Large>) -> Int
@@ -849,7 +861,7 @@ Module
       val $dependency.parameter.read: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.argument.1
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn18 direct
         Type (Reference, Reference)
         Local $dependency.parameter.seed
         Type ((Reference, Reference)) -> Int
@@ -871,7 +883,7 @@ Module
       val $dependency.parameter.read: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.argument.1
-      call $call.1: Int = @fn18 direct
+      call $call.1: Int = @fn19 direct
         Type Unit
         Local $dependency.parameter.seed
         Type (Unit) -> Int
@@ -899,7 +911,7 @@ Module
         FieldAccess 1
           Type ListIterator<Large>
           Local this
-      call $dependency.local.3: Long = @fn19 interface List<Large>[2]
+      call $dependency.local.3: Long = @fn20 interface List<Large>[2]
         Type List<Large>
         FieldAccess 0
           Type ListIterator<Large>
@@ -941,7 +953,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Large = @fn20 interface List<Large>[1]
+      call $dependency.local.1: Large = @fn21 interface List<Large>[1]
         Type List<Large>
         Local $dependency.local.5
         Type Long
@@ -977,7 +989,27 @@ Module
         VariantConstruct Option<Large> v0
           Type Large
           Local $dependency.local.12
-  fun exercise @fn15(seed: Large, read: (Large) -> Int) -> Int
+  fun encode @fn15(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn22 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun exercise @fn16(seed: Large, read: (Large) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: Array<Large>
         Type Array<Large>
@@ -998,7 +1030,7 @@ Module
       val $dependency.local.6: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.4
-      call $dependency.local.7: Int = @fn25 direct
+      call $dependency.local.7: Int = @fn27 direct
         Type Iterable<Large>
         Local $dependency.local.5
         Type (Large) -> Int
@@ -1032,7 +1064,7 @@ Module
       assign $new.1
         Type Sequence<Large>
         ClassAlloc Sequence<Large>
-      call @fn140 direct
+      call @fn148 direct
         Type Sequence<Large>
         Local $new.1
         Type Array<Large>
@@ -1060,7 +1092,7 @@ Module
           CaptureInit field=0
             Type (Large) -> Int
             Local $dependency.local.15
-      call $dependency.local.17: Int = @fn28 direct
+      call $dependency.local.17: Int = @fn30 direct
         Type Iterable<Large>
         Local $dependency.local.14
         Type (Large) -> Int
@@ -1102,7 +1134,7 @@ Module
       val $dependency.local.23: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.21
-      call $dependency.local.24: Int = @fn29 direct
+      call $dependency.local.24: Int = @fn31 direct
         Type Array<Large>
         Local $dependency.local.22
         Type (Large) -> Int
@@ -1136,7 +1168,7 @@ Module
       assign $new.2
         Type Cursor<Large>
         ClassAlloc Cursor<Large>
-      call @fn141 direct
+      call @fn149 direct
         Type Cursor<Large>
         Local $new.2
         Type Array<Large>
@@ -1153,7 +1185,7 @@ Module
       val $dependency.local.32: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.30
-      call $dependency.local.33: Int = @fn30 direct
+      call $dependency.local.33: Int = @fn32 direct
         Type Cursor<Large>
         Local $dependency.local.31
         Type (Large) -> Int
@@ -1187,7 +1219,7 @@ Module
       assign $new.3
         Type Cursor<Large>
         ClassAlloc Cursor<Large>
-      call @fn141 direct
+      call @fn149 direct
         Type Cursor<Large>
         Local $new.3
         Type Array<Large>
@@ -1198,7 +1230,7 @@ Module
       val $dependency.local.39: Cursor<Large>
         Type Cursor<Large>
         Local $dependency.local.38
-      call $dependency.local.40: ValueCursor<Large> = @fn156 direct
+      call $dependency.local.40: ValueCursor<Large> = @fn164 direct
         Type Cursor<Large>
         Local $dependency.local.39
       val $dependency.local.41: (Large) -> Int
@@ -1210,7 +1242,7 @@ Module
       val $dependency.local.43: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.41
-      call $dependency.local.44: Int = @fn31 direct
+      call $dependency.local.44: Int = @fn33 direct
         Type ValueCursor<Large>
         Local $dependency.local.42
         Type (Large) -> Int
@@ -1244,7 +1276,7 @@ Module
       assign $new.4
         Type Cursor<Large>
         ClassAlloc Cursor<Large>
-      call @fn141 direct
+      call @fn149 direct
         Type Cursor<Large>
         Local $new.4
         Type Array<Large>
@@ -1269,7 +1301,7 @@ Module
       val $dependency.local.54: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.52
-      call $dependency.local.55: Int = @fn32 direct
+      call $dependency.local.55: Int = @fn34 direct
         Type EnumCursor<Large>
         Local $dependency.local.53
         Type (Large) -> Int
@@ -1303,7 +1335,7 @@ Module
       assign $new.5
         Type Cursor<Large>
         ClassAlloc Cursor<Large>
-      call @fn141 direct
+      call @fn149 direct
         Type Cursor<Large>
         Local $new.5
         Type Array<Large>
@@ -1317,7 +1349,7 @@ Module
       assign $new.6
         Type DiamondCursor<Large>
         ClassAlloc DiamondCursor<Large>
-      call @fn142 direct
+      call @fn150 direct
         Type DiamondCursor<Large>
         Local $new.6
         Type Cursor<Large>
@@ -1334,7 +1366,7 @@ Module
       val $dependency.local.65: (Large) -> Int
         Type (Large) -> Int
         Local $dependency.local.63
-      call $call.7: Int = @fn33 direct
+      call $call.7: Int = @fn35 direct
         Type DiamondCursor<Large>
         Local $dependency.local.64
         Type (Large) -> Int
@@ -1342,7 +1374,7 @@ Module
       return
         Type Int
         Local $call.7
-  fun exercise @fn16(seed: Payload<Large>, read: (Payload<Large>) -> Int) -> Int
+  fun exercise @fn17(seed: Payload<Large>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: Array<Payload<Large>>
         Type Array<Payload<Large>>
@@ -1363,7 +1395,7 @@ Module
       val $dependency.local.6: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.4
-      call $dependency.local.7: Int = @fn41 direct
+      call $dependency.local.7: Int = @fn43 direct
         Type Iterable<Payload<Large>>
         Local $dependency.local.5
         Type (Payload<Large>) -> Int
@@ -1397,7 +1429,7 @@ Module
       assign $new.1
         Type Sequence<Payload<Large>>
         ClassAlloc Sequence<Payload<Large>>
-      call @fn143 direct
+      call @fn151 direct
         Type Sequence<Payload<Large>>
         Local $new.1
         Type Array<Payload<Large>>
@@ -1425,7 +1457,7 @@ Module
           CaptureInit field=0
             Type (Payload<Large>) -> Int
             Local $dependency.local.15
-      call $dependency.local.17: Int = @fn44 direct
+      call $dependency.local.17: Int = @fn46 direct
         Type Iterable<Payload<Large>>
         Local $dependency.local.14
         Type (Payload<Large>) -> Int
@@ -1467,7 +1499,7 @@ Module
       val $dependency.local.23: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.21
-      call $dependency.local.24: Int = @fn45 direct
+      call $dependency.local.24: Int = @fn47 direct
         Type Array<Payload<Large>>
         Local $dependency.local.22
         Type (Payload<Large>) -> Int
@@ -1501,7 +1533,7 @@ Module
       assign $new.2
         Type Cursor<Payload<Large>>
         ClassAlloc Cursor<Payload<Large>>
-      call @fn144 direct
+      call @fn152 direct
         Type Cursor<Payload<Large>>
         Local $new.2
         Type Array<Payload<Large>>
@@ -1518,7 +1550,7 @@ Module
       val $dependency.local.32: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.30
-      call $dependency.local.33: Int = @fn46 direct
+      call $dependency.local.33: Int = @fn48 direct
         Type Cursor<Payload<Large>>
         Local $dependency.local.31
         Type (Payload<Large>) -> Int
@@ -1552,7 +1584,7 @@ Module
       assign $new.3
         Type Cursor<Payload<Large>>
         ClassAlloc Cursor<Payload<Large>>
-      call @fn144 direct
+      call @fn152 direct
         Type Cursor<Payload<Large>>
         Local $new.3
         Type Array<Payload<Large>>
@@ -1563,7 +1595,7 @@ Module
       val $dependency.local.39: Cursor<Payload<Large>>
         Type Cursor<Payload<Large>>
         Local $dependency.local.38
-      call $dependency.local.40: ValueCursor<Payload<Large>> = @fn157 direct
+      call $dependency.local.40: ValueCursor<Payload<Large>> = @fn165 direct
         Type Cursor<Payload<Large>>
         Local $dependency.local.39
       val $dependency.local.41: (Payload<Large>) -> Int
@@ -1575,7 +1607,7 @@ Module
       val $dependency.local.43: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.41
-      call $dependency.local.44: Int = @fn47 direct
+      call $dependency.local.44: Int = @fn49 direct
         Type ValueCursor<Payload<Large>>
         Local $dependency.local.42
         Type (Payload<Large>) -> Int
@@ -1609,7 +1641,7 @@ Module
       assign $new.4
         Type Cursor<Payload<Large>>
         ClassAlloc Cursor<Payload<Large>>
-      call @fn144 direct
+      call @fn152 direct
         Type Cursor<Payload<Large>>
         Local $new.4
         Type Array<Payload<Large>>
@@ -1634,7 +1666,7 @@ Module
       val $dependency.local.54: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.52
-      call $dependency.local.55: Int = @fn48 direct
+      call $dependency.local.55: Int = @fn50 direct
         Type EnumCursor<Payload<Large>>
         Local $dependency.local.53
         Type (Payload<Large>) -> Int
@@ -1668,7 +1700,7 @@ Module
       assign $new.5
         Type Cursor<Payload<Large>>
         ClassAlloc Cursor<Payload<Large>>
-      call @fn144 direct
+      call @fn152 direct
         Type Cursor<Payload<Large>>
         Local $new.5
         Type Array<Payload<Large>>
@@ -1682,7 +1714,7 @@ Module
       assign $new.6
         Type DiamondCursor<Payload<Large>>
         ClassAlloc DiamondCursor<Payload<Large>>
-      call @fn145 direct
+      call @fn153 direct
         Type DiamondCursor<Payload<Large>>
         Local $new.6
         Type Cursor<Payload<Large>>
@@ -1699,7 +1731,7 @@ Module
       val $dependency.local.65: (Payload<Large>) -> Int
         Type (Payload<Large>) -> Int
         Local $dependency.local.63
-      call $call.7: Int = @fn49 direct
+      call $call.7: Int = @fn51 direct
         Type DiamondCursor<Payload<Large>>
         Local $dependency.local.64
         Type (Payload<Large>) -> Int
@@ -1707,7 +1739,7 @@ Module
       return
         Type Int
         Local $call.7
-  fun exercise @fn17(seed: (Reference, Reference), read: ((Reference, Reference)) -> Int) -> Int
+  fun exercise @fn18(seed: (Reference, Reference), read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: Array<(Reference, Reference)>
         Type Array<(Reference, Reference)>
@@ -1728,7 +1760,7 @@ Module
       val $dependency.local.6: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.4
-      call $dependency.local.7: Int = @fn57 direct
+      call $dependency.local.7: Int = @fn59 direct
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.5
         Type ((Reference, Reference)) -> Int
@@ -1762,7 +1794,7 @@ Module
       assign $new.1
         Type Sequence<(Reference, Reference)>
         ClassAlloc Sequence<(Reference, Reference)>
-      call @fn146 direct
+      call @fn154 direct
         Type Sequence<(Reference, Reference)>
         Local $new.1
         Type Array<(Reference, Reference)>
@@ -1790,7 +1822,7 @@ Module
           CaptureInit field=0
             Type ((Reference, Reference)) -> Int
             Local $dependency.local.15
-      call $dependency.local.17: Int = @fn60 direct
+      call $dependency.local.17: Int = @fn62 direct
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.14
         Type ((Reference, Reference)) -> Int
@@ -1832,7 +1864,7 @@ Module
       val $dependency.local.23: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.21
-      call $dependency.local.24: Int = @fn61 direct
+      call $dependency.local.24: Int = @fn63 direct
         Type Array<(Reference, Reference)>
         Local $dependency.local.22
         Type ((Reference, Reference)) -> Int
@@ -1866,7 +1898,7 @@ Module
       assign $new.2
         Type Cursor<(Reference, Reference)>
         ClassAlloc Cursor<(Reference, Reference)>
-      call @fn147 direct
+      call @fn155 direct
         Type Cursor<(Reference, Reference)>
         Local $new.2
         Type Array<(Reference, Reference)>
@@ -1883,7 +1915,7 @@ Module
       val $dependency.local.32: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.30
-      call $dependency.local.33: Int = @fn62 direct
+      call $dependency.local.33: Int = @fn64 direct
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.31
         Type ((Reference, Reference)) -> Int
@@ -1917,7 +1949,7 @@ Module
       assign $new.3
         Type Cursor<(Reference, Reference)>
         ClassAlloc Cursor<(Reference, Reference)>
-      call @fn147 direct
+      call @fn155 direct
         Type Cursor<(Reference, Reference)>
         Local $new.3
         Type Array<(Reference, Reference)>
@@ -1928,7 +1960,7 @@ Module
       val $dependency.local.39: Cursor<(Reference, Reference)>
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.38
-      call $dependency.local.40: ValueCursor<(Reference, Reference)> = @fn158 direct
+      call $dependency.local.40: ValueCursor<(Reference, Reference)> = @fn166 direct
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.39
       val $dependency.local.41: ((Reference, Reference)) -> Int
@@ -1940,7 +1972,7 @@ Module
       val $dependency.local.43: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.41
-      call $dependency.local.44: Int = @fn63 direct
+      call $dependency.local.44: Int = @fn65 direct
         Type ValueCursor<(Reference, Reference)>
         Local $dependency.local.42
         Type ((Reference, Reference)) -> Int
@@ -1974,7 +2006,7 @@ Module
       assign $new.4
         Type Cursor<(Reference, Reference)>
         ClassAlloc Cursor<(Reference, Reference)>
-      call @fn147 direct
+      call @fn155 direct
         Type Cursor<(Reference, Reference)>
         Local $new.4
         Type Array<(Reference, Reference)>
@@ -1999,7 +2031,7 @@ Module
       val $dependency.local.54: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.52
-      call $dependency.local.55: Int = @fn64 direct
+      call $dependency.local.55: Int = @fn66 direct
         Type EnumCursor<(Reference, Reference)>
         Local $dependency.local.53
         Type ((Reference, Reference)) -> Int
@@ -2033,7 +2065,7 @@ Module
       assign $new.5
         Type Cursor<(Reference, Reference)>
         ClassAlloc Cursor<(Reference, Reference)>
-      call @fn147 direct
+      call @fn155 direct
         Type Cursor<(Reference, Reference)>
         Local $new.5
         Type Array<(Reference, Reference)>
@@ -2047,7 +2079,7 @@ Module
       assign $new.6
         Type DiamondCursor<(Reference, Reference)>
         ClassAlloc DiamondCursor<(Reference, Reference)>
-      call @fn148 direct
+      call @fn156 direct
         Type DiamondCursor<(Reference, Reference)>
         Local $new.6
         Type Cursor<(Reference, Reference)>
@@ -2064,7 +2096,7 @@ Module
       val $dependency.local.65: ((Reference, Reference)) -> Int
         Type ((Reference, Reference)) -> Int
         Local $dependency.local.63
-      call $call.7: Int = @fn65 direct
+      call $call.7: Int = @fn67 direct
         Type DiamondCursor<(Reference, Reference)>
         Local $dependency.local.64
         Type ((Reference, Reference)) -> Int
@@ -2072,7 +2104,7 @@ Module
       return
         Type Int
         Local $call.7
-  fun exercise @fn18(seed: Unit, read: (Unit) -> Int) -> Int
+  fun exercise @fn19(seed: Unit, read: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: Array<Unit>
         Type Array<Unit>
@@ -2093,7 +2125,7 @@ Module
       val $dependency.local.6: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.4
-      call $dependency.local.7: Int = @fn73 direct
+      call $dependency.local.7: Int = @fn77 direct
         Type Iterable<Unit>
         Local $dependency.local.5
         Type (Unit) -> Int
@@ -2127,7 +2159,7 @@ Module
       assign $new.1
         Type Sequence<Unit>
         ClassAlloc Sequence<Unit>
-      call @fn149 direct
+      call @fn157 direct
         Type Sequence<Unit>
         Local $new.1
         Type Array<Unit>
@@ -2155,7 +2187,7 @@ Module
           CaptureInit field=1
             Type (Unit) -> Int
             Local $dependency.local.15
-      call $dependency.local.17: Int = @fn76 direct
+      call $dependency.local.17: Int = @fn80 direct
         Type Iterable<Unit>
         Local $dependency.local.14
         Type (Unit) -> Int
@@ -2197,7 +2229,7 @@ Module
       val $dependency.local.23: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.21
-      call $dependency.local.24: Int = @fn77 direct
+      call $dependency.local.24: Int = @fn81 direct
         Type Array<Unit>
         Local $dependency.local.22
         Type (Unit) -> Int
@@ -2231,7 +2263,7 @@ Module
       assign $new.2
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn150 direct
+      call @fn158 direct
         Type Cursor<Unit>
         Local $new.2
         Type Array<Unit>
@@ -2248,7 +2280,7 @@ Module
       val $dependency.local.32: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.30
-      call $dependency.local.33: Int = @fn78 direct
+      call $dependency.local.33: Int = @fn82 direct
         Type Cursor<Unit>
         Local $dependency.local.31
         Type (Unit) -> Int
@@ -2282,7 +2314,7 @@ Module
       assign $new.3
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn150 direct
+      call @fn158 direct
         Type Cursor<Unit>
         Local $new.3
         Type Array<Unit>
@@ -2293,7 +2325,7 @@ Module
       val $dependency.local.39: Cursor<Unit>
         Type Cursor<Unit>
         Local $dependency.local.38
-      call $dependency.local.40: ValueCursor<Unit> = @fn159 direct
+      call $dependency.local.40: ValueCursor<Unit> = @fn167 direct
         Type Cursor<Unit>
         Local $dependency.local.39
       val $dependency.local.41: (Unit) -> Int
@@ -2305,7 +2337,7 @@ Module
       val $dependency.local.43: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.41
-      call $dependency.local.44: Int = @fn79 direct
+      call $dependency.local.44: Int = @fn83 direct
         Type ValueCursor<Unit>
         Local $dependency.local.42
         Type (Unit) -> Int
@@ -2339,7 +2371,7 @@ Module
       assign $new.4
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn150 direct
+      call @fn158 direct
         Type Cursor<Unit>
         Local $new.4
         Type Array<Unit>
@@ -2364,7 +2396,7 @@ Module
       val $dependency.local.54: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.52
-      call $dependency.local.55: Int = @fn80 direct
+      call $dependency.local.55: Int = @fn84 direct
         Type EnumCursor<Unit>
         Local $dependency.local.53
         Type (Unit) -> Int
@@ -2398,7 +2430,7 @@ Module
       assign $new.5
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn150 direct
+      call @fn158 direct
         Type Cursor<Unit>
         Local $new.5
         Type Array<Unit>
@@ -2412,7 +2444,7 @@ Module
       assign $new.6
         Type DiamondCursor<Unit>
         ClassAlloc DiamondCursor<Unit>
-      call @fn151 direct
+      call @fn159 direct
         Type DiamondCursor<Unit>
         Local $new.6
         Type Cursor<Unit>
@@ -2429,7 +2461,7 @@ Module
       val $dependency.local.65: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.local.63
-      call $call.7: Int = @fn81 direct
+      call $call.7: Int = @fn85 direct
         Type DiamondCursor<Unit>
         Local $dependency.local.64
         Type (Unit) -> Int
@@ -2437,13 +2469,122 @@ Module
       return
         Type Int
         Local $call.7
-  fun List.$get$size @fn19(this: List<Large>) -> Long
+  fun List.$get$size @fn20(this: List<Large>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn20(this: List<Large>, index: Long) -> Large
+  fun List.get @fn21(this: List<Large>, index: Long) -> Large
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun next @fn21(this: Cursor<Large>) -> Option<Large>
+  fun encodeOption @fn22(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str0
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str1
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external7 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external8 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external12 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external9 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun next @fn23(this: Cursor<Large>) -> Option<Large>
     bb0 entry
       call $dependency.local.2: Int = external0 direct
       val $dependency.local.3: Int
@@ -2464,7 +2605,7 @@ Module
         FieldAccess 1
           Type Cursor<Large>
           Local this
-      call $call.1: Array<Large> = @fn82 direct
+      call $call.1: Array<Large> = @fn87 direct
         Type Cursor<Large>
         Local this
       call $dependency.local.6: Long = @fn8 direct
@@ -2485,7 +2626,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Large> = @fn82 direct
+      call $dependency.local.8: Array<Large> = @fn87 direct
         Type Cursor<Large>
         Local this
       val $dependency.local.9: Long
@@ -2536,20 +2677,20 @@ Module
       return
         Type Option<Large>
         VariantConstruct Option<Large> v1
-  fun next @fn22(this: ValueCursor<Large>) -> Option<Large>
+  fun next @fn24(this: ValueCursor<Large>) -> Option<Large>
     bb0 entry
       val $dependency.local.1: Cursor<Large>
         Type Cursor<Large>
         FieldAccess 0
           Type ValueCursor<Large>
           Local this
-      call $call.1: Option<Large> = @fn21 virtual[0]
+      call $call.1: Option<Large> = @fn23 virtual[0]
         Type Cursor<Large>
         Local $dependency.local.1
       return
         Type Option<Large>
         Local $call.1
-  fun next @fn23(this: EnumCursor<Large>) -> Option<Large>
+  fun next @fn25(this: EnumCursor<Large>) -> Option<Large>
     bb0 entry
       val $when.1: EnumCursor<Large>
         Type EnumCursor<Large>
@@ -2571,7 +2712,7 @@ Module
       val $dependency.local.2: Cursor<Large>
         Type Cursor<Large>
         Local $dependency.local.1
-      call $call.1: Option<Large> = @fn21 virtual[0]
+      call $call.1: Option<Large> = @fn23 virtual[0]
         Type Cursor<Large>
         Local $dependency.local.2
       assign $dependency.local.3
@@ -2584,18 +2725,18 @@ Module
       return
         Type Option<Large>
         Local $dependency.local.3
-  fun next @fn24(this: DiamondCursor<Large>) -> Option<Large>
+  fun next @fn26(this: DiamondCursor<Large>) -> Option<Large>
     bb0 entry
-      call $dependency.local.1: Cursor<Large> = @fn83 direct
+      call $dependency.local.1: Cursor<Large> = @fn88 direct
         Type DiamondCursor<Large>
         Local this
-      call $call.1: Option<Large> = @fn21 virtual[0]
+      call $call.1: Option<Large> = @fn23 virtual[0]
         Type Cursor<Large>
         Local $dependency.local.1
       return
         Type Option<Large>
         Local $call.1
-  fun total @fn25(values: Iterable<Large>, read: (Large) -> Int) -> Int
+  fun total @fn27(values: Iterable<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2606,7 +2747,7 @@ Module
       val $dependency.local.5: Iterable<Large>
         Type Iterable<Large>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<Large> = @fn84 interface Iterable<Large>[0]
+      call $dependency.local.6: Iterator<Large> = @fn89 interface Iterable<Large>[0]
         Type Iterable<Large>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<Large>
@@ -2654,7 +2795,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn26(this: Sequence<Large>) -> Iterator<Large>
+  fun iterator @fn28(this: Sequence<Large>) -> Iterator<Large>
     bb0 entry
       call $dependency.local.1: Int = external2 direct
       val $dependency.local.2: Int
@@ -2670,7 +2811,7 @@ Module
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      call $dependency.local.4: Array<Large> = @fn85 direct
+      call $dependency.local.4: Array<Large> = @fn90 direct
         Type Sequence<Large>
         Local this
       val $dependency.local.5: Array<Large>
@@ -2679,7 +2820,7 @@ Module
       assign $new.1
         Type Cursor<Large>
         ClassAlloc Cursor<Large>
-      call @fn141 direct
+      call @fn149 direct
         Type Cursor<Large>
         Local $new.1
         Type Array<Large>
@@ -2689,7 +2830,7 @@ Module
         Retype Iterator<Large>
           Type Cursor<Large>
           Local $new.1
-  fun $lambda @fn27($argument.0: () -> Int) -> Int
+  fun $lambda @fn29($argument.0: () -> Int) -> Int
     bb0 entry
       var $dependency.local.0: Int
         Type Int
@@ -2702,7 +2843,7 @@ Module
       val $dependency.local.3: Iterable<Large>
         Type Iterable<Large>
         Local $dependency.local.2
-      call $dependency.local.4: Iterator<Large> = @fn84 interface Iterable<Large>[0]
+      call $dependency.local.4: Iterator<Large> = @fn89 interface Iterable<Large>[0]
         Type Iterable<Large>
         Local $dependency.local.3
       val $dependency.local.5: Iterator<Large>
@@ -2752,7 +2893,7 @@ Module
           Type Int
           Local $dependency.local.10
       goto bb1
-  fun defaultTotal @fn28(values: Iterable<Large>, read: (Large) -> Int, compute: () -> Int) -> Int
+  fun defaultTotal @fn30(values: Iterable<Large>, read: (Large) -> Int, compute: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -2760,7 +2901,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun totalPack @fn29(values: Array<Large>, read: (Large) -> Int) -> Int
+  fun totalPack @fn31(values: Array<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2819,7 +2960,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun boundTotal @fn30(iterator: Cursor<Large>, read: (Large) -> Int) -> Int
+  fun boundTotal @fn32(iterator: Cursor<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2830,13 +2971,13 @@ Module
       val $dependency.local.5: Cursor<Large>
         Type Cursor<Large>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Large>> = @fn160 direct
+      call $dependency.local.6: Direct<Cursor<Large>> = @fn168 direct
         Type Cursor<Large>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Large>>
         Type Direct<Cursor<Large>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Large> = @fn86 direct
+      call $dependency.local.8: Cursor<Large> = @fn91 direct
         Type Direct<Cursor<Large>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Large>
@@ -2886,7 +3027,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn31(iterator: ValueCursor<Large>, read: (Large) -> Int) -> Int
+  fun boundTotal @fn33(iterator: ValueCursor<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2897,13 +3038,13 @@ Module
       val $dependency.local.5: ValueCursor<Large>
         Type ValueCursor<Large>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<ValueCursor<Large>> = @fn161 direct
+      call $dependency.local.6: Direct<ValueCursor<Large>> = @fn169 direct
         Type ValueCursor<Large>
         Local $dependency.local.5
       val $dependency.local.7: Direct<ValueCursor<Large>>
         Type Direct<ValueCursor<Large>>
         Local $dependency.local.6
-      call $dependency.local.8: ValueCursor<Large> = @fn87 direct
+      call $dependency.local.8: ValueCursor<Large> = @fn92 direct
         Type Direct<ValueCursor<Large>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Large>
@@ -2953,7 +3094,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn32(iterator: EnumCursor<Large>, read: (Large) -> Int) -> Int
+  fun boundTotal @fn34(iterator: EnumCursor<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2964,13 +3105,13 @@ Module
       val $dependency.local.5: EnumCursor<Large>
         Type EnumCursor<Large>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<EnumCursor<Large>> = @fn162 direct
+      call $dependency.local.6: Direct<EnumCursor<Large>> = @fn170 direct
         Type EnumCursor<Large>
         Local $dependency.local.5
       val $dependency.local.7: Direct<EnumCursor<Large>>
         Type Direct<EnumCursor<Large>>
         Local $dependency.local.6
-      call $dependency.local.8: EnumCursor<Large> = @fn88 direct
+      call $dependency.local.8: EnumCursor<Large> = @fn93 direct
         Type Direct<EnumCursor<Large>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Large>
@@ -3020,7 +3161,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun diamondTotal @fn33(iterator: DiamondCursor<Large>, read: (Large) -> Int) -> Int
+  fun diamondTotal @fn35(iterator: DiamondCursor<Large>, read: (Large) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3031,13 +3172,13 @@ Module
       val $dependency.local.5: DiamondCursor<Large>
         Type DiamondCursor<Large>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<DiamondCursor<Large>> = @fn163 direct
+      call $dependency.local.6: Direct<DiamondCursor<Large>> = @fn171 direct
         Type DiamondCursor<Large>
         Local $dependency.local.5
       val $dependency.local.7: Direct<DiamondCursor<Large>>
         Type Direct<DiamondCursor<Large>>
         Local $dependency.local.6
-      call $dependency.local.8: DiamondCursor<Large> = @fn89 direct
+      call $dependency.local.8: DiamondCursor<Large> = @fn94 direct
         Type Direct<DiamondCursor<Large>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Large>
@@ -3087,7 +3228,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun iterator @fn34(this: Array<Payload<Large>>) -> Iterator<Payload<Large>>
+  fun iterator @fn36(this: Array<Payload<Large>>) -> Iterator<Payload<Large>>
     bb0 entry
       val $dependency.local.1: List<Payload<Large>>
         Type List<Payload<Large>>
@@ -3112,7 +3253,7 @@ Module
       assign $new.1
         Type ListIterator<Payload<Large>>
         ClassAlloc ListIterator<Payload<Large>>
-      call @fn152 direct
+      call @fn160 direct
         Type ListIterator<Payload<Large>>
         Local $new.1
         Type List<Payload<Large>>
@@ -3126,7 +3267,7 @@ Module
         Retype Iterator<Payload<Large>>
           Type ListIterator<Payload<Large>>
           Local $new.1
-  fun get @fn35(this: Array<Payload<Large>>, index: Long) -> Payload<Large>
+  fun get @fn37(this: Array<Payload<Large>>, index: Long) -> Payload<Large>
     bb0 entry
       val $dependency.local.2: Array<Payload<Large>>
         Type Array<Payload<Large>>
@@ -3174,7 +3315,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external4 direct
+      call external13 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3188,7 +3329,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn36(this: Array<Payload<Large>>) -> Long
+  fun size @fn38(this: Array<Payload<Large>>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Payload<Large>>
         Type Array<Payload<Large>>
@@ -3198,7 +3339,7 @@ Module
         ArrayLen Array<Payload<Large>>
           Type Array<Payload<Large>>
           Local $dependency.local.1
-  fun next @fn37(this: Cursor<Payload<Large>>) -> Option<Payload<Large>>
+  fun next @fn39(this: Cursor<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
       call $dependency.local.2: Int = external0 direct
       val $dependency.local.3: Int
@@ -3219,10 +3360,10 @@ Module
         FieldAccess 1
           Type Cursor<Payload<Large>>
           Local this
-      call $call.1: Array<Payload<Large>> = @fn91 direct
+      call $call.1: Array<Payload<Large>> = @fn96 direct
         Type Cursor<Payload<Large>>
         Local this
-      call $dependency.local.6: Long = @fn36 direct
+      call $dependency.local.6: Long = @fn38 direct
         Type Array<Payload<Large>>
         Local $call.1
       val $dependency.local.7: Long
@@ -3240,7 +3381,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Payload<Large>> = @fn91 direct
+      call $dependency.local.8: Array<Payload<Large>> = @fn96 direct
         Type Cursor<Payload<Large>>
         Local this
       val $dependency.local.9: Long
@@ -3251,7 +3392,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $dependency.local.1: Payload<Large> = @fn35 direct
+      call $dependency.local.1: Payload<Large> = @fn37 direct
         Type Array<Payload<Large>>
         Local $dependency.local.8
         Type Long
@@ -3291,20 +3432,20 @@ Module
       return
         Type Option<Payload<Large>>
         VariantConstruct Option<Payload<Large>> v1
-  fun next @fn38(this: ValueCursor<Payload<Large>>) -> Option<Payload<Large>>
+  fun next @fn40(this: ValueCursor<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
       val $dependency.local.1: Cursor<Payload<Large>>
         Type Cursor<Payload<Large>>
         FieldAccess 0
           Type ValueCursor<Payload<Large>>
           Local this
-      call $call.1: Option<Payload<Large>> = @fn37 virtual[0]
+      call $call.1: Option<Payload<Large>> = @fn39 virtual[0]
         Type Cursor<Payload<Large>>
         Local $dependency.local.1
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun next @fn39(this: EnumCursor<Payload<Large>>) -> Option<Payload<Large>>
+  fun next @fn41(this: EnumCursor<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
       val $when.1: EnumCursor<Payload<Large>>
         Type EnumCursor<Payload<Large>>
@@ -3326,7 +3467,7 @@ Module
       val $dependency.local.2: Cursor<Payload<Large>>
         Type Cursor<Payload<Large>>
         Local $dependency.local.1
-      call $call.1: Option<Payload<Large>> = @fn37 virtual[0]
+      call $call.1: Option<Payload<Large>> = @fn39 virtual[0]
         Type Cursor<Payload<Large>>
         Local $dependency.local.2
       assign $dependency.local.3
@@ -3339,18 +3480,18 @@ Module
       return
         Type Option<Payload<Large>>
         Local $dependency.local.3
-  fun next @fn40(this: DiamondCursor<Payload<Large>>) -> Option<Payload<Large>>
+  fun next @fn42(this: DiamondCursor<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
-      call $dependency.local.1: Cursor<Payload<Large>> = @fn92 direct
+      call $dependency.local.1: Cursor<Payload<Large>> = @fn97 direct
         Type DiamondCursor<Payload<Large>>
         Local this
-      call $call.1: Option<Payload<Large>> = @fn37 virtual[0]
+      call $call.1: Option<Payload<Large>> = @fn39 virtual[0]
         Type Cursor<Payload<Large>>
         Local $dependency.local.1
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun total @fn41(values: Iterable<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun total @fn43(values: Iterable<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3361,7 +3502,7 @@ Module
       val $dependency.local.5: Iterable<Payload<Large>>
         Type Iterable<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<Payload<Large>> = @fn93 interface Iterable<Payload<Large>>[0]
+      call $dependency.local.6: Iterator<Payload<Large>> = @fn98 interface Iterable<Payload<Large>>[0]
         Type Iterable<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<Payload<Large>>
@@ -3369,7 +3510,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.8: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.7
       branch bb3 bb2
@@ -3409,7 +3550,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn42(this: Sequence<Payload<Large>>) -> Iterator<Payload<Large>>
+  fun iterator @fn44(this: Sequence<Payload<Large>>) -> Iterator<Payload<Large>>
     bb0 entry
       call $dependency.local.1: Int = external2 direct
       val $dependency.local.2: Int
@@ -3425,7 +3566,7 @@ Module
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      call $dependency.local.4: Array<Payload<Large>> = @fn95 direct
+      call $dependency.local.4: Array<Payload<Large>> = @fn100 direct
         Type Sequence<Payload<Large>>
         Local this
       val $dependency.local.5: Array<Payload<Large>>
@@ -3434,7 +3575,7 @@ Module
       assign $new.1
         Type Cursor<Payload<Large>>
         ClassAlloc Cursor<Payload<Large>>
-      call @fn144 direct
+      call @fn152 direct
         Type Cursor<Payload<Large>>
         Local $new.1
         Type Array<Payload<Large>>
@@ -3444,7 +3585,7 @@ Module
         Retype Iterator<Payload<Large>>
           Type Cursor<Payload<Large>>
           Local $new.1
-  fun $lambda @fn43($argument.0: () -> Int) -> Int
+  fun $lambda @fn45($argument.0: () -> Int) -> Int
     bb0 entry
       var $dependency.local.0: Int
         Type Int
@@ -3457,7 +3598,7 @@ Module
       val $dependency.local.3: Iterable<Payload<Large>>
         Type Iterable<Payload<Large>>
         Local $dependency.local.2
-      call $dependency.local.4: Iterator<Payload<Large>> = @fn93 interface Iterable<Payload<Large>>[0]
+      call $dependency.local.4: Iterator<Payload<Large>> = @fn98 interface Iterable<Payload<Large>>[0]
         Type Iterable<Payload<Large>>
         Local $dependency.local.3
       val $dependency.local.5: Iterator<Payload<Large>>
@@ -3465,7 +3606,7 @@ Module
         Local $dependency.local.4
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.6: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.6: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.5
       branch bb3 bb2
@@ -3507,7 +3648,7 @@ Module
           Type Int
           Local $dependency.local.10
       goto bb1
-  fun defaultTotal @fn44(values: Iterable<Payload<Large>>, read: (Payload<Large>) -> Int, compute: () -> Int) -> Int
+  fun defaultTotal @fn46(values: Iterable<Payload<Large>>, read: (Payload<Large>) -> Int, compute: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -3515,7 +3656,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun totalPack @fn45(values: Array<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun totalPack @fn47(values: Array<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3526,7 +3667,7 @@ Module
       val $dependency.local.5: Array<Payload<Large>>
         Type Array<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<Payload<Large>> = @fn34 direct
+      call $dependency.local.6: Iterator<Payload<Large>> = @fn36 direct
         Type Array<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<Payload<Large>>
@@ -3534,7 +3675,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.8: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.7
       branch bb3 bb2
@@ -3574,7 +3715,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun boundTotal @fn46(iterator: Cursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun boundTotal @fn48(iterator: Cursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3585,13 +3726,13 @@ Module
       val $dependency.local.5: Cursor<Payload<Large>>
         Type Cursor<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Payload<Large>>> = @fn164 direct
+      call $dependency.local.6: Direct<Cursor<Payload<Large>>> = @fn172 direct
         Type Cursor<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Payload<Large>>>
         Type Direct<Cursor<Payload<Large>>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Payload<Large>> = @fn96 direct
+      call $dependency.local.8: Cursor<Payload<Large>> = @fn101 direct
         Type Direct<Cursor<Payload<Large>>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Payload<Large>>
@@ -3601,7 +3742,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.10: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.9
       branch bb3 bb2
@@ -3641,7 +3782,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn47(iterator: ValueCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun boundTotal @fn49(iterator: ValueCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3652,13 +3793,13 @@ Module
       val $dependency.local.5: ValueCursor<Payload<Large>>
         Type ValueCursor<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<ValueCursor<Payload<Large>>> = @fn165 direct
+      call $dependency.local.6: Direct<ValueCursor<Payload<Large>>> = @fn173 direct
         Type ValueCursor<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Direct<ValueCursor<Payload<Large>>>
         Type Direct<ValueCursor<Payload<Large>>>
         Local $dependency.local.6
-      call $dependency.local.8: ValueCursor<Payload<Large>> = @fn97 direct
+      call $dependency.local.8: ValueCursor<Payload<Large>> = @fn102 direct
         Type Direct<ValueCursor<Payload<Large>>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Payload<Large>>
@@ -3668,7 +3809,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.10: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.9
       branch bb3 bb2
@@ -3708,7 +3849,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn48(iterator: EnumCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun boundTotal @fn50(iterator: EnumCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3719,13 +3860,13 @@ Module
       val $dependency.local.5: EnumCursor<Payload<Large>>
         Type EnumCursor<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<EnumCursor<Payload<Large>>> = @fn166 direct
+      call $dependency.local.6: Direct<EnumCursor<Payload<Large>>> = @fn174 direct
         Type EnumCursor<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Direct<EnumCursor<Payload<Large>>>
         Type Direct<EnumCursor<Payload<Large>>>
         Local $dependency.local.6
-      call $dependency.local.8: EnumCursor<Payload<Large>> = @fn98 direct
+      call $dependency.local.8: EnumCursor<Payload<Large>> = @fn103 direct
         Type Direct<EnumCursor<Payload<Large>>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Payload<Large>>
@@ -3735,7 +3876,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.10: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.9
       branch bb3 bb2
@@ -3775,7 +3916,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun diamondTotal @fn49(iterator: DiamondCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
+  fun diamondTotal @fn51(iterator: DiamondCursor<Payload<Large>>, read: (Payload<Large>) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -3786,13 +3927,13 @@ Module
       val $dependency.local.5: DiamondCursor<Payload<Large>>
         Type DiamondCursor<Payload<Large>>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<DiamondCursor<Payload<Large>>> = @fn167 direct
+      call $dependency.local.6: Direct<DiamondCursor<Payload<Large>>> = @fn175 direct
         Type DiamondCursor<Payload<Large>>
         Local $dependency.local.5
       val $dependency.local.7: Direct<DiamondCursor<Payload<Large>>>
         Type Direct<DiamondCursor<Payload<Large>>>
         Local $dependency.local.6
-      call $dependency.local.8: DiamondCursor<Payload<Large>> = @fn99 direct
+      call $dependency.local.8: DiamondCursor<Payload<Large>> = @fn104 direct
         Type Direct<DiamondCursor<Payload<Large>>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Payload<Large>>
@@ -3802,7 +3943,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Payload<Large>> = @fn94 interface Iterator<Payload<Large>>[0]
+      call $dependency.local.10: Option<Payload<Large>> = @fn99 interface Iterator<Payload<Large>>[0]
         Type Iterator<Payload<Large>>
         Local $dependency.local.9
       branch bb3 bb2
@@ -3842,7 +3983,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun iterator @fn50(this: Array<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
+  fun iterator @fn52(this: Array<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
     bb0 entry
       val $dependency.local.1: List<(Reference, Reference)>
         Type List<(Reference, Reference)>
@@ -3867,7 +4008,7 @@ Module
       assign $new.1
         Type ListIterator<(Reference, Reference)>
         ClassAlloc ListIterator<(Reference, Reference)>
-      call @fn153 direct
+      call @fn161 direct
         Type ListIterator<(Reference, Reference)>
         Local $new.1
         Type List<(Reference, Reference)>
@@ -3881,7 +4022,7 @@ Module
         Retype Iterator<(Reference, Reference)>
           Type ListIterator<(Reference, Reference)>
           Local $new.1
-  fun get @fn51(this: Array<(Reference, Reference)>, index: Long) -> (Reference, Reference)
+  fun get @fn53(this: Array<(Reference, Reference)>, index: Long) -> (Reference, Reference)
     bb0 entry
       val $dependency.local.2: Array<(Reference, Reference)>
         Type Array<(Reference, Reference)>
@@ -3929,7 +4070,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external4 direct
+      call external13 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3943,7 +4084,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn52(this: Array<(Reference, Reference)>) -> Long
+  fun size @fn54(this: Array<(Reference, Reference)>) -> Long
     bb0 entry
       val $dependency.local.1: Array<(Reference, Reference)>
         Type Array<(Reference, Reference)>
@@ -3953,7 +4094,7 @@ Module
         ArrayLen Array<(Reference, Reference)>
           Type Array<(Reference, Reference)>
           Local $dependency.local.1
-  fun next @fn53(this: Cursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun next @fn55(this: Cursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
       call $dependency.local.2: Int = external0 direct
       val $dependency.local.3: Int
@@ -3974,10 +4115,10 @@ Module
         FieldAccess 1
           Type Cursor<(Reference, Reference)>
           Local this
-      call $call.1: Array<(Reference, Reference)> = @fn101 direct
+      call $call.1: Array<(Reference, Reference)> = @fn106 direct
         Type Cursor<(Reference, Reference)>
         Local this
-      call $dependency.local.6: Long = @fn52 direct
+      call $dependency.local.6: Long = @fn54 direct
         Type Array<(Reference, Reference)>
         Local $call.1
       val $dependency.local.7: Long
@@ -3995,7 +4136,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<(Reference, Reference)> = @fn101 direct
+      call $dependency.local.8: Array<(Reference, Reference)> = @fn106 direct
         Type Cursor<(Reference, Reference)>
         Local this
       val $dependency.local.9: Long
@@ -4006,7 +4147,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $dependency.local.1: (Reference, Reference) = @fn51 direct
+      call $dependency.local.1: (Reference, Reference) = @fn53 direct
         Type Array<(Reference, Reference)>
         Local $dependency.local.8
         Type Long
@@ -4046,20 +4187,20 @@ Module
       return
         Type Option<(Reference, Reference)>
         VariantConstruct Option<(Reference, Reference)> v1
-  fun next @fn54(this: ValueCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun next @fn56(this: ValueCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
       val $dependency.local.1: Cursor<(Reference, Reference)>
         Type Cursor<(Reference, Reference)>
         FieldAccess 0
           Type ValueCursor<(Reference, Reference)>
           Local this
-      call $call.1: Option<(Reference, Reference)> = @fn53 virtual[0]
+      call $call.1: Option<(Reference, Reference)> = @fn55 virtual[0]
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.1
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun next @fn55(this: EnumCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun next @fn57(this: EnumCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
       val $when.1: EnumCursor<(Reference, Reference)>
         Type EnumCursor<(Reference, Reference)>
@@ -4081,7 +4222,7 @@ Module
       val $dependency.local.2: Cursor<(Reference, Reference)>
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.1
-      call $call.1: Option<(Reference, Reference)> = @fn53 virtual[0]
+      call $call.1: Option<(Reference, Reference)> = @fn55 virtual[0]
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.2
       assign $dependency.local.3
@@ -4094,18 +4235,18 @@ Module
       return
         Type Option<(Reference, Reference)>
         Local $dependency.local.3
-  fun next @fn56(this: DiamondCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun next @fn58(this: DiamondCursor<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
-      call $dependency.local.1: Cursor<(Reference, Reference)> = @fn102 direct
+      call $dependency.local.1: Cursor<(Reference, Reference)> = @fn107 direct
         Type DiamondCursor<(Reference, Reference)>
         Local this
-      call $call.1: Option<(Reference, Reference)> = @fn53 virtual[0]
+      call $call.1: Option<(Reference, Reference)> = @fn55 virtual[0]
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.1
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun total @fn57(values: Iterable<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun total @fn59(values: Iterable<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4116,7 +4257,7 @@ Module
       val $dependency.local.5: Iterable<(Reference, Reference)>
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<(Reference, Reference)> = @fn103 interface Iterable<(Reference, Reference)>[0]
+      call $dependency.local.6: Iterator<(Reference, Reference)> = @fn108 interface Iterable<(Reference, Reference)>[0]
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<(Reference, Reference)>
@@ -4124,7 +4265,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.8: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.7
       branch bb3 bb2
@@ -4164,7 +4305,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn58(this: Sequence<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
+  fun iterator @fn60(this: Sequence<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
     bb0 entry
       call $dependency.local.1: Int = external2 direct
       val $dependency.local.2: Int
@@ -4180,7 +4321,7 @@ Module
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      call $dependency.local.4: Array<(Reference, Reference)> = @fn105 direct
+      call $dependency.local.4: Array<(Reference, Reference)> = @fn110 direct
         Type Sequence<(Reference, Reference)>
         Local this
       val $dependency.local.5: Array<(Reference, Reference)>
@@ -4189,7 +4330,7 @@ Module
       assign $new.1
         Type Cursor<(Reference, Reference)>
         ClassAlloc Cursor<(Reference, Reference)>
-      call @fn147 direct
+      call @fn155 direct
         Type Cursor<(Reference, Reference)>
         Local $new.1
         Type Array<(Reference, Reference)>
@@ -4199,7 +4340,7 @@ Module
         Retype Iterator<(Reference, Reference)>
           Type Cursor<(Reference, Reference)>
           Local $new.1
-  fun $lambda @fn59($argument.0: () -> Int) -> Int
+  fun $lambda @fn61($argument.0: () -> Int) -> Int
     bb0 entry
       var $dependency.local.0: Int
         Type Int
@@ -4212,7 +4353,7 @@ Module
       val $dependency.local.3: Iterable<(Reference, Reference)>
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.2
-      call $dependency.local.4: Iterator<(Reference, Reference)> = @fn103 interface Iterable<(Reference, Reference)>[0]
+      call $dependency.local.4: Iterator<(Reference, Reference)> = @fn108 interface Iterable<(Reference, Reference)>[0]
         Type Iterable<(Reference, Reference)>
         Local $dependency.local.3
       val $dependency.local.5: Iterator<(Reference, Reference)>
@@ -4220,7 +4361,7 @@ Module
         Local $dependency.local.4
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.6: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.6: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.5
       branch bb3 bb2
@@ -4262,7 +4403,7 @@ Module
           Type Int
           Local $dependency.local.10
       goto bb1
-  fun defaultTotal @fn60(values: Iterable<(Reference, Reference)>, read: ((Reference, Reference)) -> Int, compute: () -> Int) -> Int
+  fun defaultTotal @fn62(values: Iterable<(Reference, Reference)>, read: ((Reference, Reference)) -> Int, compute: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -4270,7 +4411,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun totalPack @fn61(values: Array<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun totalPack @fn63(values: Array<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4281,7 +4422,7 @@ Module
       val $dependency.local.5: Array<(Reference, Reference)>
         Type Array<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<(Reference, Reference)> = @fn50 direct
+      call $dependency.local.6: Iterator<(Reference, Reference)> = @fn52 direct
         Type Array<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<(Reference, Reference)>
@@ -4289,7 +4430,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.8: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.7
       branch bb3 bb2
@@ -4329,7 +4470,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun boundTotal @fn62(iterator: Cursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun boundTotal @fn64(iterator: Cursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4340,13 +4481,13 @@ Module
       val $dependency.local.5: Cursor<(Reference, Reference)>
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<(Reference, Reference)>> = @fn168 direct
+      call $dependency.local.6: Direct<Cursor<(Reference, Reference)>> = @fn176 direct
         Type Cursor<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<(Reference, Reference)>>
         Type Direct<Cursor<(Reference, Reference)>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<(Reference, Reference)> = @fn106 direct
+      call $dependency.local.8: Cursor<(Reference, Reference)> = @fn111 direct
         Type Direct<Cursor<(Reference, Reference)>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<(Reference, Reference)>
@@ -4356,7 +4497,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.10: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.9
       branch bb3 bb2
@@ -4396,7 +4537,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn63(iterator: ValueCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun boundTotal @fn65(iterator: ValueCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4407,13 +4548,13 @@ Module
       val $dependency.local.5: ValueCursor<(Reference, Reference)>
         Type ValueCursor<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<ValueCursor<(Reference, Reference)>> = @fn169 direct
+      call $dependency.local.6: Direct<ValueCursor<(Reference, Reference)>> = @fn177 direct
         Type ValueCursor<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Direct<ValueCursor<(Reference, Reference)>>
         Type Direct<ValueCursor<(Reference, Reference)>>
         Local $dependency.local.6
-      call $dependency.local.8: ValueCursor<(Reference, Reference)> = @fn107 direct
+      call $dependency.local.8: ValueCursor<(Reference, Reference)> = @fn112 direct
         Type Direct<ValueCursor<(Reference, Reference)>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<(Reference, Reference)>
@@ -4423,7 +4564,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.10: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.9
       branch bb3 bb2
@@ -4463,7 +4604,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn64(iterator: EnumCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun boundTotal @fn66(iterator: EnumCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4474,13 +4615,13 @@ Module
       val $dependency.local.5: EnumCursor<(Reference, Reference)>
         Type EnumCursor<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<EnumCursor<(Reference, Reference)>> = @fn170 direct
+      call $dependency.local.6: Direct<EnumCursor<(Reference, Reference)>> = @fn178 direct
         Type EnumCursor<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Direct<EnumCursor<(Reference, Reference)>>
         Type Direct<EnumCursor<(Reference, Reference)>>
         Local $dependency.local.6
-      call $dependency.local.8: EnumCursor<(Reference, Reference)> = @fn108 direct
+      call $dependency.local.8: EnumCursor<(Reference, Reference)> = @fn113 direct
         Type Direct<EnumCursor<(Reference, Reference)>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<(Reference, Reference)>
@@ -4490,7 +4631,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.10: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.9
       branch bb3 bb2
@@ -4530,7 +4671,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun diamondTotal @fn65(iterator: DiamondCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
+  fun diamondTotal @fn67(iterator: DiamondCursor<(Reference, Reference)>, read: ((Reference, Reference)) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4541,13 +4682,13 @@ Module
       val $dependency.local.5: DiamondCursor<(Reference, Reference)>
         Type DiamondCursor<(Reference, Reference)>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<DiamondCursor<(Reference, Reference)>> = @fn171 direct
+      call $dependency.local.6: Direct<DiamondCursor<(Reference, Reference)>> = @fn179 direct
         Type DiamondCursor<(Reference, Reference)>
         Local $dependency.local.5
       val $dependency.local.7: Direct<DiamondCursor<(Reference, Reference)>>
         Type Direct<DiamondCursor<(Reference, Reference)>>
         Local $dependency.local.6
-      call $dependency.local.8: DiamondCursor<(Reference, Reference)> = @fn109 direct
+      call $dependency.local.8: DiamondCursor<(Reference, Reference)> = @fn114 direct
         Type Direct<DiamondCursor<(Reference, Reference)>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<(Reference, Reference)>
@@ -4557,7 +4698,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<(Reference, Reference)> = @fn104 interface Iterator<(Reference, Reference)>[0]
+      call $dependency.local.10: Option<(Reference, Reference)> = @fn109 interface Iterator<(Reference, Reference)>[0]
         Type Iterator<(Reference, Reference)>
         Local $dependency.local.9
       branch bb3 bb2
@@ -4597,7 +4738,27 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun iterator @fn66(this: Array<Unit>) -> Iterator<Unit>
+  fun encode @fn68(this: Option<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Unit>
+        Type Option<Unit>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Unit>
+        Type Option<Unit>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn115 direct
+        Type Option<Unit>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun iterator @fn69(this: Array<Unit>) -> Iterator<Unit>
     bb0 entry
       val $dependency.local.1: List<Unit>
         Type List<Unit>
@@ -4622,7 +4783,7 @@ Module
       assign $new.1
         Type ListIterator<Unit>
         ClassAlloc ListIterator<Unit>
-      call @fn154 direct
+      call @fn162 direct
         Type ListIterator<Unit>
         Local $new.1
         Type List<Unit>
@@ -4636,7 +4797,7 @@ Module
         Retype Iterator<Unit>
           Type ListIterator<Unit>
           Local $new.1
-  fun get @fn67(this: Array<Unit>, index: Long) -> Unit
+  fun get @fn70(this: Array<Unit>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Array<Unit>
         Type Array<Unit>
@@ -4684,7 +4845,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external4 direct
+      call external13 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -4698,7 +4859,7 @@ Module
         Type Long
         Local $idx.2
       return
-  fun size @fn68(this: Array<Unit>) -> Long
+  fun size @fn71(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
         Type Array<Unit>
@@ -4708,7 +4869,29 @@ Module
         ArrayLen Array<Unit>
           Type Array<Unit>
           Local $dependency.local.1
-  fun next @fn69(this: Cursor<Unit>) -> Option<Unit>
+  fun encode @fn72(this: Array<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: List<Unit>
+        Type List<Unit>
+        Retype List<Unit>
+          Type Array<Unit>
+          Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: List<Unit>
+        Type List<Unit>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn117 direct
+        Type List<Unit>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun next @fn73(this: Cursor<Unit>) -> Option<Unit>
     bb0 entry
       call $dependency.local.2: Int = external0 direct
       val $dependency.local.3: Int
@@ -4729,10 +4912,10 @@ Module
         FieldAccess 1
           Type Cursor<Unit>
           Local this
-      call $call.1: Array<Unit> = @fn111 direct
+      call $call.1: Array<Unit> = @fn118 direct
         Type Cursor<Unit>
         Local this
-      call $dependency.local.6: Long = @fn68 direct
+      call $dependency.local.6: Long = @fn71 direct
         Type Array<Unit>
         Local $call.1
       val $dependency.local.7: Long
@@ -4750,7 +4933,7 @@ Module
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
     bb1 if.then.1
-      call $dependency.local.8: Array<Unit> = @fn111 direct
+      call $dependency.local.8: Array<Unit> = @fn118 direct
         Type Cursor<Unit>
         Local this
       val $dependency.local.9: Long
@@ -4761,7 +4944,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call @fn67 direct
+      call @fn70 direct
         Type Array<Unit>
         Local $dependency.local.8
         Type Long
@@ -4804,20 +4987,20 @@ Module
       return
         Type Option<Unit>
         VariantConstruct Option<Unit> v1
-  fun next @fn70(this: ValueCursor<Unit>) -> Option<Unit>
+  fun next @fn74(this: ValueCursor<Unit>) -> Option<Unit>
     bb0 entry
       val $dependency.local.1: Cursor<Unit>
         Type Cursor<Unit>
         FieldAccess 0
           Type ValueCursor<Unit>
           Local this
-      call $call.1: Option<Unit> = @fn69 virtual[0]
+      call $call.1: Option<Unit> = @fn73 virtual[0]
         Type Cursor<Unit>
         Local $dependency.local.1
       return
         Type Option<Unit>
         Local $call.1
-  fun next @fn71(this: EnumCursor<Unit>) -> Option<Unit>
+  fun next @fn75(this: EnumCursor<Unit>) -> Option<Unit>
     bb0 entry
       val $when.1: EnumCursor<Unit>
         Type EnumCursor<Unit>
@@ -4839,7 +5022,7 @@ Module
       val $dependency.local.2: Cursor<Unit>
         Type Cursor<Unit>
         Local $dependency.local.1
-      call $call.1: Option<Unit> = @fn69 virtual[0]
+      call $call.1: Option<Unit> = @fn73 virtual[0]
         Type Cursor<Unit>
         Local $dependency.local.2
       assign $dependency.local.3
@@ -4852,18 +5035,18 @@ Module
       return
         Type Option<Unit>
         Local $dependency.local.3
-  fun next @fn72(this: DiamondCursor<Unit>) -> Option<Unit>
+  fun next @fn76(this: DiamondCursor<Unit>) -> Option<Unit>
     bb0 entry
-      call $dependency.local.1: Cursor<Unit> = @fn112 direct
+      call $dependency.local.1: Cursor<Unit> = @fn119 direct
         Type DiamondCursor<Unit>
         Local this
-      call $call.1: Option<Unit> = @fn69 virtual[0]
+      call $call.1: Option<Unit> = @fn73 virtual[0]
         Type Cursor<Unit>
         Local $dependency.local.1
       return
         Type Option<Unit>
         Local $call.1
-  fun total @fn73(values: Iterable<Unit>, read: (Unit) -> Int) -> Int
+  fun total @fn77(values: Iterable<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -4874,7 +5057,7 @@ Module
       val $dependency.local.5: Iterable<Unit>
         Type Iterable<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<Unit> = @fn113 interface Iterable<Unit>[0]
+      call $dependency.local.6: Iterator<Unit> = @fn120 interface Iterable<Unit>[0]
         Type Iterable<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<Unit>
@@ -4882,7 +5065,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.8: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.7
       branch bb3 bb2
@@ -4922,7 +5105,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn74(this: Sequence<Unit>) -> Iterator<Unit>
+  fun iterator @fn78(this: Sequence<Unit>) -> Iterator<Unit>
     bb0 entry
       call $dependency.local.1: Int = external2 direct
       val $dependency.local.2: Int
@@ -4938,7 +5121,7 @@ Module
           Local $dependency.local.1
           Type Int
           Local $dependency.local.3
-      call $dependency.local.4: Array<Unit> = @fn115 direct
+      call $dependency.local.4: Array<Unit> = @fn122 direct
         Type Sequence<Unit>
         Local this
       val $dependency.local.5: Array<Unit>
@@ -4947,7 +5130,7 @@ Module
       assign $new.1
         Type Cursor<Unit>
         ClassAlloc Cursor<Unit>
-      call @fn150 direct
+      call @fn158 direct
         Type Cursor<Unit>
         Local $new.1
         Type Array<Unit>
@@ -4957,7 +5140,7 @@ Module
         Retype Iterator<Unit>
           Type Cursor<Unit>
           Local $new.1
-  fun $lambda @fn75($argument.0: () -> Int) -> Int
+  fun $lambda @fn79($argument.0: () -> Int) -> Int
     bb0 entry
       var $dependency.local.0: Int
         Type Int
@@ -4970,7 +5153,7 @@ Module
       val $dependency.local.3: Iterable<Unit>
         Type Iterable<Unit>
         Local $dependency.local.2
-      call $dependency.local.4: Iterator<Unit> = @fn113 interface Iterable<Unit>[0]
+      call $dependency.local.4: Iterator<Unit> = @fn120 interface Iterable<Unit>[0]
         Type Iterable<Unit>
         Local $dependency.local.3
       val $dependency.local.5: Iterator<Unit>
@@ -4978,7 +5161,7 @@ Module
         Local $dependency.local.4
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.6: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.6: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.5
       branch bb3 bb2
@@ -5020,7 +5203,7 @@ Module
           Type Int
           Local $dependency.local.10
       goto bb1
-  fun defaultTotal @fn76(values: Iterable<Unit>, read: (Unit) -> Int, compute: () -> Int) -> Int
+  fun defaultTotal @fn80(values: Iterable<Unit>, read: (Unit) -> Int, compute: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -5028,7 +5211,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun totalPack @fn77(values: Array<Unit>, read: (Unit) -> Int) -> Int
+  fun totalPack @fn81(values: Array<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -5039,7 +5222,7 @@ Module
       val $dependency.local.5: Array<Unit>
         Type Array<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Iterator<Unit> = @fn66 direct
+      call $dependency.local.6: Iterator<Unit> = @fn69 direct
         Type Array<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Iterator<Unit>
@@ -5047,7 +5230,7 @@ Module
         Local $dependency.local.6
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.8: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.8: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.7
       branch bb3 bb2
@@ -5087,7 +5270,7 @@ Module
           Type Int
           Local $dependency.local.12
       goto bb1
-  fun boundTotal @fn78(iterator: Cursor<Unit>, read: (Unit) -> Int) -> Int
+  fun boundTotal @fn82(iterator: Cursor<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -5098,13 +5281,13 @@ Module
       val $dependency.local.5: Cursor<Unit>
         Type Cursor<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<Cursor<Unit>> = @fn172 direct
+      call $dependency.local.6: Direct<Cursor<Unit>> = @fn180 direct
         Type Cursor<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Direct<Cursor<Unit>>
         Type Direct<Cursor<Unit>>
         Local $dependency.local.6
-      call $dependency.local.8: Cursor<Unit> = @fn116 direct
+      call $dependency.local.8: Cursor<Unit> = @fn123 direct
         Type Direct<Cursor<Unit>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Unit>
@@ -5114,7 +5297,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.10: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.9
       branch bb3 bb2
@@ -5154,7 +5337,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn79(iterator: ValueCursor<Unit>, read: (Unit) -> Int) -> Int
+  fun boundTotal @fn83(iterator: ValueCursor<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -5165,13 +5348,13 @@ Module
       val $dependency.local.5: ValueCursor<Unit>
         Type ValueCursor<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<ValueCursor<Unit>> = @fn173 direct
+      call $dependency.local.6: Direct<ValueCursor<Unit>> = @fn181 direct
         Type ValueCursor<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Direct<ValueCursor<Unit>>
         Type Direct<ValueCursor<Unit>>
         Local $dependency.local.6
-      call $dependency.local.8: ValueCursor<Unit> = @fn117 direct
+      call $dependency.local.8: ValueCursor<Unit> = @fn124 direct
         Type Direct<ValueCursor<Unit>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Unit>
@@ -5181,7 +5364,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.10: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.9
       branch bb3 bb2
@@ -5221,7 +5404,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun boundTotal @fn80(iterator: EnumCursor<Unit>, read: (Unit) -> Int) -> Int
+  fun boundTotal @fn84(iterator: EnumCursor<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -5232,13 +5415,13 @@ Module
       val $dependency.local.5: EnumCursor<Unit>
         Type EnumCursor<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<EnumCursor<Unit>> = @fn174 direct
+      call $dependency.local.6: Direct<EnumCursor<Unit>> = @fn182 direct
         Type EnumCursor<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Direct<EnumCursor<Unit>>
         Type Direct<EnumCursor<Unit>>
         Local $dependency.local.6
-      call $dependency.local.8: EnumCursor<Unit> = @fn118 direct
+      call $dependency.local.8: EnumCursor<Unit> = @fn125 direct
         Type Direct<EnumCursor<Unit>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Unit>
@@ -5248,7 +5431,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.10: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.9
       branch bb3 bb2
@@ -5288,7 +5471,7 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun diamondTotal @fn81(iterator: DiamondCursor<Unit>, read: (Unit) -> Int) -> Int
+  fun diamondTotal @fn85(iterator: DiamondCursor<Unit>, read: (Unit) -> Int) -> Int
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -5299,13 +5482,13 @@ Module
       val $dependency.local.5: DiamondCursor<Unit>
         Type DiamondCursor<Unit>
         Local $dependency.local.4
-      call $dependency.local.6: Direct<DiamondCursor<Unit>> = @fn175 direct
+      call $dependency.local.6: Direct<DiamondCursor<Unit>> = @fn183 direct
         Type DiamondCursor<Unit>
         Local $dependency.local.5
       val $dependency.local.7: Direct<DiamondCursor<Unit>>
         Type Direct<DiamondCursor<Unit>>
         Local $dependency.local.6
-      call $dependency.local.8: DiamondCursor<Unit> = @fn119 direct
+      call $dependency.local.8: DiamondCursor<Unit> = @fn126 direct
         Type Direct<DiamondCursor<Unit>>
         Local $dependency.local.7
       val $dependency.local.9: Iterator<Unit>
@@ -5315,7 +5498,7 @@ Module
           Local $dependency.local.8
       goto bb1
     bb1 while.cond.1 <loop-header-poll>
-      call $dependency.local.10: Option<Unit> = @fn114 interface Iterator<Unit>[0]
+      call $dependency.local.10: Option<Unit> = @fn121 interface Iterator<Unit>[0]
         Type Iterator<Unit>
         Local $dependency.local.9
       branch bb3 bb2
@@ -5355,59 +5538,79 @@ Module
           Type Int
           Local $dependency.local.14
       goto bb1
-  fun values @fn82(this: Cursor<Large>) -> Array<Large>
+  fun encode @fn86(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn127 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun values @fn87(this: Cursor<Large>) -> Array<Large>
     bb0 entry
       return
         Type Array<Large>
         FieldAccess 0
           Type Cursor<Large>
           Local this
-  fun inner @fn83(this: DiamondCursor<Large>) -> Cursor<Large>
+  fun inner @fn88(this: DiamondCursor<Large>) -> Cursor<Large>
     bb0 entry
       return
         Type Cursor<Large>
         FieldAccess 0
           Type DiamondCursor<Large>
           Local this
-  fun Iterable.iterator @fn84(this: Iterable<Large>) -> Iterator<Large>
+  fun Iterable.iterator @fn89(this: Iterable<Large>) -> Iterator<Large>
     bb0 entry
       trap "call to abstract method `Iterable.iterator`"
-  fun values @fn85(this: Sequence<Large>) -> Array<Large>
+  fun values @fn90(this: Sequence<Large>) -> Array<Large>
     bb0 entry
       return
         Type Array<Large>
         FieldAccess 0
           Type Sequence<Large>
           Local this
-  fun iterator @fn86(this: Direct<Cursor<Large>>) -> Cursor<Large>
+  fun iterator @fn91(this: Direct<Cursor<Large>>) -> Cursor<Large>
     bb0 entry
       return
         Type Cursor<Large>
         FieldAccess 0
           Type Direct<Cursor<Large>>
           Local this
-  fun iterator @fn87(this: Direct<ValueCursor<Large>>) -> ValueCursor<Large>
+  fun iterator @fn92(this: Direct<ValueCursor<Large>>) -> ValueCursor<Large>
     bb0 entry
       return
         Type ValueCursor<Large>
         FieldAccess 0
           Type Direct<ValueCursor<Large>>
           Local this
-  fun iterator @fn88(this: Direct<EnumCursor<Large>>) -> EnumCursor<Large>
+  fun iterator @fn93(this: Direct<EnumCursor<Large>>) -> EnumCursor<Large>
     bb0 entry
       return
         Type EnumCursor<Large>
         FieldAccess 0
           Type Direct<EnumCursor<Large>>
           Local this
-  fun iterator @fn89(this: Direct<DiamondCursor<Large>>) -> DiamondCursor<Large>
+  fun iterator @fn94(this: Direct<DiamondCursor<Large>>) -> DiamondCursor<Large>
     bb0 entry
       return
         Type DiamondCursor<Large>
         FieldAccess 0
           Type Direct<DiamondCursor<Large>>
           Local this
-  fun next @fn90(this: ListIterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun next @fn95(this: ListIterator<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5424,7 +5627,7 @@ Module
         FieldAccess 1
           Type ListIterator<Payload<Large>>
           Local this
-      call $dependency.local.3: Long = @fn120 interface List<Payload<Large>>[2]
+      call $dependency.local.3: Long = @fn128 interface List<Payload<Large>>[2]
         Type List<Payload<Large>>
         FieldAccess 0
           Type ListIterator<Payload<Large>>
@@ -5466,7 +5669,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Payload<Large> = @fn121 interface List<Payload<Large>>[1]
+      call $dependency.local.1: Payload<Large> = @fn129 interface List<Payload<Large>>[1]
         Type List<Payload<Large>>
         Local $dependency.local.5
         Type Long
@@ -5502,62 +5705,62 @@ Module
         VariantConstruct Option<Payload<Large>> v0
           Type Payload<Large>
           Local $dependency.local.12
-  fun values @fn91(this: Cursor<Payload<Large>>) -> Array<Payload<Large>>
+  fun values @fn96(this: Cursor<Payload<Large>>) -> Array<Payload<Large>>
     bb0 entry
       return
         Type Array<Payload<Large>>
         FieldAccess 0
           Type Cursor<Payload<Large>>
           Local this
-  fun inner @fn92(this: DiamondCursor<Payload<Large>>) -> Cursor<Payload<Large>>
+  fun inner @fn97(this: DiamondCursor<Payload<Large>>) -> Cursor<Payload<Large>>
     bb0 entry
       return
         Type Cursor<Payload<Large>>
         FieldAccess 0
           Type DiamondCursor<Payload<Large>>
           Local this
-  fun Iterable.iterator @fn93(this: Iterable<Payload<Large>>) -> Iterator<Payload<Large>>
+  fun Iterable.iterator @fn98(this: Iterable<Payload<Large>>) -> Iterator<Payload<Large>>
     bb0 entry
       trap "call to abstract method `Iterable.iterator`"
-  fun Iterator.next @fn94(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun Iterator.next @fn99(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun values @fn95(this: Sequence<Payload<Large>>) -> Array<Payload<Large>>
+  fun values @fn100(this: Sequence<Payload<Large>>) -> Array<Payload<Large>>
     bb0 entry
       return
         Type Array<Payload<Large>>
         FieldAccess 0
           Type Sequence<Payload<Large>>
           Local this
-  fun iterator @fn96(this: Direct<Cursor<Payload<Large>>>) -> Cursor<Payload<Large>>
+  fun iterator @fn101(this: Direct<Cursor<Payload<Large>>>) -> Cursor<Payload<Large>>
     bb0 entry
       return
         Type Cursor<Payload<Large>>
         FieldAccess 0
           Type Direct<Cursor<Payload<Large>>>
           Local this
-  fun iterator @fn97(this: Direct<ValueCursor<Payload<Large>>>) -> ValueCursor<Payload<Large>>
+  fun iterator @fn102(this: Direct<ValueCursor<Payload<Large>>>) -> ValueCursor<Payload<Large>>
     bb0 entry
       return
         Type ValueCursor<Payload<Large>>
         FieldAccess 0
           Type Direct<ValueCursor<Payload<Large>>>
           Local this
-  fun iterator @fn98(this: Direct<EnumCursor<Payload<Large>>>) -> EnumCursor<Payload<Large>>
+  fun iterator @fn103(this: Direct<EnumCursor<Payload<Large>>>) -> EnumCursor<Payload<Large>>
     bb0 entry
       return
         Type EnumCursor<Payload<Large>>
         FieldAccess 0
           Type Direct<EnumCursor<Payload<Large>>>
           Local this
-  fun iterator @fn99(this: Direct<DiamondCursor<Payload<Large>>>) -> DiamondCursor<Payload<Large>>
+  fun iterator @fn104(this: Direct<DiamondCursor<Payload<Large>>>) -> DiamondCursor<Payload<Large>>
     bb0 entry
       return
         Type DiamondCursor<Payload<Large>>
         FieldAccess 0
           Type Direct<DiamondCursor<Payload<Large>>>
           Local this
-  fun next @fn100(this: ListIterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun next @fn105(this: ListIterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5574,7 +5777,7 @@ Module
         FieldAccess 1
           Type ListIterator<(Reference, Reference)>
           Local this
-      call $dependency.local.3: Long = @fn122 interface List<(Reference, Reference)>[2]
+      call $dependency.local.3: Long = @fn130 interface List<(Reference, Reference)>[2]
         Type List<(Reference, Reference)>
         FieldAccess 0
           Type ListIterator<(Reference, Reference)>
@@ -5616,7 +5819,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: (Reference, Reference) = @fn123 interface List<(Reference, Reference)>[1]
+      call $dependency.local.1: (Reference, Reference) = @fn131 interface List<(Reference, Reference)>[1]
         Type List<(Reference, Reference)>
         Local $dependency.local.5
         Type Long
@@ -5652,62 +5855,171 @@ Module
         VariantConstruct Option<(Reference, Reference)> v0
           Type (Reference, Reference)
           Local $dependency.local.12
-  fun values @fn101(this: Cursor<(Reference, Reference)>) -> Array<(Reference, Reference)>
+  fun values @fn106(this: Cursor<(Reference, Reference)>) -> Array<(Reference, Reference)>
     bb0 entry
       return
         Type Array<(Reference, Reference)>
         FieldAccess 0
           Type Cursor<(Reference, Reference)>
           Local this
-  fun inner @fn102(this: DiamondCursor<(Reference, Reference)>) -> Cursor<(Reference, Reference)>
+  fun inner @fn107(this: DiamondCursor<(Reference, Reference)>) -> Cursor<(Reference, Reference)>
     bb0 entry
       return
         Type Cursor<(Reference, Reference)>
         FieldAccess 0
           Type DiamondCursor<(Reference, Reference)>
           Local this
-  fun Iterable.iterator @fn103(this: Iterable<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
+  fun Iterable.iterator @fn108(this: Iterable<(Reference, Reference)>) -> Iterator<(Reference, Reference)>
     bb0 entry
       trap "call to abstract method `Iterable.iterator`"
-  fun Iterator.next @fn104(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun Iterator.next @fn109(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun values @fn105(this: Sequence<(Reference, Reference)>) -> Array<(Reference, Reference)>
+  fun values @fn110(this: Sequence<(Reference, Reference)>) -> Array<(Reference, Reference)>
     bb0 entry
       return
         Type Array<(Reference, Reference)>
         FieldAccess 0
           Type Sequence<(Reference, Reference)>
           Local this
-  fun iterator @fn106(this: Direct<Cursor<(Reference, Reference)>>) -> Cursor<(Reference, Reference)>
+  fun iterator @fn111(this: Direct<Cursor<(Reference, Reference)>>) -> Cursor<(Reference, Reference)>
     bb0 entry
       return
         Type Cursor<(Reference, Reference)>
         FieldAccess 0
           Type Direct<Cursor<(Reference, Reference)>>
           Local this
-  fun iterator @fn107(this: Direct<ValueCursor<(Reference, Reference)>>) -> ValueCursor<(Reference, Reference)>
+  fun iterator @fn112(this: Direct<ValueCursor<(Reference, Reference)>>) -> ValueCursor<(Reference, Reference)>
     bb0 entry
       return
         Type ValueCursor<(Reference, Reference)>
         FieldAccess 0
           Type Direct<ValueCursor<(Reference, Reference)>>
           Local this
-  fun iterator @fn108(this: Direct<EnumCursor<(Reference, Reference)>>) -> EnumCursor<(Reference, Reference)>
+  fun iterator @fn113(this: Direct<EnumCursor<(Reference, Reference)>>) -> EnumCursor<(Reference, Reference)>
     bb0 entry
       return
         Type EnumCursor<(Reference, Reference)>
         FieldAccess 0
           Type Direct<EnumCursor<(Reference, Reference)>>
           Local this
-  fun iterator @fn109(this: Direct<DiamondCursor<(Reference, Reference)>>) -> DiamondCursor<(Reference, Reference)>
+  fun iterator @fn114(this: Direct<DiamondCursor<(Reference, Reference)>>) -> DiamondCursor<(Reference, Reference)>
     bb0 entry
       return
         Type DiamondCursor<(Reference, Reference)>
         FieldAccess 0
           Type Direct<DiamondCursor<(Reference, Reference)>>
           Local this
-  fun next @fn110(this: ListIterator<Unit>) -> Option<Unit>
+  fun encodeOption @fn115(value: Option<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Unit>
+        Type Option<Unit>
+        Local value
+      val $pattern.subject.2: Option<Unit>
+        Type Option<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Unit> v1
+          Type Option<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str2
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Unit>
+        Type Option<Unit>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Unit> v0
+          Type Option<Unit>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Unit
+        Type Unit
+        VariantPayloadProject Option<Unit> v0 f0
+          Type Option<Unit>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str3
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external7 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Unit
+        Type Unit
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external8 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external10 direct
+        Type Unit
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external9 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun next @fn116(this: ListIterator<Unit>) -> Option<Unit>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -5724,7 +6036,7 @@ Module
         FieldAccess 1
           Type ListIterator<Unit>
           Local this
-      call $dependency.local.3: Long = @fn124 interface List<Unit>[2]
+      call $dependency.local.3: Long = @fn132 interface List<Unit>[2]
         Type List<Unit>
         FieldAccess 0
           Type ListIterator<Unit>
@@ -5766,7 +6078,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call @fn125 interface List<Unit>[1]
+      call @fn133 interface List<Unit>[1]
         Type List<Unit>
         Local $dependency.local.5
         Type Long
@@ -5805,104 +6117,280 @@ Module
         VariantConstruct Option<Unit> v0
           Type Unit
           Local $dependency.local.12
-  fun values @fn111(this: Cursor<Unit>) -> Array<Unit>
+  fun encodeList @fn117(values: List<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.4: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: UnkeyedEncodingContainer = external7 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.4
+      val $dependency.local.5: List<Unit>
+        Type List<Unit>
+        Local values
+      val $dependency.local.6: List<Unit>
+        Type List<Unit>
+        Local $dependency.local.5
+      call $dependency.local.7: Iterator<Unit> = @fn120 interface Iterable<Unit>[0]
+        Type Iterable<Unit>
+        Retype Iterable<Unit>
+          Type List<Unit>
+          Local $dependency.local.6
+      val $dependency.local.8: Iterator<Unit>
+        Type Iterator<Unit>
+        Local $dependency.local.7
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.9: Option<Unit> = @fn121 interface Iterator<Unit>[0]
+        Type Iterator<Unit>
+        Local $dependency.local.8
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Unit> v0
+          Type Option<Unit>
+          Local $dependency.local.9
+    bb2 while.exit.2
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call external9 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      return
+    bb3 while.body.3
+      val $dependency.local.10: Unit
+        Type Unit
+        VariantPayloadProject Option<Unit> v0 f0
+          Type Option<Unit>
+          Local $dependency.local.9
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.10
+      val $dependency.local.12: Unit
+        Type Unit
+        Local $dependency.local.3
+      val $dependency.local.11: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call $dependency.local.13: Encoder = external8 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.11
+      val $dependency.local.14: Encoder
+        Type Encoder
+        Local $dependency.local.13
+      call external10 direct
+        Type Unit
+        Local $dependency.local.12
+        Type Encoder
+        Local $dependency.local.14
+      goto bb1
+  fun values @fn118(this: Cursor<Unit>) -> Array<Unit>
     bb0 entry
       return
         Type Array<Unit>
         FieldAccess 0
           Type Cursor<Unit>
           Local this
-  fun inner @fn112(this: DiamondCursor<Unit>) -> Cursor<Unit>
+  fun inner @fn119(this: DiamondCursor<Unit>) -> Cursor<Unit>
     bb0 entry
       return
         Type Cursor<Unit>
         FieldAccess 0
           Type DiamondCursor<Unit>
           Local this
-  fun Iterable.iterator @fn113(this: Iterable<Unit>) -> Iterator<Unit>
+  fun Iterable.iterator @fn120(this: Iterable<Unit>) -> Iterator<Unit>
     bb0 entry
       trap "call to abstract method `Iterable.iterator`"
-  fun Iterator.next @fn114(this: Iterator<Unit>) -> Option<Unit>
+  fun Iterator.next @fn121(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
       trap "call to abstract method `Iterator.next`"
-  fun values @fn115(this: Sequence<Unit>) -> Array<Unit>
+  fun values @fn122(this: Sequence<Unit>) -> Array<Unit>
     bb0 entry
       return
         Type Array<Unit>
         FieldAccess 0
           Type Sequence<Unit>
           Local this
-  fun iterator @fn116(this: Direct<Cursor<Unit>>) -> Cursor<Unit>
+  fun iterator @fn123(this: Direct<Cursor<Unit>>) -> Cursor<Unit>
     bb0 entry
       return
         Type Cursor<Unit>
         FieldAccess 0
           Type Direct<Cursor<Unit>>
           Local this
-  fun iterator @fn117(this: Direct<ValueCursor<Unit>>) -> ValueCursor<Unit>
+  fun iterator @fn124(this: Direct<ValueCursor<Unit>>) -> ValueCursor<Unit>
     bb0 entry
       return
         Type ValueCursor<Unit>
         FieldAccess 0
           Type Direct<ValueCursor<Unit>>
           Local this
-  fun iterator @fn118(this: Direct<EnumCursor<Unit>>) -> EnumCursor<Unit>
+  fun iterator @fn125(this: Direct<EnumCursor<Unit>>) -> EnumCursor<Unit>
     bb0 entry
       return
         Type EnumCursor<Unit>
         FieldAccess 0
           Type Direct<EnumCursor<Unit>>
           Local this
-  fun iterator @fn119(this: Direct<DiamondCursor<Unit>>) -> DiamondCursor<Unit>
+  fun iterator @fn126(this: Direct<DiamondCursor<Unit>>) -> DiamondCursor<Unit>
     bb0 entry
       return
         Type DiamondCursor<Unit>
         FieldAccess 0
           Type Direct<DiamondCursor<Unit>>
           Local this
-  fun List.$get$size @fn120(this: List<Payload<Large>>) -> Long
+  fun encodeOption @fn127(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str4
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external4 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external6 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str5
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external5 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external7 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external8 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external11 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external9 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun List.$get$size @fn128(this: List<Payload<Large>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn121(this: List<Payload<Large>>, index: Long) -> Payload<Large>
+  fun List.get @fn129(this: List<Payload<Large>>, index: Long) -> Payload<Large>
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn122(this: List<(Reference, Reference)>) -> Long
+  fun List.$get$size @fn130(this: List<(Reference, Reference)>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn123(this: List<(Reference, Reference)>, index: Long) -> (Reference, Reference)
+  fun List.get @fn131(this: List<(Reference, Reference)>, index: Long) -> (Reference, Reference)
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn124(this: List<Unit>) -> Long
+  fun List.$get$size @fn132(this: List<Unit>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn125(this: List<Unit>, index: Long) -> Unit
+  fun List.get @fn133(this: List<Unit>, index: Long) -> Unit
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun Continuation.resume @fn126(this: Continuation<Large>, value: Large) -> Unit
+  fun Continuation.resume @fn134(this: Continuation<Large>, value: Large) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn127(this: Continuation<Large>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn135(this: Continuation<Large>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn128(this: SuspendTask<Large>, $completion: Continuation<Large>) -> CoroutineStep<Large>
+  fun SuspendTask.run @fn136(this: SuspendTask<Large>, $completion: Continuation<Large>) -> CoroutineStep<Large>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn129(this: SuspendRegistration<Large>, continuation: Continuation<Large>) -> Unit
+  fun SuspendRegistration.register @fn137(this: SuspendRegistration<Large>, continuation: Continuation<Large>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn130(this: Continuation<Reference>, value: Reference) -> Unit
+  fun Continuation.resume @fn138(this: Continuation<Reference>, value: Reference) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn131(this: Continuation<Reference>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn139(this: Continuation<Reference>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn132(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
+  fun SuspendTask.run @fn140(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn133(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
+  fun SuspendRegistration.register @fn141(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn134($closure: (Large) -> Int, arg0: Large) -> Int
+  fun $reference.0 @fn142($closure: (Large) -> Int, arg0: Large) -> Int
     bb0 entry
       call $call.1: Int = @fn1 direct
         Type Large
@@ -5910,7 +6398,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn135($closure: (Payload<Large>) -> Int, arg0: Payload<Large>) -> Int
+  fun $reference.1 @fn143($closure: (Payload<Large>) -> Int, arg0: Payload<Large>) -> Int
     bb0 entry
       call $call.1: Int = @fn4 direct
         Type Payload<Large>
@@ -5918,7 +6406,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn136($closure: ((Reference, Reference)) -> Int, arg0: (Reference, Reference)) -> Int
+  fun $reference.2 @fn144($closure: ((Reference, Reference)) -> Int, arg0: (Reference, Reference)) -> Int
     bb0 entry
       call $call.1: Int = @fn2 direct
         Type (Reference, Reference)
@@ -5926,7 +6414,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.3 @fn137($closure: (Unit) -> Int, arg0: Unit) -> Int
+  fun $reference.3 @fn145($closure: (Unit) -> Int, arg0: Unit) -> Int
     bb0 entry
       call $call.1: Int = @fn3 direct
         Type Unit
@@ -5934,7 +6422,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Reference.$c0 @fn138(this: Reference, value: Int) -> Unit
+  fun init.Reference.$c0 @fn146(this: Reference, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Reference
@@ -5942,7 +6430,7 @@ Module
         Type Int
         Local value
       return
-  fun init.ListIterator.$c4 @fn139(this: ListIterator<Large>, source: List<Large>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn147(this: ListIterator<Large>, source: List<Large>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Large>
@@ -5960,7 +6448,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.Sequence.$c0 @fn140(this: Sequence<Large>, values: Array<Large>) -> Unit
+  fun init.Sequence.$c0 @fn148(this: Sequence<Large>, values: Array<Large>) -> Unit
     bb0 entry
       field_set 0
         Type Sequence<Large>
@@ -5968,7 +6456,7 @@ Module
         Type Array<Large>
         Local values
       return
-  fun init.Cursor.$c1 @fn141(this: Cursor<Large>, values: Array<Large>) -> Unit
+  fun init.Cursor.$c1 @fn149(this: Cursor<Large>, values: Array<Large>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Large>
@@ -5981,7 +6469,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.DiamondCursor.$c3 @fn142(this: DiamondCursor<Large>, inner: Cursor<Large>) -> Unit
+  fun init.DiamondCursor.$c3 @fn150(this: DiamondCursor<Large>, inner: Cursor<Large>) -> Unit
     bb0 entry
       field_set 0
         Type DiamondCursor<Large>
@@ -5989,7 +6477,7 @@ Module
         Type Cursor<Large>
         Local inner
       return
-  fun init.Sequence.$c0 @fn143(this: Sequence<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
+  fun init.Sequence.$c0 @fn151(this: Sequence<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
         Type Sequence<Payload<Large>>
@@ -5997,7 +6485,7 @@ Module
         Type Array<Payload<Large>>
         Local values
       return
-  fun init.Cursor.$c1 @fn144(this: Cursor<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
+  fun init.Cursor.$c1 @fn152(this: Cursor<Payload<Large>>, values: Array<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Payload<Large>>
@@ -6010,7 +6498,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.DiamondCursor.$c3 @fn145(this: DiamondCursor<Payload<Large>>, inner: Cursor<Payload<Large>>) -> Unit
+  fun init.DiamondCursor.$c3 @fn153(this: DiamondCursor<Payload<Large>>, inner: Cursor<Payload<Large>>) -> Unit
     bb0 entry
       field_set 0
         Type DiamondCursor<Payload<Large>>
@@ -6018,7 +6506,7 @@ Module
         Type Cursor<Payload<Large>>
         Local inner
       return
-  fun init.Sequence.$c0 @fn146(this: Sequence<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
+  fun init.Sequence.$c0 @fn154(this: Sequence<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
         Type Sequence<(Reference, Reference)>
@@ -6026,7 +6514,7 @@ Module
         Type Array<(Reference, Reference)>
         Local values
       return
-  fun init.Cursor.$c1 @fn147(this: Cursor<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
+  fun init.Cursor.$c1 @fn155(this: Cursor<(Reference, Reference)>, values: Array<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<(Reference, Reference)>
@@ -6039,7 +6527,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.DiamondCursor.$c3 @fn148(this: DiamondCursor<(Reference, Reference)>, inner: Cursor<(Reference, Reference)>) -> Unit
+  fun init.DiamondCursor.$c3 @fn156(this: DiamondCursor<(Reference, Reference)>, inner: Cursor<(Reference, Reference)>) -> Unit
     bb0 entry
       field_set 0
         Type DiamondCursor<(Reference, Reference)>
@@ -6047,7 +6535,7 @@ Module
         Type Cursor<(Reference, Reference)>
         Local inner
       return
-  fun init.Sequence.$c0 @fn149(this: Sequence<Unit>, values: Array<Unit>) -> Unit
+  fun init.Sequence.$c0 @fn157(this: Sequence<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type Sequence<Unit>
@@ -6055,7 +6543,7 @@ Module
         Type Array<Unit>
         Local values
       return
-  fun init.Cursor.$c1 @fn150(this: Cursor<Unit>, values: Array<Unit>) -> Unit
+  fun init.Cursor.$c1 @fn158(this: Cursor<Unit>, values: Array<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type Cursor<Unit>
@@ -6068,7 +6556,7 @@ Module
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
       return
-  fun init.DiamondCursor.$c3 @fn151(this: DiamondCursor<Unit>, inner: Cursor<Unit>) -> Unit
+  fun init.DiamondCursor.$c3 @fn159(this: DiamondCursor<Unit>, inner: Cursor<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type DiamondCursor<Unit>
@@ -6076,7 +6564,7 @@ Module
         Type Cursor<Unit>
         Local inner
       return
-  fun init.ListIterator.$c4 @fn152(this: ListIterator<Payload<Large>>, source: List<Payload<Large>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn160(this: ListIterator<Payload<Large>>, source: List<Payload<Large>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Payload<Large>>
@@ -6094,7 +6582,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c4 @fn153(this: ListIterator<(Reference, Reference)>, source: List<(Reference, Reference)>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn161(this: ListIterator<(Reference, Reference)>, source: List<(Reference, Reference)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<(Reference, Reference)>
@@ -6112,7 +6600,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c4 @fn154(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn162(this: ListIterator<Unit>, source: List<Unit>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Unit>
@@ -6130,7 +6618,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Large.$c0 @fn155(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+  fun ctor.Large.$c0 @fn163(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
     bb0 entry
       return
         Type Large
@@ -6141,147 +6629,147 @@ Module
           Local second
           Type Reference
           Local third
-  fun ctor.ValueCursor.$c2 @fn156(inner: Cursor<Large>) -> ValueCursor<Large> <no-gc>
+  fun ctor.ValueCursor.$c2 @fn164(inner: Cursor<Large>) -> ValueCursor<Large> <no-gc>
     bb0 entry
       return
         Type ValueCursor<Large>
         StructInit ValueCursor<Large>
           Type Cursor<Large>
           Local inner
-  fun ctor.ValueCursor.$c2 @fn157(inner: Cursor<Payload<Large>>) -> ValueCursor<Payload<Large>> <no-gc>
+  fun ctor.ValueCursor.$c2 @fn165(inner: Cursor<Payload<Large>>) -> ValueCursor<Payload<Large>> <no-gc>
     bb0 entry
       return
         Type ValueCursor<Payload<Large>>
         StructInit ValueCursor<Payload<Large>>
           Type Cursor<Payload<Large>>
           Local inner
-  fun ctor.ValueCursor.$c2 @fn158(inner: Cursor<(Reference, Reference)>) -> ValueCursor<(Reference, Reference)> <no-gc>
+  fun ctor.ValueCursor.$c2 @fn166(inner: Cursor<(Reference, Reference)>) -> ValueCursor<(Reference, Reference)> <no-gc>
     bb0 entry
       return
         Type ValueCursor<(Reference, Reference)>
         StructInit ValueCursor<(Reference, Reference)>
           Type Cursor<(Reference, Reference)>
           Local inner
-  fun ctor.ValueCursor.$c2 @fn159(inner: Cursor<Unit>) -> ValueCursor<Unit> <no-gc>
+  fun ctor.ValueCursor.$c2 @fn167(inner: Cursor<Unit>) -> ValueCursor<Unit> <no-gc>
     bb0 entry
       return
         Type ValueCursor<Unit>
         StructInit ValueCursor<Unit>
           Type Cursor<Unit>
           Local inner
-  fun ctor.Direct.$c5 @fn160(value: Cursor<Large>) -> Direct<Cursor<Large>> <no-gc>
+  fun ctor.Direct.$c5 @fn168(value: Cursor<Large>) -> Direct<Cursor<Large>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Large>>
         StructInit Direct<Cursor<Large>>
           Type Cursor<Large>
           Local value
-  fun ctor.Direct.$c5 @fn161(value: ValueCursor<Large>) -> Direct<ValueCursor<Large>> <no-gc>
+  fun ctor.Direct.$c5 @fn169(value: ValueCursor<Large>) -> Direct<ValueCursor<Large>> <no-gc>
     bb0 entry
       return
         Type Direct<ValueCursor<Large>>
         StructInit Direct<ValueCursor<Large>>
           Type ValueCursor<Large>
           Local value
-  fun ctor.Direct.$c5 @fn162(value: EnumCursor<Large>) -> Direct<EnumCursor<Large>> <no-gc>
+  fun ctor.Direct.$c5 @fn170(value: EnumCursor<Large>) -> Direct<EnumCursor<Large>> <no-gc>
     bb0 entry
       return
         Type Direct<EnumCursor<Large>>
         StructInit Direct<EnumCursor<Large>>
           Type EnumCursor<Large>
           Local value
-  fun ctor.Direct.$c5 @fn163(value: DiamondCursor<Large>) -> Direct<DiamondCursor<Large>> <no-gc>
+  fun ctor.Direct.$c5 @fn171(value: DiamondCursor<Large>) -> Direct<DiamondCursor<Large>> <no-gc>
     bb0 entry
       return
         Type Direct<DiamondCursor<Large>>
         StructInit Direct<DiamondCursor<Large>>
           Type DiamondCursor<Large>
           Local value
-  fun ctor.Direct.$c5 @fn164(value: Cursor<Payload<Large>>) -> Direct<Cursor<Payload<Large>>> <no-gc>
+  fun ctor.Direct.$c5 @fn172(value: Cursor<Payload<Large>>) -> Direct<Cursor<Payload<Large>>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Payload<Large>>>
         StructInit Direct<Cursor<Payload<Large>>>
           Type Cursor<Payload<Large>>
           Local value
-  fun ctor.Direct.$c5 @fn165(value: ValueCursor<Payload<Large>>) -> Direct<ValueCursor<Payload<Large>>> <no-gc>
+  fun ctor.Direct.$c5 @fn173(value: ValueCursor<Payload<Large>>) -> Direct<ValueCursor<Payload<Large>>> <no-gc>
     bb0 entry
       return
         Type Direct<ValueCursor<Payload<Large>>>
         StructInit Direct<ValueCursor<Payload<Large>>>
           Type ValueCursor<Payload<Large>>
           Local value
-  fun ctor.Direct.$c5 @fn166(value: EnumCursor<Payload<Large>>) -> Direct<EnumCursor<Payload<Large>>> <no-gc>
+  fun ctor.Direct.$c5 @fn174(value: EnumCursor<Payload<Large>>) -> Direct<EnumCursor<Payload<Large>>> <no-gc>
     bb0 entry
       return
         Type Direct<EnumCursor<Payload<Large>>>
         StructInit Direct<EnumCursor<Payload<Large>>>
           Type EnumCursor<Payload<Large>>
           Local value
-  fun ctor.Direct.$c5 @fn167(value: DiamondCursor<Payload<Large>>) -> Direct<DiamondCursor<Payload<Large>>> <no-gc>
+  fun ctor.Direct.$c5 @fn175(value: DiamondCursor<Payload<Large>>) -> Direct<DiamondCursor<Payload<Large>>> <no-gc>
     bb0 entry
       return
         Type Direct<DiamondCursor<Payload<Large>>>
         StructInit Direct<DiamondCursor<Payload<Large>>>
           Type DiamondCursor<Payload<Large>>
           Local value
-  fun ctor.Direct.$c5 @fn168(value: Cursor<(Reference, Reference)>) -> Direct<Cursor<(Reference, Reference)>> <no-gc>
+  fun ctor.Direct.$c5 @fn176(value: Cursor<(Reference, Reference)>) -> Direct<Cursor<(Reference, Reference)>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<(Reference, Reference)>>
         StructInit Direct<Cursor<(Reference, Reference)>>
           Type Cursor<(Reference, Reference)>
           Local value
-  fun ctor.Direct.$c5 @fn169(value: ValueCursor<(Reference, Reference)>) -> Direct<ValueCursor<(Reference, Reference)>> <no-gc>
+  fun ctor.Direct.$c5 @fn177(value: ValueCursor<(Reference, Reference)>) -> Direct<ValueCursor<(Reference, Reference)>> <no-gc>
     bb0 entry
       return
         Type Direct<ValueCursor<(Reference, Reference)>>
         StructInit Direct<ValueCursor<(Reference, Reference)>>
           Type ValueCursor<(Reference, Reference)>
           Local value
-  fun ctor.Direct.$c5 @fn170(value: EnumCursor<(Reference, Reference)>) -> Direct<EnumCursor<(Reference, Reference)>> <no-gc>
+  fun ctor.Direct.$c5 @fn178(value: EnumCursor<(Reference, Reference)>) -> Direct<EnumCursor<(Reference, Reference)>> <no-gc>
     bb0 entry
       return
         Type Direct<EnumCursor<(Reference, Reference)>>
         StructInit Direct<EnumCursor<(Reference, Reference)>>
           Type EnumCursor<(Reference, Reference)>
           Local value
-  fun ctor.Direct.$c5 @fn171(value: DiamondCursor<(Reference, Reference)>) -> Direct<DiamondCursor<(Reference, Reference)>> <no-gc>
+  fun ctor.Direct.$c5 @fn179(value: DiamondCursor<(Reference, Reference)>) -> Direct<DiamondCursor<(Reference, Reference)>> <no-gc>
     bb0 entry
       return
         Type Direct<DiamondCursor<(Reference, Reference)>>
         StructInit Direct<DiamondCursor<(Reference, Reference)>>
           Type DiamondCursor<(Reference, Reference)>
           Local value
-  fun ctor.Direct.$c5 @fn172(value: Cursor<Unit>) -> Direct<Cursor<Unit>> <no-gc>
+  fun ctor.Direct.$c5 @fn180(value: Cursor<Unit>) -> Direct<Cursor<Unit>> <no-gc>
     bb0 entry
       return
         Type Direct<Cursor<Unit>>
         StructInit Direct<Cursor<Unit>>
           Type Cursor<Unit>
           Local value
-  fun ctor.Direct.$c5 @fn173(value: ValueCursor<Unit>) -> Direct<ValueCursor<Unit>> <no-gc>
+  fun ctor.Direct.$c5 @fn181(value: ValueCursor<Unit>) -> Direct<ValueCursor<Unit>> <no-gc>
     bb0 entry
       return
         Type Direct<ValueCursor<Unit>>
         StructInit Direct<ValueCursor<Unit>>
           Type ValueCursor<Unit>
           Local value
-  fun ctor.Direct.$c5 @fn174(value: EnumCursor<Unit>) -> Direct<EnumCursor<Unit>> <no-gc>
+  fun ctor.Direct.$c5 @fn182(value: EnumCursor<Unit>) -> Direct<EnumCursor<Unit>> <no-gc>
     bb0 entry
       return
         Type Direct<EnumCursor<Unit>>
         StructInit Direct<EnumCursor<Unit>>
           Type EnumCursor<Unit>
           Local value
-  fun ctor.Direct.$c5 @fn175(value: DiamondCursor<Unit>) -> Direct<DiamondCursor<Unit>> <no-gc>
+  fun ctor.Direct.$c5 @fn183(value: DiamondCursor<Unit>) -> Direct<DiamondCursor<Unit>> <no-gc>
     bb0 entry
       return
         Type Direct<DiamondCursor<Unit>>
         StructInit Direct<DiamondCursor<Unit>>
           Type DiamondCursor<Unit>
           Local value
-  fun startCoroutine<Reference> @fn176(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+  fun startCoroutine<Reference> @fn184(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -6304,7 +6792,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn130 interface Continuation<Reference>[0]
+      call @fn138 interface Continuation<Reference>[0]
         Type Continuation<Reference>
         Local completion
         Type Reference
@@ -6317,7 +6805,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn131 interface Continuation<Reference>[1]
+      call @fn139 interface Continuation<Reference>[1]
         Type Continuation<Reference>
         Local completion
         Type Throwable
@@ -6336,7 +6824,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Reference> = @fn132 interface SuspendTask<Reference>[0]
+      call $step: CoroutineStep<Reference> = @fn140 interface SuspendTask<Reference>[0]
         Type SuspendTask<Reference>
         Local task
         Type Continuation<Reference>
@@ -6362,7 +6850,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Large> @fn177(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
+  fun startCoroutine<Large> @fn185(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -6385,7 +6873,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn126 interface Continuation<Large>[0]
+      call @fn134 interface Continuation<Large>[0]
         Type Continuation<Large>
         Local completion
         Type Large
@@ -6398,7 +6886,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn127 interface Continuation<Large>[1]
+      call @fn135 interface Continuation<Large>[1]
         Type Continuation<Large>
         Local completion
         Type Throwable
@@ -6417,7 +6905,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Large> = @fn128 interface SuspendTask<Large>[0]
+      call $step: CoroutineStep<Large> = @fn136 interface SuspendTask<Large>[0]
         Type SuspendTask<Large>
         Local task
         Type Continuation<Large>
@@ -6443,9 +6931,9 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<ValueCursor<Large>> Iterator.next() @fn178(this: Iterator<Large>) -> Option<Large>
+  fun thunk<ValueCursor<Large>> Iterator.next() @fn186(this: Iterator<Large>) -> Option<Large>
     bb0 entry
-      call $call.1: Option<Large> = @fn22 direct
+      call $call.1: Option<Large> = @fn24 direct
         Type ValueCursor<Large>
         Unbox
           Type Iterator<Large>
@@ -6453,9 +6941,9 @@ Module
       return
         Type Option<Large>
         Local $call.1
-  fun thunk<EnumCursor<Large>> Iterator.next() @fn179(this: Iterator<Large>) -> Option<Large>
+  fun thunk<EnumCursor<Large>> Iterator.next() @fn187(this: Iterator<Large>) -> Option<Large>
     bb0 entry
-      call $call.1: Option<Large> = @fn23 direct
+      call $call.1: Option<Large> = @fn25 direct
         Type EnumCursor<Large>
         Unbox
           Type Iterator<Large>
@@ -6463,9 +6951,9 @@ Module
       return
         Type Option<Large>
         Local $call.1
-  fun thunk<ValueCursor<Payload<Large>>> Iterator.next() @fn180(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun thunk<ValueCursor<Payload<Large>>> Iterator.next() @fn188(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
-      call $call.1: Option<Payload<Large>> = @fn38 direct
+      call $call.1: Option<Payload<Large>> = @fn40 direct
         Type ValueCursor<Payload<Large>>
         Unbox
           Type Iterator<Payload<Large>>
@@ -6473,9 +6961,9 @@ Module
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun thunk<EnumCursor<Payload<Large>>> Iterator.next() @fn181(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
+  fun thunk<EnumCursor<Payload<Large>>> Iterator.next() @fn189(this: Iterator<Payload<Large>>) -> Option<Payload<Large>>
     bb0 entry
-      call $call.1: Option<Payload<Large>> = @fn39 direct
+      call $call.1: Option<Payload<Large>> = @fn41 direct
         Type EnumCursor<Payload<Large>>
         Unbox
           Type Iterator<Payload<Large>>
@@ -6483,9 +6971,9 @@ Module
       return
         Type Option<Payload<Large>>
         Local $call.1
-  fun thunk<ValueCursor<(Reference, Reference)>> Iterator.next() @fn182(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun thunk<ValueCursor<(Reference, Reference)>> Iterator.next() @fn190(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
-      call $call.1: Option<(Reference, Reference)> = @fn54 direct
+      call $call.1: Option<(Reference, Reference)> = @fn56 direct
         Type ValueCursor<(Reference, Reference)>
         Unbox
           Type Iterator<(Reference, Reference)>
@@ -6493,9 +6981,9 @@ Module
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun thunk<EnumCursor<(Reference, Reference)>> Iterator.next() @fn183(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
+  fun thunk<EnumCursor<(Reference, Reference)>> Iterator.next() @fn191(this: Iterator<(Reference, Reference)>) -> Option<(Reference, Reference)>
     bb0 entry
-      call $call.1: Option<(Reference, Reference)> = @fn55 direct
+      call $call.1: Option<(Reference, Reference)> = @fn57 direct
         Type EnumCursor<(Reference, Reference)>
         Unbox
           Type Iterator<(Reference, Reference)>
@@ -6503,9 +6991,9 @@ Module
       return
         Type Option<(Reference, Reference)>
         Local $call.1
-  fun thunk<ValueCursor<Unit>> Iterator.next() @fn184(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<ValueCursor<Unit>> Iterator.next() @fn192(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
-      call $call.1: Option<Unit> = @fn70 direct
+      call $call.1: Option<Unit> = @fn74 direct
         Type ValueCursor<Unit>
         Unbox
           Type Iterator<Unit>
@@ -6513,9 +7001,9 @@ Module
       return
         Type Option<Unit>
         Local $call.1
-  fun thunk<EnumCursor<Unit>> Iterator.next() @fn185(this: Iterator<Unit>) -> Option<Unit>
+  fun thunk<EnumCursor<Unit>> Iterator.next() @fn193(this: Iterator<Unit>) -> Option<Unit>
     bb0 entry
-      call $call.1: Option<Unit> = @fn71 direct
+      call $call.1: Option<Unit> = @fn75 direct
         Type EnumCursor<Unit>
         Unbox
           Type Iterator<Unit>
@@ -6523,7 +7011,7 @@ Module
       return
         Type Option<Unit>
         Local $call.1
-  fun function_bridge.$Closure$lambda0.() -> Any @fn186($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn194($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -6533,7 +7021,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn187($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn195($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -6543,7 +7031,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn188($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn196($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -6553,7 +7041,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.() -> Any @fn189($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda3.() -> Any @fn197($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type5> closure[function_type5]
         Type () -> Int
@@ -6563,7 +7051,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn190($source: (Large) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn198($source: (Large) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Large) -> Int
@@ -6577,7 +7065,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn191($source: (Payload<Large>) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn199($source: (Payload<Large>) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Payload<Large>) -> Int
@@ -6591,7 +7079,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn192($source: ((Reference, Reference)) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn200($source: ((Reference, Reference)) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type ((Reference, Reference)) -> Int
@@ -6605,7 +7093,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference3.(Any) -> Any @fn193($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn201($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Unit) -> Int
@@ -6623,10 +7111,10 @@ Module
   coroutine_step cs1 CoroutineStep<Large> result=Large
   coroutine_slot cl0 CoroutineSlot<Reference> value=Reference
   coroutine_slot cl1 CoroutineSlot<Large> value=Large
-  coroutine_start ct0 result=Reference function=fn176
-  coroutine_start ct1 result=Large function=fn177
-  coroutine_fn cf0 @fn128 source_return=Large step=cs1 immediate
-  coroutine_fn cf1 @fn132 source_return=Reference step=cs0 immediate
+  coroutine_start ct0 result=Reference function=fn184
+  coroutine_start ct1 result=Large function=fn185
+  coroutine_fn cf0 @fn136 source_return=Large step=cs1 immediate
+  coroutine_fn cf1 @fn140 source_return=Reference step=cs0 immediate
   instance mi0 function=@fn6 <- iterator
   instance mi1 function=@fn7 <- get
   instance mi2 function=@fn8 <- size
@@ -6636,123 +7124,137 @@ Module
   instance mi6 function=@fn12 <- exercise
   instance mi7 function=@fn13 <- Iterator.next
   instance mi8 function=@fn14 <- next
-  instance mi9 function=@fn15 <- exercise
+  instance mi9 function=@fn15 <- encode
   instance mi10 function=@fn16 <- exercise
   instance mi11 function=@fn17 <- exercise
   instance mi12 function=@fn18 <- exercise
-  instance mi13 function=@fn19 <- List.$get$size
-  instance mi14 function=@fn20 <- List.get
-  instance mi15 function=@fn21 <- next
-  instance mi16 function=@fn22 <- next
+  instance mi13 function=@fn19 <- exercise
+  instance mi14 function=@fn20 <- List.$get$size
+  instance mi15 function=@fn21 <- List.get
+  instance mi16 function=@fn22 <- encodeOption
   instance mi17 function=@fn23 <- next
   instance mi18 function=@fn24 <- next
-  instance mi19 function=@fn25 <- total
-  instance mi20 function=@fn26 <- iterator
-  instance mi21 function=@fn27 <- $lambda
-  instance mi22 function=@fn28 <- defaultTotal
-  instance mi23 function=@fn29 <- totalPack
-  instance mi24 function=@fn30 <- boundTotal
-  instance mi25 function=@fn31 <- boundTotal
+  instance mi19 function=@fn25 <- next
+  instance mi20 function=@fn26 <- next
+  instance mi21 function=@fn27 <- total
+  instance mi22 function=@fn28 <- iterator
+  instance mi23 function=@fn29 <- $lambda
+  instance mi24 function=@fn30 <- defaultTotal
+  instance mi25 function=@fn31 <- totalPack
   instance mi26 function=@fn32 <- boundTotal
-  instance mi27 function=@fn33 <- diamondTotal
-  instance mi28 function=@fn34 <- iterator
-  instance mi29 function=@fn35 <- get
-  instance mi30 function=@fn36 <- size
-  instance mi31 function=@fn37 <- next
-  instance mi32 function=@fn38 <- next
+  instance mi27 function=@fn33 <- boundTotal
+  instance mi28 function=@fn34 <- boundTotal
+  instance mi29 function=@fn35 <- diamondTotal
+  instance mi30 function=@fn36 <- iterator
+  instance mi31 function=@fn37 <- get
+  instance mi32 function=@fn38 <- size
   instance mi33 function=@fn39 <- next
   instance mi34 function=@fn40 <- next
-  instance mi35 function=@fn41 <- total
-  instance mi36 function=@fn42 <- iterator
-  instance mi37 function=@fn43 <- $lambda
-  instance mi38 function=@fn44 <- defaultTotal
-  instance mi39 function=@fn45 <- totalPack
-  instance mi40 function=@fn46 <- boundTotal
-  instance mi41 function=@fn47 <- boundTotal
+  instance mi35 function=@fn41 <- next
+  instance mi36 function=@fn42 <- next
+  instance mi37 function=@fn43 <- total
+  instance mi38 function=@fn44 <- iterator
+  instance mi39 function=@fn45 <- $lambda
+  instance mi40 function=@fn46 <- defaultTotal
+  instance mi41 function=@fn47 <- totalPack
   instance mi42 function=@fn48 <- boundTotal
-  instance mi43 function=@fn49 <- diamondTotal
-  instance mi44 function=@fn50 <- iterator
-  instance mi45 function=@fn51 <- get
-  instance mi46 function=@fn52 <- size
-  instance mi47 function=@fn53 <- next
-  instance mi48 function=@fn54 <- next
+  instance mi43 function=@fn49 <- boundTotal
+  instance mi44 function=@fn50 <- boundTotal
+  instance mi45 function=@fn51 <- diamondTotal
+  instance mi46 function=@fn52 <- iterator
+  instance mi47 function=@fn53 <- get
+  instance mi48 function=@fn54 <- size
   instance mi49 function=@fn55 <- next
   instance mi50 function=@fn56 <- next
-  instance mi51 function=@fn57 <- total
-  instance mi52 function=@fn58 <- iterator
-  instance mi53 function=@fn59 <- $lambda
-  instance mi54 function=@fn60 <- defaultTotal
-  instance mi55 function=@fn61 <- totalPack
-  instance mi56 function=@fn62 <- boundTotal
-  instance mi57 function=@fn63 <- boundTotal
+  instance mi51 function=@fn57 <- next
+  instance mi52 function=@fn58 <- next
+  instance mi53 function=@fn59 <- total
+  instance mi54 function=@fn60 <- iterator
+  instance mi55 function=@fn61 <- $lambda
+  instance mi56 function=@fn62 <- defaultTotal
+  instance mi57 function=@fn63 <- totalPack
   instance mi58 function=@fn64 <- boundTotal
-  instance mi59 function=@fn65 <- diamondTotal
-  instance mi60 function=@fn66 <- iterator
-  instance mi61 function=@fn67 <- get
-  instance mi62 function=@fn68 <- size
-  instance mi63 function=@fn69 <- next
-  instance mi64 function=@fn70 <- next
-  instance mi65 function=@fn71 <- next
-  instance mi66 function=@fn72 <- next
-  instance mi67 function=@fn73 <- total
-  instance mi68 function=@fn74 <- iterator
-  instance mi69 function=@fn75 <- $lambda
-  instance mi70 function=@fn76 <- defaultTotal
-  instance mi71 function=@fn77 <- totalPack
-  instance mi72 function=@fn78 <- boundTotal
-  instance mi73 function=@fn79 <- boundTotal
-  instance mi74 function=@fn80 <- boundTotal
-  instance mi75 function=@fn81 <- diamondTotal
-  instance mi76 function=@fn82 <- values
-  instance mi77 function=@fn83 <- inner
-  instance mi78 function=@fn84 <- Iterable.iterator
-  instance mi79 function=@fn85 <- values
-  instance mi80 function=@fn86 <- iterator
-  instance mi81 function=@fn87 <- iterator
-  instance mi82 function=@fn88 <- iterator
-  instance mi83 function=@fn89 <- iterator
-  instance mi84 function=@fn90 <- next
-  instance mi85 function=@fn91 <- values
-  instance mi86 function=@fn92 <- inner
-  instance mi87 function=@fn93 <- Iterable.iterator
-  instance mi88 function=@fn94 <- Iterator.next
-  instance mi89 function=@fn95 <- values
-  instance mi90 function=@fn96 <- iterator
-  instance mi91 function=@fn97 <- iterator
-  instance mi92 function=@fn98 <- iterator
-  instance mi93 function=@fn99 <- iterator
-  instance mi94 function=@fn100 <- next
-  instance mi95 function=@fn101 <- values
-  instance mi96 function=@fn102 <- inner
-  instance mi97 function=@fn103 <- Iterable.iterator
-  instance mi98 function=@fn104 <- Iterator.next
-  instance mi99 function=@fn105 <- values
-  instance mi100 function=@fn106 <- iterator
-  instance mi101 function=@fn107 <- iterator
-  instance mi102 function=@fn108 <- iterator
-  instance mi103 function=@fn109 <- iterator
-  instance mi104 function=@fn110 <- next
-  instance mi105 function=@fn111 <- values
-  instance mi106 function=@fn112 <- inner
-  instance mi107 function=@fn113 <- Iterable.iterator
-  instance mi108 function=@fn114 <- Iterator.next
-  instance mi109 function=@fn115 <- values
-  instance mi110 function=@fn116 <- iterator
-  instance mi111 function=@fn117 <- iterator
-  instance mi112 function=@fn118 <- iterator
-  instance mi113 function=@fn119 <- iterator
-  instance mi114 function=@fn120 <- List.$get$size
-  instance mi115 function=@fn121 <- List.get
-  instance mi116 function=@fn122 <- List.$get$size
-  instance mi117 function=@fn123 <- List.get
-  instance mi118 function=@fn124 <- List.$get$size
-  instance mi119 function=@fn125 <- List.get
-  instance mi120 function=@fn126 <- Continuation.resume
-  instance mi121 function=@fn127 <- Continuation.resumeWithException
-  instance mi122 function=@fn128 <- SuspendTask.run
-  instance mi123 function=@fn129 <- SuspendRegistration.register
-  instance mi124 function=@fn130 <- Continuation.resume
-  instance mi125 function=@fn131 <- Continuation.resumeWithException
-  instance mi126 function=@fn132 <- SuspendTask.run
-  instance mi127 function=@fn133 <- SuspendRegistration.register
+  instance mi59 function=@fn65 <- boundTotal
+  instance mi60 function=@fn66 <- boundTotal
+  instance mi61 function=@fn67 <- diamondTotal
+  instance mi62 function=@fn68 <- encode
+  instance mi63 function=@fn69 <- iterator
+  instance mi64 function=@fn70 <- get
+  instance mi65 function=@fn71 <- size
+  instance mi66 function=@fn72 <- encode
+  instance mi67 function=@fn73 <- next
+  instance mi68 function=@fn74 <- next
+  instance mi69 function=@fn75 <- next
+  instance mi70 function=@fn76 <- next
+  instance mi71 function=@fn77 <- total
+  instance mi72 function=@fn78 <- iterator
+  instance mi73 function=@fn79 <- $lambda
+  instance mi74 function=@fn80 <- defaultTotal
+  instance mi75 function=@fn81 <- totalPack
+  instance mi76 function=@fn82 <- boundTotal
+  instance mi77 function=@fn83 <- boundTotal
+  instance mi78 function=@fn84 <- boundTotal
+  instance mi79 function=@fn85 <- diamondTotal
+  instance mi80 function=@fn86 <- encode
+  instance mi81 function=@fn87 <- values
+  instance mi82 function=@fn88 <- inner
+  instance mi83 function=@fn89 <- Iterable.iterator
+  instance mi84 function=@fn90 <- values
+  instance mi85 function=@fn91 <- iterator
+  instance mi86 function=@fn92 <- iterator
+  instance mi87 function=@fn93 <- iterator
+  instance mi88 function=@fn94 <- iterator
+  instance mi89 function=@fn95 <- next
+  instance mi90 function=@fn96 <- values
+  instance mi91 function=@fn97 <- inner
+  instance mi92 function=@fn98 <- Iterable.iterator
+  instance mi93 function=@fn99 <- Iterator.next
+  instance mi94 function=@fn100 <- values
+  instance mi95 function=@fn101 <- iterator
+  instance mi96 function=@fn102 <- iterator
+  instance mi97 function=@fn103 <- iterator
+  instance mi98 function=@fn104 <- iterator
+  instance mi99 function=@fn105 <- next
+  instance mi100 function=@fn106 <- values
+  instance mi101 function=@fn107 <- inner
+  instance mi102 function=@fn108 <- Iterable.iterator
+  instance mi103 function=@fn109 <- Iterator.next
+  instance mi104 function=@fn110 <- values
+  instance mi105 function=@fn111 <- iterator
+  instance mi106 function=@fn112 <- iterator
+  instance mi107 function=@fn113 <- iterator
+  instance mi108 function=@fn114 <- iterator
+  instance mi109 function=@fn115 <- encodeOption
+  instance mi110 function=@fn116 <- next
+  instance mi111 function=@fn117 <- encodeList
+  instance mi112 function=@fn118 <- values
+  instance mi113 function=@fn119 <- inner
+  instance mi114 function=@fn120 <- Iterable.iterator
+  instance mi115 function=@fn121 <- Iterator.next
+  instance mi116 function=@fn122 <- values
+  instance mi117 function=@fn123 <- iterator
+  instance mi118 function=@fn124 <- iterator
+  instance mi119 function=@fn125 <- iterator
+  instance mi120 function=@fn126 <- iterator
+  instance mi121 function=@fn127 <- encodeOption
+  instance mi122 function=@fn128 <- List.$get$size
+  instance mi123 function=@fn129 <- List.get
+  instance mi124 function=@fn130 <- List.$get$size
+  instance mi125 function=@fn131 <- List.get
+  instance mi126 function=@fn132 <- List.$get$size
+  instance mi127 function=@fn133 <- List.get
+  instance mi128 function=@fn134 <- Continuation.resume
+  instance mi129 function=@fn135 <- Continuation.resumeWithException
+  instance mi130 function=@fn136 <- SuspendTask.run
+  instance mi131 function=@fn137 <- SuspendRegistration.register
+  instance mi132 function=@fn138 <- Continuation.resume
+  instance mi133 function=@fn139 <- Continuation.resumeWithException
+  instance mi134 function=@fn140 <- SuspendTask.run
+  instance mi135 function=@fn141 <- SuspendRegistration.register
+  str @str0 "None"
+  str @str1 "Some"
+  str @str2 "None"
+  str @str3 "Some"
+  str @str4 "None"
+  str @str5 "Some"
   output library

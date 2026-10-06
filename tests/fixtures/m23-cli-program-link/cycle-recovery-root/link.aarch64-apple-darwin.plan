@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
-cone dev.programlink:cycle-recovery-provider:0.1.0 kind=Library objects=6
-cone dev.programlink:cycle-recovery-root:0.1.0 kind=Executable objects=5
+cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone dev.programlink:cycle-recovery-provider:0.1.0 kind=Library objects=10
+cone dev.programlink:cycle-recovery-root:0.1.0 kind=Executable objects=9
 runtime objects=63
 images=3 root=_scoop$1$re$bb58450bb9dbc2f6fd8b3adf130b0a720038001f7f24ea15336adfcbbcd247db
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

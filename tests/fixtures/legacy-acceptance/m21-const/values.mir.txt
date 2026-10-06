@@ -28,7 +28,7 @@ Module
       assign $new.1
         Type Box
         ClassAlloc Box
-      call @fn6 direct
+      call @fn8 direct
         Type Box
         Local $new.1
         Type Int
@@ -97,13 +97,13 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external0 direct
+      call $dependency.local.2: String = external1 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -112,7 +112,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.5
       return
@@ -121,13 +121,13 @@ Module
       val $dependency.local.1: UInt
         Type UInt
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type UInt
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -136,7 +136,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.5
       return
@@ -145,13 +145,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external3 direct
+      call $dependency.local.2: String = external4 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -160,7 +160,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.5
       return
@@ -169,13 +169,13 @@ Module
       val $dependency.local.1: Boolean
         Type Boolean
         Local value
-      call $dependency.local.2: String = external2 direct
+      call $dependency.local.2: String = external3 direct
         Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -184,11 +184,140 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external4 direct
+      call external5 direct
         Type String
         Local $dependency.local.5
       return
-  fun init.Box.$c0 @fn6(this: Box, value: Int) -> Unit
+  fun encode @fn6(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn7 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn7(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str5
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str6
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external11 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.Box.$c0 @fn8(this: Box, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box
@@ -200,9 +329,13 @@ Module
   instance mi1 function=@fn3 <- println
   instance mi2 function=@fn4 <- println
   instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn6 <- encode
+  instance mi5 function=@fn7 <- encodeOption
   str @str0 "forty-two"
   str @str1 "\n"
   str @str2 "\n"
   str @str3 "\n"
   str @str4 "\n"
+  str @str5 "None"
+  str @str6 "Some"
   output executable @fn1

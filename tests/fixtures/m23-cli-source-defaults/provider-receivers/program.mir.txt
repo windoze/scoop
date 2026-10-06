@@ -2,6 +2,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<ProviderGeneric.Static>
     Completed(value: ProviderGeneric.Static)
     Suspended()
@@ -32,6 +35,15 @@ Module
   class ProviderGeneric<(String, String)> vtable=1 itables=0
   class ProviderGeneric<String> vtable=1 itables=0
   class ProviderGeneric<Int> vtable=1 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<ProviderBase>
   interface SuspendTask<ProviderBase>
   interface SuspendRegistration<ProviderBase>
@@ -42,19 +54,19 @@ Module
   interface SuspendTask<ProviderGeneric.Static>
   interface SuspendRegistration<ProviderGeneric.Static>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum1 nominal_id=b10d6db11f638c44e7266908d41558e8f08ced8f072b6c8cd49c25b5a151a910 exact_id=14e1f69f7c04803988d071afd1441fc4de4c61a54508296fdd01601682978ef9
+  generated_exact_type get1 location=enum2 nominal_id=b10d6db11f638c44e7266908d41558e8f08ced8f072b6c8cd49c25b5a151a910 exact_id=14e1f69f7c04803988d071afd1441fc4de4c61a54508296fdd01601682978ef9
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get4 location=enum6 nominal_id=84e68535d3a565c273f64efe3b29196d4267ae78bcd7bea16d5177b9b4254738 exact_id=59ee88754ea16bdae4018eaf7fd3a5cff435b2f8aa72ca722b60ccaf1723d32a
+  generated_exact_type get4 location=enum7 nominal_id=84e68535d3a565c273f64efe3b29196d4267ae78bcd7bea16d5177b9b4254738 exact_id=59ee88754ea16bdae4018eaf7fd3a5cff435b2f8aa72ca722b60ccaf1723d32a
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get6 location=enum2 nominal_id=a6031ef8863f882f1b61d9991d8d3f46f4cb72993fd06c8c19ce96f60731902a exact_id=a3ef7b2ddc1adf9c4d9bd0cf4bab9ca1420ae274b1c9e21290ecae53ed64cc19
-  generated_exact_type get7 location=enum3 nominal_id=dd75d570c20bd22003e67fdf288d9bb56eacda20372bf5a337bc19dad4cb27cc exact_id=a5a762451c9495c599a5602268fececdf1fbb8eaf919b81b77a2e7b1da27fdbc
-  generated_exact_type get8 location=enum5 nominal_id=a07b4a3b38ea5bcd5e470743724b5b83d603515b84eec097af0d0087430e8c3a exact_id=d8095aed5b23e7be908484275f95eadfa36b420437a7ab76a4024dc8f39338e1
-  generated_exact_type get9 location=enum4 nominal_id=7e2a2882c06d4045881ae8b10e869c0579b57a928fedf28db0ef3defa742a270 exact_id=df172d8b0ea2091920dd9b4df28f810aaa8b3d0e9fdc4016d36872daa21a9e17
+  generated_exact_type get6 location=enum3 nominal_id=a6031ef8863f882f1b61d9991d8d3f46f4cb72993fd06c8c19ce96f60731902a exact_id=a3ef7b2ddc1adf9c4d9bd0cf4bab9ca1420ae274b1c9e21290ecae53ed64cc19
+  generated_exact_type get7 location=enum4 nominal_id=dd75d570c20bd22003e67fdf288d9bb56eacda20372bf5a337bc19dad4cb27cc exact_id=a5a762451c9495c599a5602268fececdf1fbb8eaf919b81b77a2e7b1da27fdbc
+  generated_exact_type get8 location=enum6 nominal_id=a07b4a3b38ea5bcd5e470743724b5b83d603515b84eec097af0d0087430e8c3a exact_id=d8095aed5b23e7be908484275f95eadfa36b420437a7ab76a4024dc8f39338e1
+  generated_exact_type get9 location=enum5 nominal_id=7e2a2882c06d4045881ae8b10e869c0579b57a928fedf28db0ef3defa742a270 exact_id=df172d8b0ea2091920dd9b4df28f810aaa8b3d0e9fdc4016d36872daa21a9e17
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn40 id=72a46bdb0bf1e040c2a1e83af2f1cd5c024023b6ee15cdb8dfe3a5d8fe5f018b
-  generated_callable gc1 function=@fn42 id=b4e5ea21cdb04b0888cd42987d336a63c169cf021b2b45b13284fe5cfe0a1a59
-  generated_callable gc2 function=@fn41 id=d8a66f58c66aa519d55f8caa0a8630e70638c7d9bb663f7b3b4afd34b115a86d
+  generated_callable gc0 function=@fn46 id=72a46bdb0bf1e040c2a1e83af2f1cd5c024023b6ee15cdb8dfe3a5d8fe5f018b
+  generated_callable gc1 function=@fn48 id=b4e5ea21cdb04b0888cd42987d336a63c169cf021b2b45b13284fe5cfe0a1a59
+  generated_callable gc2 function=@fn47 id=d8a66f58c66aa519d55f8caa0a8630e70638c7d9bb663f7b3b4afd34b115a86d
   fun ProviderBase.check @fn0(this: ProviderBase, seed: Int) -> Int
     bb0 entry
       val $receiver: ProviderBase
@@ -129,7 +141,7 @@ Module
       assign $new.1
         Type ProviderChild
         ClassAlloc ProviderChild
-      call @fn32 direct
+      call @fn38 direct
         Type ProviderChild
         Local $new.1
       val $receiver: ProviderChild
@@ -170,7 +182,7 @@ Module
       assign $new.2
         Type ProviderApplied<Int>
         ClassAlloc ProviderApplied<Int>
-      call @fn34 direct
+      call @fn40 direct
         Type ProviderApplied<Int>
         Local $new.2
       val $receiver: ProviderApplied<Int>
@@ -186,14 +198,14 @@ Module
       val $parameter.seed: (Int, Int)
         Type (Int, Int)
         Local $argument.0
-      call $call.3: (Int, Int) = @fn11 direct
+      call $call.3: (Int, Int) = @fn14 direct
         Type ProviderGeneric<(Int, Int)>
         Retype ProviderGeneric<(Int, Int)>
           Type ProviderApplied<Int>
           Local $receiver
         Type (Int, Int)
         Local $parameter.seed
-      call $argument.0: Boolean = @fn12 direct
+      call $argument.0: Boolean = @fn15 direct
         Type (Int, Int)
         Local $call.3
         Type (Int, Int)
@@ -211,7 +223,7 @@ Module
       assign $new.4
         Type ProviderApplied<String>
         ClassAlloc ProviderApplied<String>
-      call @fn35 direct
+      call @fn41 direct
         Type ProviderApplied<String>
         Local $new.4
       val $receiver: ProviderApplied<String>
@@ -227,14 +239,14 @@ Module
       val $parameter.seed: (String, String)
         Type (String, String)
         Local $argument.0
-      call $call.5: (String, String) = @fn13 direct
+      call $call.5: (String, String) = @fn16 direct
         Type ProviderGeneric<(String, String)>
         Retype ProviderGeneric<(String, String)>
           Type ProviderApplied<String>
           Local $receiver
         Type (String, String)
         Local $parameter.seed
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn17 direct
         Type (String, String)
         Local $call.5
         Type (String, String)
@@ -252,7 +264,7 @@ Module
       assign $new.6
         Type ProviderGeneric<String>
         ClassAlloc ProviderGeneric<String>
-      call @fn36 direct
+      call @fn42 direct
         Type ProviderGeneric<String>
         Local $new.6
       val $receiver: ProviderGeneric<String>
@@ -270,7 +282,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $dependency.receiver: Int = @fn15 direct
+      call $dependency.receiver: Int = @fn18 direct
         Type ProviderGeneric<String>
         Local $receiver
         Type String
@@ -299,13 +311,13 @@ Module
       assign $new.7
         Type ProviderGeneric<Int>
         ClassAlloc ProviderGeneric<Int>
-      call @fn37 direct
+      call @fn43 direct
         Type ProviderGeneric<Int>
         Local $new.7
       val $receiver: ProviderGeneric<Int>
         Type ProviderGeneric<Int>
         Local $new.7
-      call $dependency.receiver: Int = @fn16 direct
+      call $dependency.receiver: Int = @fn19 direct
         Type ProviderGeneric<Int>
         Local $receiver
       val $dependency.argument.0: Int
@@ -328,37 +340,163 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun ProviderGeneric.pick @fn5(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun encode @fn5(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn20 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun $tuple.2.encode @fn6(this: (Int, Int), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external6 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external8 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external8 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun ProviderGeneric.pick @fn7(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
         Type (Int, Int)
         Local value
-  fun ProviderApplied.pick @fn6(this: ProviderApplied<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+  fun ProviderApplied.pick @fn8(this: ProviderApplied<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
     bb0 entry
       return
         Type (Int, Int)
         Local value
-  fun ProviderGeneric.pick @fn7(this: ProviderGeneric<(String, String)>, seed: (String, String), value: (String, String)) -> (String, String)
+  fun $tuple.2.encode @fn9(this: (String, String), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external6 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external9 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external9 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun ProviderGeneric.pick @fn10(this: ProviderGeneric<(String, String)>, seed: (String, String), value: (String, String)) -> (String, String)
     bb0 entry
       return
         Type (String, String)
         Local value
-  fun ProviderApplied.pick @fn8(this: ProviderApplied<String>, seed: (String, String), value: (String, String)) -> (String, String)
+  fun ProviderApplied.pick @fn11(this: ProviderApplied<String>, seed: (String, String), value: (String, String)) -> (String, String)
     bb0 entry
       return
         Type (String, String)
         Local value
-  fun ProviderGeneric.pick @fn9(this: ProviderGeneric<String>, seed: String, value: String) -> String
+  fun ProviderGeneric.pick @fn12(this: ProviderGeneric<String>, seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun ProviderGeneric.pick @fn10(this: ProviderGeneric<Int>, seed: Int, value: Int) -> Int
+  fun ProviderGeneric.pick @fn13(this: ProviderGeneric<Int>, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun ProviderGeneric.check @fn11(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int)) -> (Int, Int)
+  fun ProviderGeneric.check @fn14(this: ProviderGeneric<(Int, Int)>, seed: (Int, Int)) -> (Int, Int)
     bb0 entry
       val $receiver: ProviderGeneric<(Int, Int)>
         Type ProviderGeneric<(Int, Int)>
@@ -372,7 +510,7 @@ Module
       val $parameter.value: (Int, Int)
         Type (Int, Int)
         Local $parameter.seed
-      call $call.1: (Int, Int) = @fn5 virtual[0]
+      call $call.1: (Int, Int) = @fn7 virtual[0]
         Type ProviderGeneric<(Int, Int)>
         Local $receiver
         Type (Int, Int)
@@ -382,7 +520,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun $derived.equals.0 @fn12(this: (Int, Int), other: (Int, Int)) -> Boolean
+  fun $derived.equals.0 @fn15(this: (Int, Int), other: (Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -417,7 +555,7 @@ Module
       return
         Type Boolean
         Local $logic.1
-  fun ProviderGeneric.check @fn13(this: ProviderGeneric<(String, String)>, seed: (String, String)) -> (String, String)
+  fun ProviderGeneric.check @fn16(this: ProviderGeneric<(String, String)>, seed: (String, String)) -> (String, String)
     bb0 entry
       val $receiver: ProviderGeneric<(String, String)>
         Type ProviderGeneric<(String, String)>
@@ -431,7 +569,7 @@ Module
       val $parameter.value: (String, String)
         Type (String, String)
         Local $parameter.seed
-      call $call.1: (String, String) = @fn7 virtual[0]
+      call $call.1: (String, String) = @fn10 virtual[0]
         Type ProviderGeneric<(String, String)>
         Local $receiver
         Type (String, String)
@@ -441,9 +579,9 @@ Module
       return
         Type (String, String)
         Local $call.1
-  fun $derived.equals.1 @fn14(this: (String, String), other: (String, String)) -> Boolean
+  fun $derived.equals.1 @fn17(this: (String, String), other: (String, String)) -> Boolean
     bb0 entry
-      call $call.1: Boolean = external1 direct
+      call $call.1: Boolean = external2 direct
         Type String
         FieldAccess 0
           Type (String, String)
@@ -456,7 +594,7 @@ Module
         Type Boolean
         Local $call.1
     bb1 logic.rhs.1
-      call $call.3: Boolean = external1 direct
+      call $call.3: Boolean = external2 direct
         Type String
         FieldAccess 1
           Type (String, String)
@@ -478,7 +616,7 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun ProviderGeneric.checkCopy @fn15(this: ProviderGeneric<String>, first: String, second: Int) -> Int
+  fun ProviderGeneric.checkCopy @fn18(this: ProviderGeneric<String>, first: String, second: Int) -> Int
     bb0 entry
       val $receiver: ProviderGeneric<String>
         Type ProviderGeneric<String>
@@ -498,7 +636,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.second
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn22 direct
         Type ProviderGeneric<String>
         Local $receiver
         Type String
@@ -510,12 +648,12 @@ Module
       return
         Type Int
         Local $call.1
-  fun ProviderGeneric.checkStatic @fn16(this: ProviderGeneric<Int>) -> Int
+  fun ProviderGeneric.checkStatic @fn19(this: ProviderGeneric<Int>) -> Int
     bb0 entry
       assign $new.1
         Type ProviderGeneric.Static
         ClassAlloc ProviderGeneric.Static
-      call @fn33 direct
+      call @fn39 direct
         Type ProviderGeneric.Static
         Local $new.1
       val $receiver: ProviderGeneric.Static
@@ -530,7 +668,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.seed
-      call $call.2: Int = @fn18 direct
+      call $call.2: Int = @fn23 direct
         Type ProviderGeneric.Static
         Local $receiver
         Type Int
@@ -540,95 +678,333 @@ Module
       return
         Type Int
         Local $call.2
-  fun ProviderGeneric.copy @fn17(this: ProviderGeneric<String>, first: String, second: Int, value: Int) -> Int
+  fun encodeOption @fn20(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str6
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external5 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external5 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str7
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external9 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn21(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn24 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun ProviderGeneric.copy @fn22(this: ProviderGeneric<String>, first: String, second: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun ProviderGeneric.Static.copy @fn18(this: ProviderGeneric.Static, seed: Int, value: Int) -> Int
+  fun ProviderGeneric.Static.copy @fn23(this: ProviderGeneric.Static, seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun Continuation.resume @fn19(this: Continuation<ProviderBase>, value: ProviderBase) -> Unit
+  fun encodeOption @fn24(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external3 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str8
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external4 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external3 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external5 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external5 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str9
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external4 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external6 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external7 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external1 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn25(this: Continuation<ProviderBase>, value: ProviderBase) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn20(this: Continuation<ProviderBase>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn26(this: Continuation<ProviderBase>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn21(this: SuspendTask<ProviderBase>, $completion: Continuation<ProviderBase>) -> CoroutineStep<ProviderBase>
+  fun SuspendTask.run @fn27(this: SuspendTask<ProviderBase>, $completion: Continuation<ProviderBase>) -> CoroutineStep<ProviderBase>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn22(this: SuspendRegistration<ProviderBase>, continuation: Continuation<ProviderBase>) -> Unit
+  fun SuspendRegistration.register @fn28(this: SuspendRegistration<ProviderBase>, continuation: Continuation<ProviderBase>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn23(this: Continuation<ProviderChild>, value: ProviderChild) -> Unit
+  fun Continuation.resume @fn29(this: Continuation<ProviderChild>, value: ProviderChild) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn24(this: Continuation<ProviderChild>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn30(this: Continuation<ProviderChild>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn25(this: SuspendTask<ProviderChild>, $completion: Continuation<ProviderChild>) -> CoroutineStep<ProviderChild>
+  fun SuspendTask.run @fn31(this: SuspendTask<ProviderChild>, $completion: Continuation<ProviderChild>) -> CoroutineStep<ProviderChild>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn26(this: SuspendRegistration<ProviderChild>, continuation: Continuation<ProviderChild>) -> Unit
+  fun SuspendRegistration.register @fn32(this: SuspendRegistration<ProviderChild>, continuation: Continuation<ProviderChild>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn27(this: Continuation<ProviderGeneric.Static>, value: ProviderGeneric.Static) -> Unit
+  fun Continuation.resume @fn33(this: Continuation<ProviderGeneric.Static>, value: ProviderGeneric.Static) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn28(this: Continuation<ProviderGeneric.Static>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn34(this: Continuation<ProviderGeneric.Static>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn29(this: SuspendTask<ProviderGeneric.Static>, $completion: Continuation<ProviderGeneric.Static>) -> CoroutineStep<ProviderGeneric.Static>
+  fun SuspendTask.run @fn35(this: SuspendTask<ProviderGeneric.Static>, $completion: Continuation<ProviderGeneric.Static>) -> CoroutineStep<ProviderGeneric.Static>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn30(this: SuspendRegistration<ProviderGeneric.Static>, continuation: Continuation<ProviderGeneric.Static>) -> Unit
+  fun SuspendRegistration.register @fn36(this: SuspendRegistration<ProviderGeneric.Static>, continuation: Continuation<ProviderGeneric.Static>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.ProviderBase.$c0 @fn31(this: ProviderBase) -> Unit
+  fun init.ProviderBase.$c0 @fn37(this: ProviderBase) -> Unit
     bb0 entry
       return
-  fun init.ProviderChild.$c1 @fn32(this: ProviderChild) -> Unit
+  fun init.ProviderChild.$c1 @fn38(this: ProviderChild) -> Unit
     bb0 entry
-      call @fn31 direct
+      call @fn37 direct
         Type ProviderBase
         Retype ProviderBase
           Type ProviderChild
           Local this
       return
-  fun init.ProviderGeneric.Static.$c4 @fn33(this: ProviderGeneric.Static) -> Unit
+  fun init.ProviderGeneric.Static.$c4 @fn39(this: ProviderGeneric.Static) -> Unit
     bb0 entry
       return
-  fun init.ProviderApplied.$c3 @fn34(this: ProviderApplied<Int>) -> Unit
+  fun init.ProviderApplied.$c3 @fn40(this: ProviderApplied<Int>) -> Unit
     bb0 entry
-      call @fn38 direct
+      call @fn44 direct
         Type ProviderGeneric<(Int, Int)>
         Retype ProviderGeneric<(Int, Int)>
           Type ProviderApplied<Int>
           Local this
       return
-  fun init.ProviderApplied.$c3 @fn35(this: ProviderApplied<String>) -> Unit
+  fun init.ProviderApplied.$c3 @fn41(this: ProviderApplied<String>) -> Unit
     bb0 entry
-      call @fn39 direct
+      call @fn45 direct
         Type ProviderGeneric<(String, String)>
         Retype ProviderGeneric<(String, String)>
           Type ProviderApplied<String>
           Local this
       return
-  fun init.ProviderGeneric.$c2 @fn36(this: ProviderGeneric<String>) -> Unit
+  fun init.ProviderGeneric.$c2 @fn42(this: ProviderGeneric<String>) -> Unit
     bb0 entry
       return
-  fun init.ProviderGeneric.$c2 @fn37(this: ProviderGeneric<Int>) -> Unit
+  fun init.ProviderGeneric.$c2 @fn43(this: ProviderGeneric<Int>) -> Unit
     bb0 entry
       return
-  fun init.ProviderGeneric.$c2 @fn38(this: ProviderGeneric<(Int, Int)>) -> Unit
+  fun init.ProviderGeneric.$c2 @fn44(this: ProviderGeneric<(Int, Int)>) -> Unit
     bb0 entry
       return
-  fun init.ProviderGeneric.$c2 @fn39(this: ProviderGeneric<(String, String)>) -> Unit
+  fun init.ProviderGeneric.$c2 @fn45(this: ProviderGeneric<(String, String)>) -> Unit
     bb0 entry
       return
-  fun startCoroutine<ProviderGeneric.Static> @fn40(task: SuspendTask<ProviderGeneric.Static>, completion: Continuation<ProviderGeneric.Static>) -> Unit
+  fun startCoroutine<ProviderGeneric.Static> @fn46(task: SuspendTask<ProviderGeneric.Static>, completion: Continuation<ProviderGeneric.Static>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -651,7 +1027,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn27 interface Continuation<ProviderGeneric.Static>[0]
+      call @fn33 interface Continuation<ProviderGeneric.Static>[0]
         Type Continuation<ProviderGeneric.Static>
         Local completion
         Type ProviderGeneric.Static
@@ -664,7 +1040,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn28 interface Continuation<ProviderGeneric.Static>[1]
+      call @fn34 interface Continuation<ProviderGeneric.Static>[1]
         Type Continuation<ProviderGeneric.Static>
         Local completion
         Type Throwable
@@ -683,7 +1059,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<ProviderGeneric.Static> = @fn29 interface SuspendTask<ProviderGeneric.Static>[0]
+      call $step: CoroutineStep<ProviderGeneric.Static> = @fn35 interface SuspendTask<ProviderGeneric.Static>[0]
         Type SuspendTask<ProviderGeneric.Static>
         Local task
         Type Continuation<ProviderGeneric.Static>
@@ -709,7 +1085,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<ProviderChild> @fn41(task: SuspendTask<ProviderChild>, completion: Continuation<ProviderChild>) -> Unit
+  fun startCoroutine<ProviderChild> @fn47(task: SuspendTask<ProviderChild>, completion: Continuation<ProviderChild>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -732,7 +1108,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn23 interface Continuation<ProviderChild>[0]
+      call @fn29 interface Continuation<ProviderChild>[0]
         Type Continuation<ProviderChild>
         Local completion
         Type ProviderChild
@@ -745,7 +1121,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn24 interface Continuation<ProviderChild>[1]
+      call @fn30 interface Continuation<ProviderChild>[1]
         Type Continuation<ProviderChild>
         Local completion
         Type Throwable
@@ -764,7 +1140,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<ProviderChild> = @fn25 interface SuspendTask<ProviderChild>[0]
+      call $step: CoroutineStep<ProviderChild> = @fn31 interface SuspendTask<ProviderChild>[0]
         Type SuspendTask<ProviderChild>
         Local task
         Type Continuation<ProviderChild>
@@ -790,7 +1166,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<ProviderBase> @fn42(task: SuspendTask<ProviderBase>, completion: Continuation<ProviderBase>) -> Unit
+  fun startCoroutine<ProviderBase> @fn48(task: SuspendTask<ProviderBase>, completion: Continuation<ProviderBase>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -813,7 +1189,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn19 interface Continuation<ProviderBase>[0]
+      call @fn25 interface Continuation<ProviderBase>[0]
         Type Continuation<ProviderBase>
         Local completion
         Type ProviderBase
@@ -826,7 +1202,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn20 interface Continuation<ProviderBase>[1]
+      call @fn26 interface Continuation<ProviderBase>[1]
         Type Continuation<ProviderBase>
         Local completion
         Type Throwable
@@ -845,7 +1221,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<ProviderBase> = @fn21 interface SuspendTask<ProviderBase>[0]
+      call $step: CoroutineStep<ProviderBase> = @fn27 interface SuspendTask<ProviderBase>[0]
         Type SuspendTask<ProviderBase>
         Local task
         Type Continuation<ProviderBase>
@@ -877,40 +1253,48 @@ Module
   coroutine_slot cl0 CoroutineSlot<ProviderGeneric.Static> value=ProviderGeneric.Static
   coroutine_slot cl1 CoroutineSlot<ProviderChild> value=ProviderChild
   coroutine_slot cl2 CoroutineSlot<ProviderBase> value=ProviderBase
-  coroutine_start ct0 result=ProviderGeneric.Static function=fn40
-  coroutine_start ct1 result=ProviderChild function=fn41
-  coroutine_start ct2 result=ProviderBase function=fn42
-  coroutine_fn cf0 @fn21 source_return=ProviderBase step=cs2 immediate
-  coroutine_fn cf1 @fn25 source_return=ProviderChild step=cs1 immediate
-  coroutine_fn cf2 @fn29 source_return=ProviderGeneric.Static step=cs0 immediate
-  instance mi0 function=@fn5 <- ProviderGeneric.pick
-  instance mi1 function=@fn6 <- ProviderApplied.pick
-  instance mi2 function=@fn7 <- ProviderGeneric.pick
-  instance mi3 function=@fn8 <- ProviderApplied.pick
-  instance mi4 function=@fn9 <- ProviderGeneric.pick
-  instance mi5 function=@fn10 <- ProviderGeneric.pick
-  instance mi6 function=@fn11 <- ProviderGeneric.check
-  instance mi7 function=@fn13 <- ProviderGeneric.check
-  instance mi8 function=@fn15 <- ProviderGeneric.checkCopy
-  instance mi9 function=@fn16 <- ProviderGeneric.checkStatic
-  instance mi10 function=@fn17 <- ProviderGeneric.copy
-  instance mi11 function=@fn18 <- ProviderGeneric.Static.copy
-  instance mi12 function=@fn19 <- Continuation.resume
-  instance mi13 function=@fn20 <- Continuation.resumeWithException
-  instance mi14 function=@fn21 <- SuspendTask.run
-  instance mi15 function=@fn22 <- SuspendRegistration.register
-  instance mi16 function=@fn23 <- Continuation.resume
-  instance mi17 function=@fn24 <- Continuation.resumeWithException
-  instance mi18 function=@fn25 <- SuspendTask.run
-  instance mi19 function=@fn26 <- SuspendRegistration.register
-  instance mi20 function=@fn27 <- Continuation.resume
-  instance mi21 function=@fn28 <- Continuation.resumeWithException
-  instance mi22 function=@fn29 <- SuspendTask.run
-  instance mi23 function=@fn30 <- SuspendRegistration.register
+  coroutine_start ct0 result=ProviderGeneric.Static function=fn46
+  coroutine_start ct1 result=ProviderChild function=fn47
+  coroutine_start ct2 result=ProviderBase function=fn48
+  coroutine_fn cf0 @fn27 source_return=ProviderBase step=cs2 immediate
+  coroutine_fn cf1 @fn31 source_return=ProviderChild step=cs1 immediate
+  coroutine_fn cf2 @fn35 source_return=ProviderGeneric.Static step=cs0 immediate
+  instance mi0 function=@fn5 <- encode
+  instance mi1 function=@fn7 <- ProviderGeneric.pick
+  instance mi2 function=@fn8 <- ProviderApplied.pick
+  instance mi3 function=@fn10 <- ProviderGeneric.pick
+  instance mi4 function=@fn11 <- ProviderApplied.pick
+  instance mi5 function=@fn12 <- ProviderGeneric.pick
+  instance mi6 function=@fn13 <- ProviderGeneric.pick
+  instance mi7 function=@fn14 <- ProviderGeneric.check
+  instance mi8 function=@fn16 <- ProviderGeneric.check
+  instance mi9 function=@fn18 <- ProviderGeneric.checkCopy
+  instance mi10 function=@fn19 <- ProviderGeneric.checkStatic
+  instance mi11 function=@fn20 <- encodeOption
+  instance mi12 function=@fn21 <- encode
+  instance mi13 function=@fn22 <- ProviderGeneric.copy
+  instance mi14 function=@fn23 <- ProviderGeneric.Static.copy
+  instance mi15 function=@fn24 <- encodeOption
+  instance mi16 function=@fn25 <- Continuation.resume
+  instance mi17 function=@fn26 <- Continuation.resumeWithException
+  instance mi18 function=@fn27 <- SuspendTask.run
+  instance mi19 function=@fn28 <- SuspendRegistration.register
+  instance mi20 function=@fn29 <- Continuation.resume
+  instance mi21 function=@fn30 <- Continuation.resumeWithException
+  instance mi22 function=@fn31 <- SuspendTask.run
+  instance mi23 function=@fn32 <- SuspendRegistration.register
+  instance mi24 function=@fn33 <- Continuation.resume
+  instance mi25 function=@fn34 <- Continuation.resumeWithException
+  instance mi26 function=@fn35 <- SuspendTask.run
+  instance mi27 function=@fn36 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "a"
   str @str2 "b"
   str @str3 "a"
   str @str4 "b"
   str @str5 "source"
+  str @str6 "None"
+  str @str7 "Some"
+  str @str8 "None"
+  str @str9 "Some"
   output executable @fn4

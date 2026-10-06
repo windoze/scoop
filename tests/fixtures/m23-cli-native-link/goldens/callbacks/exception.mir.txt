@@ -1,6 +1,6 @@
 Module
   foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type2 managed=function_type0 context=1 mode=ForeignCallbackMode.OneShot adapter=@fn7
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type2 managed=function_type0 context=1 mode=ForeignCallbackMode.OneShot adapter=@fn11
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option<String>
     Some(_0: String)
@@ -24,12 +24,17 @@ Module
   class Throwable vtable=0 itables=0
   class UnwrapException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn8 id=3ec80f00f92b1ffff4bc5700ba65abd7231af9fdbdc27bee5577d3f2e034e134
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn12 id=3ec80f00f92b1ffff4bc5700ba65abd7231af9fdbdc27bee5577d3f2e034e134
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -37,9 +42,29 @@ Module
   generated_exact_type get4 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get5 location=closure0 nominal_id=bdc876025e03a2504b67d1075e7a45c9bfe67f6f6a47cb9619bbece4bcb63c1e exact_id=e7dad26dc27007cac4999b287d6bfc02e7525dd05353f743214c7426d473cec2
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn8 id=3ec80f00f92b1ffff4bc5700ba65abd7231af9fdbdc27bee5577d3f2e034e134
-  generated_callable gc1 function=@fn7 id=d22999d842d28245a53bb153ffe6ef215026538499d70183f429687e1a8f17e1
-  fun main @fn0() -> Unit
+  generated_callable gc0 function=@fn12 id=3ec80f00f92b1ffff4bc5700ba65abd7231af9fdbdc27bee5577d3f2e034e134
+  generated_callable gc1 function=@fn11 id=d22999d842d28245a53bb153ffe6ef215026538499d70183f429687e1a8f17e1
+  fun encode @fn0(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn2 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun main @fn1() -> Unit
     bb0 entry
       val $dependency.receiver: String
         Type String
@@ -111,7 +136,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.2
-      call $dependency.argument.0: Int = external2 direct
+      call $dependency.argument.0: Int = external3 direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
         Type Ptr<Unit>
@@ -121,7 +146,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -160,7 +185,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -190,7 +215,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external8 direct
+      call external16 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -235,11 +260,11 @@ Module
       end_catch
       resume
     bb13 try.end.13
-      call $dependency.argument.0: ULong = external3 direct
+      call $dependency.argument.0: ULong = external4 direct
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn7 direct
         Type ULong
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -248,7 +273,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -287,7 +312,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -304,15 +329,124 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       goto bb13
-  fun $lambda.0 @fn1($closure: (Int) -> Int, value: Int) -> Int
+  fun encodeOption @fn2(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external10 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str2
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external11 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external10 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external12 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external12 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str3
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external11 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external13 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external14 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external8 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external15 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun $lambda.0 @fn3($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: String
         Type String
-        StringConst @str2
+        StringConst @str4
       val $dependency.receiver: Int
         Type Int
         Local value
-      call $dependency.argument.0: String = external1 direct
+      call $dependency.argument.0: String = external2 direct
         Type Int
         Local $dependency.receiver
       val $dependency.parameter.other: String
@@ -333,7 +467,7 @@ Module
       assign $new.1
         Type CallbackError
         ClassAlloc CallbackError
-      call @fn6 direct
+      call @fn10 direct
         Type CallbackError
         Local $new.1
         Type String
@@ -341,66 +475,18 @@ Module
       throw
         Type CallbackError
         Local $new.1
-  fun println @fn2(value: Int) -> Unit
+  fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external7 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str3
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external7 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun println @fn3(value: Boolean) -> Unit
-    bb0 entry
-      val $dependency.local.1: Boolean
-        Type Boolean
-        Local value
-      call $dependency.local.2: String = external5 direct
-        Type Boolean
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external7 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str4
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external7 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun println @fn4(value: String) -> Unit
-    bb0 entry
-      val $dependency.local.1: String
-        Type String
-        Local value
-      call $dependency.local.2: String = external6 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -409,22 +495,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn5(value: ULong) -> Unit
+  fun println @fn5(value: Boolean) -> Unit
     bb0 entry
-      val $dependency.local.1: ULong
-        Type ULong
+      val $dependency.local.1: Boolean
+        Type Boolean
         Local value
-      call $dependency.local.2: String = external4 direct
-        Type ULong
+      call $dependency.local.2: String = external6 direct
+        Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -433,15 +519,192 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external7 direct
+      call external9 direct
         Type String
         Local $dependency.local.5
       return
-  fun init.CallbackError.$c0 @fn6(this: CallbackError, payload: String) -> Unit
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun encode @fn8(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn9 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn9(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external10 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str9
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external11 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external10 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external12 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external12 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str10
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external11 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external13 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external14 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external1 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external15 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.CallbackError.$c0 @fn10(this: CallbackError, payload: String) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
-        StringConst @str7
+        StringConst @str11
       val $dependency.parameter._1: String
         Type String
         Local $dependency.argument.0
@@ -466,7 +729,7 @@ Module
         Type String
         Local payload
       return
-  fun foreign callback adapter 0 @fn7($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn11($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -541,7 +804,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn8($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -555,16 +818,24 @@ Module
         Box
           Type Int
           Local $call.1
-  instance mi0 function=@fn2 <- println
-  instance mi1 function=@fn3 <- println
+  instance mi0 function=@fn0 <- encode
+  instance mi1 function=@fn2 <- encodeOption
   instance mi2 function=@fn4 <- println
   instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn6 <- println
+  instance mi5 function=@fn7 <- println
+  instance mi6 function=@fn8 <- encode
+  instance mi7 function=@fn9 <- encodeOption
   str @str0 "caller-"
   str @str1 "alive"
-  str @str2 "failure-"
-  str @str3 "\n"
-  str @str4 "\n"
+  str @str2 "None"
+  str @str3 "Some"
+  str @str4 "failure-"
   str @str5 "\n"
   str @str6 "\n"
-  str @str7 "callback failed"
-  output executable @fn0
+  str @str7 "\n"
+  str @str8 "\n"
+  str @str9 "None"
+  str @str10 "Some"
+  str @str11 "callback failed"
+  output executable @fn1

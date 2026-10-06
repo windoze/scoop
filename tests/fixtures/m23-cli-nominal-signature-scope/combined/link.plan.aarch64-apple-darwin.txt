@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
-cone dev.example:combined:0.1.0 kind=Library objects=36
-cone test:nominal-signature-scope-runtime-combined:1.0.0 kind=Executable objects=4
+cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone dev.example:combined:0.1.0 kind=Library objects=40
+cone test:nominal-signature-scope-runtime-combined:1.0.0 kind=Executable objects=8
 runtime objects=63
 images=3 root=_scoop$1$re$f3a6ea905ce675ee1cfe2f89dd4abeede7e4630eb026494916a6d5f4ccf7d312
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

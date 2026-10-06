@@ -1,11 +1,18 @@
 Module
   class box<Int> vtable=0 itables=0
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn6 id=9115a1d73522cf7af6f3ae76627b86a8bf02a6c1b55f58eb800ec70d27363497
-  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn4 captures=0
-    bridge function_type1 -> @fn7 id=6f29006ac82904376ca6c8738a901b38b608ef2c700721c996f0565b811257ab
-  closure cc2 $Closure$reference2 type=function_type0 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn8 id=307ad595df9dd6f1cd8b2c3b15a0172d791558f68417d5c730b513d86119e35f
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn7 id=9115a1d73522cf7af6f3ae76627b86a8bf02a6c1b55f58eb800ec70d27363497
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn8 id=6f29006ac82904376ca6c8738a901b38b608ef2c700721c996f0565b811257ab
+  closure cc2 $Closure$reference2 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn9 id=307ad595df9dd6f1cd8b2c3b15a0172d791558f68417d5c730b513d86119e35f
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -15,9 +22,9 @@ Module
   generated_exact_type get6 location=closure2 nominal_id=890d43ed8bf54ff4101b33a59da1df0a54b46d74fff0ebf3f1b4f795ae22d0eb exact_id=b6866b943fbf4a6372bb684109071e6ae6719c8d4ee0e89d6d46f8e4f4949336
   generated_exact_type get7 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn8 id=307ad595df9dd6f1cd8b2c3b15a0172d791558f68417d5c730b513d86119e35f
-  generated_callable gc1 function=@fn7 id=6f29006ac82904376ca6c8738a901b38b608ef2c700721c996f0565b811257ab
-  generated_callable gc2 function=@fn6 id=9115a1d73522cf7af6f3ae76627b86a8bf02a6c1b55f58eb800ec70d27363497
+  generated_callable gc0 function=@fn9 id=307ad595df9dd6f1cd8b2c3b15a0172d791558f68417d5c730b513d86119e35f
+  generated_callable gc1 function=@fn8 id=6f29006ac82904376ca6c8738a901b38b608ef2c700721c996f0565b811257ab
+  generated_callable gc2 function=@fn7 id=9115a1d73522cf7af6f3ae76627b86a8bf02a6c1b55f58eb800ec70d27363497
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -68,36 +75,89 @@ Module
       return
         Type Int
         Local $call.3
-  fun identity @fn2(value: Int) -> Int
+  fun $tuple.2.encode @fn2(this: (Int, Int), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external0 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external1 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external3 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external1 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external3 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external2 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun identity @fn3(value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun $reference.0 @fn3($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.0 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn2 direct
+      call $call.1: Int = @fn3 direct
         Type Int
         Local arg0
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn5($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn2 direct
+      call $call.1: Int = @fn3 direct
         Type Int
         Local arg0
       return
         Type Int
         Local $call.1
-  fun $reference.2 @fn5($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.2 @fn6($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn2 direct
+      call $call.1: Int = @fn3 direct
         Type Int
         Local arg0
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn6($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn7($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -111,7 +171,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn7($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn8($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -125,7 +185,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference2.(Any) -> Any @fn8($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn9($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -140,5 +200,5 @@ Module
           Type Int
           Local $call.1
   instance mi0 function=@fn1 <- exercise
-  instance mi1 function=@fn2 <- identity
+  instance mi1 function=@fn3 <- identity
   output library

@@ -23,13 +23,123 @@ Module
     val local1
       Local value : T0
     return
-      MethodCall bound T0 via ToString -> external #2 interface[0] : String
+      MethodCall bound T0 via ToString -> external #3 interface[0] : String
         Local $dependency.receiver : T0
   fun defaultPattern(value: Int): Int
     return
       Local value : Int
   output library
   instance classify<Int>
+== Static Shapes ==
+unit Unit
+intrinsic core_int8 Int8 Concrete(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_int16 Int16 Concrete(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_int Int Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_long Long Concrete(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_uint8 UInt8 Concrete(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_uint16 UInt16 Concrete(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_uint UInt Concrete(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_ulong ULong Concrete(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_boolean Boolean Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))
+  interface ToString
+  interface Hash
+  interface Encodable
+intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))
+  interface ToString
+  interface Hash
+  interface Encodable
+  interface Iterable<Char>
+  public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
+  public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
+any Any
+intrinsic core_char Char Concrete(PersistentTypeId([158, 93, 238, 155, 68, 59, 82, 53, 211, 3, 87, 194, 93, 247, 116, 41, 99, 61, 182, 12, 206, 26, 143, 90, 26, 32, 180, 115, 157, 244, 47, 48]))
+  interface ToString
+  interface Hash
+  interface Encodable
+  public property code: Int fa8138db966fccc2ca5ccb1526ceffa1d66686e81c3b809bb932c20729703f29 no-field
+interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
+interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+interface Encodable Concrete(PersistentTypeId([105, 113, 132, 49, 207, 3, 152, 175, 72, 64, 202, 4, 131, 208, 202, 56, 222, 130, 169, 202, 131, 176, 166, 120, 141, 194, 56, 193, 0, 198, 9, 78]))
+interface Encoder Concrete(PersistentTypeId([226, 128, 189, 232, 105, 222, 103, 166, 88, 225, 72, 49, 184, 9, 100, 50, 57, 101, 54, 11, 18, 216, 141, 85, 212, 32, 231, 169, 204, 80, 147, 219]))
+  public property path: String 7efa43853499b3f3dbf80e0d4e5eafe6e805772916d2a4dc5830a58d483c498f no-field
+interface KeyedEncodingContainer Concrete(PersistentTypeId([35, 134, 122, 167, 117, 40, 11, 156, 170, 162, 215, 105, 221, 15, 27, 135, 212, 191, 130, 4, 141, 161, 83, 62, 82, 22, 204, 51, 119, 174, 29, 47]))
+interface UnkeyedEncodingContainer Concrete(PersistentTypeId([46, 1, 94, 220, 245, 19, 22, 135, 149, 191, 168, 225, 121, 183, 250, 147, 8, 109, 172, 241, 102, 31, 137, 106, 95, 27, 8, 149, 96, 36, 130, 166]))
+interface SingleValueEncodingContainer Concrete(PersistentTypeId([58, 129, 247, 84, 2, 157, 57, 159, 13, 193, 255, 140, 121, 146, 78, 199, 120, 20, 147, 240, 135, 115, 114, 142, 175, 41, 245, 237, 11, 24, 109, 235]))
+enum Option<T> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  parameter T: Any
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: T VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: T Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+enum Option<Char> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: Char VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: Char Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+tuple (Option<Char>, Int)
+  element _1: Option<Char>
+  element _2: Int
+function () -> String
+interface SuspendTask<T> GenericTemplate(PersistentGenericTypeId([162, 240, 224, 210, 158, 40, 153, 95, 118, 226, 156, 224, 79, 252, 96, 99, 79, 192, 53, 87, 142, 207, 18, 50, 205, 129, 35, 204, 67, 156, 46, 224]))
+  parameter T: Any
+interface Continuation<T> GenericTemplate(PersistentGenericTypeId([192, 207, 171, 250, 2, 171, 169, 157, 183, 178, 189, 37, 28, 81, 250, 71, 2, 216, 255, 110, 214, 57, 184, 192, 221, 221, 19, 132, 137, 228, 147, 81]))
+  parameter T: Any
+class Throwable Concrete(PersistentTypeId([52, 14, 197, 53, 40, 145, 114, 19, 48, 106, 128, 71, 51, 154, 164, 217, 17, 163, 145, 23, 194, 20, 73, 185, 182, 162, 42, 38, 51, 7, 173, 29]))
+  constructor Constructor(PersistentConstructorId([84, 32, 196, 202, 149, 144, 64, 117, 54, 82, 22, 147, 35, 209, 86, 184, 221, 238, 244, 15, 59, 13, 237, 67, 24, 60, 35, 116, 204, 149, 117, 27]))
+interface SuspendRegistration<T> GenericTemplate(PersistentGenericTypeId([80, 188, 252, 189, 116, 121, 224, 49, 66, 155, 150, 60, 205, 4, 57, 70, 147, 131, 203, 206, 75, 84, 41, 8, 74, 156, 94, 112, 217, 199, 183, 207]))
+  parameter T: Any
+class IllegalStateException Concrete(PersistentTypeId([107, 55, 239, 1, 65, 210, 3, 48, 221, 107, 191, 241, 100, 17, 53, 76, 49, 63, 204, 117, 99, 142, 157, 176, 60, 133, 12, 48, 143, 81, 181, 109]))
+  base Exception
+  constructor Constructor(PersistentConstructorId([139, 31, 73, 207, 242, 211, 117, 161, 61, 105, 61, 149, 57, 104, 106, 55, 163, 136, 148, 25, 52, 91, 52, 119, 242, 164, 101, 114, 157, 123, 44, 119]))
+    parameter message: Option<String> Plain default parameter0
+class Exception Concrete(PersistentTypeId([142, 87, 2, 76, 204, 55, 50, 96, 83, 32, 249, 205, 109, 172, 122, 28, 68, 54, 57, 231, 7, 212, 7, 34, 32, 169, 251, 228, 229, 149, 81, 121]))
+  base Throwable
+  field message: Option<String> Field(PersistentFieldId([149, 203, 168, 111, 213, 200, 80, 53, 248, 73, 183, 41, 242, 24, 158, 120, 189, 140, 149, 120, 95, 21, 186, 148, 67, 186, 139, 239, 80, 120, 208, 131])) PropertyBacking(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+  public property message: Option<String> 2a3930f700cfe99e457bcbae3b6c7cbb78cbecb5e7f0f8be2f06284b9add2026 stored 95cba86fd5c85035f849b729f2189e78bd8c95785f15ba9443ba8bef5078d083
+  constructor Constructor(PersistentConstructorId([25, 35, 17, 109, 201, 110, 78, 21, 232, 210, 177, 220, 71, 252, 25, 233, 177, 47, 203, 166, 101, 159, 77, 84, 16, 179, 84, 175, 235, 207, 71, 95]))
+    parameter message: Option<String> Property(PersistentPropertyId([42, 57, 48, 247, 0, 207, 233, 158, 69, 123, 203, 174, 59, 108, 124, 187, 120, 203, 236, 181, 231, 240, 248, 190, 47, 6, 40, 75, 154, 221, 32, 38]))
+enum Option<String> GenericTemplate(PersistentGenericTypeId([123, 85, 103, 59, 117, 242, 97, 113, 213, 231, 240, 208, 204, 114, 29, 71, 33, 189, 140, 184, 249, 108, 245, 76, 125, 249, 190, 244, 169, 91, 82, 10]))
+  variant Some Positional faf63376f9f38e514ad8979cc6cdeb6a9b86ce537a42088d289fe72f3888e036
+    field _0: String VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])) Declared
+    constructor VariantConstructor(PersistentEnumVariantId([250, 246, 51, 118, 249, 243, 142, 81, 74, 216, 151, 156, 198, 205, 235, 106, 155, 134, 206, 83, 122, 66, 8, 141, 40, 159, 231, 47, 56, 136, 224, 54]))
+      parameter _1: String Field(VariantField(PersistentEnumVariantFieldId([78, 137, 138, 232, 223, 123, 177, 191, 39, 181, 119, 85, 116, 51, 70, 12, 211, 19, 84, 154, 201, 106, 16, 144, 88, 221, 20, 153, 17, 91, 94, 91])))
+  variant None Unit dbb5e74c2eb2076e994fea90f134c93ad7ada2ba9a9ef77cb0318c254c935a38
+    constructor VariantConstructor(PersistentEnumVariantId([219, 181, 231, 76, 46, 178, 7, 110, 153, 79, 234, 144, 241, 52, 201, 58, 215, 173, 162, 186, 154, 158, 247, 124, 176, 49, 140, 37, 76, 147, 90, 56]))
+function (Encoder) -> Unit
+interface Iterable<T> GenericTemplate(PersistentGenericTypeId([76, 223, 166, 100, 228, 194, 35, 148, 202, 85, 95, 98, 161, 247, 76, 238, 212, 164, 123, 150, 69, 38, 204, 238, 51, 31, 53, 112, 163, 226, 154, 220]))
+  parameter T: Any
+interface Iterator<T> GenericTemplate(PersistentGenericTypeId([202, 137, 126, 174, 6, 35, 202, 235, 85, 212, 71, 247, 170, 159, 32, 71, 227, 242, 108, 249, 239, 179, 167, 141, 158, 177, 53, 76, 217, 38, 69, 114]))
+  parameter T: Any
+interface Iterable<Char> GenericTemplate(PersistentGenericTypeId([76, 223, 166, 100, 228, 194, 35, 148, 202, 85, 95, 98, 161, 247, 76, 238, 212, 164, 123, 150, 69, 38, 204, 238, 51, 31, 53, 112, 163, 226, 154, 220]))
+interface Iterator<Char> GenericTemplate(PersistentGenericTypeId([202, 137, 126, 174, 6, 35, 202, 235, 85, 212, 71, 247, 170, 159, 32, 71, 227, 242, 108, 249, 239, 179, 167, 141, 158, 177, 53, 76, 217, 38, 69, 114]))
 == LocalConcrete ==
 LocalConcrete 655540a590a3cf7fb7a91fe40d85f05f80162ffaacbc3d165c9f4c31df0c525b Library
   type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }
@@ -45,15 +155,30 @@ LocalConcrete 655540a590a3cf7fb7a91fe40d85f05f80162ffaacbc3d165c9f4c31df0c525b L
   type Idx::<Type>(10) Type { kind: String, gc_free: false } CborIdentityRecord { id: PersistentExactTypeId([173, 58, 231, 167, 25, 232, 33, 1, 245, 71, 37, 123, 138, 138, 193, 133, 240, 85, 49, 193, 69, 4, 190, 129, 150, 34, 80, 86, 106, 62, 232, 104]), key: Nominal(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151])) }
   imported_dependency_callables Idx::<ImportedDependencyCallableUse>(0) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([220, 3, 41, 120, 151, 134, 86, 158, 22, 212, 85, 251, 117, 134, 163, 150, 115, 91, 232, 158, 142, 100, 8, 231, 88, 183, 53, 117, 227, 122, 190, 107])) }, dispatch: Direct, effect: Ordinary }
   imported_dependency_callables Idx::<ImportedDependencyCallableUse>(1) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([28, 146, 134, 78, 204, 253, 248, 9, 239, 238, 242, 170, 240, 127, 209, 185, 108, 50, 205, 147, 129, 76, 60, 79, 136, 233, 219, 109, 96, 107, 178, 68])) }, dispatch: Direct, effect: Ordinary }
-  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(2) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([220, 222, 102, 57, 35, 4, 7, 132, 239, 108, 238, 65, 74, 238, 225, 74, 71, 94, 179, 32, 125, 156, 53, 87, 229, 189, 118, 21, 4, 49, 155, 220])) }, dispatch: Interface { interface: PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]), slot: 0 }, effect: Ordinary }
-  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(3) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([95, 27, 84, 255, 249, 61, 160, 233, 154, 69, 142, 244, 56, 36, 218, 111, 90, 40, 144, 177, 116, 246, 188, 100, 66, 109, 218, 181, 149, 112, 16, 8])) }, dispatch: Direct, effect: Ordinary }
-  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(4) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([68, 89, 254, 195, 30, 141, 139, 147, 67, 33, 7, 111, 196, 249, 87, 187, 226, 6, 45, 143, 73, 164, 176, 251, 49, 24, 124, 138, 106, 111, 101, 111])) }, dispatch: Direct, effect: Ordinary }
-  functions Idx::<Function>(0) Function { name: "defaultPattern", materialization: CallableMaterialization { template: Function(PersistentFunctionId([30, 14, 234, 200, 150, 48, 216, 166, 87, 253, 177, 58, 150, 83, 124, 73, 254, 142, 255, 225, 151, 137, 118, 184, 87, 52, 230, 146, 0, 56, 104, 137])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [Param { name: "value", ty: Idx::<Type>(3), local: Idx::<Local>(0) }], capture_parameters: [], return_ty: Idx::<Type>(3), attributes: FunctionAttributes { safety: Safe, gc_effect: Managed, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 1, data: [Local { binding: BindingId(13), selector: Parameter { declaration_index: 0 }, definition: Source(DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 410, end: 415 }, context: Idx::<SourceContext>(2) }), name: "value", ty: Idx::<Type>(3), mutable: false }] }, statements: [Statement { kind: Return { value: Some(Expr { kind: Local(Idx::<Local>(0)), ty: Idx::<Type>(3), span: Span { start: 458, end: 463 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 458, end: 463 }, context: Idx::<SourceContext>(2) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 458, end: 463 }, context: Idx::<SourceContext>(2) } } }) }, span: Span { start: 458, end: 463 } }] }), receiver: None, span: Span { start: 384, end: 463 } }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(2) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([50, 224, 140, 171, 13, 168, 180, 78, 7, 247, 138, 71, 1, 99, 51, 140, 160, 16, 109, 97, 52, 4, 186, 89, 241, 18, 150, 102, 134, 10, 214, 67])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(3) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([220, 222, 102, 57, 35, 4, 7, 132, 239, 108, 238, 65, 74, 238, 225, 74, 71, 94, 179, 32, 125, 156, 53, 87, 229, 189, 118, 21, 4, 49, 155, 220])) }, dispatch: Interface { interface: PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]), slot: 0 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(4) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([95, 27, 84, 255, 249, 61, 160, 233, 154, 69, 142, 244, 56, 36, 218, 111, 90, 40, 144, 177, 116, 246, 188, 100, 66, 109, 218, 181, 149, 112, 16, 8])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(5) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([68, 89, 254, 195, 30, 141, 139, 147, 67, 33, 7, 111, 196, 249, 87, 187, 226, 6, 45, 143, 73, 164, 176, 251, 49, 24, 124, 138, 106, 111, 101, 111])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(6) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([150, 237, 89, 62, 161, 196, 132, 192, 224, 130, 223, 225, 86, 7, 50, 207, 157, 96, 177, 217, 149, 107, 240, 200, 108, 176, 111, 123, 125, 172, 247, 45])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(7) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([205, 11, 118, 205, 91, 255, 153, 113, 167, 18, 166, 125, 61, 134, 27, 25, 136, 200, 83, 17, 231, 255, 33, 189, 187, 92, 195, 250, 186, 116, 2, 190])) }, dispatch: Interface { interface: PersistentTypeId([226, 128, 189, 232, 105, 222, 103, 166, 88, 225, 72, 49, 184, 9, 100, 50, 57, 101, 54, 11, 18, 216, 141, 85, 212, 32, 231, 169, 204, 80, 147, 219]), slot: 0 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(8) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([254, 185, 156, 217, 119, 131, 227, 171, 243, 220, 34, 159, 59, 228, 203, 228, 124, 60, 255, 199, 140, 136, 37, 110, 158, 207, 170, 204, 59, 202, 219, 69])) }, dispatch: Interface { interface: PersistentTypeId([35, 134, 122, 167, 117, 40, 11, 156, 170, 162, 215, 105, 221, 15, 27, 135, 212, 191, 130, 4, 141, 161, 83, 62, 82, 22, 204, 51, 119, 174, 29, 47]), slot: 0 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(9) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([186, 73, 40, 208, 120, 148, 95, 5, 245, 90, 121, 40, 236, 208, 37, 111, 97, 19, 245, 173, 168, 126, 166, 6, 97, 209, 118, 151, 8, 83, 13, 25])) }, dispatch: Interface { interface: PersistentTypeId([35, 134, 122, 167, 117, 40, 11, 156, 170, 162, 215, 105, 221, 15, 27, 135, 212, 191, 130, 4, 141, 161, 83, 62, 82, 22, 204, 51, 119, 174, 29, 47]), slot: 1 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(10) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([50, 172, 233, 155, 70, 154, 238, 235, 252, 167, 109, 96, 89, 24, 183, 40, 16, 188, 164, 44, 224, 121, 14, 84, 36, 205, 232, 50, 151, 80, 125, 42])) }, dispatch: Interface { interface: PersistentTypeId([226, 128, 189, 232, 105, 222, 103, 166, 88, 225, 72, 49, 184, 9, 100, 50, 57, 101, 54, 11, 18, 216, 141, 85, 212, 32, 231, 169, 204, 80, 147, 219]), slot: 1 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(11) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([29, 94, 36, 9, 84, 60, 157, 167, 148, 22, 232, 96, 111, 132, 123, 53, 154, 248, 29, 173, 51, 117, 133, 247, 247, 109, 5, 190, 159, 145, 209, 67])) }, dispatch: Interface { interface: PersistentTypeId([46, 1, 94, 220, 245, 19, 22, 135, 149, 191, 168, 225, 121, 183, 250, 147, 8, 109, 172, 241, 102, 31, 137, 106, 95, 27, 8, 149, 96, 36, 130, 166]), slot: 0 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(12) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([110, 177, 226, 21, 250, 218, 203, 2, 172, 8, 206, 110, 21, 179, 228, 69, 221, 236, 126, 229, 141, 76, 205, 251, 220, 85, 23, 170, 61, 73, 192, 39])) }, dispatch: Interface { interface: PersistentTypeId([105, 113, 132, 49, 207, 3, 152, 175, 72, 64, 202, 4, 131, 208, 202, 56, 222, 130, 169, 202, 131, 176, 166, 120, 141, 194, 56, 193, 0, 198, 9, 78]), slot: 0 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(13) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([165, 104, 249, 7, 138, 192, 249, 79, 112, 23, 112, 110, 53, 118, 178, 249, 142, 159, 115, 107, 90, 27, 228, 136, 50, 114, 147, 31, 45, 92, 228, 123])) }, dispatch: Interface { interface: PersistentTypeId([46, 1, 94, 220, 245, 19, 22, 135, 149, 191, 168, 225, 121, 183, 250, 147, 8, 109, 172, 241, 102, 31, 137, 106, 95, 27, 8, 149, 96, 36, 130, 166]), slot: 1 }, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(14) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([162, 245, 249, 209, 60, 169, 228, 92, 16, 233, 170, 196, 131, 225, 83, 243, 139, 227, 154, 140, 175, 206, 87, 6, 139, 182, 230, 107, 9, 206, 115, 119])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(15) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([42, 114, 46, 122, 139, 14, 98, 85, 222, 53, 68, 55, 9, 217, 199, 171, 10, 149, 92, 172, 191, 208, 251, 171, 10, 148, 38, 108, 239, 145, 76, 125])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(16) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([88, 189, 76, 110, 202, 126, 111, 40, 199, 32, 209, 174, 157, 113, 89, 175, 133, 234, 99, 159, 213, 177, 74, 78, 31, 238, 93, 133, 74, 66, 36, 147])) }, dispatch: Direct, effect: Ordinary }
+  imported_dependency_callables Idx::<ImportedDependencyCallableUse>(17) ImportedDependencyCallableUse { reference: ImportedDependencyCallableRef { callable: Function(PersistentFunctionId([170, 38, 251, 67, 106, 115, 89, 150, 47, 69, 44, 196, 158, 176, 61, 12, 212, 189, 170, 141, 179, 181, 238, 32, 160, 146, 113, 40, 118, 233, 47, 114])) }, dispatch: Direct, effect: Ordinary }
+  functions Idx::<Function>(0) Function { name: "defaultPattern", materialization: CallableMaterialization { template: Function(PersistentFunctionId([30, 14, 234, 200, 150, 48, 216, 166, 87, 253, 177, 58, 150, 83, 124, 73, 254, 142, 255, 225, 151, 137, 118, 184, 87, 52, 230, 146, 0, 56, 104, 137])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [Param { name: "value", ty: Idx::<Type>(3), local: Idx::<Local>(0) }], capture_parameters: [], return_ty: Idx::<Type>(3), attributes: FunctionAttributes { safety: Safe, gc_effect: Managed, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 1, data: [Local { binding: BindingId(19), selector: Parameter { declaration_index: 0 }, definition: Source(DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 410, end: 415 }, context: Idx::<SourceContext>(4) }), name: "value", ty: Idx::<Type>(3), mutable: false }] }, statements: [Statement { kind: Return { value: Some(Expr { kind: Local(Idx::<Local>(0)), ty: Idx::<Type>(3), span: Span { start: 458, end: 463 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 458, end: 463 }, context: Idx::<SourceContext>(4) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 458, end: 463 }, context: Idx::<SourceContext>(4) } } }) }, span: Span { start: 458, end: 463 } }] }), receiver: None, span: Span { start: 384, end: 463 } }
   generated []
   callbacks []
   coroutines []
 == CrossCone ==
 CrossCone 655540a590a3cf7fb7a91fe40d85f05f80162ffaacbc3d165c9f4c31df0c525b
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(23), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(7), arguments: Function([Idx::<Type>(24)]) }
   public_bindings count=6
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([35, 211, 248, 76, 88, 114, 103, 96, 173, 99, 188, 185, 8, 239, 0, 68, 147, 61, 181, 14, 152, 245, 46, 38, 105, 17, 87, 207, 124, 39, 244, 165]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([193, 48, 128, 22, 129, 69, 116, 110, 95, 114, 12, 130, 205, 34, 43, 147, 190, 11, 51, 49, 173, 31, 12, 224, 195, 50, 220, 101, 32, 153, 204, 117])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([85, 22, 251, 61, 155, 240, 7, 52, 108, 42, 224, 227, 46, 14, 62, 46, 79, 88, 25, 205, 81, 147, 82, 138, 221, 104, 81, 220, 20, 234, 189, 94]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([159, 176, 203, 92, 33, 41, 247, 86, 25, 161, 236, 29, 252, 155, 240, 186, 71, 228, 79, 60, 59, 51, 94, 228, 106, 209, 52, 48, 217, 235, 208, 180])) } }

@@ -9,8 +9,8 @@ Module
   global7 $singleton$ca21854d6419329366a8a04aac1151b410116a69dd072cca83ce7b582887dee6: Companion imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=e1d5233c5d7f5019d6d50b5a09047f4b829b921bbf5d9f714ce397896e4ea33e
   global8 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global9 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
-  init0 object-private:dev.m29:derived-decoding-variants:0.1.0/src/main.scoop:TupleDecoder singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=8 deps=[]
-  init1 companion:Choice.Companion singleton lazy global1 initializer=@fn8 ensure=@fn9 failure=9 deps=[]
+  init0 object-private:dev.m29:derived-decoding-variants:0.1.0/src/main.scoop:TupleDecoder singleton lazy global0 initializer=@fn8 ensure=@fn9 failure=8 deps=[]
+  init1 companion:Choice.Companion singleton lazy global1 initializer=@fn11 ensure=@fn12 failure=9 deps=[]
   struct JsonMember (name: String, value: JsonValue)
   enum Option<String>
     Some(_0: String)
@@ -73,7 +73,7 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class StringBuilder vtable=0 itables=0
-  class ArrayList<String> vtable=0 itables=3
+  class ArrayList<String> vtable=0 itables=4
   class IllegalStateException vtable=0 itables=0
   class Json vtable=0 itables=0
   class Companion vtable=0 itables=1
@@ -96,8 +96,8 @@ Module
   class box<Long> vtable=0 itables=0
   class box<Option<JsonValue>> vtable=0 itables=0
   class box<Option<JsonMember>> vtable=0 itables=0
-  class box<Option<String>> vtable=0 itables=0
-  class box<(Long, Char)> vtable=0 itables=0
+  class box<Option<String>> vtable=0 itables=1
+  class box<(Long, Char)> vtable=0 itables=1
   interface Encodable
   interface Encoder
   interface KeyedEncodingContainer
@@ -118,14 +118,14 @@ Module
   interface Decodable<String>
   interface Decodable<(Long, Char)>
   interface Decodable<Unit>
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface List<Option<String>> : Iterable<Option<String>>
   interface Iterable<Option<String>>
   interface Iterator<Option<String>>
   interface MutableList<String> : List<String>
   interface Decodable<Long>
   interface Decodable<Char>
-  interface Iterable<Char>
-  interface Iterator<Char>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>
@@ -146,14 +146,14 @@ Module
   interface Continuation<Choice.Companion>
   interface SuspendTask<Choice.Companion>
   interface SuspendRegistration<Choice.Companion>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn107 id=026446696266870ad33129d0644f76530953e147c41abb2c7d1d795cc2d7cb8b
-  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn68 captures=3
-    bridge function_type1 -> @fn108 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
-  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn81 captures=3
-    bridge function_type1 -> @fn109 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
-  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn86 captures=3
-    bridge function_type1 -> @fn110 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn15 captures=0
+    bridge function_type1 -> @fn127 id=026446696266870ad33129d0644f76530953e147c41abb2c7d1d795cc2d7cb8b
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn84 captures=3
+    bridge function_type1 -> @fn128 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn99 captures=3
+    bridge function_type1 -> @fn129 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn104 captures=3
+    bridge function_type1 -> @fn130 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=enum11 nominal_id=7bd2ce9181149c46fbb3899f6aeecf7b983bf164151514aef679b1bbc01eed50 exact_id=2de5d27bfdef069057a32cef7861fb11e7bcc25733dd2805384f62153a616b2c
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -173,19 +173,21 @@ Module
   generated_exact_type get16 location=class32 nominal_id=0bec7cca86ea56591520ab6fd02407e9274491acf1882302dfb06d9204fd6464 exact_id=f1c34b75563e25078fe2a2242e29ecaf83cf69361112ad75abb97fe2f1d2ff61
   generated_exact_type get17 location=class33 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
   generated_exact_type get18 location=class37 nominal_id=c86b06ced6351f5f52be40c67bf501cd398009eb8e7e4d10fe7442c731d7012d exact_id=f57161a4e3988bd872624302e1234b05a3035af37f44f087bcb680c4a33faf32
-  generated_callable gc0 function=@fn107 id=026446696266870ad33129d0644f76530953e147c41abb2c7d1d795cc2d7cb8b
-  generated_callable gc1 function=@fn104 id=10879d91c004fff136e55b49b16c63d77edf1f3e711eb3ba2c010f2d15631f3e
-  generated_callable gc2 function=@fn110 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
-  generated_callable gc3 function=@fn105 id=9d991179f4901f31413e8a59b606a0f24debc58db8771f75f42e75ebc7d36081
-  generated_callable gc4 function=@fn109 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
-  generated_callable gc5 function=@fn106 id=bf5c3e4bdd57effe9e3d2aa05405d9d82ea542ff71dcd0197e73692e59940ce1
-  generated_callable gc6 function=@fn108 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
+  generated_callable gc0 function=@fn127 id=026446696266870ad33129d0644f76530953e147c41abb2c7d1d795cc2d7cb8b
+  generated_callable gc1 function=@fn122 id=10879d91c004fff136e55b49b16c63d77edf1f3e711eb3ba2c010f2d15631f3e
+  generated_callable gc2 function=@fn130 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
+  generated_callable gc3 function=@fn123 id=9d991179f4901f31413e8a59b606a0f24debc58db8771f75f42e75ebc7d36081
+  generated_callable gc4 function=@fn125 id=adc5e9f22c7668e0272f862608d3ed639041d1bd0f541b10540380f65de8a85d
+  generated_callable gc5 function=@fn129 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
+  generated_callable gc6 function=@fn124 id=bf5c3e4bdd57effe9e3d2aa05405d9d82ea542ff71dcd0197e73692e59940ce1
+  generated_callable gc7 function=@fn126 id=c290c105b157336f3da7eac926e84221fb01d0d2e38ca5f23e311dfd7330b7a9
+  generated_callable gc8 function=@fn128 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
   fun Choice.encode @fn0(this: Choice, encoder: Encoder) -> Unit
     bb0 entry
       val $dependency.receiver: Encoder
         Type Encoder
         Local encoder
-      call __encoding_variants: KeyedEncodingContainer = external24 interface Encoder[0]
+      call __encoding_variants: KeyedEncodingContainer = external25 interface Encoder[0]
         Type Encoder
         Local $dependency.receiver
       val $when.1: Choice
@@ -209,18 +211,18 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.receiver: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.receiver: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call __encoding_fields: KeyedEncodingContainer = external24 interface Encoder[0]
+      call __encoding_fields: KeyedEncodingContainer = external25 interface Encoder[0]
         Type Encoder
         Local $dependency.receiver
       val $dependency.receiver: KeyedEncodingContainer
         Type KeyedEncodingContainer
         Local __encoding_fields
-      call external26 interface KeyedEncodingContainer[1]
+      call external27 interface KeyedEncodingContainer[1]
         Type KeyedEncodingContainer
         Local $dependency.receiver
       goto bb3
@@ -237,7 +239,7 @@ Module
       val $dependency.receiver: KeyedEncodingContainer
         Type KeyedEncodingContainer
         Local __encoding_variants
-      call external26 interface KeyedEncodingContainer[1]
+      call external27 interface KeyedEncodingContainer[1]
         Type KeyedEncodingContainer
         Local $dependency.receiver
       return
@@ -261,12 +263,12 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.receiver: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.receiver: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call __encoding_elements: UnkeyedEncodingContainer = external27 interface Encoder[1]
+      call __encoding_elements: UnkeyedEncodingContainer = external28 interface Encoder[1]
         Type Encoder
         Local $dependency.receiver
       val $dependency.receiver: String
@@ -275,13 +277,13 @@ Module
       val $dependency.receiver: UnkeyedEncodingContainer
         Type UnkeyedEncodingContainer
         Local __encoding_elements
-      call $dependency.argument.0: Encoder = external28 interface UnkeyedEncodingContainer[0]
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.0
-      call external29 direct
+      call external30 direct
         Type String
         Local $dependency.receiver
         Type Encoder
@@ -292,13 +294,13 @@ Module
       val $dependency.receiver: UnkeyedEncodingContainer
         Type UnkeyedEncodingContainer
         Local __encoding_elements
-      call $dependency.argument.0: Encoder = external28 interface UnkeyedEncodingContainer[0]
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.0
-      call external30 direct
+      call external31 direct
         Type Int
         Local $dependency.receiver
         Type Encoder
@@ -306,7 +308,7 @@ Module
       val $dependency.receiver: UnkeyedEncodingContainer
         Type UnkeyedEncodingContainer
         Local __encoding_elements
-      call external31 interface UnkeyedEncodingContainer[1]
+      call external32 interface UnkeyedEncodingContainer[1]
         Type UnkeyedEncodingContainer
         Local $dependency.receiver
       goto bb6
@@ -336,12 +338,12 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.receiver: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.receiver: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call __encoding_fields: KeyedEncodingContainer = external24 interface Encoder[0]
+      call __encoding_fields: KeyedEncodingContainer = external25 interface Encoder[0]
         Type Encoder
         Local $dependency.receiver
       val $dependency.receiver: Int
@@ -356,7 +358,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.argument.0: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.argument.0: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
@@ -364,7 +366,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.0
-      call external30 direct
+      call external31 direct
         Type Int
         Local $dependency.receiver
         Type Encoder
@@ -372,7 +374,7 @@ Module
       val $dependency.receiver: KeyedEncodingContainer
         Type KeyedEncodingContainer
         Local __encoding_fields
-      call external26 interface KeyedEncodingContainer[1]
+      call external27 interface KeyedEncodingContainer[1]
         Type KeyedEncodingContainer
         Local $dependency.receiver
       goto bb9
@@ -407,12 +409,12 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.receiver: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.receiver: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call __encoding_fields: KeyedEncodingContainer = external24 interface Encoder[0]
+      call __encoding_fields: KeyedEncodingContainer = external25 interface Encoder[0]
         Type Encoder
         Local $dependency.receiver
       val $dependency.receiver: String
@@ -427,7 +429,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.argument.0: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.argument.0: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
@@ -435,7 +437,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.0
-      call external29 direct
+      call external30 direct
         Type String
         Local $dependency.receiver
         Type Encoder
@@ -452,7 +454,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call $dependency.argument.0: Encoder = external25 interface KeyedEncodingContainer[0]
+      call $dependency.argument.0: Encoder = external26 interface KeyedEncodingContainer[0]
         Type KeyedEncodingContainer
         Local $dependency.receiver
         Type String
@@ -460,7 +462,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.0
-      call external30 direct
+      call external31 direct
         Type Int
         Local $dependency.receiver
         Type Encoder
@@ -468,7 +470,7 @@ Module
       val $dependency.receiver: KeyedEncodingContainer
         Type KeyedEncodingContainer
         Local __encoding_fields
-      call external26 interface KeyedEncodingContainer[1]
+      call external27 interface KeyedEncodingContainer[1]
         Type KeyedEncodingContainer
         Local $dependency.receiver
       goto bb12
@@ -566,7 +568,7 @@ Module
         VariantPayloadProject Choice v1 f1
           Type Choice
           Local $pattern.subject.7
-      call $call.1: Boolean = external14 direct
+      call $call.1: Boolean = external15 direct
         Type String
         Local $left.1.0
         Type String
@@ -710,7 +712,7 @@ Module
         VariantPayloadProject Choice v3 f1
           Type Choice
           Local $pattern.subject.13
-      call $call.4: Boolean = external14 direct
+      call $call.4: Boolean = external15 direct
         Type String
         Local $left.3.0
         Type String
@@ -750,7 +752,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: UnkeyedDecodingContainer = external37 interface Decoder[1]
+      call __decoded_value: UnkeyedDecodingContainer = external38 interface Decoder[1]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: UnkeyedDecodingContainer
@@ -759,10 +761,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external63 direct
+      call external66 direct
       val __decoded_value: Decodable<Int>
         Type Decodable<Int>
         Retype Decodable<Int>
@@ -780,7 +782,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Int = @fn10 interface Decodable<Int>[0]
+      call __decoded_value: Int = @fn13 interface Decodable<Int>[0]
         Type Decodable<Int>
         Local $dependency.receiver
         Type Decoder
@@ -791,10 +793,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external64 direct
+      call external67 direct
       val __decoded_value: Decodable<String>
         Type Decodable<String>
         Retype Decodable<String>
@@ -812,7 +814,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: String = @fn11 interface Decodable<String>[0]
+      call __decoded_value: String = @fn14 interface Decodable<String>[0]
         Type Decodable<String>
         Local $dependency.receiver
         Type Decoder
@@ -823,7 +825,7 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_argument_0: (Decoder) -> (Long, Char)
@@ -838,7 +840,7 @@ Module
       assign $new.1
         Type DecodeFunction<(Long, Char)>
         ClassAlloc DecodeFunction<(Long, Char)>
-      call @fn97 direct
+      call @fn115 direct
         Type DecodeFunction<(Long, Char)>
         Local $new.1
         Type (Decoder) -> (Long, Char)
@@ -860,7 +862,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: (Long, Char) = @fn14 interface Decodable<(Long, Char)>[0]
+      call __decoded_value: (Long, Char) = @fn17 interface Decodable<(Long, Char)>[0]
         Type Decodable<(Long, Char)>
         Local $dependency.receiver
         Type Decoder
@@ -871,10 +873,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external65 direct
+      call external68 direct
       val __decoded_value: Decodable<Unit>
         Type Decodable<Unit>
         Retype Decodable<Unit>
@@ -892,7 +894,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call @fn15 interface Decodable<Unit>[0]
+      call @fn18 interface Decodable<Unit>[0]
         Type Decodable<Unit>
         Local $dependency.receiver
         Type Decoder
@@ -906,7 +908,7 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call external39 interface UnkeyedDecodingContainer[1]
+      call external40 interface UnkeyedDecodingContainer[1]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
       return
@@ -920,7 +922,171 @@ Module
           Local __decoded_value
           Type Unit
           Local __decoded_value
-  fun Choice.Companion.decode @fn3(this: Choice.Companion, decoder: Decoder) -> Choice
+  fun $tuple.2.encode @fn3(this: (Long, Char), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Char)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external49 direct
+        Type Long
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Char
+        Type Char
+        FieldAccess 1
+          Type (Long, Char)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external0 direct
+        Type Char
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun $tuple.4.encode @fn4(this: (Int, String, (Long, Char), Unit), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, String, (Long, Char), Unit)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external31 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (Int, String, (Long, Char), Unit)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external30 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: (Long, Char)
+        Type (Long, Char)
+        FieldAccess 2
+          Type (Int, String, (Long, Char), Unit)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type (Long, Char)
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Unit
+        Type Unit
+        FieldAccess 3
+          Type (Int, String, (Long, Char), Unit)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external61 direct
+        Type Unit
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun encode @fn5(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn20 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun Choice.Companion.decode @fn6(this: Choice.Companion, decoder: Decoder) -> Choice
     bb0 entry
       val __decoded_value: Decoder
         Type Decoder
@@ -931,13 +1097,13 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: KeyedDecodingContainer = external40 interface Decoder[0]
+      call __decoded_value: KeyedDecodingContainer = external41 interface Decoder[0]
         Type Decoder
         Local $dependency.receiver
-      call __decoded_value: List<String> = external41 interface KeyedDecodingContainer[3]
+      call __decoded_value: List<String> = external42 interface KeyedDecodingContainer[3]
         Type KeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Long = @fn16 interface List<String>[2]
+      call __decoded_value: Long = @fn22 interface List<String>[2]
         Type List<String>
         Local __decoded_value
       val __decoded_argument_0: Long
@@ -962,7 +1128,7 @@ Module
             Type Long
             Local $dependency.parameter.other
     bb1 if.then.1
-      call __decoded_argument_0: String = external42 interface Decoder[3]
+      call __decoded_argument_0: String = external43 interface Decoder[3]
         Type Decoder
         Local __decoded_value
       val __decoded_argument_1: String
@@ -983,7 +1149,7 @@ Module
       assign $new.1
         Type DecodingException
         ClassAlloc DecodingException
-      call external43 direct
+      call external44 direct
         Type DecodingException
         Local $new.1
         Type String
@@ -1009,7 +1175,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call __decoded_value: String = @fn17 interface List<String>[1]
+      call __decoded_value: String = @fn23 interface List<String>[1]
         Type List<String>
         Local $dependency.receiver
         Type Long
@@ -1029,7 +1195,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.2: Boolean = external14 direct
+      call $call.2: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1053,7 +1219,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
@@ -1061,7 +1227,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: KeyedDecodingContainer = external40 interface Decoder[0]
+      call __decoded_value: KeyedDecodingContainer = external41 interface Decoder[0]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1070,7 +1236,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1079,7 +1245,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val $decoded_variant.6: Choice
@@ -1102,7 +1268,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.3: Boolean = external14 direct
+      call $call.3: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1130,7 +1296,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
@@ -1138,7 +1304,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: UnkeyedDecodingContainer = external37 interface Decoder[1]
+      call __decoded_value: UnkeyedDecodingContainer = external38 interface Decoder[1]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: UnkeyedDecodingContainer
@@ -1147,10 +1313,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external64 direct
+      call external67 direct
       val __decoded_value: Decodable<String>
         Type Decodable<String>
         Retype Decodable<String>
@@ -1168,7 +1334,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: String = @fn11 interface Decodable<String>[0]
+      call __decoded_value: String = @fn14 interface Decodable<String>[0]
         Type Decodable<String>
         Local $dependency.receiver
         Type Decoder
@@ -1179,10 +1345,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external63 direct
+      call external66 direct
       val __decoded_value: Decodable<Int>
         Type Decodable<Int>
         Retype Decodable<Int>
@@ -1200,7 +1366,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Int = @fn10 interface Decodable<Int>[0]
+      call __decoded_value: Int = @fn13 interface Decodable<Int>[0]
         Type Decodable<Int>
         Local $dependency.receiver
         Type Decoder
@@ -1211,7 +1377,7 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call external39 interface UnkeyedDecodingContainer[1]
+      call external40 interface UnkeyedDecodingContainer[1]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1220,7 +1386,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: String
@@ -1271,7 +1437,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.4: Boolean = external14 direct
+      call $call.4: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1297,7 +1463,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
@@ -1305,7 +1471,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: KeyedDecodingContainer = external40 interface Decoder[0]
+      call __decoded_value: KeyedDecodingContainer = external41 interface Decoder[0]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1323,7 +1489,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Option<Decoder> = external46 interface KeyedDecodingContainer[1]
+      call __decoded_value: Option<Decoder> = external47 interface KeyedDecodingContainer[1]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
@@ -1349,7 +1515,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.5: Boolean = external14 direct
+      call $call.5: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1365,7 +1531,7 @@ Module
         VariantPayloadProject Option<Decoder> v0 f0
           Type Option<Decoder>
           Local __decoded_value
-      call external63 direct
+      call external66 direct
       val __decoded_value: Decodable<Int>
         Type Decodable<Int>
         Retype Decodable<Int>
@@ -1383,7 +1549,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Int = @fn10 interface Decodable<Int>[0]
+      call __decoded_value: Int = @fn13 interface Decodable<Int>[0]
         Type Decodable<Int>
         Local $dependency.receiver
         Type Decoder
@@ -1406,7 +1572,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1415,7 +1581,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       branch bb15 bb16
@@ -1497,7 +1663,7 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
@@ -1505,7 +1671,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: KeyedDecodingContainer = external40 interface Decoder[0]
+      call __decoded_value: KeyedDecodingContainer = external41 interface Decoder[0]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1523,12 +1689,12 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call external64 direct
+      call external67 direct
       val __decoded_value: Decodable<String>
         Type Decodable<String>
         Retype Decodable<String>
@@ -1546,7 +1712,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: String = @fn11 interface Decodable<String>[0]
+      call __decoded_value: String = @fn14 interface Decodable<String>[0]
         Type Decodable<String>
         Local $dependency.receiver
         Type Decoder
@@ -1566,12 +1732,12 @@ Module
       val $dependency.parameter.name: String
         Type String
         Local $dependency.argument.0
-      call __decoded_value: Decoder = external44 interface KeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external45 interface KeyedDecodingContainer[0]
         Type KeyedDecodingContainer
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.name
-      call external63 direct
+      call external66 direct
       val __decoded_value: Decodable<Int>
         Type Decodable<Int>
         Retype Decodable<Int>
@@ -1589,7 +1755,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Int = @fn10 interface Decodable<Int>[0]
+      call __decoded_value: Int = @fn13 interface Decodable<Int>[0]
         Type Decodable<Int>
         Local $dependency.receiver
         Type Decoder
@@ -1600,7 +1766,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: KeyedDecodingContainer
@@ -1609,7 +1775,7 @@ Module
       val $dependency.receiver: KeyedDecodingContainer
         Type KeyedDecodingContainer
         Local __decoded_value
-      call external45 interface KeyedDecodingContainer[2]
+      call external46 interface KeyedDecodingContainer[2]
         Type KeyedDecodingContainer
         Local $dependency.receiver
       val __decoded_value: String
@@ -1645,7 +1811,7 @@ Module
           Local $parameter.count
       goto bb20
     bb19 if.else.19
-      call __decoded_argument_0: String = external42 interface Decoder[3]
+      call __decoded_argument_0: String = external43 interface Decoder[3]
         Type Decoder
         Local __decoded_value
       val __decoded_argument_1: String
@@ -1666,7 +1832,7 @@ Module
       assign $new.6
         Type DecodingException
         ClassAlloc DecodingException
-      call external43 direct
+      call external44 direct
         Type DecodingException
         Local $new.6
         Type String
@@ -1678,7 +1844,7 @@ Module
         Local $new.6
     bb20 if.merge.20
       goto bb11
-  fun check @fn4(value: Boolean, code: Int) -> Unit
+  fun check @fn7(value: Boolean, code: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -1692,7 +1858,7 @@ Module
       assign $new.1
         Type StringBuilder
         ClassAlloc StringBuilder
-      call external0 direct
+      call external1 direct
         Type StringBuilder
         Local $new.1
       val $stringBuilder.0: StringBuilder
@@ -1707,7 +1873,7 @@ Module
       val $dependency.parameter.part: String
         Type String
         Local $dependency.argument.0
-      call $call.2: StringBuilder = external1 direct
+      call $call.2: StringBuilder = external2 direct
         Type StringBuilder
         Local $dependency.receiver
         Type String
@@ -1721,7 +1887,7 @@ Module
       val $dependency.parameter.part: Int
         Type Int
         Local $dependency.argument.0
-      call $call.3: StringBuilder = @fn29 direct
+      call $call.3: StringBuilder = @fn38 direct
         Type StringBuilder
         Local $dependency.receiver
         Type Int
@@ -1729,19 +1895,19 @@ Module
       val $dependency.receiver: StringBuilder
         Type StringBuilder
         Local $stringBuilder.0
-      call $dependency.argument.0: String = external2 direct
+      call $dependency.argument.0: String = external3 direct
         Type StringBuilder
         Local $dependency.receiver
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn39 direct
         Type String
         Local $dependency.parameter.value
       assign $new.4
         Type StringBuilder
         ClassAlloc StringBuilder
-      call external0 direct
+      call external1 direct
         Type StringBuilder
         Local $new.4
       val $stringBuilder.1: StringBuilder
@@ -1756,7 +1922,7 @@ Module
       val $dependency.parameter.part: String
         Type String
         Local $dependency.argument.0
-      call $call.5: StringBuilder = external1 direct
+      call $call.5: StringBuilder = external2 direct
         Type StringBuilder
         Local $dependency.receiver
         Type String
@@ -1770,7 +1936,7 @@ Module
       val $dependency.parameter.part: Int
         Type Int
         Local $dependency.argument.0
-      call $call.6: StringBuilder = @fn29 direct
+      call $call.6: StringBuilder = @fn38 direct
         Type StringBuilder
         Local $dependency.receiver
         Type Int
@@ -1778,7 +1944,7 @@ Module
       val $dependency.receiver: StringBuilder
         Type StringBuilder
         Local $stringBuilder.1
-      call $dependency.argument.0: String = external2 direct
+      call $dependency.argument.0: String = external3 direct
         Type StringBuilder
         Local $dependency.receiver
       val $dependency.parameter._1: String
@@ -1795,7 +1961,7 @@ Module
       assign $new.7
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call external3 direct
+      call external4 direct
         Type IllegalStateException
         Local $new.7
         Type Option<String>
@@ -1805,19 +1971,19 @@ Module
         Local $new.7
     bb2 if.merge.2
       return
-  fun $init$body$0 @fn5() -> Unit
+  fun $init$body$0 @fn8() -> Unit
     bb0 entry
       assign $new.1
         Type TupleDecoder
         ClassAlloc TupleDecoder
-      call @fn95 direct
+      call @fn113 direct
         Type TupleDecoder
         Local $new.1
       global_assign $singleton$TupleDecoder
         Type TupleDecoder
         Local $new.1
       return
-  fun $init$ensure$0 @fn6() -> Unit
+  fun $init$ensure$0 @fn9() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1862,7 +2028,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn5 direct
+      call @fn8 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object-private:dev.m29:derived-decoding-variants:0.1.0/src/main.scoop:TupleDecoder
@@ -1909,22 +2075,22 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object-private:dev.m29:derived-decoding-variants:0.1.0/src/main.scoop:TupleDecoder
-      call external59 direct
+      call external62 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun main @fn7() -> Unit
+  fun main @fn10() -> Unit
     bb0 entry
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
       val $dependency.argument.0: String
         Type String
         StringConst @str18
-      call @fn9 direct
+      call @fn12 direct
       val $dependency.argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -1936,14 +2102,14 @@ Module
       val $dependency.parameter.codec: Decodable<Choice>
         Type Decodable<Choice>
         Local $dependency.argument.1
-      call empty: Choice = @fn31 direct
+      call empty: Choice = @fn40 direct
         Type Json
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.text
         Type Decodable<Choice>
         Local $dependency.parameter.codec
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -1953,7 +2119,7 @@ Module
       val $dependency.parameter.value: Choice
         Type Choice
         Local $dependency.argument.0
-      call $dependency.receiver: String = @fn32 direct
+      call $dependency.receiver: String = @fn41 direct
         Type Json
         Local $dependency.receiver
         Type Choice
@@ -1964,7 +2130,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1978,19 +2144,19 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
       val $dependency.argument.0: String
         Type String
         StringConst @str20
-      call @fn9 direct
+      call @fn12 direct
       val $dependency.argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2002,14 +2168,14 @@ Module
       val $dependency.parameter.codec: Decodable<Choice>
         Type Decodable<Choice>
         Local $dependency.argument.1
-      call pair: Choice = @fn31 direct
+      call pair: Choice = @fn40 direct
         Type Json
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.text
         Type Decodable<Choice>
         Local $dependency.parameter.codec
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -2019,7 +2185,7 @@ Module
       val $dependency.parameter.value: Choice
         Type Choice
         Local $dependency.argument.0
-      call $dependency.receiver: String = @fn32 direct
+      call $dependency.receiver: String = @fn41 direct
         Type Json
         Local $dependency.receiver
         Type Choice
@@ -2030,7 +2196,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2044,19 +2210,19 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
       val $dependency.argument.0: String
         Type String
         StringConst @str22
-      call @fn9 direct
+      call @fn12 direct
       val $dependency.argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2068,7 +2234,7 @@ Module
       val $dependency.parameter.codec: Decodable<Choice>
         Type Decodable<Choice>
         Local $dependency.argument.1
-      call named: Choice = @fn31 direct
+      call named: Choice = @fn40 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -2131,12 +2297,12 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -2146,7 +2312,7 @@ Module
       val $dependency.parameter.value: Choice
         Type Choice
         Local $dependency.argument.0
-      call $dependency.receiver: String = @fn32 direct
+      call $dependency.receiver: String = @fn41 direct
         Type Json
         Local $dependency.receiver
         Type Choice
@@ -2157,7 +2323,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2171,19 +2337,19 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
       val $dependency.argument.0: String
         Type String
         StringConst @str24
-      call @fn9 direct
+      call @fn12 direct
       val $dependency.argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2195,14 +2361,14 @@ Module
       val $dependency.parameter.codec: Decodable<Choice>
         Type Decodable<Choice>
         Local $dependency.argument.1
-      call record: Choice = @fn31 direct
+      call record: Choice = @fn40 direct
         Type Json
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.text
         Type Decodable<Choice>
         Local $dependency.parameter.codec
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -2212,7 +2378,7 @@ Module
       val $dependency.parameter.value: Choice
         Type Choice
         Local $dependency.argument.0
-      call $dependency.receiver: String = @fn32 direct
+      call $dependency.receiver: String = @fn41 direct
         Type Json
         Local $dependency.receiver
         Type Choice
@@ -2223,7 +2389,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2237,19 +2403,19 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
         Local $parameter.code
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
       val $dependency.argument.0: String
         Type String
         StringConst @str26
-      call @fn6 direct
+      call @fn9 direct
       val $dependency.argument.1: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Retype Decodable<(Int, String, (Long, Char), Unit)>
@@ -2261,7 +2427,7 @@ Module
       val $dependency.parameter.codec: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Local $dependency.argument.1
-      call tuple: (Int, String, (Long, Char), Unit) = @fn33 direct
+      call tuple: (Int, String, (Long, Char), Unit) = @fn42 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -2326,7 +2492,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $shortCircuit.4: Boolean = external14 direct
+      call $shortCircuit.4: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -2381,7 +2547,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -2419,7 +2585,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -2427,7 +2593,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str28
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2445,7 +2611,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2455,7 +2621,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str30
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2473,7 +2639,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2483,7 +2649,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str32
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2501,7 +2667,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2511,7 +2677,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str34
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2529,7 +2695,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2539,7 +2705,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str36
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2557,7 +2723,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2567,7 +2733,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str38
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2585,7 +2751,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2595,7 +2761,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str40
-      call @fn9 direct
+      call @fn12 direct
       val $argument.1: Decodable<Choice>
         Type Decodable<Choice>
         Retype Decodable<Choice>
@@ -2613,7 +2779,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn34 direct
+      call @fn43 direct
         Type String
         Local $parameter.text
         Type Decodable<Choice>
@@ -2623,7 +2789,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str42
-      call @fn6 direct
+      call @fn9 direct
       val $argument.1: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Retype Decodable<(Int, String, (Long, Char), Unit)>
@@ -2641,7 +2807,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn35 direct
+      call @fn44 direct
         Type String
         Local $parameter.text
         Type Decodable<(Int, String, (Long, Char), Unit)>
@@ -2651,7 +2817,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str44
-      call @fn6 direct
+      call @fn9 direct
       val $argument.1: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Retype Decodable<(Int, String, (Long, Char), Unit)>
@@ -2669,7 +2835,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn35 direct
+      call @fn44 direct
         Type String
         Local $parameter.text
         Type Decodable<(Int, String, (Long, Char), Unit)>
@@ -2679,7 +2845,7 @@ Module
       val $argument.0: String
         Type String
         StringConst @str46
-      call @fn6 direct
+      call @fn9 direct
       val $argument.1: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Retype Decodable<(Int, String, (Long, Char), Unit)>
@@ -2697,7 +2863,7 @@ Module
       val $parameter.path: String
         Type String
         Local $argument.2
-      call @fn35 direct
+      call @fn44 direct
         Type String
         Local $parameter.text
         Type Decodable<(Int, String, (Long, Char), Unit)>
@@ -2710,23 +2876,23 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn39 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun $init$body$1 @fn8() -> Unit
+  fun $init$body$1 @fn11() -> Unit
     bb0 entry
       assign $new.1
         Type Choice.Companion
         ClassAlloc Choice.Companion
-      call @fn96 direct
+      call @fn114 direct
         Type Choice.Companion
         Local $new.1
       global_assign $singleton$Companion
         Type Choice.Companion
         Local $new.1
       return
-  fun $init$ensure$1 @fn9() -> Unit
+  fun $init$ensure$1 @fn12() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -2771,7 +2937,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn8 direct
+      call @fn11 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:Choice.Companion
@@ -2818,19 +2984,19 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:Choice.Companion
-      call external59 direct
+      call external62 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun Decodable.decode @fn10(this: Decodable<Int>, decoder: Decoder) -> Int
+  fun Decodable.decode @fn13(this: Decodable<Int>, decoder: Decoder) -> Int
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun Decodable.decode @fn11(this: Decodable<String>, decoder: Decoder) -> String
+  fun Decodable.decode @fn14(this: Decodable<String>, decoder: Decoder) -> String
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun $lambda.0 @fn12($closure: (Decoder) -> (Long, Char), it: Decoder) -> (Long, Char)
+  fun $lambda.0 @fn15($closure: (Decoder) -> (Long, Char), it: Decoder) -> (Long, Char)
     bb0 entry
       val __decoded_value: Decoder
         Type Decoder
@@ -2838,7 +3004,7 @@ Module
       val $dependency.receiver: Decoder
         Type Decoder
         Local __decoded_value
-      call __decoded_value: UnkeyedDecodingContainer = external37 interface Decoder[1]
+      call __decoded_value: UnkeyedDecodingContainer = external38 interface Decoder[1]
         Type Decoder
         Local $dependency.receiver
       val __decoded_value: UnkeyedDecodingContainer
@@ -2847,10 +3013,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external67 direct
+      call external70 direct
       val __decoded_value: Decodable<Long>
         Type Decodable<Long>
         Retype Decodable<Long>
@@ -2868,7 +3034,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Long = @fn36 interface Decodable<Long>[0]
+      call __decoded_value: Long = @fn45 interface Decodable<Long>[0]
         Type Decodable<Long>
         Local $dependency.receiver
         Type Decoder
@@ -2879,10 +3045,10 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call __decoded_value: Decoder = external38 interface UnkeyedDecodingContainer[0]
+      call __decoded_value: Decoder = external39 interface UnkeyedDecodingContainer[0]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
-      call external62 direct
+      call external65 direct
       val __decoded_value: Decodable<Char>
         Type Decodable<Char>
         Retype Decodable<Char>
@@ -2900,7 +3066,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __decoded_value: Char = @fn37 interface Decodable<Char>[0]
+      call __decoded_value: Char = @fn46 interface Decodable<Char>[0]
         Type Decodable<Char>
         Local $dependency.receiver
         Type Decoder
@@ -2911,7 +3077,7 @@ Module
       val $dependency.receiver: UnkeyedDecodingContainer
         Type UnkeyedDecodingContainer
         Local __decoded_value
-      call external39 interface UnkeyedDecodingContainer[1]
+      call external40 interface UnkeyedDecodingContainer[1]
         Type UnkeyedDecodingContainer
         Local $dependency.receiver
       return
@@ -2921,7 +3087,7 @@ Module
           Local __decoded_value
           Type Char
           Local __decoded_value
-  fun decode @fn13(this: DecodeFunction<(Long, Char)>, decoder: Decoder) -> (Long, Char)
+  fun decode @fn16(this: DecodeFunction<(Long, Char)>, decoder: Decoder) -> (Long, Char)
     bb0 entry
       call $call.1: (Long, Char) = <closure:function_type0> closure[function_type0]
         Type (Decoder) -> (Long, Char)
@@ -2933,19 +3099,188 @@ Module
       return
         Type (Long, Char)
         Local $call.1
-  fun Decodable.decode @fn14(this: Decodable<(Long, Char)>, decoder: Decoder) -> (Long, Char)
+  fun Decodable.decode @fn17(this: Decodable<(Long, Char)>, decoder: Decoder) -> (Long, Char)
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun Decodable.decode @fn15(this: Decodable<Unit>, decoder: Decoder) -> Unit
+  fun Decodable.decode @fn18(this: Decodable<Unit>, decoder: Decoder) -> Unit
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun List.$get$size @fn16(this: List<String>) -> Long
+  fun encode @fn19(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn47 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn20(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str49
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str50
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external30 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn21(this: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn48 direct
+        Type Option<Int>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun List.$get$size @fn22(this: List<String>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn17(this: List<String>, index: Long) -> String
+  fun List.get @fn23(this: List<String>, index: Long) -> String
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun iterator @fn18(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
+  fun encode @fn24(this: Option<Option<String>>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Option<String>>
+        Type Option<Option<String>>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn49 direct
+        Type Option<Option<String>>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun iterator @fn25(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
     bb0 entry
       val $dependency.local.1: List<Option<String>>
         Type List<Option<String>>
@@ -2970,7 +3305,7 @@ Module
       assign $new.1
         Type ListIterator<Option<String>>
         ClassAlloc ListIterator<Option<String>>
-      call @fn98 direct
+      call @fn116 direct
         Type ListIterator<Option<String>>
         Local $new.1
         Type List<Option<String>>
@@ -2984,7 +3319,7 @@ Module
         Retype Iterator<Option<String>>
           Type ListIterator<Option<String>>
           Local $new.1
-  fun get @fn19(this: MutableArray<Option<String>>, index: Long) -> Option<String>
+  fun get @fn26(this: MutableArray<Option<String>>, index: Long) -> Option<String>
     bb0 entry
       val $dependency.local.2: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -3032,7 +3367,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3046,7 +3381,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn20(this: MutableArray<Option<String>>) -> Long
+  fun size @fn27(this: MutableArray<Option<String>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -3056,7 +3391,29 @@ Module
         ArrayLen MutableArray<Option<String>>
           Type MutableArray<Option<String>>
           Local $dependency.local.1
-  fun iterator @fn21(this: ArrayList<String>) -> Iterator<String>
+  fun encode @fn28(this: MutableArray<Option<String>>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: List<Option<String>>
+        Type List<Option<String>>
+        Retype List<Option<String>>
+          Type MutableArray<Option<String>>
+          Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: List<Option<String>>
+        Type List<Option<String>>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn51 direct
+        Type List<Option<String>>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun iterator @fn29(this: ArrayList<String>) -> Iterator<String>
     bb0 entry
       val $dependency.local.1: List<String>
         Type List<String>
@@ -3081,7 +3438,7 @@ Module
       assign $new.1
         Type ListIterator<String>
         ClassAlloc ListIterator<String>
-      call @fn99 direct
+      call @fn117 direct
         Type ListIterator<String>
         Local $new.1
         Type List<String>
@@ -3095,7 +3452,7 @@ Module
         Retype Iterator<String>
           Type ListIterator<String>
           Local $new.1
-  fun get @fn22(this: ArrayList<String>, index: Long) -> String
+  fun get @fn30(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
@@ -3106,7 +3463,7 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      call @fn40 direct
+      call @fn53 direct
         Type ArrayList<String>
         Local $dependency.local.2
         Type Long
@@ -3122,7 +3479,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<String> = @fn19 direct
+      call $opt.1: Option<String> = @fn26 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.5
         Type Long
@@ -3143,7 +3500,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -3153,14 +3510,14 @@ Module
       return
         Type String
         Local $uw.2
-  fun size @fn23(this: ArrayList<String>) -> Long
+  fun size @fn31(this: ArrayList<String>) -> Long
     bb0 entry
       return
         Type Long
         FieldAccess 1
           Type ArrayList<String>
           Local this
-  fun set @fn24(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun set @fn32(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.3: ArrayList<String>
         Type ArrayList<String>
@@ -3171,7 +3528,7 @@ Module
       val $dependency.local.5: Long
         Type Long
         Local $dependency.local.4
-      call @fn40 direct
+      call @fn53 direct
         Type ArrayList<String>
         Local $dependency.local.3
         Type Long
@@ -3241,7 +3598,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3256,12 +3613,12 @@ Module
         Type Option<String>
         Local $value.3
       return
-  fun add @fn25(this: ArrayList<String>, value: String) -> Unit
+  fun add @fn33(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
         Local this
-      call @fn41 direct
+      call @fn54 direct
         Type ArrayList<String>
         Local $dependency.local.2
       val $dependency.local.5: MutableArray<Option<String>>
@@ -3331,7 +3688,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -3366,7 +3723,7 @@ Module
           Type Long
           Local $dependency.local.12
       return
-  fun add @fn26(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun add @fn34(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
         Type Long
@@ -3425,7 +3782,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -3435,7 +3792,7 @@ Module
       val $dependency.local.11: ArrayList<String>
         Type ArrayList<String>
         Local this
-      call @fn41 direct
+      call @fn54 direct
         Type ArrayList<String>
         Local $dependency.local.11
       var $dependency.local.3: Long
@@ -3540,7 +3897,7 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<String> = @fn19 direct
+      call $dependency.local.23: Option<String> = @fn26 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.18
         Type Long
@@ -3591,7 +3948,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -3646,7 +4003,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -3681,7 +4038,7 @@ Module
           Type Long
           Local $dependency.local.38
       return
-  fun removeAt @fn27(this: ArrayList<String>, index: Long) -> String
+  fun removeAt @fn35(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
         Type ArrayList<String>
@@ -3692,7 +4049,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call @fn40 direct
+      call @fn53 direct
         Type ArrayList<String>
         Local $dependency.local.5
         Type Long
@@ -3708,7 +4065,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<String> = @fn19 direct
+      call $opt.1: Option<String> = @fn26 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.8
         Type Long
@@ -3729,7 +4086,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -3849,7 +4206,7 @@ Module
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.21
-      call $dependency.local.25: Option<String> = @fn19 direct
+      call $dependency.local.25: Option<String> = @fn26 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.20
         Type Long
@@ -3900,7 +4257,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -3955,7 +4312,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -3977,7 +4334,7 @@ Module
       return
         Type String
         Local $dependency.local.2
-  fun clear @fn28(this: ArrayList<String>) -> Unit
+  fun clear @fn36(this: ArrayList<String>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
         Type Long
@@ -4071,7 +4428,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -4102,12 +4459,34 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun add @fn29(this: StringBuilder, part: Int) -> StringBuilder
+  fun encode @fn37(this: ArrayList<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: List<String>
+        Type List<String>
+        Retype List<String>
+          Type ArrayList<String>
+          Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: List<String>
+        Type List<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn55 direct
+        Type List<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun add @fn38(this: StringBuilder, part: Int) -> StringBuilder
     bb0 entry
       val $dependency.local.3: Int
         Type Int
         Local part
-      call $dependency.local.2: String = external47 direct
+      call $dependency.local.2: String = external48 direct
         Type Int
         Local $dependency.local.3
       val $dependency.local.4: ArrayList<String>
@@ -4121,7 +4500,7 @@ Module
       val $dependency.local.6: String
         Type String
         Local $dependency.local.5
-      call @fn25 direct
+      call @fn33 direct
         Type ArrayList<String>
         Local $dependency.local.4
         Type String
@@ -4129,31 +4508,31 @@ Module
       return
         Type StringBuilder
         Local this
-  fun println @fn30(value: String) -> Unit
+  fun println @fn39(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external48 direct
+      call $dependency.local.2: String = external50 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external49 direct
+      call external51 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
         Type String
-        StringConst @str49
+        StringConst @str51
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external49 direct
+      call external51 direct
         Type String
         Local $dependency.local.5
       return
-  fun decode @fn31(this: Json, text: String, codec: Decodable<Choice>) -> Choice
+  fun decode @fn40(this: Json, text: String, codec: Decodable<Choice>) -> Choice
     bb0 entry
       val $dependency.local.5: String
         Type String
@@ -4164,7 +4543,7 @@ Module
       assign $new.1
         Type JsonParser
         ClassAlloc JsonParser
-      call external51 direct
+      call external53 direct
         Type JsonParser
         Local $new.1
         Type String
@@ -4172,12 +4551,12 @@ Module
       val $dependency.local.7: JsonParser
         Type JsonParser
         Local $new.1
-      call $dependency.local.8: JsonValue = external52 direct
+      call $dependency.local.8: JsonValue = external54 direct
         Type JsonParser
         Local $dependency.local.7
       val $dependency.local.9: String
         Type String
-        StringConst @str50
+        StringConst @str52
       val $dependency.local.10: JsonValue
         Type JsonValue
         Local $dependency.local.8
@@ -4187,7 +4566,7 @@ Module
       assign $new.2
         Type JsonDecoder
         ClassAlloc JsonDecoder
-      call external53 direct
+      call external55 direct
         Type JsonDecoder
         Local $new.2
         Type JsonValue
@@ -4208,7 +4587,7 @@ Module
       val $dependency.local.14: Decoder
         Type Decoder
         Local $dependency.local.13
-      call $dependency.local.4: Choice = @fn64 interface Decodable<Choice>[0]
+      call $dependency.local.4: Choice = @fn78 interface Decodable<Choice>[0]
         Type Decodable<Choice>
         Local $dependency.local.12
         Type Decoder
@@ -4216,24 +4595,24 @@ Module
       val $dependency.local.15: JsonDecoder
         Type JsonDecoder
         Local $dependency.local.3
-      call external54 direct
+      call external56 direct
         Type JsonDecoder
         Local $dependency.local.15
       return
         Type Choice
         Local $dependency.local.4
-  fun encode @fn32(this: Json, value: Choice) -> String
+  fun encode @fn41(this: Json, value: Choice) -> String
     bb0 entry
       val $dependency.local.3: String
         Type String
-        StringConst @str51
+        StringConst @str53
       val $dependency.local.4: String
         Type String
         Local $dependency.local.3
       assign $new.1
         Type JsonEncoder
         ClassAlloc JsonEncoder
-      call external55 direct
+      call external57 direct
         Type JsonEncoder
         Local $new.1
         Type String
@@ -4260,19 +4639,19 @@ Module
       val $dependency.local.8: JsonEncoder
         Type JsonEncoder
         Local $dependency.local.2
-      call $dependency.local.9: JsonValue = external56 direct
+      call $dependency.local.9: JsonValue = external58 direct
         Type JsonEncoder
         Local $dependency.local.8
       val $dependency.local.10: JsonValue
         Type JsonValue
         Local $dependency.local.9
-      call $call.2: String = external57 direct
+      call $call.2: String = external59 direct
         Type JsonValue
         Local $dependency.local.10
       return
         Type String
         Local $call.2
-  fun decode @fn33(this: Json, text: String, codec: Decodable<(Int, String, (Long, Char), Unit)>) -> (Int, String, (Long, Char), Unit)
+  fun decode @fn42(this: Json, text: String, codec: Decodable<(Int, String, (Long, Char), Unit)>) -> (Int, String, (Long, Char), Unit)
     bb0 entry
       val $dependency.local.5: String
         Type String
@@ -4283,7 +4662,7 @@ Module
       assign $new.1
         Type JsonParser
         ClassAlloc JsonParser
-      call external51 direct
+      call external53 direct
         Type JsonParser
         Local $new.1
         Type String
@@ -4291,12 +4670,12 @@ Module
       val $dependency.local.7: JsonParser
         Type JsonParser
         Local $new.1
-      call $dependency.local.8: JsonValue = external52 direct
+      call $dependency.local.8: JsonValue = external54 direct
         Type JsonParser
         Local $dependency.local.7
       val $dependency.local.9: String
         Type String
-        StringConst @str52
+        StringConst @str54
       val $dependency.local.10: JsonValue
         Type JsonValue
         Local $dependency.local.8
@@ -4306,7 +4685,7 @@ Module
       assign $new.2
         Type JsonDecoder
         ClassAlloc JsonDecoder
-      call external53 direct
+      call external55 direct
         Type JsonDecoder
         Local $new.2
         Type JsonValue
@@ -4327,7 +4706,7 @@ Module
       val $dependency.local.14: Decoder
         Type Decoder
         Local $dependency.local.13
-      call $dependency.local.4: (Int, String, (Long, Char), Unit) = @fn65 interface Decodable<(Int, String, (Long, Char), Unit)>[0]
+      call $dependency.local.4: (Int, String, (Long, Char), Unit) = @fn79 interface Decodable<(Int, String, (Long, Char), Unit)>[0]
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Local $dependency.local.12
         Type Decoder
@@ -4335,13 +4714,13 @@ Module
       val $dependency.local.15: JsonDecoder
         Type JsonDecoder
         Local $dependency.local.3
-      call external54 direct
+      call external56 direct
         Type JsonDecoder
         Local $dependency.local.15
       return
         Type (Int, String, (Long, Char), Unit)
         Local $dependency.local.4
-  fun reject @fn34(text: String, codec: Decodable<Choice>, path: String) -> Unit
+  fun reject @fn43(text: String, codec: Decodable<Choice>, path: String) -> Unit
     bb0 entry
       goto bb8
     bb1 try.unwind.1
@@ -4369,7 +4748,7 @@ Module
     bb7 try.end.7
       val $dependency.argument.0: String
         Type String
-        StringConst @str53
+        StringConst @str55
       val $dependency.parameter._1: String
         Type String
         Local $dependency.argument.0
@@ -4384,7 +4763,7 @@ Module
       assign $new.3
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call external3 direct
+      call external4 direct
         Type IllegalStateException
         Local $new.3
         Type Option<String>
@@ -4393,7 +4772,7 @@ Module
         Type IllegalStateException
         Local $new.3
     bb8 try.body.8 unwind bb1
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -4409,7 +4788,7 @@ Module
       val $dependency.parameter.codec: Decodable<Choice>
         Type Decodable<Choice>
         Local $dependency.argument.1
-      call $call.1: Choice = @fn31 direct
+      call $call.1: Choice = @fn40 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -4430,7 +4809,7 @@ Module
     bb10 try.next.10
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
-      call $dependency.receiver: String = external13 direct
+      call $dependency.receiver: String = external14 direct
         Type DecodingException
         Local error
       val $dependency.argument.0: String
@@ -4439,7 +4818,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -4453,7 +4832,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -4462,7 +4841,7 @@ Module
       goto bb12
     bb12 scope.12
       return
-  fun reject @fn35(text: String, codec: Decodable<(Int, String, (Long, Char), Unit)>, path: String) -> Unit
+  fun reject @fn44(text: String, codec: Decodable<(Int, String, (Long, Char), Unit)>, path: String) -> Unit
     bb0 entry
       goto bb8
     bb1 try.unwind.1
@@ -4490,7 +4869,7 @@ Module
     bb7 try.end.7
       val $dependency.argument.0: String
         Type String
-        StringConst @str54
+        StringConst @str56
       val $dependency.parameter._1: String
         Type String
         Local $dependency.argument.0
@@ -4505,7 +4884,7 @@ Module
       assign $new.3
         Type IllegalStateException
         ClassAlloc IllegalStateException
-      call external3 direct
+      call external4 direct
         Type IllegalStateException
         Local $new.3
         Type Option<String>
@@ -4514,7 +4893,7 @@ Module
         Type IllegalStateException
         Local $new.3
     bb8 try.body.8 unwind bb1
-      call external66 direct
+      call external69 direct
       val $dependency.receiver: Json
         Type Json
         GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
@@ -4530,7 +4909,7 @@ Module
       val $dependency.parameter.codec: Decodable<(Int, String, (Long, Char), Unit)>
         Type Decodable<(Int, String, (Long, Char), Unit)>
         Local $dependency.argument.1
-      call $call.1: (Int, String, (Long, Char), Unit) = @fn33 direct
+      call $call.1: (Int, String, (Long, Char), Unit) = @fn42 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -4551,7 +4930,7 @@ Module
     bb10 try.next.10
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
-      call $dependency.receiver: String = external13 direct
+      call $dependency.receiver: String = external14 direct
         Type DecodingException
         Local error
       val $dependency.argument.0: String
@@ -4560,7 +4939,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external14 direct
+      call $argument.0: Boolean = external15 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -4574,7 +4953,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn4 direct
+      call @fn7 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -4583,13 +4962,340 @@ Module
       goto bb12
     bb12 scope.12
       return
-  fun Decodable.decode @fn36(this: Decodable<Long>, decoder: Decoder) -> Long
+  fun Decodable.decode @fn45(this: Decodable<Long>, decoder: Decoder) -> Long
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun Decodable.decode @fn37(this: Decodable<Char>, decoder: Decoder) -> Char
+  fun Decodable.decode @fn46(this: Decodable<Char>, decoder: Decoder) -> Char
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun next @fn38(this: ListIterator<Option<String>>) -> Option<Option<String>>
+  fun encodeOption @fn47(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str57
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str58
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encodeOption @fn48(value: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str59
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str60
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external31 direct
+        Type Int
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encodeOption @fn49(value: Option<Option<String>>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Option<String>>
+        Type Option<Option<String>>
+        Local value
+      val $pattern.subject.2: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Option<String>> v1
+          Type Option<Option<String>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str61
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external25 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Option<String>> v0
+          Type Option<Option<String>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external27 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Option<String>
+        Type Option<String>
+        VariantPayloadProject Option<Option<String>> v0 f0
+          Type Option<Option<String>>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str62
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external26 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Option<String>
+        Type Option<String>
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call @fn5 direct
+        Type Option<String>
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun next @fn50(this: ListIterator<Option<String>>) -> Option<Option<String>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4606,7 +5312,7 @@ Module
         FieldAccess 1
           Type ListIterator<Option<String>>
           Local this
-      call $dependency.local.3: Long = @fn66 interface List<Option<String>>[2]
+      call $dependency.local.3: Long = @fn80 interface List<Option<String>>[2]
         Type List<Option<String>>
         FieldAccess 0
           Type ListIterator<Option<String>>
@@ -4648,7 +5354,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<String> = @fn67 interface List<Option<String>>[1]
+      call $dependency.local.1: Option<String> = @fn81 interface List<Option<String>>[1]
         Type List<Option<String>>
         Local $dependency.local.5
         Type Long
@@ -4684,7 +5390,74 @@ Module
         VariantConstruct Option<Option<String>> v0
           Type Option<String>
           Local $dependency.local.12
-  fun next @fn39(this: ListIterator<String>) -> Option<String>
+  fun encodeList @fn51(values: List<Option<String>>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.4: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.4
+      val $dependency.local.5: List<Option<String>>
+        Type List<Option<String>>
+        Local values
+      val $dependency.local.6: List<Option<String>>
+        Type List<Option<String>>
+        Local $dependency.local.5
+      call $dependency.local.7: Iterator<Option<String>> = @fn82 interface Iterable<Option<String>>[0]
+        Type Iterable<Option<String>>
+        Retype Iterable<Option<String>>
+          Type List<Option<String>>
+          Local $dependency.local.6
+      val $dependency.local.8: Iterator<Option<String>>
+        Type Iterator<Option<String>>
+        Local $dependency.local.7
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.9: Option<Option<String>> = @fn83 interface Iterator<Option<String>>[0]
+        Type Iterator<Option<String>>
+        Local $dependency.local.8
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Option<String>> v0
+          Type Option<Option<String>>
+          Local $dependency.local.9
+    bb2 while.exit.2
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      return
+    bb3 while.body.3
+      val $dependency.local.10: Option<String>
+        Type Option<String>
+        VariantPayloadProject Option<Option<String>> v0 f0
+          Type Option<Option<String>>
+          Local $dependency.local.9
+      val $dependency.local.3: Option<String>
+        Type Option<String>
+        Local $dependency.local.10
+      val $dependency.local.12: Option<String>
+        Type Option<String>
+        Local $dependency.local.3
+      val $dependency.local.11: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call $dependency.local.13: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.11
+      val $dependency.local.14: Encoder
+        Type Encoder
+        Local $dependency.local.13
+      call @fn5 direct
+        Type Option<String>
+        Local $dependency.local.12
+        Type Encoder
+        Local $dependency.local.14
+      goto bb1
+  fun next @fn52(this: ListIterator<String>) -> Option<String>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4701,7 +5474,7 @@ Module
         FieldAccess 1
           Type ListIterator<String>
           Local this
-      call $dependency.local.3: Long = @fn16 interface List<String>[2]
+      call $dependency.local.3: Long = @fn22 interface List<String>[2]
         Type List<String>
         FieldAccess 0
           Type ListIterator<String>
@@ -4743,7 +5516,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: String = @fn17 interface List<String>[1]
+      call $dependency.local.1: String = @fn23 interface List<String>[1]
         Type List<String>
         Local $dependency.local.5
         Type Long
@@ -4779,7 +5552,7 @@ Module
         VariantConstruct Option<String> v0
           Type String
           Local $dependency.local.12
-  fun checkIndex @fn40(this: ArrayList<String>, index: Long) -> Unit
+  fun checkIndex @fn53(this: ArrayList<String>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -4838,7 +5611,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -4846,7 +5619,7 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
-  fun ensureRoom @fn41(this: ArrayList<String>) -> Unit
+  fun ensureRoom @fn54(this: ArrayList<String>) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -4858,7 +5631,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external58 direct
+      call external60 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -4879,7 +5652,7 @@ Module
           Local $dependency.local.7
           Type Long
           Local $dependency.local.9
-      call $dependency.local.2: Long = @fn20 direct
+      call $dependency.local.2: Long = @fn27 direct
         Type MutableArray<Option<String>>
         FieldAccess 0
           Type ArrayList<String>
@@ -5020,7 +5793,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external61 direct
+      call external64 direct
         Type IllegalArgumentException
         Local $new.1
       throw
@@ -5075,7 +5848,74 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun iterator @fn42(this: MutableArray<Option<JsonMember>>) -> Iterator<Option<JsonMember>>
+  fun encodeList @fn55(values: List<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.4: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: UnkeyedEncodingContainer = external28 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.4
+      val $dependency.local.5: List<String>
+        Type List<String>
+        Local values
+      val $dependency.local.6: List<String>
+        Type List<String>
+        Local $dependency.local.5
+      call $dependency.local.7: Iterator<String> = @fn85 interface Iterable<String>[0]
+        Type Iterable<String>
+        Retype Iterable<String>
+          Type List<String>
+          Local $dependency.local.6
+      val $dependency.local.8: Iterator<String>
+        Type Iterator<String>
+        Local $dependency.local.7
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.9: Option<String> = @fn86 interface Iterator<String>[0]
+        Type Iterator<String>
+        Local $dependency.local.8
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $dependency.local.9
+    bb2 while.exit.2
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call external32 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      return
+    bb3 while.body.3
+      val $dependency.local.10: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $dependency.local.9
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.10
+      val $dependency.local.12: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.11: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.2
+      call $dependency.local.13: Encoder = external29 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.11
+      val $dependency.local.14: Encoder
+        Type Encoder
+        Local $dependency.local.13
+      call external30 direct
+        Type String
+        Local $dependency.local.12
+        Type Encoder
+        Local $dependency.local.14
+      goto bb1
+  fun iterator @fn56(this: MutableArray<Option<JsonMember>>) -> Iterator<Option<JsonMember>>
     bb0 entry
       val $dependency.local.1: List<Option<JsonMember>>
         Type List<Option<JsonMember>>
@@ -5100,7 +5940,7 @@ Module
       assign $new.1
         Type ListIterator<Option<JsonMember>>
         ClassAlloc ListIterator<Option<JsonMember>>
-      call @fn100 direct
+      call @fn118 direct
         Type ListIterator<Option<JsonMember>>
         Local $new.1
         Type List<Option<JsonMember>>
@@ -5114,7 +5954,7 @@ Module
         Retype Iterator<Option<JsonMember>>
           Type ListIterator<Option<JsonMember>>
           Local $new.1
-  fun get @fn43(this: MutableArray<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+  fun get @fn57(this: MutableArray<Option<JsonMember>>, index: Long) -> Option<JsonMember>
     bb0 entry
       val $dependency.local.2: MutableArray<Option<JsonMember>>
         Type MutableArray<Option<JsonMember>>
@@ -5162,7 +6002,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5176,7 +6016,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn44(this: MutableArray<Option<JsonMember>>) -> Long
+  fun size @fn58(this: MutableArray<Option<JsonMember>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Option<JsonMember>>
         Type MutableArray<Option<JsonMember>>
@@ -5186,7 +6026,7 @@ Module
         ArrayLen MutableArray<Option<JsonMember>>
           Type MutableArray<Option<JsonMember>>
           Local $dependency.local.1
-  fun iterator @fn45(this: ArrayList<JsonMember>) -> Iterator<JsonMember>
+  fun iterator @fn59(this: ArrayList<JsonMember>) -> Iterator<JsonMember>
     bb0 entry
       val $dependency.local.1: List<JsonMember>
         Type List<JsonMember>
@@ -5211,7 +6051,7 @@ Module
       assign $new.1
         Type ListIterator<JsonMember>
         ClassAlloc ListIterator<JsonMember>
-      call @fn101 direct
+      call @fn119 direct
         Type ListIterator<JsonMember>
         Local $new.1
         Type List<JsonMember>
@@ -5225,7 +6065,7 @@ Module
         Retype Iterator<JsonMember>
           Type ListIterator<JsonMember>
           Local $new.1
-  fun get @fn46(this: ArrayList<JsonMember>, index: Long) -> JsonMember
+  fun get @fn60(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
         Type ArrayList<JsonMember>
@@ -5236,7 +6076,7 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      call @fn71 direct
+      call @fn89 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.2
         Type Long
@@ -5252,7 +6092,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<JsonMember> = @fn43 direct
+      call $opt.1: Option<JsonMember> = @fn57 direct
         Type MutableArray<Option<JsonMember>>
         Local $dependency.local.5
         Type Long
@@ -5273,7 +6113,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -5283,14 +6123,14 @@ Module
       return
         Type JsonMember
         Local $uw.2
-  fun size @fn47(this: ArrayList<JsonMember>) -> Long
+  fun size @fn61(this: ArrayList<JsonMember>) -> Long
     bb0 entry
       return
         Type Long
         FieldAccess 1
           Type ArrayList<JsonMember>
           Local this
-  fun set @fn48(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
+  fun set @fn62(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.3: ArrayList<JsonMember>
         Type ArrayList<JsonMember>
@@ -5301,7 +6141,7 @@ Module
       val $dependency.local.5: Long
         Type Long
         Local $dependency.local.4
-      call @fn71 direct
+      call @fn89 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.3
         Type Long
@@ -5371,7 +6211,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5386,12 +6226,12 @@ Module
         Type Option<JsonMember>
         Local $value.3
       return
-  fun add @fn49(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
+  fun add @fn63(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonMember>
         Type ArrayList<JsonMember>
         Local this
-      call @fn72 direct
+      call @fn90 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.2
       val $dependency.local.5: MutableArray<Option<JsonMember>>
@@ -5461,7 +6301,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -5496,7 +6336,7 @@ Module
           Type Long
           Local $dependency.local.12
       return
-  fun add @fn50(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
+  fun add @fn64(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
     bb0 entry
       val $dependency.local.4: Long
         Type Long
@@ -5555,7 +6395,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -5565,7 +6405,7 @@ Module
       val $dependency.local.11: ArrayList<JsonMember>
         Type ArrayList<JsonMember>
         Local this
-      call @fn72 direct
+      call @fn90 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.11
       var $dependency.local.3: Long
@@ -5670,7 +6510,7 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<JsonMember> = @fn43 direct
+      call $dependency.local.23: Option<JsonMember> = @fn57 direct
         Type MutableArray<Option<JsonMember>>
         Local $dependency.local.18
         Type Long
@@ -5721,7 +6561,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -5776,7 +6616,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -5811,7 +6651,7 @@ Module
           Type Long
           Local $dependency.local.38
       return
-  fun removeAt @fn51(this: ArrayList<JsonMember>, index: Long) -> JsonMember
+  fun removeAt @fn65(this: ArrayList<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       val $dependency.local.5: ArrayList<JsonMember>
         Type ArrayList<JsonMember>
@@ -5822,7 +6662,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call @fn71 direct
+      call @fn89 direct
         Type ArrayList<JsonMember>
         Local $dependency.local.5
         Type Long
@@ -5838,7 +6678,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<JsonMember> = @fn43 direct
+      call $opt.1: Option<JsonMember> = @fn57 direct
         Type MutableArray<Option<JsonMember>>
         Local $dependency.local.8
         Type Long
@@ -5859,7 +6699,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -5979,7 +6819,7 @@ Module
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.21
-      call $dependency.local.25: Option<JsonMember> = @fn43 direct
+      call $dependency.local.25: Option<JsonMember> = @fn57 direct
         Type MutableArray<Option<JsonMember>>
         Local $dependency.local.20
         Type Long
@@ -6030,7 +6870,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -6085,7 +6925,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -6107,7 +6947,7 @@ Module
       return
         Type JsonMember
         Local $dependency.local.2
-  fun clear @fn52(this: ArrayList<JsonMember>) -> Unit
+  fun clear @fn66(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
         Type Long
@@ -6201,7 +7041,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -6232,7 +7072,7 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun iterator @fn53(this: MutableArray<Option<JsonValue>>) -> Iterator<Option<JsonValue>>
+  fun iterator @fn67(this: MutableArray<Option<JsonValue>>) -> Iterator<Option<JsonValue>>
     bb0 entry
       val $dependency.local.1: List<Option<JsonValue>>
         Type List<Option<JsonValue>>
@@ -6257,7 +7097,7 @@ Module
       assign $new.1
         Type ListIterator<Option<JsonValue>>
         ClassAlloc ListIterator<Option<JsonValue>>
-      call @fn102 direct
+      call @fn120 direct
         Type ListIterator<Option<JsonValue>>
         Local $new.1
         Type List<Option<JsonValue>>
@@ -6271,7 +7111,7 @@ Module
         Retype Iterator<Option<JsonValue>>
           Type ListIterator<Option<JsonValue>>
           Local $new.1
-  fun get @fn54(this: MutableArray<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+  fun get @fn68(this: MutableArray<Option<JsonValue>>, index: Long) -> Option<JsonValue>
     bb0 entry
       val $dependency.local.2: MutableArray<Option<JsonValue>>
         Type MutableArray<Option<JsonValue>>
@@ -6319,7 +7159,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -6333,7 +7173,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn55(this: MutableArray<Option<JsonValue>>) -> Long
+  fun size @fn69(this: MutableArray<Option<JsonValue>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Option<JsonValue>>
         Type MutableArray<Option<JsonValue>>
@@ -6343,7 +7183,7 @@ Module
         ArrayLen MutableArray<Option<JsonValue>>
           Type MutableArray<Option<JsonValue>>
           Local $dependency.local.1
-  fun iterator @fn56(this: ArrayList<JsonValue>) -> Iterator<JsonValue>
+  fun iterator @fn70(this: ArrayList<JsonValue>) -> Iterator<JsonValue>
     bb0 entry
       val $dependency.local.1: List<JsonValue>
         Type List<JsonValue>
@@ -6368,7 +7208,7 @@ Module
       assign $new.1
         Type ListIterator<JsonValue>
         ClassAlloc ListIterator<JsonValue>
-      call @fn103 direct
+      call @fn121 direct
         Type ListIterator<JsonValue>
         Local $new.1
         Type List<JsonValue>
@@ -6382,7 +7222,7 @@ Module
         Retype Iterator<JsonValue>
           Type ListIterator<JsonValue>
           Local $new.1
-  fun get @fn57(this: ArrayList<JsonValue>, index: Long) -> JsonValue
+  fun get @fn71(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
         Type ArrayList<JsonValue>
@@ -6393,7 +7233,7 @@ Module
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      call @fn75 direct
+      call @fn93 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.2
         Type Long
@@ -6409,7 +7249,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<JsonValue> = @fn54 direct
+      call $opt.1: Option<JsonValue> = @fn68 direct
         Type MutableArray<Option<JsonValue>>
         Local $dependency.local.5
         Type Long
@@ -6430,7 +7270,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -6440,14 +7280,14 @@ Module
       return
         Type JsonValue
         Local $uw.2
-  fun size @fn58(this: ArrayList<JsonValue>) -> Long
+  fun size @fn72(this: ArrayList<JsonValue>) -> Long
     bb0 entry
       return
         Type Long
         FieldAccess 1
           Type ArrayList<JsonValue>
           Local this
-  fun set @fn59(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
+  fun set @fn73(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.3: ArrayList<JsonValue>
         Type ArrayList<JsonValue>
@@ -6458,7 +7298,7 @@ Module
       val $dependency.local.5: Long
         Type Long
         Local $dependency.local.4
-      call @fn75 direct
+      call @fn93 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.3
         Type Long
@@ -6528,7 +7368,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -6543,12 +7383,12 @@ Module
         Type Option<JsonValue>
         Local $value.3
       return
-  fun add @fn60(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
+  fun add @fn74(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<JsonValue>
         Type ArrayList<JsonValue>
         Local this
-      call @fn76 direct
+      call @fn94 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.2
       val $dependency.local.5: MutableArray<Option<JsonValue>>
@@ -6618,7 +7458,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -6653,7 +7493,7 @@ Module
           Type Long
           Local $dependency.local.12
       return
-  fun add @fn61(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
+  fun add @fn75(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
     bb0 entry
       val $dependency.local.4: Long
         Type Long
@@ -6712,7 +7552,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -6722,7 +7562,7 @@ Module
       val $dependency.local.11: ArrayList<JsonValue>
         Type ArrayList<JsonValue>
         Local this
-      call @fn76 direct
+      call @fn94 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.11
       var $dependency.local.3: Long
@@ -6827,7 +7667,7 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<JsonValue> = @fn54 direct
+      call $dependency.local.23: Option<JsonValue> = @fn68 direct
         Type MutableArray<Option<JsonValue>>
         Local $dependency.local.18
         Type Long
@@ -6878,7 +7718,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -6933,7 +7773,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -6968,7 +7808,7 @@ Module
           Type Long
           Local $dependency.local.38
       return
-  fun removeAt @fn62(this: ArrayList<JsonValue>, index: Long) -> JsonValue
+  fun removeAt @fn76(this: ArrayList<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       val $dependency.local.5: ArrayList<JsonValue>
         Type ArrayList<JsonValue>
@@ -6979,7 +7819,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call @fn75 direct
+      call @fn93 direct
         Type ArrayList<JsonValue>
         Local $dependency.local.5
         Type Long
@@ -6995,7 +7835,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<JsonValue> = @fn54 direct
+      call $opt.1: Option<JsonValue> = @fn68 direct
         Type MutableArray<Option<JsonValue>>
         Local $dependency.local.8
         Type Long
@@ -7016,7 +7856,7 @@ Module
       assign $new.1
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external60 direct
+      call external63 direct
         Type UnwrapException
         Local $new.1
       throw
@@ -7136,7 +7976,7 @@ Module
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.21
-      call $dependency.local.25: Option<JsonValue> = @fn54 direct
+      call $dependency.local.25: Option<JsonValue> = @fn68 direct
         Type MutableArray<Option<JsonValue>>
         Local $dependency.local.20
         Type Long
@@ -7187,7 +8027,7 @@ Module
       assign $new.3
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.3
       throw
@@ -7242,7 +8082,7 @@ Module
       assign $new.5
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.5
       throw
@@ -7264,7 +8104,7 @@ Module
       return
         Type JsonValue
         Local $dependency.local.2
-  fun clear @fn63(this: ArrayList<JsonValue>) -> Unit
+  fun clear @fn77(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
         Type Long
@@ -7358,7 +8198,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -7389,19 +8229,25 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun Decodable.decode @fn64(this: Decodable<Choice>, decoder: Decoder) -> Choice
+  fun Decodable.decode @fn78(this: Decodable<Choice>, decoder: Decoder) -> Choice
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun Decodable.decode @fn65(this: Decodable<(Int, String, (Long, Char), Unit)>, decoder: Decoder) -> (Int, String, (Long, Char), Unit)
+  fun Decodable.decode @fn79(this: Decodable<(Int, String, (Long, Char), Unit)>, decoder: Decoder) -> (Int, String, (Long, Char), Unit)
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun List.$get$size @fn66(this: List<Option<String>>) -> Long
+  fun List.$get$size @fn80(this: List<Option<String>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn67(this: List<Option<String>>, index: Long) -> Option<String>
+  fun List.get @fn81(this: List<Option<String>>, index: Long) -> Option<String>
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn68($argument.0: (Long) -> Option<String>, $argument.1: Long) -> Option<String>
+  fun Iterable.iterator @fn82(this: Iterable<Option<String>>) -> Iterator<Option<String>>
+    bb0 entry
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn83(this: Iterator<Option<String>>) -> Option<Option<String>>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun $lambda @fn84($argument.0: (Long) -> Option<String>, $argument.1: Long) -> Option<String>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -7437,7 +8283,7 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<String> = @fn19 direct
+      call $call.1: Option<String> = @fn26 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.4
         Type Long
@@ -7455,7 +8301,13 @@ Module
       return
         Type Option<String>
         Local $dependency.local.7
-  fun next @fn69(this: ListIterator<Option<JsonMember>>) -> Option<Option<JsonMember>>
+  fun Iterable.iterator @fn85(this: Iterable<String>) -> Iterator<String>
+    bb0 entry
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn86(this: Iterator<String>) -> Option<String>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun next @fn87(this: ListIterator<Option<JsonMember>>) -> Option<Option<JsonMember>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7472,7 +8324,7 @@ Module
         FieldAccess 1
           Type ListIterator<Option<JsonMember>>
           Local this
-      call $dependency.local.3: Long = @fn77 interface List<Option<JsonMember>>[2]
+      call $dependency.local.3: Long = @fn95 interface List<Option<JsonMember>>[2]
         Type List<Option<JsonMember>>
         FieldAccess 0
           Type ListIterator<Option<JsonMember>>
@@ -7514,7 +8366,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<JsonMember> = @fn78 interface List<Option<JsonMember>>[1]
+      call $dependency.local.1: Option<JsonMember> = @fn96 interface List<Option<JsonMember>>[1]
         Type List<Option<JsonMember>>
         Local $dependency.local.5
         Type Long
@@ -7550,7 +8402,7 @@ Module
         VariantConstruct Option<Option<JsonMember>> v0
           Type Option<JsonMember>
           Local $dependency.local.12
-  fun next @fn70(this: ListIterator<JsonMember>) -> Option<JsonMember>
+  fun next @fn88(this: ListIterator<JsonMember>) -> Option<JsonMember>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7567,7 +8419,7 @@ Module
         FieldAccess 1
           Type ListIterator<JsonMember>
           Local this
-      call $dependency.local.3: Long = @fn79 interface List<JsonMember>[2]
+      call $dependency.local.3: Long = @fn97 interface List<JsonMember>[2]
         Type List<JsonMember>
         FieldAccess 0
           Type ListIterator<JsonMember>
@@ -7609,7 +8461,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: JsonMember = @fn80 interface List<JsonMember>[1]
+      call $dependency.local.1: JsonMember = @fn98 interface List<JsonMember>[1]
         Type List<JsonMember>
         Local $dependency.local.5
         Type Long
@@ -7645,7 +8497,7 @@ Module
         VariantConstruct Option<JsonMember> v0
           Type JsonMember
           Local $dependency.local.12
-  fun checkIndex @fn71(this: ArrayList<JsonMember>, index: Long) -> Unit
+  fun checkIndex @fn89(this: ArrayList<JsonMember>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -7704,7 +8556,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -7712,7 +8564,7 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
-  fun ensureRoom @fn72(this: ArrayList<JsonMember>) -> Unit
+  fun ensureRoom @fn90(this: ArrayList<JsonMember>) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7724,7 +8576,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external58 direct
+      call external60 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -7745,7 +8597,7 @@ Module
           Local $dependency.local.7
           Type Long
           Local $dependency.local.9
-      call $dependency.local.2: Long = @fn44 direct
+      call $dependency.local.2: Long = @fn58 direct
         Type MutableArray<Option<JsonMember>>
         FieldAccess 0
           Type ArrayList<JsonMember>
@@ -7886,7 +8738,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external61 direct
+      call external64 direct
         Type IllegalArgumentException
         Local $new.1
       throw
@@ -7941,7 +8793,7 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun next @fn73(this: ListIterator<Option<JsonValue>>) -> Option<Option<JsonValue>>
+  fun next @fn91(this: ListIterator<Option<JsonValue>>) -> Option<Option<JsonValue>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -7958,7 +8810,7 @@ Module
         FieldAccess 1
           Type ListIterator<Option<JsonValue>>
           Local this
-      call $dependency.local.3: Long = @fn82 interface List<Option<JsonValue>>[2]
+      call $dependency.local.3: Long = @fn100 interface List<Option<JsonValue>>[2]
         Type List<Option<JsonValue>>
         FieldAccess 0
           Type ListIterator<Option<JsonValue>>
@@ -8000,7 +8852,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Option<JsonValue> = @fn83 interface List<Option<JsonValue>>[1]
+      call $dependency.local.1: Option<JsonValue> = @fn101 interface List<Option<JsonValue>>[1]
         Type List<Option<JsonValue>>
         Local $dependency.local.5
         Type Long
@@ -8036,7 +8888,7 @@ Module
         VariantConstruct Option<Option<JsonValue>> v0
           Type Option<JsonValue>
           Local $dependency.local.12
-  fun next @fn74(this: ListIterator<JsonValue>) -> Option<JsonValue>
+  fun next @fn92(this: ListIterator<JsonValue>) -> Option<JsonValue>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -8053,7 +8905,7 @@ Module
         FieldAccess 1
           Type ListIterator<JsonValue>
           Local this
-      call $dependency.local.3: Long = @fn84 interface List<JsonValue>[2]
+      call $dependency.local.3: Long = @fn102 interface List<JsonValue>[2]
         Type List<JsonValue>
         FieldAccess 0
           Type ListIterator<JsonValue>
@@ -8095,7 +8947,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: JsonValue = @fn85 interface List<JsonValue>[1]
+      call $dependency.local.1: JsonValue = @fn103 interface List<JsonValue>[1]
         Type List<JsonValue>
         Local $dependency.local.5
         Type Long
@@ -8131,7 +8983,7 @@ Module
         VariantConstruct Option<JsonValue> v0
           Type JsonValue
           Local $dependency.local.12
-  fun checkIndex @fn75(this: ArrayList<JsonValue>, index: Long) -> Unit
+  fun checkIndex @fn93(this: ArrayList<JsonValue>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -8190,7 +9042,7 @@ Module
       assign $new.1
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external50 direct
+      call external52 direct
         Type IndexOutOfBoundsException
         Local $new.1
       throw
@@ -8198,7 +9050,7 @@ Module
         Local $new.1
     bb5 if.merge.5
       return
-  fun ensureRoom @fn76(this: ArrayList<JsonValue>) -> Unit
+  fun ensureRoom @fn94(this: ArrayList<JsonValue>) -> Unit
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -8210,7 +9062,7 @@ Module
           Type Long
           IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
     bb1 if.then.1
-      call external58 direct
+      call external60 direct
       goto bb2
     bb2 if.merge.2
       val $dependency.local.7: Long
@@ -8231,7 +9083,7 @@ Module
           Local $dependency.local.7
           Type Long
           Local $dependency.local.9
-      call $dependency.local.2: Long = @fn55 direct
+      call $dependency.local.2: Long = @fn69 direct
         Type MutableArray<Option<JsonValue>>
         FieldAccess 0
           Type ArrayList<JsonValue>
@@ -8372,7 +9224,7 @@ Module
       assign $new.1
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external61 direct
+      call external64 direct
         Type IllegalArgumentException
         Local $new.1
       throw
@@ -8427,19 +9279,19 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb13
-  fun List.$get$size @fn77(this: List<Option<JsonMember>>) -> Long
+  fun List.$get$size @fn95(this: List<Option<JsonMember>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn78(this: List<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+  fun List.get @fn96(this: List<Option<JsonMember>>, index: Long) -> Option<JsonMember>
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn79(this: List<JsonMember>) -> Long
+  fun List.$get$size @fn97(this: List<JsonMember>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn80(this: List<JsonMember>, index: Long) -> JsonMember
+  fun List.get @fn98(this: List<JsonMember>, index: Long) -> JsonMember
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn81($argument.0: (Long) -> Option<JsonMember>, $argument.1: Long) -> Option<JsonMember>
+  fun $lambda @fn99($argument.0: (Long) -> Option<JsonMember>, $argument.1: Long) -> Option<JsonMember>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -8475,7 +9327,7 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<JsonMember> = @fn43 direct
+      call $call.1: Option<JsonMember> = @fn57 direct
         Type MutableArray<Option<JsonMember>>
         Local $dependency.local.4
         Type Long
@@ -8493,19 +9345,19 @@ Module
       return
         Type Option<JsonMember>
         Local $dependency.local.7
-  fun List.$get$size @fn82(this: List<Option<JsonValue>>) -> Long
+  fun List.$get$size @fn100(this: List<Option<JsonValue>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn83(this: List<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+  fun List.get @fn101(this: List<Option<JsonValue>>, index: Long) -> Option<JsonValue>
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn84(this: List<JsonValue>) -> Long
+  fun List.$get$size @fn102(this: List<JsonValue>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn85(this: List<JsonValue>, index: Long) -> JsonValue
+  fun List.get @fn103(this: List<JsonValue>, index: Long) -> JsonValue
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun $lambda @fn86($argument.0: (Long) -> Option<JsonValue>, $argument.1: Long) -> Option<JsonValue>
+  fun $lambda @fn104($argument.0: (Long) -> Option<JsonValue>, $argument.1: Long) -> Option<JsonValue>
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -8541,7 +9393,7 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<JsonValue> = @fn54 direct
+      call $call.1: Option<JsonValue> = @fn68 direct
         Type MutableArray<Option<JsonValue>>
         Local $dependency.local.4
         Type Long
@@ -8559,37 +9411,37 @@ Module
       return
         Type Option<JsonValue>
         Local $dependency.local.7
-  fun Continuation.resume @fn87(this: Continuation<Choice>, value: Choice) -> Unit
+  fun Continuation.resume @fn105(this: Continuation<Choice>, value: Choice) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn88(this: Continuation<Choice>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn106(this: Continuation<Choice>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn89(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
+  fun SuspendTask.run @fn107(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn90(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
+  fun SuspendRegistration.register @fn108(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn91(this: Continuation<Choice.Companion>, value: Choice.Companion) -> Unit
+  fun Continuation.resume @fn109(this: Continuation<Choice.Companion>, value: Choice.Companion) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn92(this: Continuation<Choice.Companion>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn110(this: Continuation<Choice.Companion>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn93(this: SuspendTask<Choice.Companion>, $completion: Continuation<Choice.Companion>) -> CoroutineStep<Choice.Companion>
+  fun SuspendTask.run @fn111(this: SuspendTask<Choice.Companion>, $completion: Continuation<Choice.Companion>) -> CoroutineStep<Choice.Companion>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn94(this: SuspendRegistration<Choice.Companion>, continuation: Continuation<Choice.Companion>) -> Unit
+  fun SuspendRegistration.register @fn112(this: SuspendRegistration<Choice.Companion>, continuation: Continuation<Choice.Companion>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.TupleDecoder.$c0 @fn95(this: TupleDecoder) -> Unit
+  fun init.TupleDecoder.$c0 @fn113(this: TupleDecoder) -> Unit
     bb0 entry
       return
-  fun init.Choice.Companion.$c1 @fn96(this: Choice.Companion) -> Unit
+  fun init.Choice.Companion.$c1 @fn114(this: Choice.Companion) -> Unit
     bb0 entry
       return
-  fun init.DecodeFunction.$c0 @fn97(this: DecodeFunction<(Long, Char)>, body: (Decoder) -> (Long, Char)) -> Unit
+  fun init.DecodeFunction.$c0 @fn115(this: DecodeFunction<(Long, Char)>, body: (Decoder) -> (Long, Char)) -> Unit
     bb0 entry
       field_set 0
         Type DecodeFunction<(Long, Char)>
@@ -8597,7 +9449,7 @@ Module
         Type (Decoder) -> (Long, Char)
         Local body
       return
-  fun init.ListIterator.$c1 @fn98(this: ListIterator<Option<String>>, source: List<Option<String>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn116(this: ListIterator<Option<String>>, source: List<Option<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Option<String>>
@@ -8615,7 +9467,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c1 @fn99(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn117(this: ListIterator<String>, source: List<String>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<String>
@@ -8633,7 +9485,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c1 @fn100(this: ListIterator<Option<JsonMember>>, source: List<Option<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn118(this: ListIterator<Option<JsonMember>>, source: List<Option<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Option<JsonMember>>
@@ -8651,7 +9503,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c1 @fn101(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn119(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<JsonMember>
@@ -8669,7 +9521,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c1 @fn102(this: ListIterator<Option<JsonValue>>, source: List<Option<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn120(this: ListIterator<Option<JsonValue>>, source: List<Option<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Option<JsonValue>>
@@ -8687,7 +9539,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c1 @fn103(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn121(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<JsonValue>
@@ -8705,7 +9557,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun startCoroutine<Choice.Companion> @fn104(task: SuspendTask<Choice.Companion>, completion: Continuation<Choice.Companion>) -> Unit
+  fun startCoroutine<Choice.Companion> @fn122(task: SuspendTask<Choice.Companion>, completion: Continuation<Choice.Companion>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -8728,7 +9580,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn91 interface Continuation<Choice.Companion>[0]
+      call @fn109 interface Continuation<Choice.Companion>[0]
         Type Continuation<Choice.Companion>
         Local completion
         Type Choice.Companion
@@ -8741,7 +9593,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn92 interface Continuation<Choice.Companion>[1]
+      call @fn110 interface Continuation<Choice.Companion>[1]
         Type Continuation<Choice.Companion>
         Local completion
         Type Throwable
@@ -8760,7 +9612,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Choice.Companion> = @fn93 interface SuspendTask<Choice.Companion>[0]
+      call $step: CoroutineStep<Choice.Companion> = @fn111 interface SuspendTask<Choice.Companion>[0]
         Type SuspendTask<Choice.Companion>
         Local task
         Type Continuation<Choice.Companion>
@@ -8786,7 +9638,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn105(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn123(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -8809,7 +9661,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn87 interface Continuation<Choice>[0]
+      call @fn105 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         Local completion
         Type Choice
@@ -8822,7 +9674,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn88 interface Continuation<Choice>[1]
+      call @fn106 interface Continuation<Choice>[1]
         Type Continuation<Choice>
         Local completion
         Type Throwable
@@ -8841,7 +9693,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Choice> = @fn89 interface SuspendTask<Choice>[0]
+      call $step: CoroutineStep<Choice> = @fn107 interface SuspendTask<Choice>[0]
         Type SuspendTask<Choice>
         Local task
         Type Continuation<Choice>
@@ -8867,7 +9719,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Choice> Encodable.encode(Encoder) @fn106(this: Encodable, encoder: Encoder) -> Unit
+  fun thunk<Choice> Encodable.encode(Encoder) @fn124(this: Encodable, encoder: Encoder) -> Unit
     bb0 entry
       call @fn0 direct
         Type Choice
@@ -8877,7 +9729,27 @@ Module
         Type Encoder
         Local encoder
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn107($source: (Decoder) -> (Long, Char), arg0: Any) -> Any
+  fun thunk<Option<String>> Encodable.encode(Encoder) @fn125(this: Encodable, encoder: Encoder) -> Unit
+    bb0 entry
+      call @fn5 direct
+        Type Option<String>
+        Unbox
+          Type Encodable
+          Local this
+        Type Encoder
+        Local encoder
+      return
+  fun thunk<(Long, Char)> Encodable.encode(Encoder) @fn126(this: Encodable, encoder: Encoder) -> Unit
+    bb0 entry
+      call @fn3 direct
+        Type (Long, Char)
+        Unbox
+          Type Encodable
+          Local this
+        Type Encoder
+        Local encoder
+      return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn127($source: (Decoder) -> (Long, Char), arg0: Any) -> Any
     bb0 entry
       call $call.1: (Long, Char) = <closure:function_type0> closure[function_type0]
         Type (Decoder) -> (Long, Char)
@@ -8891,7 +9763,7 @@ Module
         Box
           Type (Long, Char)
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn108($source: (Long) -> Option<String>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn128($source: (Long) -> Option<String>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Option<String> = <closure:function_type2> closure[function_type2]
         Type (Long) -> Option<String>
@@ -8905,7 +9777,7 @@ Module
         Box
           Type Option<String>
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn109($source: (Long) -> Option<JsonMember>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn129($source: (Long) -> Option<JsonMember>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Option<JsonMember> = <closure:function_type3> closure[function_type3]
         Type (Long) -> Option<JsonMember>
@@ -8919,7 +9791,7 @@ Module
         Box
           Type Option<JsonMember>
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn110($source: (Long) -> Option<JsonValue>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn130($source: (Long) -> Option<JsonValue>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Option<JsonValue> = <closure:function_type4> closure[function_type4]
         Type (Long) -> Option<JsonValue>
@@ -8937,94 +9809,110 @@ Module
   coroutine_step cs1 CoroutineStep<Choice> result=Choice
   coroutine_slot cl0 CoroutineSlot<Choice.Companion> value=Choice.Companion
   coroutine_slot cl1 CoroutineSlot<Choice> value=Choice
-  coroutine_start ct0 result=Choice.Companion function=fn104
-  coroutine_start ct1 result=Choice function=fn105
-  coroutine_fn cf0 @fn89 source_return=Choice step=cs1 immediate
-  coroutine_fn cf1 @fn93 source_return=Choice.Companion step=cs0 immediate
-  instance mi0 function=@fn10 <- Decodable.decode
-  instance mi1 function=@fn11 <- Decodable.decode
-  instance mi2 function=@fn13 <- decode
-  instance mi3 function=@fn14 <- Decodable.decode
-  instance mi4 function=@fn15 <- Decodable.decode
-  instance mi5 function=@fn16 <- List.$get$size
-  instance mi6 function=@fn17 <- List.get
-  instance mi7 function=@fn18 <- iterator
-  instance mi8 function=@fn19 <- get
-  instance mi9 function=@fn20 <- size
-  instance mi10 function=@fn21 <- iterator
-  instance mi11 function=@fn22 <- get
-  instance mi12 function=@fn23 <- size
-  instance mi13 function=@fn24 <- set
-  instance mi14 function=@fn25 <- add
-  instance mi15 function=@fn26 <- add
-  instance mi16 function=@fn27 <- removeAt
-  instance mi17 function=@fn28 <- clear
-  instance mi18 function=@fn29 <- add
-  instance mi19 function=@fn30 <- println
-  instance mi20 function=@fn31 <- decode
-  instance mi21 function=@fn32 <- encode
-  instance mi22 function=@fn33 <- decode
-  instance mi23 function=@fn34 <- reject
-  instance mi24 function=@fn35 <- reject
-  instance mi25 function=@fn36 <- Decodable.decode
-  instance mi26 function=@fn37 <- Decodable.decode
-  instance mi27 function=@fn38 <- next
-  instance mi28 function=@fn39 <- next
-  instance mi29 function=@fn40 <- checkIndex
-  instance mi30 function=@fn41 <- ensureRoom
-  instance mi31 function=@fn42 <- iterator
-  instance mi32 function=@fn43 <- get
-  instance mi33 function=@fn44 <- size
-  instance mi34 function=@fn45 <- iterator
-  instance mi35 function=@fn46 <- get
-  instance mi36 function=@fn47 <- size
-  instance mi37 function=@fn48 <- set
-  instance mi38 function=@fn49 <- add
-  instance mi39 function=@fn50 <- add
-  instance mi40 function=@fn51 <- removeAt
-  instance mi41 function=@fn52 <- clear
-  instance mi42 function=@fn53 <- iterator
-  instance mi43 function=@fn54 <- get
-  instance mi44 function=@fn55 <- size
-  instance mi45 function=@fn56 <- iterator
-  instance mi46 function=@fn57 <- get
-  instance mi47 function=@fn58 <- size
-  instance mi48 function=@fn59 <- set
-  instance mi49 function=@fn60 <- add
-  instance mi50 function=@fn61 <- add
-  instance mi51 function=@fn62 <- removeAt
-  instance mi52 function=@fn63 <- clear
-  instance mi53 function=@fn64 <- Decodable.decode
-  instance mi54 function=@fn65 <- Decodable.decode
-  instance mi55 function=@fn66 <- List.$get$size
-  instance mi56 function=@fn67 <- List.get
-  instance mi57 function=@fn68 <- $lambda
-  instance mi58 function=@fn69 <- next
-  instance mi59 function=@fn70 <- next
-  instance mi60 function=@fn71 <- checkIndex
-  instance mi61 function=@fn72 <- ensureRoom
-  instance mi62 function=@fn73 <- next
-  instance mi63 function=@fn74 <- next
-  instance mi64 function=@fn75 <- checkIndex
-  instance mi65 function=@fn76 <- ensureRoom
-  instance mi66 function=@fn77 <- List.$get$size
-  instance mi67 function=@fn78 <- List.get
-  instance mi68 function=@fn79 <- List.$get$size
-  instance mi69 function=@fn80 <- List.get
-  instance mi70 function=@fn81 <- $lambda
-  instance mi71 function=@fn82 <- List.$get$size
-  instance mi72 function=@fn83 <- List.get
-  instance mi73 function=@fn84 <- List.$get$size
-  instance mi74 function=@fn85 <- List.get
-  instance mi75 function=@fn86 <- $lambda
-  instance mi76 function=@fn87 <- Continuation.resume
-  instance mi77 function=@fn88 <- Continuation.resumeWithException
-  instance mi78 function=@fn89 <- SuspendTask.run
-  instance mi79 function=@fn90 <- SuspendRegistration.register
-  instance mi80 function=@fn91 <- Continuation.resume
-  instance mi81 function=@fn92 <- Continuation.resumeWithException
-  instance mi82 function=@fn93 <- SuspendTask.run
-  instance mi83 function=@fn94 <- SuspendRegistration.register
+  coroutine_start ct0 result=Choice.Companion function=fn122
+  coroutine_start ct1 result=Choice function=fn123
+  coroutine_fn cf0 @fn107 source_return=Choice step=cs1 immediate
+  coroutine_fn cf1 @fn111 source_return=Choice.Companion step=cs0 immediate
+  instance mi0 function=@fn5 <- encode
+  instance mi1 function=@fn13 <- Decodable.decode
+  instance mi2 function=@fn14 <- Decodable.decode
+  instance mi3 function=@fn16 <- decode
+  instance mi4 function=@fn17 <- Decodable.decode
+  instance mi5 function=@fn18 <- Decodable.decode
+  instance mi6 function=@fn19 <- encode
+  instance mi7 function=@fn20 <- encodeOption
+  instance mi8 function=@fn21 <- encode
+  instance mi9 function=@fn22 <- List.$get$size
+  instance mi10 function=@fn23 <- List.get
+  instance mi11 function=@fn24 <- encode
+  instance mi12 function=@fn25 <- iterator
+  instance mi13 function=@fn26 <- get
+  instance mi14 function=@fn27 <- size
+  instance mi15 function=@fn28 <- encode
+  instance mi16 function=@fn29 <- iterator
+  instance mi17 function=@fn30 <- get
+  instance mi18 function=@fn31 <- size
+  instance mi19 function=@fn32 <- set
+  instance mi20 function=@fn33 <- add
+  instance mi21 function=@fn34 <- add
+  instance mi22 function=@fn35 <- removeAt
+  instance mi23 function=@fn36 <- clear
+  instance mi24 function=@fn37 <- encode
+  instance mi25 function=@fn38 <- add
+  instance mi26 function=@fn39 <- println
+  instance mi27 function=@fn40 <- decode
+  instance mi28 function=@fn41 <- encode
+  instance mi29 function=@fn42 <- decode
+  instance mi30 function=@fn43 <- reject
+  instance mi31 function=@fn44 <- reject
+  instance mi32 function=@fn45 <- Decodable.decode
+  instance mi33 function=@fn46 <- Decodable.decode
+  instance mi34 function=@fn47 <- encodeOption
+  instance mi35 function=@fn48 <- encodeOption
+  instance mi36 function=@fn49 <- encodeOption
+  instance mi37 function=@fn50 <- next
+  instance mi38 function=@fn51 <- encodeList
+  instance mi39 function=@fn52 <- next
+  instance mi40 function=@fn53 <- checkIndex
+  instance mi41 function=@fn54 <- ensureRoom
+  instance mi42 function=@fn55 <- encodeList
+  instance mi43 function=@fn56 <- iterator
+  instance mi44 function=@fn57 <- get
+  instance mi45 function=@fn58 <- size
+  instance mi46 function=@fn59 <- iterator
+  instance mi47 function=@fn60 <- get
+  instance mi48 function=@fn61 <- size
+  instance mi49 function=@fn62 <- set
+  instance mi50 function=@fn63 <- add
+  instance mi51 function=@fn64 <- add
+  instance mi52 function=@fn65 <- removeAt
+  instance mi53 function=@fn66 <- clear
+  instance mi54 function=@fn67 <- iterator
+  instance mi55 function=@fn68 <- get
+  instance mi56 function=@fn69 <- size
+  instance mi57 function=@fn70 <- iterator
+  instance mi58 function=@fn71 <- get
+  instance mi59 function=@fn72 <- size
+  instance mi60 function=@fn73 <- set
+  instance mi61 function=@fn74 <- add
+  instance mi62 function=@fn75 <- add
+  instance mi63 function=@fn76 <- removeAt
+  instance mi64 function=@fn77 <- clear
+  instance mi65 function=@fn78 <- Decodable.decode
+  instance mi66 function=@fn79 <- Decodable.decode
+  instance mi67 function=@fn80 <- List.$get$size
+  instance mi68 function=@fn81 <- List.get
+  instance mi69 function=@fn82 <- Iterable.iterator
+  instance mi70 function=@fn83 <- Iterator.next
+  instance mi71 function=@fn84 <- $lambda
+  instance mi72 function=@fn85 <- Iterable.iterator
+  instance mi73 function=@fn86 <- Iterator.next
+  instance mi74 function=@fn87 <- next
+  instance mi75 function=@fn88 <- next
+  instance mi76 function=@fn89 <- checkIndex
+  instance mi77 function=@fn90 <- ensureRoom
+  instance mi78 function=@fn91 <- next
+  instance mi79 function=@fn92 <- next
+  instance mi80 function=@fn93 <- checkIndex
+  instance mi81 function=@fn94 <- ensureRoom
+  instance mi82 function=@fn95 <- List.$get$size
+  instance mi83 function=@fn96 <- List.get
+  instance mi84 function=@fn97 <- List.$get$size
+  instance mi85 function=@fn98 <- List.get
+  instance mi86 function=@fn99 <- $lambda
+  instance mi87 function=@fn100 <- List.$get$size
+  instance mi88 function=@fn101 <- List.get
+  instance mi89 function=@fn102 <- List.$get$size
+  instance mi90 function=@fn103 <- List.get
+  instance mi91 function=@fn104 <- $lambda
+  instance mi92 function=@fn105 <- Continuation.resume
+  instance mi93 function=@fn106 <- Continuation.resumeWithException
+  instance mi94 function=@fn107 <- SuspendTask.run
+  instance mi95 function=@fn108 <- SuspendRegistration.register
+  instance mi96 function=@fn109 <- Continuation.resume
+  instance mi97 function=@fn110 <- Continuation.resumeWithException
+  instance mi98 function=@fn111 <- SuspendTask.run
+  instance mi99 function=@fn112 <- SuspendRegistration.register
   str @str0 "none/~"
   str @str1 "Pair"
   str @str2 "Named"
@@ -9074,10 +9962,18 @@ Module
   str @str46 "[1,\"a\",[2],null]"
   str @str47 "/2/1"
   str @str48 "variants-ok"
-  str @str49 "\n"
-  str @str50 ""
-  str @str51 ""
+  str @str49 "None"
+  str @str50 "Some"
+  str @str51 "\n"
   str @str52 ""
-  str @str53 "expected a variant or tuple decoding error"
-  str @str54 "expected a variant or tuple decoding error"
-  output executable @fn7
+  str @str53 ""
+  str @str54 ""
+  str @str55 "expected a variant or tuple decoding error"
+  str @str56 "expected a variant or tuple decoding error"
+  str @str57 "None"
+  str @str58 "Some"
+  str @str59 "None"
+  str @str60 "Some"
+  str @str61 "None"
+  str @str62 "Some"
+  output executable @fn10

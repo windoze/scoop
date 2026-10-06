@@ -19,6 +19,11 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Iterable<Char>
   interface Iterator<Char>
   interface Continuation<MovingResource>
@@ -31,7 +36,7 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=enum3 nominal_id=ef2dd334ba201e5a6f22b025785f42dcbd23ab15c4b9e98e22b6916a72de3b61 exact_id=bac2a2aab181538c61f2c44464eb11ecba6ded10b210819ef39f41d877de0be3
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn14 id=36a9052876983aa4f7e26913b19de769225925ea8316eda5c13a7172eec2ba21
+  generated_callable gc0 function=@fn18 id=36a9052876983aa4f7e26913b19de769225925ea8316eda5c13a7172eec2ba21
   fun main @fn0() -> Unit
     bb0 entry
       val $dependency.receiver: String
@@ -54,7 +59,7 @@ Module
       assign $new.1
         Type MovingResource
         ClassAlloc MovingResource
-      call @fn11 direct
+      call @fn15 direct
         Type MovingResource
         Local $new.1
         Type String
@@ -109,7 +114,7 @@ Module
       assign $new.2
         Type MovingResource
         ClassAlloc MovingResource
-      call @fn11 direct
+      call @fn15 direct
         Type MovingResource
         Local $new.2
         Type String
@@ -176,7 +181,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $call.1: GcHandle<MovingResource> = @fn12 direct
+      call $call.1: GcHandle<MovingResource> = @fn16 direct
         Type ULong
         Local $dependency.local.4
       return
@@ -203,13 +208,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -218,7 +223,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
@@ -236,7 +241,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $call.1: PinnedPtr<MovingResource> = @fn13 direct
+      call $call.1: PinnedPtr<MovingResource> = @fn17 direct
         Type ULong
         Local $dependency.local.4
       return
@@ -263,13 +268,13 @@ Module
       val $dependency.local.1: Boolean
         Type Boolean
         Local value
-      call $dependency.local.2: String = external0 direct
+      call $dependency.local.2: String = external1 direct
         Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -278,23 +283,281 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn7(this: Continuation<MovingResource>, value: MovingResource) -> Unit
+  fun encode @fn7(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn8 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn8(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str6
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str7
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn9(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn14 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn10(this: Continuation<MovingResource>, value: MovingResource) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn8(this: Continuation<MovingResource>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn11(this: Continuation<MovingResource>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn9(this: SuspendTask<MovingResource>, $completion: Continuation<MovingResource>) -> CoroutineStep<MovingResource>
+  fun SuspendTask.run @fn12(this: SuspendTask<MovingResource>, $completion: Continuation<MovingResource>) -> CoroutineStep<MovingResource>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn10(this: SuspendRegistration<MovingResource>, continuation: Continuation<MovingResource>) -> Unit
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<MovingResource>, continuation: Continuation<MovingResource>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.MovingResource.$c0 @fn11(this: MovingResource, text: String) -> Unit
+  fun encodeOption @fn14(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str8
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str9
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external3 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.MovingResource.$c0 @fn15(this: MovingResource, text: String) -> Unit
     bb0 entry
       field_set 0
         Type MovingResource
@@ -302,21 +565,21 @@ Module
         Type String
         Local text
       return
-  fun ctor.GcHandle.$c0 @fn12(raw: ULong) -> GcHandle<MovingResource> <no-gc>
+  fun ctor.GcHandle.$c0 @fn16(raw: ULong) -> GcHandle<MovingResource> <no-gc>
     bb0 entry
       return
         Type GcHandle<MovingResource>
         StructInit GcHandle<MovingResource>
           Type ULong
           Local raw
-  fun ctor.PinnedPtr.$c1 @fn13(raw: ULong) -> PinnedPtr<MovingResource> <no-gc>
+  fun ctor.PinnedPtr.$c1 @fn17(raw: ULong) -> PinnedPtr<MovingResource> <no-gc>
     bb0 entry
       return
         Type PinnedPtr<MovingResource>
         StructInit PinnedPtr<MovingResource>
           Type ULong
           Local raw
-  fun startCoroutine<MovingResource> @fn14(task: SuspendTask<MovingResource>, completion: Continuation<MovingResource>) -> Unit
+  fun startCoroutine<MovingResource> @fn18(task: SuspendTask<MovingResource>, completion: Continuation<MovingResource>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -339,7 +602,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn7 interface Continuation<MovingResource>[0]
+      call @fn10 interface Continuation<MovingResource>[0]
         Type Continuation<MovingResource>
         Local completion
         Type MovingResource
@@ -352,7 +615,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn8 interface Continuation<MovingResource>[1]
+      call @fn11 interface Continuation<MovingResource>[1]
         Type Continuation<MovingResource>
         Local completion
         Type Throwable
@@ -371,7 +634,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<MovingResource> = @fn9 interface SuspendTask<MovingResource>[0]
+      call $step: CoroutineStep<MovingResource> = @fn12 interface SuspendTask<MovingResource>[0]
         Type SuspendTask<MovingResource>
         Local task
         Type Continuation<MovingResource>
@@ -399,22 +662,30 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<MovingResource> result=MovingResource
   coroutine_slot cl0 CoroutineSlot<MovingResource> value=MovingResource
-  coroutine_start ct0 result=MovingResource function=fn14
-  coroutine_fn cf0 @fn9 source_return=MovingResource step=cs0 immediate
+  coroutine_start ct0 result=MovingResource function=fn18
+  coroutine_fn cf0 @fn12 source_return=MovingResource step=cs0 immediate
   instance mi0 function=@fn1 <- getGcHandle
   instance mi1 function=@fn2 <- releaseGcHandle
   instance mi2 function=@fn3 <- println
   instance mi3 function=@fn4 <- pin
   instance mi4 function=@fn5 <- unpin
   instance mi5 function=@fn6 <- println
-  instance mi6 function=@fn7 <- Continuation.resume
-  instance mi7 function=@fn8 <- Continuation.resumeWithException
-  instance mi8 function=@fn9 <- SuspendTask.run
-  instance mi9 function=@fn10 <- SuspendRegistration.register
+  instance mi6 function=@fn7 <- encode
+  instance mi7 function=@fn8 <- encodeOption
+  instance mi8 function=@fn9 <- encode
+  instance mi9 function=@fn10 <- Continuation.resume
+  instance mi10 function=@fn11 <- Continuation.resumeWithException
+  instance mi11 function=@fn12 <- SuspendTask.run
+  instance mi12 function=@fn13 <- SuspendRegistration.register
+  instance mi13 function=@fn14 <- encodeOption
   str @str0 "handle-"
   str @str1 "alive"
   str @str2 "pinned-"
   str @str3 "alive"
   str @str4 "\n"
   str @str5 "\n"
+  str @str6 "None"
+  str @str7 "Some"
+  str @str8 "None"
+  str @str9 "Some"
   output executable @fn0

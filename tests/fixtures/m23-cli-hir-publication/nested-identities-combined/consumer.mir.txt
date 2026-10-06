@@ -1,16 +1,23 @@
 Module
   class NestedBinderHost<Int> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn14 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn15 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn16 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
-  closure cc3 $Closure$anonymous0 type=function_type0 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn17 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
-  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn13 captures=0
-    bridge function_type1 -> @fn18 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn15 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn16 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn17 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
+  closure cc3 $Closure$anonymous0 type=function_type0 invoke=@fn8 captures=0
+    bridge function_type1 -> @fn18 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
+  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn14 captures=0
+    bridge function_type1 -> @fn19 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
   generated_exact_type get0 location=closure2 nominal_id=ed2a0d795d9f4df706f4cb90b311bcd3f3705b469e3fdcaebaf9c73fd0a558fb exact_id=0616b9ef00a870a6662520af02d3ab3e12e6d69af57aa4a03ab610c7cace8b40
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -22,17 +29,17 @@ Module
   generated_exact_type get8 location=closure1 nominal_id=20ea056fac93478bef02c18569c908a640a389b8986ded6b92de0d8f5385cde9 exact_id=eb2b21293bea67e0fea843809ce88303ce8cfdc680e9cbecdadcccf220a1836b
   generated_exact_type get9 location=closure4 nominal_id=6d306ffb3db36f581f36338bd9e0c367e42a6f1b2c78c2017989bb70106a5388 exact_id=ed3876ea4060702bf1c38fb465145a18c25de7db94ae4bf9692885d910d96a3d
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn14 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
-  generated_callable gc1 function=@fn17 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
-  generated_callable gc2 function=@fn15 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
-  generated_callable gc3 function=@fn16 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
-  generated_callable gc4 function=@fn18 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
+  generated_callable gc0 function=@fn15 id=0e8251db5ffb28877f27f59c3cdcf3f229cc2ff2993c456ee41b49e139a40816
+  generated_callable gc1 function=@fn18 id=2140672bc373a162c44de6af4a3b6dc89dec0793f00e4b0d45e08dd9406f2445
+  generated_callable gc2 function=@fn16 id=404e5cc699d126da18ebd6287dfc2e0fde26d8f670effaaea1d18784f1b4d44c
+  generated_callable gc3 function=@fn17 id=c8969bfca7f26778c6f5e0af38d635b66b7a6e3eb893558237957bd1806fedee
+  generated_callable gc4 function=@fn19 id=ecfaeae19dcd8bab39cbee994eefff239129331ed2d7be522d7a787ddca06670
   fun check @fn0() -> Int
     bb0 entry
       val $dependency.parameter.value: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-      call $call.1: () -> Int = @fn2 direct
+      call $call.1: () -> Int = @fn3 direct
         Type () -> Int
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -65,7 +72,7 @@ Module
       val $default.local.1: () -> Int
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
-      call $call.2: () -> Int = @fn4 direct
+      call $call.2: () -> Int = @fn5 direct
         Type () -> Int
         Local $default.local.1
       assign $default.local.2
@@ -84,7 +91,7 @@ Module
       val $dependency.parameter.value: () -> Int
         Type () -> Int
         Local $default.local.2
-      call $call.3: () -> Int = @fn6 direct
+      call $call.3: () -> Int = @fn7 direct
         Type () -> Int
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -113,7 +120,7 @@ Module
       val $dependency.parameter.value: () -> Int
         Type () -> Int
         ClosureAlloc cc3 $Closure$anonymous0
-      call $call.4: () -> Int = @fn8 direct
+      call $call.4: () -> Int = @fn9 direct
         Type () -> Int
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -142,7 +149,7 @@ Module
       val $dependency.parameter.value: () -> Int
         Type () -> Int
         ClosureAlloc cc4 $Closure$reference0
-      call $call.5: () -> Int = @fn9 direct
+      call $call.5: () -> Int = @fn10 direct
         Type () -> Int
         Local $dependency.parameter.value
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -175,10 +182,10 @@ Module
       val $default.local.1: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-      call $dependency.parameter.value: () -> Int = @fn2 direct
+      call $dependency.parameter.value: () -> Int = @fn3 direct
         Type () -> Int
         Local $default.local.1
-      call $call.6: () -> Int = @fn10 direct
+      call $call.6: () -> Int = @fn11 direct
         Type NestedBinderHost<Int>
         Local $dependency.receiver
         Type () -> Int
@@ -216,7 +223,7 @@ Module
       val $default.local.1: () -> Int
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
-      call $call.7: () -> Int = @fn4 direct
+      call $call.7: () -> Int = @fn5 direct
         Type () -> Int
         Local $default.local.1
       assign $default.local.3
@@ -235,10 +242,10 @@ Module
       val $default.local.4: () -> Int
         Type () -> Int
         Local $default.local.3
-      call $dependency.parameter.value: () -> Int = @fn6 direct
+      call $dependency.parameter.value: () -> Int = @fn7 direct
         Type () -> Int
         Local $default.local.4
-      call $call.8: () -> Int = @fn11 direct
+      call $call.8: () -> Int = @fn12 direct
         Type NestedBinderHost<Int>
         Local $dependency.receiver
         Type () -> Int
@@ -272,10 +279,10 @@ Module
       val $default.local.1: () -> Int
         Type () -> Int
         ClosureAlloc cc3 $Closure$anonymous0
-      call $dependency.parameter.value: () -> Int = @fn8 direct
+      call $dependency.parameter.value: () -> Int = @fn9 direct
         Type () -> Int
         Local $default.local.1
-      call $call.9: () -> Int = @fn12 direct
+      call $call.9: () -> Int = @fn13 direct
         Type NestedBinderHost<Int>
         Local $dependency.receiver
         Type () -> Int
@@ -306,73 +313,126 @@ Module
       return
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-  fun $lambda @fn1($argument.0: () -> Int) -> Int
+  fun $tuple.2.encode @fn1(this: (Int, Int), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external2 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external3 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external4 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external3 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external4 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external5 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun $lambda @fn2($argument.0: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun nestedLambda @fn2(value: () -> Int) -> () -> Int
+  fun nestedLambda @fn3(value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun $lambda @fn3($argument.0: () -> Int) -> Int
+  fun $lambda @fn4($argument.0: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun local @fn4($argument.0: () -> Int) -> () -> Int
+  fun local @fn5($argument.0: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local $argument.0
-  fun $lambda @fn5($argument.0: () -> Int) -> Int
+  fun $lambda @fn6($argument.0: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
-  fun nestedLocal @fn6(value: () -> Int) -> () -> Int
+  fun nestedLocal @fn7(value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun $anonymous @fn7($argument.0: () -> Int) -> Int
+  fun $anonymous @fn8($argument.0: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun nestedAnonymous @fn8(value: () -> Int) -> () -> Int
+  fun nestedAnonymous @fn9(value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun nestedReference @fn9(value: () -> Int) -> () -> Int
+  fun nestedReference @fn10(value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun expanded @fn10(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+  fun expanded @fn11(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun local @fn11(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+  fun local @fn12(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun anonymous @fn12(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
+  fun anonymous @fn13(this: NestedBinderHost<Int>, value: () -> Int) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         Local value
-  fun $reference.0 @fn13($closure: () -> Int) -> Int
+  fun $reference.0 @fn14($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = external0 direct
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.() -> Any @fn14($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -382,7 +442,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn15($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn16($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -392,7 +452,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn16($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn17($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -402,7 +462,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.() -> Any @fn17($source: () -> Int) -> Any
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn18($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -412,7 +472,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.() -> Any @fn18($source: () -> Int) -> Any
+  fun function_bridge.$Closure$reference0.() -> Any @fn19($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -422,16 +482,16 @@ Module
         Box
           Type Int
           Local $call.1
-  instance mi0 function=@fn1 <- $lambda
-  instance mi1 function=@fn2 <- nestedLambda
-  instance mi2 function=@fn3 <- $lambda
-  instance mi3 function=@fn4 <- local
-  instance mi4 function=@fn5 <- $lambda
-  instance mi5 function=@fn6 <- nestedLocal
-  instance mi6 function=@fn7 <- $anonymous
-  instance mi7 function=@fn8 <- nestedAnonymous
-  instance mi8 function=@fn9 <- nestedReference
-  instance mi9 function=@fn10 <- expanded
-  instance mi10 function=@fn11 <- local
-  instance mi11 function=@fn12 <- anonymous
+  instance mi0 function=@fn2 <- $lambda
+  instance mi1 function=@fn3 <- nestedLambda
+  instance mi2 function=@fn4 <- $lambda
+  instance mi3 function=@fn5 <- local
+  instance mi4 function=@fn6 <- $lambda
+  instance mi5 function=@fn7 <- nestedLocal
+  instance mi6 function=@fn8 <- $anonymous
+  instance mi7 function=@fn9 <- nestedAnonymous
+  instance mi8 function=@fn10 <- nestedReference
+  instance mi9 function=@fn11 <- expanded
+  instance mi10 function=@fn12 <- local
+  instance mi11 function=@fn13 <- anonymous
   output library

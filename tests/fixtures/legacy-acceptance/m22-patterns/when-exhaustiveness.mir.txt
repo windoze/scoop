@@ -11,6 +11,11 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
@@ -18,13 +23,66 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun impossible @fn0(value: Never) -> Int
+  fun $tuple.2.encode @fn0(this: (Int, Boolean), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Boolean)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external2 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FieldAccess 1
+          Type (Int, Boolean)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external3 direct
+        Type Boolean
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun impossible @fn1(value: Never) -> Int
     bb0 entry
       val $when.1: Never
         Type Never
         Local value
       unreachable
-  fun optionValue @fn1(value: Option<Int>) -> Int
+  fun optionValue @fn2(value: Option<Int>) -> Int
     bb0 entry
       val $when.1: Option<Int>
         Type Option<Int>
@@ -69,7 +127,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun nestedValue @fn2(value: Nested) -> Int
+  fun nestedValue @fn3(value: Nested) -> Int
     bb0 entry
       val $when.1: Nested
         Type Nested
@@ -219,7 +277,7 @@ Module
       unreachable
     bb18 pattern.merge.18
       goto bb15
-  fun booleanValue @fn3(value: BooleanBox) -> Int
+  fun booleanValue @fn4(value: BooleanBox) -> Int
     bb0 entry
       val $when.1: BooleanBox
         Type BooleanBox
@@ -281,7 +339,7 @@ Module
       unreachable
     bb8 pattern.merge.8
       goto bb4
-  fun pairValue @fn4(value: (Boolean, Boolean)) -> Int
+  fun pairValue @fn5(value: (Boolean, Boolean)) -> Int
     bb0 entry
       val $when.1: (Boolean, Boolean)
         Type (Boolean, Boolean)
@@ -365,7 +423,7 @@ Module
       unreachable
     bb11 pattern.merge.11
       goto bb7
-  fun structuredValue @fn5(value: Structured) -> Int
+  fun structuredValue @fn6(value: Structured) -> Int
     bb0 entry
       val $when.1: Structured
         Type Structured
@@ -431,7 +489,7 @@ Module
       unreachable
     bb8 pattern.merge.8
       goto bb4
-  fun explicitEmpty @fn6(value: BooleanBox) -> Unit
+  fun explicitEmpty @fn7(value: BooleanBox) -> Unit
     bb0 entry
       val $when.1: BooleanBox
         Type BooleanBox
@@ -448,7 +506,7 @@ Module
       goto bb2
     bb2 pattern.merge.2
       return
-  fun explicitFallback @fn7(value: Option<Int>) -> Int
+  fun explicitFallback @fn8(value: Option<Int>) -> Int
     bb0 entry
       val $when.1: Option<Int>
         Type Option<Int>
@@ -501,7 +559,7 @@ Module
       goto bb7
     bb7 pattern.merge.7
       goto bb4
-  fun main @fn8() -> Unit
+  fun main @fn9() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -517,13 +575,13 @@ Module
       val $parameter.value: Option<Int>
         Type Option<Int>
         Local $argument.0
-      call $dependency.argument.0: Int = @fn1 direct
+      call $dependency.argument.0: Int = @fn2 direct
         Type Option<Int>
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<Int>
@@ -532,13 +590,13 @@ Module
       val $parameter.value: Option<Int>
         Type Option<Int>
         Local $argument.0
-      call $dependency.argument.0: Int = @fn1 direct
+      call $dependency.argument.0: Int = @fn2 direct
         Type Option<Int>
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: (Int, Boolean)
@@ -559,13 +617,13 @@ Module
       val $parameter.value: Nested
         Type Nested
         Local $argument.0
-      call $dependency.argument.0: Int = @fn2 direct
+      call $dependency.argument.0: Int = @fn3 direct
         Type Nested
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: (Int, Boolean)
@@ -586,13 +644,13 @@ Module
       val $parameter.value: Nested
         Type Nested
         Local $argument.0
-      call $dependency.argument.0: Int = @fn2 direct
+      call $dependency.argument.0: Int = @fn3 direct
         Type Nested
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Nested
@@ -601,13 +659,13 @@ Module
       val $parameter.value: Nested
         Type Nested
         Local $argument.0
-      call $dependency.argument.0: Int = @fn2 direct
+      call $dependency.argument.0: Int = @fn3 direct
         Type Nested
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -624,13 +682,13 @@ Module
       val $parameter.value: BooleanBox
         Type BooleanBox
         Local $argument.0
-      call $dependency.argument.0: Int = @fn3 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type BooleanBox
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -647,13 +705,13 @@ Module
       val $parameter.value: BooleanBox
         Type BooleanBox
         Local $argument.0
-      call $dependency.argument.0: Int = @fn3 direct
+      call $dependency.argument.0: Int = @fn4 direct
         Type BooleanBox
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: (Boolean, Boolean)
@@ -666,13 +724,13 @@ Module
       val $parameter.value: (Boolean, Boolean)
         Type (Boolean, Boolean)
         Local $argument.0
-      call $dependency.argument.0: Int = @fn4 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type (Boolean, Boolean)
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: (Boolean, Boolean)
@@ -685,13 +743,13 @@ Module
       val $parameter.value: (Boolean, Boolean)
         Type (Boolean, Boolean)
         Local $argument.0
-      call $dependency.argument.0: Int = @fn4 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type (Boolean, Boolean)
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: (Boolean, Boolean)
@@ -704,13 +762,13 @@ Module
       val $parameter.value: (Boolean, Boolean)
         Type (Boolean, Boolean)
         Local $argument.0
-      call $dependency.argument.0: Int = @fn4 direct
+      call $dependency.argument.0: Int = @fn5 direct
         Type (Boolean, Boolean)
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -725,7 +783,7 @@ Module
       val $parameter.second: Boolean
         Type Boolean
         Local $argument.1
-      call $argument.0: Flags = @fn10 direct
+      call $argument.0: Flags = @fn14 direct
         Type Boolean
         Local $parameter.first
         Type Boolean
@@ -749,13 +807,13 @@ Module
       val $parameter.value: Structured
         Type Structured
         Local $argument.0
-      call $dependency.argument.0: Int = @fn5 direct
+      call $dependency.argument.0: Int = @fn6 direct
         Type Structured
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -770,7 +828,7 @@ Module
       val $parameter.second: Boolean
         Type Boolean
         Local $argument.1
-      call $argument.0: Flags = @fn10 direct
+      call $argument.0: Flags = @fn14 direct
         Type Boolean
         Local $parameter.first
         Type Boolean
@@ -794,13 +852,13 @@ Module
       val $parameter.value: Structured
         Type Structured
         Local $argument.0
-      call $dependency.argument.0: Int = @fn5 direct
+      call $dependency.argument.0: Int = @fn6 direct
         Type Structured
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -817,7 +875,7 @@ Module
       val $parameter.value: BooleanBox
         Type BooleanBox
         Local $argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type BooleanBox
         Local $parameter.value
       val $dependency.argument.0: Int
@@ -834,17 +892,90 @@ Module
       val $parameter.value: Option<Int>
         Type Option<Int>
         Local $argument.0
-      call $dependency.argument.0: Int = @fn7 direct
+      call $dependency.argument.0: Int = @fn8 direct
         Type Option<Int>
         Local $parameter.value
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun println @fn9(value: Int) -> Unit
+  fun encode @fn10(this: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn13 direct
+        Type Option<Int>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun $tuple.2.encode @fn11(this: (Boolean, Boolean), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, Boolean)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external3 direct
+        Type Boolean
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Boolean
+        Type Boolean
+        FieldAccess 1
+          Type (Boolean, Boolean)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external3 direct
+        Type Boolean
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun println @fn12(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -855,7 +986,7 @@ Module
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -864,11 +995,120 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun ctor.Flags.$c0 @fn10(first: Boolean, second: Boolean) -> Flags <no-gc>
+  fun encodeOption @fn13(value: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str1
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str2
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external2 direct
+        Type Int
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun ctor.Flags.$c0 @fn14(first: Boolean, second: Boolean) -> Flags <no-gc>
     bb0 entry
       return
         Type Flags
@@ -877,6 +1117,10 @@ Module
           Local first
           Type Boolean
           Local second
-  instance mi0 function=@fn9 <- println
+  instance mi0 function=@fn10 <- encode
+  instance mi1 function=@fn12 <- println
+  instance mi2 function=@fn13 <- encodeOption
   str @str0 "\n"
-  output executable @fn8
+  str @str1 "None"
+  str @str2 "Some"
+  output executable @fn9

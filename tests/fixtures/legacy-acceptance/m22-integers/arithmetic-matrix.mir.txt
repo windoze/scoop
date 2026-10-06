@@ -8,6 +8,11 @@ Module
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   interface Iterable<Char>
@@ -25,7 +30,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: Int8
@@ -87,7 +92,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -122,7 +127,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -157,7 +162,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -184,7 +189,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -211,7 +216,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -233,7 +238,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -255,7 +260,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -277,7 +282,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -299,7 +304,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: Int8
@@ -341,7 +346,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -363,7 +368,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: Int8
@@ -405,7 +410,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -427,7 +432,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -462,7 +467,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -497,7 +502,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -532,7 +537,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -559,7 +564,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -600,7 +605,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -641,7 +646,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -682,7 +687,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -704,7 +709,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -726,7 +731,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -755,7 +760,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -763,7 +768,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -798,7 +803,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -823,7 +828,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -831,7 +836,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -840,7 +845,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -862,7 +867,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -871,7 +876,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -883,7 +888,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -891,7 +896,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -916,7 +921,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -924,7 +929,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -953,7 +958,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -1019,7 +1024,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1048,7 +1053,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -1114,7 +1119,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1143,7 +1148,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw
@@ -1209,7 +1214,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1238,7 +1243,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw
@@ -1304,7 +1309,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1333,7 +1338,7 @@ Module
       assign $new.9
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.9
       throw
@@ -1399,7 +1404,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1428,7 +1433,7 @@ Module
       assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.11
       throw
@@ -1494,7 +1499,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1523,7 +1528,7 @@ Module
       assign $new.13
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.13
       throw
@@ -1589,7 +1594,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int8
@@ -1618,7 +1623,7 @@ Module
       assign $new.15
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.15
       throw
@@ -1684,7 +1689,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb72
@@ -1739,7 +1744,7 @@ Module
       assign $new.17
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.17
       throw unwind bb65
@@ -1792,7 +1797,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int8
         Local $dependency.parameter.value
       goto bb71
@@ -1815,7 +1820,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -1873,7 +1878,7 @@ Module
       assign $new.20
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.20
       throw unwind bb85
@@ -1926,7 +1931,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int8
         Local $dependency.parameter.value
       goto bb91
@@ -1949,7 +1954,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -1964,7 +1969,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: Int16
@@ -2026,7 +2031,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2061,7 +2066,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2096,7 +2101,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2123,7 +2128,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2150,7 +2155,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2172,7 +2177,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2194,7 +2199,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2216,7 +2221,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2238,7 +2243,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: Int16
@@ -2280,7 +2285,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2302,7 +2307,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: Int16
@@ -2344,7 +2349,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2366,7 +2371,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2401,7 +2406,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2436,7 +2441,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2471,7 +2476,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2498,7 +2503,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2539,7 +2544,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2580,7 +2585,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2621,7 +2626,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2643,7 +2648,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2665,7 +2670,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2694,7 +2699,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -2702,7 +2707,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2737,7 +2742,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2762,7 +2767,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -2770,7 +2775,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -2779,7 +2784,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -2801,7 +2806,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -2810,7 +2815,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -2822,7 +2827,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -2830,7 +2835,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2855,7 +2860,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -2863,7 +2868,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2892,7 +2897,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -2958,7 +2963,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -2987,7 +2992,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -3053,7 +3058,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3082,7 +3087,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw
@@ -3148,7 +3153,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3177,7 +3182,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw
@@ -3243,7 +3248,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3272,7 +3277,7 @@ Module
       assign $new.9
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.9
       throw
@@ -3338,7 +3343,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3367,7 +3372,7 @@ Module
       assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.11
       throw
@@ -3433,7 +3438,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3462,7 +3467,7 @@ Module
       assign $new.13
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.13
       throw
@@ -3528,7 +3533,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int16
@@ -3557,7 +3562,7 @@ Module
       assign $new.15
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.15
       throw
@@ -3623,7 +3628,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb72
@@ -3678,7 +3683,7 @@ Module
       assign $new.17
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.17
       throw unwind bb65
@@ -3731,7 +3736,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Int16
         Local $dependency.parameter.value
       goto bb71
@@ -3754,7 +3759,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -3812,7 +3817,7 @@ Module
       assign $new.20
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.20
       throw unwind bb85
@@ -3865,7 +3870,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Int16
         Local $dependency.parameter.value
       goto bb91
@@ -3888,7 +3893,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -3903,7 +3908,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: Int
@@ -3953,7 +3958,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -3988,7 +3993,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4023,7 +4028,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4050,7 +4055,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4077,7 +4082,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4099,7 +4104,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4121,7 +4126,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4143,7 +4148,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4165,7 +4170,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: Int
@@ -4207,7 +4212,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4229,7 +4234,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: Int
@@ -4271,7 +4276,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4293,7 +4298,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4328,7 +4333,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4363,7 +4368,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4398,7 +4403,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4425,7 +4430,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4466,7 +4471,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4507,7 +4512,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4548,7 +4553,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4570,7 +4575,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4592,7 +4597,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4621,7 +4626,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -4629,7 +4634,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4664,7 +4669,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4689,7 +4694,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -4697,7 +4702,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -4706,7 +4711,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -4728,7 +4733,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -4737,7 +4742,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -4749,7 +4754,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -4757,7 +4762,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4782,7 +4787,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -4790,7 +4795,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4819,7 +4824,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -4885,7 +4890,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -4914,7 +4919,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -4980,7 +4985,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5009,7 +5014,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw
@@ -5075,7 +5080,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5104,7 +5109,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw
@@ -5170,7 +5175,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5199,7 +5204,7 @@ Module
       assign $new.9
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.9
       throw
@@ -5265,7 +5270,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5294,7 +5299,7 @@ Module
       assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.11
       throw
@@ -5360,7 +5365,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5389,7 +5394,7 @@ Module
       assign $new.13
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.13
       throw
@@ -5455,7 +5460,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -5484,7 +5489,7 @@ Module
       assign $new.15
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.15
       throw
@@ -5550,7 +5555,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb72
@@ -5605,7 +5610,7 @@ Module
       assign $new.17
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.17
       throw unwind bb65
@@ -5658,7 +5663,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn14 direct
         Type Int
         Local $dependency.parameter.value
       goto bb71
@@ -5681,7 +5686,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -5739,7 +5744,7 @@ Module
       assign $new.20
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.20
       throw unwind bb85
@@ -5792,7 +5797,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn14 direct
         Type Int
         Local $dependency.parameter.value
       goto bb91
@@ -5815,7 +5820,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -5830,7 +5835,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: Long
@@ -5880,7 +5885,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -5915,7 +5920,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -5950,7 +5955,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -5977,7 +5982,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6004,7 +6009,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6026,7 +6031,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6048,7 +6053,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6070,7 +6075,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6092,7 +6097,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: Long
@@ -6134,7 +6139,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6156,7 +6161,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: Long
@@ -6198,7 +6203,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6220,7 +6225,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6255,7 +6260,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6290,7 +6295,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6325,7 +6330,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6352,7 +6357,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6393,7 +6398,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6434,7 +6439,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6475,7 +6480,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6497,7 +6502,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6519,7 +6524,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6548,7 +6553,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -6556,7 +6561,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6591,7 +6596,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6616,7 +6621,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -6624,7 +6629,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -6633,7 +6638,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6655,7 +6660,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -6664,7 +6669,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -6676,7 +6681,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -6684,7 +6689,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6709,7 +6714,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -6717,7 +6722,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6746,7 +6751,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -6812,7 +6817,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6841,7 +6846,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -6907,7 +6912,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -6936,7 +6941,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw
@@ -7002,7 +7007,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -7031,7 +7036,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw
@@ -7097,7 +7102,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -7126,7 +7131,7 @@ Module
       assign $new.9
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.9
       throw
@@ -7192,7 +7197,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -7221,7 +7226,7 @@ Module
       assign $new.11
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.11
       throw
@@ -7287,7 +7292,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -7316,7 +7321,7 @@ Module
       assign $new.13
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.13
       throw
@@ -7382,7 +7387,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -7411,7 +7416,7 @@ Module
       assign $new.15
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.15
       throw
@@ -7477,7 +7482,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb72
@@ -7532,7 +7537,7 @@ Module
       assign $new.17
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.17
       throw unwind bb65
@@ -7585,7 +7590,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn15 direct
         Type Long
         Local $dependency.parameter.value
       goto bb71
@@ -7608,7 +7613,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -7666,7 +7671,7 @@ Module
       assign $new.20
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.20
       throw unwind bb85
@@ -7719,7 +7724,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn15 direct
         Type Long
         Local $dependency.parameter.value
       goto bb91
@@ -7742,7 +7747,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -7757,7 +7762,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: UInt8
@@ -7813,7 +7818,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7848,7 +7853,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7883,7 +7888,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7910,7 +7915,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7937,7 +7942,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7959,7 +7964,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -7981,7 +7986,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8003,7 +8008,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8025,7 +8030,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: UInt8
@@ -8067,7 +8072,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8089,7 +8094,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: UInt8
@@ -8131,7 +8136,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8153,7 +8158,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8188,7 +8193,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8223,7 +8228,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8258,7 +8263,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8285,7 +8290,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8326,7 +8331,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8367,7 +8372,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8396,7 +8401,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -8404,7 +8409,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8439,7 +8444,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8464,7 +8469,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -8472,7 +8477,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -8481,7 +8486,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -8503,7 +8508,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -8512,7 +8517,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -8524,7 +8529,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -8532,7 +8537,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8557,7 +8562,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -8565,7 +8570,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8594,7 +8599,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -8624,7 +8629,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8653,7 +8658,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -8683,7 +8688,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8712,7 +8717,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -8742,7 +8747,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt8
@@ -8771,7 +8776,7 @@ Module
       assign $new.4
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.4
       throw
@@ -8801,7 +8806,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb16
@@ -8856,7 +8861,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw unwind bb9
@@ -8873,7 +8878,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn16 direct
         Type UInt8
         Local $dependency.parameter.value
       goto bb15
@@ -8896,7 +8901,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -8954,7 +8959,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw unwind bb23
@@ -8971,7 +8976,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn16 direct
         Type UInt8
         Local $dependency.parameter.value
       goto bb29
@@ -8994,7 +8999,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -9009,7 +9014,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: UInt16
@@ -9065,7 +9070,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9100,7 +9105,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9135,7 +9140,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9162,7 +9167,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9189,7 +9194,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9211,7 +9216,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9233,7 +9238,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9255,7 +9260,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9277,7 +9282,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: UInt16
@@ -9319,7 +9324,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9341,7 +9346,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: UInt16
@@ -9383,7 +9388,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9405,7 +9410,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9440,7 +9445,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9475,7 +9480,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9510,7 +9515,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9537,7 +9542,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9578,7 +9583,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9619,7 +9624,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9648,7 +9653,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -9656,7 +9661,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9691,7 +9696,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9716,7 +9721,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -9724,7 +9729,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -9733,7 +9738,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -9755,7 +9760,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -9764,7 +9769,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -9776,7 +9781,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -9784,7 +9789,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9809,7 +9814,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -9817,7 +9822,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9846,7 +9851,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -9876,7 +9881,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9905,7 +9910,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -9935,7 +9940,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -9964,7 +9969,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -9994,7 +9999,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt16
@@ -10023,7 +10028,7 @@ Module
       assign $new.4
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.4
       throw
@@ -10053,7 +10058,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb16
@@ -10108,7 +10113,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw unwind bb9
@@ -10125,7 +10130,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn16 direct
+      call @fn17 direct
         Type UInt16
         Local $dependency.parameter.value
       goto bb15
@@ -10148,7 +10153,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -10206,7 +10211,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw unwind bb23
@@ -10223,7 +10228,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn16 direct
+      call @fn17 direct
         Type UInt16
         Local $dependency.parameter.value
       goto bb29
@@ -10246,7 +10251,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -10261,7 +10266,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: UInt
@@ -10305,7 +10310,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10340,7 +10345,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10375,7 +10380,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10402,7 +10407,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10429,7 +10434,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10451,7 +10456,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10473,7 +10478,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10495,7 +10500,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10517,7 +10522,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: UInt
@@ -10559,7 +10564,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10581,7 +10586,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: UInt
@@ -10623,7 +10628,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10645,7 +10650,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10680,7 +10685,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10715,7 +10720,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10750,7 +10755,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10777,7 +10782,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10818,7 +10823,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10859,7 +10864,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10888,7 +10893,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -10896,7 +10901,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10931,7 +10936,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -10956,7 +10961,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -10964,7 +10969,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -10973,7 +10978,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -10995,7 +11000,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -11004,7 +11009,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -11016,7 +11021,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -11024,7 +11029,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -11049,7 +11054,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -11057,7 +11062,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -11086,7 +11091,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -11116,7 +11121,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -11145,7 +11150,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -11175,7 +11180,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -11204,7 +11209,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -11234,7 +11239,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: UInt
@@ -11263,7 +11268,7 @@ Module
       assign $new.4
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.4
       throw
@@ -11293,7 +11298,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb16
@@ -11348,7 +11353,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw unwind bb9
@@ -11365,7 +11370,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn17 direct
+      call @fn18 direct
         Type UInt
         Local $dependency.parameter.value
       goto bb15
@@ -11388,7 +11393,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -11446,7 +11451,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw unwind bb23
@@ -11463,7 +11468,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn17 direct
+      call @fn18 direct
         Type UInt
         Local $dependency.parameter.value
       goto bb29
@@ -11486,7 +11491,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -11501,7 +11506,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val zero: ULong
@@ -11545,7 +11550,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11580,7 +11585,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11615,7 +11620,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11642,7 +11647,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11669,7 +11674,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11691,7 +11696,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11713,7 +11718,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11735,7 +11740,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11757,7 +11762,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var incremented: ULong
@@ -11799,7 +11804,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11821,7 +11826,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       var decremented: ULong
@@ -11863,7 +11868,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11885,7 +11890,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11920,7 +11925,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11955,7 +11960,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -11990,7 +11995,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12017,7 +12022,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12058,7 +12063,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12099,7 +12104,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12128,7 +12133,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -12136,7 +12141,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12171,7 +12176,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12196,7 +12201,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -12204,7 +12209,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -12213,7 +12218,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Long
@@ -12235,7 +12240,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -12244,7 +12249,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -12256,7 +12261,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -12264,7 +12269,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12289,7 +12294,7 @@ Module
       val $dependency.parameter.other: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call $dependency.argument.0: Boolean = external0 direct
+      call $dependency.argument.0: Boolean = external1 direct
         Type Boolean
         Local $dependency.receiver
         Type Boolean
@@ -12297,7 +12302,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12326,7 +12331,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -12356,7 +12361,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12385,7 +12390,7 @@ Module
       assign $new.2
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.2
       throw
@@ -12415,7 +12420,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12444,7 +12449,7 @@ Module
       assign $new.3
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.3
       throw
@@ -12474,7 +12479,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: ULong
@@ -12503,7 +12508,7 @@ Module
       assign $new.4
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.4
       throw
@@ -12533,7 +12538,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Boolean
         Local $dependency.parameter.value
       goto bb16
@@ -12588,7 +12593,7 @@ Module
       assign $new.5
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.5
       throw unwind bb9
@@ -12605,7 +12610,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn19 direct
         Type ULong
         Local $dependency.parameter.value
       goto bb15
@@ -12628,7 +12633,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -12686,7 +12691,7 @@ Module
       assign $new.7
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call external12 direct
+      call external20 direct
         Type ArithmeticException
         Local $new.7
       throw unwind bb23
@@ -12703,7 +12708,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn19 direct
         Type ULong
         Local $dependency.parameter.value
       goto bb29
@@ -12726,7 +12731,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -12744,18 +12749,38 @@ Module
       call @fn6 direct
       call @fn7 direct
       return
-  fun println @fn9(value: String) -> Unit
+  fun encode @fn9(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn20 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun println @fn10(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external10 direct
+      call $dependency.local.2: String = external11 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12764,22 +12789,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn10(value: Boolean) -> Unit
+  fun println @fn11(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
         Local value
-      call $dependency.local.2: String = external9 direct
+      call $dependency.local.2: String = external10 direct
         Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12788,22 +12813,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn11(value: Int8) -> Unit
+  fun println @fn12(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
         Type Int8
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type Int8
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12812,22 +12837,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn12(value: Int16) -> Unit
+  fun println @fn13(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
         Type Int16
         Local value
-      call $dependency.local.2: String = external2 direct
+      call $dependency.local.2: String = external3 direct
         Type Int16
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12836,22 +12861,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn13(value: Int) -> Unit
+  fun println @fn14(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external3 direct
+      call $dependency.local.2: String = external4 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12860,22 +12885,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn14(value: Long) -> Unit
+  fun println @fn15(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
         Local value
-      call $dependency.local.2: String = external4 direct
+      call $dependency.local.2: String = external5 direct
         Type Long
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12884,22 +12909,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn15(value: UInt8) -> Unit
+  fun println @fn16(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
         Type UInt8
         Local value
-      call $dependency.local.2: String = external5 direct
+      call $dependency.local.2: String = external6 direct
         Type UInt8
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12908,22 +12933,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn16(value: UInt16) -> Unit
+  fun println @fn17(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
         Type UInt16
         Local value
-      call $dependency.local.2: String = external6 direct
+      call $dependency.local.2: String = external7 direct
         Type UInt16
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12932,22 +12957,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn17(value: UInt) -> Unit
+  fun println @fn18(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
         Type UInt
         Local value
-      call $dependency.local.2: String = external7 direct
+      call $dependency.local.2: String = external8 direct
         Type UInt
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12956,22 +12981,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn18(value: ULong) -> Unit
+  fun println @fn19(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
         Local value
-      call $dependency.local.2: String = external8 direct
+      call $dependency.local.2: String = external9 direct
         Type ULong
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -12980,11 +13005,249 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external11 direct
+      call external13 direct
         Type String
         Local $dependency.local.5
       return
-  instance mi0 function=@fn9 <- println
+  fun encodeOption @fn20(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external14 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str34
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external15 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external14 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external16 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external16 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str35
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external15 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external17 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external18 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external12 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external19 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn21(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn22 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn22(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external14 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str36
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external15 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external14 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external16 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external16 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str37
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external15 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external17 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external18 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external19 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  instance mi0 function=@fn9 <- encode
   instance mi1 function=@fn10 <- println
   instance mi2 function=@fn11 <- println
   instance mi3 function=@fn12 <- println
@@ -12994,6 +13257,10 @@ Module
   instance mi7 function=@fn16 <- println
   instance mi8 function=@fn17 <- println
   instance mi9 function=@fn18 <- println
+  instance mi10 function=@fn19 <- println
+  instance mi11 function=@fn20 <- encodeOption
+  instance mi12 function=@fn21 <- encode
+  instance mi13 function=@fn22 <- encodeOption
   str @str0 "Int8"
   str @str1 "Int8/div-zero"
   str @str2 "Int8/rem-zero"
@@ -13028,4 +13295,8 @@ Module
   str @str31 "\n"
   str @str32 "\n"
   str @str33 "\n"
+  str @str34 "None"
+  str @str35 "Some"
+  str @str36 "None"
+  str @str37 "Some"
   output executable @fn8

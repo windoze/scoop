@@ -24,6 +24,8 @@ SourceFile
     public fun removeAt
     public fun clear
     public operator fun iterator
+    public companion object
+      public fun decoder
     @NoGC
     @Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
   internal fun coreAllocationOverflow()
@@ -39,6 +41,8 @@ SourceFile
     public operator fun get
     public fun toMutableArray
     public operator fun iterator
+    public companion object
+      public fun decoder
     @Intrinsic("core_mutable_array")
   public class MutableArray<T>(), List<T>
     private fun arrayLength
@@ -50,6 +54,8 @@ SourceFile
     public operator fun set
     public fun toArray
     public operator fun iterator
+    public companion object
+      public fun decoder
 SourceFile
   RootPackage
     @Intrinsic("core_char")
@@ -701,6 +707,40 @@ SourceFile
   public enum Option<T>
     Some(T)
     None
+    public companion object
+      public fun decoder
+SourceFile
+  RootPackage
+  internal class OptionDecoder<T>(val element: Decodable<T>), Decodable<Option<T>>
+    public fun decode
+SourceFile
+  RootPackage
+  internal fun encodeOption<T : Encodable>(value: Option<T>, encoder: Encoder): Unit
+    val variants
+      MethodCall keyed
+        Var encoder
+    when
+      Var value
+      arm Option.None()
+        MethodCall end
+          MethodCall keyed
+            MethodCall field
+              Var variants
+              StringLiteral "None"
+      arm Option.Some(item)
+        val elements
+          MethodCall unkeyed
+            MethodCall field
+              Var variants
+              StringLiteral "Some"
+        MethodCall encode
+          Var item
+          MethodCall element
+            Var elements
+        MethodCall end
+          Var elements
+    MethodCall end
+      Var variants
 SourceFile
   RootPackage
   public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
@@ -727,6 +767,51 @@ SourceFile
     public operator fun contains
   internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
     public fun next
+SourceFile
+  RootPackage
+  internal fun decodeSequence<T>(decoder: Decoder, element: Decodable<T>): ArrayList<T>
+    val elements
+      MethodCall unkeyed
+        Var decoder
+    val result
+      Call ArrayList<T>
+    while
+      FieldAccess hasNext
+        Var elements
+      MethodCall add
+        Var result
+        MethodCall decode
+          Var element
+          MethodCall element
+            Var elements
+    MethodCall end
+      Var elements
+    return
+      Var result
+  internal class ArrayDecoder<T>(val element: Decodable<T>), Decodable<Array<T>>
+    public fun decode
+  internal class MutableArrayDecoder<T>(val element: Decodable<T>), Decodable<MutableArray<T>>
+    public fun decode
+  internal class ArrayListDecoder<T>(val element: Decodable<T>), Decodable<ArrayList<T>>
+    public fun decode
+SourceFile
+  RootPackage
+  public fun encodeList<T : Encodable>(values: List<T>, encoder: Encoder): Unit
+    val elements
+      MethodCall unkeyed
+        Var encoder
+    for value
+      Var values
+      MethodCall encode
+        Var value
+        MethodCall element
+          Var elements
+    MethodCall end
+      Var elements
+SourceFile
+  RootPackage
+  public annotation class SerialName(val name: String)
+  public annotation class Transient()
 SourceFile
   RootPackage
   public struct SourceLocation
@@ -863,3 +948,8 @@ SourceFile
   internal fun coreULongHash(value: ULong): Long
     @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
   internal fun coreBooleanHash(value: Boolean): Long
+SourceFile
+  RootPackage
+    @Intrinsic("core_unit")
+  public struct Unit <representation omitted> : Encodable
+    public fun encode

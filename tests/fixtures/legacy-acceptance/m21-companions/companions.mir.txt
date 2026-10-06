@@ -115,7 +115,7 @@ Module
       assign $new.1
         Type ObjectHost
         ClassAlloc ObjectHost
-      call @fn35 direct
+      call @fn37 direct
         Type ObjectHost
         Local $new.1
       global_assign $singleton$ObjectHost
@@ -214,7 +214,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:ObjectHost
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -578,7 +578,7 @@ Module
       assign $new.2
         Type Independent
         ClassAlloc Independent
-      call @fn36 direct
+      call @fn38 direct
         Type Independent
         Local $new.2
       val independent: Independent
@@ -638,7 +638,7 @@ Module
       assign $new.1
         Type StructHost.Maker
         ClassAlloc StructHost.Maker
-      call @fn39 direct
+      call @fn41 direct
         Type StructHost.Maker
         Local $new.1
       global_assign $singleton$Maker
@@ -737,7 +737,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 companion:StructHost.Maker
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -748,7 +748,7 @@ Module
       assign $new.1
         Type EnumHost.Values
         ClassAlloc EnumHost.Values
-      call @fn40 direct
+      call @fn42 direct
         Type EnumHost.Values
         Local $new.1
       global_assign $singleton$Values
@@ -847,7 +847,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:EnumHost.Values
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -858,7 +858,7 @@ Module
       assign $new.1
         Type DefaultHost.Companion
         ClassAlloc DefaultHost.Companion
-      call @fn41 direct
+      call @fn43 direct
         Type DefaultHost.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -957,7 +957,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:DefaultHost.Companion
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -968,7 +968,7 @@ Module
       assign $new.1
         Type Independent.Companion
         ClassAlloc Independent.Companion
-      call @fn42 direct
+      call @fn44 direct
         Type Independent.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -1067,7 +1067,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 companion:Independent.Companion
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -1078,7 +1078,7 @@ Module
       assign $new.1
         Type InheritedHost.Companion
         ClassAlloc InheritedHost.Companion
-      call @fn43 direct
+      call @fn45 direct
         Type InheritedHost.Companion
         Local $new.1
       global_assign $singleton$Companion
@@ -1177,7 +1177,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init5 companion:InheritedHost.Companion
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -1188,7 +1188,7 @@ Module
       assign $new.1
         Type InterfaceHost.Provider
         ClassAlloc InterfaceHost.Provider
-      call @fn44 direct
+      call @fn46 direct
         Type InterfaceHost.Provider
         Local $new.1
       global_assign $singleton$Provider
@@ -1287,7 +1287,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init6 companion:InterfaceHost.Provider
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -1298,7 +1298,7 @@ Module
       assign $new.1
         Type ObjectHost.NestedCompanion
         ClassAlloc ObjectHost.NestedCompanion
-      call @fn45 direct
+      call @fn47 direct
         Type ObjectHost.NestedCompanion
         Local $new.1
       global_assign $singleton$NestedCompanion
@@ -1397,7 +1397,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init7 companion:ObjectHost.NestedCompanion
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -1408,13 +1408,13 @@ Module
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external2 direct
+      call $dependency.local.2: String = external3 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1423,7 +1423,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
@@ -1432,7 +1432,7 @@ Module
       assign $new.1
         Type Box.Factory<Int>
         ClassAlloc Box.Factory<Int>
-      call @fn46 direct
+      call @fn48 direct
         Type Box.Factory<Int>
         Local $new.1
       global_assign $singleton$Factory
@@ -1531,7 +1531,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init8 companion:Box.Factory
-      call external4 direct
+      call external11 direct
         Type String
         Local $init.message
       unreachable
@@ -1542,13 +1542,13 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external0 direct
+      call $dependency.local.2: String = external1 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1557,7 +1557,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
@@ -1571,7 +1571,7 @@ Module
       val $receiver: Box.Factory<Int>
         Type Box.Factory<Int>
         Local this
-      call $call.1: Box<Int> = @fn33 direct
+      call $call.1: Box<Int> = @fn34 direct
         Type Box.Factory<Int>
         Local $receiver
       val $dependency.argument.0: Int
@@ -1594,13 +1594,13 @@ Module
       val $dependency.local.1: Boolean
         Type Boolean
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1609,7 +1609,7 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external3 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
@@ -1618,7 +1618,27 @@ Module
       return
         Type Int
         Local value
-  fun Box.Factory.emptyInt @fn33(this: Box.Factory<Int>) -> Box<Int>
+  fun encode @fn33(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn35 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun Box.Factory.emptyInt @fn34(this: Box.Factory<Int>) -> Box<Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1629,7 +1649,7 @@ Module
       assign $new.1
         Type Box<Int>
         ClassAlloc Box<Int>
-      call @fn47 direct
+      call @fn49 direct
         Type Box<Int>
         Local $new.1
         Type Int
@@ -1637,16 +1657,125 @@ Module
       return
         Type Box<Int>
         Local $new.1
-  fun init.DefaultHost.$c1 @fn34(this: DefaultHost) -> Unit
+  fun encodeOption @fn35(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str5
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str6
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.DefaultHost.$c1 @fn36(this: DefaultHost) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.$c5 @fn35(this: ObjectHost) -> Unit
+  fun init.ObjectHost.$c5 @fn37(this: ObjectHost) -> Unit
     bb0 entry
       return
-  fun init.Independent.$c2 @fn36(this: Independent) -> Unit
+  fun init.Independent.$c2 @fn38(this: Independent) -> Unit
     bb0 entry
       return
-  fun init.FactoryBase.$c3 @fn37(this: FactoryBase) -> Unit
+  fun init.FactoryBase.$c3 @fn39(this: FactoryBase) -> Unit
     bb0 entry
       field_set 0
         Type FactoryBase
@@ -1654,23 +1783,23 @@ Module
         Type Int
         IntegerLiteral Int value=14 bits=0x0000000e
       return
-  fun init.InheritedHost.$c4 @fn38(this: InheritedHost) -> Unit
+  fun init.InheritedHost.$c4 @fn40(this: InheritedHost) -> Unit
     bb0 entry
       return
-  fun init.StructHost.Maker.$c6 @fn39(this: StructHost.Maker) -> Unit
+  fun init.StructHost.Maker.$c6 @fn41(this: StructHost.Maker) -> Unit
     bb0 entry
       return
-  fun init.EnumHost.Values.$c7 @fn40(this: EnumHost.Values) -> Unit
+  fun init.EnumHost.Values.$c7 @fn42(this: EnumHost.Values) -> Unit
     bb0 entry
       return
-  fun init.DefaultHost.Companion.$c9 @fn41(this: DefaultHost.Companion) -> Unit
+  fun init.DefaultHost.Companion.$c9 @fn43(this: DefaultHost.Companion) -> Unit
     bb0 entry
       return
-  fun init.Independent.Companion.$c10 @fn42(this: Independent.Companion) -> Unit
+  fun init.Independent.Companion.$c10 @fn44(this: Independent.Companion) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str7
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=13 bits=0x0000000d
@@ -1691,25 +1820,25 @@ Module
         Type Int
         Local $call.1
       return
-  fun init.InheritedHost.Companion.$c11 @fn43(this: InheritedHost.Companion) -> Unit
+  fun init.InheritedHost.Companion.$c11 @fn45(this: InheritedHost.Companion) -> Unit
     bb0 entry
-      call @fn37 direct
+      call @fn39 direct
         Type FactoryBase
         Retype FactoryBase
           Type InheritedHost.Companion
           Local this
       return
-  fun init.InterfaceHost.Provider.$c12 @fn44(this: InterfaceHost.Provider) -> Unit
+  fun init.InterfaceHost.Provider.$c12 @fn46(this: InterfaceHost.Provider) -> Unit
     bb0 entry
       return
-  fun init.ObjectHost.NestedCompanion.$c13 @fn45(this: ObjectHost.NestedCompanion) -> Unit
+  fun init.ObjectHost.NestedCompanion.$c13 @fn47(this: ObjectHost.NestedCompanion) -> Unit
     bb0 entry
       return
-  fun init.Box.Factory.$c8 @fn46(this: Box.Factory<Int>) -> Unit
+  fun init.Box.Factory.$c8 @fn48(this: Box.Factory<Int>) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @str6
+        StringConst @str8
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=40 bits=0x00000028
@@ -1735,7 +1864,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
       return
-  fun init.Box.$c0 @fn47(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c0 @fn49(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -1743,7 +1872,7 @@ Module
         Type Int
         Local value
       return
-  fun ctor.StructHost.$c0 @fn48() -> StructHost <no-gc>
+  fun ctor.StructHost.$c0 @fn50() -> StructHost <no-gc>
     bb0 entry
       return
         Type StructHost
@@ -1755,12 +1884,16 @@ Module
   instance mi4 function=@fn30 <- Box.Factory.answer
   instance mi5 function=@fn31 <- println
   instance mi6 function=@fn32 <- Box.Factory.identity
-  instance mi7 function=@fn33 <- Box.Factory.emptyInt
+  instance mi7 function=@fn33 <- encode
+  instance mi8 function=@fn34 <- Box.Factory.emptyInt
+  instance mi9 function=@fn35 <- encodeOption
   str @str0 "before-box"
   str @str1 "after-independent-construction"
   str @str2 "\n"
   str @str3 "\n"
   str @str4 "\n"
-  str @str5 "independent-companion"
-  str @str6 "box-companion"
+  str @str5 "None"
+  str @str6 "Some"
+  str @str7 "independent-companion"
+  str @str8 "box-companion"
   output executable @fn11

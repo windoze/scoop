@@ -1,7 +1,7 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
-cone dev.programlink:coroutines:0.1.0 kind=Library objects=100
-cone dev.programlink:function-values:0.1.0 kind=Executable objects=136
+cone scoop:scoop.core:0.1.0 kind=Library objects=638
+cone dev.programlink:coroutines:0.1.0 kind=Library objects=104
+cone dev.programlink:function-values:0.1.0 kind=Executable objects=144
 runtime objects=63
 images=3 root=_scoop$1$re$e84cee29b8bbc1374a897ce0055c436cf93dabad81244c48cec6cf086762750e
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

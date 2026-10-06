@@ -21,6 +21,11 @@ Module
   class Throwable vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   interface Reader
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   interface Iterable<Char>
@@ -35,7 +40,7 @@ Module
   generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn27 id=468399f4b34c972576b6e2da167cbb0a1d7aea28e3f908e2152ee59aa4d06a51
+  generated_callable gc0 function=@fn31 id=468399f4b34c972576b6e2da167cbb0a1d7aea28e3f908e2152ee59aa4d06a51
   fun ReaderImpl.read @fn0(this: ReaderImpl) -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
@@ -52,7 +57,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -89,7 +94,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -126,7 +131,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -167,7 +172,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -204,7 +209,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -254,7 +259,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -319,7 +324,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -364,7 +369,7 @@ Module
       assign $new.1
         Type Request
         ClassAlloc Request
-      call @fn22 direct
+      call @fn26 direct
         Type Request
         Local $new.1
         Type Int
@@ -375,7 +380,7 @@ Module
       assign $new.2
         Type ReaderImpl
         ClassAlloc ReaderImpl
-      call @fn23 direct
+      call @fn27 direct
         Type ReaderImpl
         Local $new.2
       val reader: Reader
@@ -386,7 +391,7 @@ Module
       assign $new.3
         Type ConcreteReader
         ClassAlloc ConcreteReader
-      call @fn25 direct
+      call @fn29 direct
         Type ConcreteReader
         Local $new.3
       val abstractReader: AbstractReader
@@ -418,40 +423,40 @@ Module
       val $receiver: Reader
         Type Reader
         Local reader
-      call $dependency.argument.0: Int = @fn18 interface Reader[0]
+      call $dependency.argument.0: Int = @fn22 interface Reader[0]
         Type Reader
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $receiver: Reader
         Type Reader
         Local reader
-      call $dependency.argument.0: Int = @fn19 interface Reader[1]
+      call $dependency.argument.0: Int = @fn23 interface Reader[1]
         Type Reader
         Local $receiver
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
-      call @fn21 interface Reader[3]
+      call @fn25 interface Reader[3]
         Type Reader
         Local reader
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
       call @scoop_rt_gc_collect direct
-      call $dependency.argument.0: Int = @fn20 interface Reader[2]
+      call $dependency.argument.0: Int = @fn24 interface Reader[2]
         Type Reader
         Local reader
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $receiver: AbstractReader
@@ -463,7 +468,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $receiver: Request
@@ -480,7 +485,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       val $receiver: Request
@@ -500,13 +505,13 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       assign $new.4
         Type Calculator
         ClassAlloc Calculator
-      call @fn26 direct
+      call @fn30 direct
         Type Calculator
         Local $new.4
       val $receiver: Calculator
@@ -526,7 +531,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       call @fn10 direct
@@ -536,14 +541,14 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
-      call $dependency.argument.0: Int = @fn12 direct
+      call $dependency.argument.0: Int = @fn13 direct
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Int
         Local $dependency.parameter.value
       goto bb7
@@ -587,7 +592,7 @@ Module
       val $receiver: Reader
         Type Reader
         Local reader
-      call $call.5: Int = @fn18 interface Reader[0]
+      call $call.5: Int = @fn22 interface Reader[0]
         Type Reader
         Local $receiver
       goto bb15
@@ -610,7 +615,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn14 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -633,7 +638,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -670,7 +675,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -692,18 +697,38 @@ Module
         Type Int
         Local next
       return
-  fun println @fn11(value: Int) -> Unit
+  fun encode @fn11(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn15 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun println @fn12(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
         Local value
-      call $dependency.local.2: String = external0 direct
+      call $dependency.local.2: String = external1 direct
         Type Int
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -712,11 +737,11 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun $local.0.localRead @fn12() -> Int
+  fun $local.0.localRead @fn13() -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
         Type internal<context-binding-ref>
@@ -732,7 +757,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -753,18 +778,18 @@ Module
         FieldAccess 0
           Type Request
           Local local
-  fun println @fn13(value: String) -> Unit
+  fun println @fn14(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -773,26 +798,264 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn14(this: Continuation<Request>, value: Request) -> Unit
+  fun encodeOption @fn15(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str13
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str14
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external3 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn16(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn17 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn17(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str15
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str16
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn18(this: Continuation<Request>, value: Request) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn15(this: Continuation<Request>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn19(this: Continuation<Request>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn16(this: SuspendTask<Request>, $completion: Continuation<Request>) -> CoroutineStep<Request>
+  fun SuspendTask.run @fn20(this: SuspendTask<Request>, $completion: Continuation<Request>) -> CoroutineStep<Request>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Request>, continuation: Continuation<Request>) -> Unit
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Request>, continuation: Continuation<Request>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Reader.read @fn18(this: Reader) -> Int
+  fun Reader.read @fn22(this: Reader) -> Int
     bb0 entry
       trap "call to abstract method `Reader.read`"
-  fun Reader.twice @fn19(this: Reader) -> Int
+  fun Reader.twice @fn23(this: Reader) -> Int
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
         Type internal<context-binding-ref>
@@ -808,13 +1071,13 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external3 direct
+      call external11 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
         VariantConstruct Option<String> v0
           Type String
-          StringConst @str13
+          StringConst @str17
       throw
         Type MissingContextException
         Local $new.1
@@ -842,13 +1105,13 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Reader.$get$current @fn20(this: Reader) -> Int
+  fun Reader.$get$current @fn24(this: Reader) -> Int
     bb0 entry
       trap "call to abstract method `Reader.$get$current`"
-  fun Reader.$set$current @fn21(this: Reader, value: Int) -> Unit
+  fun Reader.$set$current @fn25(this: Reader, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Reader.$set$current`"
-  fun init.Request.$c0 @fn22(this: Request, value: Int) -> Unit
+  fun init.Request.$c0 @fn26(this: Request, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Request
@@ -856,24 +1119,24 @@ Module
         Type Int
         Local value
       return
-  fun init.ReaderImpl.$c1 @fn23(this: ReaderImpl) -> Unit
+  fun init.ReaderImpl.$c1 @fn27(this: ReaderImpl) -> Unit
     bb0 entry
       return
-  fun init.AbstractReader.$c2 @fn24(this: AbstractReader) -> Unit
+  fun init.AbstractReader.$c2 @fn28(this: AbstractReader) -> Unit
     bb0 entry
       return
-  fun init.ConcreteReader.$c3 @fn25(this: ConcreteReader) -> Unit
+  fun init.ConcreteReader.$c3 @fn29(this: ConcreteReader) -> Unit
     bb0 entry
-      call @fn24 direct
+      call @fn28 direct
         Type AbstractReader
         Retype AbstractReader
           Type ConcreteReader
           Local this
       return
-  fun init.Calculator.$c4 @fn26(this: Calculator) -> Unit
+  fun init.Calculator.$c4 @fn30(this: Calculator) -> Unit
     bb0 entry
       return
-  fun startCoroutine<Request> @fn27(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
+  fun startCoroutine<Request> @fn31(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -896,7 +1159,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn14 interface Continuation<Request>[0]
+      call @fn18 interface Continuation<Request>[0]
         Type Continuation<Request>
         Local completion
         Type Request
@@ -909,7 +1172,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn15 interface Continuation<Request>[1]
+      call @fn19 interface Continuation<Request>[1]
         Type Continuation<Request>
         Local completion
         Type Throwable
@@ -928,7 +1191,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Request> = @fn16 interface SuspendTask<Request>[0]
+      call $step: CoroutineStep<Request> = @fn20 interface SuspendTask<Request>[0]
         Type SuspendTask<Request>
         Local task
         Type Continuation<Request>
@@ -956,14 +1219,18 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Request> result=Request
   coroutine_slot cl0 CoroutineSlot<Request> value=Request
-  coroutine_start ct0 result=Request function=fn27
-  coroutine_fn cf0 @fn16 source_return=Request step=cs0 immediate
-  instance mi0 function=@fn11 <- println
-  instance mi1 function=@fn13 <- println
-  instance mi2 function=@fn14 <- Continuation.resume
-  instance mi3 function=@fn15 <- Continuation.resumeWithException
-  instance mi4 function=@fn16 <- SuspendTask.run
-  instance mi5 function=@fn17 <- SuspendRegistration.register
+  coroutine_start ct0 result=Request function=fn31
+  coroutine_fn cf0 @fn20 source_return=Request step=cs0 immediate
+  instance mi0 function=@fn11 <- encode
+  instance mi1 function=@fn12 <- println
+  instance mi2 function=@fn14 <- println
+  instance mi3 function=@fn15 <- encodeOption
+  instance mi4 function=@fn16 <- encode
+  instance mi5 function=@fn17 <- encodeOption
+  instance mi6 function=@fn18 <- Continuation.resume
+  instance mi7 function=@fn19 <- Continuation.resumeWithException
+  instance mi8 function=@fn20 <- SuspendTask.run
+  instance mi9 function=@fn21 <- SuspendRegistration.register
   str @str0 "missing context ReaderImpl.read.other: Request"
   str @str1 "missing context ReaderImpl.$get$current.other: Request"
   str @str2 "missing context ReaderImpl.$set$current.other: Request"
@@ -977,5 +1244,9 @@ Module
   str @str10 "\n"
   str @str11 "missing context $local.0.localRead.local: Request"
   str @str12 "\n"
-  str @str13 "missing context Reader.twice.request: Request"
+  str @str13 "None"
+  str @str14 "Some"
+  str @str15 "None"
+  str @str16 "Some"
+  str @str17 "missing context Reader.twice.request: Request"
   output executable @fn8

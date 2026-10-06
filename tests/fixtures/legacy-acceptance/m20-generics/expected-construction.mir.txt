@@ -47,6 +47,11 @@ Module
   class IllegalStateException vtable=0 itables=0
   class box<ValueBox<Cat>> vtable=0 itables=0
   class box<ValueBox<Dog>> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   interface Iterable<Char>
@@ -73,15 +78,15 @@ Module
   generated_exact_type get10 location=enum6 nominal_id=74feefb5e657116b8b1e66d0b9e87385e8300f31ebddfd0257c5ceaf22ea28dd exact_id=e5724e82f470617b1918206b8148b1adfdd9dac467a2866e81bcb31ac387ad1a
   generated_exact_type get11 location=class10 nominal_id=6e5d20a3e33ed9361f23921a6d9feab8a2f3dfc7399f9999f1a98d32d37e1cd5 exact_id=eb48977ac2efae01306278a9bf5ac466be7d276b817b01ca6c8fad32ef38bfa0
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn30 id=41088f0afe72af8eb0ab6f26d17a2d2daf3d13918896d8694ce1c581b22c1866
-  generated_callable gc1 function=@fn31 id=c43a69aa98b1e019a45b1e8005e4c4eab04db42edc73266c13361966b9d3c69e
-  generated_callable gc2 function=@fn29 id=e3c0592ae57ced96143ad44d779d449dd282f4cbd4b1954ac5c57d6ca3eec553
+  generated_callable gc0 function=@fn34 id=41088f0afe72af8eb0ab6f26d17a2d2daf3d13918896d8694ce1c581b22c1866
+  generated_callable gc1 function=@fn35 id=c43a69aa98b1e019a45b1e8005e4c4eab04db42edc73266c13361966b9d3c69e
+  generated_callable gc2 function=@fn33 id=e3c0592ae57ced96143ad44d779d449dd282f4cbd4b1954ac5c57d6ca3eec553
   fun returned @fn0() -> Option<Animal>
     bb0 entry
       assign $new.1
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.1
       val $dependency.argument.0: Animal
@@ -106,7 +111,7 @@ Module
       assign $new.1
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.1
       val $dependency.argument.0: Animal
@@ -149,7 +154,7 @@ Module
       assign $new.1
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.1
       val $argument.0: Animal
@@ -221,7 +226,7 @@ Module
       assign $new.1
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.1
       val $dependency.argument.0: Animal
@@ -263,7 +268,7 @@ Module
       assign $new.1
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.1
       val $dependency.argument.0: Animal
@@ -282,7 +287,7 @@ Module
       assign $new.2
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.2
       val $argument.0: Animal
@@ -296,7 +301,7 @@ Module
       assign $new.3
         Type RefBox<Animal>
         ClassAlloc RefBox<Animal>
-      call @fn23 direct
+      call @fn27 direct
         Type RefBox<Animal>
         Local $new.3
         Type Animal
@@ -307,7 +312,7 @@ Module
       assign $new.4
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.4
       val $argument.0: Animal
@@ -318,13 +323,13 @@ Module
       val $parameter.value: Animal
         Type Animal
         Local $argument.0
-      call value: ValueBox<Animal> = @fn26 direct
+      call value: ValueBox<Animal> = @fn30 direct
         Type Animal
         Local $parameter.value
       assign $new.5
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.5
       val $argument.0: Animal
@@ -347,7 +352,7 @@ Module
       assign $new.6
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.6
       val $argument.0: Cat
@@ -359,7 +364,7 @@ Module
       assign $new.7
         Type RefBox<Cat>
         ClassAlloc RefBox<Cat>
-      call @fn24 direct
+      call @fn28 direct
         Type RefBox<Cat>
         Local $new.7
         Type Cat
@@ -374,7 +379,7 @@ Module
       assign $new.8
         Type Dog
         ClassAlloc Dog
-      call @fn22 direct
+      call @fn26 direct
         Type Dog
         Local $new.8
       val $argument.0: Dog
@@ -386,7 +391,7 @@ Module
       assign $new.9
         Type RefBox<Dog>
         ClassAlloc RefBox<Dog>
-      call @fn25 direct
+      call @fn29 direct
         Type RefBox<Dog>
         Local $new.9
         Type Dog
@@ -408,7 +413,7 @@ Module
       assign $new.10
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.10
       val $argument.0: Cat
@@ -417,7 +422,7 @@ Module
       val $parameter.value: Cat
         Type Cat
         Local $argument.0
-      call $call.11: ValueBox<Cat> = @fn27 direct
+      call $call.11: ValueBox<Cat> = @fn31 direct
         Type Cat
         Local $parameter.value
       assign $result.5
@@ -430,7 +435,7 @@ Module
       assign $new.12
         Type Dog
         ClassAlloc Dog
-      call @fn22 direct
+      call @fn26 direct
         Type Dog
         Local $new.12
       val $argument.0: Dog
@@ -439,7 +444,7 @@ Module
       val $parameter.value: Dog
         Type Dog
         Local $argument.0
-      call $call.13: ValueBox<Dog> = @fn28 direct
+      call $call.13: ValueBox<Dog> = @fn32 direct
         Type Dog
         Local $parameter.value
       assign $result.5
@@ -455,7 +460,7 @@ Module
       assign $new.14
         Type Cat
         ClassAlloc Cat
-      call @fn21 direct
+      call @fn25 direct
         Type Cat
         Local $new.14
       val $argument.0: Cat
@@ -467,7 +472,7 @@ Module
       assign $new.15
         Type RefBox<Cat>
         ClassAlloc RefBox<Cat>
-      call @fn24 direct
+      call @fn28 direct
         Type RefBox<Cat>
         Local $new.15
         Type Cat
@@ -480,7 +485,7 @@ Module
       assign $new.16
         Type Dog
         ClassAlloc Dog
-      call @fn22 direct
+      call @fn26 direct
         Type Dog
         Local $new.16
       val $argument.0: Dog
@@ -492,7 +497,7 @@ Module
       assign $new.17
         Type RefBox<Dog>
         ClassAlloc RefBox<Dog>
-      call @fn25 direct
+      call @fn29 direct
         Type RefBox<Dog>
         Local $new.17
         Type Dog
@@ -508,7 +513,7 @@ Module
       val $parameter.second: Any
         Type Any
         Local $argument.1
-      call solverLUB: Any = @fn5 direct
+      call solverLUB: Any = @fn6 direct
         Type Any
         Local $parameter.first
         Type Any
@@ -532,7 +537,7 @@ Module
       assign $new.18
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external3 direct
+      call external11 direct
         Type UnwrapException
         Local $new.18
       throw
@@ -547,7 +552,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -560,7 +565,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -573,7 +578,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $when.3: Choice<Animal>
@@ -601,7 +606,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       goto bb12
@@ -628,7 +633,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       goto bb15
@@ -647,7 +652,7 @@ Module
       assign $new.19
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external3 direct
+      call external11 direct
         Type UnwrapException
         Local $new.19
       throw
@@ -662,7 +667,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Boolean
@@ -690,7 +695,7 @@ Module
       assign $new.20
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external3 direct
+      call external11 direct
         Type UnwrapException
         Local $new.20
       throw
@@ -705,7 +710,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Switch
@@ -739,7 +744,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       goto bb24
@@ -766,7 +771,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       goto bb27
@@ -785,7 +790,7 @@ Module
       assign $new.21
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external3 direct
+      call external11 direct
         Type UnwrapException
         Local $new.21
       throw
@@ -800,7 +805,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -811,7 +816,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -822,7 +827,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -833,11 +838,31 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type Boolean
         Local $dependency.parameter.value
       return
-  fun choose @fn5(first: Any, second: Any) -> Any
+  fun encode @fn5(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn9 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun choose @fn6(first: Any, second: Any) -> Any
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -856,18 +881,18 @@ Module
       return
         Type Any
         Local $result.3
-  fun println @fn6(value: String) -> Unit
+  fun println @fn7(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external1 direct
+      call $dependency.local.2: String = external2 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -876,22 +901,22 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun println @fn7(value: Boolean) -> Unit
+  fun println @fn8(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
         Local value
-      call $dependency.local.2: String = external0 direct
+      call $dependency.local.2: String = external1 direct
         Type Boolean
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -900,47 +925,285 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external2 direct
+      call external4 direct
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn8(this: Continuation<Animal>, value: Animal) -> Unit
+  fun encodeOption @fn9(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str4
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str5
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external3 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn10(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn11 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn11(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str6
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external5 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external7 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str7
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external6 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external8 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external9 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external10 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn12(this: Continuation<Animal>, value: Animal) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn9(this: Continuation<Animal>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn13(this: Continuation<Animal>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn10(this: SuspendTask<Animal>, $completion: Continuation<Animal>) -> CoroutineStep<Animal>
+  fun SuspendTask.run @fn14(this: SuspendTask<Animal>, $completion: Continuation<Animal>) -> CoroutineStep<Animal>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Animal>, continuation: Continuation<Animal>) -> Unit
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Animal>, continuation: Continuation<Animal>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn12(this: Continuation<Cat>, value: Cat) -> Unit
+  fun Continuation.resume @fn16(this: Continuation<Cat>, value: Cat) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn13(this: Continuation<Cat>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn17(this: Continuation<Cat>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn14(this: SuspendTask<Cat>, $completion: Continuation<Cat>) -> CoroutineStep<Cat>
+  fun SuspendTask.run @fn18(this: SuspendTask<Cat>, $completion: Continuation<Cat>) -> CoroutineStep<Cat>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Cat>, continuation: Continuation<Cat>) -> Unit
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Cat>, continuation: Continuation<Cat>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn16(this: Continuation<Dog>, value: Dog) -> Unit
+  fun Continuation.resume @fn20(this: Continuation<Dog>, value: Dog) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn17(this: Continuation<Dog>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn21(this: Continuation<Dog>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn18(this: SuspendTask<Dog>, $completion: Continuation<Dog>) -> CoroutineStep<Dog>
+  fun SuspendTask.run @fn22(this: SuspendTask<Dog>, $completion: Continuation<Dog>) -> CoroutineStep<Dog>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Dog>, continuation: Continuation<Dog>) -> Unit
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Dog>, continuation: Continuation<Dog>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Animal.$c0 @fn20(this: Animal, name: String) -> Unit
+  fun init.Animal.$c0 @fn24(this: Animal, name: String) -> Unit
     bb0 entry
       field_set 0
         Type Animal
@@ -948,15 +1211,15 @@ Module
         Type String
         Local name
       return
-  fun init.Cat.$c1 @fn21(this: Cat) -> Unit
+  fun init.Cat.$c1 @fn25(this: Cat) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @str4
+        StringConst @str8
       val $parameter.name: String
         Type String
         Local $argument.0
-      call @fn20 direct
+      call @fn24 direct
         Type Animal
         Retype Animal
           Type Cat
@@ -964,15 +1227,15 @@ Module
         Type String
         Local $parameter.name
       return
-  fun init.Dog.$c2 @fn22(this: Dog) -> Unit
+  fun init.Dog.$c2 @fn26(this: Dog) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str9
       val $parameter.name: String
         Type String
         Local $argument.0
-      call @fn20 direct
+      call @fn24 direct
         Type Animal
         Retype Animal
           Type Dog
@@ -980,7 +1243,7 @@ Module
         Type String
         Local $parameter.name
       return
-  fun init.RefBox.$c3 @fn23(this: RefBox<Animal>, value: Animal) -> Unit
+  fun init.RefBox.$c3 @fn27(this: RefBox<Animal>, value: Animal) -> Unit
     bb0 entry
       field_set 0
         Type RefBox<Animal>
@@ -988,7 +1251,7 @@ Module
         Type Animal
         Local value
       return
-  fun init.RefBox.$c3 @fn24(this: RefBox<Cat>, value: Cat) -> Unit
+  fun init.RefBox.$c3 @fn28(this: RefBox<Cat>, value: Cat) -> Unit
     bb0 entry
       field_set 0
         Type RefBox<Cat>
@@ -996,7 +1259,7 @@ Module
         Type Cat
         Local value
       return
-  fun init.RefBox.$c3 @fn25(this: RefBox<Dog>, value: Dog) -> Unit
+  fun init.RefBox.$c3 @fn29(this: RefBox<Dog>, value: Dog) -> Unit
     bb0 entry
       field_set 0
         Type RefBox<Dog>
@@ -1004,28 +1267,28 @@ Module
         Type Dog
         Local value
       return
-  fun ctor.ValueBox.$c0 @fn26(value: Animal) -> ValueBox<Animal> <no-gc>
+  fun ctor.ValueBox.$c0 @fn30(value: Animal) -> ValueBox<Animal> <no-gc>
     bb0 entry
       return
         Type ValueBox<Animal>
         StructInit ValueBox<Animal>
           Type Animal
           Local value
-  fun ctor.ValueBox.$c0 @fn27(value: Cat) -> ValueBox<Cat> <no-gc>
+  fun ctor.ValueBox.$c0 @fn31(value: Cat) -> ValueBox<Cat> <no-gc>
     bb0 entry
       return
         Type ValueBox<Cat>
         StructInit ValueBox<Cat>
           Type Cat
           Local value
-  fun ctor.ValueBox.$c0 @fn28(value: Dog) -> ValueBox<Dog> <no-gc>
+  fun ctor.ValueBox.$c0 @fn32(value: Dog) -> ValueBox<Dog> <no-gc>
     bb0 entry
       return
         Type ValueBox<Dog>
         StructInit ValueBox<Dog>
           Type Dog
           Local value
-  fun startCoroutine<Cat> @fn29(task: SuspendTask<Cat>, completion: Continuation<Cat>) -> Unit
+  fun startCoroutine<Cat> @fn33(task: SuspendTask<Cat>, completion: Continuation<Cat>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1048,7 +1311,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn12 interface Continuation<Cat>[0]
+      call @fn16 interface Continuation<Cat>[0]
         Type Continuation<Cat>
         Local completion
         Type Cat
@@ -1061,7 +1324,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn13 interface Continuation<Cat>[1]
+      call @fn17 interface Continuation<Cat>[1]
         Type Continuation<Cat>
         Local completion
         Type Throwable
@@ -1080,7 +1343,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Cat> = @fn14 interface SuspendTask<Cat>[0]
+      call $step: CoroutineStep<Cat> = @fn18 interface SuspendTask<Cat>[0]
         Type SuspendTask<Cat>
         Local task
         Type Continuation<Cat>
@@ -1106,7 +1369,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Dog> @fn30(task: SuspendTask<Dog>, completion: Continuation<Dog>) -> Unit
+  fun startCoroutine<Dog> @fn34(task: SuspendTask<Dog>, completion: Continuation<Dog>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1129,7 +1392,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn16 interface Continuation<Dog>[0]
+      call @fn20 interface Continuation<Dog>[0]
         Type Continuation<Dog>
         Local completion
         Type Dog
@@ -1142,7 +1405,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn17 interface Continuation<Dog>[1]
+      call @fn21 interface Continuation<Dog>[1]
         Type Continuation<Dog>
         Local completion
         Type Throwable
@@ -1161,7 +1424,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Dog> = @fn18 interface SuspendTask<Dog>[0]
+      call $step: CoroutineStep<Dog> = @fn22 interface SuspendTask<Dog>[0]
         Type SuspendTask<Dog>
         Local task
         Type Continuation<Dog>
@@ -1187,7 +1450,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Animal> @fn31(task: SuspendTask<Animal>, completion: Continuation<Animal>) -> Unit
+  fun startCoroutine<Animal> @fn35(task: SuspendTask<Animal>, completion: Continuation<Animal>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1210,7 +1473,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn8 interface Continuation<Animal>[0]
+      call @fn12 interface Continuation<Animal>[0]
         Type Continuation<Animal>
         Local completion
         Type Animal
@@ -1223,7 +1486,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn9 interface Continuation<Animal>[1]
+      call @fn13 interface Continuation<Animal>[1]
         Type Continuation<Animal>
         Local completion
         Type Throwable
@@ -1242,7 +1505,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Animal> = @fn10 interface SuspendTask<Animal>[0]
+      call $step: CoroutineStep<Animal> = @fn14 interface SuspendTask<Animal>[0]
         Type SuspendTask<Animal>
         Local task
         Type Continuation<Animal>
@@ -1274,19 +1537,19 @@ Module
   coroutine_slot cl0 CoroutineSlot<Cat> value=Cat
   coroutine_slot cl1 CoroutineSlot<Dog> value=Dog
   coroutine_slot cl2 CoroutineSlot<Animal> value=Animal
-  coroutine_start ct0 result=Cat function=fn29
-  coroutine_start ct1 result=Dog function=fn30
-  coroutine_start ct2 result=Animal function=fn31
-  coroutine_fn cf0 @fn10 source_return=Animal step=cs2 immediate
-  coroutine_fn cf1 @fn14 source_return=Cat step=cs0 immediate
-  coroutine_fn cf2 @fn18 source_return=Dog step=cs1 immediate
-  instance mi0 function=@fn5 <- choose
-  instance mi1 function=@fn6 <- println
+  coroutine_start ct0 result=Cat function=fn33
+  coroutine_start ct1 result=Dog function=fn34
+  coroutine_start ct2 result=Animal function=fn35
+  coroutine_fn cf0 @fn14 source_return=Animal step=cs2 immediate
+  coroutine_fn cf1 @fn18 source_return=Cat step=cs0 immediate
+  coroutine_fn cf2 @fn22 source_return=Dog step=cs1 immediate
+  instance mi0 function=@fn5 <- encode
+  instance mi1 function=@fn6 <- choose
   instance mi2 function=@fn7 <- println
-  instance mi3 function=@fn8 <- Continuation.resume
-  instance mi4 function=@fn9 <- Continuation.resumeWithException
-  instance mi5 function=@fn10 <- SuspendTask.run
-  instance mi6 function=@fn11 <- SuspendRegistration.register
+  instance mi3 function=@fn8 <- println
+  instance mi4 function=@fn9 <- encodeOption
+  instance mi5 function=@fn10 <- encode
+  instance mi6 function=@fn11 <- encodeOption
   instance mi7 function=@fn12 <- Continuation.resume
   instance mi8 function=@fn13 <- Continuation.resumeWithException
   instance mi9 function=@fn14 <- SuspendTask.run
@@ -1295,10 +1558,18 @@ Module
   instance mi12 function=@fn17 <- Continuation.resumeWithException
   instance mi13 function=@fn18 <- SuspendTask.run
   instance mi14 function=@fn19 <- SuspendRegistration.register
+  instance mi15 function=@fn20 <- Continuation.resume
+  instance mi16 function=@fn21 <- Continuation.resumeWithException
+  instance mi17 function=@fn22 <- SuspendTask.run
+  instance mi18 function=@fn23 <- SuspendRegistration.register
   str @str0 "empty"
   str @str1 "empty"
   str @str2 "\n"
   str @str3 "\n"
-  str @str4 "cat"
-  str @str5 "dog"
+  str @str4 "None"
+  str @str5 "Some"
+  str @str6 "None"
+  str @str7 "Some"
+  str @str8 "cat"
+  str @str9 "dog"
   output executable @fn4

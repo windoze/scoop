@@ -10,13 +10,16 @@ Module
   global8 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
   global9 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
   global10 $init$failure$4: Any managed initial=zeroed-for-runtime-unit
-  init0 extension:Receiver<T0, T1>:shared generic-delegate lazy global0 initializer=@fn11 ensure=@fn12 failure=6 deps=[]
-  init1 extension:Receiver<T0, T1>:shared generic-delegate lazy global1 initializer=@fn14 ensure=@fn15 failure=7 deps=[]
-  init2 extension:Receiver<T0, T1>:shared generic-delegate lazy global2 initializer=@fn17 ensure=@fn18 failure=8 deps=[]
-  init3 extension:Receiver<T0, T1>:broken generic-delegate lazy global3 initializer=@fn19 ensure=@fn20 failure=9 deps=[]
-  init4 extension:Receiver<T0, T1>:broken generic-delegate lazy global4 initializer=@fn21 ensure=@fn22 failure=10 deps=[]
+  init0 extension:Receiver<T0, T1>:shared generic-delegate lazy global0 initializer=@fn12 ensure=@fn13 failure=6 deps=[]
+  init1 extension:Receiver<T0, T1>:shared generic-delegate lazy global1 initializer=@fn15 ensure=@fn16 failure=7 deps=[]
+  init2 extension:Receiver<T0, T1>:shared generic-delegate lazy global2 initializer=@fn18 ensure=@fn19 failure=8 deps=[]
+  init3 extension:Receiver<T0, T1>:broken generic-delegate lazy global3 initializer=@fn21 ensure=@fn22 failure=9 deps=[]
+  init4 extension:Receiver<T0, T1>:broken generic-delegate lazy global4 initializer=@fn23 ensure=@fn24 failure=10 deps=[]
   enum Option<String>
     Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
     None()
   class Receiver<Int, Boolean> vtable=0 itables=0
   class Receiver<Boolean, Boolean> vtable=0 itables=0
@@ -33,6 +36,15 @@ Module
   class Starter<Boolean, Boolean> vtable=0 itables=0
   class Starter<Int, Int> vtable=0 itables=0
   class State vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -55,7 +67,7 @@ Module
       assign $new.1
         Type Receiver<Int, Boolean>
         ClassAlloc Receiver<Int, Boolean>
-      call @fn31 direct
+      call @fn35 direct
         Type Receiver<Int, Boolean>
         Local $new.1
         Type Int
@@ -85,7 +97,7 @@ Module
       assign $new.1
         Type Receiver<Boolean, Boolean>
         ClassAlloc Receiver<Boolean, Boolean>
-      call @fn32 direct
+      call @fn36 direct
         Type Receiver<Boolean, Boolean>
         Local $new.1
         Type Boolean
@@ -115,7 +127,7 @@ Module
       assign $new.1
         Type Receiver<Int, Int>
         ClassAlloc Receiver<Int, Int>
-      call @fn33 direct
+      call @fn37 direct
         Type Receiver<Int, Int>
         Local $new.1
         Type Int
@@ -192,14 +204,14 @@ Module
       assign $new.1
         Type Receiver<Int, Boolean>
         ClassAlloc Receiver<Int, Boolean>
-      call @fn31 direct
+      call @fn35 direct
         Type Receiver<Int, Boolean>
         Local $new.1
         Type Int
         Local $dependency.parameter.left
         Type Boolean
         Local $dependency.parameter.right
-      call $call.2: Int = @fn8 direct
+      call $call.2: Int = @fn9 direct
         Type Receiver<Int, Boolean>
         Local $new.1
       goto bb7
@@ -289,14 +301,14 @@ Module
       assign $new.1
         Type Receiver<Boolean, Boolean>
         ClassAlloc Receiver<Boolean, Boolean>
-      call @fn32 direct
+      call @fn36 direct
         Type Receiver<Boolean, Boolean>
         Local $new.1
         Type Boolean
         Local $dependency.parameter.left
         Type Boolean
         Local $dependency.parameter.right
-      call $call.2: Int = @fn9 direct
+      call $call.2: Int = @fn10 direct
         Type Receiver<Boolean, Boolean>
         Local $new.1
       goto bb7
@@ -324,8 +336,8 @@ Module
         Local $return.4
   fun $extension.shared @fn5(this: Receiver<Int, Boolean>) -> Int
     bb0 entry
-      call @fn12 direct
-      call $call.1: Int = @fn10 direct
+      call @fn13 direct
+      call $call.1: Int = @fn11 direct
         Type Slot<Int, Boolean>
         GlobalRead extension:Receiver<T0, T1>:shared$delegate
         Type Receiver<Int, Boolean>
@@ -335,8 +347,8 @@ Module
         Local $call.1
   fun $extension.shared @fn6(this: Receiver<Boolean, Boolean>) -> Int
     bb0 entry
-      call @fn15 direct
-      call $call.1: Int = @fn13 direct
+      call @fn16 direct
+      call $call.1: Int = @fn14 direct
         Type Slot<Boolean, Boolean>
         GlobalRead extension:Receiver<T0, T1>:shared$delegate
         Type Receiver<Boolean, Boolean>
@@ -346,8 +358,8 @@ Module
         Local $call.1
   fun $extension.shared @fn7(this: Receiver<Int, Int>) -> Int
     bb0 entry
-      call @fn18 direct
-      call $call.1: Int = @fn16 direct
+      call @fn19 direct
+      call $call.1: Int = @fn17 direct
         Type Slot<Int, Int>
         GlobalRead extension:Receiver<T0, T1>:shared$delegate
         Type Receiver<Int, Int>
@@ -355,10 +367,30 @@ Module
       return
         Type Int
         Local $call.1
-  fun $extension.broken @fn8(this: Receiver<Int, Boolean>) -> Int
+  fun encode @fn8(this: Option<String>, encoder: Encoder) -> Unit
     bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
       call @fn20 direct
-      call $call.1: Int = @fn10 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun $extension.broken @fn9(this: Receiver<Int, Boolean>) -> Int
+    bb0 entry
+      call @fn22 direct
+      call $call.1: Int = @fn11 direct
         Type Slot<Int, Boolean>
         GlobalRead extension:Receiver<T0, T1>:broken$delegate
         Type Receiver<Int, Boolean>
@@ -366,10 +398,10 @@ Module
       return
         Type Int
         Local $call.1
-  fun $extension.broken @fn9(this: Receiver<Boolean, Boolean>) -> Int
+  fun $extension.broken @fn10(this: Receiver<Boolean, Boolean>) -> Int
     bb0 entry
-      call @fn22 direct
-      call $call.1: Int = @fn13 direct
+      call @fn24 direct
+      call $call.1: Int = @fn14 direct
         Type Slot<Boolean, Boolean>
         GlobalRead extension:Receiver<T0, T1>:broken$delegate
         Type Receiver<Boolean, Boolean>
@@ -377,7 +409,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun getValue @fn10(this: Slot<Int, Boolean>, thisRef: Receiver<Int, Boolean>) -> Int
+  fun getValue @fn11(this: Slot<Int, Boolean>, thisRef: Receiver<Int, Boolean>) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type Payload
@@ -387,17 +419,17 @@ Module
       return
         Type Int
         Local $call.1
-  fun extension:Receiver<T0, T1>:shared$initialize @fn11() -> Unit
+  fun extension:Receiver<T0, T1>:shared$initialize @fn12() -> Unit
     bb0 entry
-      call $call.1: Starter<Int, Boolean> = @fn23 direct
-      call $call.2: Slot<Int, Boolean> = @fn24 direct
+      call $call.1: Starter<Int, Boolean> = @fn25 direct
+      call $call.2: Slot<Int, Boolean> = @fn26 direct
         Type Starter<Int, Boolean>
         Local $call.1
       global_assign extension:Receiver<T0, T1>:shared$delegate
         Type Slot<Int, Boolean>
         Local $call.2
       return
-  fun extension:Receiver<T0, T1>:shared$ensure @fn12() -> Unit
+  fun extension:Receiver<T0, T1>:shared$ensure @fn13() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -442,7 +474,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn11 direct
+      call @fn12 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 extension:Receiver<T0, T1>:shared
@@ -489,13 +521,13 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 extension:Receiver<T0, T1>:shared
-      call external10 direct
+      call external18 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun getValue @fn13(this: Slot<Boolean, Boolean>, thisRef: Receiver<Boolean, Boolean>) -> Int
+  fun getValue @fn14(this: Slot<Boolean, Boolean>, thisRef: Receiver<Boolean, Boolean>) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type Payload
@@ -505,17 +537,17 @@ Module
       return
         Type Int
         Local $call.1
-  fun extension:Receiver<T0, T1>:shared$initialize @fn14() -> Unit
+  fun extension:Receiver<T0, T1>:shared$initialize @fn15() -> Unit
     bb0 entry
-      call $call.1: Starter<Boolean, Boolean> = @fn25 direct
-      call $call.2: Slot<Boolean, Boolean> = @fn26 direct
+      call $call.1: Starter<Boolean, Boolean> = @fn27 direct
+      call $call.2: Slot<Boolean, Boolean> = @fn28 direct
         Type Starter<Boolean, Boolean>
         Local $call.1
       global_assign extension:Receiver<T0, T1>:shared$delegate
         Type Slot<Boolean, Boolean>
         Local $call.2
       return
-  fun extension:Receiver<T0, T1>:shared$ensure @fn15() -> Unit
+  fun extension:Receiver<T0, T1>:shared$ensure @fn16() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -560,7 +592,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn14 direct
+      call @fn15 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 extension:Receiver<T0, T1>:shared
@@ -607,13 +639,13 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 extension:Receiver<T0, T1>:shared
-      call external10 direct
+      call external18 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun getValue @fn16(this: Slot<Int, Int>, thisRef: Receiver<Int, Int>) -> Int
+  fun getValue @fn17(this: Slot<Int, Int>, thisRef: Receiver<Int, Int>) -> Int
     bb0 entry
       call $call.1: Int = external1 direct
         Type Payload
@@ -623,17 +655,17 @@ Module
       return
         Type Int
         Local $call.1
-  fun extension:Receiver<T0, T1>:shared$initialize @fn17() -> Unit
+  fun extension:Receiver<T0, T1>:shared$initialize @fn18() -> Unit
     bb0 entry
-      call $call.1: Starter<Int, Int> = @fn27 direct
-      call $call.2: Slot<Int, Int> = @fn28 direct
+      call $call.1: Starter<Int, Int> = @fn29 direct
+      call $call.2: Slot<Int, Int> = @fn30 direct
         Type Starter<Int, Int>
         Local $call.1
       global_assign extension:Receiver<T0, T1>:shared$delegate
         Type Slot<Int, Int>
         Local $call.2
       return
-  fun extension:Receiver<T0, T1>:shared$ensure @fn18() -> Unit
+  fun extension:Receiver<T0, T1>:shared$ensure @fn19() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -678,7 +710,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn17 direct
+      call @fn18 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 extension:Receiver<T0, T1>:shared
@@ -725,129 +757,133 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 extension:Receiver<T0, T1>:shared
-      call external10 direct
+      call external18 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun extension:Receiver<T0, T1>:broken$initialize @fn19() -> Unit
+  fun encodeOption @fn20(value: Option<String>, encoder: Encoder) -> Unit
     bb0 entry
-      call $call.1: Slot<Int, Boolean> = @fn29 direct
-      global_assign extension:Receiver<T0, T1>:broken$delegate
-        Type Slot<Int, Boolean>
-        Local $call.1
-      return
-  fun extension:Receiver<T0, T1>:broken$ensure @fn20() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external2 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
       branch bb1 bb2
         Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn19 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
-      call external10 direct
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
         Type String
-        Local $init.message
+        StringConst @str2
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external3 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external2 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external4 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external4 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str3
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external3 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external5 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external6 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external17 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
       unreachable
-    bb19 if.merge.19
-      unreachable
+    bb6 pattern.merge.6
+      goto bb3
   fun extension:Receiver<T0, T1>:broken$initialize @fn21() -> Unit
     bb0 entry
-      call $call.1: Slot<Boolean, Boolean> = @fn30 direct
+      call $call.1: Slot<Int, Boolean> = @fn32 direct
       global_assign extension:Receiver<T0, T1>:broken$delegate
-        Type Slot<Boolean, Boolean>
+        Type Slot<Int, Boolean>
         Local $call.1
       return
   fun extension:Receiver<T0, T1>:broken$ensure @fn22() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init4 extension:Receiver<T0, T1>:broken
+        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -891,6 +927,111 @@ Module
       call @fn21 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0, T1>:broken
+      call external18 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun extension:Receiver<T0, T1>:broken$initialize @fn23() -> Unit
+    bb0 entry
+      call $call.1: Slot<Boolean, Boolean> = @fn33 direct
+      global_assign extension:Receiver<T0, T1>:broken$delegate
+        Type Slot<Boolean, Boolean>
+        Local $call.1
+      return
+  fun extension:Receiver<T0, T1>:broken$ensure @fn24() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 extension:Receiver<T0, T1>:broken
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn23 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
         InitializationUnitAddress init4 extension:Receiver<T0, T1>:broken
       goto bb10
     bb12 try.catch.12
@@ -935,19 +1076,19 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init4 extension:Receiver<T0, T1>:broken
-      call external10 direct
+      call external18 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun start @fn23() -> Starter<Int, Boolean>
+  fun start @fn25() -> Starter<Int, Boolean>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.0: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external2 direct
+      call $dependency.local.1: Int = external8 direct
         Type State
         Local $dependency.local.0
       val $dependency.local.2: Int
@@ -959,7 +1100,7 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call external3 direct
+      call external9 direct
         Type State
         Local $dependency.local.0
         Type Int
@@ -971,19 +1112,19 @@ Module
       assign $new.1
         Type Starter<Int, Boolean>
         ClassAlloc Starter<Int, Boolean>
-      call @fn34 direct
+      call @fn38 direct
         Type Starter<Int, Boolean>
         Local $new.1
       return
         Type Starter<Int, Boolean>
         Local $new.1
-  fun provideDelegate @fn24(this: Starter<Int, Boolean>) -> Slot<Int, Boolean>
+  fun provideDelegate @fn26(this: Starter<Int, Boolean>) -> Slot<Int, Boolean>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.1: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.2: Int = external4 direct
+      call $dependency.local.2: Int = external10 direct
         Type State
         Local $dependency.local.1
       val $dependency.local.3: Int
@@ -995,7 +1136,7 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call external5 direct
+      call external11 direct
         Type State
         Local $dependency.local.1
         Type Int
@@ -1013,7 +1154,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call external6 direct
+      call external12 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1027,7 +1168,7 @@ Module
       assign $new.2
         Type Slot<Int, Boolean>
         ClassAlloc Slot<Int, Boolean>
-      call @fn35 direct
+      call @fn39 direct
         Type Slot<Int, Boolean>
         Local $new.2
         Type Payload
@@ -1035,13 +1176,13 @@ Module
       return
         Type Slot<Int, Boolean>
         Local $new.2
-  fun start @fn25() -> Starter<Boolean, Boolean>
+  fun start @fn27() -> Starter<Boolean, Boolean>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.0: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external2 direct
+      call $dependency.local.1: Int = external8 direct
         Type State
         Local $dependency.local.0
       val $dependency.local.2: Int
@@ -1053,7 +1194,7 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call external3 direct
+      call external9 direct
         Type State
         Local $dependency.local.0
         Type Int
@@ -1065,19 +1206,19 @@ Module
       assign $new.1
         Type Starter<Boolean, Boolean>
         ClassAlloc Starter<Boolean, Boolean>
-      call @fn36 direct
+      call @fn40 direct
         Type Starter<Boolean, Boolean>
         Local $new.1
       return
         Type Starter<Boolean, Boolean>
         Local $new.1
-  fun provideDelegate @fn26(this: Starter<Boolean, Boolean>) -> Slot<Boolean, Boolean>
+  fun provideDelegate @fn28(this: Starter<Boolean, Boolean>) -> Slot<Boolean, Boolean>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.1: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.2: Int = external4 direct
+      call $dependency.local.2: Int = external10 direct
         Type State
         Local $dependency.local.1
       val $dependency.local.3: Int
@@ -1089,7 +1230,7 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call external5 direct
+      call external11 direct
         Type State
         Local $dependency.local.1
         Type Int
@@ -1107,7 +1248,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call external6 direct
+      call external12 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1121,7 +1262,7 @@ Module
       assign $new.2
         Type Slot<Boolean, Boolean>
         ClassAlloc Slot<Boolean, Boolean>
-      call @fn37 direct
+      call @fn41 direct
         Type Slot<Boolean, Boolean>
         Local $new.2
         Type Payload
@@ -1129,13 +1270,13 @@ Module
       return
         Type Slot<Boolean, Boolean>
         Local $new.2
-  fun start @fn27() -> Starter<Int, Int>
+  fun start @fn29() -> Starter<Int, Int>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.0: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external2 direct
+      call $dependency.local.1: Int = external8 direct
         Type State
         Local $dependency.local.0
       val $dependency.local.2: Int
@@ -1147,7 +1288,7 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call external3 direct
+      call external9 direct
         Type State
         Local $dependency.local.0
         Type Int
@@ -1159,19 +1300,19 @@ Module
       assign $new.1
         Type Starter<Int, Int>
         ClassAlloc Starter<Int, Int>
-      call @fn38 direct
+      call @fn42 direct
         Type Starter<Int, Int>
         Local $new.1
       return
         Type Starter<Int, Int>
         Local $new.1
-  fun provideDelegate @fn28(this: Starter<Int, Int>) -> Slot<Int, Int>
+  fun provideDelegate @fn30(this: Starter<Int, Int>) -> Slot<Int, Int>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.1: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.2: Int = external4 direct
+      call $dependency.local.2: Int = external10 direct
         Type State
         Local $dependency.local.1
       val $dependency.local.3: Int
@@ -1183,7 +1324,7 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call external5 direct
+      call external11 direct
         Type State
         Local $dependency.local.1
         Type Int
@@ -1201,7 +1342,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call external6 direct
+      call external12 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1215,7 +1356,7 @@ Module
       assign $new.2
         Type Slot<Int, Int>
         ClassAlloc Slot<Int, Int>
-      call @fn39 direct
+      call @fn43 direct
         Type Slot<Int, Int>
         Local $new.2
         Type Payload
@@ -1223,13 +1364,33 @@ Module
       return
         Type Slot<Int, Int>
         Local $new.2
-  fun fail @fn29() -> Slot<Int, Boolean>
+  fun encode @fn31(this: Option<Char>, encoder: Encoder) -> Unit
     bb0 entry
-      call external11 direct
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn34 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun fail @fn32() -> Slot<Int, Boolean>
+    bb0 entry
+      call external19 direct
       val $dependency.local.0: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external7 direct
+      call $dependency.local.1: Int = external13 direct
         Type State
         Local $dependency.local.0
       val $dependency.local.2: Int
@@ -1241,7 +1402,7 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call external8 direct
+      call external14 direct
         Type State
         Local $dependency.local.0
         Type Int
@@ -1250,8 +1411,8 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-      call external11 direct
-      call $dependency.local.5: Int = external7 direct
+      call external19 direct
+      call $dependency.local.5: Int = external13 direct
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
       val $dependency.local.6: Int
@@ -1260,7 +1421,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call external6 direct
+      call external12 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1274,7 +1435,7 @@ Module
       assign $new.2
         Type Failure
         ClassAlloc Failure
-      call external9 direct
+      call external15 direct
         Type Failure
         Local $new.2
         Type Payload
@@ -1282,13 +1443,13 @@ Module
       throw
         Type Failure
         Local $new.2
-  fun fail @fn30() -> Slot<Boolean, Boolean>
+  fun fail @fn33() -> Slot<Boolean, Boolean>
     bb0 entry
-      call external11 direct
+      call external19 direct
       val $dependency.local.0: State
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
-      call $dependency.local.1: Int = external7 direct
+      call $dependency.local.1: Int = external13 direct
         Type State
         Local $dependency.local.0
       val $dependency.local.2: Int
@@ -1300,7 +1461,7 @@ Module
       val $dependency.local.4: Int
         Type Int
         Local $dependency.local.3
-      call external8 direct
+      call external14 direct
         Type State
         Local $dependency.local.0
         Type Int
@@ -1309,8 +1470,8 @@ Module
           Local $dependency.local.2
           Type Int
           Local $dependency.local.4
-      call external11 direct
-      call $dependency.local.5: Int = external7 direct
+      call external19 direct
+      call $dependency.local.5: Int = external13 direct
         Type State
         GlobalRead $singleton$d64533a10d131521649f3e315583615e2ef6953a1da9bcd60dff956638407001
       val $dependency.local.6: Int
@@ -1319,7 +1480,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call external6 direct
+      call external12 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1333,7 +1494,7 @@ Module
       assign $new.2
         Type Failure
         ClassAlloc Failure
-      call external9 direct
+      call external15 direct
         Type Failure
         Local $new.2
         Type Payload
@@ -1341,7 +1502,116 @@ Module
       throw
         Type Failure
         Local $new.2
-  fun init.Receiver.$c0 @fn31(this: Receiver<Int, Boolean>, left: Int, right: Boolean) -> Unit
+  fun encodeOption @fn34(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external2 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str4
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external3 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external2 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external4 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external4 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str5
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external3 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external5 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external6 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external16 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.Receiver.$c0 @fn35(this: Receiver<Int, Boolean>, left: Int, right: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type Receiver<Int, Boolean>
@@ -1354,7 +1624,7 @@ Module
         Type Boolean
         Local right
       return
-  fun init.Receiver.$c0 @fn32(this: Receiver<Boolean, Boolean>, left: Boolean, right: Boolean) -> Unit
+  fun init.Receiver.$c0 @fn36(this: Receiver<Boolean, Boolean>, left: Boolean, right: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type Receiver<Boolean, Boolean>
@@ -1367,7 +1637,7 @@ Module
         Type Boolean
         Local right
       return
-  fun init.Receiver.$c0 @fn33(this: Receiver<Int, Int>, left: Int, right: Int) -> Unit
+  fun init.Receiver.$c0 @fn37(this: Receiver<Int, Int>, left: Int, right: Int) -> Unit
     bb0 entry
       field_set 0
         Type Receiver<Int, Int>
@@ -1380,10 +1650,10 @@ Module
         Type Int
         Local right
       return
-  fun init.Starter.$c1 @fn34(this: Starter<Int, Boolean>) -> Unit
+  fun init.Starter.$c1 @fn38(this: Starter<Int, Boolean>) -> Unit
     bb0 entry
       return
-  fun init.Slot.$c2 @fn35(this: Slot<Int, Boolean>, payload: Payload) -> Unit
+  fun init.Slot.$c2 @fn39(this: Slot<Int, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type Slot<Int, Boolean>
@@ -1391,10 +1661,10 @@ Module
         Type Payload
         Local payload
       return
-  fun init.Starter.$c1 @fn36(this: Starter<Boolean, Boolean>) -> Unit
+  fun init.Starter.$c1 @fn40(this: Starter<Boolean, Boolean>) -> Unit
     bb0 entry
       return
-  fun init.Slot.$c2 @fn37(this: Slot<Boolean, Boolean>, payload: Payload) -> Unit
+  fun init.Slot.$c2 @fn41(this: Slot<Boolean, Boolean>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type Slot<Boolean, Boolean>
@@ -1402,10 +1672,10 @@ Module
         Type Payload
         Local payload
       return
-  fun init.Starter.$c1 @fn38(this: Starter<Int, Int>) -> Unit
+  fun init.Starter.$c1 @fn42(this: Starter<Int, Int>) -> Unit
     bb0 entry
       return
-  fun init.Slot.$c2 @fn39(this: Slot<Int, Int>, payload: Payload) -> Unit
+  fun init.Slot.$c2 @fn43(this: Slot<Int, Int>, payload: Payload) -> Unit
     bb0 entry
       field_set 0
         Type Slot<Int, Int>
@@ -1416,29 +1686,37 @@ Module
   instance mi0 function=@fn5 <- $extension.shared
   instance mi1 function=@fn6 <- $extension.shared
   instance mi2 function=@fn7 <- $extension.shared
-  instance mi3 function=@fn8 <- $extension.broken
+  instance mi3 function=@fn8 <- encode
   instance mi4 function=@fn9 <- $extension.broken
-  instance mi5 function=@fn10 <- getValue
-  instance mi6 function=@fn11 <- extension:Receiver<T0, T1>:shared$initialize
-  instance mi7 function=@fn12 <- extension:Receiver<T0, T1>:shared$ensure
-  instance mi8 function=@fn13 <- getValue
-  instance mi9 function=@fn14 <- extension:Receiver<T0, T1>:shared$initialize
-  instance mi10 function=@fn15 <- extension:Receiver<T0, T1>:shared$ensure
-  instance mi11 function=@fn16 <- getValue
-  instance mi12 function=@fn17 <- extension:Receiver<T0, T1>:shared$initialize
-  instance mi13 function=@fn18 <- extension:Receiver<T0, T1>:shared$ensure
-  instance mi14 function=@fn19 <- extension:Receiver<T0, T1>:broken$initialize
-  instance mi15 function=@fn20 <- extension:Receiver<T0, T1>:broken$ensure
+  instance mi5 function=@fn10 <- $extension.broken
+  instance mi6 function=@fn11 <- getValue
+  instance mi7 function=@fn12 <- extension:Receiver<T0, T1>:shared$initialize
+  instance mi8 function=@fn13 <- extension:Receiver<T0, T1>:shared$ensure
+  instance mi9 function=@fn14 <- getValue
+  instance mi10 function=@fn15 <- extension:Receiver<T0, T1>:shared$initialize
+  instance mi11 function=@fn16 <- extension:Receiver<T0, T1>:shared$ensure
+  instance mi12 function=@fn17 <- getValue
+  instance mi13 function=@fn18 <- extension:Receiver<T0, T1>:shared$initialize
+  instance mi14 function=@fn19 <- extension:Receiver<T0, T1>:shared$ensure
+  instance mi15 function=@fn20 <- encodeOption
   instance mi16 function=@fn21 <- extension:Receiver<T0, T1>:broken$initialize
   instance mi17 function=@fn22 <- extension:Receiver<T0, T1>:broken$ensure
-  instance mi18 function=@fn23 <- start
-  instance mi19 function=@fn24 <- provideDelegate
+  instance mi18 function=@fn23 <- extension:Receiver<T0, T1>:broken$initialize
+  instance mi19 function=@fn24 <- extension:Receiver<T0, T1>:broken$ensure
   instance mi20 function=@fn25 <- start
   instance mi21 function=@fn26 <- provideDelegate
   instance mi22 function=@fn27 <- start
   instance mi23 function=@fn28 <- provideDelegate
-  instance mi24 function=@fn29 <- fail
-  instance mi25 function=@fn30 <- fail
+  instance mi24 function=@fn29 <- start
+  instance mi25 function=@fn30 <- provideDelegate
+  instance mi26 function=@fn31 <- encode
+  instance mi27 function=@fn32 <- fail
+  instance mi28 function=@fn33 <- fail
+  instance mi29 function=@fn34 <- encodeOption
   str @str0 "illegal state"
   str @str1 "illegal state"
+  str @str2 "None"
+  str @str3 "Some"
+  str @str4 "None"
+  str @str5 "Some"
   output library

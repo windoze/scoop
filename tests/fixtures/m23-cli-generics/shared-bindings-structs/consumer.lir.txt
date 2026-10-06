@@ -23,7 +23,7 @@ Module
     store integer<Int>(0x00000002) -> local4
     store local3 -> local5
     store local4 -> local6
-    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn7(local5, local6)
+    call no-gc-indirect-target0 local8 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn8(local5, local6)
     store local8 -> local7
     ret local7
   fun @scoop$1$cb$fdf8db64e6f11ee949d6ffe16c4d4c1270f37b6bfe87001fc8bca6a6d3c261f5() -> i32
@@ -136,7 +136,7 @@ Module
     store local16 -> local19
     store local17 -> local20
     store local18 -> local55
-    call no-gc-indirect-target0 local56 = sig=indirect1 (sret struct1 size=12 align=4 scan=none, indirect<{i32, i32} size=8 align=4 scan=none>, i32, elided-zst<{} size=0 align=1>) local-fn8(indirect local55, local19, elided-zst local20)
+    call no-gc-indirect-target0 local56 = sig=indirect1 (sret struct1 size=12 align=4 scan=none, indirect<{i32, i32} size=8 align=4 scan=none>, i32, elided-zst<{} size=0 align=1>) local-fn9(indirect local55, local19, elided-zst local20)
     store local56 -> local21
     t11 = extract local21, 0 : {i32, i32}
     store t11 -> local22
@@ -152,7 +152,7 @@ Module
     store local26 -> local29
     store local27 -> local30
     store local28 -> local57
-    call no-gc-indirect-target1 local58 = sig=indirect2 (sret struct1 size=12 align=4 scan=none, indirect<{i32, i32} size=8 align=4 scan=none>, i32, elided-zst<{} size=0 align=1>) local-fn8(indirect local57, local29, elided-zst local30)
+    call no-gc-indirect-target1 local58 = sig=indirect2 (sret struct1 size=12 align=4 scan=none, indirect<{i32, i32} size=8 align=4 scan=none>, i32, elided-zst<{} size=0 align=1>) local-fn9(indirect local57, local29, elided-zst local30)
     store local58 -> local31
     t15 = extract local31, 2 : {}
     store t15 -> local32
@@ -161,7 +161,7 @@ Module
     store integer<Int>(0x00000002) -> local35
     store local34 -> local36
     store local35 -> local37
-    call no-gc-indirect-target2 local59 = sig=indirect3 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn7(local36, local37)
+    call no-gc-indirect-target2 local59 = sig=indirect3 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn8(local36, local37)
     store local59 -> local38
     t16 = extract local38, 1 : i32
     store t16 -> local39
@@ -189,7 +189,7 @@ Module
     store t21 -> local50
     store local49 -> local51
     store local50 -> local52
-    call managed-direct-target1 sp<managed-call:2> live=[local52:ptr<managed>@0] t23 = sig=direct2 (i32, ptr<managed>) -> i32 local-fn5(local51, local52)
+    call managed-direct-target1 sp<managed-call:2> live=[local52:ptr<managed>@0] t23 = sig=direct2 (i32, ptr<managed>) -> i32 local-fn6(local51, local52)
     store t23 -> local53
     ret local53
   fun @scoop$1$cb$e6dcc0545067fc1026b66aa27ebb1b912c30d391c50b7e0d0c691fe89494c831() -> i32 <no-gc>
@@ -199,6 +199,51 @@ Module
   fun @scoop$1$cb$0bf2f58ec79ccb5d80ba7736d8ab3ffa80c8b4d4a5eaf6d7faf563e4f087f8b7(i32) -> void <no-gc>
   block entry
     global_store global0, param0
+    ret
+  fun @scoop$1$cb$908c01cdc4e49f9116f0174350abed0bb87495c563a144524864600c2cc5e8df(indirect<{i32, i32} size=8 align=4 scan=none>, ptr<managed>) -> void
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 __encoding_elements: ptr<managed>
+    local %2 $dependency.receiver: ptr<managed>
+    local %3 $dependency.receiver: i32
+    local %4 $dependency.argument.0: ptr<managed>
+    local %5 $dependency.parameter.encoder: ptr<managed>
+    local %6 $dependency.receiver: ptr<managed>
+    local %7 $dependency.receiver: i32
+    local %8 $dependency.argument.0: ptr<managed>
+    local %9 $dependency.parameter.encoder: ptr<managed>
+    local %10 $dependency.receiver: ptr<managed>
+  block entry
+    poll managed-void-target3 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    store param1 -> local0
+    t0 = heap_load local0 +0 : ptr<metadata>
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td7)
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> dispatch[Interface:1] t1(local0)
+    store t2 -> local1
+    t3 = extract param0, 0 : i32
+    store t3 -> local3
+    store local1 -> local2
+    t4 = heap_load local2 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, external-td9)
+    call managed-direct-target1 sp<managed-call:1> live=[local1:ptr<managed>@0, local2:ptr<managed>@0] t6 = sig=direct3 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t5(local2)
+    store t6 -> local4
+    store local4 -> local5
+    call managed-void-target0 sp<managed-call:2> live=[local1:ptr<managed>@0, local5:ptr<managed>@0] sig=void0 (i32, ptr<managed>) external-fn2(local3, local5)
+    t7 = aggregate () : {}
+    t8 = extract param0, 1 : i32
+    store t8 -> local7
+    store local1 -> local6
+    t9 = heap_load local6 +0 : ptr<metadata>
+    call no-gc-direct-target2 t10 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t9, external-td9)
+    call managed-direct-target2 sp<managed-call:3> live=[local1:ptr<managed>@0, local6:ptr<managed>@0] t11 = sig=direct5 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t10(local6)
+    store t11 -> local8
+    store local8 -> local9
+    call managed-void-target1 sp<managed-call:4> live=[local1:ptr<managed>@0, local9:ptr<managed>@0] sig=void1 (i32, ptr<managed>) external-fn2(local7, local9)
+    t12 = aggregate () : {}
+    store local1 -> local10
+    t13 = heap_load local10 +0 : ptr<metadata>
+    call no-gc-direct-target3 t14 = sig=direct6 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t13, external-td9)
+    call managed-void-target2 sp<managed-call:5> live=[local10:ptr<managed>@0] sig=void2 (ptr<managed>) dispatch[Interface:1] t14(local10)
+    t15 = aggregate () : {}
     ret
   fun @scoop$1$cb$ab763b79e9e8cccad666a996000042b8437800f8b810b7d39f057749aae71535(ptr<managed>, i32) -> i32
   block entry
@@ -248,7 +293,7 @@ Module
     store integer<Int>(0x00000000) -> local1
     store local0 -> local2
     store local1 -> local3
-    call no-gc-indirect-target0 local34 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn7(local2, local3)
+    call no-gc-indirect-target0 local34 = sig=indirect0 (sret struct0 size=8 align=4 scan=none, i32, i32) local-fn8(local2, local3)
     store local34 -> local4
     store local4 -> local5
     t0 = extract local5, 0 : i32
@@ -261,7 +306,7 @@ Module
     store integer<Int>(0x00000000) -> local11
     store local10 -> local12
     store local11 -> local13
-    call no-gc-indirect-target1 local35 = sig=indirect1 (sret struct2 size=8 align=4 scan=none, i32, i32) local-fn9(local12, local13)
+    call no-gc-indirect-target1 local35 = sig=indirect1 (sret struct2 size=8 align=4 scan=none, i32, i32) local-fn10(local12, local13)
     store local35 -> local14
     t2 = extract local14, 0 : i32
     store t2 -> local15
@@ -294,7 +339,7 @@ Module
     store local29 -> local31
     store local30 -> local32
     store local31 -> local36
-    call managed-direct-target2 sp<managed-call:2> live=[local32:ptr<managed>@0] t10 = sig=direct2 (indirect<struct0 size=8 align=4 scan=none>, ptr<managed>) -> i32 local-fn6(indirect local36, local32)
+    call managed-direct-target2 sp<managed-call:2> live=[local32:ptr<managed>@0] t10 = sig=direct2 (indirect<struct0 size=8 align=4 scan=none>, ptr<managed>) -> i32 local-fn7(indirect local36, local32)
     store t10 -> local33
     ret local33
   fun @scoop$1$cb$3a6f484b04d8854adeca1fda841ab51d9006ed23005e6e8eff6a0316a03f5ea0(indirect<struct0 size=8 align=4 scan=none>, ptr<managed>) -> i32
@@ -346,7 +391,7 @@ Module
     t1 = box_value external-td4, local2 scan=none sp<managed-call:1> live=[]
     ret t1
   td td0 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td4)->external-td4
-  td td1 g(r=00000001;i=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b) @scoop$1$td$9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b type-id=7101777329418240726 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn10] itables=[]
+  td td1 g(r=00000001;i=167830b9ed3967dc3a696b65aef668e8899e9606a03bb2910fa11768b8e6c93b) @scoop$1$td$9db0f2bc721c97548aba16d09f87b138f79a3351df7a64e66fd43f20a13ee31b type-id=7101777329418240726 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn11] itables=[]
   td td2 a(n(c=dev.example%3Ageneric-member-structs%3A0.1.0;p=consumer.bindings;o=-;k=S;x=LocalPair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1330085e66e5b524766de47c293b7f41f5e25a3ee03deebd65cfc7ef41e2cc1a type-id=5632624447593623580 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Nested);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$1fb6140252a25fc6925db97f77c8fc7f2e401f55a75864bcb22cac950483ae24 type-id=9958563509498317034 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   td td4 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.bindings;o=-;k=S;x=Pair);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a69e7d2900478879f191d0f7098412ec1d679ac4d29c7fb6b58dca38a0c4d01d type-id=16443423772847977060 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]

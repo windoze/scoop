@@ -1,8 +1,8 @@
 program-link v2
-cone scoop:scoop.core:0.1.0 kind=Library objects=387
+cone scoop:scoop.core:0.1.0 kind=Library objects=638
 cone dev.example:generic-odr-conflict-provider:0.1.0 kind=Library objects=1
 cone dev.example:generic-odr-conflict-left:0.1.0 kind=Library objects=3
-cone test:generic-odr-conflicts-strings-conflict-left-program:1.0.0 kind=Executable objects=3
+cone test:generic-odr-conflicts-strings-conflict-left-program:1.0.0 kind=Executable objects=7
 runtime objects=63
 images=4 root=_scoop$1$re$b29b084ff75b689ab616ae271a85c7ec8c073ff6c244c04b594f783bb0fbc107
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868

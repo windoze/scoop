@@ -21,6 +21,11 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn11 captures=1
     bridge function_type3 -> @fn15 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
   closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn12 captures=1

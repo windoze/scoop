@@ -16,6 +16,9 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<LocalNative>
     Completed(value: LocalNative)
     Suspended()
@@ -34,23 +37,32 @@ Module
   class box<LocalNative> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Reader<String> : Readable<String>
   interface Readable<String>
   interface Reader<Unit> : Readable<Unit>
   interface Readable<Unit>
   interface Reader<Int> : Readable<Int>
   interface Readable<Int>
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<LocalNative>
   interface SuspendTask<LocalNative>
   interface SuspendRegistration<LocalNative>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn52 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
+    bridge function_type1 -> @fn60 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn53 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
+    bridge function_type1 -> @fn61 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn54 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
+    bridge function_type1 -> @fn62 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum3 nominal_id=b104f0bbb4b23f98e8789ca007bdc61431affc2e964f5f9d26ad61bad324bf4e exact_id=13c6b36817ca66f4db866056660b45afbcf808cc63260aa87aba93615a227e1c
+  generated_exact_type get1 location=enum4 nominal_id=b104f0bbb4b23f98e8789ca007bdc61431affc2e964f5f9d26ad61bad324bf4e exact_id=13c6b36817ca66f4db866056660b45afbcf808cc63260aa87aba93615a227e1c
   generated_exact_type get2 location=closure2 nominal_id=96272f17e553c1196fe301da4e11ddfcf8487f057fefb3d6f99058d1cf5df2eb exact_id=1a0ea94052e7e36190c6c50ba53e0baceec1893d85069b36bcd54e7f2783313f
   generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get4 location=class11 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
@@ -65,31 +77,31 @@ Module
   generated_exact_type get13 location=class5 nominal_id=7d23bacecdd9fbbf4eafecd29960df8072bcd446f13ae4ea68478a74fc214a73 exact_id=d06fa40ab9edd1f14f257e96f92fc6ea2e559f650351135980416779facba339
   generated_exact_type get14 location=class9 nominal_id=ce2b3fa11a1999120a3dc6e0612fb071c2d23b85920f34526a9eb4e884f85f1a exact_id=d99d71e049fe137e3f9c258b8c56e05ca78ce13ae2355dc9712750dcdd2ad1e3
   generated_exact_type get15 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get16 location=enum4 nominal_id=70c19f4b240472c770da25a71b58e9db5803b222a6110d435b290e6ba21569a1 exact_id=e86f11953e923e66fcf8d2ee7e30a1eab69df9b30cf76b09f4b8ab77ee6a92d1
+  generated_exact_type get16 location=enum5 nominal_id=70c19f4b240472c770da25a71b58e9db5803b222a6110d435b290e6ba21569a1 exact_id=e86f11953e923e66fcf8d2ee7e30a1eab69df9b30cf76b09f4b8ab77ee6a92d1
   generated_exact_type get17 location=class3 nominal_id=1578b4ef86ca500c5b9b9614f634afcc6979020d9daa0ff39b68e95558ba0bb5 exact_id=ecd682f35937bc10970f7f8f9d35adfeb571466cc6663e2f5a0e6185dc846873
   generated_exact_type get18 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn51 id=07a8f322b89031e2c9b1f4cf4f137d4d8b08a3973f9ed43ebeba5733e1b35192
-  generated_callable gc1 function=@fn43 id=0bd8ebc3d1a352b2fc943b59a23ca26d78ed1e91506ab7fbf07f25f7e221bfdd
-  generated_callable gc2 function=@fn33 id=0eb9aec50ee6fe17246ff4c568fb78c55742413a1481093c43cf7797e5d639a0
-  generated_callable gc3 function=@fn39 id=12f12c76230b9dee94c24d980f5769080d459e72e968f2fb4c0c28034365d7c2
-  generated_callable gc4 function=@fn52 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
-  generated_callable gc5 function=@fn47 id=1ff77ab18dfe1eda53e97efc4c07005e01fee867853e72f7693621d6527f35f5
-  generated_callable gc6 function=@fn45 id=2ff57fc974600b48c17e075646c632ea0738423e2036db7108bcbb34686e53c0
-  generated_callable gc7 function=@fn36 id=3787c3cdbc6b9b09a9114c085341fc3be72dd34a073b5a6e779ad46e08754e06
-  generated_callable gc8 function=@fn38 id=719648af4b74995ff28318f300829642b7403578a1937ba79140132bca8e6db9
-  generated_callable gc9 function=@fn42 id=72ed83a7653135e7db884509a10edddd0ee81a8f5b3b8728cc48e665da10f6b5
-  generated_callable gc10 function=@fn53 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
-  generated_callable gc11 function=@fn37 id=8a43f2fd78cf3d61e0c81db13a480ca9326511930640e49bebe3e80de0aa750e
-  generated_callable gc12 function=@fn46 id=8e080f9d0e4d08b1a075a1fe8bf23803235a114e7e24475932e090b34feb976f
-  generated_callable gc13 function=@fn44 id=8fbf9b821d121c0b383755aea76608be9fa2674ed1346286cc7dd95e61dd8b54
-  generated_callable gc14 function=@fn54 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
-  generated_callable gc15 function=@fn48 id=b327a796bb9ee7700e613ec009092dc0601ab02cd4fecf94ca335c4ac984a6a2
-  generated_callable gc16 function=@fn50 id=c13d824fb6c4f830ac7f9ea2302a2bd8f7ff9313db2549ae30be972f9b1c1b69
-  generated_callable gc17 function=@fn41 id=e56727aea73f2d81cea065c1857ef72bd8ed9a70858e5805d8b4ae7b7c8d2818
-  generated_callable gc18 function=@fn34 id=f0212232fef976d66e6b8b53d455c48df35be82bef1922f2c764e3412c73c4dc
-  generated_callable gc19 function=@fn40 id=faf680935de9caadbc45b9fe8a8cba1e998ecd1c00de8c87546536925ba329cd
-  generated_callable gc20 function=@fn35 id=fd4ad02e0df31b4e7d6031e796561565f8909ec23a47cf2dc175efaf095a3f59
-  generated_callable gc21 function=@fn49 id=fdcba3096791e0cb3d5fa8d46ac52fb9c19fbb8abac237d1eef6b0562f92583e
+  generated_callable gc0 function=@fn59 id=07a8f322b89031e2c9b1f4cf4f137d4d8b08a3973f9ed43ebeba5733e1b35192
+  generated_callable gc1 function=@fn51 id=0bd8ebc3d1a352b2fc943b59a23ca26d78ed1e91506ab7fbf07f25f7e221bfdd
+  generated_callable gc2 function=@fn41 id=0eb9aec50ee6fe17246ff4c568fb78c55742413a1481093c43cf7797e5d639a0
+  generated_callable gc3 function=@fn47 id=12f12c76230b9dee94c24d980f5769080d459e72e968f2fb4c0c28034365d7c2
+  generated_callable gc4 function=@fn60 id=147c5b22230a8056c05c7658bddc4fde2d70e4e02ce71de63c704cc716594a4b
+  generated_callable gc5 function=@fn55 id=1ff77ab18dfe1eda53e97efc4c07005e01fee867853e72f7693621d6527f35f5
+  generated_callable gc6 function=@fn53 id=2ff57fc974600b48c17e075646c632ea0738423e2036db7108bcbb34686e53c0
+  generated_callable gc7 function=@fn44 id=3787c3cdbc6b9b09a9114c085341fc3be72dd34a073b5a6e779ad46e08754e06
+  generated_callable gc8 function=@fn46 id=719648af4b74995ff28318f300829642b7403578a1937ba79140132bca8e6db9
+  generated_callable gc9 function=@fn50 id=72ed83a7653135e7db884509a10edddd0ee81a8f5b3b8728cc48e665da10f6b5
+  generated_callable gc10 function=@fn61 id=730291278e7957ee0213567271e986e8b7b971988c3f7b482cf6e27449d97853
+  generated_callable gc11 function=@fn45 id=8a43f2fd78cf3d61e0c81db13a480ca9326511930640e49bebe3e80de0aa750e
+  generated_callable gc12 function=@fn54 id=8e080f9d0e4d08b1a075a1fe8bf23803235a114e7e24475932e090b34feb976f
+  generated_callable gc13 function=@fn52 id=8fbf9b821d121c0b383755aea76608be9fa2674ed1346286cc7dd95e61dd8b54
+  generated_callable gc14 function=@fn62 id=abadc1fea961535f7bd6243f6834acb7fb2098f6893aed54454523693699bd89
+  generated_callable gc15 function=@fn56 id=b327a796bb9ee7700e613ec009092dc0601ab02cd4fecf94ca335c4ac984a6a2
+  generated_callable gc16 function=@fn58 id=c13d824fb6c4f830ac7f9ea2302a2bd8f7ff9313db2549ae30be972f9b1c1b69
+  generated_callable gc17 function=@fn49 id=e56727aea73f2d81cea065c1857ef72bd8ed9a70858e5805d8b4ae7b7c8d2818
+  generated_callable gc18 function=@fn42 id=f0212232fef976d66e6b8b53d455c48df35be82bef1922f2c764e3412c73c4dc
+  generated_callable gc19 function=@fn48 id=faf680935de9caadbc45b9fe8a8cba1e998ecd1c00de8c87546536925ba329cd
+  generated_callable gc20 function=@fn43 id=fd4ad02e0df31b4e7d6031e796561565f8909ec23a47cf2dc175efaf095a3f59
+  generated_callable gc21 function=@fn57 id=fdcba3096791e0cb3d5fa8d46ac52fb9c19fbb8abac237d1eef6b0562f92583e
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -202,7 +214,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $argument.1: RemoteCell<String> = @fn10 direct
+      call $argument.1: RemoteCell<String> = @fn11 direct
         Type String
         Local $dependency.parameter.value
       val $parameter.value: String
@@ -211,7 +223,7 @@ Module
       val $parameter.remote: RemoteCell<String>
         Type RemoteCell<String>
         Local $argument.1
-      call local: LocalCell<String> = @fn27 direct
+      call local: LocalCell<String> = @fn35 direct
         Type String
         Local $parameter.value
         Type RemoteCell<String>
@@ -234,7 +246,7 @@ Module
       val $dependency.receiver: Reader<String>
         Type Reader<String>
         Local current
-      call $call.1: String = @fn8 interface Reader<String>[1]
+      call $call.1: String = @fn9 interface Reader<String>[1]
         Type Reader<String>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -268,7 +280,7 @@ Module
       val $dependency.receiver: Readable<String>
         Type Readable<String>
         Local remote
-      call $call.2: String = @fn11 interface Readable<String>[0]
+      call $call.2: String = @fn12 interface Readable<String>[0]
         Type Readable<String>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -384,7 +396,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn26 direct
+      call second: LocalNative = @fn34 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -425,7 +437,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $argument.1: RemoteCell<Unit> = @fn15 direct
+      call $argument.1: RemoteCell<Unit> = @fn17 direct
         Type Unit
         Local $dependency.parameter.value
       val $parameter.value: Unit
@@ -434,7 +446,7 @@ Module
       val $parameter.remote: RemoteCell<Unit>
         Type RemoteCell<Unit>
         Local $argument.1
-      call local: LocalCell<Unit> = @fn28 direct
+      call local: LocalCell<Unit> = @fn36 direct
         Type Unit
         Local $parameter.value
         Type RemoteCell<Unit>
@@ -457,7 +469,7 @@ Module
       val $dependency.receiver: Reader<Unit>
         Type Reader<Unit>
         Local current
-      call @fn13 interface Reader<Unit>[1]
+      call @fn15 interface Reader<Unit>[1]
         Type Reader<Unit>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -491,7 +503,7 @@ Module
       val $dependency.receiver: Readable<Unit>
         Type Readable<Unit>
         Local remote
-      call @fn16 interface Readable<Unit>[0]
+      call @fn18 interface Readable<Unit>[0]
         Type Readable<Unit>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -607,7 +619,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn26 direct
+      call second: LocalNative = @fn34 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -648,7 +660,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.1: RemoteCell<Int> = @fn20 direct
+      call $argument.1: RemoteCell<Int> = @fn23 direct
         Type Int
         Local $dependency.parameter.value
       val $parameter.value: Int
@@ -657,7 +669,7 @@ Module
       val $parameter.remote: RemoteCell<Int>
         Type RemoteCell<Int>
         Local $argument.1
-      call local: LocalCell<Int> = @fn29 direct
+      call local: LocalCell<Int> = @fn37 direct
         Type Int
         Local $parameter.value
         Type RemoteCell<Int>
@@ -680,7 +692,7 @@ Module
       val $dependency.receiver: Reader<Int>
         Type Reader<Int>
         Local current
-      call $call.1: Int = @fn18 interface Reader<Int>[1]
+      call $call.1: Int = @fn21 interface Reader<Int>[1]
         Type Reader<Int>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
@@ -714,7 +726,7 @@ Module
       val $dependency.receiver: Readable<Int>
         Type Readable<Int>
         Local remote
-      call $call.2: Int = @fn21 interface Readable<Int>[0]
+      call $call.2: Int = @fn24 interface Readable<Int>[0]
         Type Readable<Int>
         Local $dependency.receiver
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
@@ -830,7 +842,7 @@ Module
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call second: LocalNative = @fn26 direct
+      call second: LocalNative = @fn34 direct
         Type Int
         Local $parameter.left
         Type Int
@@ -855,19 +867,39 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun get @fn7(this: RemoteCell<String>) -> String
+  fun encode @fn7(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn25 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun get @fn8(this: RemoteCell<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type RemoteCell<String>
           Local this
-  fun read @fn8(this: Reader<String>) -> String
+  fun read @fn9(this: Reader<String>) -> String
     bb0 entry
       val $dependency.local.1: Reader<String>
         Type Reader<String>
         Local this
-      call $call.1: String = @fn11 interface Readable<String>[0]
+      call $call.1: String = @fn12 interface Readable<String>[0]
         Type Readable<String>
         Retype Readable<String>
           Type Reader<String>
@@ -875,14 +907,14 @@ Module
       return
         Type String
         Local $call.1
-  fun LocalCell.get @fn9(this: LocalCell<String>) -> String
+  fun LocalCell.get @fn10(this: LocalCell<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type LocalCell<String>
           Local this
-  fun create @fn10(value: String) -> RemoteCell<String>
+  fun create @fn11(value: String) -> RemoteCell<String>
     bb0 entry
       val $dependency.local.3: String
         Type String
@@ -904,7 +936,7 @@ Module
       val $dependency.local.6: Option<String>
         Type Option<String>
         Local $dependency.local.4
-      call $call.1: RemoteCell<String> = @fn30 direct
+      call $call.1: RemoteCell<String> = @fn38 direct
         Type String
         Local $dependency.local.5
         Type Option<String>
@@ -912,35 +944,55 @@ Module
       return
         Type RemoteCell<String>
         Local $call.1
-  fun Readable.get @fn11(this: Readable<String>) -> String
+  fun Readable.get @fn12(this: Readable<String>) -> String
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun get @fn12(this: RemoteCell<Unit>) -> Unit
+  fun encode @fn13(this: Option<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Unit>
+        Type Option<Unit>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Unit>
+        Type Option<Unit>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn26 direct
+        Type Option<Unit>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun get @fn14(this: RemoteCell<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 0
         Type RemoteCell<Unit>
         Local this
       return
-  fun read @fn13(this: Reader<Unit>) -> Unit
+  fun read @fn15(this: Reader<Unit>) -> Unit
     bb0 entry
       val $dependency.local.1: Reader<Unit>
         Type Reader<Unit>
         Local this
-      call @fn16 interface Readable<Unit>[0]
+      call @fn18 interface Readable<Unit>[0]
         Type Readable<Unit>
         Retype Readable<Unit>
           Type Reader<Unit>
           Local $dependency.local.1
       return
-  fun LocalCell.get @fn14(this: LocalCell<Unit>) -> Unit
+  fun LocalCell.get @fn16(this: LocalCell<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 0
         Type LocalCell<Unit>
         Local this
       return
-  fun create @fn15(value: Unit) -> RemoteCell<Unit>
+  fun create @fn17(value: Unit) -> RemoteCell<Unit>
     bb0 entry
       val $dependency.local.3: Unit
         Type Unit
@@ -962,7 +1014,7 @@ Module
       val $dependency.local.6: Option<Unit>
         Type Option<Unit>
         Local $dependency.local.4
-      call $call.1: RemoteCell<Unit> = @fn31 direct
+      call $call.1: RemoteCell<Unit> = @fn39 direct
         Type Unit
         Local $dependency.local.5
         Type Option<Unit>
@@ -970,22 +1022,42 @@ Module
       return
         Type RemoteCell<Unit>
         Local $call.1
-  fun Readable.get @fn16(this: Readable<Unit>) -> Unit
+  fun Readable.get @fn18(this: Readable<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun get @fn17(this: RemoteCell<Int>) -> Int
+  fun encode @fn19(this: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn27 direct
+        Type Option<Int>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun get @fn20(this: RemoteCell<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type RemoteCell<Int>
           Local this
-  fun read @fn18(this: Reader<Int>) -> Int
+  fun read @fn21(this: Reader<Int>) -> Int
     bb0 entry
       val $dependency.local.1: Reader<Int>
         Type Reader<Int>
         Local this
-      call $call.1: Int = @fn21 interface Readable<Int>[0]
+      call $call.1: Int = @fn24 interface Readable<Int>[0]
         Type Readable<Int>
         Retype Readable<Int>
           Type Reader<Int>
@@ -993,14 +1065,14 @@ Module
       return
         Type Int
         Local $call.1
-  fun LocalCell.get @fn19(this: LocalCell<Int>) -> Int
+  fun LocalCell.get @fn22(this: LocalCell<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type LocalCell<Int>
           Local this
-  fun create @fn20(value: Int) -> RemoteCell<Int>
+  fun create @fn23(value: Int) -> RemoteCell<Int>
     bb0 entry
       val $dependency.local.3: Int
         Type Int
@@ -1022,7 +1094,7 @@ Module
       val $dependency.local.6: Option<Int>
         Type Option<Int>
         Local $dependency.local.4
-      call $call.1: RemoteCell<Int> = @fn32 direct
+      call $call.1: RemoteCell<Int> = @fn40 direct
         Type Int
         Local $dependency.local.5
         Type Option<Int>
@@ -1030,22 +1102,478 @@ Module
       return
         Type RemoteCell<Int>
         Local $call.1
-  fun Readable.get @fn21(this: Readable<Int>) -> Int
+  fun Readable.get @fn24(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.get`"
-  fun Continuation.resume @fn22(this: Continuation<LocalNative>, value: LocalNative) -> Unit
+  fun encodeOption @fn25(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str1
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str2
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external10 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encodeOption @fn26(value: Option<Unit>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Unit>
+        Type Option<Unit>
+        Local value
+      val $pattern.subject.2: Option<Unit>
+        Type Option<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Unit> v1
+          Type Option<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str3
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Unit>
+        Type Option<Unit>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Unit> v0
+          Type Option<Unit>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Unit
+        Type Unit
+        VariantPayloadProject Option<Unit> v0 f0
+          Type Option<Unit>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str4
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Unit
+        Type Unit
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external8 direct
+        Type Unit
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encodeOption @fn27(value: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str5
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str6
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external6 direct
+        Type Int
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn28(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn29 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn29(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str7
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external1 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external3 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str8
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external2 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external4 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external5 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external9 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external7 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn30(this: Continuation<LocalNative>, value: LocalNative) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn23(this: Continuation<LocalNative>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn31(this: Continuation<LocalNative>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn24(this: SuspendTask<LocalNative>, $completion: Continuation<LocalNative>) -> CoroutineStep<LocalNative>
+  fun SuspendTask.run @fn32(this: SuspendTask<LocalNative>, $completion: Continuation<LocalNative>) -> CoroutineStep<LocalNative>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn25(this: SuspendRegistration<LocalNative>, continuation: Continuation<LocalNative>) -> Unit
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<LocalNative>, continuation: Continuation<LocalNative>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.LocalNative.$c1 @fn26(left: Int, right: Int) -> LocalNative <no-gc>
+  fun ctor.LocalNative.$c1 @fn34(left: Int, right: Int) -> LocalNative <no-gc>
     bb0 entry
       return
         Type LocalNative
@@ -1054,7 +1582,7 @@ Module
           Local left
           Type Int
           Local right
-  fun ctor.LocalCell.$c0 @fn27(value: String, remote: RemoteCell<String>) -> LocalCell<String> <no-gc>
+  fun ctor.LocalCell.$c0 @fn35(value: String, remote: RemoteCell<String>) -> LocalCell<String> <no-gc>
     bb0 entry
       return
         Type LocalCell<String>
@@ -1063,7 +1591,7 @@ Module
           Local value
           Type RemoteCell<String>
           Local remote
-  fun ctor.LocalCell.$c0 @fn28(value: Unit, remote: RemoteCell<Unit>) -> LocalCell<Unit> <no-gc>
+  fun ctor.LocalCell.$c0 @fn36(value: Unit, remote: RemoteCell<Unit>) -> LocalCell<Unit> <no-gc>
     bb0 entry
       return
         Type LocalCell<Unit>
@@ -1072,7 +1600,7 @@ Module
           Local value
           Type RemoteCell<Unit>
           Local remote
-  fun ctor.LocalCell.$c0 @fn29(value: Int, remote: RemoteCell<Int>) -> LocalCell<Int> <no-gc>
+  fun ctor.LocalCell.$c0 @fn37(value: Int, remote: RemoteCell<Int>) -> LocalCell<Int> <no-gc>
     bb0 entry
       return
         Type LocalCell<Int>
@@ -1081,7 +1609,7 @@ Module
           Local value
           Type RemoteCell<Int>
           Local remote
-  fun ctor.RemoteCell.$c0 @fn30(value: String, optional: Option<String>) -> RemoteCell<String> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn38(value: String, optional: Option<String>) -> RemoteCell<String> <no-gc>
     bb0 entry
       return
         Type RemoteCell<String>
@@ -1090,7 +1618,7 @@ Module
           Local value
           Type Option<String>
           Local optional
-  fun ctor.RemoteCell.$c0 @fn31(value: Unit, optional: Option<Unit>) -> RemoteCell<Unit> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn39(value: Unit, optional: Option<Unit>) -> RemoteCell<Unit> <no-gc>
     bb0 entry
       return
         Type RemoteCell<Unit>
@@ -1099,7 +1627,7 @@ Module
           Local value
           Type Option<Unit>
           Local optional
-  fun ctor.RemoteCell.$c0 @fn32(value: Int, optional: Option<Int>) -> RemoteCell<Int> <no-gc>
+  fun ctor.RemoteCell.$c0 @fn40(value: Int, optional: Option<Int>) -> RemoteCell<Int> <no-gc>
     bb0 entry
       return
         Type RemoteCell<Int>
@@ -1108,7 +1636,7 @@ Module
           Local value
           Type Option<Int>
           Local optional
-  fun startCoroutine<LocalNative> @fn33(task: SuspendTask<LocalNative>, completion: Continuation<LocalNative>) -> Unit
+  fun startCoroutine<LocalNative> @fn41(task: SuspendTask<LocalNative>, completion: Continuation<LocalNative>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1131,7 +1659,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn22 interface Continuation<LocalNative>[0]
+      call @fn30 interface Continuation<LocalNative>[0]
         Type Continuation<LocalNative>
         Local completion
         Type LocalNative
@@ -1144,7 +1672,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn23 interface Continuation<LocalNative>[1]
+      call @fn31 interface Continuation<LocalNative>[1]
         Type Continuation<LocalNative>
         Local completion
         Type Throwable
@@ -1163,7 +1691,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<LocalNative> = @fn24 interface SuspendTask<LocalNative>[0]
+      call $step: CoroutineStep<LocalNative> = @fn32 interface SuspendTask<LocalNative>[0]
         Type SuspendTask<LocalNative>
         Local task
         Type Continuation<LocalNative>
@@ -1189,9 +1717,9 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<LocalCell<String>> Reader.get() @fn34(this: Reader<String>) -> String
+  fun thunk<LocalCell<String>> Reader.get() @fn42(this: Reader<String>) -> String
     bb0 entry
-      call $call.1: String = @fn9 direct
+      call $call.1: String = @fn10 direct
         Type LocalCell<String>
         Unbox
           Type Reader<String>
@@ -1199,9 +1727,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<String>> Reader.read() @fn35(this: Reader<String>) -> String
+  fun thunk<LocalCell<String>> Reader.read() @fn43(this: Reader<String>) -> String
     bb0 entry
-      call $call.1: String = @fn8 direct
+      call $call.1: String = @fn9 direct
         Type Reader<String>
         Retype Reader<String>
           Type Reader<String>
@@ -1209,9 +1737,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<String>> Readable.get() @fn36(this: Readable<String>) -> String
+  fun thunk<LocalCell<String>> Readable.get() @fn44(this: Readable<String>) -> String
     bb0 entry
-      call $call.1: String = @fn9 direct
+      call $call.1: String = @fn10 direct
         Type LocalCell<String>
         Unbox
           Type Readable<String>
@@ -1219,9 +1747,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Reader.get() @fn37(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.get() @fn45(this: Reader<String>) -> String
     bb0 entry
-      call $call.1: String = @fn7 direct
+      call $call.1: String = @fn8 direct
         Type RemoteCell<String>
         Unbox
           Type Reader<String>
@@ -1229,9 +1757,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Reader.read() @fn38(this: Reader<String>) -> String
+  fun thunk<RemoteCell<String>> Reader.read() @fn46(this: Reader<String>) -> String
     bb0 entry
-      call $call.1: String = @fn8 direct
+      call $call.1: String = @fn9 direct
         Type Reader<String>
         Retype Reader<String>
           Type Reader<String>
@@ -1239,9 +1767,9 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<RemoteCell<String>> Readable.get() @fn39(this: Readable<String>) -> String
+  fun thunk<RemoteCell<String>> Readable.get() @fn47(this: Readable<String>) -> String
     bb0 entry
-      call $call.1: String = @fn7 direct
+      call $call.1: String = @fn8 direct
         Type RemoteCell<String>
         Unbox
           Type Readable<String>
@@ -1249,57 +1777,57 @@ Module
       return
         Type String
         Local $call.1
-  fun thunk<LocalCell<Unit>> Reader.get() @fn40(this: Reader<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Reader.get() @fn48(this: Reader<Unit>) -> Unit
     bb0 entry
-      call @fn14 direct
+      call @fn16 direct
         Type LocalCell<Unit>
         Unbox
           Type Reader<Unit>
           Local this
       return
-  fun thunk<LocalCell<Unit>> Reader.read() @fn41(this: Reader<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Reader.read() @fn49(this: Reader<Unit>) -> Unit
     bb0 entry
-      call @fn13 direct
+      call @fn15 direct
         Type Reader<Unit>
         Retype Reader<Unit>
           Type Reader<Unit>
           Local this
       return
-  fun thunk<LocalCell<Unit>> Readable.get() @fn42(this: Readable<Unit>) -> Unit
+  fun thunk<LocalCell<Unit>> Readable.get() @fn50(this: Readable<Unit>) -> Unit
     bb0 entry
-      call @fn14 direct
+      call @fn16 direct
         Type LocalCell<Unit>
         Unbox
           Type Readable<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Reader.get() @fn43(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.get() @fn51(this: Reader<Unit>) -> Unit
     bb0 entry
-      call @fn12 direct
+      call @fn14 direct
         Type RemoteCell<Unit>
         Unbox
           Type Reader<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Reader.read() @fn44(this: Reader<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Reader.read() @fn52(this: Reader<Unit>) -> Unit
     bb0 entry
-      call @fn13 direct
+      call @fn15 direct
         Type Reader<Unit>
         Retype Reader<Unit>
           Type Reader<Unit>
           Local this
       return
-  fun thunk<RemoteCell<Unit>> Readable.get() @fn45(this: Readable<Unit>) -> Unit
+  fun thunk<RemoteCell<Unit>> Readable.get() @fn53(this: Readable<Unit>) -> Unit
     bb0 entry
-      call @fn12 direct
+      call @fn14 direct
         Type RemoteCell<Unit>
         Unbox
           Type Readable<Unit>
           Local this
       return
-  fun thunk<LocalCell<Int>> Reader.get() @fn46(this: Reader<Int>) -> Int
+  fun thunk<LocalCell<Int>> Reader.get() @fn54(this: Reader<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn19 direct
+      call $call.1: Int = @fn22 direct
         Type LocalCell<Int>
         Unbox
           Type Reader<Int>
@@ -1307,9 +1835,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Reader.read() @fn47(this: Reader<Int>) -> Int
+  fun thunk<LocalCell<Int>> Reader.read() @fn55(this: Reader<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn18 direct
+      call $call.1: Int = @fn21 direct
         Type Reader<Int>
         Retype Reader<Int>
           Type Reader<Int>
@@ -1317,9 +1845,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<LocalCell<Int>> Readable.get() @fn48(this: Readable<Int>) -> Int
+  fun thunk<LocalCell<Int>> Readable.get() @fn56(this: Readable<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn19 direct
+      call $call.1: Int = @fn22 direct
         Type LocalCell<Int>
         Unbox
           Type Readable<Int>
@@ -1327,9 +1855,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Reader.get() @fn49(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.get() @fn57(this: Reader<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn20 direct
         Type RemoteCell<Int>
         Unbox
           Type Reader<Int>
@@ -1337,9 +1865,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Reader.read() @fn50(this: Reader<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Reader.read() @fn58(this: Reader<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn18 direct
+      call $call.1: Int = @fn21 direct
         Type Reader<Int>
         Retype Reader<Int>
           Type Reader<Int>
@@ -1347,9 +1875,9 @@ Module
       return
         Type Int
         Local $call.1
-  fun thunk<RemoteCell<Int>> Readable.get() @fn51(this: Readable<Int>) -> Int
+  fun thunk<RemoteCell<Int>> Readable.get() @fn59(this: Readable<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn17 direct
+      call $call.1: Int = @fn20 direct
         Type RemoteCell<Int>
         Unbox
           Type Readable<Int>
@@ -1357,7 +1885,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn52($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn60($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -1371,7 +1899,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn53($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn61($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -1385,7 +1913,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn54($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn62($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -1401,29 +1929,45 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<LocalNative> result=LocalNative
   coroutine_slot cl0 CoroutineSlot<LocalNative> value=LocalNative
-  coroutine_start ct0 result=LocalNative function=fn33
-  coroutine_fn cf0 @fn24 source_return=LocalNative step=cs0 immediate
+  coroutine_start ct0 result=LocalNative function=fn41
+  coroutine_fn cf0 @fn32 source_return=LocalNative step=cs0 immediate
   instance mi0 function=@fn2 <- exercise
   instance mi1 function=@fn4 <- exercise
   instance mi2 function=@fn6 <- exercise
-  instance mi3 function=@fn7 <- get
-  instance mi4 function=@fn8 <- read
-  instance mi5 function=@fn9 <- LocalCell.get
-  instance mi6 function=@fn10 <- create
-  instance mi7 function=@fn11 <- Readable.get
-  instance mi8 function=@fn12 <- get
-  instance mi9 function=@fn13 <- read
-  instance mi10 function=@fn14 <- LocalCell.get
-  instance mi11 function=@fn15 <- create
-  instance mi12 function=@fn16 <- Readable.get
-  instance mi13 function=@fn17 <- get
-  instance mi14 function=@fn18 <- read
-  instance mi15 function=@fn19 <- LocalCell.get
-  instance mi16 function=@fn20 <- create
-  instance mi17 function=@fn21 <- Readable.get
-  instance mi18 function=@fn22 <- Continuation.resume
-  instance mi19 function=@fn23 <- Continuation.resumeWithException
-  instance mi20 function=@fn24 <- SuspendTask.run
-  instance mi21 function=@fn25 <- SuspendRegistration.register
+  instance mi3 function=@fn7 <- encode
+  instance mi4 function=@fn8 <- get
+  instance mi5 function=@fn9 <- read
+  instance mi6 function=@fn10 <- LocalCell.get
+  instance mi7 function=@fn11 <- create
+  instance mi8 function=@fn12 <- Readable.get
+  instance mi9 function=@fn13 <- encode
+  instance mi10 function=@fn14 <- get
+  instance mi11 function=@fn15 <- read
+  instance mi12 function=@fn16 <- LocalCell.get
+  instance mi13 function=@fn17 <- create
+  instance mi14 function=@fn18 <- Readable.get
+  instance mi15 function=@fn19 <- encode
+  instance mi16 function=@fn20 <- get
+  instance mi17 function=@fn21 <- read
+  instance mi18 function=@fn22 <- LocalCell.get
+  instance mi19 function=@fn23 <- create
+  instance mi20 function=@fn24 <- Readable.get
+  instance mi21 function=@fn25 <- encodeOption
+  instance mi22 function=@fn26 <- encodeOption
+  instance mi23 function=@fn27 <- encodeOption
+  instance mi24 function=@fn28 <- encode
+  instance mi25 function=@fn29 <- encodeOption
+  instance mi26 function=@fn30 <- Continuation.resume
+  instance mi27 function=@fn31 <- Continuation.resumeWithException
+  instance mi28 function=@fn32 <- SuspendTask.run
+  instance mi29 function=@fn33 <- SuspendRegistration.register
   str @str0 "value"
+  str @str1 "None"
+  str @str2 "Some"
+  str @str3 "None"
+  str @str4 "Some"
+  str @str5 "None"
+  str @str6 "Some"
+  str @str7 "None"
+  str @str8 "Some"
   output library

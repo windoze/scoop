@@ -26,6 +26,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Host>
     Completed(value: Host)
     Suspended()
@@ -72,8 +75,17 @@ Module
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   interface Readable<String>
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface Readable<Unit>
   interface Readable<Int>
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Counter>
   interface SuspendTask<Counter>
   interface SuspendRegistration<Counter>
@@ -84,33 +96,33 @@ Module
   interface SuspendTask<State>
   interface SuspendRegistration<State>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn85 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
+    bridge function_type1 -> @fn89 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
-    bridge function_type1 -> @fn86 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
+    bridge function_type1 -> @fn90 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn87 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
+    bridge function_type1 -> @fn91 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum10 nominal_id=750eaa185ff725d3720d9b3759cbda0cb7669f03d7e9e0e873d1878fdf60451e exact_id=234f39a9e938863381c22a91e603a632236b637d40ca6dae3c37934e933d2c66
-  generated_exact_type get2 location=enum12 nominal_id=f7989803d00e9e26b1c05fc76ffff3c6bfa9f97ce2c8d593b06c98d0f0c098b6 exact_id=251cca9af29db9cd9aadebb8d83def8aba8b289d146478fb64634885c4ae16d6
+  generated_exact_type get1 location=enum11 nominal_id=750eaa185ff725d3720d9b3759cbda0cb7669f03d7e9e0e873d1878fdf60451e exact_id=234f39a9e938863381c22a91e603a632236b637d40ca6dae3c37934e933d2c66
+  generated_exact_type get2 location=enum13 nominal_id=f7989803d00e9e26b1c05fc76ffff3c6bfa9f97ce2c8d593b06c98d0f0c098b6 exact_id=251cca9af29db9cd9aadebb8d83def8aba8b289d146478fb64634885c4ae16d6
   generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get4 location=class26 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get5 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get6 location=closure0 nominal_id=bde590cd31cae2432e04499e5907eb07a0e62a92b7007848f7138585e38c738c exact_id=76d3443ddac142039b9bde62c83c759cfa4d9746b092827625827194a16b9523
   generated_exact_type get7 location=closure2 nominal_id=68e91c233e68706d0349dba6455e76b9a093061b02e042b63a7732c8a797a667 exact_id=798fe4d0b220a335dfd6b5ed7f0bae252715208e3d912a04922d2b728bddf535
   generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get9 location=enum8 nominal_id=2e9741b96cc78b1c330640cb60de8de3dfbb30aa87d155c1cb782b91a44a80c6 exact_id=c551825b775b9d40f765a5a0bf464c4bd819e6ddeaf648ed6b50b50e8d02f3e0
-  generated_exact_type get10 location=enum9 nominal_id=06b9bcef74a27bcdc67ec1b43f37ca1797c434fd161f7107635e2b27524b3da1 exact_id=c6dafb29480029a6a681e8991bf24b2c1dd61a69b5736436f4b727296d2c694e
+  generated_exact_type get9 location=enum9 nominal_id=2e9741b96cc78b1c330640cb60de8de3dfbb30aa87d155c1cb782b91a44a80c6 exact_id=c551825b775b9d40f765a5a0bf464c4bd819e6ddeaf648ed6b50b50e8d02f3e0
+  generated_exact_type get10 location=enum10 nominal_id=06b9bcef74a27bcdc67ec1b43f37ca1797c434fd161f7107635e2b27524b3da1 exact_id=c6dafb29480029a6a681e8991bf24b2c1dd61a69b5736436f4b727296d2c694e
   generated_exact_type get11 location=class25 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get13 location=enum7 nominal_id=910d9f38f65afb02c864d74eb14bbd8b2b1753b09a90a558e1fd97cc274b3728 exact_id=f3bd9a63d861e9efb963ff0b23d2b9cee6ca0ae122e10126530c7216d05769ab
-  generated_exact_type get14 location=enum11 nominal_id=8a92a731a3e6dbc0ef81f8cbaa7249f5fef7b1957c9b9d3d57a6337872974fb5 exact_id=f614eed68e6c28f233375c9fe329925891c39cfd5fd07a547765cc062b454240
+  generated_exact_type get13 location=enum8 nominal_id=910d9f38f65afb02c864d74eb14bbd8b2b1753b09a90a558e1fd97cc274b3728 exact_id=f3bd9a63d861e9efb963ff0b23d2b9cee6ca0ae122e10126530c7216d05769ab
+  generated_exact_type get14 location=enum12 nominal_id=8a92a731a3e6dbc0ef81f8cbaa7249f5fef7b1957c9b9d3d57a6337872974fb5 exact_id=f614eed68e6c28f233375c9fe329925891c39cfd5fd07a547765cc062b454240
   generated_exact_type get15 location=closure1 nominal_id=e216dd0497f8b35e5b074b3cb0d25e3dc7006785603afc3d71c214dc600330aa exact_id=fb988a44eb8dd44414be7f90b1916768e79ce02bb226a1db3788c6e7397d24a9
-  generated_callable gc0 function=@fn82 id=172ead9ddf1e4375c6748a50a38f5ca61f2d67057fa4d28290c0353992e554b5
-  generated_callable gc1 function=@fn86 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
-  generated_callable gc2 function=@fn83 id=47c96dc300169f860d15dcc8894ab514bff7525199c04c0befb61727ec064593
-  generated_callable gc3 function=@fn84 id=81d1e487f728d22b4745b5e98e07758c234737058be78f663feafdebc6488456
-  generated_callable gc4 function=@fn87 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
-  generated_callable gc5 function=@fn85 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
+  generated_callable gc0 function=@fn86 id=172ead9ddf1e4375c6748a50a38f5ca61f2d67057fa4d28290c0353992e554b5
+  generated_callable gc1 function=@fn90 id=1f5c3461b05f9b1557f37480c165c4ec67cd18737e9270315912f9e8698a50fe
+  generated_callable gc2 function=@fn87 id=47c96dc300169f860d15dcc8894ab514bff7525199c04c0befb61727ec064593
+  generated_callable gc3 function=@fn88 id=81d1e487f728d22b4745b5e98e07758c234737058be78f663feafdebc6488456
+  generated_callable gc4 function=@fn91 id=91ff3bf15062ecd1d6109adb6b4ca97de1a6fb49f711218c6238d8bac1358e05
+  generated_callable gc5 function=@fn89 id=fa087cde9b6a091717de5100520dc90719fe810a18ee8d6b1151793ddd991e80
   fun Counter.getValue @fn0(this: Counter, thisRef: Host) -> Int
     bb0 entry
       return
@@ -155,7 +167,7 @@ Module
       assign $new.1
         Type State
         ClassAlloc State
-      call @fn60 direct
+      call @fn64 direct
         Type State
         Local $new.1
       global_assign $singleton$State
@@ -254,7 +266,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:State
-      call external0 direct
+      call external8 direct
         Type String
         Local $init.message
       unreachable
@@ -378,7 +390,7 @@ Module
       assign $new.1
         Type Local<String, Unit>
         ClassAlloc Local<String, Unit>
-      call @fn61 direct
+      call @fn65 direct
         Type Local<String, Unit>
         Local $new.1
         Type String
@@ -554,7 +566,7 @@ Module
       assign $new.4
         Type Leaf<Unit, String>
         ClassAlloc Leaf<Unit, String>
-      call @fn62 direct
+      call @fn66 direct
         Type Leaf<Unit, String>
         Local $new.4
         Type Unit
@@ -617,7 +629,7 @@ Module
       val $dependency.parameter.head: Link<String>
         Type Link<String>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<String> = @fn79 direct
+      call $argument.0: Wrapper<String> = @fn83 direct
         Type Link<String>
         Local $dependency.parameter.head
       val $argument.1: Option<Nested<String>>
@@ -632,7 +644,7 @@ Module
       assign $new.6
         Type Nested<String>
         ClassAlloc Nested<String>
-      call @fn63 direct
+      call @fn67 direct
         Type Nested<String>
         Local $new.6
         Type Wrapper<String>
@@ -654,7 +666,7 @@ Module
       val $dependency.parameter.head: Link<String>
         Type Link<String>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<String> = @fn79 direct
+      call $argument.0: Wrapper<String> = @fn83 direct
         Type Link<String>
         Local $dependency.parameter.head
       val $dependency.argument.0: Nested<String>
@@ -677,7 +689,7 @@ Module
       assign $new.7
         Type Nested<String>
         ClassAlloc Nested<String>
-      call @fn63 direct
+      call @fn67 direct
         Type Nested<String>
         Local $new.7
         Type Wrapper<String>
@@ -708,14 +720,14 @@ Module
       assign $new.8
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external1 direct
+      call external9 direct
         Type UnwrapException
         Local $new.8
       throw
         Type UnwrapException
         Local $new.8
     bb13 if.merge.13
-      call $call.9: String = @fn20 direct
+      call $call.9: String = @fn21 direct
         Type Link<String>
         FieldAccess 0
           Type Wrapper<String>
@@ -750,7 +762,7 @@ Module
       assign $new.10
         Type Host
         ClassAlloc Host
-      call @fn59 direct
+      call @fn63 direct
         Type Host
         Local $new.10
       val host: Host
@@ -812,7 +824,7 @@ Module
       assign $new.11
         Type Remote<String>
         ClassAlloc Remote<String>
-      call @fn64 direct
+      call @fn68 direct
         Type Remote<String>
         Local $new.11
         Type String
@@ -820,7 +832,7 @@ Module
       val remote: Remote<String>
         Type Remote<String>
         Local $new.11
-      call $call.12: String = @fn21 direct
+      call $call.12: String = @fn22 direct
         Type Remote<String>
         Local remote
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -867,7 +879,7 @@ Module
       val $dependency.parameter.link: Link<String>
         Type Link<String>
         Local $dependency.argument.1
-      call $call.13: String = @fn22 direct
+      call $call.13: String = @fn23 direct
         Type String
         Local $dependency.parameter.value
         Type Link<String>
@@ -915,7 +927,7 @@ Module
       assign $new.1
         Type Local<Unit, Unit>
         ClassAlloc Local<Unit, Unit>
-      call @fn65 direct
+      call @fn69 direct
         Type Local<Unit, Unit>
         Local $new.1
         Type Unit
@@ -968,13 +980,13 @@ Module
       val $dependency.receiver: Base<Unit, Unit>
         Type Base<Unit, Unit>
         Local base
-      call @fn28 direct
+      call @fn29 direct
         Type Base<Unit, Unit>
         Local $dependency.receiver
       val $dependency.parameter.other: Unit
         Type Unit
         UnitLiteral
-      call @fn24 virtual[1]
+      call @fn25 virtual[1]
         Type Base<Unit, Unit>
         Local $dependency.receiver
         Type Unit
@@ -1013,7 +1025,7 @@ Module
       val $dependency.parameter.convert: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn25 interface Readable<Unit>[1]
+      call $dependency.receiver: Int = @fn26 interface Readable<Unit>[1]
         Type Readable<Unit>
         Local $dependency.receiver
         Type (Unit) -> Int
@@ -1044,7 +1056,7 @@ Module
       val $receiver: Local<Unit, Unit>
         Type Local<Unit, Unit>
         Local local
-      call @fn28 direct
+      call @fn29 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Local<Unit, Unit>
@@ -1052,7 +1064,7 @@ Module
       val $parameter.other: Unit
         Type Unit
         UnitLiteral
-      call @fn26 virtual[1]
+      call @fn27 virtual[1]
         Type Local<Unit, Unit>
         Local $receiver
         Type Unit
@@ -1097,7 +1109,7 @@ Module
       assign $new.2
         Type Leaf<Unit, Unit>
         ClassAlloc Leaf<Unit, Unit>
-      call @fn66 direct
+      call @fn70 direct
         Type Leaf<Unit, Unit>
         Local $new.2
         Type Unit
@@ -1113,7 +1125,7 @@ Module
       val $receiver: Leaf<Unit, Unit>
         Type Leaf<Unit, Unit>
         Local leaf
-      call @fn28 direct
+      call @fn29 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Leaf<Unit, Unit>
@@ -1121,7 +1133,7 @@ Module
       val $parameter.other: Unit
         Type Unit
         UnitLiteral
-      call @fn27 direct
+      call @fn28 direct
         Type Leaf<Unit, Unit>
         Local $receiver
         Type Unit
@@ -1157,13 +1169,13 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $dependency.argument.0: Link<Unit> = @fn29 direct
+      call $dependency.argument.0: Link<Unit> = @fn30 direct
         Type Unit
         Local $dependency.parameter.value
       val $dependency.parameter.head: Link<Unit>
         Type Link<Unit>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Unit> = @fn80 direct
+      call $argument.0: Wrapper<Unit> = @fn84 direct
         Type Link<Unit>
         Local $dependency.parameter.head
       val $argument.1: Option<Nested<Unit>>
@@ -1178,7 +1190,7 @@ Module
       assign $new.3
         Type Nested<Unit>
         ClassAlloc Nested<Unit>
-      call @fn67 direct
+      call @fn71 direct
         Type Nested<Unit>
         Local $new.3
         Type Wrapper<Unit>
@@ -1194,13 +1206,13 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $dependency.argument.0: Link<Unit> = @fn29 direct
+      call $dependency.argument.0: Link<Unit> = @fn30 direct
         Type Unit
         Local $dependency.parameter.value
       val $dependency.parameter.head: Link<Unit>
         Type Link<Unit>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Unit> = @fn80 direct
+      call $argument.0: Wrapper<Unit> = @fn84 direct
         Type Link<Unit>
         Local $dependency.parameter.head
       val $dependency.argument.0: Nested<Unit>
@@ -1223,7 +1235,7 @@ Module
       assign $new.4
         Type Nested<Unit>
         ClassAlloc Nested<Unit>
-      call @fn67 direct
+      call @fn71 direct
         Type Nested<Unit>
         Local $new.4
         Type Wrapper<Unit>
@@ -1254,14 +1266,14 @@ Module
       assign $new.5
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external1 direct
+      call external9 direct
         Type UnwrapException
         Local $new.5
       throw
         Type UnwrapException
         Local $new.5
     bb13 if.merge.13
-      call @fn30 direct
+      call @fn31 direct
         Type Link<Unit>
         FieldAccess 0
           Type Wrapper<Unit>
@@ -1296,7 +1308,7 @@ Module
       assign $new.6
         Type Host
         ClassAlloc Host
-      call @fn59 direct
+      call @fn63 direct
         Type Host
         Local $new.6
       val host: Host
@@ -1358,7 +1370,7 @@ Module
       assign $new.7
         Type Remote<Unit>
         ClassAlloc Remote<Unit>
-      call @fn68 direct
+      call @fn72 direct
         Type Remote<Unit>
         Local $new.7
         Type Unit
@@ -1366,7 +1378,7 @@ Module
       val remote: Remote<Unit>
         Type Remote<Unit>
         Local $new.7
-      call @fn31 direct
+      call @fn32 direct
         Type Remote<Unit>
         Local remote
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -1413,7 +1425,7 @@ Module
       val $dependency.parameter.link: Link<Unit>
         Type Link<Unit>
         Local $dependency.argument.1
-      call @fn32 direct
+      call @fn33 direct
         Type Unit
         Local $dependency.parameter.value
         Type Link<Unit>
@@ -1461,7 +1473,7 @@ Module
       assign $new.1
         Type Local<Int, Unit>
         ClassAlloc Local<Int, Unit>
-      call @fn69 direct
+      call @fn73 direct
         Type Local<Int, Unit>
         Local $new.1
         Type Int
@@ -1514,10 +1526,10 @@ Module
       val $dependency.receiver: Base<Unit, Int>
         Type Base<Unit, Int>
         Local base
-      call $dependency.parameter.other: Int = @fn38 direct
+      call $dependency.parameter.other: Int = @fn39 direct
         Type Base<Unit, Int>
         Local $dependency.receiver
-      call $call.2: Int = @fn34 virtual[1]
+      call $call.2: Int = @fn35 virtual[1]
         Type Base<Unit, Int>
         Local $dependency.receiver
         Type Int
@@ -1556,7 +1568,7 @@ Module
       val $dependency.parameter.convert: (Int) -> Int
         Type (Int) -> Int
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn35 interface Readable<Int>[1]
+      call $dependency.receiver: Int = @fn36 interface Readable<Int>[1]
         Type Readable<Int>
         Local $dependency.receiver
         Type (Int) -> Int
@@ -1587,12 +1599,12 @@ Module
       val $receiver: Local<Int, Unit>
         Type Local<Int, Unit>
         Local local
-      call $parameter.other: Int = @fn38 direct
+      call $parameter.other: Int = @fn39 direct
         Type Base<Unit, Int>
         Retype Base<Unit, Int>
           Type Local<Int, Unit>
           Local $receiver
-      call $call.3: Int = @fn36 virtual[1]
+      call $call.3: Int = @fn37 virtual[1]
         Type Local<Int, Unit>
         Local $receiver
         Type Int
@@ -1637,7 +1649,7 @@ Module
       assign $new.4
         Type Leaf<Unit, Int>
         ClassAlloc Leaf<Unit, Int>
-      call @fn70 direct
+      call @fn74 direct
         Type Leaf<Unit, Int>
         Local $new.4
         Type Unit
@@ -1653,12 +1665,12 @@ Module
       val $receiver: Leaf<Unit, Int>
         Type Leaf<Unit, Int>
         Local leaf
-      call $parameter.other: Int = @fn38 direct
+      call $parameter.other: Int = @fn39 direct
         Type Base<Unit, Int>
         Retype Base<Unit, Int>
           Type Leaf<Unit, Int>
           Local $receiver
-      call $call.5: Int = @fn37 direct
+      call $call.5: Int = @fn38 direct
         Type Leaf<Unit, Int>
         Local $receiver
         Type Int
@@ -1694,13 +1706,13 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Link<Int> = @fn39 direct
+      call $dependency.argument.0: Link<Int> = @fn40 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.head: Link<Int>
         Type Link<Int>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Int> = @fn81 direct
+      call $argument.0: Wrapper<Int> = @fn85 direct
         Type Link<Int>
         Local $dependency.parameter.head
       val $argument.1: Option<Nested<Int>>
@@ -1715,7 +1727,7 @@ Module
       assign $new.6
         Type Nested<Int>
         ClassAlloc Nested<Int>
-      call @fn71 direct
+      call @fn75 direct
         Type Nested<Int>
         Local $new.6
         Type Wrapper<Int>
@@ -1731,13 +1743,13 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Link<Int> = @fn39 direct
+      call $dependency.argument.0: Link<Int> = @fn40 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.head: Link<Int>
         Type Link<Int>
         Local $dependency.argument.0
-      call $argument.0: Wrapper<Int> = @fn81 direct
+      call $argument.0: Wrapper<Int> = @fn85 direct
         Type Link<Int>
         Local $dependency.parameter.head
       val $dependency.argument.0: Nested<Int>
@@ -1760,7 +1772,7 @@ Module
       assign $new.7
         Type Nested<Int>
         ClassAlloc Nested<Int>
-      call @fn71 direct
+      call @fn75 direct
         Type Nested<Int>
         Local $new.7
         Type Wrapper<Int>
@@ -1791,14 +1803,14 @@ Module
       assign $new.8
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external1 direct
+      call external9 direct
         Type UnwrapException
         Local $new.8
       throw
         Type UnwrapException
         Local $new.8
     bb13 if.merge.13
-      call $call.9: Int = @fn40 direct
+      call $call.9: Int = @fn41 direct
         Type Link<Int>
         FieldAccess 0
           Type Wrapper<Int>
@@ -1833,7 +1845,7 @@ Module
       assign $new.10
         Type Host
         ClassAlloc Host
-      call @fn59 direct
+      call @fn63 direct
         Type Host
         Local $new.10
       val host: Host
@@ -1895,7 +1907,7 @@ Module
       assign $new.11
         Type Remote<Int>
         ClassAlloc Remote<Int>
-      call @fn72 direct
+      call @fn76 direct
         Type Remote<Int>
         Local $new.11
         Type Int
@@ -1903,7 +1915,7 @@ Module
       val remote: Remote<Int>
         Type Remote<Int>
         Local $new.11
-      call $call.12: Int = @fn41 direct
+      call $call.12: Int = @fn42 direct
         Type Remote<Int>
         Local remote
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
@@ -1950,7 +1962,7 @@ Module
       val $dependency.parameter.link: Link<Int>
         Type Link<Int>
         Local $dependency.argument.1
-      call $call.13: Int = @fn42 direct
+      call $call.13: Int = @fn43 direct
         Type Int
         Local $dependency.parameter.value
         Type Link<Int>
@@ -1997,7 +2009,7 @@ Module
       val $dependency.local.2: Readable<String>
         Type Readable<String>
         Local this
-      call $call.1: String = @fn43 interface Readable<String>[0]
+      call $call.1: String = @fn44 interface Readable<String>[0]
         Type Readable<String>
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type0> closure[function_type0]
@@ -2039,7 +2051,7 @@ Module
       assign $new.1
         Type Link<String>
         ClassAlloc Link<String>
-      call @fn73 direct
+      call @fn77 direct
         Type Link<String>
         Local $new.1
         Type String
@@ -2049,40 +2061,60 @@ Module
       return
         Type Link<String>
         Local $new.1
-  fun value @fn20(this: Link<String>) -> String
+  fun encode @fn20(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn45 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun value @fn21(this: Link<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Link<String>
           Local this
-  fun echoed @fn21(this: Remote<String>) -> String
+  fun echoed @fn22(this: Remote<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 2
           Type Remote<String>
           Local this
-  fun readLink @fn22(value: String, link: Link<String>) -> String
+  fun readLink @fn23(value: String, link: Link<String>) -> String
     bb0 entry
-      call $call.1: String = @fn20 direct
+      call $call.1: String = @fn21 direct
         Type Link<String>
         Local link
       return
         Type String
         Local $call.1
-  fun read @fn23(this: Base<Unit, Unit>) -> Unit
+  fun read @fn24(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      call @fn28 direct
+      call @fn29 direct
         Type Base<Unit, Unit>
         Local this
       return
-  fun select @fn24(this: Base<Unit, Unit>, other: Unit) -> Unit
+  fun select @fn25(this: Base<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
       Type Unit
       Local other
       return
-  fun apply @fn25(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
+  fun apply @fn26(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
         Type (Unit) -> Int
@@ -2090,7 +2122,7 @@ Module
       val $dependency.local.2: Readable<Unit>
         Type Readable<Unit>
         Local this
-      call @fn44 interface Readable<Unit>[0]
+      call @fn46 interface Readable<Unit>[0]
         Type Readable<Unit>
         Local $dependency.local.2
       call $call.1: Int = <closure:function_type2> closure[function_type2]
@@ -2101,24 +2133,24 @@ Module
       return
         Type Int
         Local $call.1
-  fun Local.select @fn26(this: Local<Unit, Unit>, other: Unit) -> Unit
+  fun Local.select @fn27(this: Local<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
       Type Unit
       Local other
       return
-  fun Leaf.select @fn27(this: Leaf<Unit, Unit>, other: Unit) -> Unit
+  fun Leaf.select @fn28(this: Leaf<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
       Type Unit
       Local other
       return
-  fun second @fn28(this: Base<Unit, Unit>) -> Unit
+  fun second @fn29(this: Base<Unit, Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 1
         Type Base<Unit, Unit>
         Local this
       return
-  fun make @fn29(value: Unit) -> Link<Unit>
+  fun make @fn30(value: Unit) -> Link<Unit>
     bb0 entry
       val $dependency.local.1: Unit
         Type Unit
@@ -2132,7 +2164,7 @@ Module
       assign $new.1
         Type Link<Unit>
         ClassAlloc Link<Unit>
-      call @fn74 direct
+      call @fn78 direct
         Type Link<Unit>
         Local $new.1
         Type Unit
@@ -2142,40 +2174,40 @@ Module
       return
         Type Link<Unit>
         Local $new.1
-  fun value @fn30(this: Link<Unit>) -> Unit
+  fun value @fn31(this: Link<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 0
         Type Link<Unit>
         Local this
       return
-  fun echoed @fn31(this: Remote<Unit>) -> Unit
+  fun echoed @fn32(this: Remote<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 2
         Type Remote<Unit>
         Local this
       return
-  fun readLink @fn32(value: Unit, link: Link<Unit>) -> Unit
+  fun readLink @fn33(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
-      call @fn30 direct
+      call @fn31 direct
         Type Link<Unit>
         Local link
       return
-  fun read @fn33(this: Base<Unit, Int>) -> Int
+  fun read @fn34(this: Base<Unit, Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn38 direct
+      call $call.1: Int = @fn39 direct
         Type Base<Unit, Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun select @fn34(this: Base<Unit, Int>, other: Int) -> Int
+  fun select @fn35(this: Base<Unit, Int>, other: Int) -> Int
     bb0 entry
       return
         Type Int
         Local other
-  fun apply @fn35(this: Readable<Int>, convert: (Int) -> Int) -> Int
+  fun apply @fn36(this: Readable<Int>, convert: (Int) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Int) -> Int
         Type (Int) -> Int
@@ -2183,7 +2215,7 @@ Module
       val $dependency.local.2: Readable<Int>
         Type Readable<Int>
         Local this
-      call $call.1: Int = @fn45 interface Readable<Int>[0]
+      call $call.1: Int = @fn47 interface Readable<Int>[0]
         Type Readable<Int>
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type3> closure[function_type3]
@@ -2194,24 +2226,24 @@ Module
       return
         Type Int
         Local $call.2
-  fun Local.select @fn36(this: Local<Int, Unit>, other: Int) -> Int
+  fun Local.select @fn37(this: Local<Int, Unit>, other: Int) -> Int
     bb0 entry
       return
         Type Int
         Local other
-  fun Leaf.select @fn37(this: Leaf<Unit, Int>, other: Int) -> Int
+  fun Leaf.select @fn38(this: Leaf<Unit, Int>, other: Int) -> Int
     bb0 entry
       return
         Type Int
         Local other
-  fun second @fn38(this: Base<Unit, Int>) -> Int
+  fun second @fn39(this: Base<Unit, Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 1
           Type Base<Unit, Int>
           Local this
-  fun make @fn39(value: Int) -> Link<Int>
+  fun make @fn40(value: Int) -> Link<Int>
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -2225,7 +2257,7 @@ Module
       assign $new.1
         Type Link<Int>
         ClassAlloc Link<Int>
-      call @fn75 direct
+      call @fn79 direct
         Type Link<Int>
         Local $new.1
         Type Int
@@ -2235,74 +2267,312 @@ Module
       return
         Type Link<Int>
         Local $new.1
-  fun value @fn40(this: Link<Int>) -> Int
+  fun value @fn41(this: Link<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Link<Int>
           Local this
-  fun echoed @fn41(this: Remote<Int>) -> Int
+  fun echoed @fn42(this: Remote<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 2
           Type Remote<Int>
           Local this
-  fun readLink @fn42(value: Int, link: Link<Int>) -> Int
+  fun readLink @fn43(value: Int, link: Link<Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn40 direct
+      call $call.1: Int = @fn41 direct
         Type Link<Int>
         Local link
       return
         Type Int
         Local $call.1
-  fun Readable.read @fn43(this: Readable<String>) -> String
+  fun Readable.read @fn44(this: Readable<String>) -> String
     bb0 entry
       trap "call to abstract method `Readable.read`"
-  fun Readable.read @fn44(this: Readable<Unit>) -> Unit
+  fun encodeOption @fn45(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str1
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external2 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external2 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str2
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external7 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external5 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Readable.read @fn46(this: Readable<Unit>) -> Unit
     bb0 entry
       trap "call to abstract method `Readable.read`"
-  fun Readable.read @fn45(this: Readable<Int>) -> Int
+  fun Readable.read @fn47(this: Readable<Int>) -> Int
     bb0 entry
       trap "call to abstract method `Readable.read`"
-  fun Continuation.resume @fn46(this: Continuation<Counter>, value: Counter) -> Unit
+  fun encode @fn48(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn49 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn49(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external0 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str3
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external1 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external0 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external2 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external2 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str4
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external1 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external3 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external4 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external6 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external5 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn50(this: Continuation<Counter>, value: Counter) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn47(this: Continuation<Counter>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn51(this: Continuation<Counter>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn48(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+  fun SuspendTask.run @fn52(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn49(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+  fun SuspendRegistration.register @fn53(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn50(this: Continuation<Host>, value: Host) -> Unit
+  fun Continuation.resume @fn54(this: Continuation<Host>, value: Host) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn51(this: Continuation<Host>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn55(this: Continuation<Host>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn52(this: SuspendTask<Host>, $completion: Continuation<Host>) -> CoroutineStep<Host>
+  fun SuspendTask.run @fn56(this: SuspendTask<Host>, $completion: Continuation<Host>) -> CoroutineStep<Host>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn53(this: SuspendRegistration<Host>, continuation: Continuation<Host>) -> Unit
+  fun SuspendRegistration.register @fn57(this: SuspendRegistration<Host>, continuation: Continuation<Host>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn54(this: Continuation<State>, value: State) -> Unit
+  fun Continuation.resume @fn58(this: Continuation<State>, value: State) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn55(this: Continuation<State>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn59(this: Continuation<State>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn56(this: SuspendTask<State>, $completion: Continuation<State>) -> CoroutineStep<State>
+  fun SuspendTask.run @fn60(this: SuspendTask<State>, $completion: Continuation<State>) -> CoroutineStep<State>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn57(this: SuspendRegistration<State>, continuation: Continuation<State>) -> Unit
+  fun SuspendRegistration.register @fn61(this: SuspendRegistration<State>, continuation: Continuation<State>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Counter.$c3 @fn58(this: Counter, value: Int) -> Unit
+  fun init.Counter.$c3 @fn62(this: Counter, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Counter
@@ -2310,7 +2580,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Host.$c4 @fn59(this: Host) -> Unit
+  fun init.Host.$c4 @fn63(this: Host) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -2321,7 +2591,7 @@ Module
       assign $new.1
         Type Counter
         ClassAlloc Counter
-      call @fn58 direct
+      call @fn62 direct
         Type Counter
         Local $new.1
         Type Int
@@ -2332,7 +2602,7 @@ Module
         Type Counter
         Local $new.1
       return
-  fun init.State.$c5 @fn60(this: State) -> Unit
+  fun init.State.$c5 @fn64(this: State) -> Unit
     bb0 entry
       field_set 0
         Type State
@@ -2340,7 +2610,7 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun init.Local.$c0 @fn61(this: Local<String, Unit>, left: String, right: Unit) -> Unit
+  fun init.Local.$c0 @fn65(this: Local<String, Unit>, left: String, right: Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
         Type Unit
@@ -2354,7 +2624,7 @@ Module
       val $dependency.parameter.second: String
         Type String
         Local $dependency.argument.1
-      call @fn76 direct
+      call @fn80 direct
         Type Base<Unit, String>
         Retype Base<Unit, String>
           Type Local<String, Unit>
@@ -2373,7 +2643,7 @@ Module
             Type Local<String, Unit>
             Local this
       return
-  fun init.Leaf.$c1 @fn62(this: Leaf<Unit, String>, first: Unit, second: String) -> Unit
+  fun init.Leaf.$c1 @fn66(this: Leaf<Unit, String>, first: Unit, second: String) -> Unit
     bb0 entry
       val $argument.0: String
         Type String
@@ -2387,7 +2657,7 @@ Module
       val $parameter.right: Unit
         Type Unit
         Local $argument.1
-      call @fn61 direct
+      call @fn65 direct
         Type Local<String, Unit>
         Retype Local<String, Unit>
           Type Leaf<Unit, String>
@@ -2397,7 +2667,7 @@ Module
         Type Unit
         Local $parameter.right
       return
-  fun init.Nested.$c2 @fn63(this: Nested<String>, wrapper: Wrapper<String>, parent: Option<Nested<String>>) -> Unit
+  fun init.Nested.$c2 @fn67(this: Nested<String>, wrapper: Wrapper<String>, parent: Option<Nested<String>>) -> Unit
     bb0 entry
       field_set 0
         Type Nested<String>
@@ -2410,7 +2680,7 @@ Module
         Type Option<Nested<String>>
         Local parent
       return
-  fun init.Remote.$c2 @fn64(this: Remote<String>, value: String) -> Unit
+  fun init.Remote.$c2 @fn68(this: Remote<String>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2424,7 +2694,7 @@ Module
       val $dependency.constructor.local.3: String
         Type String
         Local $dependency.constructor.local.1
-      call @fn76 direct
+      call @fn80 direct
         Type Base<Unit, String>
         Retype Base<Unit, String>
           Type Remote<String>
@@ -2443,7 +2713,7 @@ Module
             Type Remote<String>
             Local this
       return
-  fun init.Local.$c0 @fn65(this: Local<Unit, Unit>, left: Unit, right: Unit) -> Unit
+  fun init.Local.$c0 @fn69(this: Local<Unit, Unit>, left: Unit, right: Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
         Type Unit
@@ -2457,7 +2727,7 @@ Module
       val $dependency.parameter.second: Unit
         Type Unit
         Local $dependency.argument.1
-      call @fn77 direct
+      call @fn81 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Local<Unit, Unit>
@@ -2476,7 +2746,7 @@ Module
             Type Local<Unit, Unit>
             Local this
       return
-  fun init.Leaf.$c1 @fn66(this: Leaf<Unit, Unit>, first: Unit, second: Unit) -> Unit
+  fun init.Leaf.$c1 @fn70(this: Leaf<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       val $argument.0: Unit
         Type Unit
@@ -2490,7 +2760,7 @@ Module
       val $parameter.right: Unit
         Type Unit
         Local $argument.1
-      call @fn65 direct
+      call @fn69 direct
         Type Local<Unit, Unit>
         Retype Local<Unit, Unit>
           Type Leaf<Unit, Unit>
@@ -2500,7 +2770,7 @@ Module
         Type Unit
         Local $parameter.right
       return
-  fun init.Nested.$c2 @fn67(this: Nested<Unit>, wrapper: Wrapper<Unit>, parent: Option<Nested<Unit>>) -> Unit
+  fun init.Nested.$c2 @fn71(this: Nested<Unit>, wrapper: Wrapper<Unit>, parent: Option<Nested<Unit>>) -> Unit
     bb0 entry
       field_set 0
         Type Nested<Unit>
@@ -2513,7 +2783,7 @@ Module
         Type Option<Nested<Unit>>
         Local parent
       return
-  fun init.Remote.$c2 @fn68(this: Remote<Unit>, value: Unit) -> Unit
+  fun init.Remote.$c2 @fn72(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2527,7 +2797,7 @@ Module
       val $dependency.constructor.local.3: Unit
         Type Unit
         Local $dependency.constructor.local.1
-      call @fn77 direct
+      call @fn81 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Remote<Unit>
@@ -2546,7 +2816,7 @@ Module
             Type Remote<Unit>
             Local this
       return
-  fun init.Local.$c0 @fn69(this: Local<Int, Unit>, left: Int, right: Unit) -> Unit
+  fun init.Local.$c0 @fn73(this: Local<Int, Unit>, left: Int, right: Unit) -> Unit
     bb0 entry
       val $dependency.argument.0: Unit
         Type Unit
@@ -2560,7 +2830,7 @@ Module
       val $dependency.parameter.second: Int
         Type Int
         Local $dependency.argument.1
-      call @fn78 direct
+      call @fn82 direct
         Type Base<Unit, Int>
         Retype Base<Unit, Int>
           Type Local<Int, Unit>
@@ -2579,7 +2849,7 @@ Module
             Type Local<Int, Unit>
             Local this
       return
-  fun init.Leaf.$c1 @fn70(this: Leaf<Unit, Int>, first: Unit, second: Int) -> Unit
+  fun init.Leaf.$c1 @fn74(this: Leaf<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -2593,7 +2863,7 @@ Module
       val $parameter.right: Unit
         Type Unit
         Local $argument.1
-      call @fn69 direct
+      call @fn73 direct
         Type Local<Int, Unit>
         Retype Local<Int, Unit>
           Type Leaf<Unit, Int>
@@ -2603,7 +2873,7 @@ Module
         Type Unit
         Local $parameter.right
       return
-  fun init.Nested.$c2 @fn71(this: Nested<Int>, wrapper: Wrapper<Int>, parent: Option<Nested<Int>>) -> Unit
+  fun init.Nested.$c2 @fn75(this: Nested<Int>, wrapper: Wrapper<Int>, parent: Option<Nested<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type Nested<Int>
@@ -2616,7 +2886,7 @@ Module
         Type Option<Nested<Int>>
         Local parent
       return
-  fun init.Remote.$c2 @fn72(this: Remote<Int>, value: Int) -> Unit
+  fun init.Remote.$c2 @fn76(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2630,7 +2900,7 @@ Module
       val $dependency.constructor.local.3: Int
         Type Int
         Local $dependency.constructor.local.1
-      call @fn78 direct
+      call @fn82 direct
         Type Base<Unit, Int>
         Retype Base<Unit, Int>
           Type Remote<Int>
@@ -2649,7 +2919,7 @@ Module
             Type Remote<Int>
             Local this
       return
-  fun init.Link.$c3 @fn73(this: Link<String>, value: String, next: Option<Link<String>>) -> Unit
+  fun init.Link.$c3 @fn77(this: Link<String>, value: String, next: Option<Link<String>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<String>
@@ -2662,7 +2932,7 @@ Module
         Type Option<Link<String>>
         Local next
       return
-  fun init.Link.$c3 @fn74(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
+  fun init.Link.$c3 @fn78(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<Unit>
@@ -2675,7 +2945,7 @@ Module
         Type Option<Link<Unit>>
         Local next
       return
-  fun init.Link.$c3 @fn75(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
+  fun init.Link.$c3 @fn79(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<Int>
@@ -2688,7 +2958,7 @@ Module
         Type Option<Link<Int>>
         Local next
       return
-  fun init.Base.$c0 @fn76(this: Base<Unit, String>, first: Unit, second: String) -> Unit
+  fun init.Base.$c0 @fn80(this: Base<Unit, String>, first: Unit, second: String) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, String>
@@ -2701,7 +2971,7 @@ Module
         Type String
         Local second
       return
-  fun init.Base.$c0 @fn77(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
+  fun init.Base.$c0 @fn81(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, Unit>
@@ -2714,7 +2984,7 @@ Module
         Type Unit
         Local second
       return
-  fun init.Base.$c0 @fn78(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
+  fun init.Base.$c0 @fn82(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, Int>
@@ -2727,28 +2997,28 @@ Module
         Type Int
         Local second
       return
-  fun ctor.Wrapper.$c1 @fn79(head: Link<String>) -> Wrapper<String> <no-gc>
+  fun ctor.Wrapper.$c1 @fn83(head: Link<String>) -> Wrapper<String> <no-gc>
     bb0 entry
       return
         Type Wrapper<String>
         StructInit Wrapper<String>
           Type Link<String>
           Local head
-  fun ctor.Wrapper.$c1 @fn80(head: Link<Unit>) -> Wrapper<Unit> <no-gc>
+  fun ctor.Wrapper.$c1 @fn84(head: Link<Unit>) -> Wrapper<Unit> <no-gc>
     bb0 entry
       return
         Type Wrapper<Unit>
         StructInit Wrapper<Unit>
           Type Link<Unit>
           Local head
-  fun ctor.Wrapper.$c1 @fn81(head: Link<Int>) -> Wrapper<Int> <no-gc>
+  fun ctor.Wrapper.$c1 @fn85(head: Link<Int>) -> Wrapper<Int> <no-gc>
     bb0 entry
       return
         Type Wrapper<Int>
         StructInit Wrapper<Int>
           Type Link<Int>
           Local head
-  fun startCoroutine<Host> @fn82(task: SuspendTask<Host>, completion: Continuation<Host>) -> Unit
+  fun startCoroutine<Host> @fn86(task: SuspendTask<Host>, completion: Continuation<Host>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2771,7 +3041,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn50 interface Continuation<Host>[0]
+      call @fn54 interface Continuation<Host>[0]
         Type Continuation<Host>
         Local completion
         Type Host
@@ -2784,7 +3054,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn51 interface Continuation<Host>[1]
+      call @fn55 interface Continuation<Host>[1]
         Type Continuation<Host>
         Local completion
         Type Throwable
@@ -2803,7 +3073,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Host> = @fn52 interface SuspendTask<Host>[0]
+      call $step: CoroutineStep<Host> = @fn56 interface SuspendTask<Host>[0]
         Type SuspendTask<Host>
         Local task
         Type Continuation<Host>
@@ -2829,7 +3099,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<State> @fn83(task: SuspendTask<State>, completion: Continuation<State>) -> Unit
+  fun startCoroutine<State> @fn87(task: SuspendTask<State>, completion: Continuation<State>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2852,7 +3122,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn54 interface Continuation<State>[0]
+      call @fn58 interface Continuation<State>[0]
         Type Continuation<State>
         Local completion
         Type State
@@ -2865,7 +3135,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn55 interface Continuation<State>[1]
+      call @fn59 interface Continuation<State>[1]
         Type Continuation<State>
         Local completion
         Type Throwable
@@ -2884,7 +3154,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<State> = @fn56 interface SuspendTask<State>[0]
+      call $step: CoroutineStep<State> = @fn60 interface SuspendTask<State>[0]
         Type SuspendTask<State>
         Local task
         Type Continuation<State>
@@ -2910,7 +3180,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Counter> @fn84(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+  fun startCoroutine<Counter> @fn88(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2933,7 +3203,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn46 interface Continuation<Counter>[0]
+      call @fn50 interface Continuation<Counter>[0]
         Type Continuation<Counter>
         Local completion
         Type Counter
@@ -2946,7 +3216,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn47 interface Continuation<Counter>[1]
+      call @fn51 interface Continuation<Counter>[1]
         Type Continuation<Counter>
         Local completion
         Type Throwable
@@ -2965,7 +3235,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Counter> = @fn48 interface SuspendTask<Counter>[0]
+      call $step: CoroutineStep<Counter> = @fn52 interface SuspendTask<Counter>[0]
         Type SuspendTask<Counter>
         Local task
         Type Continuation<Counter>
@@ -2991,7 +3261,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn85($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn89($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -3005,7 +3275,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn86($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn90($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -3019,7 +3289,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn87($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn91($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -3039,12 +3309,12 @@ Module
   coroutine_slot cl0 CoroutineSlot<Host> value=Host
   coroutine_slot cl1 CoroutineSlot<State> value=State
   coroutine_slot cl2 CoroutineSlot<Counter> value=Counter
-  coroutine_start ct0 result=Host function=fn82
-  coroutine_start ct1 result=State function=fn83
-  coroutine_start ct2 result=Counter function=fn84
-  coroutine_fn cf0 @fn48 source_return=Counter step=cs2 immediate
-  coroutine_fn cf1 @fn52 source_return=Host step=cs0 immediate
-  coroutine_fn cf2 @fn56 source_return=State step=cs1 immediate
+  coroutine_start ct0 result=Host function=fn86
+  coroutine_start ct1 result=State function=fn87
+  coroutine_start ct2 result=Counter function=fn88
+  coroutine_fn cf0 @fn52 source_return=Counter step=cs2 immediate
+  coroutine_fn cf1 @fn56 source_return=Host step=cs0 immediate
+  coroutine_fn cf2 @fn60 source_return=State step=cs1 immediate
   instance mi0 function=@fn8 <- exercise
   instance mi1 function=@fn10 <- exercise
   instance mi2 function=@fn12 <- exercise
@@ -3055,36 +3325,36 @@ Module
   instance mi7 function=@fn17 <- Leaf.select
   instance mi8 function=@fn18 <- second
   instance mi9 function=@fn19 <- make
-  instance mi10 function=@fn20 <- value
-  instance mi11 function=@fn21 <- echoed
-  instance mi12 function=@fn22 <- readLink
-  instance mi13 function=@fn23 <- read
-  instance mi14 function=@fn24 <- select
-  instance mi15 function=@fn25 <- apply
-  instance mi16 function=@fn26 <- Local.select
-  instance mi17 function=@fn27 <- Leaf.select
-  instance mi18 function=@fn28 <- second
-  instance mi19 function=@fn29 <- make
-  instance mi20 function=@fn30 <- value
-  instance mi21 function=@fn31 <- echoed
-  instance mi22 function=@fn32 <- readLink
-  instance mi23 function=@fn33 <- read
-  instance mi24 function=@fn34 <- select
-  instance mi25 function=@fn35 <- apply
-  instance mi26 function=@fn36 <- Local.select
-  instance mi27 function=@fn37 <- Leaf.select
-  instance mi28 function=@fn38 <- second
-  instance mi29 function=@fn39 <- make
-  instance mi30 function=@fn40 <- value
-  instance mi31 function=@fn41 <- echoed
-  instance mi32 function=@fn42 <- readLink
-  instance mi33 function=@fn43 <- Readable.read
+  instance mi10 function=@fn20 <- encode
+  instance mi11 function=@fn21 <- value
+  instance mi12 function=@fn22 <- echoed
+  instance mi13 function=@fn23 <- readLink
+  instance mi14 function=@fn24 <- read
+  instance mi15 function=@fn25 <- select
+  instance mi16 function=@fn26 <- apply
+  instance mi17 function=@fn27 <- Local.select
+  instance mi18 function=@fn28 <- Leaf.select
+  instance mi19 function=@fn29 <- second
+  instance mi20 function=@fn30 <- make
+  instance mi21 function=@fn31 <- value
+  instance mi22 function=@fn32 <- echoed
+  instance mi23 function=@fn33 <- readLink
+  instance mi24 function=@fn34 <- read
+  instance mi25 function=@fn35 <- select
+  instance mi26 function=@fn36 <- apply
+  instance mi27 function=@fn37 <- Local.select
+  instance mi28 function=@fn38 <- Leaf.select
+  instance mi29 function=@fn39 <- second
+  instance mi30 function=@fn40 <- make
+  instance mi31 function=@fn41 <- value
+  instance mi32 function=@fn42 <- echoed
+  instance mi33 function=@fn43 <- readLink
   instance mi34 function=@fn44 <- Readable.read
-  instance mi35 function=@fn45 <- Readable.read
-  instance mi36 function=@fn46 <- Continuation.resume
-  instance mi37 function=@fn47 <- Continuation.resumeWithException
-  instance mi38 function=@fn48 <- SuspendTask.run
-  instance mi39 function=@fn49 <- SuspendRegistration.register
+  instance mi35 function=@fn45 <- encodeOption
+  instance mi36 function=@fn46 <- Readable.read
+  instance mi37 function=@fn47 <- Readable.read
+  instance mi38 function=@fn48 <- encode
+  instance mi39 function=@fn49 <- encodeOption
   instance mi40 function=@fn50 <- Continuation.resume
   instance mi41 function=@fn51 <- Continuation.resumeWithException
   instance mi42 function=@fn52 <- SuspendTask.run
@@ -3093,5 +3363,13 @@ Module
   instance mi45 function=@fn55 <- Continuation.resumeWithException
   instance mi46 function=@fn56 <- SuspendTask.run
   instance mi47 function=@fn57 <- SuspendRegistration.register
+  instance mi48 function=@fn58 <- Continuation.resume
+  instance mi49 function=@fn59 <- Continuation.resumeWithException
+  instance mi50 function=@fn60 <- SuspendTask.run
+  instance mi51 function=@fn61 <- SuspendRegistration.register
   str @str0 "value"
+  str @str1 "None"
+  str @str2 "Some"
+  str @str3 "None"
+  str @str4 "Some"
   output library

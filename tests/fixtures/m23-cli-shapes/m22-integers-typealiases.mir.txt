@@ -1,7 +1,7 @@
 Module
-  global0 $singleton$Factory: Container.Factory managed initial=zeroed-for-runtime-unit
+  global0 $singleton$Factory: Container.Factory<Int> managed initial=zeroed-for-runtime-unit
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 companion:Container.Factory singleton lazy global0 initializer=@fn3 ensure=@fn4 failure=1 deps=[]
+  init0 companion:Container.Factory singleton lazy global0 initializer=@fn7 ensure=@fn8 failure=1 deps=[]
   struct Slot<Int> (value: Int)
   enum Choice<Int>
     Value(_1: Int)
@@ -18,66 +18,40 @@ Module
   enum CoroutineSlot<Container.Tag>
     Empty()
     Value(value: Container.Tag)
-  enum CoroutineStep<Container.Factory>
-    Completed(value: Container.Factory)
-    Suspended()
-  enum CoroutineSlot<Container.Factory>
-    Empty()
-    Value(value: Container.Factory)
-  class Container.Factory vtable=0 itables=0
   class Container.Tag vtable=0 itables=0
-  class Container<Int> vtable=0 itables=0
   class Container<String> vtable=0 itables=0
+  class Container.Factory<Int> vtable=0 itables=0
+  class Container<Int> vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Choice<Int>> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
   interface ToString
   interface Hash
   interface Iterable<Char>
   interface Iterator<Char>
-  interface Continuation<Container.Factory>
-  interface SuspendTask<Container.Factory>
-  interface SuspendRegistration<Container.Factory>
   interface Continuation<Container.Tag>
   interface SuspendTask<Container.Tag>
   interface SuspendRegistration<Container.Tag>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn16 captures=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn17 captures=0
     bridge function_type1 -> @fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum5 nominal_id=1d08c4329298b066da30c67f69a52ef69f18319052afd04ac595f531017b30b0 exact_id=1c1e32163eff8cacb0d301b66d58b8449bc1c3101ad83f2c3c1c163cb0c43e57
-  generated_exact_type get2 location=enum6 nominal_id=3158438e89cbe05215bb94f664af8868e3824ad29991224f7a79dc1b89add73e exact_id=2213633f11c90de5f4b116b5d558768b64db861f93bcd9cf960d68a2626ed57a
-  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get4 location=enum3 nominal_id=7a05fe9859cefa4a4fc61e46ba4ff6751634e4c4dc8815d0dc441217c380b43a exact_id=442fe4326dbe8a78ae0bc4988b6040cf826401dc8b18f7ba18b6936147686d0d
-  generated_exact_type get5 location=enum4 nominal_id=686539a1fc8cc35649d64c3a648e92b63b985c3585a1e68d713a6086cb0f568b exact_id=4f402b2d5b29716157d2d99fa5d9fede1707b9428dcab804ee613c798a028650
-  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get7 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get8 location=class7 nominal_id=e9c9cb9dac2da337fa795a16d788e2f268516b130b65c7d3a7f2ce9fc45f8fc5 exact_id=8855d92e3ea3c3dd1fcb3fab3c08381290bb8665bda19c9290761b52d9aeb611
-  generated_exact_type get9 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
-  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn23 id=391ba11b04d8f0e12db74c341aa0f183a4a059bc3431f5d13cab1e2dc026c1c7
-  generated_callable gc1 function=@fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
-  generated_callable gc2 function=@fn22 id=c5001cca846f131f424bfe2eec4bad5a9b1b756873400a057c63b064fa7d11bf
-  fun Container.Factory.makeInt @fn0(this: Container.Factory, value: Int) -> Container<Int>
-    bb0 entry
-      val $argument.0: Int
-        Type Int
-        Local value
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
-      assign $new.1
-        Type Container<Int>
-        ClassAlloc Container<Int>
-      call @fn19 direct
-        Type Container<Int>
-        Local $new.1
-        Type Int
-        Local $parameter.value
-      return
-        Type Container<Int>
-        Local $new.1
-  fun render @fn1(choice: Choice<Int>) -> String
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=enum3 nominal_id=7a05fe9859cefa4a4fc61e46ba4ff6751634e4c4dc8815d0dc441217c380b43a exact_id=442fe4326dbe8a78ae0bc4988b6040cf826401dc8b18f7ba18b6936147686d0d
+  generated_exact_type get3 location=enum4 nominal_id=686539a1fc8cc35649d64c3a648e92b63b985c3585a1e68d713a6086cb0f568b exact_id=4f402b2d5b29716157d2d99fa5d9fede1707b9428dcab804ee613c798a028650
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class7 nominal_id=e9c9cb9dac2da337fa795a16d788e2f268516b130b65c7d3a7f2ce9fc45f8fc5 exact_id=8855d92e3ea3c3dd1fcb3fab3c08381290bb8665bda19c9290761b52d9aeb611
+  generated_exact_type get7 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn24 id=5d9693508114314a5656a3b547c746f60ea163556fe8d923cbbdd2d8603a0ca0
+  generated_callable gc1 function=@fn23 id=c5001cca846f131f424bfe2eec4bad5a9b1b756873400a057c63b064fa7d11bf
+  fun render @fn0(choice: Choice<Int>) -> String
     bb0 entry
       val $when.1: Choice<Int>
         Type Choice<Int>
@@ -102,7 +76,7 @@ Module
       val $dependency.receiver: Int
         Type Int
         Local value
-      call $dependency.argument.0: String = external0 direct
+      call $dependency.argument.0: String = external1 direct
         Type Int
         Local $dependency.receiver
       val $dependency.parameter.other: String
@@ -139,7 +113,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun main @fn2() -> Unit
+  fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -147,7 +121,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call slot: Slot<Int> = @fn21 direct
+      call slot: Slot<Int> = @fn22 direct
         Type Int
         Local $parameter.value
       val $argument.0: String
@@ -159,7 +133,7 @@ Module
       assign $new.1
         Type Container<String>
         ClassAlloc Container<String>
-      call @fn20 direct
+      call @fn19 direct
         Type Container<String>
         Local $new.1
         Type String
@@ -167,9 +141,9 @@ Module
       val text: Container<String>
         Type Container<String>
         Local $new.1
-      call @fn4 direct
-      val $receiver: Container.Factory
-        Type Container.Factory
+      call @fn8 direct
+      val $receiver: Container.Factory<Int>
+        Type Container.Factory<Int>
         GlobalRead $singleton$Factory
       val $argument.0: Int
         Type Int
@@ -177,14 +151,14 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call made: Container<Int> = @fn0 direct
-        Type Container.Factory
+      call made: Container<Int> = @fn3 direct
+        Type Container.Factory<Int>
         Local $receiver
         Type Int
         Local $parameter.value
-      call @fn4 direct
-      val $receiver: Container.Factory
-        Type Container.Factory
+      call @fn8 direct
+      val $receiver: Container.Factory<Int>
+        Type Container.Factory<Int>
         GlobalRead $singleton$Factory
       val $argument.0: Int
         Type Int
@@ -192,8 +166,8 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call named: Container<Int> = @fn0 direct
-        Type Container.Factory
+      call named: Container<Int> = @fn3 direct
+        Type Container.Factory<Int>
         Local $receiver
         Type Int
         Local $parameter.value
@@ -252,13 +226,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Slot<Int> = @fn21 direct
+      call $argument.0: Slot<Int> = @fn22 direct
         Type Int
         Local $parameter.value
       val $parameter.value: Slot<Int>
         Type Slot<Int>
         Local $argument.0
-      call kept: Slot<Int> = @fn5 direct
+      call kept: Slot<Int> = @fn4 direct
         Type Slot<Int>
         Local $parameter.value
       val $dependency.argument.0: Int
@@ -269,7 +243,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -280,7 +254,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -291,7 +265,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -302,7 +276,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -313,7 +287,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -324,7 +298,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -335,7 +309,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
@@ -346,7 +320,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Choice<Int>
@@ -355,13 +329,13 @@ Module
       val $parameter.choice: Choice<Int>
         Type Choice<Int>
         Local $argument.0
-      call $dependency.argument.0: String = @fn1 direct
+      call $dependency.argument.0: String = @fn0 direct
         Type Choice<Int>
         Local $parameter.choice
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -372,23 +346,148 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun $init$body$0 @fn3() -> Unit
+  fun $tuple.2.encode @fn2(this: (Int, String), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external2 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external4 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external11 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun Container.Factory.makeInt @fn3(this: Container.Factory<Int>, value: Int) -> Container<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Container<Int>
+        ClassAlloc Container<Int>
+      call @fn20 direct
+        Type Container<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type Container<Int>
+        Local $new.1
+  fun keep @fn4(value: Slot<Int>) -> Slot<Int>
+    bb0 entry
+      return
+        Type Slot<Int>
+        Local value
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external5 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external5 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $init$body$0 @fn7() -> Unit
     bb0 entry
       assign $new.1
-        Type Container.Factory
-        ClassAlloc Container.Factory
-      call @fn17 direct
-        Type Container.Factory
+        Type Container.Factory<Int>
+        ClassAlloc Container.Factory<Int>
+      call @fn21 direct
+        Type Container.Factory<Int>
         Local $new.1
       global_assign $singleton$Factory
-        Type Container.Factory
+        Type Container.Factory<Int>
         Local $new.1
       return
-  fun $init$ensure$0 @fn4() -> Unit
+  fun $init$ensure$0 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -433,7 +532,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn3 direct
+      call @fn7 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Container.Factory
@@ -480,77 +579,161 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Container.Factory
-      call external3 direct
+      call external12 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun keep @fn5(value: Slot<Int>) -> Slot<Int>
+  fun encode @fn9(this: Option<Char>, encoder: Encoder) -> Unit
     bb0 entry
-      return
-        Type Slot<Int>
-        Local value
-  fun println @fn6(value: Int) -> Unit
-    bb0 entry
-      val $dependency.local.1: Int
-        Type Int
-        Local value
-      call $dependency.local.2: String = external0 direct
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
         Local $dependency.local.2
-      call external2 direct
-        Type String
+      val $dependency.local.5: Encoder
+        Type Encoder
         Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str4
-      val $dependency.local.5: String
-        Type String
+      call @fn10 direct
+        Type Option<Char>
         Local $dependency.local.4
-      call external2 direct
-        Type String
+        Type Encoder
         Local $dependency.local.5
       return
-  fun println @fn7(value: String) -> Unit
+  fun encodeOption @fn10(value: Option<Char>, encoder: Encoder) -> Unit
     bb0 entry
-      val $dependency.local.1: String
-        Type String
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
         Local value
-      call $dependency.local.2: String = external1 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
         Local $dependency.local.2
-      call external2 direct
+      val $dependency.local.7: String
         Type String
+        StringConst @str6
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str7
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
         Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str5
-      val $dependency.local.5: String
-        Type String
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
         Local $dependency.local.4
-      call external2 direct
-        Type String
+      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external0 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external11 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn11(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn16 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn8(this: Continuation<Container.Factory>, value: Container.Factory) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn9(this: Continuation<Container.Factory>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn10(this: SuspendTask<Container.Factory>, $completion: Continuation<Container.Factory>) -> CoroutineStep<Container.Factory>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Container.Factory>, continuation: Continuation<Container.Factory>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
   fun Continuation.resume @fn12(this: Continuation<Container.Tag>, value: Container.Tag) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
@@ -563,17 +746,123 @@ Module
   fun SuspendRegistration.register @fn15(this: SuspendRegistration<Container.Tag>, continuation: Continuation<Container.Tag>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn16($closure: (Choice<Int>) -> String, arg0: Choice<Int>) -> String
+  fun encodeOption @fn16(value: Option<String>, encoder: Encoder) -> Unit
     bb0 entry
-      call $call.1: String = @fn1 direct
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str8
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str9
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external4 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external11 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun $reference.0 @fn17($closure: (Choice<Int>) -> String, arg0: Choice<Int>) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
         Type Choice<Int>
         Local arg0
       return
         Type String
         Local $call.1
-  fun init.Container.Factory.$c2 @fn17(this: Container.Factory) -> Unit
-    bb0 entry
-      return
   fun init.Container.Tag.$c1 @fn18(this: Container.Tag, text: String) -> Unit
     bb0 entry
       field_set 0
@@ -582,15 +871,7 @@ Module
         Type String
         Local text
       return
-  fun init.Container.$c0 @fn19(this: Container<Int>, value: Int) -> Unit
-    bb0 entry
-      field_set 0
-        Type Container<Int>
-        Local this
-        Type Int
-        Local value
-      return
-  fun init.Container.$c0 @fn20(this: Container<String>, value: String) -> Unit
+  fun init.Container.$c0 @fn19(this: Container<String>, value: String) -> Unit
     bb0 entry
       field_set 0
         Type Container<String>
@@ -598,14 +879,25 @@ Module
         Type String
         Local value
       return
-  fun ctor.Slot.$c0 @fn21(value: Int) -> Slot<Int> <no-gc>
+  fun init.Container.$c0 @fn20(this: Container<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Container<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Container.Factory.$c2 @fn21(this: Container.Factory<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.Slot.$c0 @fn22(value: Int) -> Slot<Int> <no-gc>
     bb0 entry
       return
         Type Slot<Int>
         StructInit Slot<Int>
           Type Int
           Local value
-  fun startCoroutine<Container.Tag> @fn22(task: SuspendTask<Container.Tag>, completion: Continuation<Container.Tag>) -> Unit
+  fun startCoroutine<Container.Tag> @fn23(task: SuspendTask<Container.Tag>, completion: Continuation<Container.Tag>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -686,87 +978,6 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Container.Factory> @fn23(task: SuspendTask<Container.Factory>, completion: Continuation<Container.Factory>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn8 interface Continuation<Container.Factory>[0]
-        Type Continuation<Container.Factory>
-        Local completion
-        Type Container.Factory
-        EnumField v0 f0
-          Type CoroutineStep<Container.Factory>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn9 interface Continuation<Container.Factory>[1]
-        Type Continuation<Container.Factory>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Container.Factory> = @fn10 interface SuspendTask<Container.Factory>[0]
-        Type SuspendTask<Container.Factory>
-        Local task
-        Type Continuation<Container.Factory>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Container.Factory>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
   fun function_bridge.$Closure$reference0.(Any) -> Any @fn24($source: (Choice<Int>) -> String, arg0: Any) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
@@ -782,28 +993,31 @@ Module
           Type String
           Local $call.1
   coroutine_step cs0 CoroutineStep<Container.Tag> result=Container.Tag
-  coroutine_step cs1 CoroutineStep<Container.Factory> result=Container.Factory
   coroutine_slot cl0 CoroutineSlot<Container.Tag> value=Container.Tag
-  coroutine_slot cl1 CoroutineSlot<Container.Factory> value=Container.Factory
-  coroutine_start ct0 result=Container.Tag function=fn22
-  coroutine_start ct1 result=Container.Factory function=fn23
-  coroutine_fn cf0 @fn10 source_return=Container.Factory step=cs1 immediate
-  coroutine_fn cf1 @fn14 source_return=Container.Tag step=cs0 immediate
-  instance mi0 function=@fn5 <- keep
-  instance mi1 function=@fn6 <- println
-  instance mi2 function=@fn7 <- println
-  instance mi3 function=@fn8 <- Continuation.resume
-  instance mi4 function=@fn9 <- Continuation.resumeWithException
-  instance mi5 function=@fn10 <- SuspendTask.run
-  instance mi6 function=@fn11 <- SuspendRegistration.register
-  instance mi7 function=@fn12 <- Continuation.resume
-  instance mi8 function=@fn13 <- Continuation.resumeWithException
-  instance mi9 function=@fn14 <- SuspendTask.run
-  instance mi10 function=@fn15 <- SuspendRegistration.register
+  coroutine_start ct0 result=Container.Tag function=fn23
+  coroutine_fn cf0 @fn14 source_return=Container.Tag step=cs0 immediate
+  instance mi0 function=@fn3 <- Container.Factory.makeInt
+  instance mi1 function=@fn4 <- keep
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- println
+  instance mi4 function=@fn7 <- $init$body$0
+  instance mi5 function=@fn8 <- $init$ensure$0
+  instance mi6 function=@fn9 <- encode
+  instance mi7 function=@fn10 <- encodeOption
+  instance mi8 function=@fn11 <- encode
+  instance mi9 function=@fn12 <- Continuation.resume
+  instance mi10 function=@fn13 <- Continuation.resumeWithException
+  instance mi11 function=@fn14 <- SuspendTask.run
+  instance mi12 function=@fn15 <- SuspendRegistration.register
+  instance mi13 function=@fn16 <- encodeOption
   str @str0 "value-"
   str @str1 "empty"
   str @str2 "container"
   str @str3 "nested"
   str @str4 "\n"
   str @str5 "\n"
-  output executable @fn2
+  str @str6 "None"
+  str @str7 "Some"
+  str @str8 "None"
+  str @str9 "Some"
+  output executable @fn1

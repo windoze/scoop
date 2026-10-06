@@ -8,10 +8,10 @@ Module
   global6 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   global7 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
   global8 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
-  init0 companion:Box.Factory singleton lazy global0 initializer=@fn21 ensure=@fn22 failure=5 deps=[2]
-  init1 companion:Box.Factory singleton lazy global1 initializer=@fn23 ensure=@fn24 failure=6 deps=[3]
-  init2 companion:Seed.Companion singleton lazy global2 initializer=@fn25 ensure=@fn26 failure=7 deps=[]
-  init3 companion:Seed.Companion singleton lazy global3 initializer=@fn27 ensure=@fn28 failure=8 deps=[]
+  init0 companion:Box.Factory singleton lazy global0 initializer=@fn25 ensure=@fn26 failure=5 deps=[2]
+  init1 companion:Box.Factory singleton lazy global1 initializer=@fn27 ensure=@fn28 failure=6 deps=[3]
+  init2 companion:Seed.Companion singleton lazy global2 initializer=@fn29 ensure=@fn30 failure=7 deps=[]
+  init3 companion:Seed.Companion singleton lazy global3 initializer=@fn31 ensure=@fn32 failure=8 deps=[]
   struct Box<Int> (value: Int)
   struct Box<String> (value: String)
   enum Option<Int>
@@ -35,25 +35,25 @@ Module
   class Defaults vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<Box<Int>> vtable=0 itables=0
-  interface Maker<Int>
-  interface Maker<String>
-  interface ToString
-  interface Hash
   interface Encodable
   interface Encoder
   interface KeyedEncodingContainer
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
+  interface Maker<Int>
+  interface Maker<String>
+  interface ToString
+  interface Hash
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn30 captures=1
-    bridge function_type1 -> @fn44 id=0ea1941fbc21e2db1abea6ac0dcd7b3ebe1f45b1df2b4ecf2707583cd52f6e71
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn32 captures=0
-    bridge function_type1 -> @fn45 id=c6fd8e10ba32418c7382041d789df4341971268a2c80c8e7b03009b383b2c618
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn35 captures=0
-    bridge function_type1 -> @fn46 id=3de99cd265873ea164c40d5ce14a73d953da84b68732670fb55d7a70eadca637
-  closure cc3 $Closure$reference0 type=function_type3 invoke=@fn37 captures=1
-    bridge function_type4 -> @fn47 id=43b922e0108fdce9de670784a349ea58fa48f46394ffc31d003f3e0ee194bcef
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn37 captures=1
+    bridge function_type1 -> @fn52 id=0ea1941fbc21e2db1abea6ac0dcd7b3ebe1f45b1df2b4ecf2707583cd52f6e71
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn40 captures=0
+    bridge function_type1 -> @fn53 id=c6fd8e10ba32418c7382041d789df4341971268a2c80c8e7b03009b383b2c618
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn43 captures=0
+    bridge function_type1 -> @fn54 id=3de99cd265873ea164c40d5ce14a73d953da84b68732670fb55d7a70eadca637
+  closure cc3 $Closure$reference0 type=function_type3 invoke=@fn45 captures=1
+    bridge function_type4 -> @fn55 id=43b922e0108fdce9de670784a349ea58fa48f46394ffc31d003f3e0ee194bcef
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=closure3 nominal_id=ab335926337d1ebe231b7b55aafa5c61a3ce1f332086cf4e325733982dd6e132 exact_id=5099854a3dde25ae9945f518417d1e2f0c7679922af52230352ccdce0ab6111e
@@ -65,10 +65,10 @@ Module
   generated_exact_type get8 location=closure1 nominal_id=7c55647b703d951904d4f6253fe5d2b3dba9621fb00d2cc14c3cfe37e39f3ee3 exact_id=db7ed58aeb6db5196c063ceb4aca1c15f552bed2d9353eee9bd84145d0edd33b
   generated_exact_type get9 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn44 id=0ea1941fbc21e2db1abea6ac0dcd7b3ebe1f45b1df2b4ecf2707583cd52f6e71
-  generated_callable gc1 function=@fn46 id=3de99cd265873ea164c40d5ce14a73d953da84b68732670fb55d7a70eadca637
-  generated_callable gc2 function=@fn47 id=43b922e0108fdce9de670784a349ea58fa48f46394ffc31d003f3e0ee194bcef
-  generated_callable gc3 function=@fn45 id=c6fd8e10ba32418c7382041d789df4341971268a2c80c8e7b03009b383b2c618
+  generated_callable gc0 function=@fn52 id=0ea1941fbc21e2db1abea6ac0dcd7b3ebe1f45b1df2b4ecf2707583cd52f6e71
+  generated_callable gc1 function=@fn54 id=3de99cd265873ea164c40d5ce14a73d953da84b68732670fb55d7a70eadca637
+  generated_callable gc2 function=@fn55 id=43b922e0108fdce9de670784a349ea58fa48f46394ffc31d003f3e0ee194bcef
+  generated_callable gc3 function=@fn53 id=c6fd8e10ba32418c7382041d789df4341971268a2c80c8e7b03009b383b2c618
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -156,7 +156,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn22 direct
+      call @fn26 direct
       val first: Factory<Int>
         Type Factory<Int>
         GlobalRead $singleton$Factory
@@ -199,7 +199,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: Int = @fn4 direct
+      call $dependency.receiver: Int = @fn8 direct
         Type Factory<Int>
         Local first
       val $dependency.argument.0: Int
@@ -216,7 +216,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb7 if.then.7
-      call $dependency.receiver: Int = @fn5 direct
+      call $dependency.receiver: Int = @fn9 direct
         Type Factory<Int>
         Local first
       val $dependency.argument.0: Int
@@ -248,7 +248,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn22 direct
+      call @fn26 direct
       val $dependency.receiver: Factory<Int>
         Type Factory<Int>
         GlobalRead $singleton$Factory
@@ -258,7 +258,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call integer: Box<Int> = @fn2 direct
+      call integer: Box<Int> = @fn4 direct
         Type Factory<Int>
         Local $dependency.receiver
         Type Int
@@ -282,7 +282,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb10 if.then.10
-      call $opt.1: Option<Int> = @fn6 direct
+      call $opt.1: Option<Int> = @fn10 direct
         Type Factory<Int>
         Local first
       branch bb13 bb14
@@ -305,7 +305,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn24 direct
+      call @fn28 direct
       val second: Factory<String>
         Type Factory<String>
         GlobalRead $singleton$Factory
@@ -334,7 +334,7 @@ Module
       assign $new.2
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.2
       throw
@@ -359,7 +359,7 @@ Module
           Local $dependency.parameter.other
       goto bb12
     bb16 if.then.16
-      call $dependency.receiver: Int = @fn7 direct
+      call $dependency.receiver: Int = @fn11 direct
         Type Factory<String>
         Local second
       val $dependency.argument.0: Int
@@ -391,7 +391,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: Int = @fn8 direct
+      call $dependency.receiver: Int = @fn12 direct
         Type Factory<String>
         Local second
       val $dependency.argument.0: Int
@@ -408,7 +408,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb19 if.then.19
-      call $dependency.receiver: Int = @fn9 direct
+      call $dependency.receiver: Int = @fn13 direct
         Type Factory<String>
         Local second
       val $dependency.argument.0: Int
@@ -449,7 +449,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call $call.3: Box<String> = @fn3 direct
+      call $call.3: Box<String> = @fn5 direct
         Type Factory<String>
         Local $dependency.receiver
         Type String
@@ -465,7 +465,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -476,7 +476,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $opt.3: Option<String> = @fn10 direct
+      call $opt.3: Option<String> = @fn14 direct
         Type Factory<String>
         Local second
       branch bb22 bb23
@@ -495,7 +495,7 @@ Module
       assign $new.4
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.4
       throw
@@ -511,7 +511,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.5: Boolean = external3 direct
+      call $call.5: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -520,7 +520,7 @@ Module
         Type Boolean
         Local $call.5
     bb25 if.then.25
-      call $opt.5: Option<Int> = @fn6 direct
+      call $opt.5: Option<Int> = @fn10 direct
         Type Factory<Int>
         Local first
       branch bb28 bb29
@@ -558,7 +558,7 @@ Module
       val $dependency.parameter.second: Int
         Type Int
         Local $dependency.argument.1
-      call pair: (String, Int) = @fn11 direct
+      call pair: (String, Int) = @fn15 direct
         Type Factory<String>
         Local $dependency.receiver
         Type String
@@ -576,7 +576,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.7: Boolean = external3 direct
+      call $call.7: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -595,7 +595,7 @@ Module
       assign $new.6
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.6
       throw
@@ -654,7 +654,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn24 direct
+      call @fn28 direct
       val $place.8: Factory<String>
         Type Factory<String>
         GlobalRead $singleton$Factory
@@ -664,7 +664,7 @@ Module
       val $dependency.parameter._1: String
         Type String
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn16 direct
         Type Factory<String>
         Local $place.8
         Type Option<String>
@@ -674,7 +674,7 @@ Module
       val $dependency.receiver: Factory<String>
         Type Factory<String>
         Local second
-      call $opt.7: Option<String> = @fn10 direct
+      call $opt.7: Option<String> = @fn14 direct
         Type Factory<String>
         Local $dependency.receiver
       branch bb34 bb35
@@ -693,7 +693,7 @@ Module
       assign $new.8
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.8
       throw
@@ -703,7 +703,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $uw.8
-      call $dependency.receiver: String = @fn13 direct
+      call $dependency.receiver: String = @fn17 direct
         Type Factory<String>
         Local $dependency.receiver
         Type String
@@ -714,7 +714,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -734,7 +734,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call captured: () -> String = @fn14 direct
+      call captured: () -> String = @fn18 direct
         Type Factory<String>
         Local $dependency.receiver
         Type String
@@ -749,7 +749,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -760,7 +760,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call $call.9: () -> Int = @fn15 direct
+      call $call.9: () -> Int = @fn19 direct
         Type Factory<Int>
         Local first
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -780,7 +780,7 @@ Module
           Type Int
           Local $dependency.parameter.other
     bb37 if.then.37
-      call $call.10: () -> Int = @fn16 direct
+      call $call.10: () -> Int = @fn20 direct
         Type Factory<String>
         Local second
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -829,7 +829,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.11: Box<Int> = @fn17 interface Maker<Int>[0]
+      call $call.11: Box<Int> = @fn21 interface Maker<Int>[0]
         Type Maker<Int>
         Local $dependency.receiver
         Type Int
@@ -856,7 +856,7 @@ Module
       val $dependency.receiver: Factory<Int>
         Type Factory<Int>
         Local first
-      call $opt.9: Option<Int> = @fn6 direct
+      call $opt.9: Option<Int> = @fn10 direct
         Type Factory<Int>
         Local $dependency.receiver
       branch bb43 bb44
@@ -879,7 +879,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn22 direct
+      call @fn26 direct
       val create: (Int) -> Box<Int>
         Type (Int) -> Box<Int>
         ClosureAlloc cc3 $Closure$reference0
@@ -920,7 +920,7 @@ Module
       assign $new.12
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.12
       throw
@@ -930,7 +930,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $uw.10
-      call $dependency.receiver: Int = @fn18 direct
+      call $dependency.receiver: Int = @fn22 direct
         Type Factory<Int>
         Local $dependency.receiver
         Type Int
@@ -953,7 +953,7 @@ Module
       val $dependency.receiver: Factory<Int>
         Type Factory<Int>
         Local first
-      call $opt.11: Option<Int> = @fn6 direct
+      call $opt.11: Option<Int> = @fn10 direct
         Type Factory<Int>
         Local $dependency.receiver
       branch bb49 bb50
@@ -993,7 +993,7 @@ Module
       assign $new.14
         Type UnwrapException
         ClassAlloc UnwrapException
-      call external10 direct
+      call external19 direct
         Type UnwrapException
         Local $new.14
       throw
@@ -1003,7 +1003,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $uw.12
-      call $dependency.receiver: Int = @fn18 direct
+      call $dependency.receiver: Int = @fn22 direct
         Type Factory<Int>
         Local $dependency.receiver
         Type Int
@@ -1041,7 +1041,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn20 direct
+      call @fn24 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -1055,7 +1055,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call contextual: (String, String) = @fn19 direct
+      call contextual: (String, String) = @fn23 direct
         Type Factory<String>
         Local $dependency.receiver
         Type String
@@ -1071,7 +1071,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $call.15: Boolean = external3 direct
+      call $call.15: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1091,7 +1091,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $shortCircuit.12: Boolean = external3 direct
+      call $shortCircuit.12: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -1125,7 +1125,47 @@ Module
         Type internal<context-mark>
         Local $context_mark.13
       rethrow unwind bb54
-  fun create @fn2(this: Factory<Int>, value: Int) -> Box<Int>
+  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn33 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encode @fn3(this: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn34 direct
+        Type Option<Int>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun create @fn4(this: Factory<Int>, value: Int) -> Box<Int>
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -1133,7 +1173,7 @@ Module
       val $dependency.local.3: Int
         Type Int
         Local $dependency.local.2
-      call @fn29 direct
+      call @fn35 direct
         Type Factory<Int>
         Local this
         Type Option<Int>
@@ -1146,13 +1186,13 @@ Module
       val $dependency.local.5: Int
         Type Int
         Local $dependency.local.4
-      call $call.1: Box<Int> = @fn42 direct
+      call $call.1: Box<Int> = @fn50 direct
         Type Int
         Local $dependency.local.5
       return
         Type Box<Int>
         Local $call.1
-  fun create @fn3(this: Factory<String>, value: String) -> Box<String>
+  fun create @fn5(this: Factory<String>, value: String) -> Box<String>
     bb0 entry
       val $dependency.local.2: String
         Type String
@@ -1160,7 +1200,7 @@ Module
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call @fn12 direct
+      call @fn16 direct
         Type Factory<String>
         Local this
         Type Option<String>
@@ -1173,62 +1213,168 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call $call.1: Box<String> = @fn43 direct
+      call $call.1: Box<String> = @fn51 direct
         Type String
         Local $dependency.local.5
       return
         Type Box<String>
         Local $call.1
-  fun totalAtCreation @fn4(this: Factory<Int>) -> Int
+  fun $tuple.2.encode @fn6(this: (String, Int), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external12 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type (String, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external7 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (String, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external5 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external14 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun $tuple.2.encode @fn7(this: (String, String), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external12 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external7 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external7 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external14 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun totalAtCreation @fn8(this: Factory<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 1
           Type Factory<Int>
           Local this
-  fun bias @fn5(this: Factory<Int>) -> Int
+  fun bias @fn9(this: Factory<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 2
           Type Factory<Int>
           Local this
-  fun cached @fn6(this: Factory<Int>) -> Option<Int>
+  fun cached @fn10(this: Factory<Int>) -> Option<Int>
     bb0 entry
       return
         Type Option<Int>
         FieldAccess 3
           Type Factory<Int>
           Local this
-  fun ordinal @fn7(this: Factory<String>) -> Int
+  fun ordinal @fn11(this: Factory<String>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Factory<String>
           Local this
-  fun totalAtCreation @fn8(this: Factory<String>) -> Int
+  fun totalAtCreation @fn12(this: Factory<String>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 1
           Type Factory<String>
           Local this
-  fun bias @fn9(this: Factory<String>) -> Int
+  fun bias @fn13(this: Factory<String>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 2
           Type Factory<String>
           Local this
-  fun cached @fn10(this: Factory<String>) -> Option<String>
+  fun cached @fn14(this: Factory<String>) -> Option<String>
     bb0 entry
       return
         Type Option<String>
         FieldAccess 3
           Type Factory<String>
           Local this
-  fun pair @fn11(this: Factory<String>, first: String, second: Int) -> (String, Int)
+  fun pair @fn15(this: Factory<String>, first: String, second: Int) -> (String, Int)
     bb0 entry
       return
         Type (String, Int)
@@ -1237,7 +1383,7 @@ Module
           Local first
           Type Int
           Local second
-  fun cached @fn12(this: Factory<String>, value: Option<String>) -> Unit
+  fun cached @fn16(this: Factory<String>, value: Option<String>) -> Unit
     bb0 entry
       field_set 3
         Type Factory<String>
@@ -1245,12 +1391,12 @@ Module
         Type Option<String>
         Local value
       return
-  fun echo @fn13(this: Factory<String>, value: String) -> String
+  fun echo @fn17(this: Factory<String>, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun capture @fn14(this: Factory<String>, value: String) -> () -> String
+  fun capture @fn18(this: Factory<String>, value: String) -> () -> String
     bb0 entry
       return
         Type () -> String
@@ -1258,29 +1404,29 @@ Module
           CaptureInit field=0
             Type String
             Local value
-  fun savedOrdinal @fn15(this: Factory<Int>) -> () -> Int
+  fun savedOrdinal @fn19(this: Factory<Int>) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         FieldAccess 4
           Type Factory<Int>
           Local this
-  fun savedOrdinal @fn16(this: Factory<String>) -> () -> Int
+  fun savedOrdinal @fn20(this: Factory<String>) -> () -> Int
     bb0 entry
       return
         Type () -> Int
         FieldAccess 4
           Type Factory<String>
           Local this
-  fun Maker.create @fn17(this: Maker<Int>, value: Int) -> Box<Int>
+  fun Maker.create @fn21(this: Maker<Int>, value: Int) -> Box<Int>
     bb0 entry
       trap "call to abstract method `Maker.create`"
-  fun echo @fn18(this: Factory<Int>, value: Int) -> Int
+  fun echo @fn22(this: Factory<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun contextual @fn19(this: Factory<String>, value: String) -> (String, String)
+  fun contextual @fn23(this: Factory<String>, value: String) -> (String, String)
     bb0 entry
       val $context_binding.1: internal<context-binding-ref>
         Type internal<context-binding-ref>
@@ -1296,7 +1442,7 @@ Module
       assign $new.1
         Type MissingContextException
         ClassAlloc MissingContextException
-      call external9 direct
+      call external18 direct
         Type MissingContextException
         Local $new.1
         Type Option<String>
@@ -1319,18 +1465,18 @@ Module
           Local $dependency.local.2
           Type String
           Local value
-  fun println @fn20(value: String) -> Unit
+  fun println @fn24(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external4 direct
+      call $dependency.local.2: String = external6 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external5 direct
+      call external8 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1339,247 +1485,27 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external5 direct
+      call external8 direct
         Type String
         Local $dependency.local.5
       return
-  fun Factory$initialize$Initializer @fn21() -> Unit
+  fun Factory$initialize$Initializer @fn25() -> Unit
     bb0 entry
       assign $new.1
         Type Factory<Int>
         ClassAlloc Factory<Int>
-      call @fn38 direct
+      call @fn46 direct
         Type Factory<Int>
         Local $new.1
       global_assign $singleton$Factory
         Type Factory<Int>
         Local $new.1
       return
-  fun Factory$initialize$Ensure @fn22() -> Unit
+  fun Factory$initialize$Ensure @fn26() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Box.Factory
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn21 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init0 companion:Box.Factory
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init0 companion:Box.Factory
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init0 companion:Box.Factory
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init0 companion:Box.Factory
-      call external8 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun Factory$initialize$Initializer @fn23() -> Unit
-    bb0 entry
-      assign $new.1
-        Type Factory<String>
-        ClassAlloc Factory<String>
-      call @fn39 direct
-        Type Factory<String>
-        Local $new.1
-      global_assign $singleton$Factory
-        Type Factory<String>
-        Local $new.1
-      return
-  fun Factory$initialize$Ensure @fn24() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Box.Factory
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(RunInitializer)
-    bb1 if.then.1
-      goto bb11
-    bb2 if.else.2
-      branch bb14 bb15
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Ready)
-    bb3 if.merge.3
-      return
-    bb4 try.unwind.4
-      landing_pad cleanup=false
-      goto bb5
-    bb5 try.dispatch.5
-      begin_catch
-      goto bb12
-    bb6 try.handler_pad.6
-      landing_pad cleanup=true
-      goto bb7
-    bb7 try.handler_cleanup.7
-      end_catch
-      resume
-    bb8 try.exit_pad.8
-      landing_pad cleanup=true
-      goto bb9
-    bb9 try.exit_cleanup.9
-      end_catch
-      resume
-    bb10 try.end.10
-      goto bb3
-    bb11 try.body.11 unwind bb4
-      call @fn23 direct
-      call @scoop_rt_init_succeed direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Box.Factory
-      goto bb10
-    bb12 try.catch.12
-      call $catch.1: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      val $init.caught: Any
-        Type Any
-        Retype Any
-          Type Any
-          Local $catch.1
-      goto bb13
-    bb13 scope.13 unwind bb6
-      call @scoop_rt_init_fail direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Box.Factory
-        Type Any
-        Local $init.caught
-      throw unwind bb6
-        Type Any
-        Local $init.caught
-    bb14 if.then.14
-      goto bb16
-    bb15 if.else.15
-      branch bb17 bb18
-        Type Boolean
-        Binary MachineEq(InitializationOutcome)
-          Type machine<initialization-outcome>
-          Local $init.state
-          Type machine<initialization-outcome>
-          MachineScalarLiteral InitializationOutcome(Failed)
-    bb16 if.merge.16
-      goto bb3
-    bb17 if.then.17
-      call $init.failure: Any = @scoop_rt_init_failure direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Box.Factory
-      throw
-        Type Any
-        Local $init.failure
-    bb18 if.else.18
-      call $init.message: String = @scoop_rt_init_cycle_message direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init1 companion:Box.Factory
-      call external8 direct
-        Type String
-        Local $init.message
-      unreachable
-    bb19 if.merge.19
-      unreachable
-  fun Companion$initialize$Initializer @fn25() -> Unit
-    bb0 entry
-      assign $new.1
-        Type Companion<Int>
-        ClassAlloc Companion<Int>
-      call @fn40 direct
-        Type Companion<Int>
-        Local $new.1
-      global_assign $singleton$Companion
-        Type Companion<Int>
-        Local $new.1
-      return
-  fun Companion$initialize$Ensure @fn26() -> Unit
-    bb0 entry
-      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
-        Type Ptr<Unit>
-        InitializationUnitAddress init2 companion:Seed.Companion
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -1623,6 +1549,226 @@ Module
       call @fn25 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Box.Factory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Box.Factory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Box.Factory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 companion:Box.Factory
+      call external17 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Factory$initialize$Initializer @fn27() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Factory<String>
+        ClassAlloc Factory<String>
+      call @fn47 direct
+        Type Factory<String>
+        Local $new.1
+      global_assign $singleton$Factory
+        Type Factory<String>
+        Local $new.1
+      return
+  fun Factory$initialize$Ensure @fn28() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Box.Factory
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn27 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Box.Factory
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Box.Factory
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Box.Factory
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Box.Factory
+      call external17 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Companion$initialize$Initializer @fn29() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Int>
+        ClassAlloc Companion<Int>
+      call @fn48 direct
+        Type Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Int>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn30() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 companion:Seed.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn29 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
         InitializationUnitAddress init2 companion:Seed.Companion
       goto bb10
     bb12 try.catch.12
@@ -1667,25 +1813,25 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init2 companion:Seed.Companion
-      call external8 direct
+      call external17 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun Companion$initialize$Initializer @fn27() -> Unit
+  fun Companion$initialize$Initializer @fn31() -> Unit
     bb0 entry
       assign $new.1
         Type Companion<String>
         ClassAlloc Companion<String>
-      call @fn41 direct
+      call @fn49 direct
         Type Companion<String>
         Local $new.1
       global_assign $singleton$Companion
         Type Companion<String>
         Local $new.1
       return
-  fun Companion$initialize$Ensure @fn28() -> Unit
+  fun Companion$initialize$Ensure @fn32() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -1730,7 +1876,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn27 direct
+      call @fn31 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Seed.Companion
@@ -1777,13 +1923,231 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init3 companion:Seed.Companion
-      call external8 direct
+      call external17 direct
         Type String
         Local $init.message
       unreachable
     bb19 if.merge.19
       unreachable
-  fun cached @fn29(this: Factory<Int>, value: Option<Int>) -> Unit
+  fun encodeOption @fn33(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str17
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str18
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external12 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external7 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external14 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encodeOption @fn34(value: Option<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str19
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str20
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external12 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external5 direct
+        Type Int
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external14 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun cached @fn35(this: Factory<Int>, value: Option<Int>) -> Unit
     bb0 entry
       field_set 3
         Type Factory<Int>
@@ -1791,21 +2155,150 @@ Module
         Type Option<Int>
         Local value
       return
-  fun $lambda @fn30($argument.0: () -> String) -> String
+  fun encode @fn36(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn38 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun $lambda @fn37($argument.0: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc0 0
           Type () -> String
           Local $argument.0
-  fun ordinal @fn31(this: Companion<Int>) -> Int
+  fun encodeOption @fn38(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str21
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external9 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external11 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str22
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external10 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external12 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external13 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external3 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external14 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun ordinal @fn39(this: Companion<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Companion<Int>
           Local this
-  fun $lambda @fn32($argument.0: () -> Int) -> Int
+  fun $lambda @fn40($argument.0: () -> Int) -> Int
     bb0 entry
       val $dependency.local.0: Int
         Type Int
@@ -1813,11 +2306,11 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local $dependency.local.0
-      call @fn26 direct
-      call $dependency.local.2: Int = @fn31 direct
+      call @fn30 direct
+      call $dependency.local.2: Int = @fn39 direct
         Type Companion<Int>
         GlobalRead $singleton$Companion
-      call $call.1: Int = @fn33 direct
+      call $call.1: Int = @fn41 direct
         Type Int
         Local $dependency.local.1
         Type Int
@@ -1825,19 +2318,19 @@ Module
       return
         Type Int
         Local $call.1
-  fun choose @fn33($argument.0: Int, $argument.1: Int) -> Int
+  fun choose @fn41($argument.0: Int, $argument.1: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $argument.1
-  fun ordinal @fn34(this: Companion<String>) -> Int
+  fun ordinal @fn42(this: Companion<String>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Companion<String>
           Local this
-  fun $lambda @fn35($argument.0: () -> Int) -> Int
+  fun $lambda @fn43($argument.0: () -> Int) -> Int
     bb0 entry
       val $dependency.local.0: Int
         Type Int
@@ -1845,11 +2338,11 @@ Module
       val $dependency.local.1: Int
         Type Int
         Local $dependency.local.0
-      call @fn28 direct
-      call $dependency.local.2: Int = @fn34 direct
+      call @fn32 direct
+      call $dependency.local.2: Int = @fn42 direct
         Type Companion<String>
         GlobalRead $singleton$Companion
-      call $call.1: Int = @fn36 direct
+      call $call.1: Int = @fn44 direct
         Type Int
         Local $dependency.local.1
         Type Int
@@ -1857,14 +2350,14 @@ Module
       return
         Type Int
         Local $call.1
-  fun choose @fn36($argument.0: Int, $argument.1: Int) -> Int
+  fun choose @fn44($argument.0: Int, $argument.1: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $argument.1
-  fun $reference.0 @fn37($closure: (Int) -> Box<Int>, arg0: Int) -> Box<Int>
+  fun $reference.0 @fn45($closure: (Int) -> Box<Int>, arg0: Int) -> Box<Int>
     bb0 entry
-      call $call.1: Box<Int> = @fn2 direct
+      call $call.1: Box<Int> = @fn4 direct
         Type Factory<Int>
         ClosureCapture cc3 0
           Type (Int) -> Box<Int>
@@ -1874,10 +2367,10 @@ Module
       return
         Type Box<Int>
         Local $call.1
-  fun init.Factory.$c0 @fn38(this: Factory<Int>) -> Unit
+  fun init.Factory.$c0 @fn46(this: Factory<Int>) -> Unit
     bb0 entry
-      call @fn26 direct
-      call $call.1: Int = @fn31 direct
+      call @fn30 direct
+      call $call.1: Int = @fn39 direct
         Type Companion<Int>
         GlobalRead $singleton$Companion
       field_set 0
@@ -1891,8 +2384,8 @@ Module
         Local this
         Type Int
         Local $call.2
-      call external11 direct
-      call $call.3: Int = external6 direct
+      call external20 direct
+      call $call.3: Int = external15 direct
         Type Defaults
         GlobalRead $singleton$8953d77144abf0c475bb319566f1b42b4756aae6f2d39cf4864610bef26dac9a
       field_set 2
@@ -1911,10 +2404,10 @@ Module
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
       return
-  fun init.Factory.$c0 @fn39(this: Factory<String>) -> Unit
+  fun init.Factory.$c0 @fn47(this: Factory<String>) -> Unit
     bb0 entry
-      call @fn28 direct
-      call $call.1: Int = @fn34 direct
+      call @fn32 direct
+      call $call.1: Int = @fn42 direct
         Type Companion<String>
         GlobalRead $singleton$Companion
       field_set 0
@@ -1928,8 +2421,8 @@ Module
         Local this
         Type Int
         Local $call.2
-      call external11 direct
-      call $call.3: Int = external6 direct
+      call external20 direct
+      call $call.3: Int = external15 direct
         Type Defaults
         GlobalRead $singleton$8953d77144abf0c475bb319566f1b42b4756aae6f2d39cf4864610bef26dac9a
       field_set 2
@@ -1948,39 +2441,39 @@ Module
         Type () -> Int
         ClosureAlloc cc2 $Closure$lambda2
       return
-  fun init.Companion.$c2 @fn40(this: Companion<Int>) -> Unit
+  fun init.Companion.$c2 @fn48(this: Companion<Int>) -> Unit
     bb0 entry
-      call $call.1: Int = external7 direct
+      call $call.1: Int = external16 direct
       field_set 0
         Type Companion<Int>
         Local this
         Type Int
         Local $call.1
       return
-  fun init.Companion.$c2 @fn41(this: Companion<String>) -> Unit
+  fun init.Companion.$c2 @fn49(this: Companion<String>) -> Unit
     bb0 entry
-      call $call.1: Int = external7 direct
+      call $call.1: Int = external16 direct
       field_set 0
         Type Companion<String>
         Local this
         Type Int
         Local $call.1
       return
-  fun ctor.Box.$c1 @fn42(value: Int) -> Box<Int> <no-gc>
+  fun ctor.Box.$c1 @fn50(value: Int) -> Box<Int> <no-gc>
     bb0 entry
       return
         Type Box<Int>
         StructInit Box<Int>
           Type Int
           Local value
-  fun ctor.Box.$c1 @fn43(value: String) -> Box<String> <no-gc>
+  fun ctor.Box.$c1 @fn51(value: String) -> Box<String> <no-gc>
     bb0 entry
       return
         Type Box<String>
         StructInit Box<String>
           Type String
           Local value
-  fun function_bridge.$Closure$lambda0.() -> Any @fn44($source: () -> String) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn52($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type2> closure[function_type2]
         Type () -> String
@@ -1990,7 +2483,7 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn45($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn53($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -2000,7 +2493,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn46($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn54($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -2010,7 +2503,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn47($source: (Int) -> Box<Int>, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn55($source: (Int) -> Box<Int>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Box<Int> = <closure:function_type3> closure[function_type3]
         Type (Int) -> Box<Int>
@@ -2024,41 +2517,47 @@ Module
         Box
           Type Box<Int>
           Local $call.1
-  instance mi0 function=@fn2 <- create
-  instance mi1 function=@fn3 <- create
-  instance mi2 function=@fn4 <- totalAtCreation
-  instance mi3 function=@fn5 <- bias
-  instance mi4 function=@fn6 <- cached
-  instance mi5 function=@fn7 <- ordinal
-  instance mi6 function=@fn8 <- totalAtCreation
-  instance mi7 function=@fn9 <- bias
-  instance mi8 function=@fn10 <- cached
-  instance mi9 function=@fn11 <- pair
-  instance mi10 function=@fn12 <- cached
-  instance mi11 function=@fn13 <- echo
-  instance mi12 function=@fn14 <- capture
-  instance mi13 function=@fn15 <- savedOrdinal
-  instance mi14 function=@fn16 <- savedOrdinal
-  instance mi15 function=@fn17 <- Maker.create
-  instance mi16 function=@fn18 <- echo
-  instance mi17 function=@fn19 <- contextual
-  instance mi18 function=@fn20 <- println
-  instance mi19 function=@fn21 <- Factory$initialize$Initializer
-  instance mi20 function=@fn22 <- Factory$initialize$Ensure
-  instance mi21 function=@fn23 <- Factory$initialize$Initializer
-  instance mi22 function=@fn24 <- Factory$initialize$Ensure
-  instance mi23 function=@fn25 <- Companion$initialize$Initializer
-  instance mi24 function=@fn26 <- Companion$initialize$Ensure
-  instance mi25 function=@fn27 <- Companion$initialize$Initializer
-  instance mi26 function=@fn28 <- Companion$initialize$Ensure
-  instance mi27 function=@fn29 <- cached
-  instance mi28 function=@fn30 <- $lambda
-  instance mi29 function=@fn31 <- ordinal
-  instance mi30 function=@fn32 <- $lambda
-  instance mi31 function=@fn33 <- choose
-  instance mi32 function=@fn34 <- ordinal
-  instance mi33 function=@fn35 <- $lambda
-  instance mi34 function=@fn36 <- choose
+  instance mi0 function=@fn2 <- encode
+  instance mi1 function=@fn3 <- encode
+  instance mi2 function=@fn4 <- create
+  instance mi3 function=@fn5 <- create
+  instance mi4 function=@fn8 <- totalAtCreation
+  instance mi5 function=@fn9 <- bias
+  instance mi6 function=@fn10 <- cached
+  instance mi7 function=@fn11 <- ordinal
+  instance mi8 function=@fn12 <- totalAtCreation
+  instance mi9 function=@fn13 <- bias
+  instance mi10 function=@fn14 <- cached
+  instance mi11 function=@fn15 <- pair
+  instance mi12 function=@fn16 <- cached
+  instance mi13 function=@fn17 <- echo
+  instance mi14 function=@fn18 <- capture
+  instance mi15 function=@fn19 <- savedOrdinal
+  instance mi16 function=@fn20 <- savedOrdinal
+  instance mi17 function=@fn21 <- Maker.create
+  instance mi18 function=@fn22 <- echo
+  instance mi19 function=@fn23 <- contextual
+  instance mi20 function=@fn24 <- println
+  instance mi21 function=@fn25 <- Factory$initialize$Initializer
+  instance mi22 function=@fn26 <- Factory$initialize$Ensure
+  instance mi23 function=@fn27 <- Factory$initialize$Initializer
+  instance mi24 function=@fn28 <- Factory$initialize$Ensure
+  instance mi25 function=@fn29 <- Companion$initialize$Initializer
+  instance mi26 function=@fn30 <- Companion$initialize$Ensure
+  instance mi27 function=@fn31 <- Companion$initialize$Initializer
+  instance mi28 function=@fn32 <- Companion$initialize$Ensure
+  instance mi29 function=@fn33 <- encodeOption
+  instance mi30 function=@fn34 <- encodeOption
+  instance mi31 function=@fn35 <- cached
+  instance mi32 function=@fn36 <- encode
+  instance mi33 function=@fn37 <- $lambda
+  instance mi34 function=@fn38 <- encodeOption
+  instance mi35 function=@fn39 <- ordinal
+  instance mi36 function=@fn40 <- $lambda
+  instance mi37 function=@fn41 <- choose
+  instance mi38 function=@fn42 <- ordinal
+  instance mi39 function=@fn43 <- $lambda
+  instance mi40 function=@fn44 <- choose
   str @str0 "companion artifact assertion failed"
   str @str1 "text"
   str @str2 "text"
@@ -2076,4 +2575,10 @@ Module
   str @str14 "artifacts-ok"
   str @str15 "missing context Box.Factory.contextual.prefix: String"
   str @str16 "\n"
+  str @str17 "None"
+  str @str18 "Some"
+  str @str19 "None"
+  str @str20 "Some"
+  str @str21 "None"
+  str @str22 "Some"
   output executable @fn1

@@ -5,6 +5,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum AccessChoice<Int>
     Present(value: Int)
   enum AccessChoice<String>
@@ -15,6 +18,15 @@ Module
   class AccessCell<Int> vtable=0 itables=0
   class AccessRegistry vtable=0 itables=0
   class AccessCell<String> vtable=0 itables=0
+  interface Encodable
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -72,7 +84,7 @@ Module
       assign $new.1
         Type AccessCell<Int>
         ClassAlloc AccessCell<Int>
-      call @fn8 direct
+      call @fn14 direct
         Type AccessCell<Int>
         Local $new.1
         Type Int
@@ -97,7 +109,7 @@ Module
       val $default.local.4: Int
         Type Int
         Local $default.local.3
-      call $dependency.parameter.packet: AccessPacket<Int> = @fn10 direct
+      call $dependency.parameter.packet: AccessPacket<Int> = @fn16 direct
         Type Int
         Local $default.local.4
       val $dependency.parameter.field: Int
@@ -117,12 +129,12 @@ Module
         FieldAccess 0
           Type (Int, Int)
           Local $dependency.parameter.pair
-      call external5 direct
+      call external14 direct
       val $dependency.parameter.singleton: AccessRegistry
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
       call $default.local.8: Int = external1 direct
-      call external5 direct
+      call external14 direct
       call $default.local.9: Int = external2 direct
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
@@ -136,7 +148,7 @@ Module
           Local $default.local.8
           Type Int
           Local $default.local.10
-      call $dependency.receiver: Int = @fn2 direct
+      call $dependency.receiver: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.seed
         Type AccessCell<Int>
@@ -189,7 +201,7 @@ Module
       assign $new.2
         Type AccessCell<String>
         ClassAlloc AccessCell<String>
-      call @fn9 direct
+      call @fn15 direct
         Type AccessCell<String>
         Local $new.2
         Type String
@@ -214,7 +226,7 @@ Module
       val $default.local.4: String
         Type String
         Local $default.local.3
-      call $dependency.parameter.packet: AccessPacket<String> = @fn11 direct
+      call $dependency.parameter.packet: AccessPacket<String> = @fn17 direct
         Type String
         Local $default.local.4
       val $dependency.parameter.field: String
@@ -234,12 +246,12 @@ Module
         FieldAccess 0
           Type (String, String)
           Local $dependency.parameter.pair
-      call external5 direct
+      call external14 direct
       val $dependency.parameter.singleton: AccessRegistry
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
       call $default.local.8: Int = external1 direct
-      call external5 direct
+      call external14 direct
       call $default.local.9: Int = external2 direct
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
@@ -253,7 +265,7 @@ Module
           Local $default.local.8
           Type Int
           Local $default.local.10
-      call $dependency.receiver: String = @fn3 direct
+      call $dependency.receiver: String = @fn6 direct
         Type String
         Local $dependency.parameter.seed
         Type AccessCell<String>
@@ -278,7 +290,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -298,7 +310,7 @@ Module
       val $dependency.parameter.first: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.1: AccessPacket<Int> = @fn10 direct
+      call $dependency.argument.1: AccessPacket<Int> = @fn16 direct
         Type Int
         Local $dependency.parameter.first
       val $dependency.parameter.seed: Int
@@ -313,7 +325,7 @@ Module
       assign $new.3
         Type AccessCell<Int>
         ClassAlloc AccessCell<Int>
-      call @fn8 direct
+      call @fn14 direct
         Type AccessCell<Int>
         Local $new.3
         Type Int
@@ -352,12 +364,12 @@ Module
         FieldAccess 0
           Type (Int, Int)
           Local $dependency.parameter.pair
-      call external5 direct
+      call external14 direct
       val $dependency.parameter.singleton: AccessRegistry
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
       call $default.local.8: Int = external1 direct
-      call external5 direct
+      call external14 direct
       call $default.local.9: Int = external2 direct
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
@@ -371,7 +383,7 @@ Module
           Local $default.local.8
           Type Int
           Local $default.local.10
-      call $dependency.receiver: Int = @fn2 direct
+      call $dependency.receiver: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.seed
         Type AccessCell<Int>
@@ -418,7 +430,7 @@ Module
       assign $new.4
         Type AccessCell<Int>
         ClassAlloc AccessCell<Int>
-      call @fn8 direct
+      call @fn14 direct
         Type AccessCell<Int>
         Local $new.4
         Type Int
@@ -426,10 +438,10 @@ Module
       val $dependency.receiver: AccessCell<Int>
         Type AccessCell<Int>
         Local $new.4
-      call $dependency.parameter.value: Int = @fn4 direct
+      call $dependency.parameter.value: Int = @fn7 direct
         Type AccessCell<Int>
         Local $dependency.receiver
-      call $dependency.receiver: Int = @fn5 direct
+      call $dependency.receiver: Int = @fn8 direct
         Type AccessCell<Int>
         Local $dependency.receiver
         Type Int
@@ -462,7 +474,7 @@ Module
       assign $new.5
         Type AccessCell<String>
         ClassAlloc AccessCell<String>
-      call @fn9 direct
+      call @fn15 direct
         Type AccessCell<String>
         Local $new.5
         Type String
@@ -470,10 +482,10 @@ Module
       val $dependency.receiver: AccessCell<String>
         Type AccessCell<String>
         Local $new.5
-      call $dependency.parameter.value: String = @fn6 direct
+      call $dependency.parameter.value: String = @fn9 direct
         Type AccessCell<String>
         Local $dependency.receiver
-      call $dependency.receiver: String = @fn7 direct
+      call $dependency.receiver: String = @fn10 direct
         Type AccessCell<String>
         Local $dependency.receiver
         Type String
@@ -484,7 +496,7 @@ Module
       val $dependency.parameter.other: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = external3 direct
+      call $argument.0: Boolean = external4 direct
         Type String
         Local $dependency.receiver
         Type String
@@ -495,7 +507,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call external5 direct
+      call external14 direct
       call $dependency.receiver: Int = external2 direct
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
@@ -518,7 +530,7 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call external4 direct
+      call external5 direct
         Type Int
         IntegerLiteral Int value=17 bits=0x00000011
       val $dependency.argument.0: Int
@@ -536,7 +548,7 @@ Module
       assign $new.6
         Type AccessCell<Int>
         ClassAlloc AccessCell<Int>
-      call @fn8 direct
+      call @fn14 direct
         Type AccessCell<Int>
         Local $new.6
         Type Int
@@ -561,7 +573,7 @@ Module
       val $default.local.4: Int
         Type Int
         Local $default.local.3
-      call $dependency.parameter.packet: AccessPacket<Int> = @fn10 direct
+      call $dependency.parameter.packet: AccessPacket<Int> = @fn16 direct
         Type Int
         Local $default.local.4
       val $dependency.parameter.field: Int
@@ -581,12 +593,12 @@ Module
         FieldAccess 0
           Type (Int, Int)
           Local $dependency.parameter.pair
-      call external5 direct
+      call external14 direct
       val $dependency.parameter.singleton: AccessRegistry
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
       call $default.local.8: Int = external1 direct
-      call external5 direct
+      call external14 direct
       call $default.local.9: Int = external2 direct
         Type AccessRegistry
         GlobalRead $singleton$6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992
@@ -600,7 +612,7 @@ Module
           Local $default.local.8
           Type Int
           Local $default.local.10
-      call $dependency.receiver: Int = @fn2 direct
+      call $dependency.receiver: Int = @fn5 direct
         Type Int
         Local $dependency.parameter.seed
         Type AccessCell<Int>
@@ -639,41 +651,405 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun accessValues @fn2(seed: Int, cell: AccessCell<Int>, choice: AccessChoice<Int>, packet: AccessPacket<Int>, field: Int, pair: (Int, Int), tuple: Int, singleton: AccessRegistry, sum: Int) -> Int
+  fun encode @fn2(this: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<String>
+        Type Option<String>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<String>
+        Type Option<String>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn11 direct
+        Type Option<String>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun $tuple.2.encode @fn3(this: (Int, Int), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external11 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external11 direct
+        Type Int
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external13 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun $tuple.2.encode @fn4(this: (String, String), encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local encoder
+      call __encoding_elements: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external12 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (String, String)
+          Local this
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call $dependency.argument.0: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.0
+      call external12 direct
+        Type String
+        Local $dependency.receiver
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __encoding_elements
+      call external13 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun accessValues @fn5(seed: Int, cell: AccessCell<Int>, choice: AccessChoice<Int>, packet: AccessPacket<Int>, field: Int, pair: (Int, Int), tuple: Int, singleton: AccessRegistry, sum: Int) -> Int
     bb0 entry
       return
         Type Int
         Local field
-  fun accessValues @fn3(seed: String, cell: AccessCell<String>, choice: AccessChoice<String>, packet: AccessPacket<String>, field: String, pair: (String, String), tuple: String, singleton: AccessRegistry, sum: Int) -> String
+  fun accessValues @fn6(seed: String, cell: AccessCell<String>, choice: AccessChoice<String>, packet: AccessPacket<String>, field: String, pair: (String, String), tuple: String, singleton: AccessRegistry, sum: Int) -> String
     bb0 entry
       return
         Type String
         Local field
-  fun stored @fn4(this: AccessCell<Int>) -> Int
+  fun stored @fn7(this: AccessCell<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type AccessCell<Int>
           Local this
-  fun read @fn5(this: AccessCell<Int>, value: Int) -> Int
+  fun read @fn8(this: AccessCell<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun stored @fn6(this: AccessCell<String>) -> String
+  fun stored @fn9(this: AccessCell<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type AccessCell<String>
           Local this
-  fun read @fn7(this: AccessCell<String>, value: String) -> String
+  fun read @fn10(this: AccessCell<String>, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun init.AccessCell.$c0 @fn8(this: AccessCell<Int>, stored: Int) -> Unit
+  fun encodeOption @fn11(value: Option<String>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str5
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str6
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: String
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external12 direct
+        Type String
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external13 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun encode @fn12(this: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.2: Option<Char>
+        Type Option<Char>
+        Local this
+      val $dependency.local.3: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.4: Option<Char>
+        Type Option<Char>
+        Local $dependency.local.2
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local $dependency.local.3
+      call @fn13 direct
+        Type Option<Char>
+        Local $dependency.local.4
+        Type Encoder
+        Local $dependency.local.5
+      return
+  fun encodeOption @fn13(value: Option<Char>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.2: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.5
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local value
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.6: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.7: String
+        Type String
+        StringConst @str7
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.7
+      call $dependency.local.9: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.8
+      call $dependency.local.10: KeyedEncodingContainer = external6 interface Encoder[0]
+        Type Encoder
+        Local $dependency.local.9
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.10
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.local.20: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      call external8 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.local.20
+      return
+    bb4 pattern.pass.4
+      val $dependency.local.3: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.3
+      val $dependency.local.11: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local $dependency.local.2
+      val $dependency.local.12: String
+        Type String
+        StringConst @str8
+      val $dependency.local.13: String
+        Type String
+        Local $dependency.local.12
+      call $dependency.local.14: Encoder = external7 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.local.11
+        Type String
+        Local $dependency.local.13
+      call $dependency.local.4: UnkeyedEncodingContainer = external9 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.14
+      val $dependency.local.16: Char
+        Type Char
+        Local $dependency.local.3
+      val $dependency.local.15: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call $dependency.local.17: Encoder = external10 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.15
+      val $dependency.local.18: Encoder
+        Type Encoder
+        Local $dependency.local.17
+      call external3 direct
+        Type Char
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.18
+      val $dependency.local.19: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.4
+      call external13 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.19
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun init.AccessCell.$c0 @fn14(this: AccessCell<Int>, stored: Int) -> Unit
     bb0 entry
       field_set 0
         Type AccessCell<Int>
@@ -681,7 +1057,7 @@ Module
         Type Int
         Local stored
       return
-  fun init.AccessCell.$c0 @fn9(this: AccessCell<String>, stored: String) -> Unit
+  fun init.AccessCell.$c0 @fn15(this: AccessCell<String>, stored: String) -> Unit
     bb0 entry
       field_set 0
         Type AccessCell<String>
@@ -689,29 +1065,37 @@ Module
         Type String
         Local stored
       return
-  fun ctor.AccessPacket.$c1 @fn10(first: Int) -> AccessPacket<Int> <no-gc>
+  fun ctor.AccessPacket.$c1 @fn16(first: Int) -> AccessPacket<Int> <no-gc>
     bb0 entry
       return
         Type AccessPacket<Int>
         StructInit AccessPacket<Int>
           Type Int
           Local first
-  fun ctor.AccessPacket.$c1 @fn11(first: String) -> AccessPacket<String> <no-gc>
+  fun ctor.AccessPacket.$c1 @fn17(first: String) -> AccessPacket<String> <no-gc>
     bb0 entry
       return
         Type AccessPacket<String>
         StructInit AccessPacket<String>
           Type String
           Local first
-  instance mi0 function=@fn2 <- accessValues
-  instance mi1 function=@fn3 <- accessValues
-  instance mi2 function=@fn4 <- stored
-  instance mi3 function=@fn5 <- read
-  instance mi4 function=@fn6 <- stored
-  instance mi5 function=@fn7 <- read
+  instance mi0 function=@fn2 <- encode
+  instance mi1 function=@fn5 <- accessValues
+  instance mi2 function=@fn6 <- accessValues
+  instance mi3 function=@fn7 <- stored
+  instance mi4 function=@fn8 <- read
+  instance mi5 function=@fn9 <- stored
+  instance mi6 function=@fn10 <- read
+  instance mi7 function=@fn11 <- encodeOption
+  instance mi8 function=@fn12 <- encode
+  instance mi9 function=@fn13 <- encodeOption
   str @str0 "illegal state"
   str @str1 "value"
   str @str2 "value"
   str @str3 "cell"
   str @str4 "cell"
+  str @str5 "None"
+  str @str6 "Some"
+  str @str7 "None"
+  str @str8 "Some"
   output executable @fn1
