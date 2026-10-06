@@ -32,8 +32,11 @@ HIR 的 877 项与 slib 的 601 项单测通过，另有 1 项正式 accessor �
 测试重建工具影响运行；被重建干扰的失败运行不计作通过。
 
 报告保存在 /tmp，已清理本批完成的两个工作目录，分别回收 98.5 MiB 与 805.4 MiB；
-CLI 副本和 M28 worktree 保留。Linux glibc/musl 的本批验收及其余 M29 fixture 的新
-协议迁移继续实施，本节不表示整个 M29 完成。
+CLI 副本和 M28 worktree 保留。实现提交为 `7ed18fd36`；nuc12 随后构建固定 CLI，
+glibc/musl 各通过同样 36 个 fixture（各 64 个进程、16 份 golden），并以不更新
+快照的模式复验通过。共有 HIR/MIR 与 macOS 一致，保存了两目标各 5 份 LIR。
+已保存 Linux 报告并分别清理 416.5/415.5 MiB 的工作目录，保留 musl worktree。
+其余 M29 fixture 的新协议迁移和整体正式验收继续，本节不表示整个 M29 完成。
 
 ## 2026-10-06：显式 codec 协议与核心库迁移
 
