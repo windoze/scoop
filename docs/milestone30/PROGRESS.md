@@ -106,3 +106,11 @@ Darwin 格式化、workspace clippy 和 release CLI 构建通过。artifact fixt
 在 nuc12 的 x86_64 上，M30 全部 55 个文件 fixture 完成集中验证。glibc 为 54 项通过、1 项按平台不适用，55 个变体、119 个进程、67 份 golden；musl 为 55 项全部通过，56 个变体、129 个进程、71 份 golden。包括 musl 静态与动态 artifact 链接、跨 Cone 的派生 codec／annotation／ODR、debug 与 release 严格舍入，以及普通／移动 GC 的实际运行。
 
 补齐各目标的 LIR 快照；共有 HIR 的差异经逐字节比较确认只涉及 imported identity 临时编号，以及 core 新增 codec 后常量定义的源码区间位移，所有变化区间的原始源码内容保持相同。正式全仓库验收与旧测试适配另行记录，未重复运行 Linux 的无关全量用例。
+
+## F3：Rust 全仓库回归与测试数据迁移
+
+本机执行一次 `cargo test --workspace --no-fail-fast`，保留其成功结果，随后只复验受影响目标。5352 项 Rust 测试最终全部通过，无忽略项。测试采用 dev/test `opt-level=1`，保留 debug assertions 与溢出检查，以缩短完整核心库的重复编译时间。
+
+修复测试专用核心库的浮点声明位置，使其与合成源码的零长度位置一致，并保留 intrinsic struct 的省略表示；更新新增 alias／extern 后的完整 HIR 期望、核心实体计数、格式 tag 和兼容指纹。GC 的 C 测试子集链接真实浮点环境实现，按平台丢弃未使用的 formatter 并在 Linux 链接 libm。没有放宽生产验证或快照断言。
+
+定向复验通过 codegen 317 项、HIR 877 项、HIR lowering 1375 项、slib 602 项，以及 driver 原先失败的 4 项；GC 链接参数最终调整后，其 11 项 runtime collector 测试再次通过。格式化和 workspace clippy 通过；正式文件 runner 的 38 项公共规则单元测试也通过。CLI 全量及其快照迁移继续进行。

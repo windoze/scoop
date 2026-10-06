@@ -40,7 +40,7 @@ pub(super) fn check(
         objects += 1;
     }
     // Include scalar companions and the independent UnitEncoder/UnitDecoder objects.
-    assert_eq!(objects, if name.ends_with("combined") { 16 } else { 15 });
+    assert_eq!(objects, if name.ends_with("combined") { 18 } else { 17 });
     for object in section.object_values().records() {
         let remaining = mir::CanonicalMirObjectValuesV1::try_new(
             section

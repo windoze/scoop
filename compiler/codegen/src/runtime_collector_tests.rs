@@ -11,6 +11,19 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
+fn runtime_link_flags() -> &'static [&'static str] {
+    if cfg!(target_os = "macos") {
+        &["-Wl,-dead_strip"]
+    } else {
+        &[
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-Wl,--gc-sections",
+            "-lm",
+        ]
+    }
+}
+
 fn compile_and_run(
     workspace: &Path,
     test_name: &str,
@@ -33,6 +46,8 @@ fn compile_and_run(
             "-fno-omit-frame-pointer",
             "-fno-optimize-sibling-calls",
         ])
+        .arg("-I")
+        .arg(workspace.join("runtime/third_party/ryu"))
         .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
@@ -61,6 +76,8 @@ fn compile_and_run(
         "runtime/src/gc/stackmap/records.c",
         "runtime/src/gc/stack_roots.c",
         "runtime/src/thread.c",
+        // Discard unused formatter entries in this collector-only runtime subset.
+        "runtime/src/floating.c",
         "runtime/src/thread/collection.c",
         "runtime/src/thread/debug.c",
         "runtime/src/thread/roots.c",
@@ -73,6 +90,7 @@ fn compile_and_run(
         compile.arg(workspace.join(source));
     }
     let compile_output = compile
+        .args(runtime_link_flags())
         .arg("-o")
         .arg(&binary)
         .output()
@@ -225,14 +243,18 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
+        .arg(workspace.join("runtime/third_party/ryu"))
+        .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))
+        .arg(workspace.join("runtime/src/floating.c"))
         .arg(workspace.join("runtime/src/thread/collection.c"))
         .arg(workspace.join("runtime/src/thread/transitions.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
         .arg(workspace.join(native_os_source()))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
         .arg(workspace.join("runtime/tests/initialization_coordinator_test.c"))
+        .args(runtime_link_flags())
         .arg("-o")
         .arg(&binary)
         .output()

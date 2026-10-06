@@ -66,7 +66,7 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
             hir::ClassRepresentation::Declared => continue,
         }
     }
-    assert_eq!(expected.len(), 16);
+    assert_eq!(expected.len(), 18);
 
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();

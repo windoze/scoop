@@ -4,7 +4,7 @@ use scoop_wire::{decode_canonical, encode};
 #[test]
 fn intrinsic_function_roles_have_a_closed_canonical_wire_identity() {
     let kinds = intrinsic_function_kinds();
-    assert_eq!(kinds.len(), INTRINSIC_REGISTRY.len() + 204);
+    assert_eq!(kinds.len(), INTRINSIC_REGISTRY.len() + 268);
     assert!(kinds.windows(2).all(|pair| pair[0] < pair[1]));
 
     for kind in kinds {

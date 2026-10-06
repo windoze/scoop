@@ -196,8 +196,8 @@ fn pattern_decoder_rejects_unknown_tags_and_variant_shapes() {
     );
 
     let error =
-        decode_canonical::<DecodedDefaultLiteralEqualityV1>(&[0xa1, 0x00, 0x04]).unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 4 });
+        decode_canonical::<DecodedDefaultLiteralEqualityV1>(&[0xa1, 0x00, 0x05]).unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 }
 
 struct RawStructPattern {
