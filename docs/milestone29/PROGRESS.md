@@ -3,6 +3,18 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：List 编码的显式元素依赖
+
+List 的普通 encoder 保存 Encodable<T>，通过三参数 encodeList 编码逻辑元素；
+数组、可变数组和 ArrayList 均以 List 视图显式传入。运行用例保留逆序 iterator、
+嵌套 List、元素异常与访问次数，并验证泛型函数引用携带元素 codec、跨 Cone
+消费与删除源码后的链接。负例改为缺少显式 codec 参数的精确诊断。
+
+macOS 三项正式 fixture 在普通模式下全部通过，执行 13 个进程、检查 7 份 golden；
+格式化与 workspace clippy 已通过。报告归档到
+`/tmp/scoop-m29-saved-reports/m29-list-codecs-darwin.json`，清理了 194.5 MiB
+工作目录。Linux 目标快照与最终完整验收仍需随后完成。
+
 ## 2026-10-06：Unit 与显式 codec 的组合验收
 
 Unit fixture 改用 UnitEncoder，泛型数据取消实例编码 bound，通过普通 codec 的
