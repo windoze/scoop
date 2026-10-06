@@ -3,6 +3,17 @@
 以 `a727ac93c` 为实现基线，在 `codex/m29` 逐功能提交。目标及完成门以
 [设计](DESIGN.md) 和三份当前 spec 为准；只在实际通过验收后记录完成。
 
+## 2026-10-06：编码执行时的 Context 解析
+
+新增独立组合 fixture：在 Context 外创建持有元素 codec 的 generic ItemEncoder，
+其 tuple/Array 字段在执行时通过该依赖编码。分别验证嵌套 Context 的当前值、退出
+后的恢复、缺少 Context 的异常，以及元素异常后的再次编码；普通和 moving GC
+运行均通过。没有为 codec 保存 Context 快照或新增初始化机制。
+
+macOS 正式用例在普通模式下通过，共 5 个进程、3 份 stage golden；格式化和
+workspace clippy 通过。源码 41 行，报告归档到 /tmp 后清理完成目录。两个 Linux
+目标和全体 M29 的统一复验随后进行。
+
 ## 2026-10-06：解码与 companion 编码的组合复验
 
 record、class 和 enum 的 round-trip 用例显式使用同一 companion 的两个接口，

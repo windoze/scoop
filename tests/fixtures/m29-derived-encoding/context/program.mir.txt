@@ -1,0 +1,5777 @@
+Module
+  global0 $singleton$Contextual: Contextual managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Companion: Companion<Int> managed initial=zeroed-for-runtime-unit
+  global2 $singleton$084dce1061546480d414f0e784b877e7b0a86f5ea92899946ac0c582c71fe504: Companion imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=d3fe97594dacdfc6152caa8910564318ae43b1abfd37e48f1ba87d4a4aed7e7b
+  global3 $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8: Json imported provider=38b48d480954af57c7a81599af88e9a85c7412edc6f5ad9c608a6c884705cf18 storage=026945f606bf54daf4171a1ecb8b4384e089880c55f3eb80fb1b8fa8a5fad2ad
+  global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual singleton lazy global0 initializer=@fn3 ensure=@fn4 failure=4 deps=[]
+  init1 companion:Array.Companion singleton lazy global1 initializer=@fn47 ensure=@fn48 failure=5 deps=[]
+  struct Item<Int> (pair: (Int, Array<Int>))
+  struct JsonMember (name: String, value: JsonValue)
+  enum Option<JsonMember>
+    Some(_0: JsonMember)
+    None()
+  enum JsonValue
+    Null()
+    BooleanValue(_0: Boolean)
+    Number(_0: String)
+    Text(_0: String)
+    Record(_0: ArrayList<JsonMember>)
+    Sequence(_0: ArrayList<JsonValue>)
+  enum Option<JsonValue>
+    Some(_0: JsonValue)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Decoder>
+    Some(_0: Decoder)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Option<JsonMember>>
+    Some(_0: Option<JsonMember>)
+    None()
+  enum Option<Option<JsonValue>>
+    Some(_0: Option<JsonValue>)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class EncodeState vtable=0 itables=0
+  class Contextual vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Companion vtable=0 itables=2
+  class MissingContextException vtable=0 itables=0
+  class ItemEncoder<Int> vtable=0 itables=1
+  class Json vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  class ListIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class EncodeFunction<(Int, Array<Int>)> vtable=0 itables=1
+  class JsonEncoder vtable=0 itables=2
+  class ArrayList<JsonMember> vtable=0 itables=3
+  class ArrayList<JsonValue> vtable=0 itables=3
+  class Companion<Int> vtable=0 itables=0
+  class ListIterator<Option<JsonMember>> vtable=0 itables=1
+  class ListIterator<JsonMember> vtable=0 itables=1
+  class UnwrapException vtable=0 itables=0
+  class ListIterator<Option<JsonValue>> vtable=0 itables=1
+  class ListIterator<JsonValue> vtable=0 itables=1
+  class ArrayEncoder<Int> vtable=0 itables=1
+  class box<Long> vtable=0 itables=0
+  class box<Option<JsonValue>> vtable=0 itables=0
+  class box<Option<JsonMember>> vtable=0 itables=0
+  class box<(Int, Array<Int>)> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Encodable<Int>
+  interface Encoder
+  interface KeyedEncodingContainer
+  interface UnkeyedEncodingContainer
+  interface SingleValueEncodingContainer
+  interface Decodable<Int>
+  interface Decoder
+  interface KeyedDecodingContainer
+  interface List<String> : Iterable<String>
+  interface Iterable<String>
+  interface Iterator<String>
+  interface UnkeyedDecodingContainer
+  interface SingleValueDecodingContainer
+  interface List<Int> : Iterable<Int>
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Encodable<Item<Int>>
+  interface Encodable<(Int, Array<Int>)>
+  interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
+  interface Iterable<Option<JsonMember>>
+  interface Iterator<Option<JsonMember>>
+  interface MutableList<JsonMember> : List<JsonMember>
+  interface List<JsonMember> : Iterable<JsonMember>
+  interface Iterable<JsonMember>
+  interface Iterator<JsonMember>
+  interface List<Option<JsonValue>> : Iterable<Option<JsonValue>>
+  interface Iterable<Option<JsonValue>>
+  interface Iterator<Option<JsonValue>>
+  interface MutableList<JsonValue> : List<JsonValue>
+  interface List<JsonValue> : Iterable<JsonValue>
+  interface Iterable<JsonValue>
+  interface Iterator<JsonValue>
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Encodable<Array<Int>>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn83 id=e30dcc4b5306fb8008bed126a2a9af2284e877248a4c5018b7cf4042978ac5df
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn84 id=1e9c76037a9e6ffb7627d65dbb13f48d3015ca93d3437c885cca1c78e27b14ae
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn16 captures=1
+    bridge function_type3 -> @fn85 id=1895e7e05a1737f8b600c866f8d663bd57064357c6d64be03736dcc8a8e19e05
+  closure cc3 $Closure$lambda3 type=function_type4 invoke=@fn62 captures=3
+    bridge function_type1 -> @fn86 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
+  closure cc4 $Closure$lambda4 type=function_type5 invoke=@fn67 captures=3
+    bridge function_type1 -> @fn87 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure2 nominal_id=d0b1202a6e6501c0d879da32113bbe971f17e501cbbfb17aa86a41bb050fb7f7 exact_id=146cf38aed7a9b5818f0d65896b4ee64bb5b8e709ce75d28a08a78c8b60aa5e3
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=closure4 nominal_id=d2e01d81d71cf66bb767b547709ecd720eae0ec08aae77cd9f0f814e53fa68e0 exact_id=3df168e2bc26886559f4c1974c91899685242b3742bf3fb01a7890c1c8299fc1
+  generated_exact_type get4 location=class29 nominal_id=cb1fc730e25434cc970f306434e84c0d40b7f8eb774a65bf52ffb909e205c9f8 exact_id=3eb988d2eb182975bf9f36fd2a8f4afb8e0e5805e8040e0489e6689fc4a9497f
+  generated_exact_type get5 location=class30 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=closure3 nominal_id=89c59f2b3368459439480a55080f093cfabf561510567e8941cefb774a2c3d82 exact_id=51e5a8ca184c2a21572483066e3b3305c82220145aa916d7b99be050d1a0513e
+  generated_exact_type get8 location=closure0 nominal_id=63ec694760b1ed90aab86a6823b6b2aa3109e014c2ee4959d7374bc4b81d0892 exact_id=62135728da654f9bc88b47d35b168268ea810d745546d50f7ed0413aecd6c8c6
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=closure1 nominal_id=53861f35de7559b923e38e2d68d35d027ff22d2e614f466c2dd1c2906d080b63 exact_id=8f12b3bb38f692e1580e6f8efd3e2e9dc5b20299a810915586f166bc9adc1ecf
+  generated_exact_type get11 location=class27 nominal_id=ef3df60b062be59d8b40fac4e05462aa4b76921392b57e0ba4f120c872372a77 exact_id=ac709f337081c79069896cdb1493927789c4ea66d50bc61f5a3a39aec65bbca5
+  generated_exact_type get12 location=class28 nominal_id=cc6eedc14ddcf549ef580d33b45ee4afac3123de41b8125fcb3b9f6ed9f1bce4 exact_id=af0f7ba8c0fbb316703e3ae51c254064a1236c691d463ba8405493261033a466
+  generated_exact_type get13 location=class31 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get15 location=class26 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn85 id=1895e7e05a1737f8b600c866f8d663bd57064357c6d64be03736dcc8a8e19e05
+  generated_callable gc1 function=@fn84 id=1e9c76037a9e6ffb7627d65dbb13f48d3015ca93d3437c885cca1c78e27b14ae
+  generated_callable gc2 function=@fn87 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
+  generated_callable gc3 function=@fn86 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
+  generated_callable gc4 function=@fn83 id=e30dcc4b5306fb8008bed126a2a9af2284e877248a4c5018b7cf4042978ac5df
+  fun Contextual.encode @fn0(this: Contextual, value: Int, encoder: Encoder) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Encoder
+        Type Encoder
+        Local encoder
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.encoder: Encoder
+        Type Encoder
+        Local $argument.1
+      call @fn2 direct
+        Type Int
+        Local $parameter.value
+        Type Encoder
+        Local $parameter.encoder
+      return
+  fun check @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun contextualValue @fn2(value: Int, encoder: Encoder) -> Unit
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet dfd931fce533a640cfde16b197612d332683decd58b585c61157a297eb2d52aa
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external28 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str1
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val state: EncodeState
+        Type EncodeState
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb5 if.merge.5
+      call external31 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$084dce1061546480d414f0e784b877e7b0a86f5ea92899946ac0c582c71fe504
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type EncodeState
+          Local state
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call external2 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      return
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Contextual
+        ClassAlloc Contextual
+      call @fn72 direct
+        Type Contextual
+        Local $new.1
+      global_assign $singleton$Contextual
+        Type Contextual
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.m29:derived-context:0.1.0/src/main.scoop:Contextual
+      call external27 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun main @fn5() -> Unit
+    bb0 entry
+      call @fn4 direct
+      val $argument.0: Encodable<Int>
+        Type Encodable<Int>
+        Retype Encodable<Int>
+          Type Contextual
+          GlobalRead $singleton$Contextual
+      val $parameter.element: Encodable<Int>
+        Type Encodable<Int>
+        Local $argument.0
+      assign $new.1
+        Type ItemEncoder<Int>
+        ClassAlloc ItemEncoder<Int>
+      call @fn73 direct
+        Type ItemEncoder<Int>
+        Local $new.1
+        Type Encodable<Int>
+        Local $parameter.element
+      val codec: ItemEncoder<Int>
+        Type ItemEncoder<Int>
+        Local $new.1
+      val $aggregate.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.1: (Long) -> Int
+        Type (Long) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.size: Long
+        Type Long
+        Local $argument.0
+      val $parameter.init: (Long) -> Int
+        Type (Long) -> Int
+        Local $argument.1
+      val $array_size.1: Long
+        Type Long
+        Local $parameter.size
+      val $array_init.2: (Long) -> Int
+        Type (Long) -> Int
+        Local $parameter.init
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.2
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external30 direct
+        Type IllegalArgumentException
+        Local $new.2
+      throw
+        Type IllegalArgumentException
+        Local $new.2
+    bb2 if.merge.2
+      val $array.3: Array<Int>
+        Type Array<Int>
+        ArrayAllocate Array<Int>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb4 while.exit.4
+      val $aggregate.1: Array<Int>
+        Type Array<Int>
+        Local $array.3
+      val $argument.0: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        TupleLiteral
+          Type Int
+          Local $aggregate.0
+          Type Array<Int>
+          Local $aggregate.1
+      val $parameter.pair: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        Local $argument.0
+      call value: Item<Int> = @fn82 direct
+        Type (Int, Array<Int>)
+        Local $parameter.pair
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.offset: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type EncodeState
+        ClassAlloc EncodeState
+      call @fn71 direct
+        Type EncodeState
+        Local $new.3
+        Type Int
+        Local $parameter.offset
+      val $context_mark.6: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush dfd931fce533a640cfde16b197612d332683decd58b585c61157a297eb2d52aa
+          Type EncodeState
+          Local $new.3
+      goto bb11
+    bb5 while.body.5
+      call $array_value.5: Int = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Int
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set Array<Int>
+        Type Array<Int>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Int
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+    bb6 try.unwind.6
+      landing_pad cleanup=false
+      goto bb7
+    bb7 try.dispatch.7
+      begin_catch
+      goto bb21
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb29
+    bb11 try.body.11 unwind bb6
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external12 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $parameter.offset: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type EncodeState
+        ClassAlloc EncodeState
+      call @fn71 direct
+        Type EncodeState
+        Local $new.4
+        Type Int
+        Local $parameter.offset
+      val $context_mark.7: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush dfd931fce533a640cfde16b197612d332683decd58b585c61157a297eb2d52aa
+          Type EncodeState
+          Local $new.4
+      goto bb17
+    bb12 try.unwind.12 unwind bb6
+      landing_pad cleanup=false
+      goto bb13
+    bb13 try.dispatch.13 unwind bb6
+      begin_catch
+      goto bb19
+    bb14 try.exit_pad.14 unwind bb6
+      landing_pad cleanup=false
+      goto bb15
+    bb15 try.exit_cleanup.15 unwind bb6
+      end_catch
+      goto bb7
+    bb16 try.end.16 unwind bb6
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external12 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb20
+    bb17 try.body.17 unwind bb12
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external12 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb18
+    bb18 scope.18 unwind bb6
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.7
+      goto bb16
+    bb19 scope.19 unwind bb14
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.7
+      rethrow unwind bb14
+    bb20 scope.20
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.6
+      goto bb10
+    bb21 scope.21 unwind bb8
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.6
+      rethrow unwind bb8
+    bb22 try.unwind.22
+      landing_pad cleanup=false
+      goto bb23
+    bb23 try.dispatch.23
+      begin_catch
+      branch bb30 bb31
+        Type Boolean
+        IsInstance MissingContextException
+          Type Any
+          CaughtException
+    bb24 try.handler_pad.24
+      landing_pad cleanup=true
+      goto bb25
+    bb25 try.handler_cleanup.25
+      end_catch
+      resume
+    bb26 try.exit_pad.26
+      landing_pad cleanup=true
+      goto bb27
+    bb27 try.exit_cleanup.27
+      end_catch
+      resume
+    bb28 try.end.28
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.offset: Int
+        Type Int
+        Local $argument.0
+      assign $new.7
+        Type EncodeState
+        ClassAlloc EncodeState
+      call @fn71 direct
+        Type EncodeState
+        Local $new.7
+        Type Int
+        Local $parameter.offset
+      val $context_mark.8: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush dfd931fce533a640cfde16b197612d332683decd58b585c61157a297eb2d52aa
+          Type EncodeState
+          Local $new.7
+      goto bb39
+    bb29 try.body.29 unwind bb22
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $call.5: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb28
+    bb30 try.catch.30
+      call $catch.6: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: MissingContextException
+        Type MissingContextException
+        Retype MissingContextException
+          Type Any
+          Local $catch.6
+      goto bb32
+    bb31 try.next.31
+      rethrow unwind bb26
+    bb32 scope.32 unwind bb24
+      end_catch
+      goto bb33
+    bb33 scope.33
+      goto bb28
+    bb34 try.unwind.34
+      landing_pad cleanup=false
+      goto bb35
+    bb35 try.dispatch.35
+      begin_catch
+      goto bb58
+    bb36 try.exit_pad.36
+      landing_pad cleanup=true
+      goto bb37
+    bb37 try.exit_cleanup.37
+      end_catch
+      resume
+    bb38 try.end.38
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb39 try.body.39 unwind bb34
+      val $aggregate.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.1: (Long) -> Int
+        Type (Long) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.size: Long
+        Type Long
+        Local $argument.0
+      val $parameter.init: (Long) -> Int
+        Type (Long) -> Int
+        Local $argument.1
+      val $array_size.9: Long
+        Type Long
+        Local $parameter.size
+      val $array_init.10: (Long) -> Int
+        Type (Long) -> Int
+        Local $parameter.init
+      branch bb40 bb41
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb40 if.then.40 unwind bb34
+      assign $new.8
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external30 direct
+        Type IllegalArgumentException
+        Local $new.8
+      throw unwind bb34
+        Type IllegalArgumentException
+        Local $new.8
+    bb41 if.merge.41 unwind bb34
+      val $array.11: Array<Int>
+        Type Array<Int>
+        ArrayAllocate Array<Int>
+          Type Long
+          Local $array_size.9
+      var $array_index.12: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb42
+    bb42 while.cond.42 <loop-header-poll> unwind bb34
+      branch bb44 bb43
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.12
+          Type Long
+          Local $array_size.9
+    bb43 while.exit.43 unwind bb34
+      val $aggregate.1: Array<Int>
+        Type Array<Int>
+        Local $array.11
+      val $argument.0: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        TupleLiteral
+          Type Int
+          Local $aggregate.0
+          Type Array<Int>
+          Local $aggregate.1
+      val $parameter.pair: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        Local $argument.0
+      call failing: Item<Int> = @fn82 direct
+        Type (Int, Array<Int>)
+        Local $parameter.pair
+      goto bb52
+    bb44 while.body.44 unwind bb34
+      call $array_value.13: Int = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Int
+        Local $array_init.10
+        Type Long
+        Local $array_index.12
+      array_set Array<Int>
+        Type Array<Int>
+        Local $array.11
+        Type Long
+        Local $array_index.12
+        Type Int
+        Local $array_value.13
+      assign $array_index.12
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.12
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb42
+    bb45 try.unwind.45 unwind bb34
+      landing_pad cleanup=false
+      goto bb46
+    bb46 try.dispatch.46 unwind bb34
+      begin_catch
+      branch bb53 bb54
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb47 try.handler_pad.47 unwind bb34
+      landing_pad cleanup=false
+      goto bb48
+    bb48 try.handler_cleanup.48 unwind bb34
+      end_catch
+      goto bb35
+    bb49 try.exit_pad.49 unwind bb34
+      landing_pad cleanup=false
+      goto bb50
+    bb50 try.exit_cleanup.50 unwind bb34
+      end_catch
+      goto bb35
+    bb51 try.end.51 unwind bb34
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $dependency.receiver: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external12 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb57
+    bb52 try.body.52 unwind bb45
+      call external32 direct
+      val $dependency.receiver: Json
+        Type Json
+        GlobalRead $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8
+      val $dependency.argument.0: Item<Int>
+        Type Item<Int>
+        Local failing
+      val $dependency.argument.1: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Retype Encodable<Item<Int>>
+          Type ItemEncoder<Int>
+          Local codec
+      val $dependency.parameter.value: Item<Int>
+        Type Item<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.codec: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local $dependency.argument.1
+      call $call.9: String = @fn11 direct
+        Type Json
+        Local $dependency.receiver
+        Type Item<Int>
+        Local $dependency.parameter.value
+        Type Encodable<Item<Int>>
+        Local $dependency.parameter.codec
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb51
+    bb53 try.catch.53 unwind bb34
+      call $catch.10: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.10
+      goto bb55
+    bb54 try.next.54
+      rethrow unwind bb49
+    bb55 scope.55 unwind bb47
+      call $equality.lhs: Option<String> = external13 direct
+        Type Exception
+        Retype Exception
+          Type IllegalStateException
+          Local error
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn13 direct
+        Type Option<String>
+        Local $equality.lhs
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      end_catch
+      goto bb56
+    bb56 scope.56 unwind bb34
+      goto bb51
+    bb57 scope.57
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.8
+      goto bb38
+    bb58 scope.58 unwind bb36
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.8
+      rethrow unwind bb36
+  fun iterator @fn6(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn74 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ListIterator<Int>
+          Local $new.1
+  fun get @fn7(this: Array<Int>, index: Long) -> Int
+    bb0 entry
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn8(this: Array<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun ItemEncoder.encode @fn9(this: ItemEncoder<Int>, value: Item<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val __coding_value: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local __coding_value
+      call __coding_value: KeyedEncodingContainer = external14 interface Encoder[0]
+        Type Encoder
+        Local $dependency.receiver
+      val __coding_value: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        FieldAccess 0
+          Type Item<Int>
+          Local value
+      val __coding_value: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local __coding_value
+      val __coding_argument_0: String
+        Type String
+        StringConst @str9
+      val $dependency.receiver: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local __coding_value
+      val $dependency.argument.0: String
+        Type String
+        Local __coding_argument_0
+      val $dependency.parameter.name: String
+        Type String
+        Local $dependency.argument.0
+      call __coding_value: Encoder = external15 interface KeyedEncodingContainer[0]
+        Type KeyedEncodingContainer
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.name
+      val __coding_argument_0: ((Int, Array<Int>), Encoder) -> Unit
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type ItemEncoder<Int>
+            Local this
+      val $dependency.argument.0: ((Int, Array<Int>), Encoder) -> Unit
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        Local __coding_argument_0
+      val $dependency.parameter.body: ((Int, Array<Int>), Encoder) -> Unit
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        Local $dependency.argument.0
+      assign $new.1
+        Type EncodeFunction<(Int, Array<Int>)>
+        ClassAlloc EncodeFunction<(Int, Array<Int>)>
+      call @fn75 direct
+        Type EncodeFunction<(Int, Array<Int>)>
+        Local $new.1
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        Local $dependency.parameter.body
+      val __coding_value: Encodable<(Int, Array<Int>)>
+        Type Encodable<(Int, Array<Int>)>
+        Retype Encodable<(Int, Array<Int>)>
+          Type EncodeFunction<(Int, Array<Int>)>
+          Local $new.1
+      val __coding_argument_0: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        Local __coding_value
+      val __coding_argument_1: Encoder
+        Type Encoder
+        Local __coding_value
+      val $dependency.receiver: Encodable<(Int, Array<Int>)>
+        Type Encodable<(Int, Array<Int>)>
+        Local __coding_value
+      val $dependency.argument.0: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        Local __coding_argument_0
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local __coding_argument_1
+      val $dependency.parameter.value: (Int, Array<Int>)
+        Type (Int, Array<Int>)
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call @fn18 interface Encodable<(Int, Array<Int>)>[0]
+        Type Encodable<(Int, Array<Int>)>
+        Local $dependency.receiver
+        Type (Int, Array<Int>)
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val __coding_value: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local __coding_value
+      val $dependency.receiver: KeyedEncodingContainer
+        Type KeyedEncodingContainer
+        Local __coding_value
+      call external19 interface KeyedEncodingContainer[1]
+        Type KeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun $lambda.0 @fn10($closure: (Long) -> Int, index: Long) -> Int
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun encode @fn11(this: Json, value: Item<Int>, codec: Encodable<Item<Int>>) -> String
+    bb0 entry
+      val $dependency.local.4: String
+        Type String
+        StringConst @str10
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      assign $new.1
+        Type JsonEncoder
+        ClassAlloc JsonEncoder
+      call external20 direct
+        Type JsonEncoder
+        Local $new.1
+        Type String
+        Local $dependency.local.5
+      val $dependency.local.3: JsonEncoder
+        Type JsonEncoder
+        Local $new.1
+      val $dependency.local.6: Encodable<Item<Int>>
+        Type Encodable<Item<Int>>
+        Local codec
+      val $dependency.local.7: Item<Int>
+        Type Item<Int>
+        Local value
+      val $dependency.local.8: Encoder
+        Type Encoder
+        Retype Encoder
+          Type JsonEncoder
+          Local $dependency.local.3
+      val $dependency.local.9: Item<Int>
+        Type Item<Int>
+        Local $dependency.local.7
+      val $dependency.local.10: Encoder
+        Type Encoder
+        Local $dependency.local.8
+      call @fn41 interface Encodable<Item<Int>>[0]
+        Type Encodable<Item<Int>>
+        Local $dependency.local.6
+        Type Item<Int>
+        Local $dependency.local.9
+        Type Encoder
+        Local $dependency.local.10
+      val $dependency.local.11: JsonEncoder
+        Type JsonEncoder
+        Local $dependency.local.3
+      call $dependency.local.12: JsonValue = external21 direct
+        Type JsonEncoder
+        Local $dependency.local.11
+      val $dependency.local.13: JsonValue
+        Type JsonValue
+        Local $dependency.local.12
+      call $call.2: String = external22 direct
+        Type JsonValue
+        Local $dependency.local.13
+      return
+        Type String
+        Local $call.2
+  fun $lambda.1 @fn12($closure: (Long) -> Int, index: Long) -> Int
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local index
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun $derived.equals.0 @fn13(this: Option<String>, other: Option<String>) -> Boolean
+    bb0 entry
+      val $when.1: Option<String>
+        Type Option<String>
+        Local this
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.2
+      val $when.3: Option<String>
+        Type Option<String>
+        Local other
+      val $pattern.subject.4: Option<String>
+        Type Option<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.4
+      call $call.1: Boolean = external12 direct
+        Type String
+        Local $left.0.0
+        Type String
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<String>
+        Type Option<String>
+        Local other
+      val $pattern.subject.7: Option<String>
+        Type Option<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun println @fn14(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external24 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external25 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str11
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external25 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn15(this: ListIterator<Int>) -> Option<Int>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      call $dependency.local.3: Long = @fn42 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Int = @fn43 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun $lambda.2 @fn16($closure: ((Int, Array<Int>), Encoder) -> Unit, __codec_argument_0: (Int, Array<Int>), __codec_argument_1: Encoder) -> Unit
+    bb0 entry
+      val __coding_value: Encoder
+        Type Encoder
+        Local __codec_argument_1
+      val $dependency.receiver: Encoder
+        Type Encoder
+        Local __coding_value
+      call __coding_value: UnkeyedEncodingContainer = external16 interface Encoder[1]
+        Type Encoder
+        Local $dependency.receiver
+      val __coding_value: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Array<Int>)
+          Local __codec_argument_0
+      val __coding_value: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      call __coding_value: Encoder = external17 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      val __coding_value: Encodable<Int>
+        Type Encodable<Int>
+        FieldAccess 0
+          Type ItemEncoder<Int>
+          ClosureCapture cc2 0
+            Type ((Int, Array<Int>), Encoder) -> Unit
+            Local $closure
+      val __coding_argument_0: Int
+        Type Int
+        Local __coding_value
+      val __coding_argument_1: Encoder
+        Type Encoder
+        Local __coding_value
+      val $dependency.receiver: Encodable<Int>
+        Type Encodable<Int>
+        Local __coding_value
+      val $dependency.argument.0: Int
+        Type Int
+        Local __coding_argument_0
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local __coding_argument_1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call @fn44 interface Encodable<Int>[0]
+        Type Encodable<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val __coding_value: Array<Int>
+        Type Array<Int>
+        FieldAccess 1
+          Type (Int, Array<Int>)
+          Local __codec_argument_0
+      val __coding_value: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      call __coding_value: Encoder = external17 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      call @fn48 direct
+      val __coding_value: Companion<Int>
+        Type Companion<Int>
+        GlobalRead $singleton$Companion
+      val __coding_value: Companion<Int>
+        Type Companion<Int>
+        Local __coding_value
+      val __coding_argument_0: Encodable<Int>
+        Type Encodable<Int>
+        FieldAccess 0
+          Type ItemEncoder<Int>
+          ClosureCapture cc2 0
+            Type ((Int, Array<Int>), Encoder) -> Unit
+            Local $closure
+      val $dependency.receiver: Companion<Int>
+        Type Companion<Int>
+        Local __coding_value
+      val $dependency.argument.0: Encodable<Int>
+        Type Encodable<Int>
+        Local __coding_argument_0
+      val $dependency.parameter.element: Encodable<Int>
+        Type Encodable<Int>
+        Local $dependency.argument.0
+      call __coding_value: Encodable<Array<Int>> = @fn45 direct
+        Type Companion<Int>
+        Local $dependency.receiver
+        Type Encodable<Int>
+        Local $dependency.parameter.element
+      val __coding_argument_0: Array<Int>
+        Type Array<Int>
+        Local __coding_value
+      val __coding_argument_1: Encoder
+        Type Encoder
+        Local __coding_value
+      val $dependency.receiver: Encodable<Array<Int>>
+        Type Encodable<Array<Int>>
+        Local __coding_value
+      val $dependency.argument.0: Array<Int>
+        Type Array<Int>
+        Local __coding_argument_0
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local __coding_argument_1
+      val $dependency.parameter.value: Array<Int>
+        Type Array<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call @fn46 interface Encodable<Array<Int>>[0]
+        Type Encodable<Array<Int>>
+        Local $dependency.receiver
+        Type Array<Int>
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      val __coding_value: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      val $dependency.receiver: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local __coding_value
+      call external18 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.receiver
+      return
+  fun encode @fn17(this: EncodeFunction<(Int, Array<Int>)>, value: (Int, Array<Int>), encoder: Encoder) -> Unit
+    bb0 entry
+      call <closure:function_type2> closure[function_type2]
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        FieldAccess 0
+          Type EncodeFunction<(Int, Array<Int>)>
+          Local this
+        Type (Int, Array<Int>)
+        Local value
+        Type Encoder
+        Local encoder
+      return
+  fun Encodable.encode @fn18(this: Encodable<(Int, Array<Int>)>, value: (Int, Array<Int>), encoder: Encoder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Encodable.encode`"
+  fun iterator @fn19(this: MutableArray<Option<JsonMember>>) -> Iterator<Option<JsonMember>>
+    bb0 entry
+      val $dependency.local.1: List<Option<JsonMember>>
+        Type List<Option<JsonMember>>
+        Retype List<Option<JsonMember>>
+          Type MutableArray<Option<JsonMember>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Option<JsonMember>>
+        Type List<Option<JsonMember>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Option<JsonMember>>
+        ClassAlloc ListIterator<Option<JsonMember>>
+      call @fn76 direct
+        Type ListIterator<Option<JsonMember>>
+        Local $new.1
+        Type List<Option<JsonMember>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Option<JsonMember>>
+        Retype Iterator<Option<JsonMember>>
+          Type ListIterator<Option<JsonMember>>
+          Local $new.1
+  fun get @fn20(this: MutableArray<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Option<JsonMember>
+        ArrayGet MutableArray<Option<JsonMember>>
+          Type MutableArray<Option<JsonMember>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn21(this: MutableArray<Option<JsonMember>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Option<JsonMember>>
+          Type MutableArray<Option<JsonMember>>
+          Local $dependency.local.1
+  fun iterator @fn22(this: ArrayList<JsonMember>) -> Iterator<JsonMember>
+    bb0 entry
+      val $dependency.local.1: List<JsonMember>
+        Type List<JsonMember>
+        Retype List<JsonMember>
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<JsonMember>
+        Type List<JsonMember>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<JsonMember>
+        ClassAlloc ListIterator<JsonMember>
+      call @fn77 direct
+        Type ListIterator<JsonMember>
+        Local $new.1
+        Type List<JsonMember>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<JsonMember>
+        Retype Iterator<JsonMember>
+          Type ListIterator<JsonMember>
+          Local $new.1
+  fun get @fn23(this: ArrayList<JsonMember>, index: Long) -> JsonMember
+    bb0 entry
+      val $dependency.local.2: ArrayList<JsonMember>
+        Type ArrayList<JsonMember>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      call @fn51 direct
+        Type ArrayList<JsonMember>
+        Local $dependency.local.2
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.5: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $opt.1: Option<JsonMember> = @fn20 direct
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<JsonMember> v0
+          Type Option<JsonMember>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: JsonMember
+        Type JsonMember
+        VariantPayloadProject Option<JsonMember> v0 f0
+          Type Option<JsonMember>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external29 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type JsonMember
+        Local $uw.2
+  fun size @fn24(this: ArrayList<JsonMember>) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+  fun set @fn25(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
+    bb0 entry
+      val $dependency.local.3: ArrayList<JsonMember>
+        Type ArrayList<JsonMember>
+        Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      call @fn51 direct
+        Type ArrayList<JsonMember>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
+      val $dependency.local.8: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.6: JsonMember
+        Type JsonMember
+        Local value
+      val $dependency.local.7: JsonMember
+        Type JsonMember
+        Local $dependency.local.6
+      val $dependency.local.10: Option<JsonMember>
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v0
+          Type JsonMember
+          Local $dependency.local.7
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.9
+      val $dependency.local.12: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.10
+      val $arr.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.8
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.11
+      val $value.3: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.12
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonMember>
+        Local $value.3
+      return
+  fun add @fn26(this: ArrayList<JsonMember>, value: JsonMember) -> Unit
+    bb0 entry
+      val $dependency.local.2: ArrayList<JsonMember>
+        Type ArrayList<JsonMember>
+        Local this
+      call @fn52 direct
+        Type ArrayList<JsonMember>
+        Local $dependency.local.2
+      val $dependency.local.5: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.3: JsonMember
+        Type JsonMember
+        Local value
+      val $dependency.local.4: JsonMember
+        Type JsonMember
+        Local $dependency.local.3
+      val $dependency.local.7: Option<JsonMember>
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v0
+          Type JsonMember
+          Local $dependency.local.4
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.9
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonMember>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      field_set 1
+        Type ArrayList<JsonMember>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      return
+  fun add @fn27(this: ArrayList<JsonMember>, index: Long, value: JsonMember) -> Unit
+    bb0 entry
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.4
+            Type Long
+            Local $dependency.local.6
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.7: Long
+        Type Long
+        Local index
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.10: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.7
+            Type Long
+            Local $dependency.local.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.10
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      val $dependency.local.11: ArrayList<JsonMember>
+        Type ArrayList<JsonMember>
+        Local this
+      call @fn52 direct
+        Type ArrayList<JsonMember>
+        Local $dependency.local.11
+      var $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.13: Long
+        Type Long
+        Local index
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.12
+            Type Long
+            Local $dependency.local.14
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      val $dependency.local.31: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local index
+      val $dependency.local.29: JsonMember
+        Type JsonMember
+        Local value
+      val $dependency.local.30: JsonMember
+        Type JsonMember
+        Local $dependency.local.29
+      val $dependency.local.33: Option<JsonMember>
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v0
+          Type JsonMember
+          Local $dependency.local.30
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.33
+      val $arr.4: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.31
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.6: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.35
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 while.body.8
+      val $dependency.local.21: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.18: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      val $dependency.local.19: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.15
+          Type Long
+          Local $dependency.local.17
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      call $dependency.local.23: Option<JsonMember> = @fn20 direct
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.18
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.23
+      val $arr.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.21
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.24
+      val $value.3: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.25
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb9 logic.rhs.9
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.1
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.2
+    bb12 if.then.12
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb13 if.merge.13
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonMember>
+        Local $value.3
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.27: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.27
+      assign $dependency.local.3
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.26
+          Type Long
+          Local $dependency.local.28
+      goto bb6
+    bb14 logic.rhs.14
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.4
+      goto bb16
+    bb15 logic.short.15
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb16 logic.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $logic.4
+    bb17 if.then.17
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb18 if.merge.18
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type Option<JsonMember>
+        Local $value.6
+      val $dependency.local.36: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.37: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.38: Long
+        Type Long
+        Local $dependency.local.37
+      field_set 1
+        Type ArrayList<JsonMember>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
+      return
+  fun removeAt @fn28(this: ArrayList<JsonMember>, index: Long) -> JsonMember
+    bb0 entry
+      val $dependency.local.5: ArrayList<JsonMember>
+        Type ArrayList<JsonMember>
+        Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call @fn51 direct
+        Type ArrayList<JsonMember>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      call $opt.1: Option<JsonMember> = @fn20 direct
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.8
+        Type Long
+        Local $dependency.local.10
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<JsonMember> v0
+          Type Option<JsonMember>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: JsonMember
+        Type JsonMember
+        VariantPayloadProject Option<JsonMember> v0 f0
+          Type Option<JsonMember>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external29 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $dependency.local.2: JsonMember
+        Type JsonMember
+        Local $uw.2
+      val $dependency.local.11: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.12: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.12
+      val $dependency.local.3: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.11
+          Type Long
+          Local $dependency.local.13
+      var $dependency.local.4: Long
+        Type Long
+        Local index
+      goto bb4
+    bb4 while.cond.4 <loop-header-poll>
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.15
+      branch bb6 bb5
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.14
+            Type Long
+            Local $dependency.local.16
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 while.exit.5
+      val $dependency.local.31: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.33: Option<JsonMember>
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v1
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.33
+      val $arr.6: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.31
+      val $idx.7: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.8: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.35
+      branch bb13 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb6 while.body.6
+      val $dependency.local.23: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.20: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.18: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.18
+      val $dependency.local.21: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.17
+          Type Long
+          Local $dependency.local.19
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.21
+      call $dependency.local.25: Option<JsonMember> = @fn20 direct
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.20
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.24
+      val $dependency.local.27: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.25
+      val $arr.3: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.23
+      val $idx.4: Long
+        Type Long
+        Local $dependency.local.26
+      val $value.5: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.27
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 logic.rhs.7
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.3
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.2
+    bb10 if.then.10
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb11 if.merge.11
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.3
+        Type Long
+        Local $idx.4
+        Type Option<JsonMember>
+        Local $value.5
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.29: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.30: Long
+        Type Long
+        Local $dependency.local.29
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.28
+          Type Long
+          Local $dependency.local.30
+      goto bb4
+    bb12 logic.rhs.12
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.6
+      goto bb14
+    bb13 logic.short.13
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb14 logic.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $logic.4
+    bb15 if.then.15
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb16 if.merge.16
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.6
+        Type Long
+        Local $idx.7
+        Type Option<JsonMember>
+        Local $value.8
+      field_set 1
+        Type ArrayList<JsonMember>
+        Local this
+        Type Long
+        Local $dependency.local.3
+      return
+        Type JsonMember
+        Local $dependency.local.2
+  fun clear @fn29(this: ArrayList<JsonMember>) -> Unit
+    bb0 entry
+      var $dependency.local.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.2: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      field_set 1
+        Type ArrayList<JsonMember>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb3 while.body.3
+      val $dependency.local.5: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.7: Option<JsonMember>
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v1
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.9
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonMember>>
+            Type MutableArray<Option<JsonMember>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonMember>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      assign $dependency.local.1
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      goto bb1
+  fun iterator @fn30(this: MutableArray<Option<JsonValue>>) -> Iterator<Option<JsonValue>>
+    bb0 entry
+      val $dependency.local.1: List<Option<JsonValue>>
+        Type List<Option<JsonValue>>
+        Retype List<Option<JsonValue>>
+          Type MutableArray<Option<JsonValue>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Option<JsonValue>>
+        Type List<Option<JsonValue>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Option<JsonValue>>
+        ClassAlloc ListIterator<Option<JsonValue>>
+      call @fn78 direct
+        Type ListIterator<Option<JsonValue>>
+        Local $new.1
+        Type List<Option<JsonValue>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Option<JsonValue>>
+        Retype Iterator<Option<JsonValue>>
+          Type ListIterator<Option<JsonValue>>
+          Local $new.1
+  fun get @fn31(this: MutableArray<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Option<JsonValue>
+        ArrayGet MutableArray<Option<JsonValue>>
+          Type MutableArray<Option<JsonValue>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn32(this: MutableArray<Option<JsonValue>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Option<JsonValue>>
+          Type MutableArray<Option<JsonValue>>
+          Local $dependency.local.1
+  fun iterator @fn33(this: ArrayList<JsonValue>) -> Iterator<JsonValue>
+    bb0 entry
+      val $dependency.local.1: List<JsonValue>
+        Type List<JsonValue>
+        Retype List<JsonValue>
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<JsonValue>
+        Type List<JsonValue>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<JsonValue>
+        ClassAlloc ListIterator<JsonValue>
+      call @fn79 direct
+        Type ListIterator<JsonValue>
+        Local $new.1
+        Type List<JsonValue>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<JsonValue>
+        Retype Iterator<JsonValue>
+          Type ListIterator<JsonValue>
+          Local $new.1
+  fun get @fn34(this: ArrayList<JsonValue>, index: Long) -> JsonValue
+    bb0 entry
+      val $dependency.local.2: ArrayList<JsonValue>
+        Type ArrayList<JsonValue>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      call @fn55 direct
+        Type ArrayList<JsonValue>
+        Local $dependency.local.2
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.5: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $opt.1: Option<JsonValue> = @fn31 direct
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<JsonValue> v0
+          Type Option<JsonValue>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: JsonValue
+        Type JsonValue
+        VariantPayloadProject Option<JsonValue> v0 f0
+          Type Option<JsonValue>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external29 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type JsonValue
+        Local $uw.2
+  fun size @fn35(this: ArrayList<JsonValue>) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+  fun set @fn36(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
+    bb0 entry
+      val $dependency.local.3: ArrayList<JsonValue>
+        Type ArrayList<JsonValue>
+        Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.4
+      call @fn55 direct
+        Type ArrayList<JsonValue>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
+      val $dependency.local.8: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.6: JsonValue
+        Type JsonValue
+        Local value
+      val $dependency.local.7: JsonValue
+        Type JsonValue
+        Local $dependency.local.6
+      val $dependency.local.10: Option<JsonValue>
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v0
+          Type JsonValue
+          Local $dependency.local.7
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.9
+      val $dependency.local.12: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.10
+      val $arr.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.8
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.11
+      val $value.3: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.12
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonValue>
+        Local $value.3
+      return
+  fun add @fn37(this: ArrayList<JsonValue>, value: JsonValue) -> Unit
+    bb0 entry
+      val $dependency.local.2: ArrayList<JsonValue>
+        Type ArrayList<JsonValue>
+        Local this
+      call @fn56 direct
+        Type ArrayList<JsonValue>
+        Local $dependency.local.2
+      val $dependency.local.5: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.3: JsonValue
+        Type JsonValue
+        Local value
+      val $dependency.local.4: JsonValue
+        Type JsonValue
+        Local $dependency.local.3
+      val $dependency.local.7: Option<JsonValue>
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v0
+          Type JsonValue
+          Local $dependency.local.4
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.9
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonValue>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      field_set 1
+        Type ArrayList<JsonValue>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      return
+  fun add @fn38(this: ArrayList<JsonValue>, index: Long, value: JsonValue) -> Unit
+    bb0 entry
+      val $dependency.local.4: Long
+        Type Long
+        Local index
+      val $dependency.local.5: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.4
+            Type Long
+            Local $dependency.local.6
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.7: Long
+        Type Long
+        Local index
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.10: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.7
+            Type Long
+            Local $dependency.local.9
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.10
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      val $dependency.local.11: ArrayList<JsonValue>
+        Type ArrayList<JsonValue>
+        Local this
+      call @fn56 direct
+        Type ArrayList<JsonValue>
+        Local $dependency.local.11
+      var $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      goto bb6
+    bb6 while.cond.6 <loop-header-poll>
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.13: Long
+        Type Long
+        Local index
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.13
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.12
+            Type Long
+            Local $dependency.local.14
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 while.exit.7
+      val $dependency.local.31: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local index
+      val $dependency.local.29: JsonValue
+        Type JsonValue
+        Local value
+      val $dependency.local.30: JsonValue
+        Type JsonValue
+        Local $dependency.local.29
+      val $dependency.local.33: Option<JsonValue>
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v0
+          Type JsonValue
+          Local $dependency.local.30
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.33
+      val $arr.4: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.31
+      val $idx.5: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.6: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.35
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 while.body.8
+      val $dependency.local.21: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.18: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.16
+      val $dependency.local.19: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.15
+          Type Long
+          Local $dependency.local.17
+      val $dependency.local.20: Long
+        Type Long
+        Local $dependency.local.19
+      call $dependency.local.23: Option<JsonValue> = @fn31 direct
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.18
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.25: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.23
+      val $arr.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.21
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.24
+      val $value.3: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.25
+      branch bb10 bb9
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb9 logic.rhs.9
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.1
+      goto bb11
+    bb10 logic.short.10
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb11 logic.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $logic.2
+    bb12 if.then.12
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb13 if.merge.13
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonValue>
+        Local $value.3
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.27: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.27
+      assign $dependency.local.3
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.26
+          Type Long
+          Local $dependency.local.28
+      goto bb6
+    bb14 logic.rhs.14
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.5
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.4
+      goto bb16
+    bb15 logic.short.15
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb16 logic.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $logic.4
+    bb17 if.then.17
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb18 if.merge.18
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.4
+        Type Long
+        Local $idx.5
+        Type Option<JsonValue>
+        Local $value.6
+      val $dependency.local.36: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.37: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.38: Long
+        Type Long
+        Local $dependency.local.37
+      field_set 1
+        Type ArrayList<JsonValue>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
+      return
+  fun removeAt @fn39(this: ArrayList<JsonValue>, index: Long) -> JsonValue
+    bb0 entry
+      val $dependency.local.5: ArrayList<JsonValue>
+        Type ArrayList<JsonValue>
+        Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local index
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call @fn55 direct
+        Type ArrayList<JsonValue>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        Local index
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      call $opt.1: Option<JsonValue> = @fn31 direct
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.8
+        Type Long
+        Local $dependency.local.10
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<JsonValue> v0
+          Type Option<JsonValue>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: JsonValue
+        Type JsonValue
+        VariantPayloadProject Option<JsonValue> v0 f0
+          Type Option<JsonValue>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external29 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $dependency.local.2: JsonValue
+        Type JsonValue
+        Local $uw.2
+      val $dependency.local.11: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.12: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.12
+      val $dependency.local.3: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.local.11
+          Type Long
+          Local $dependency.local.13
+      var $dependency.local.4: Long
+        Type Long
+        Local index
+      goto bb4
+    bb4 while.cond.4 <loop-header-poll>
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.15
+      branch bb6 bb5
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.14
+            Type Long
+            Local $dependency.local.16
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 while.exit.5
+      val $dependency.local.31: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.32: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.33: Option<JsonValue>
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v1
+      val $dependency.local.34: Long
+        Type Long
+        Local $dependency.local.32
+      val $dependency.local.35: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.33
+      val $arr.6: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.31
+      val $idx.7: Long
+        Type Long
+        Local $dependency.local.34
+      val $value.8: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.35
+      branch bb13 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb6 while.body.6
+      val $dependency.local.23: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.24: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.20: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.17: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.18: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.18
+      val $dependency.local.21: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.17
+          Type Long
+          Local $dependency.local.19
+      val $dependency.local.22: Long
+        Type Long
+        Local $dependency.local.21
+      call $dependency.local.25: Option<JsonValue> = @fn31 direct
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.20
+        Type Long
+        Local $dependency.local.22
+      val $dependency.local.26: Long
+        Type Long
+        Local $dependency.local.24
+      val $dependency.local.27: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.25
+      val $arr.3: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.23
+      val $idx.4: Long
+        Type Long
+        Local $dependency.local.26
+      val $value.5: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.27
+      branch bb8 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 logic.rhs.7
+      assign $logic.2
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.4
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.3
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.2
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.2
+    bb10 if.then.10
+      assign $new.3
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.3
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.3
+    bb11 if.merge.11
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.3
+        Type Long
+        Local $idx.4
+        Type Option<JsonValue>
+        Local $value.5
+      val $dependency.local.28: Long
+        Type Long
+        Local $dependency.local.4
+      val $dependency.local.29: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.30: Long
+        Type Long
+        Local $dependency.local.29
+      assign $dependency.local.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.28
+          Type Long
+          Local $dependency.local.30
+      goto bb4
+    bb12 logic.rhs.12
+      assign $logic.4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.6
+      goto bb14
+    bb13 logic.short.13
+      assign $logic.4
+        Type Boolean
+        BoolLiteral true
+      goto bb14
+    bb14 logic.merge.14
+      branch bb15 bb16
+        Type Boolean
+        Local $logic.4
+    bb15 if.then.15
+      assign $new.5
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.5
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.5
+    bb16 if.merge.16
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.6
+        Type Long
+        Local $idx.7
+        Type Option<JsonValue>
+        Local $value.8
+      field_set 1
+        Type ArrayList<JsonValue>
+        Local this
+        Type Long
+        Local $dependency.local.3
+      return
+        Type JsonValue
+        Local $dependency.local.2
+  fun clear @fn40(this: ArrayList<JsonValue>) -> Unit
+    bb0 entry
+      var $dependency.local.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.2: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      field_set 1
+        Type ArrayList<JsonValue>
+        Local this
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      return
+    bb3 while.body.3
+      val $dependency.local.5: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.7: Option<JsonValue>
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v1
+      val $dependency.local.8: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.9: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.7
+      val $arr.1: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.8
+      val $value.3: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.9
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Option<JsonValue>>
+            Type MutableArray<Option<JsonValue>>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+        Type Option<JsonValue>
+        Local $value.3
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      assign $dependency.local.1
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.10
+          Type Long
+          Local $dependency.local.12
+      goto bb1
+  fun Encodable.encode @fn41(this: Encodable<Item<Int>>, value: Item<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Encodable.encode`"
+  fun List.$get$size @fn42(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn43(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Encodable.encode @fn44(this: Encodable<Int>, value: Int, encoder: Encoder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Encodable.encode`"
+  fun encoder @fn45(this: Companion<Int>, element: Encodable<Int>) -> Encodable<Array<Int>>
+    bb0 entry
+      val $dependency.local.2: Encodable<Int>
+        Type Encodable<Int>
+        Local element
+      val $dependency.local.3: Encodable<Int>
+        Type Encodable<Int>
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayEncoder<Int>
+        ClassAlloc ArrayEncoder<Int>
+      call @fn80 direct
+        Type ArrayEncoder<Int>
+        Local $new.1
+        Type Encodable<Int>
+        Local $dependency.local.3
+      return
+        Type Encodable<Array<Int>>
+        Retype Encodable<Array<Int>>
+          Type ArrayEncoder<Int>
+          Local $new.1
+  fun Encodable.encode @fn46(this: Encodable<Array<Int>>, value: Array<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Encodable.encode`"
+  fun Companion$initialize$Initializer @fn47() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Companion<Int>
+        ClassAlloc Companion<Int>
+      call @fn81 direct
+        Type Companion<Int>
+        Local $new.1
+      global_assign $singleton$Companion
+        Type Companion<Int>
+        Local $new.1
+      return
+  fun Companion$initialize$Ensure @fn48() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Array.Companion
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn47 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Array.Companion
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Array.Companion
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Array.Companion
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 companion:Array.Companion
+      call external27 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun next @fn49(this: ListIterator<Option<JsonMember>>) -> Option<Option<JsonMember>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Option<JsonMember>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Option<JsonMember>>
+        VariantConstruct Option<Option<JsonMember>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonMember>>
+          Local this
+      call $dependency.local.3: Long = @fn58 interface List<Option<JsonMember>>[2]
+        Type List<Option<JsonMember>>
+        FieldAccess 0
+          Type ListIterator<Option<JsonMember>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Option<JsonMember>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Option<JsonMember>>
+        VariantConstruct Option<Option<JsonMember>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Option<JsonMember>>
+        Type List<Option<JsonMember>>
+        FieldAccess 0
+          Type ListIterator<Option<JsonMember>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonMember>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Option<JsonMember> = @fn59 interface List<Option<JsonMember>>[1]
+        Type List<Option<JsonMember>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonMember>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Option<JsonMember>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.1
+      val $dependency.local.12: Option<JsonMember>
+        Type Option<JsonMember>
+        Local $dependency.local.11
+      return
+        Type Option<Option<JsonMember>>
+        VariantConstruct Option<Option<JsonMember>> v0
+          Type Option<JsonMember>
+          Local $dependency.local.12
+  fun next @fn50(this: ListIterator<JsonMember>) -> Option<JsonMember>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<JsonMember>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonMember>
+          Local this
+      call $dependency.local.3: Long = @fn60 interface List<JsonMember>[2]
+        Type List<JsonMember>
+        FieldAccess 0
+          Type ListIterator<JsonMember>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<JsonMember>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<JsonMember>
+        Type List<JsonMember>
+        FieldAccess 0
+          Type ListIterator<JsonMember>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonMember>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: JsonMember = @fn61 interface List<JsonMember>[1]
+        Type List<JsonMember>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonMember>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<JsonMember>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: JsonMember
+        Type JsonMember
+        Local $dependency.local.1
+      val $dependency.local.12: JsonMember
+        Type JsonMember
+        Local $dependency.local.11
+      return
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v0
+          Type JsonMember
+          Local $dependency.local.12
+  fun checkIndex @fn51(this: ArrayList<JsonMember>, index: Long) -> Unit
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        Local index
+      val $dependency.local.3: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.5: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.8: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.5
+            Type Long
+            Local $dependency.local.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.8
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      return
+  fun ensureRoom @fn52(this: ArrayList<JsonMember>) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type ArrayList<JsonMember>
+            Local this
+          Type Long
+          IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+    bb1 if.then.1
+      call external26 direct
+      goto bb2
+    bb2 if.merge.2
+      val $dependency.local.7: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.8: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.7
+          Type Long
+          Local $dependency.local.9
+      call $dependency.local.2: Long = @fn21 direct
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare less-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      return
+    bb4 if.merge.4
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 if.then.5
+      assign $dependency.local.20
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      goto bb7
+    bb6 if.else.6
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.14: Long
+        Type Long
+        IntegerLiteral Long value=4611686018427387903 bits=0x3fffffffffffffff
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.13
+            Type Long
+            Local $dependency.local.15
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.merge.7
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.4: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        FieldAccess 0
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.5: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonMember>
+          Local this
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.22: (Long) -> Option<JsonMember>
+        Type (Long) -> Option<JsonMember>
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=1
+            Type Long
+            Local $dependency.local.5
+          CaptureInit field=0
+            Type MutableArray<Option<JsonMember>>
+            Local $dependency.local.4
+          CaptureInit field=2
+            Type ArrayList<JsonMember>
+            Local this
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.21
+      val $dependency.local.24: (Long) -> Option<JsonMember>
+        Type (Long) -> Option<JsonMember>
+        Local $dependency.local.22
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.23
+      val $array_init.2: (Long) -> Option<JsonMember>
+        Type (Long) -> Option<JsonMember>
+        Local $dependency.local.24
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 if.then.8
+      assign $dependency.local.19
+        Type Long
+        Local $dependency.local.1
+      goto bb10
+    bb9 if.else.9
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.19
+        Type Long
+        IntegerBinary multiply kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb10
+    bb10 if.merge.10
+      assign $dependency.local.20
+        Type Long
+        Local $dependency.local.19
+      goto bb7
+    bb11 if.then.11
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external30 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb12 if.merge.12
+      val $array.3: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        ArrayAllocate MutableArray<Option<JsonMember>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb13
+    bb13 while.cond.13 <loop-header-poll>
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb14 while.exit.14
+      val $dependency.local.6: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $array.3
+      field_set 0
+        Type ArrayList<JsonMember>
+        Local this
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.6
+      return
+    bb15 while.body.15
+      call $array_value.5: Option<JsonMember> = <closure:function_type4> closure[function_type4]
+        Type (Long) -> Option<JsonMember>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Option<JsonMember>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb13
+  fun next @fn53(this: ListIterator<Option<JsonValue>>) -> Option<Option<JsonValue>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Option<JsonValue>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Option<JsonValue>>
+        VariantConstruct Option<Option<JsonValue>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonValue>>
+          Local this
+      call $dependency.local.3: Long = @fn63 interface List<Option<JsonValue>>[2]
+        Type List<Option<JsonValue>>
+        FieldAccess 0
+          Type ListIterator<Option<JsonValue>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Option<JsonValue>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Option<JsonValue>>
+        VariantConstruct Option<Option<JsonValue>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Option<JsonValue>>
+        Type List<Option<JsonValue>>
+        FieldAccess 0
+          Type ListIterator<Option<JsonValue>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonValue>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Option<JsonValue> = @fn64 interface List<Option<JsonValue>>[1]
+        Type List<Option<JsonValue>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Option<JsonValue>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Option<JsonValue>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.1
+      val $dependency.local.12: Option<JsonValue>
+        Type Option<JsonValue>
+        Local $dependency.local.11
+      return
+        Type Option<Option<JsonValue>>
+        VariantConstruct Option<Option<JsonValue>> v0
+          Type Option<JsonValue>
+          Local $dependency.local.12
+  fun next @fn54(this: ListIterator<JsonValue>) -> Option<JsonValue>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<JsonValue>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonValue>
+          Local this
+      call $dependency.local.3: Long = @fn65 interface List<JsonValue>[2]
+        Type List<JsonValue>
+        FieldAccess 0
+          Type ListIterator<JsonValue>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<JsonValue>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<JsonValue>
+        Type List<JsonValue>
+        FieldAccess 0
+          Type ListIterator<JsonValue>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonValue>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: JsonValue = @fn66 interface List<JsonValue>[1]
+        Type List<JsonValue>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<JsonValue>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<JsonValue>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: JsonValue
+        Type JsonValue
+        Local $dependency.local.1
+      val $dependency.local.12: JsonValue
+        Type JsonValue
+        Local $dependency.local.11
+      return
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v0
+          Type JsonValue
+          Local $dependency.local.12
+  fun checkIndex @fn55(this: ArrayList<JsonValue>, index: Long) -> Unit
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        Local index
+      val $dependency.local.3: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.5: Long
+        Type Long
+        Local index
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.8: Boolean
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.5
+            Type Long
+            Local $dependency.local.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.8
+    bb4 if.then.4
+      assign $new.1
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external23 direct
+        Type IndexOutOfBoundsException
+        Local $new.1
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.1
+    bb5 if.merge.5
+      return
+  fun ensureRoom @fn56(this: ArrayList<JsonValue>) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type ArrayList<JsonValue>
+            Local this
+          Type Long
+          IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+    bb1 if.then.1
+      call external26 direct
+      goto bb2
+    bb2 if.merge.2
+      val $dependency.local.7: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.8: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.9: Long
+        Type Long
+        Local $dependency.local.8
+      val $dependency.local.1: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.7
+          Type Long
+          Local $dependency.local.9
+      call $dependency.local.2: Long = @fn32 direct
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.11: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare less-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      return
+    bb4 if.merge.4
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 if.then.5
+      assign $dependency.local.20
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      goto bb7
+    bb6 if.else.6
+      val $dependency.local.13: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.14: Long
+        Type Long
+        IntegerLiteral Long value=4611686018427387903 bits=0x3fffffffffffffff
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      branch bb8 bb9
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.13
+            Type Long
+            Local $dependency.local.15
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.merge.7
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.20
+      val $dependency.local.4: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        FieldAccess 0
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.5: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayList<JsonValue>
+          Local this
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.3
+      val $dependency.local.22: (Long) -> Option<JsonValue>
+        Type (Long) -> Option<JsonValue>
+        ClosureAlloc cc4 $Closure$lambda4
+          CaptureInit field=2
+            Type Long
+            Local $dependency.local.5
+          CaptureInit field=1
+            Type MutableArray<Option<JsonValue>>
+            Local $dependency.local.4
+          CaptureInit field=0
+            Type ArrayList<JsonValue>
+            Local this
+      val $dependency.local.23: Long
+        Type Long
+        Local $dependency.local.21
+      val $dependency.local.24: (Long) -> Option<JsonValue>
+        Type (Long) -> Option<JsonValue>
+        Local $dependency.local.22
+      val $array_size.1: Long
+        Type Long
+        Local $dependency.local.23
+      val $array_init.2: (Long) -> Option<JsonValue>
+        Type (Long) -> Option<JsonValue>
+        Local $dependency.local.24
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb8 if.then.8
+      assign $dependency.local.19
+        Type Long
+        Local $dependency.local.1
+      goto bb10
+    bb9 if.else.9
+      val $dependency.local.16: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.17: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.local.18: Long
+        Type Long
+        Local $dependency.local.17
+      assign $dependency.local.19
+        Type Long
+        IntegerBinary multiply kind=Long
+          Type Long
+          Local $dependency.local.16
+          Type Long
+          Local $dependency.local.18
+      goto bb10
+    bb10 if.merge.10
+      assign $dependency.local.20
+        Type Long
+        Local $dependency.local.19
+      goto bb7
+    bb11 if.then.11
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external30 direct
+        Type IllegalArgumentException
+        Local $new.1
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+    bb12 if.merge.12
+      val $array.3: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        ArrayAllocate MutableArray<Option<JsonValue>>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb13
+    bb13 while.cond.13 <loop-header-poll>
+      branch bb15 bb14
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb14 while.exit.14
+      val $dependency.local.6: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $array.3
+      field_set 0
+        Type ArrayList<JsonValue>
+        Local this
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.6
+      return
+    bb15 while.body.15
+      call $array_value.5: Option<JsonValue> = <closure:function_type5> closure[function_type5]
+        Type (Long) -> Option<JsonValue>
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Option<JsonValue>
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb13
+  fun encode @fn57(this: ArrayEncoder<Int>, value: Array<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.3: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local value
+      val $dependency.local.4: Encodable<Int>
+        Type Encodable<Int>
+        FieldAccess 0
+          Type ArrayEncoder<Int>
+          Local this
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.local.6: List<Int>
+        Type List<Int>
+        Local $dependency.local.3
+      val $dependency.local.7: Encodable<Int>
+        Type Encodable<Int>
+        Local $dependency.local.4
+      val $dependency.local.8: Encoder
+        Type Encoder
+        Local $dependency.local.5
+      call @fn68 direct
+        Type List<Int>
+        Local $dependency.local.6
+        Type Encodable<Int>
+        Local $dependency.local.7
+        Type Encoder
+        Local $dependency.local.8
+      return
+  fun List.$get$size @fn58(this: List<Option<JsonMember>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn59(this: List<Option<JsonMember>>, index: Long) -> Option<JsonMember>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn60(this: List<JsonMember>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn61(this: List<JsonMember>, index: Long) -> JsonMember
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun $lambda @fn62($argument.0: (Long) -> Option<JsonMember>, $argument.1: Long) -> Option<JsonMember>
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.2: Long
+        Type Long
+        ClosureCapture cc3 1
+          Type (Long) -> Option<JsonMember>
+          Local $argument.0
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.2
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.1
+            Type Long
+            Local $dependency.local.3
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.4: MutableArray<Option<JsonMember>>
+        Type MutableArray<Option<JsonMember>>
+        ClosureCapture cc3 0
+          Type (Long) -> Option<JsonMember>
+          Local $argument.0
+      val $dependency.local.5: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      call $call.1: Option<JsonMember> = @fn20 direct
+        Type MutableArray<Option<JsonMember>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.6
+      assign $dependency.local.7
+        Type Option<JsonMember>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.7
+        Type Option<JsonMember>
+        VariantConstruct Option<JsonMember> v1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Option<JsonMember>
+        Local $dependency.local.7
+  fun List.$get$size @fn63(this: List<Option<JsonValue>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn64(this: List<Option<JsonValue>>, index: Long) -> Option<JsonValue>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn65(this: List<JsonValue>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn66(this: List<JsonValue>, index: Long) -> JsonValue
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun $lambda @fn67($argument.0: (Long) -> Option<JsonValue>, $argument.1: Long) -> Option<JsonValue>
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.2: Long
+        Type Long
+        ClosureCapture cc4 2
+          Type (Long) -> Option<JsonValue>
+          Local $argument.0
+      val $dependency.local.3: Long
+        Type Long
+        Local $dependency.local.2
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.1
+            Type Long
+            Local $dependency.local.3
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.4: MutableArray<Option<JsonValue>>
+        Type MutableArray<Option<JsonValue>>
+        ClosureCapture cc4 1
+          Type (Long) -> Option<JsonValue>
+          Local $argument.0
+      val $dependency.local.5: Long
+        Type Long
+        Local $argument.1
+      val $dependency.local.6: Long
+        Type Long
+        Local $dependency.local.5
+      call $call.1: Option<JsonValue> = @fn31 direct
+        Type MutableArray<Option<JsonValue>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.6
+      assign $dependency.local.7
+        Type Option<JsonValue>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.7
+        Type Option<JsonValue>
+        VariantConstruct Option<JsonValue> v1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Option<JsonValue>
+        Local $dependency.local.7
+  fun encodeList @fn68(values: List<Int>, element: Encodable<Int>, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.local.5: Encoder
+        Type Encoder
+        Local encoder
+      call $dependency.local.3: UnkeyedEncodingContainer = external16 interface Encoder[1]
+        Type Encoder
+        Local $dependency.local.5
+      val $dependency.local.6: List<Int>
+        Type List<Int>
+        Local values
+      val $dependency.local.7: List<Int>
+        Type List<Int>
+        Local $dependency.local.6
+      call $dependency.local.8: Iterator<Int> = @fn69 interface Iterable<Int>[0]
+        Type Iterable<Int>
+        Retype Iterable<Int>
+          Type List<Int>
+          Local $dependency.local.7
+      val $dependency.local.9: Iterator<Int>
+        Type Iterator<Int>
+        Local $dependency.local.8
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $dependency.local.10: Option<Int> = @fn70 interface Iterator<Int>[0]
+        Type Iterator<Int>
+        Local $dependency.local.9
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $dependency.local.10
+    bb2 while.exit.2
+      val $dependency.local.18: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.3
+      call external18 interface UnkeyedEncodingContainer[1]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.18
+      return
+    bb3 while.body.3
+      val $dependency.local.11: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $dependency.local.10
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.13: Encodable<Int>
+        Type Encodable<Int>
+        Local element
+      val $dependency.local.14: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.12: UnkeyedEncodingContainer
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.3
+      call $dependency.local.15: Encoder = external17 interface UnkeyedEncodingContainer[0]
+        Type UnkeyedEncodingContainer
+        Local $dependency.local.12
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.14
+      val $dependency.local.17: Encoder
+        Type Encoder
+        Local $dependency.local.15
+      call @fn44 interface Encodable<Int>[0]
+        Type Encodable<Int>
+        Local $dependency.local.13
+        Type Int
+        Local $dependency.local.16
+        Type Encoder
+        Local $dependency.local.17
+      goto bb1
+  fun Iterable.iterator @fn69(this: Iterable<Int>) -> Iterator<Int>
+    bb0 entry
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn70(this: Iterator<Int>) -> Option<Int>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun init.EncodeState.$c0 @fn71(this: EncodeState, offset: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type EncodeState
+        Local this
+        Type Int
+        Local offset
+      return
+  fun init.Contextual.$c2 @fn72(this: Contextual) -> Unit
+    bb0 entry
+      return
+  fun init.ItemEncoder.$c1 @fn73(this: ItemEncoder<Int>, element: Encodable<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type ItemEncoder<Int>
+        Local this
+        Type Encodable<Int>
+        Local element
+      return
+  fun init.ListIterator.$c2 @fn74(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Int>
+        Local this
+        Type List<Int>
+        Local source
+      field_set 1
+        Type ListIterator<Int>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.EncodeFunction.$c1 @fn75(this: EncodeFunction<(Int, Array<Int>)>, body: ((Int, Array<Int>), Encoder) -> Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type EncodeFunction<(Int, Array<Int>)>
+        Local this
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        Local body
+      return
+  fun init.ListIterator.$c2 @fn76(this: ListIterator<Option<JsonMember>>, source: List<Option<JsonMember>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Option<JsonMember>>
+        Local this
+        Type List<Option<JsonMember>>
+        Local source
+      field_set 1
+        Type ListIterator<Option<JsonMember>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Option<JsonMember>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c2 @fn77(this: ListIterator<JsonMember>, source: List<JsonMember>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<JsonMember>
+        Local this
+        Type List<JsonMember>
+        Local source
+      field_set 1
+        Type ListIterator<JsonMember>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<JsonMember>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c2 @fn78(this: ListIterator<Option<JsonValue>>, source: List<Option<JsonValue>>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Option<JsonValue>>
+        Local this
+        Type List<Option<JsonValue>>
+        Local source
+      field_set 1
+        Type ListIterator<Option<JsonValue>>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Option<JsonValue>>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ListIterator.$c2 @fn79(this: ListIterator<JsonValue>, source: List<JsonValue>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<JsonValue>
+        Local this
+        Type List<JsonValue>
+        Local source
+      field_set 1
+        Type ListIterator<JsonValue>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<JsonValue>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun init.ArrayEncoder.$c3 @fn80(this: ArrayEncoder<Int>, element: Encodable<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayEncoder<Int>
+        Local this
+        Type Encodable<Int>
+        Local element
+      return
+  fun init.Companion.$c0 @fn81(this: Companion<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.Item.$c0 @fn82(pair: (Int, Array<Int>)) -> Item<Int> <no-gc>
+    bb0 entry
+      return
+        Type Item<Int>
+        StructInit Item<Int>
+          Type (Int, Array<Int>)
+          Local pair
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn83($source: (Long) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Int
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn84($source: (Long) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Int
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn85($source: ((Int, Array<Int>), Encoder) -> Unit, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call <closure:function_type2> closure[function_type2]
+        Type ((Int, Array<Int>), Encoder) -> Unit
+        Local $source
+        Type (Int, Array<Int>)
+        Unbox
+          Type Any
+          Local arg0
+        Type Encoder
+        Retype Encoder
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn86($source: (Long) -> Option<JsonMember>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Option<JsonMember> = <closure:function_type4> closure[function_type4]
+        Type (Long) -> Option<JsonMember>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Option<JsonMember>
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn87($source: (Long) -> Option<JsonValue>, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Option<JsonValue> = <closure:function_type5> closure[function_type5]
+        Type (Long) -> Option<JsonValue>
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Option<JsonValue>
+          Local $call.1
+  instance mi0 function=@fn6 <- iterator
+  instance mi1 function=@fn7 <- get
+  instance mi2 function=@fn8 <- size
+  instance mi3 function=@fn9 <- ItemEncoder.encode
+  instance mi4 function=@fn11 <- encode
+  instance mi5 function=@fn14 <- println
+  instance mi6 function=@fn15 <- next
+  instance mi7 function=@fn16 <- $lambda.2
+  instance mi8 function=@fn17 <- encode
+  instance mi9 function=@fn18 <- Encodable.encode
+  instance mi10 function=@fn19 <- iterator
+  instance mi11 function=@fn20 <- get
+  instance mi12 function=@fn21 <- size
+  instance mi13 function=@fn22 <- iterator
+  instance mi14 function=@fn23 <- get
+  instance mi15 function=@fn24 <- size
+  instance mi16 function=@fn25 <- set
+  instance mi17 function=@fn26 <- add
+  instance mi18 function=@fn27 <- add
+  instance mi19 function=@fn28 <- removeAt
+  instance mi20 function=@fn29 <- clear
+  instance mi21 function=@fn30 <- iterator
+  instance mi22 function=@fn31 <- get
+  instance mi23 function=@fn32 <- size
+  instance mi24 function=@fn33 <- iterator
+  instance mi25 function=@fn34 <- get
+  instance mi26 function=@fn35 <- size
+  instance mi27 function=@fn36 <- set
+  instance mi28 function=@fn37 <- add
+  instance mi29 function=@fn38 <- add
+  instance mi30 function=@fn39 <- removeAt
+  instance mi31 function=@fn40 <- clear
+  instance mi32 function=@fn41 <- Encodable.encode
+  instance mi33 function=@fn42 <- List.$get$size
+  instance mi34 function=@fn43 <- List.get
+  instance mi35 function=@fn44 <- Encodable.encode
+  instance mi36 function=@fn45 <- encoder
+  instance mi37 function=@fn46 <- Encodable.encode
+  instance mi38 function=@fn47 <- Companion$initialize$Initializer
+  instance mi39 function=@fn48 <- Companion$initialize$Ensure
+  instance mi40 function=@fn49 <- next
+  instance mi41 function=@fn50 <- next
+  instance mi42 function=@fn51 <- checkIndex
+  instance mi43 function=@fn52 <- ensureRoom
+  instance mi44 function=@fn53 <- next
+  instance mi45 function=@fn54 <- next
+  instance mi46 function=@fn55 <- checkIndex
+  instance mi47 function=@fn56 <- ensureRoom
+  instance mi48 function=@fn57 <- encode
+  instance mi49 function=@fn58 <- List.$get$size
+  instance mi50 function=@fn59 <- List.get
+  instance mi51 function=@fn60 <- List.$get$size
+  instance mi52 function=@fn61 <- List.get
+  instance mi53 function=@fn62 <- $lambda
+  instance mi54 function=@fn63 <- List.$get$size
+  instance mi55 function=@fn64 <- List.get
+  instance mi56 function=@fn65 <- List.$get$size
+  instance mi57 function=@fn66 <- List.get
+  instance mi58 function=@fn67 <- $lambda
+  instance mi59 function=@fn68 <- encodeList
+  instance mi60 function=@fn69 <- Iterable.iterator
+  instance mi61 function=@fn70 <- Iterator.next
+  str @str0 "context encoding assertion"
+  str @str1 "missing context contextualValue.state: EncodeState"
+  str @str2 "context element"
+  str @str3 "{\"pair\":[11,[12,13]]}"
+  str @str4 "{\"pair\":[101,[102,103]]}"
+  str @str5 "{\"pair\":[11,[12,13]]}"
+  str @str6 "context element"
+  str @str7 "{\"pair\":[21,[22,23]]}"
+  str @str8 "encoding-context-ok"
+  str @str9 "pair"
+  str @str10 ""
+  str @str11 "\n"
+  output executable @fn5
