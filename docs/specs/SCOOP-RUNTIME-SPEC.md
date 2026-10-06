@@ -1,5 +1,7 @@
 # Scoop Runtime 规范
 
+2026-10-06，M30 的 Float/Double 设计契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)：增加 binary32/binary64 标量、字符串转换和必要的数学后备，复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备。此项尚未实施，128 位类型仅作调研。
+
 2026-10-05，M29 设计将 generic companion 改为每个完整宿主类型各有一个 singleton，类型和初始化状态按宿主 application 区分，见 2.2、2.7 及 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21/M23 的历史设计不改写，旧的共享 companion 规则由本次修订取代，初始化状态机及 C ABI 沿用既有协议。
 
 2026-10-06，M29 将编码改为 companion/普通 codec 的 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 一样保留真实 codec receiver。Unit 使用独立的 UnitEncoder / UnitDecoder，数据的固定类型身份、零大小值布局与返回 ABI 保持。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。旧实例编码的验收不计作新协议验收；分层与格式迁移见实现规范 §2.17。
@@ -545,7 +547,7 @@ core 的 checked 容量增长在 Long 计数溢出时调用无参数 NoGC 后备
   两个 Option 返回入口按目标 `sret` 合同适配到共有 C storage helper：Darwin/AArch64 从 x8 取结果地址；Linux/amd64 从 RDI 取结果地址，普通参数随其后排列，并在 RAX 返回同一地址。不能按 C 编译器的 16-byte aggregate 直接返回规则改变 Scoop 的间接结果 ABI。
 - `Array` / `MutableArray`：按spec 10.1的元素布局分配、读取`size`，以及`toArray` / `toMutableArray`的浅拷贝转换（spec 10.4）。源码可见bounds check、`IndexOutOfBoundsException`构造与throw都在generated managed CFG中完成，native helper不抛异常；若仅供受检代码使用的helper收到越界index则是fatal compiler/runtime invariant error。转换入口显式接收编译器已选定的目标concrete application TypeDescriptor，以该descriptor分配并保留新对象头，先验证source exact array TD/side metadata与logical size，再复制该size；`Inline`非ZST分支复制目标data offset之后的inline element payload，padding保持分配时的canonical zero；`ZeroSized`分支不调用payload `memcpy`。不得从来源对象、元素布局或类型名推断目标类型，也不得沿用来源descriptor；
 - `StringBuilder.add/build` 是普通 core body；只有 build 的最终字符串聚合使用本节下述表示级 helper。List/MutableList 接口、ArrayList 扩容/位移/清空及 iterator 不增加容器 runtime ABI；
-- 八种定宽integer的具体`ToString`/`Hash`后备，以及其他基本类型所需的`ToString`/`Hash`/operator equals后备（不提供`Any`或地址fallback）。`Hash.hash()`与所有integer `compareTo`的源码结果都是`Long`（i64），不随operand宽度改成`Int`；窄signed/unsigned值可由core按规则sign/zero extend后复用64位后备。integer equals由typed intrinsic直接生成比较，既有`scoop_rt_int_equals`/`scoop_rt_uint_equals`在M22迁移调用点后退出公开runtime契约。alias在进入runtime前已经展开，runtime不按`Byte`/`Int64`等alias名称分派；
+- 八种定宽integer的具体`ToString`/`Hash`后备，以及其他基本类型显式实现的`ToString`/`Hash`/operator equals所需后备（不提供`Any`或地址fallback）。M30的Float/Double只需要6.1所列后备，不因基本类型身份增加Hash。`Hash.hash()`与所有integer `compareTo`的源码结果都是`Long`（i64），不随operand宽度改成`Int`；窄signed/unsigned值可由core按规则sign/zero extend后复用64位后备。integer equals由typed intrinsic直接生成比较，既有`scoop_rt_int_equals`/`scoop_rt_uint_equals`在M22迁移调用点后退出公开runtime契约。alias在进入runtime前已经展开，runtime不按`Byte`/`Int64`等alias名称分派；
 - `Iterator`/`Iterable`、四个独立nominal type `IntRange`/`UIntRange`/`LongRange`/`ULongRange`、Array iterator、range终止与非法step全部由普通Scoop core与生成代码实现；`LongRange`/`ULongRange`不再是前两者的alias，M22不新增range/iteration runtime ABI；
 - 类型测试与装箱辅助：`is` / `as` 的exact TypeDescriptor比较、普通装箱/拆箱。
 
@@ -558,6 +560,24 @@ M26 的 parts 拼接后备只消费 `MutableArray<Option<String>>` 的有效前�
 该 helper 检查本次动态前缀范围，对所有 Some(String) 的 physical byte count checked 求和，经既有 String allocation shape 分配一次最终字节存储，再顺序复制 parts。空/单 part 可以直接复用不可变 String。None 出现在有效前缀属于内部不变量错误；这里不重复验证完整静态 TD、每个 part 的 UTF-8 或用户语言规则。native 入口及分配前按既有 caller-root/managed-anchor 协议保活 backing；allocation 后从被更新的 backing 重新读取 String ref 与 data 地址，不能跨 safepoint 缓存 part 指针。填充结果的循环不分配、不回调、不抛源码异常；如实现添加 poll，必须同时 root 结果并在 poll 后重新取得全部地址。最终 String 发布后不再写入其字节。
 
 Char 编码、String 解码到 `MutableArray<Char>` 与 UTF-8 字节快照都沿同一精确 TD、分配、root 与复制路径。接受 List 的公开 companion 方法先在 managed core 中物化数组快照，不在 native helper 中遍历任意 interface 或调用用户 getter。fromUtf8Unchecked 信任调用方已经满足的 UTF-8 前置条件；toByteArray 是安全的复制，不返回可写 String view。M26 不引入 native buffer 所有权、显式 close、release hook 或外部内存压力记账。
+
+### 6.1 Float / Double 后备与 ABI（M30）
+
+语言行为见语言规范11.2.2、11.13与13.8，pipeline契约见实现规范2.18。支持的Darwin/AArch64与Linux/amd64 glibc、musl目标均使用IEEE binary32/binary64：Float的size/alignment为4/4，Double为8/8。它们是GC-free的inline scalar；scalar本身不进入扫描图，混合aggregate只扫描实际managed reference。数组、boxing、静态存储、generic实例、协程frame与moving GC沿既有精确布局和root规则。所有浮点位型均为有效值，不以NaN或负零为Option niche；Option使用既有tagged enum布局。
+
+普通Scoop ABI按实际f32/f64标量传参/返回，aggregate继续使用既有间接ABI；不能把f32伪装成i32或把所有浮点统一扩为f64。C storage精确使用`float`/`double`，C aggregate、global/TLS、pointer与callback的适配由既有generated-C bridge完成。参数、返回、load/store及复制保存原始位型，包括signaling NaN；Scoop不额外检验或正规化外部传入的浮点值。
+
+算术、普通比较、分类、显式转换与totalOrder均是不分配、不进入GC的操作。totalOrder由整数位操作比较完整表示，无需libm；浮点`div/rem`不构造ArithmeticException。LLVM将`frem`降为`fmodf`/`fmod`时，这些是已知不回调Scoop、不分配managed对象的NoGC native支持函数，纳入原有native-support与最终链接检查。Darwin由SDK的libSystem提供；Linux动态/静态配置使用各自目标libc配套的libm，不能混用host库或遗漏静态归档依赖。
+
+生成代码以LLVM默认浮点环境为前提：最近偶数舍入、异常trap关闭、保留subnormal。正常启动和线程attach须建立该环境；native代码若改变环境，须在重新进入managed代码前恢复。语言不暴露浮点异常标志或动态rounding mode，也不要求每次运算或FFI调用包裹一套fenv保存/恢复。
+
+字符串化使用两个精度独立的runtime后备，有限值按语言规范11.2.2形成最短有效十进制表示；不依赖进程locale，也不把Float先扩成Double再格式化。采用成熟的Ryu C转换实现并固定来源版本与许可证，Scoop适配层只负责规定的文本形状和String分配。后备接受scalar并返回普通String，属于Managed调用，沿既有String分配与native-root规则；不提供浮点hash或公开位转换后备。
+
+JSON通过库内部的Scoop-ABI extern声明调用两个精度的十进制解析后备。输入是JSON parser已确认语法的原始number文本，不经Long/ULong或另一浮点类型中转。C实现以固定C locale的`strtof_l`/`strtod_l`直接得到f32/f64，并检查完整消费及结果是否溢出到Infinity；underflow产生的subnormal或signed zero有效，不能仅凭`ERANGE`拒绝。String不隐含NUL，必要的临时终止缓冲区按实际长度分配并在本次native调用内释放；沿既有allocation failure处理分配失败，不作为非法数字返回。
+
+解析后备不回调用户代码、不触发managed分配或源码异常；它借用String并返回普通Option<Float>/Option<Double>，含ref的入口仍沿原有Managed Scoop-ABI边界。Option结果使用实际目标布局与sret适配，不按C struct-return猜测；None由JSON的普通Scoop代码转换为带path的DecodingException。该后备只解决JSON数值解析，不新增公开String解析API、外部buffer所有权或通用FFI框架。
+
+上述能力不需要扩展TypeDescriptor、scan schema或runtime metadata ABI字段。新入口和实际native依赖按原有类型、符号与链接规则记录；只有实现确实改变的编译产物section升级兼容版本，不为未来Int128/Float128预占runtime契约。
 
 ## 7. 启动、线程与终止
 

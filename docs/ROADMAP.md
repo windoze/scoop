@@ -468,6 +468,15 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - keyed/unkeyed/single-value协议分离类型与格式；普通JSON库通过String输入输出验收，encode/decode入口均显式接收codec。字段按声明类型选定codec，不回退到基类companion或运行期类型查找。不扩入Map、Float/Double、ByteBuffer或循环图/开放多态框架。
 - 2026-10-06协议修订已完成，设计与三份spec同步，按功能迁移并提交。全部适用fixture覆盖：Darwin 2,490项、glibc 2,471项、musl 2,473项，每个平台均含176项M29用例；Darwin使用普通完整`--all`，Linux使用完整更新轮、快照审阅与定向复验，原始结果见验收记录。既有实例编码和条件conformance的实现/测试保留为历史，不计作新协议验收。
 
+### M30 Float / Double 与 128 位数值调研（设计已记录，尚未实施，[设计](milestone30/DESIGN.md)，[调研](milestone30/INVESTIGATION.md)）
+
+- 正式交付两个GC-free值类型：Float/Float32为IEEE binary32，Double/Float64为binary64；后两种固定宽度拼写分别是透明alias。覆盖十进制literal、目标精度const、基础算术/分类、显式转换和ToString，以及泛型、默认值、annotation、pattern、数组/aggregate、boxing、协程与moving GC。
+- 普通`== != < <= > >=`遵守IEEE语义：NaN无序、正负零相等。浮点关系直接降为typed comparison，不通过`compareTo(): Long`；另提供Swift风格的`isTotallyOrdered(belowOrEqualTo = ...)`，采用区分正负零及NaN sign/quiet/payload的IEEE totalOrder。Float/Double不实现Hash，不新增比较interface层次或Map key专用规则。
+- literal、const与JSON按实际目标精度直接舍入，避免先Double再Float；运行期不使用fast-math。数值转换显式，浮点转整数向零截断并按目标位宽饱和，NaN转0。公开位/字节转换与transmute留待具体需求，不作为本次totalOrder的前置条件。
+- 两种companion实现普通Encodable/Decodable，single-value协议增加Float/Double read/write；JSON保持整数精确解析，浮点只编码有限值，保留负零，按路径报告非法值与overflow，允许合法subnormal/underflow。字符串化使用成熟的最短往返转换，C ABI以float/double通过既有generated-C bridge接入。
+- 复用既有IR/meta、布局、GC和native-support机制；`frem`产生的fmodf/fmod覆盖Darwin、glibc动态以及musl静态/动态实际链接与运行。三份spec已同步设计契约，新增格式版本在实施时按实际变更分配；完成门仍为独立/组合/negative/golden、workspace与正式CLI/fixture验收。
+- Int128/UInt128与Float128仅调研：记录i128所需compiler-rt/libgcc helper、binary128与long double的差异，以及compiler-rt、libquadmath、SoftFloat的职责和可行路线。不添加128位类型、IR占位或runtime依赖，也不把它们的实现纳入M30完成门。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。

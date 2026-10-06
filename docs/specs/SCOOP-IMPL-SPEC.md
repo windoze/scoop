@@ -1,5 +1,7 @@
 # Scoop 实现大纲
 
+2026-10-06，M30 设计增加 Float/Double 的 typed representation、常量和运算，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。当前仅完成设计同步，尚未修改实现；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
+
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
 2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
@@ -186,6 +188,8 @@ MIR section 从同次 LocalConcrete 初始化单元读取两个生成函数的�
 ### 2.1 parser / AST
 
 解析源代码，为每个源文件生成语法树。
+
+M30浮点字面量保留十进制有效数字、指数、suffix及source span，表达式、annotation与pattern复用同一AST payload；不能在lexer中先解析成宿主f64。目标精度由HIR的candidate-local fit确定，再直接舍入并保存raw bits，详见2.18。
 
 lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以顶层声明、类型成员、块内语句为同步边界，在一次解析中收集同一文件的多个独立诊断。诊断按源码顺序输出；只要存在任一诊断，恢复得到的残缺 AST 必须整体丢弃，不得进入 HIR。
 
@@ -1262,7 +1266,7 @@ M23-11 再完成 umbrella build/run/link、single-file 与历史 fixture 的总�
 | HIR | `Ptr`的特殊nonzero-ULong构造、`FunPtr` native address、`ptr_to_ulong` / 其他`ptr_*` / `address_of` / `size_of` / `align_of`的源码使用 | 在core contract验证、候选决议和unsafe/lvalue/type/nonzero约束检查后正规化为类型化专用节点，不把intrinsic名称或公开representation传给下游 |
 | HIR | `foreign_callback_register`及callback token retain/release/state/failure | 验证`ForeignCallbackCore`后直接生成类型化registration/token操作；source site取得`PersistentCallbackRegistrationId`，每个concrete materialization再取得不同的`PersistentCallbackApplicationId`；registration以native函数类型和`Long`（I64）常量`contextIndex`派生managed closure expected type，不按`Any`普通调用lower |
 | LIR | `size_of` / `align_of`、`ptr_load` / `ptr_store` / 指针算术、`address_of` | 依赖 2.4 的具体布局以及 address-taken local / parameter 的稳定存储；`size_of`/`align_of`将内部checked layout size物化为source `ULong`，pointer offset则从source `Long`精确降级，最终生成布局常量、带对齐的 raw memory 指令和局部地址 |
-| codegen | typed integer算术/位运算及LIR raw pointer指令 | 按`IntegerKind`机械映射；wrapping不带overflow flag，division/shift只接收MIR已guard/normalize的typed operation；此时不再按intrinsic名称分派 |
+| codegen | typed integer/float算术、比较与转换，以及LIR raw pointer指令 | 按typed kind机械映射；integer wrapping不带overflow flag，division/shift只接收MIR已guard/normalize的operation；float不带fast-math假设，具体规则见2.18；此时不再按intrinsic名称分派 |
 
 共有CallableSourceEffectsV1的implementation必须完整表达实现种类：Scoop、Intrinsic(IntrinsicFunctionKind)、SourceExternScoop或SourceExternC。整数intrinsic的GC effect必须与typed kind一致，execution必须为Ordinary；builder与reader使用相同检查拒绝矛盾组合。Intrinsic的typed kind是该声明的必需数据，不能只保存标志再到core专用operation表补全，也不携带provider授权或annotation字符串。implementation wire使用closed sum：field 0为tag（1/2/3/4），仅Intrinsic具有field 1=完整typed kind；其余分支为单字段map，旧unsigned leaf格式拒绝并要求重建artifact/cache。生产投影直接保留已验证的FunctionKind::Intrinsic.kind，共有semantic world和依赖选择按声明读取同一完整记录。导入的整数常量运算从共有callable目录查询对应typed kind与GC effect，删除ImportedCoreProtocols中的重复compiler-operation载体和查询；常量method/infix调用按同一声明的typed id读取canonical源码名称，并使用共有source interface中的参数名及effects中的infix标志；解析结果完整保存常量执行所需的调用属性，不依赖本地FunctionId。源码名称只用于候选匹配，不能用预设英文名称或FQN推导intrinsic kind。非const实例成员执行仍需经过普通跨Cone调用选择。
 
@@ -1859,6 +1863,28 @@ core 登记不依赖 JSON 库；String/Char/List、格式数据树、异常、co
 MIR降级普通方法/companion调用、构造、控制流、closure与异常；每个companion使用其完整application对应的ensure及singleton read。LIR按普通签名区分codec receiver、encode的数据参数与decode的结果，处理既有ABI和精确根。两个接口的itable调用保留真实codec receiver，优化可按已有规则去虚拟化，不能假定codec无状态或总可direct call。编码数据、codec、依赖、闭包及解码临时值由moving GC跟踪，companion按application独立遵守原exactly-once初始化，class解码目标遵守M19/M24构造与release-ready。本里程碑不增加runtime TypeDescriptor字段、C函数或runtime metadata ABI版本；编译产物语义变化按实际section升级兼容版本和fingerprint，旧产物与缓存重建，不预占wire编号。
 
 **验收。** 真实源码覆盖两个codec接口、手写/派生选择、类型化annotation、scalar/record/sequence/enum、双向显式依赖、default副作用及正常构造；增加父子数据codec独立、Base视图显式选择、不变性与无基类companion回退。generic companion覆盖不同宿主实参的type/状态独立、同一application的别名/转发与跨Cone合并、宿主bound/方法参数替换、各自exactly-once及失败缓存、无字段/phantom参数、ordinary nested作用域；negative检查缺少宿主实参、非法实例捕获、参数重名、字段/构造访问和依赖歧义。golden区分codec receiver与数据参数，不保留旧条件编码与TupleEncoding记录。跨Cone覆盖generic encoder/decoder provider、独立产物link/run和ODR；组合接口分派、闭包、Context、异常与moving GC。迁移后重新完成workspace与正式fixture验收，再记录实际结果。
+
+### 2.18 Float / Double（M30）
+
+语言行为见语言规范11.2.2与9.3.2，runtime契约见运行时规范6.1，分批实现及验收见[M30设计](../milestone30/DESIGN.md)。M30只实例化F32/F64两种表示；Float32/Float64沿透明alias展开，不增加第二套nominal identity。
+
+**parser与HIR。** lexer识别小数、指数和f/F后缀，保留十进制原值而非宿主浮点近似；与整数、range和member access消歧。HIR沿8.6的candidate-local约束选定实际Float/Double owner和目标精度；无上下文默认Double，f/F固定Float，不把一般整数token加入浮点候选域。literal与const从目标精度直接求值，完成时以封闭sum保存`F32(u32)`或`F64(u64)`原始位型及非可选的实际类型。采用独立于LLVM的目标浮点求值库，例如经版本审查的`rustc_apfloat`；不使HIR依赖codegen或LLVM，也不自建任意精度计算框架。
+
+算术/equals/分类/totalOrder/转换在入口验证实际typed intrinsic声明及完整签名，保存所属表示和source/target kind。四种浮点关系由已解析representation正规化为专用typed comparison，不生成`compareTo(): Long`调用，不借操作名称或FQN猜测行为。const使用同一封闭操作集合、目标舍入和语言规定的NaN结果；用户同名call不获得const能力。annotation、默认值、literal pattern、Export HIR和下游具体化都复用这些类型与bits。
+
+**MIR与LIR。** MIR传播完整浮点type、常量与operation，保留求值次序；浮点div/rem不走整数除零异常CFG。派生相等调用真实字段equals，浮点字段不允许用identity或bitwise捷径代替。LIR增加F32/F64标量，按各target产生4/4与8/8的size/alignment；ABI scalar参数/结果使用浮点carrier，aggregate仍用原有间接协议。参数、local、phi、return、global/static template、数组、boxing、closure、协程frame和raw pointer指令必须穷尽处理两种表示。扫描只描述managed reference，不用NaN niche或整数carrier掩盖未知kind。
+
+**codegen。** 常量从同宽integer bits生成精确LLVM浮点常量或bitcast，不经接受宿主f64的便利API改变精度。`fadd/fsub/fmul/fdiv/frem`、`fneg`分别实现对应操作，一元plus为identity；不使用fast、nnan、ninf、nsz、reassoc或contract等放宽语义的flag。`== != < <= > >=`分别为`fcmp oeq/une/olt/ole/ogt/oge`；不能用`!(a < b)`实现`a >= b`。
+
+totalOrder把W位表示解释为unsigned整数，负数映射为W位`~bits`，非负数映射为`bits ^ signMask`，比较转换后key的unsigned `<=`。该映射覆盖正负零与完整NaN sign/quiet/payload，不执行浮点算术，也不依赖公开bit-conversion API。分类同样可从exponent/fraction位实现。
+
+integer→float按source signedness使用`sitofp/uitofp`并直接产生目标精度；float→integer使用`llvm.fptosi.sat`/`llvm.fptoui.sat`或严格等价的局部展开，直接饱和到目标位宽，不使用越界可产生poison的裸转换，也不经64位整数二次截断。跨浮点格式用`fpext/fptrunc`；同格式转换保留bits。LLVM默认浮点环境及native代码责任见运行时规范6.1。
+
+**C ABI与最终链接。** canonical C storage新增`float`/`double`，生成C source后继续由现有bridge toolchain处理scalar、混合aggregate、global/TLS、Ptr/FunPtr与callback签名；不复制C寄存器分类算法。`frem`可能导入的`fmodf/fmod`进入现有native-support记录及链接闭包；Darwin使用实际SDK/libSystem，Linux使用所选glibc/musl的libm，覆盖musl静态与动态配置。不能因为llc成功产出object就视为链接/运行通过，也不无条件增加compiler-rt或libquadmath。
+
+**core与JSON。** Float/Double显式adopt ToString，Hash registry/conformance不因primitive kind自动扩充。各自companion实现普通Encodable/Decodable；single-value协议增加两个精度的read/write方法，JSON从原始数字文本直接解析目标精度，有限值按规定格式输出，非有限值按JSON规则报错。普通合成codec继续按实际字段类型选定companion，泛型使用显式codec组合；编译器不增加JSON builtin。native字符串后备与解析Option的Scoop ABI沿运行时规范6.1。
+
+**产物。** HIR/MIR/LIR的type、constant、intrinsic、C storage及实际ABI记录按kind完整编码；metadata的Eq/Hash、去重及fingerprint按raw bits工作，这是编译器数据比较，不是Scoop浮点`==`或Hash conformance。已知负零和NaN位型不得在跨Cone传递、缓存或ODR时消失。更新实际受影响的section/profile兼容版本并重建旧产物，新增single-value接口方法后相关实现与itable一并重编；实现时再分配wire字段/tag，不在设计中预占编号。reader只验证必要的格式、typed引用、kind/位宽与ABI，后续stage复用已经验证的数据。不为仅调研的128位类型加入成功IR节点、runtime字段或占位实现。
 
 ## 3. 待明确事项
 

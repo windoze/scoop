@@ -1,5 +1,7 @@
 # Scoop 语言规范
 
+2026-10-06，M30 设计加入 `Float` / `Float32` 与 `Double` / `Float64`：普通比较遵守 IEEE 754，另以 `isTotallyOrdered(belowOrEqualTo = ...)` 提供包含 NaN 的全序比较；两种浮点类型不实现 `Hash`。本次为设计先行，尚未实施，见 11.2.2 与 [M30 设计](../milestone30/DESIGN.md)。Int128 / UInt128、Float128 仅作调研，不属于本次实现范围。
+
 2026-10-05，M29 设计修订 companion 的泛型规则：每个完整宿主类型各有自己的 companion 类型与 singleton，companion 可使用宿主类型参数，见 9.1.3、9.5 和 [M29 设计](../milestone29/DESIGN.md)。此项已在 M29 首批实现并通过三平台正式 fixture；M21 及后续历史 milestone 设计保留原文，其中“泛型宿主共享非 generic companion”的规则由本次修订取代。
 
 2026-10-06，M29 将编码协议修订为 `Encodable<T>.encode(value: T, encoder: Encoder)`，与 `Decodable<T>` 一样由 companion 或普通 codec 对象实现。数据类型不因 codec 的存在获得接口；泛型、容器和 tuple 的两个方向均使用显式 codec 组合，见 9.5、11.13。Unit 使用独立的 UnitEncoder / UnitDecoder，固定类型身份、零大小值布局与返回 ABI 不变。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。既有实例编码和条件 conformance 的验收不计作新协议验收；分批实施见 [M29 实施记录](../milestone29/PROGRESS.md)。
@@ -469,7 +471,7 @@ M22实现子集把`break`/`continue`与既有`return`/`throw`统一视为jump st
 - enum的有限constructor集合是其全部variant，variant payload继续作为子列检查；出现variant名称本身不代表覆盖其全部payload；
 - tuple与struct各有一个product constructor，字段按位置/声明顺序展开；命名字段与`..`先补全为完整wildcard vector；
 - `Boolean`有`false`/`true`两个有限constructor，`Unit`有一个constructor；
-- binding、`_`、rest补位与`else`均为wildcard；fixed-width integer是有限域，实现以已出现literal singleton与符号化other partition计算覆盖，不实际枚举`2^W`个值。若不同无guard literal确已覆盖全部bit pattern，则无需wildcard；否则missing witness必须是该exact signed/unsigned数学次序中的真实缺失值，unsigned witness始终使用`u`后缀以保证可按subject type重新解析。M26 的 Char 同样使用 literal singleton 与符号化剩余集合，其有限域只包含 Unicode 标量值，缺失 witness 不得落入 surrogate 区间，使用可重新解析的字符字面量。String是无限开放域，有限literal arm仍必须有覆盖余值的wildcard；Float/Double literal coverage由其进入已实现子集时另行规定；
+- binding、`_`、rest补位与`else`均为wildcard；fixed-width integer是有限域，实现以已出现literal singleton与符号化other partition计算覆盖，不实际枚举`2^W`个值。若不同无guard literal确已覆盖全部bit pattern，则无需wildcard；否则missing witness必须是该exact signed/unsigned数学次序中的真实缺失值，unsigned witness始终使用`u`后缀以保证可按subject type重新解析。M26 的 Char 同样使用 literal singleton 与符号化剩余集合，其有限域只包含 Unicode 标量值，缺失 witness 不得落入 surrogate 区间，使用可重新解析的字符字面量。String是无限开放域，有限literal arm仍必须有覆盖余值的wildcard；M30的Float/Double literal按11.2.2的IEEE相等形成singleton，正负零合并为同一覆盖值，始终保留需由wildcard覆盖的剩余域；
 - 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
 - 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
 
@@ -907,9 +909,9 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 - 调用决议先按词法/成员/import优先级建立候选层；无显式receiver与extension scope的完整层序见12.4.3。每层内继续按9.3.4的function-like/property-like c-level分区；对每个最终分区完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的分区中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。当前Cone、上游`.slib`、exact/star import与core prelude只决定候选来自哪一层，不改变后续算法。
 - 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、显式fixed/`_`类型实参、函数/nominal invariant relation及upper bound共同产生等式与子类型约束；generic owner参数、callable自身参数和待推断变量保持不同identity，不能压平成一组后再按长度或span反推。
 - 选择变量的唯一解前，等式与上下界必须相互传播：由`L <: V`和`V <: U`继续按同一类型关系约简`L <: U`，声明的class/interface bound也参与该过程。例如`R : Reader<T>`与实参确定的`Holder<Int> <: R`通过`Holder<Int>`的实际`Reader<Int>`父类型确定`T = Int`。该过程只使用已有约束；单独的声明bound不能成为补齐未知变量的猜测值，不能先选一个临时解再把它当作新的已知事实。
-- 依赖候选期望类型的lambda、匿名函数、callable reference、裸enum variant（包括`None`）、空数组、整数字面量和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
+- 依赖候选期望类型的lambda、匿名函数、callable reference、裸enum variant（包括`None`）、空数组、数值字面量和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
 - 候选声明、receiver 或显式类型实参已经确定的完整形参类型可直接作为实参表达式的上下文，包括结构化表达式的分支及参数已标注的 lambda 正文；不必先丢弃已有上下文再尝试合成类型。尚未确定的形参仍按上述固定点处理。
-- 后续实参同样可以提供上述类型上下文，例如 `pack(*[], 42)` 的空 spread 可由另一元素确定为 `Array<Int>`。命名整数组、普通参数、构造参数和成员调用遵守同一规则；没有可用约束的空数组、裸变体或函数引用仍须报错。推断固定点没有进展时才尝试可独立确定类型的延期实参，其中整数字面量按既有默认阶梯确定类型；具有完整参数和结果标注的匿名函数也可提供自身类型。失败尝试不提交表达式、诊断或局部状态，也不妨碍其他延期实参继续提供约束；运行期求值顺序始终遵守 8.5.3。
+- 后续实参同样可以提供上述类型上下文，例如 `pack(*[], 42)` 的空 spread 可由另一元素确定为 `Array<Int>`。命名整数组、普通参数、构造参数和成员调用遵守同一规则；没有可用约束的空数组、裸变体或函数引用仍须报错。推断固定点没有进展时才尝试可独立确定类型的延期实参，其中整数字面量按既有默认阶梯确定类型，浮点字面量按11.2.2的后缀或默认Double规则确定类型；具有完整参数和结果标注的匿名函数也可提供自身类型。失败尝试不提交表达式、诊断或局部状态，也不妨碍其他延期实参继续提供约束；运行期求值顺序始终遵守 8.5.3。
 - constraint system必须同时满足kind/class/interface bound、函数类型型变、nominal application逐项相等、普通subtyping及装箱规则。一个候选只有在所有实例化参数得到唯一、可表达且满足bound的concrete解，并且全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
 - 外层期望类型可以在唯一callable目标已经不依赖返回类型选择时帮助固定只出现在返回结果中的类型参数，也可以为generic nominal构造提供宿主application；它不能使两个仅靠结果类型才能区分的overload变得合法或在多个候选间充当MSC比较项。普通函数签名仍不含返回类型，返回类型不同不能单独形成重载。
 - 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可按同一普通subtyping/nominal-invariance关系转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
@@ -993,8 +995,8 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 #### 9.1.2 `const val`
 
 - `const val`只允许声明在top level、`object`或`companion object`中；必须有显式type和initializer，不能是extension/local、`var`、delegate或带accessor。其type必须是`Boolean`、基本数值类型、`Char`或`String`。
-- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed integer intrinsic registry 精确解析到整数表示运算或整数转换的封闭 call。后一类包括源码显式的 `inc`/`dec`、`compareTo`/`equals`、`div`/`rem` 与 `toX` 等方法形式；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；常量 `div`/`rem` 的除数为零是 const 定义错误。const 依赖图存在循环是编译错误。
-- 除上述封闭整数表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
+- initializer 必须是编译期常量表达式：字面量、对其他 `const val` 的引用、由它们组成且可在编译期确定结果的内建一元/二元运算，以及通过 typed numeric intrinsic registry 精确解析到整数或浮点表示运算、显式数值转换的封闭 call。后一类包括整数的 `compareTo`、两类数值的 `inc`/`dec`、`equals`、`div`/`rem`、`toX`，以及浮点的分类和 `isTotallyOrdered` 方法；只有 exact typed registry identity 才使 call 成为常量表达式，用户声明或仅同名的 callable 不获得该能力。所有实参都必须是常量表达式；整数常量 `div`/`rem` 的除数为零是 const 定义错误，浮点常量除零按 11.2.2 产生 Infinity 或 NaN。const 依赖图存在循环是编译错误。
+- 除上述封闭数值表示 intrinsic 外，函数/方法调用（包括 `toString`）、构造、普通属性读取、数组或其他对象分配、`throw` 及挂起调用都不是常量表达式。`const val` 不生成需要在程序启动或单例首次访问时执行的 runtime initializer；位于 `object` / `companion object` 中的 `const val` 引用本身不触发单例初始化。
 - 导出的`const val`的type和值属于`.slib` HIR metadata，下游Cone在编译期直接消费；值变化会使下游编译缓存失效。const没有getter或可寻址storage，`addressOf(const)`非法；String常量使用已登记immortal表示。visibility在folding前检查。
 
 #### 9.1.3 `object`、companion、nested declaration与全局初始化
@@ -1160,10 +1162,12 @@ HIR把通过验证的角色保存为封闭、类型化的operator identity；表
 | `a[i1, ..., iN]` | `a.get(i1, ..., iN)` |
 | `a[i1, ..., iN] = v` | `a.set(i1, ..., iN, v)` |
 | `a(args...)` | function-value call，或`a.invoke(args...)`（见9.3.4） |
-| `a < b` / `a <= b` / `a > b` / `a >= b` | `a.compareTo(b)`的`Long`结果与0比较 |
+| `a < b` / `a <= b` / `a > b` / `a >= b` | 同一种 core 浮点类型按 11.2.2 直接执行 IEEE 比较；其他类型将 `a.compareTo(b)` 的 `Long` 结果与 0 比较 |
 | `a == b` / `a != b` | 11.11的成员`equals`调用 / 对同一结果取反 |
 
 receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先求值`b`、再求值`a`；这是有意保留的Kotlin顺序。其他表项按书写的receiver再到operand顺序求值。`&&` / `||`仍是只接受`Boolean`的内建短路操作，`===` / `!==`仍是不可重载的引用identity比较；`=`, `?:`, `!!`, `is` / `as`及安全导航本身也不可重载。
+
+core 浮点关系运算的例外由已解析 nominal owner 的 typed representation 决定；透明 alias 相同，用户定义的同名类型不获得该行为。两个 operand 从左到右各求值一次，literal 按 11.2.2 定型；不先默认为 Double，也不通过 `compareTo` 或 total-order 方法间接实现。该例外不增加可由用户重载的 operator 名称。
 
 operator调用只考虑function-like operator目标，不能再通过property-like `invoke`递归寻找某个同名operator。一次`a(args...)`至多应用一次`invoke`约定；若选中的`invoke`返回另一个可调用值，必须再写一组显式括号才能调用。
 
@@ -1210,7 +1214,7 @@ M18之前已有的local/parameter/capture、global、primary-constructor propert
 
 ### 9.4 注解
 
-M29定义下列编译期注解规则；实现批次见[M29设计](../milestone29/DESIGN.md)。语言核心注解（`@Intrinsic` / `@NoGC` / `@Extern` 等）继续遵守第13章的独立规则，不内置平台相关注解，也不提供运行期annotation对象。
+M29定义下列编译期注解机制，M30按11.2.2增加Float/Double参数类型；实现批次分别见[M29设计](../milestone29/DESIGN.md)与[M30设计](../milestone30/DESIGN.md)。语言核心注解（`@Intrinsic` / `@NoGC` / `@Extern` 等）继续遵守第13章的独立规则，不内置平台相关注解，也不提供运行期annotation对象。
 
 ```scoop
 public annotation class Description(val text: String)
@@ -1219,8 +1223,8 @@ public annotation class Description(val text: String)
 public struct Account(@Description("Stable identifier") val id: Long)
 ```
 
-- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于Boolean、String、Char和现有定宽整数；无参数声明可省略括号。
-- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；值限于上述类型的字面量、带符号整数字面量和已绑定的同类型`const val`。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、重复/缺失/未知参数及可见性错误在定义或使用处诊断。
+- annotation class是编译期声明，具有普通名称、typed declaration identity、可见性和import规则；不是可实例化的runtime class，不具有继承、interface、泛型参数、body或成员函数。参数为`val`，类型限于Boolean、String、Char、现有定宽整数，以及M30的Float/Double；无参数声明可省略括号。
+- 使用处采用`@Name(...)`或限定名称，沿普通符号解析选定实际声明。参数遵守位置/命名参数映射，可以有缺省常量；值限于上述类型的字面量、带符号数值字面量和已绑定的同类型`const val`。const val 的限定引用沿普通名称和完整宿主 application 规则，包括 `Box<Int>.Companion.NAME`；只读取已绑定的常量，不执行 singleton 初始化。不得执行任意函数、构造用户对象或把类型作为annotation值。整数范围、浮点字面量的目标精度与溢出、重复/缺失/未知参数及可见性错误在定义或使用处诊断；浮点常量以类型和原始位型保留，不用数值相等合并正负零或NaN。
 - 自定义注解可标在名义类型、enum variant、struct/variant字段和class/interface的logical property上。主构造参数带`val`/`var`时注解属于该字段/property；普通值参数不因此成为可注解字段。M29不增加use-site target、可重复注解、注解继承、元注解执行或编译器插件API。同一target重复同一annotation声明是错误；不同注解按源码顺序保留。
 - 注解的参数按声明序正规化为typed常量，包含已补齐的缺省参数。泛型application保留原声明的注解；不因具体化产生新的annotation声明，也不把宿主注解复制到字段、派生类、accessor或backing storage。logical property与实际存储的关系遵守9.1.1、9.1.5。
 - 注解本身没有可执行副作用。普通用户注解仅进入9.6的静态描述；只有已规定语义的核心注解参与编译。导出的注解声明及应用保留实际类型/常量引用和必要依赖，读入`.slib`后不重新按短名称解释；这些数据不扩大普通源码可见性。
@@ -1400,7 +1404,7 @@ MutableArray<T>(size: Long, init: (Long) -> T)
 - `Boolean`；
 - 八种整数表示：8/16/32/64位二进制补码signed/unsigned标量。八个canonical源码声明分别是`Int8`/`Int16`/`Int`/`Long`与`UInt8`/`UInt16`/`UInt`/`ULong`；它们是八个不同的nominal type；
 - 固定宽度与Kotlin风格名称通过3.2.1的透明alias对应：`Byte ≡ Int8`、`Short ≡ Int16`、`Int32 ≡ Int`、`Int64 ≡ Long`，以及`UByte ≡ UInt8`、`UShort ≡ UInt16`、`UInt32 ≡ UInt`、`UInt64 ≡ ULong`。`Int`/`UInt`在所有target上永久固定32位，`Long`/`ULong`永久固定64位；等价拼写不产生overload、RTTI、layout、mangling或ABI差异；
-- 浮点：`Float`（f32）/ `Double`（f64）；
+- 两种浮点表示：`Float`（IEEE 754 binary32）与 `Double`（IEEE 754 binary64）是不同的 canonical nominal type；`Float32 ≡ Float`、`Float64 ≡ Double` 是透明 alias，完整语义见 11.2.2；
 - `Char`。
 
 core中的对应声明是`public typealias Byte = Int8`、`public typealias Short = Int16`、`public typealias Int32 = Int`、`public typealias Int64 = Long`、`public typealias UByte = UInt8`、`public typealias UShort = UInt16`、`public typealias UInt32 = UInt`与`public typealias UInt64 = ULong`。当前语言不定义platform-native integer；本版本中要求保留64位数值范围的已有source/core API显式使用`Long`/`ULong`，这不把二者定义为target-native type。
@@ -1417,11 +1421,11 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Long`的`-1L/0L/1L`；
 - const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。
 
-每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。窄signed/unsigned owner的字符串化与hash可分别先无损扩展为`Long`/`ULong`并复用64位core fallback；`Long`/`ULong`的完整输入不得先截断为`Int`/`UInt`。
+每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。M30增加的`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个进入已实现语言子集的基本类型提供同类型值相等与`ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。窄signed/unsigned owner的字符串化与hash可分别先无损扩展为`Long`/`ULong`并复用64位core fallback；`Long`/`ULong`的完整输入不得先截断为`Int`/`UInt`。
 
 八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
-每个kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个kind的转换；unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除`compareTo: Long`、`equals: Boolean`和shift count `Long`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
+每个integer kind的representation intrinsic surface固定包括`unaryPlus`/`unaryMinus`/`inc`/`dec`、`plus`/`minus`/`times`/`div`/`rem`/`compareTo`/`equals`、上述bit members及到八个integer kind的转换；M30另增加11.2.2的`toFloat`/`toDouble`。unsigned同样提供wrapping `unaryMinus`，所以`-1u`有定义。除显式转换的目标类型、`compareTo: Long`、`equals: Boolean`和shift count `Long`外，operand/result均为owner exact type。range members是普通core body，不属于该intrinsic集合。
 
 除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
@@ -1434,6 +1438,46 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - Char 提供同类型 `equals`、`compareTo: Long`，以及 `ToString` 和 `Hash`；相等和次序按标量编号，`toString()` 编码为一个标量的 String，`hash()` 返回编号对应的 Long。没有隐式数字算术或 CharRange。
 - Char 字面量和同类型 const 引用可以用于 `const val`、默认值与递归 literal pattern；Char 普通方法调用不因此扩大既有 const-call 集合。模式覆盖遵守第 5 章的标量值有限域。
 - C ABI 使用 `uint32_t` 承载 Char，外部实现仍须保证入站值是合法标量；其余 by-value、array、aggregate、Option、boxing 与 FFI 布局沿各自既有规则。Char 的源码身份不能以同宽 UInt 代替。
+
+#### 11.2.2 `Float` / `Double`（M30）
+
+本节定义 M30 的目标行为，实施范围与完成门见 [M30 设计](../milestone30/DESIGN.md)。`Float` / `Double` 是没有普通字段或公开 primary constructor 的 intrinsic struct，分别承载 IEEE 754 binary32 / binary64 的全部位型，包括 subnormal、正负零、Infinity 和 NaN。core 显式声明 `public typealias Float32 = Float` 与 `public typealias Float64 = Double`；alias 不产生新的类型身份、overload、companion、布局或 ABI。两种类型显式实现 `ToString`，不实现 `Hash`。
+
+**字面量与定型。** 十进制浮点字面量具有小数部分、指数部分或 `f/F` 后缀中的至少一项，例如 `1.0`、`.5`、`1e3`、`1f`、`1.5e-2F`。小数点后必须有数字；`1.` 不是浮点字面量，`1..2` 和 `1.toDouble()` 保留原有词法。指数 `e/E` 后可带 `+/-`，随后必须有十进制数字；`_` 只可位于同一数字段的两个数字之间。无十六进制/二进制浮点语法或 `d/D` 后缀；已有整数 `0x1f` 仍是十六进制整数。
+
+- `f/F` 精确固定为 Float。无后缀浮点字面量参与 8.6 的 candidate-local expected-type fit；exact Float/Double 上下文按目标格式直接舍入，无其他约束时默认 Double。普通 MSC 规则后仍并列时，默认 Double commit 优先；失败候选不得泄漏类型或已舍入值。call/operator receiver 同样适用，只探测实际 core 浮点 owner 的相应成员，不枚举任意用户类型。
+- 舍入使用 round-to-nearest, ties-to-even；不得先读成宿主 f64 再缩为 f32。目标舍入为 Infinity 的有限字面量是编译错误；下溢可成为 subnormal 或零，不因 inexact 舍入而拒绝。负号是独立一元运算，`-0.0`、`-0f` 保留负零。
+- 已定型数值之间没有隐式提升；Float 与 Double、浮点与整数不能直接混合算术或比较。整数 token 不因 expected Float/Double 自动变成浮点值；使用 `1f`、`1.0` 或显式转换。透明 alias 仍是同一类型。
+
+**算术与转换。** 同类型 `+`、`-`、`*`、`/`、`%` 和一元 `+/-`、`inc/dec` 使用目标精度；`inc/dec` 分别按同精度加/减 1。普通算术按最近偶数舍入，支持渐进下溢；浮点除零、无效运算和溢出产生 IEEE 结果，不抛整数的 ArithmeticException。`%` 是以向零截断商定义的余数，与 C `fmod` / LLVM `frem` 一致，不是 IEEE `remainder`。有限非零值除以正负零得到相应 Infinity，零除零、Infinity 减自身、对零取余产生 NaN。一元 `+` 保留位型，一元 `-` 翻转 sign bit，包括 NaN 与零。
+
+默认浮点环境为最近偶数舍入、异常 trap 关闭、保留 subnormal；不提供源码可观察的异常标志或动态 rounding mode。编译器不得假设无 NaN/Infinity、消除有语义差异的负零、重结合运算，或把独立乘加自动融合为一次舍入。
+
+八种整数与两种浮点均提供 `toFloat()` / `toDouble()`；Float/Double 另提供到八种整数的 `toInt8`/`toInt16`/`toInt32`/`toInt64` 与 `toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`。这些转换不分配、不抛异常：
+
+- 整数到浮点从源数学值直接按目标精度最近偶数舍入，不经另一浮点格式；
+- Float 到 Double 对有限值精确，Double 到 Float 最近偶数舍入，允许产生 Infinity 或下溢；同类型转换保持位型，跨格式转换保留零的符号，但不承诺 NaN payload 的映射；
+- 浮点到整数向零截断，结果越界时饱和到目标整数的最小/最大值，NaN 转为 0；负数转无符号的下界为 0。按目标实际位宽饱和，不能先转 Long/ULong 再截断成窄整数。
+
+**普通比较。** `equals` 与 `==` 使用 IEEE 数值相等，`!=` 是该结果取反；`< <= > >=` 直接使用 IEEE 有序关系：
+
+| 输入 | `==` | `!=` | `<` / `<=` / `>` / `>=` |
+| --- | --- | --- | --- |
+| 任一 operand 为 NaN，包括同一 NaN | false | true | 全部 false |
+| `-0.0` 与 `+0.0` | true | false | `<` / `>` 为 false，`<=` / `>=` 为 true |
+| 其他值，包括 Infinity | 数值相等 | 数值不等 | 数学次序，`-Infinity < 有限值 < +Infinity` |
+
+因此 `!(a < b)` 不等价于 `a >= b`；所有输入上的普通关系不构成全序。Float/Double 不提供返回 Long 的 `compareTo`，关系运算不经过该协议。已合法的泛型调用、alias 和派生的 struct/tuple/enum 字段相等均使用同一浮点语义；不能因为值在相同存储中就跳过字段比较，也不新增 `Any.equals`。需要全序的算法应显式使用下面的方法。
+
+**显式全序。** 两种类型分别提供同类型参数的方法 `public fun isTotallyOrdered(belowOrEqualTo: Float): Boolean` / `public fun isTotallyOrdered(belowOrEqualTo: Double): Boolean`，调用为 `a.isTotallyOrdered(belowOrEqualTo = b)`。返回 IEEE 754 `totalOrder(a, b)`，是非严格的“全序小于等于”。其顺序为负 NaN、负 Infinity、负有限数、负零、正零、正有限数、正 Infinity、正 NaN；NaN 内部再按 IEEE 规则区分 sign、quiet/signaling 与 payload。相同位型对自身返回 true；正负零和不同 NaN 位型不合并。
+
+若算法接收严格的先后谓词，使用 `!b.isTotallyOrdered(belowOrEqualTo = a)`，不能直接传入非严格方法。该方法及 `isNaN()` / `isInfinite()` / `isFinite()` 均是 NoGC 的 typed representation intrinsic。它们不改变普通运算符，也不要求公开 `toBits` / `fromBits` / byte sequence / `transmute` API。
+
+**常量与表示。** 两种 companion 提供 `const val NaN`、`POSITIVE_INFINITY`、`NEGATIVE_INFINITY`、`MAX_VALUE`（最大正有限值）、`MIN_VALUE`（最小正 subnormal）与 `MIN_NORMAL`（最小正 normal）。NaN 常量固定为正 quiet NaN，Float 位型 `0x7fc00000`、Double 位型 `0x7ff8000000000000`。9.1.2 的浮点 const 运算使用同样的目标精度；产生 NaN 的算术 const 结果使用该类型的固定 quiet NaN，一元 sign 操作和同类型复制/转换仍保留其规定的位型。运行期算术不承诺 NaN 的 sign/payload 与 const 相同；普通存储、传参、返回和复制保持位型，显式 totalOrder 总是比较当时的表示。metadata 保存 kind 与 raw bits，保留负零和已确定的 NaN 表示。
+
+所有上述表示 intrinsic（包括浮点 `div/rem`）均为 `@NoGC`、ordinary；`toString` 和 codec 使用普通 core body，不属于 const-call 集合。`toString()` 输出不依赖 locale：有限值采用能按原精度读回相同位型的最短有效十进制数字，非零值规范化十进制指数在 `[-3, 7)` 时用定点，否则用科学记数法；始终有小数点和至少一位小数，科学指数用小写 `e`、不写正号或多余前导零。零分别为 `0.0` / `-0.0`，非有限值为 `NaN` / `Infinity` / `-Infinity`。不承诺 NaN payload 的文本往返。
+
+**组合与范围。** const、默认参数、annotation、literal pattern、generic/跨 Cone、boxing、数组、普通 aggregate 与 FFI 都保留实际浮点类型。literal pattern 按目标精度定型并用 IEEE `==` 匹配，正负零覆盖同一值；浮点域的穷尽检查始终要求覆盖剩余值的 wildcard，不能通过枚举字面量覆盖 NaN。NaN 可由 `isNaN()` guard 判断，guard 不提供穷尽证明。核心 companion codec 与 JSON 规则见 11.13，C ABI 见 13.8。M30 不引入 FloatRange、隐式数值提升、数值比较接口层次、Hash conformance、通用数学包或 128 位数值类型。
 
 ### 11.3 `Unit`
 
@@ -1682,10 +1726,11 @@ core 的 Array、MutableArray 和 ArrayList iterator 持有 owner 引用、`Long
   - `lhs == rhs`先各求值一次，再只从lhs静态类型收集成员`operator fun equals`候选，按普通成员overload规则选择唯一目标；`lhs != rhs`调用同一目标后对结果取反。不存在交换左右操作数、extension、地址比较、`Any.equals`或TypeDescriptor fallback。
   - **值类型：条件派生的结构相等**——编译器可以额外提供一个参数类型等于lhs完整静态value type的`operator fun equals`候选：例如`Point.equals(other: Point)`，generic template `Box<T>`中则是`Box<T>.equals(other: Box<T>)`，实例化后得到`Box<Int>.equals(other: Box<Int>)`。这些都是普通typed nominal application，不存在`Self`占位符。当且仅当类型的所有字段（元素）**可比较**时生成：字段可比较表示对两个该字段静态类型的值执行`==`能选出唯一目标；基本类型具有核心实现，其他value type递归应用本规则。struct/tuple逐字段按声明顺序短路；enum先比较tag，再只比较active variant payload；Unit恒等。任一字段不可比较时，该派生候选不存在，诊断指出首个失败字段/variant路径。
   - 用户声明参数类型为当前完整宿主application的同签名`equals`时取代派生体；其他参数类型的equals overload不屏蔽该同类型候选。派生方法也是普通成员，遵守value-type`this`按值传递规则。tuple/Unit 的派生候选以 lhs 完整静态类型的有效访问域为准，tuple 保留全部元素类型的可见性约束；生成 helper 的所在文件或首次创建位置不增加源码访问限制。
+  - M30的Float/Double核心`equals`遵守11.2.2；含NaN字段的派生值可能不等于自身。派生相等必须保留字段语义，不能改用bitwise equality、`memcmp`或相同存储/identity的快捷返回；泛型具体化同样适用。
   - **引用类型**：只使用该class/interface静态类型声明或继承的成员operator equals；不存在时是编译错误。`Any`没有成员，因而`Any == Any`非法；运行期对象另有equals不能补齐静态契约。需要identity比较时显式使用`===`。
   - equals 的决议只考虑成员函数（含编译器派生）；扩展函数不得参与——import不能改变某类型`==`的语义。
 - **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object/struct/enum都必须在声明中显式列出该interface并提供合法override；字段或payload实现`ToString`不会让宿主自动获得conformance。generic nominal type若在实现体中调用类型参数值的`toString()`，必须为相应参数声明普通`ToString`上界。tuple与Unit不能声明implements列表，因而不实现`ToString`。String与基础类型由core中的intrinsic nominal声明显式adopt，String实现返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback，也不按成员同形或字段结构补齐conformance。
-- **`Hash`（哈希）**：接口`interface Hash { fun hash(): Long }`。**没有任何缺省或派生实现**；基本类型与String由核心库提供内容相关实现，其他类型显式opt-in。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。
+- **`Hash`（哈希）**：接口`interface Hash { fun hash(): Long }`。**没有任何缺省或派生实现**；Boolean、Char、八种定宽整数与String由核心库显式提供内容相关实现，其他类型显式opt-in。Float/Double及其alias不实现Hash，也不提供默认`hash()`；基本类型或值类型身份本身不产生conformance。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。此规则不新增Map key专用限制；有Hash bound的API仍按普通interface规则检查。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic
 
@@ -1717,9 +1762,9 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 
 ---
 
-### 11.13 编码、解码与缺省实现（M29）
+### 11.13 编码、解码与缺省实现（M29；M30 增加浮点标量）
 
-本节规定2026-10-06修订后的M29语义；范围、合成示例和实际验收进度见[M29设计](../milestone29/DESIGN.md)及其实施记录。核心库在`scoop.core`提供：
+本节以2026-10-06修订后的M29语义为基础，加入尚待实施的M30浮点单值协议与JSON规则；范围、合成示例和实际验收进度分别见[M29设计](../milestone29/DESIGN.md)及其实施记录、[M30设计](../milestone30/DESIGN.md)。核心库在`scoop.core`提供：
 
 ```scoop
 public interface Encodable<T> {
@@ -1803,6 +1848,8 @@ public interface SingleValueEncodingContainer {
     public fun writeBoolean(value: Boolean): Unit
     public fun writeLong(value: Long): Unit
     public fun writeULong(value: ULong): Unit
+    public fun writeFloat(value: Float): Unit
+    public fun writeDouble(value: Double): Unit
     public fun writeString(value: String): Unit
     public fun writeNull(): Unit
 }
@@ -1811,6 +1858,8 @@ public interface SingleValueDecodingContainer {
     public fun readBoolean(): Boolean
     public fun readLong(): Long
     public fun readULong(): ULong
+    public fun readFloat(): Float
+    public fun readDouble(): Double
     public fun readString(): String
     public fun readNull(): Unit
 }
@@ -1829,6 +1878,7 @@ path表示输入/输出数据位置，采用从空串根开始的JSON Pointer se
 | Scoop类型 | 缺省编码形状 |
 | --- | --- |
 | Boolean / 整数 / String | 对应单值；有符号/无符号分别经过Long/ULong，窄整数decode检查范围 |
+| Float / Double（M30） | 分别经writeFloat/readFloat或writeDouble/readDouble，不经整数或另一浮点精度中转 |
 | Char | 恰好一个Unicode scalar的String |
 | Unit | 单值null；不借用Scoop的Option表示 |
 | struct / 合格class | 按声明序写入字段的keyed record |
@@ -1845,7 +1895,9 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-M29以普通库的`Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`完成可运行闭环。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。无Float/Double或Map的新增承诺；record已可覆盖对象形式，array覆盖序列。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
+M29以普通库的`Json.encode<T>(value: T, codec: Encodable<T>): String`与`Json.decode<T>(text: String, codec: Decodable<T>): T`完成可运行闭环。调用如`Json.encode(value, User.Companion)`与`Json.decode(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。JSON实现负责语法、Unicode/转义、重复key、数值范围和完整输入消费；整数不经过Double转换，整数字段不接受带小数部分或指数部分的数字token。record已可覆盖对象形式，array覆盖序列，不增加Map协议。格式错误抛带数据路径的EncodingException/DecodingException；用户codec、default和constructor抛出的普通异常照常传播，不改写为default或空值。
+
+M30中Float/Double的companion分别以普通core body实现`Encodable<Float>`/`Decodable<Float>`与`Encodable<Double>`/`Decodable<Double>`，透明alias复用同一codec。single-value新增上表的两种精度入口，不为所有格式统一禁止非有限值。JSON仅编码有限浮点数，使用11.2.2的十进制表示并保留负零；编码NaN或Infinity抛带path的EncodingException。解码接受合法JSON整数、小数或指数token，保留原始数字文本并直接按目标精度最近偶数舍入，Float不得经Double中转。舍入溢出到Infinity抛DecodingException，下溢到subnormal或带符号零合法；非数值token不进行字符串/布尔值强制转换。JSON语法不接收NaN/Infinity拼写。两个精度的有限值文本往返保持位型，原有整数精确解析与范围规则不变。
 
 #### 11.13.4 编码、解码依赖与泛型组合
 
@@ -2404,6 +2456,8 @@ C没有跨当前支持profile可依赖的零尺寸object ABI。C-FFI-safe classi
 ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
 
 定宽integer在C ABI参数、返回、extern global/TLS及`@CLayout`字段中精确映射：`Int8`/`Int16`/`Int`/`Long`（即`Int8`/`Int16`/`Int32`/`Int64`）分别为`int8_t`/`int16_t`/`int32_t`/`int64_t`，`UInt8`/`UInt16`/`UInt`/`ULong`（即`UInt8`/`UInt16`/`UInt32`/`UInt64`）分别为`uint8_t`/`uint16_t`/`uint32_t`/`uint64_t`。transparent alias先展开；不依据Scoop拼写把它们推断为C的`int`/`long`/`intptr_t`。窄integer实参/返回的寄存器extension与aggregate pass分类完全由validated C-bridge toolchain编译的canonical `stdint.h` source signature决定，Scoop metadata不得持久化第二套手写target C register classifier，也不能假定Scoop typed ABI恰好等于目标C ABI。
+
+M30的`Float`/`Double`在C ABI参数、返回、extern global/TLS、`@CLayout`字段及相应pointer/callback签名中分别使用C `float`/`double`。两种alias先展开；Scoop的每个binary32/binary64位型均有效，FFI入站不拒绝NaN、Infinity或负零。标量寄存器分类、混合aggregate与callback桥接仍由同一canonical C storage signature交给目标C编译器处理，不另建浮点C ABI分类器。Scoop值布局与GC规则见运行时规范6.1，实现边界见实现规范2.18。
 
 ### 13.9 `value` / `ref` 类型约束
 
