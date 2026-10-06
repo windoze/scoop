@@ -2,7 +2,7 @@
 
 2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
 
-2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已迁移，三平台正式总验收继续进行。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。删除旧条件关系和 tuple 编码生成键后，当前格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1704,7 +1704,7 @@ M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启
 
 ### 2.17 静态类型描述与编码方法合成（M29）
 
-本节规定2026-10-06修订后的M29目标分层，实现迁移与验收见[M29设计](../milestone29/DESIGN.md)第9.3节及其实施记录；旧实例编码的实现和测试不代表新协议已经完成。语言合同见9.1.3、9.4～9.6、11.13，runtime边界见运行时规范2.2、2.7。对M21 companion作用域和M23物化假设的修订只记入当前规范与M29，历史milestone文件不改写。
+本节规定2026-10-06修订后的M29实现分层，迁移见[M29设计](../milestone29/DESIGN.md)第9.3节，实际覆盖与测试方式见[M29验收记录](../milestone29/ACCEPTANCE.md)；旧实例编码的实施记录作为历史保留。语言合同见9.1.3、9.4～9.6、11.13，runtime边界见运行时规范2.2、2.7。对M21 companion作用域和M23物化假设的修订只记入当前规范与M29，历史milestone文件不改写。
 
 **AST与parser。** 增加annotation class及字段/variant/property注解的完整源码结构，保留参数来源及位置/命名形式，HIR负责常量化。companion声明继续使用普通语法，限定类型/值/成员路径须完整保留`Box<T>.Companion`及其成员路径中的宿主类型实参。HIR区分声明命名空间与实际companion application，后者要求完整实参，不从方法参数反推宿主。`Encodable<T>`、`Decodable<T>`、generic helper和override使用普通interface/方法机制，不增加static方法、特殊Self结果或类型级factory declaration。
 

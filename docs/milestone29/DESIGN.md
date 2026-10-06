@@ -1,12 +1,12 @@
 # M29 设计：静态类型描述与序列化基础设施
 
-状态：实施中，2026-10-06 codec 协议修订已迁移至实现，正式总验收进行中；进度和实际验证见 [PROGRESS.md](PROGRESS.md)。此前实例编码和条件 conformance 的验收不代表本次修订已实现。
+状态：已完成，2026-10-06 codec 协议修订已实现并覆盖三平台全部适用 fixture；实际测试方式与结果见 [ACCEPTANCE.md](ACCEPTANCE.md)，分批提交见 [PROGRESS.md](PROGRESS.md)。早期实例编码和条件 conformance 的实施记录作为历史保留。
 
 日期：2026-10-06。
 
 依赖：M17 的参数/default 协议，M19 的正常构造与初始化，M20/M21 的泛型、property 和 interface 实现选择，M23 的共有 HIR/跨 Cone/`.slib`/ODR，以及 M25～M27 的异常、String/Char/List 和 Context。以当前完成 M27 的仓库为实现基线。本文件定义新的 M29，不沿用原 M29 的目标或实现计划。
 
-2026-10-05 决策补充：companion 按完整宿主类型分别拥有 singleton，并可使用宿主类型参数。第 3.3 节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 的共享、非 generic companion 规则，也修订后续实现中不携带宿主实参的假设。此前 milestone 设计作为历史记录保留原文；后续修改由本设计及当前三份 spec 记录。泛型 companion 已实现并通过三平台验收；M29 其余能力的实现情况见实施记录。
+2026-10-05 决策补充：companion 按完整宿主类型分别拥有 singleton，并可使用宿主类型参数。第 3.3 节取代 [M21 设计 §3.2](../milestone21/DESIGN.md) 的共享、非 generic companion 规则，也修订后续实现中不携带宿主实参的假设。此前 milestone 设计作为历史记录保留原文；后续修改由本设计及当前三份 spec 记录。泛型 companion 与修订后的 codec 协议均已完成，实际验证见验收记录。
 
 2026-10-06 决策补充：`Encodable<T>` 与 `Decodable<T>` 均由 companion 或普通 codec 对象实现，encode 显式接收数据值。父子数据类型不经继承传递编码策略；泛型和核心容器改为两个方向的显式 codec 组合，撤销实例 Encodable、容器/tuple 条件 conformance。迁移范围见第 9.3 节；设计与规范先行，实施情况见 PROGRESS.md。
 
@@ -596,16 +596,18 @@ encode 的 value 使用普通参数复制与 ABI，只有 codec 自身是值类�
 
 HIR golden 展示 resolved annotation、完整 shape、companion 的宿主 binder/application、普通 interface 及两个方向的 codec 绑定、已展开字段/构造调用；MIR/LIR golden 区分 codec receiver 与数据参数，展示普通调用/控制流/ABI及按 application 区分的初始化支持。产物只发射实际需要的 body、常量及普通类型/初始化记录，不再带容器/tuple 条件编码和 TupleEncoding callable，也不加字段枚举表或 codec registry；不把 runtime 现有 GC TypeDescriptor 的存在误报为反射。
 
-完整验收包括仓库要求的格式化/lint、`cargo test --workspace`、公共 fixture runner 单测及 `python3 tests/run_fixtures.py --all`。实际结果和对应提交记录在 [PROGRESS.md](PROGRESS.md)；部分用例通过或快照更新不替代普通模式的正式总验收。
+完整验收包括仓库要求的格式化/lint、`cargo test --workspace`、公共 fixture runner 单测，以及三个目标全部适用文件 fixture 的编译、诊断、链接、运行与必要快照检查。普通完整运行使用 `python3 tests/run_fixtures.py --all`。
+
+2026-10-06 按用户要求调整验证节奏：实现与受影响测试先在一个主平台收敛，再做一次三平台收尾验证；局部修复按实际影响范围复验。快照迁移若已完整执行全部适用用例，且完成共有输出比较、平台差异审阅及必要失败项复验，应如实记录更新模式和覆盖来源，不为相同实现与已确认快照重复全量。部分用例或未经审阅的快照更新不能替代完整覆盖。实际模式、原始报告与结果见 [ACCEPTANCE.md](ACCEPTANCE.md)，分批过程见 [PROGRESS.md](PROGRESS.md)。
 
 ### 9.3 2026-10-06 协议迁移
 
-2026-10-06 的文档修订先替换原实例编码设计，再按下列功能批次迁移实现并提交。实施记录中的旧提交和测试保留为历史，不能作为新协议的验收；当前实现与验证进度见 PROGRESS.md。
+2026-10-06 的文档修订先替换原实例编码设计，再按下列功能批次迁移实现并提交。实施记录中的旧提交和测试保留为历史，不能作为新协议的验收；本次修订的完成结果见 ACCEPTANCE.md。
 
 1. 将核心协议、scalar companion、UnitEncoder、Json.encode 及手写用例改为显式数据参数与 codec；两个方向均验证普通直接/接口调用。
 2. 将派生 encode 的 owner 改为 codec，目标取 `Encodable<R>` 的 R；复用两个方向所需的字段依赖选择、普通访问检查与 body 构造，补齐泛型、递归及父子 codec 独立用例。
 3. 提供容器 encoder helper 与 EncodeFunction，修改 encodeList；删除只服务旧方案的条件 conformance、条件成员、tuple 编码模板/生成键及编码分派记录，不保留平行兼容实现。普通 Unit 声明、值装箱、类型测试、shape support 和已有 GC 修复按其正常用途保留。
-4. 按实际删除/修改的产物字段升级 section 兼容版本及缓存 fingerprint，旧产物重建，不在设计中预分配版本号。同步正负 fixture 与三个 stage golden，重新完成 macOS、Linux glibc/musl 正式验收后再标记 M29 完成。
+4. 按实际删除/修改的产物字段升级 section 兼容版本及缓存 fingerprint，旧产物重建，不在设计中预分配版本号。同步正负 fixture 与三个 stage golden，按第 9.2 节完成修订后 macOS、Linux glibc/musl 的全部适用 fixture 覆盖并记录实际测试方式后，再标记 M29 完成。
 
 ## 10. 参考资料
 
