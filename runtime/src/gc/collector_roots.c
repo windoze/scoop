@@ -8,20 +8,20 @@
 static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visitor) {
     visitor.visit_slot((void **)&thread->current_task_context, visitor.context);
     ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
-    bool pending = thread->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING;
+    bool pending = mode == SCOOP_THREAD_MANAGED_PENDING;
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
+        pending = thread->parked_from == SCOOP_THREAD_MANAGED_PENDING;
         if (thread->parked_from == SCOOP_THREAD_MANAGED) {
-            if (!pending) {
-                scoop_gc_visit_managed_stack(thread, visitor);
-            }
-        } else if (thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
+            scoop_gc_visit_managed_stack(thread, visitor);
+        } else if (!pending && thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
             heap_fatal("parked thread has an invalid source mode");
         }
-    } else if (mode != SCOOP_THREAD_NATIVE_SAFE && !(mode == SCOOP_THREAD_MANAGED && pending)) {
+    } else if (mode != SCOOP_THREAD_NATIVE_SAFE && mode != SCOOP_THREAD_NATIVE_SAFE_RETURNING &&
+               !pending) {
         heap_fatal("collector observed a non-quiescent thread");
     }
-    if (pending && thread->managed_anchor != NULL) {
-        heap_fatal("pending gateway published a managed anchor");
+    if (pending && (thread->managed_anchor != NULL || thread->managed_stack_boundary == NULL)) {
+        heap_fatal("pending gateway has an invalid empty segment");
     }
     for (ScoopCallerRootFrame *frame = thread->caller_roots; frame != NULL;
          frame = frame->previous) {

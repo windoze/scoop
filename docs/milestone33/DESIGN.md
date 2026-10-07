@@ -287,7 +287,7 @@ collector 对其他线程的停稳判定只读取原子 mode 和 epoch，不读�
 2. 在 world lock 内检查其余注册线程的原子 mode/epoch。尚未全部停稳时，调用带有限超时的 condvar wait：等待操作原子地释放 world lock，返回前重新获取该锁。通知、超时及虚假唤醒后都重新检查停稳条件。collector 的 mode 读取使用 seq_cst，与 NativeSafe 返回握手配对。
 3. 等待期间保留 collector 独占权，但不持有 heap lock、roots lock；world lock 必须释放，使目标线程能够取得它并 park。超时使未发送通知的 NativeSafe 转换最终被复查发现；不再要求纯自旋、yield、sleep 的等待循环。
 4. 全部目标停稳后，在 world lock 内发布 `COLLECTING`，释放 world lock，再取得既有 heap/roots 锁，执行精确根扫描、对象移动与根回写。GC 开始使用其他线程的普通字段前，必须已完成本轮停稳判定。
-5. 完成全部引用、根及分配状态更新，释放 heap/roots 锁后，在 world lock 内恢复 collector 自身状态、释放 collector 独占权，再以 release 发布 `RUNNING` 并广播，最后释放 world lock。保持这一结束顺序，使新 collector 不会在持有 world lock 时等待旧 collector 释放独占锁。
+5. 完成全部引用、根及分配状态更新，释放 heap/roots 锁后，在 world lock 内恢复 collector 自身状态，再以 release 发布 `RUNNING` 并广播，最后释放 world lock。collector 独占由 world lock 保护的 phase 转换保证；删除原先多余的 collector mutex，避免与 world lock 形成反向取锁关系。
 
 attach、detach、shutdown 和 registry 成员变更继续在 world lock 内通过 `RUNNING` 检查。从发布 `STOPPING` 到恢复 `RUNNING`，注册表成员、链结构和已注册 thread state 的生命周期保持稳定，可复用既有 registry，不新增快照或引用计数。线程一旦满足本轮停稳条件，其可扫描数据持续冻结到恢复 `RUNNING`。
 

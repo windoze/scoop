@@ -1,0 +1,42 @@
+@Extern(lib = "fixture_native", name = "m13_run_many")
+fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+@Extern(lib = "fixture_native", name = "m13_callback_barrier")
+fun barrier()
+
+@Extern(lib = "fixture_native", name = "m33_native_identity")
+fun nativeIdentity(value: Int): Int
+
+class Cell(val value: Int)
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                val cell = Cell(value)
+                var round = 0
+                while (round < 32) {
+                    @Unsafe { barrier() }
+                    gcCollect()
+                    var call = 0
+                    while (call < 16) {
+                        @Unsafe { expect(nativeIdentity(cell.value) == value) }
+                        call += 1
+                    }
+                    expect(cell.value == value)
+                    round += 1
+                }
+                cell.value
+            }, 1, ForeignCallbackMode.Reusable
+        )
+        expect(runMany(callback.function, callback.context, 10, 4) == 46)
+        expect(when (foreignCallbackFailure(callback)) {
+            Some(_) -> false
+            None -> true
+        })
+        releaseForeignCallback(callback)
+    }
+    println("native-safe-transitions-ok")
+}

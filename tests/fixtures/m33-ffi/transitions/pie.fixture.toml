@@ -1,0 +1,72 @@
+schema = 1
+name = "m33-native-safe-transitions-pie"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c", "../../m13-callback/native.c"]
+tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
+targets = ["x86_64-unknown-linux-musl"]
+tags = ["m33", "ffi", "gc", "callback", "artifact-link"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "threads"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-O2", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libfixture_native.a", "${work}/native.o", "${work}/threads.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--link-mode", "dynamic", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", {each = "${link_args}"}, "--link-mode", "dynamic", "--library-path", "${work}", "-o", "${work}/relinked"]
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "native-safe-transitions-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "native-safe-transitions-ok\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "native-safe-transitions-ok\n"
+stderr = ""

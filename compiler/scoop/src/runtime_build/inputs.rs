@@ -65,11 +65,14 @@ impl Inputs {
             .map(|flag| (*flag).to_owned())
             .collect();
         flags.extend(
+            request
+                .optimization
+                .c_flags()
+                .iter()
+                .map(|flag| (*flag).to_owned()),
+        );
+        flags.extend(
             [
-                match request.optimization {
-                    RuntimeOptimization::None => "-O0",
-                    RuntimeOptimization::Optimized => "-O2",
-                },
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",
                 "-fno-lto",
