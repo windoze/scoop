@@ -460,7 +460,7 @@ nursery 满触发 minor；旧代／large-object 压力、晋升空间不足或�
 
 诊断统计记录实际分配字节、nursery 分配、晋升、minor/full 次数、晋升失败转 full、脏卡、扫描引用槽与 STW 停顿。`scoop_rt_gc_debug_metrics` 复制这些计数供测试读取；`SCOOP_GC_STATS=1` 在正常程序退出时向 stderr 输出一行 JSON，供性能脚本采集。这些计数不决定程序是否合法，不进入对象 ABI 或产物身份。
 
-性能对照使用诊断开关 `SCOOP_GC_FULL_ONLY=1`，将 nursery refill 原本请求的 minor 改为普通 full；分配布局、nursery 容量、屏障和显式 full 路径保持相同。该开关默认关闭，不开启 full-moving stress 的 quarantine 或重型验证，也不改变语言接口。JSON 另记录 minor/full 的累计停顿和八档停顿直方图，上界依次为 10、50、100、500、1000、5000、10000 微秒及无上界；停顿从 mutator 停止后开始，包含本次 mark/plan/update/reclaim，未包含 rendezvous 等待。附加统计保存在 runtime 内部，不改变 `ScoopGcMetrics` 的 C 布局。
+性能对照使用诊断开关 `SCOOP_GC_FULL_ONLY=1`，将 nursery refill 原本请求的 minor 改为普通 full；分配布局、nursery 容量、屏障和显式 full 路径保持相同。该开关默认关闭，不开启 full-moving stress 的 quarantine 或重型验证，也不改变语言接口。JSON 另记录实际 evacuation 复制的 `copied_bytes`、minor/full 的累计停顿和八档停顿直方图，上界依次为 10、50、100、500、1000、5000、10000 微秒及无上界；复制量只计真实移动，不把 pin block 原地晋升当作复制，`promoted_bytes` 继续记录全部年轻存活对象的晋升量。停顿从 mutator 停止后开始，包含本次 mark/plan/update/reclaim，未包含 rendezvous 等待。附加统计保存在 runtime 内部，不改变 `ScoopGcMetrics` 的 C 布局。
 
 minor 的正常工作随根、脏区和年轻存活图增长，不能扫描所有旧代对象或所有旧代引用来弥补屏障遗漏。测试必须覆盖仅从 old→young 可达的对象、跨 card aggregate/array copy、构造中途晋升、多 mutator、Context、native root/handle/pin、callback/冻结栈段，以及 minor 与 full 的交替。性能记录包括 minor/full 次数、年轻分配与晋升量、扫描脏区、停顿、吞吐及实际堆占用；不得只用旧 full stress 证明分代正确。详细实施与验收见 [M31 设计](../milestone31/DESIGN.md)。
 

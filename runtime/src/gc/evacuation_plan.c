@@ -155,6 +155,7 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     for (size_t index = 0; index < count; index++) {
         PlannedMove *move = &moves[index];
         memcpy(move->destination, move->source, move->size);
+        scoop_gc_heap_state.copied_bytes += move->size;
         ScoopGcBlockMeta *source = &blocks[move->source_block];
         if (move->size <= GC_REGULAR_MAX) {
             record_small_object(move->target_block, move->destination, move->size, true);

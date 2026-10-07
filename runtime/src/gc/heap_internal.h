@@ -111,6 +111,7 @@ typedef struct ScoopGcHeapState {
     _Atomic(uint64_t) allocated_bytes;
     _Atomic(uint64_t) nursery_allocated_bytes;
     ScoopGcMetrics metrics;
+    uint64_t copied_bytes;
     uint64_t minor_pause_ns;
     uint64_t full_pause_ns;
     uint64_t pause_buckets[8];

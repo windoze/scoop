@@ -166,3 +166,9 @@
 - 模拟环境的 musl 在 attach 时已给出整段主线程栈范围，原先假定自然增长必然刷新四次的断言失败，实际观察刷新次数为零。probe 现在每段深递归前以实际 OS 范围内的地址设置窄缓存，强制 managed entry、managed anchor、native transition、callback 四条发布路径重新查询真实范围；四次刷新要求也适用于 glibc。
 - C 严格告警与 workspace clippy 通过；该测试的 GNU PIE、musl static/PIE × O0/O2 六种组合全部通过，18.32 秒。保留其余 350 项结果，Linux codegen 351 项验收闭合。
 - Rust 验收闭合后按包清理闲置 HIR/HIR lowering/parser 的 debug 产物 19.7 GiB，保留活跃的正式 release 工具、fixture 缓存与报告。
+
+## GC 实际复制量
+
+- 性能 JSON 增加内部 `copied_bytes`，在已有 evacuation 执行真实 `memcpy` 时累加；公开 `ScoopGcMetrics` 和 runtime ABI 保持。晋升量继续包含 pin block 原地转代，复制量只记录实际搬迁，能够分别观察高存活率的两种成本。
+- C 严格告警与五项 nursery 回归通过。Darwin 高存活率/pin 程序在 nursery/full-only 下均输出 `196614`，两组实际复制量为 6,365,264 / 917,672 bytes，晋升量均为 6,815,768 bytes，收集次数分别为 minor/full 6/1 与 0/7。
+- 上述运行与其他编译并行，仅确认统计字段和行为；正式耗时仍由后续串行测量记录。
