@@ -6,7 +6,7 @@ use inkwell::values::AnyValue;
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+    DigestPatchIntentKey, DigestSemanticFieldRole, ExactCallableSignature, ExactTypeKey,
     ExecutableSourceEntryIdentity, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
     PackagePath, PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
     PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
@@ -91,7 +91,14 @@ fn executable_entry_emission_preserves_typed_references_and_zero_patches() {
     assert_eq!(failure_root.get_linkage(), Linkage::External);
     let gateway_symbol = entry.gateway_symbol().unwrap().symbol();
     let gateway = llvm.get_function(gateway_symbol.as_str()).unwrap();
-    assert_eq!(gateway.get_type(), context.i32_type().fn_type(&[], false));
+    let pointer = context.ptr_type(inkwell::AddressSpace::default());
+    assert_eq!(
+        gateway.get_type(),
+        context.i32_type().fn_type(
+            &[context.i32_type().into(), pointer.into(), pointer.into()],
+            false
+        )
+    );
     assert_eq!(gateway.get_linkage(), Linkage::External);
 
     let descriptor_ir = descriptor.print_to_string().to_string();
@@ -332,7 +339,12 @@ fn executable_source_entry() -> ExecutableSourceEntryIdentity {
     .unwrap();
     ExecutableSourceEntryIdentity::try_new(
         &declaration,
-        ExactOrdinaryNoArgUnitSignature::new(unit_exact_type()),
+        ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            Vec::new(),
+            unit_exact_type(),
+        ),
     )
     .unwrap()
 }

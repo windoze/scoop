@@ -1,0 +1,23 @@
+private fun check(value: Boolean) { if (!value) { exit(99) } }
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argc", abi = "c")
+private fun argc(): Int
+@GCLeaf
+@Extern(name = "scoop_rt_program_argv", abi = "c")
+private fun argv(index: Int): Ptr<Int8>?
+
+@NoGC
+private fun count(): Int { @Unsafe { return argc() } }
+val eagerCount: Int = count()
+
+fun main() {
+    @Unsafe {
+        check(eagerCount == 3)
+        check(count() == eagerCount)
+        check(argv(-1) == None)
+        check(argv(3) == None)
+        check(argv(0) != None)
+    }
+    write("unit-main\n")
+}

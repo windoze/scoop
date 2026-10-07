@@ -164,13 +164,30 @@ pub(super) fn lower_graph(
     let root_artifacts = match input.production().entry_bridge() {
         mir::EntryMirBridgeBranchV1::Library => None,
         mir::EntryMirBridgeBranchV1::Executable(bridge) => {
-            let mir::MirOutput::Executable { entry } = module.output else {
+            let mir::MirOutput::Executable { entry, arguments } = module.output else {
                 unreachable!("the sealed MIR input keeps output and entry proof aligned")
+            };
+            let arguments = match arguments {
+                mir::ProgramArguments::Unused => production::RootArguments::Unused,
+                mir::ProgramArguments::Local(builder) => {
+                    let lir::LocalFunctionRef::Managed(builder) = local_function_map[&builder]
+                    else {
+                        unreachable!("the core argument builder has managed effect")
+                    };
+                    production::RootArguments::Build(lir::ManagedCallDestination::local(builder))
+                }
+                mir::ProgramArguments::External(builder) => production::RootArguments::Build(
+                    lir::ManagedCallDestination::external(external_callable_map[&builder]),
+                ),
             };
             Some(lower_root_artifacts(
                 module.cone,
                 bridge.source(),
-                local_function_map[&entry],
+                production::RootMain {
+                    target: local_function_map[&entry],
+                    signature: &function_signatures[&entry],
+                    arguments,
+                },
                 globals::static_storage_layout(
                     &context,
                     &identity_roots,
@@ -338,7 +355,7 @@ pub(super) fn lower_graph(
         foreign_callback_bridges,
         output: match module.output {
             mir::MirOutput::Library => lir::LirOutput::Library,
-            mir::MirOutput::Executable { entry } => lir::LirOutput::Executable {
+            mir::MirOutput::Executable { entry, .. } => lir::LirOutput::Executable {
                 entry: local_function_map[&entry],
             },
         },

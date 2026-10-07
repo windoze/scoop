@@ -1,0 +1,105 @@
+schema = 1
+name = "m33-main-args-unit"
+root = "program.scoop"
+inputs = ["launcher.c", "program.scoop"]
+tools = ["cc", "scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "ffi", "gc", "process", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "launcher"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/launcher.c", "-o", "${work}/launcher"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${root}", to = "${work}/source/program.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "cli_run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/source/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--message-format", "json", "--", "two words", "", "中文🙂", "--literal"]
+env = {M33_MAIN_CODE = "1"}
+exit = 0
+stdout = "${build.result.output}\ntwo words\n\n中文🙂\n--literal\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_source"
+files = [{remove = {path = "${work}/source"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${work}/relinked", "two words", "", "中文🙂", "--literal"]
+exit = 0
+stdout = "${work}/relinked\ntwo words\n\n中文🙂\n--literal\n"
+stderr = ""
+
+[[steps]]
+name = "move"
+argv = ["${work}/relinked", "two words", "", "中文🙂", "--literal"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "${work}/relinked\ntwo words\n\n中文🙂\n--literal\n"
+stderr = ""
+
+[[steps]]
+name = "minor"
+argv = ["${work}/relinked", "two words", "", "中文🙂", "--literal"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "${work}/relinked\ntwo words\n\n中文🙂\n--literal\n"
+stderr = ""
+
+[[steps]]
+name = "invalid_utf8"
+argv = ["${work}/relinked", "valid", {hex = "ff"}]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 1
+stdout = ""
+stderr = "invalid UTF-8 in argv[2]\nscoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=CharacterCodingException)\n"
+
+[[steps]]
+name = "invalid_argv0"
+argv = ["${work}/launcher", "${work}/relinked", "bad"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 1
+stdout = ""
+stderr = "invalid UTF-8 in argv[0]\nscoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=CharacterCodingException)\n"
+
+[[steps]]
+name = "verbatim_argv0"
+argv = ["${work}/launcher", "${work}/relinked", "unit"]
+exit = 0
+stdout = "../literal app name\ntwo words\n\n中文🙂\n--literal\n"
+stderr = ""

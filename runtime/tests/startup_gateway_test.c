@@ -53,6 +53,17 @@ static uint32_t gateway(void) {
     return result;
 }
 
+static uint32_t root_gateway(int32_t argc, const char *const *argv, int32_t *out_exit_code) {
+    assert(argc == 3);
+    assert(strcmp(argv[0], "./original name") == 0);
+    assert(strcmp(argv[1], "") == 0);
+    assert(strcmp(argv[2], "two words") == 0);
+    assert(argv[3] == NULL);
+    uint32_t status = gateway();
+    *out_exit_code = INT32_MIN + 257;
+    return status;
+}
+
 static void *move_failure(void *unused) {
     (void)unused;
     assert(scoop_rt_attach_foreign_thread());
@@ -132,6 +143,10 @@ int main(void) {
     scoop_test_image_init(types, 1, roots, 1, NULL, 0);
     scoop_thread_attach_main();
     assert(scoop_startup_call_gateway(gateway) == 0);
+    const char *arguments[] = {"./original name", "", "two words", NULL};
+    int32_t exit_code = 0;
+    assert(scoop_startup_call_root(root_gateway, 3, arguments, &exit_code) == 0);
+    assert(exit_code == INT32_MIN + 257);
     assert(scoop_rt_thread_debug_mode() == SCOOP_THREAD_NATIVE_SAFE);
     expect_failure(0, "gateway returned an invalid status");
     expect_failure(1, "gateway failure has no published exception");

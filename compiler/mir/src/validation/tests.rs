@@ -605,7 +605,10 @@ pub(crate) fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId
         classes: Arena::new(),
         interfaces: Arena::new(),
         option_core: Vec::new(),
-        output: MirOutput::Executable { entry },
+        output: MirOutput::Executable {
+            entry,
+            arguments: ProgramArguments::Unused,
+        },
         meta: MirMeta::default(),
     };
     register_test_exact_type(&mut module, &Type::Unit);

@@ -11,7 +11,7 @@ use scoop_lir::{
 use super::{RuntimeMetadataV1Types, registration_identity_value};
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 6;
+const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
 const SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE: u64 = 200;
 const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 168;

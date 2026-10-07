@@ -494,8 +494,18 @@ pub fn dump(module: &Module) -> String {
     }
     match module.output {
         MirOutput::Library => out.push_str("  output library\n"),
-        MirOutput::Executable { entry } => {
+        MirOutput::Executable { entry, arguments } => {
             out.push_str(&format!("  output executable {}\n", function_ref(entry)));
+            match arguments {
+                ProgramArguments::Unused => {}
+                ProgramArguments::Local(builder) => {
+                    out.push_str(&format!("  program arguments {}\n", function_ref(builder)))
+                }
+                ProgramArguments::External(builder) => out.push_str(&format!(
+                    "  program arguments external{}\n",
+                    builder.into_raw().into_u32()
+                )),
+            }
         }
     }
     out

@@ -1,4 +1,4 @@
-//! Structural contracts of the two generated, no-argument startup gateways.
+//! Structural contracts of generated root and eager startup gateways.
 //! General ABI, safepoint identity and root-plan validation remain at the same
 //! complete LIR boundary; this module checks only the gateway's closed control flow.
 
@@ -9,6 +9,7 @@ use scoop_wire::decode_runtime;
 
 use crate::*;
 
+mod arguments;
 mod body;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -132,15 +133,16 @@ pub fn validate_startup_gateways(module: &Module) -> Result<()> {
             _ => continue,
         };
         let entry = entry_function(module, function, target.entry())?;
-        if !entry.signature.arguments().is_empty()
-            || !matches!(entry.signature.result(), AbiReturn::UnitVoid)
+        if matches!(target, Gateway::Initialization { .. })
+            && (!entry.signature.arguments().is_empty()
+                || !matches!(entry.signature.result(), AbiReturn::UnitVoid))
         {
             return Err(error(
                 function,
-                "gateway target must return Unit without arguments",
+                "eager gateway target must return Unit without arguments",
             ));
         }
-        body::validate(function, target)?;
+        body::validate(function, target, !entry.signature.arguments().is_empty())?;
     }
     Ok(())
 }

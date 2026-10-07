@@ -1,19 +1,29 @@
 use super::*;
 
-pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
+pub(super) fn validate(function: &Function, gateway: Gateway, takes_arguments: bool) -> Result<()> {
     let fail = |reason| error(function, reason);
     let AbiReturn::Direct(result) = function.signature.result() else {
-        return Err(fail("gateway signature must be C uint32_t(void)"));
+        return Err(fail("gateway signature differs from its C startup ABI"));
+    };
+    let parameter_types = function
+        .signature
+        .arguments()
+        .iter()
+        .map(|argument| argument.logical_storage_type())
+        .collect::<Vec<_>>();
+    let expected_parameters = match gateway {
+        Gateway::Root { .. } => vec![&LirType::I32, &RAW_PTR, &RAW_PTR],
+        Gateway::Initialization { .. } => Vec::new(),
     };
     if function.gc_effect != GcEffect::Managed
-        || !function.signature.arguments().is_empty()
+        || parameter_types != expected_parameters
         || function.signature.calling_convention() != CallingConvention::Cdecl
         || result.storage_type() != &LirType::I32
         || result.layout().size().get() != 4
         || result.layout().alignment().get() != 4
         || result.scan() != &RefScan::None
     {
-        return Err(fail("gateway signature must be C uint32_t(void)"));
+        return Err(fail("gateway signature differs from its C startup ABI"));
     }
     let entry = get(&function.blocks, function.entry)
         .ok_or_else(|| fail("gateway entry block is absent"))?;
@@ -39,12 +49,14 @@ pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
         ));
     }
     validate_context_entry(function, context)?;
-    validate_invoke(function, invoke, gateway.entry())?;
-    if function.blocks.len() != 3
+    let first_invoke = invoke;
+    let (invoke, args) = super::arguments::main_invoke(function, invoke, gateway, takes_arguments)?;
+    validate_invoke(function, invoke, gateway.entry(), &args)?;
+    if function.blocks.len() != if takes_arguments { 4 } else { 3 }
         || invoke.normal() == invoke.unwind()
         || invoke.normal() == function.entry
         || invoke.unwind() == function.entry
-        || !matches!(entry.terminator, Terminator::Br(target) if target == invoke.normal())
+        || !matches!(entry.terminator, Terminator::Br(target) if target == first_invoke.normal())
     {
         return Err(fail("gateway must have distinct success and failure exits"));
     }
@@ -52,7 +64,18 @@ pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
         .ok_or_else(|| fail("gateway success block is absent"))?;
     let failure = get(&function.blocks, invoke.unwind())
         .ok_or_else(|| fail("gateway failure block is absent"))?;
-    if !success.instructions.is_empty() || !returns(success, 0) || !returns(failure, 1) {
+    let valid_success = match gateway {
+        Gateway::Initialization { .. } => success.instructions.is_empty(),
+        Gateway::Root { .. } => {
+            let expected_code = invoke
+                .direct_out()
+                .map(Value::Temp)
+                .unwrap_or(Value::IntegerConst(LirIntegerConstant::Signed32(0)));
+            matches!(success.instructions.as_slice(), [Instruction::RawStore { pointer: Value::Param(2), value, pointee }]
+                if *value == expected_code && pointee.storage_type() == &LirType::I32)
+        }
+    };
+    if !valid_success || !returns(success, 0) || !returns(failure, 1) {
         return Err(fail(
             "gateway exits must return the closed statuses 0 and 1",
         ));
@@ -154,38 +177,45 @@ fn validate_invoke(
     function: &Function,
     invoke: &InvokeSite,
     entry: LocalFunctionRef,
+    args: &[AbiCallArgument],
 ) -> Result<()> {
+    let expected = match entry {
+        LocalFunctionRef::Managed(entry) => entry.declaration(),
+        LocalFunctionRef::NoGc(entry) => entry.declaration(),
+    };
     let target = match invoke {
         InvokeSite::Managed(site) => match &site.call {
-            ManagedTypedCall::Void { target, args } if args.is_empty() => {
-                get(&function.call_targets.managed_targets.void, *target).and_then(|target| {
-                    match target.destination {
-                        ManagedCallDestination::Local(local) => {
-                            Some((LocalFunctionRef::Managed(local), target.signature))
-                        }
-                        _ => None,
-                    }
-                })
+            ManagedTypedCall::Void { target, .. } => {
+                get(&function.call_targets.managed_targets.void, *target)
+                    .map(|target| target.destination)
+            }
+            ManagedTypedCall::Direct { target, .. } => {
+                get(&function.call_targets.managed_targets.direct, *target)
+                    .map(|target| target.destination)
             }
             _ => None,
-        },
+        }
+        .and_then(|target| match target {
+            ManagedCallDestination::Local(local) => Some(local.declaration()),
+            _ => None,
+        }),
         InvokeSite::NoGc(site) => match &site.call {
-            NoGcTypedCall::Void { target, args } if args.is_empty() => {
-                get(&function.call_targets.no_gc_targets.void, *target).and_then(|target| {
-                    match target.destination {
-                        NoGcCallDestination::Local(local) => {
-                            Some((LocalFunctionRef::NoGc(local), target.signature))
-                        }
-                        _ => None,
-                    }
-                })
+            NoGcTypedCall::Void { target, .. } => {
+                get(&function.call_targets.no_gc_targets.void, *target)
+                    .map(|target| target.destination)
+            }
+            NoGcTypedCall::Direct { target, .. } => {
+                get(&function.call_targets.no_gc_targets.direct, *target)
+                    .map(|target| target.destination)
             }
             _ => None,
-        },
+        }
+        .and_then(|target| match target {
+            NoGcCallDestination::Local(local) => Some(local.declaration()),
+            _ => None,
+        }),
     };
-    if target
-        .is_some_and(|(target, signature)| target == entry && void_signature(function, signature))
-    {
+    if target == Some(expected) && invoke.args() == args {
         Ok(())
     } else {
         Err(error(

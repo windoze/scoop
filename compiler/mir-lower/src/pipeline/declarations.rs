@@ -308,3 +308,43 @@ impl Lowerer {
         }
     }
 }
+
+impl Lowerer {
+    pub(super) fn program_arguments(
+        &self,
+        module: &hir::Module,
+        entry: hir::FunctionId,
+    ) -> mir::ProgramArguments {
+        if module.functions[entry].params.is_empty() {
+            return mir::ProgramArguments::Unused;
+        }
+        match &module.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                mir::ProgramArguments::Local(self.function_map[&protocols.program_arguments])
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => {
+                let protocol = protocols.program_arguments();
+                let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) =
+                    protocol.definition()
+                else {
+                    unreachable!("the core argument builder is a source function")
+                };
+                let target = scoop_identity::StrongCallableDefinitionOwner::Function(
+                    definition.persistent(),
+                );
+                let callable = self
+                    .external_callables
+                    .iter()
+                    .find_map(|(id, callable)| {
+                        (callable.reference().provider() == protocol.provider()
+                            && callable.reference().implementation() == target)
+                            .then_some(id)
+                    })
+                    .expect(
+                        "the root entry's core argument builder is selected before MIR lowering",
+                    );
+                mir::ProgramArguments::External(callable)
+            }
+        }
+    }
+}

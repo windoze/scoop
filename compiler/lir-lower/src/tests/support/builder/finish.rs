@@ -230,7 +230,10 @@ impl Builder {
             enums: self.enums,
             classes: self.classes,
             interfaces: self.interfaces,
-            output: mir::MirOutput::Executable { entry },
+            output: mir::MirOutput::Executable {
+                entry,
+                arguments: mir::ProgramArguments::Unused,
+            },
             meta: mir::MirMeta {
                 generated_exact_types,
                 source_exact_types,

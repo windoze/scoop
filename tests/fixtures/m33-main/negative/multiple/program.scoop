@@ -1,0 +1,2 @@
+fun main() {}
+fun main(args: Array<String>): Int = 0

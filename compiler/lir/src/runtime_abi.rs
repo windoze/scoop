@@ -1,6 +1,9 @@
 //! Closed runtime and target-EH symbol contracts shared by LIR, codegen and
 //! link-object verification.
 
+/// Version shared by emitted runtime records and artifact readers.
+pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 7;
+
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -63,7 +66,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 10,
+                1 => 11,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;

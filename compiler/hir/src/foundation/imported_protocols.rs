@@ -119,9 +119,14 @@ pub struct ImportedCoreProtocols {
     ffi_protocol: ImportedCoreFfiProtocol,
     foreign_callback_protocol: ImportedCoreForeignCallbackProtocol,
     source_location_protocol: ImportedCoreSourceLocationProtocol,
+    program_arguments: ImportedCoreProtocolCallable,
 }
 
 impl ImportedCoreProtocols {
+    pub const fn program_arguments(&self) -> &ImportedCoreProtocolCallable {
+        &self.program_arguments
+    }
+
     pub(crate) fn import(
         foundation: &ImportedHirFoundation,
         protocols: &crate::CoreCompilerProtocolSurfaceV1,
@@ -159,6 +164,7 @@ impl ImportedCoreProtocols {
                 foundation,
                 protocols.source_location_protocol().entries(),
             )?),
+            program_arguments: import::import_callable(foundation, protocols.program_arguments())?,
         })
     }
 
@@ -203,6 +209,7 @@ impl ImportedCoreProtocols {
             + self.ffi_protocol.subject_count()
             + self.foreign_callback_protocol.subject_count()
             + self.source_location_protocol.subject_count()
+            + 1
     }
 }
 

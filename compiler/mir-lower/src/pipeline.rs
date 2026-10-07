@@ -310,6 +310,7 @@ impl Lowerer {
             // always in the map.
             LoweringOutput::Executable(entry) => mir::MirOutput::Executable {
                 entry: self.function_map[&entry],
+                arguments: self.program_arguments(module, entry),
             },
         };
         let boxed_entries = std::mem::take(&mut self.boxed.entries);

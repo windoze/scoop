@@ -10,7 +10,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 6;
+const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const ROOT_ENTRY_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5045_4e54;
 const ROOT_ENTRY_DESCRIPTOR_SIZE: u64 = 192;
 const SOURCE_SIGNATURE_FINGERPRINT_OFFSET: u64 = 80;
@@ -127,7 +127,11 @@ fn emit_root_entry_v1<'ctx>(
     let gateway_request = plan
         .gateway_symbol()
         .map_err(|error| CodegenError(format!("derive root gateway symbol: {error}")))?;
-    let gateway_type = context.i32_type().fn_type(&[], false);
+    let pointer = context.ptr_type(inkwell::AddressSpace::default());
+    let gateway_type = context.i32_type().fn_type(
+        &[context.i32_type().into(), pointer.into(), pointer.into()],
+        false,
+    );
     let gateway = declare_strong_gateway(llvm, gateway_type, gateway_request)?;
 
     let i32 = context.i32_type();

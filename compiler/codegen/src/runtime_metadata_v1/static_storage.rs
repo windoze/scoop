@@ -25,7 +25,7 @@ use validation::{
     PreparedStaticStorageRegistrationV1, prepare_registration, validate_shared_names,
 };
 
-const METADATA_ABI_VERSION: u64 = 6;
+const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const STATIC_STORAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_544f;
 const STATIC_STORAGE_DESCRIPTOR_SIZE: u64 = 264;
 const SCAN_FINGERPRINT_OFFSET: u64 = 168;

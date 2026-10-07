@@ -449,6 +449,11 @@ impl Lowerer {
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
         // targets from names.
+        let program_arguments = if defines_core {
+            self.validate_program_arguments()
+        } else {
+            None
+        };
         let exception_core = if defines_core {
             self.validate_exception_core(files)
         } else {
@@ -531,6 +536,8 @@ impl Lowerer {
         let core_protocols = match self.core.clone() {
             CoreLoweringAuthority::Defined => {
                 hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                    program_arguments: program_arguments
+                        .expect("an invalid program argument builder is diagnosed"),
                     option: self
                         .option_core
                         .expect("a missing or invalid core `Option` is always diagnosed"),

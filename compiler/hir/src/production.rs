@@ -6,9 +6,8 @@ pub use annotations::AnnotationProductionError;
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, CoreBuiltinNominal, DecodedExecutableSourceEntryIdentity, DecodedPersistentId,
-    ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, PersistentExportBindingId,
+    ConeIdentity, DecodedExecutableSourceEntryIdentity, DecodedPersistentId,
+    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, PersistentExportBindingId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -121,16 +120,13 @@ impl DecodedHirOutputContractV1 {
                     .ok_or(HirOutputContractValidationError::UnknownEntry(
                         *decoded.declaration().as_array(),
                     ))?;
-                let unit_key =
-                    ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id());
-                let unit = foundation
-                    .exact_type_id_by_key(&unit_key)
-                    .ok_or(HirOutputContractValidationError::MissingUnitExactType)?;
-                let expected = ExecutableSourceEntryIdentity::try_new(
-                    declaration,
-                    ExactOrdinaryNoArgUnitSignature::new(unit),
-                )
-                .map_err(HirOutputContractValidationError::InvalidEntry)?;
+                let signature = decoded
+                    .source_signature()
+                    .clone()
+                    .resolve(&mut &*foundation)
+                    .map_err(|_| HirOutputContractValidationError::InvalidSignature)?;
+                let expected = ExecutableSourceEntryIdentity::try_new(declaration, signature)
+                    .map_err(HirOutputContractValidationError::InvalidEntry)?;
                 if expected.root_cone() != artifact {
                     return Err(HirOutputContractValidationError::ForeignEntry {
                         artifact,
@@ -199,7 +195,7 @@ impl WireDecode for DecodedHirOutputContractV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirOutputContractValidationError {
     UnknownEntry([u8; 32]),
-    MissingUnitExactType,
+    InvalidSignature,
     InvalidEntry(ExecutableSourceEntryIdentityError),
     ForeignEntry {
         artifact: ConeIdentity,
@@ -217,8 +213,8 @@ impl fmt::Display for HirOutputContractValidationError {
                 "HIR executable source entry {} is absent from the identity foundation",
                 HexIdentity(id)
             ),
-            Self::MissingUnitExactType => {
-                formatter.write_str("HIR executable output has no trusted core Unit exact type")
+            Self::InvalidSignature => {
+                formatter.write_str("HIR executable signature contains an unresolved exact type")
             }
             Self::InvalidEntry(error) => error.fmt(formatter),
             Self::ForeignEntry { artifact, entry } => write!(
@@ -227,7 +223,7 @@ impl fmt::Display for HirOutputContractValidationError {
             ),
             Self::Encode(error) => error.fmt(formatter),
             Self::EntryMismatch => formatter.write_str(
-                "HIR executable output payload does not match its declaration and Unit identity",
+                "HIR executable output payload does not match its declaration and exact signature",
             ),
         }
     }
@@ -431,7 +427,7 @@ impl fmt::Display for HexIdentity<'_> {
 mod tests {
     use scoop_identity::{
         BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-        DeclarationScope, DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+        DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
         ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath, PersistentExactTypeId,
         PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
         SourceDeclarationSite,
@@ -710,7 +706,12 @@ mod tests {
     ) -> HirOutputContractV1 {
         let entry = ExecutableSourceEntryIdentity::try_new(
             declaration,
-            ExactOrdinaryNoArgUnitSignature::new(unit_exact_record().id()),
+            ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                Vec::new(),
+                unit_exact_record().id(),
+            ),
         )
         .unwrap();
         HirOutputContractV1::Executable(Box::new(entry))

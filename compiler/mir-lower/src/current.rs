@@ -36,7 +36,7 @@ pub fn lower_current_cone(
     let mut callables = Arena::new();
     let dependency_mapping =
         lower_dependency_callables(output, &mut selected_callables, &mut callables)?;
-    lower_initialization_callables(hir, &selected_callables, &mut callables)?;
+    lower_core_functions(&output.output().local, &selected_callables, &mut callables)?;
     lower_runtime_constructors(hir, &selected_callables, &mut callables)?;
     for selected in selected_callables.callables() {
         let effect = match selected.lowering_role() {
@@ -111,19 +111,40 @@ pub fn lower_current_cone(
         .map_err(CurrentConeMirLoweringError::InvalidOutput)
 }
 
-fn lower_initialization_callables(
-    module: &hir::Module,
+fn lower_core_functions(
+    output: &scoop_hir::LocalConcreteHirOutput,
     selected: &mir::SelectedExternalMirSet,
     callables: &mut Arena<mir::ExternalCallableUse>,
 ) -> Result<(), CurrentConeMirLoweringError> {
-    for (_, unit) in module.initialization_units.iter() {
-        let hir::InitializationCycleThrower::Imported(protocol) = &unit.cycle_thrower else {
-            continue;
-        };
+    let module = output.module();
+    let arguments = match output.output_kind() {
+        scoop_hir::LocalConeOutputKind::Executable { local_entry }
+            if !module.functions[local_entry.local_function().function()]
+                .params
+                .is_empty() =>
+        {
+            match &module.core_protocols {
+                hir::ConcreteCoreProtocols::Imported(protocols) => {
+                    Some(protocols.program_arguments())
+                }
+                hir::ConcreteCoreProtocols::Defined(_) => None,
+            }
+        }
+        _ => None,
+    };
+    let functions = module
+        .initialization_units
+        .iter()
+        .filter_map(|(_, unit)| match &unit.cycle_thrower {
+            hir::InitializationCycleThrower::Imported(protocol) => Some(protocol),
+            hir::InitializationCycleThrower::Local(_) => None,
+        })
+        .chain(arguments);
+    for protocol in functions {
         let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) =
             protocol.definition()
         else {
-            return Err(CurrentConeMirLoweringError::InvalidInitializationCycleThrower);
+            return Err(CurrentConeMirLoweringError::InvalidCoreFunction);
         };
         let provider = protocol.provider();
         let target =
@@ -136,7 +157,7 @@ fn lower_initialization_callables(
         }
         let id = selected
             .callable_for(provider, target)
-            .ok_or(CurrentConeMirLoweringError::MissingInitializationCycleThrower)?;
+            .ok_or(CurrentConeMirLoweringError::MissingCoreFunction)?;
         callables.alloc(
             selected
                 .callable_use(id, mir::GcEffect::Managed)
@@ -283,8 +304,8 @@ fn lower_runtime_constructors(
 pub enum CurrentConeMirLoweringError {
     MissingSingletonEnsure(scoop_identity::PersistentObjectValueId),
     Occurrences(scoop_hir::DependencyCallOccurrenceError),
-    InvalidInitializationCycleThrower,
-    MissingInitializationCycleThrower,
+    InvalidCoreFunction,
+    MissingCoreFunction,
     InvalidRuntimeConstructor,
     ForeignExternalMirSelection {
         expected: mir::ConeIdentity,

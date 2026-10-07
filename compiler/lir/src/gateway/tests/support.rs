@@ -1,10 +1,10 @@
 use super::*;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
-    ExecutableSourceEntryIdentity, GeneratedCallableKey, InitializationCallableRole,
-    InitializationUnitKey, PackagePath, PersistentExactTypeId, PersistentGeneratedCallableId,
-    PersistentPropertyId, PropertyOwner, SourceDeclarationKey, SourceDeclarationSite,
+    DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey, ExecutableSourceEntryIdentity,
+    GeneratedCallableKey, InitializationCallableRole, InitializationUnitKey, PackagePath,
+    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentPropertyId, PropertyOwner,
+    SourceDeclarationKey, SourceDeclarationSite,
 };
 
 fn site() -> SourceDeclarationSite {
@@ -71,7 +71,7 @@ pub(super) fn root(managed: bool) -> Module {
     .unwrap();
     let source = ExecutableSourceEntryIdentity::try_new(
         &declaration,
-        ExactOrdinaryNoArgUnitSignature::new(unit),
+        ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
     )
     .unwrap();
     let mut locals = LocalFunctionIdentities::default();

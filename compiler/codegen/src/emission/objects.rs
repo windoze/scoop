@@ -194,8 +194,5 @@ fn validate_object_set_input(
 ) -> Result<(), CodegenError> {
     validation::validate_module(input.module())?;
     profile.validate_lir_target_profile(input.module().meta.target_profile)?;
-    if let scoop_lir::LirOutput::Executable { entry } = input.module().output {
-        validation::validate_executable_entry(input.module(), entry)?;
-    }
     Ok(())
 }

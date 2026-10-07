@@ -81,13 +81,13 @@ pub use entity::{
     DecodedOptionalExactOwner, EnumVariantFieldKey, EnumVariantFieldResolutionError,
     EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
     EnumVariantResolutionError, ExactCallableSignature, ExactCallableSignatureResolutionError,
-    ExactOrdinaryNoArgUnitSignature, FieldIdentityError, FieldIdentityKey,
-    FieldIdentityResolutionError, FieldIdentityView, GeneratedCallableIdentityError,
-    GeneratedCallableKey, GeneratedCallableResolutionError, GeneratedEnumVariantRole,
-    GeneratedFieldKey, GeneratedNominalIdentityError, GeneratedNominalKey,
-    GeneratedNominalResolutionError, InitializationCallableRole, LexicalCallableParent,
-    LexicalCallableRole, LexicalParentError, OptionalExactOwner, SourceFieldKey,
-    StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
+    FieldIdentityError, FieldIdentityKey, FieldIdentityResolutionError, FieldIdentityView,
+    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedCallableResolutionError,
+    GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
+    GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
+    SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
+    StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use entity::{CallableDefinitionOwner, DecodedCallableDefinitionOwner};
 pub use entity::{

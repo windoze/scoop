@@ -3,7 +3,7 @@ use scoop_lir::StrongStaticStorageRegistrationPlanV1;
 use super::StrongStaticStorageRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_544f;
-pub(in crate::link_object) const ABI_VERSION: u32 = 6;
+pub(in crate::link_object) const ABI_VERSION: u32 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 264;
 
 pub(super) fn validate_record_bytes(

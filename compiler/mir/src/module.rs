@@ -51,14 +51,25 @@ pub struct Module {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MirOutput {
     Library,
-    Executable { entry: FunctionId },
+    Executable {
+        entry: FunctionId,
+        arguments: ProgramArguments,
+    },
+}
+
+/// Actual builder used by the root gateway, present only for an argv entry.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProgramArguments {
+    Unused,
+    Local(FunctionId),
+    External(ExternalCallableUseId),
 }
 
 impl MirOutput {
     pub const fn executable_entry(self) -> Option<FunctionId> {
         match self {
             Self::Library => None,
-            Self::Executable { entry } => Some(entry),
+            Self::Executable { entry, .. } => Some(entry),
         }
     }
 }

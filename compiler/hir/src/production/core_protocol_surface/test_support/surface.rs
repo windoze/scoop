@@ -238,7 +238,28 @@ pub(super) fn install_with_intrinsics_at(
     let mut source_location_protocol =
         CoreSourceLocationProtocolV1(product([source_location, current]));
 
+    let CoreProtocolEntryV1::Callable(program_arguments) = builder
+        .function_with_owner_signature(
+            None,
+            SignatureCallableShape::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                Vec::new(),
+                SignatureTypeKey::NominalApplication {
+                    origin: generic_protocol_id(&fundamental_types.entries()[11]),
+                    arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(
+                        string_type,
+                    )])
+                    .unwrap(),
+                },
+            ),
+        )
+        .0
+    else {
+        unreachable!("the fixture creates a source function")
+    };
     let signature_surface = CoreCompilerProtocolSurfaceV1 {
+        program_arguments: program_arguments.clone(),
         fundamental_types: fundamental_types.clone(),
         option_protocol: option_protocol.clone(),
         iteration_protocol: iteration_protocol.clone(),
@@ -329,6 +350,7 @@ pub(super) fn install_with_intrinsics_at(
         operation_entry(&operations, IntrinsicFunctionKind::CurrentSourceLocation);
 
     let surface = CoreCompilerProtocolSurfaceV1 {
+        program_arguments,
         fundamental_types,
         option_protocol,
         iteration_protocol,

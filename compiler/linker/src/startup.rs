@@ -67,11 +67,11 @@ impl StartupObject {
             ValidatedFinalLinkProfile::Darwin(_) => "__DATA_CONST,__const",
             ValidatedFinalLinkProfile::Linux(_) => ".data.rel.ro.scoop.startup",
         };
-        source.push_str(&format!("extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
+        source.push_str(&format!("extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *, int32_t, const char *const *);\n\n__attribute__((used, section(\"{section}\")))\nstatic const ScoopImageDescriptorV1 *const scoop_program_images[] = {{\n"));
         for index in 0..image_count {
             source.push_str(&format!("    &image_{index},\n"));
         }
-        source.push_str("};\n\nint main(void) {\n    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);\n}\n");
+        source.push_str("};\n\nint main(int argc, char **argv) {\n    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry, argc, (const char *const *)argv);\n}\n");
         let source_path = directory.join("startup.c");
         let object = directory.join("startup-compiled.o");
         std::fs::write(&source_path, &source).map_err(error)?;

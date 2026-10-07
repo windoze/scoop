@@ -412,7 +412,7 @@ fn validate_output(
 ) -> Result<(), ConeMirInputError> {
     match (module.output, production.entry_bridge()) {
         (MirOutput::Library, EntryMirBridgeBranchV1::Library) => Ok(()),
-        (MirOutput::Executable { entry }, EntryMirBridgeBranchV1::Executable(bridge)) => {
+        (MirOutput::Executable { entry, .. }, EntryMirBridgeBranchV1::Executable(bridge)) => {
             let implementation = callable_roots
                 .iter()
                 .find(|root| root.function == entry)

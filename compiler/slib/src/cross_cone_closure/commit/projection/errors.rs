@@ -10,7 +10,7 @@ pub enum CrossConeMirSelectionProjectionError {
     Occurrences(scoop_hir::DependencyCallOccurrenceError),
     Expressions(scoop_hir::concrete::ExecutableExpressionStructureError),
     RuntimeConstructorKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
-    InitializationFunctionKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
+    CoreFunctionKind(scoop_hir::ImportedCoreProtocolCallableDefinition),
     MissingSingleton {
         provider: ConeIdentity,
         value: scoop_identity::PersistentObjectValueId,
@@ -57,9 +57,9 @@ impl fmt::Display for CrossConeMirSelectionProjectionError {
                 formatter,
                 "runtime exception target is not a constructor: {definition:?}"
             ),
-            Self::InitializationFunctionKind(definition) => write!(
+            Self::CoreFunctionKind(definition) => write!(
                 formatter,
-                "initialization target is not a source function: {definition:?}"
+                "core helper target is not a source function: {definition:?}"
             ),
             Self::ConsumerMismatch { closure, selected } => write!(
                 formatter,
@@ -100,7 +100,7 @@ impl std::error::Error for CrossConeMirSelectionProjectionError {
             Self::Occurrences(source) => Some(source),
             Self::Expressions(source) => Some(source),
             Self::RuntimeConstructorKind(_) => None,
-            Self::InitializationFunctionKind(_) => None,
+            Self::CoreFunctionKind(_) => None,
             Self::MissingSingleton { .. } | Self::SingletonType(_) => None,
             Self::Record(source) => Some(source),
             Self::Selection(source) => Some(source),

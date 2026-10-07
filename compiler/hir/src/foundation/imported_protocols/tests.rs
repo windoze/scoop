@@ -36,6 +36,7 @@ fn protocol_import_resolves_actual_provider_ids_in_the_shared_session() {
             protocols.exceptions().throwable_constructor(),
             protocols.ffi().ptr_cast(),
             protocols.source_location().current(),
+            protocols.program_arguments(),
         ] {
             assert_eq!(callable.provider(), origin);
         }

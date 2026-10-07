@@ -104,7 +104,7 @@ mod tests {
     use scoop_hir::HirOutputContractV1;
     use scoop_identity::{
         CallableOwner, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
-        DeclarationScope, DefinitionOwnerChain, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
+        DeclarationScope, DefinitionOwnerChain, ExactCallableSignature, ExactTypeKey,
         ExecutableSourceEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
@@ -152,7 +152,7 @@ mod tests {
         .unwrap();
         ExecutableSourceEntryIdentity::try_new(
             &declaration,
-            ExactOrdinaryNoArgUnitSignature::new(unit),
+            ExactCallableSignature::new(scoop_identity::Effect::Ordinary, None, Vec::new(), unit),
         )
         .unwrap()
     }

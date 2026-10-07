@@ -1,0 +1,407 @@
+Module
+  global0 eagerCount: Int managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:eagerCount eager global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  extern ef0 argc @scoop_rt_program_argc() -> Int <abi=c gc-leaf no-gc>
+  extern ef1 argv @scoop_rt_program_argv(Int) -> Option<Ptr<Int8>> <abi=c gc-leaf no-gc>
+  callback cb0 @fn3 -> @fn10 function_type0 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
+  enum Option<Ptr<Int8>>
+    Some(_0: Ptr<Int8>)
+    None()
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn10 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=99 bits=0x00000063
+      val $dependency.parameter.code: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Nothing = external0 direct
+        Type Int
+        Local $dependency.parameter.code
+      unreachable
+    bb2 if.merge.2
+      return
+  fun argc @fn1() -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern0 @scoop_rt_program_argc direct
+      return
+        Type Int
+        Local $call.1
+  fun argv @fn2(arg0: Int) -> Option<Ptr<Int8>> <no-gc>
+    bb0 entry
+      call $call.1: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
+        Type Int
+        Local arg0
+      return
+        Type Option<Ptr<Int8>>
+        Local $call.1
+  fun count @fn3() -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern0 @scoop_rt_program_argc direct
+      return
+        Type Int
+        Local $call.1
+  fun main @fn4() -> Unit
+    bb0 entry
+      call $dependency.receiver: Int = @fn7 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn3 direct
+      call $dependency.argument.0: Int = @fn7 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
+        Type Int
+        Local $parameter.index
+      call $argument.0: Boolean = @fn9 direct
+        Type Option<Ptr<Int8>>
+        Local $call.1
+        Type Option<Ptr<Int8>>
+        VariantConstruct Option<Ptr<Int8>> v1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
+        Type Int
+        Local $parameter.index
+      call $argument.0: Boolean = @fn9 direct
+        Type Option<Ptr<Int8>>
+        Local $call.2
+        Type Option<Ptr<Int8>>
+        VariantConstruct Option<Ptr<Int8>> v1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
+        Type Int
+        Local $parameter.index
+      call $call.4: Boolean = @fn9 direct
+        Type Option<Ptr<Int8>>
+        Local $call.3
+        Type Option<Ptr<Int8>>
+        VariantConstruct Option<Ptr<Int8>> v1
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.message: String
+        Type String
+        Local $dependency.argument.0
+      call external1 direct
+        Type String
+        Local $dependency.parameter.message
+      return
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+      global_assign eagerCount
+        Type Int
+        Local $call.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eagerCount
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eagerCount
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eagerCount
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eagerCount
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:eagerCount
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$eagerCount @fn7() -> Int
+    bb0 entry
+      call @fn6 direct
+      return
+        Type Int
+        GlobalRead eagerCount
+  fun equals @fn8(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int8>
+            Local $dependency.local.3
+  fun $derived.equals.0 @fn9(this: Option<Ptr<Int8>>, other: Option<Ptr<Int8>>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local this
+      val $pattern.subject.2: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Int8>> v0
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Ptr<Int8>
+        Type Ptr<Int8>
+        VariantPayloadProject Option<Ptr<Int8>> v0 f0
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.2
+      val $when.3: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local other
+      val $pattern.subject.4: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Int8>> v0
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Ptr<Int8>> v1
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Ptr<Int8>
+        Type Ptr<Int8>
+        VariantPayloadProject Option<Ptr<Int8>> v0 f0
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.4
+      call $call.1: Boolean = @fn8 direct
+        Type Ptr<Int8>
+        Local $left.0.0
+        Type Ptr<Int8>
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local other
+      val $pattern.subject.7: Option<Ptr<Int8>>
+        Type Option<Ptr<Int8>>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Ptr<Int8>> v1
+          Type Option<Ptr<Int8>>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun callback bridge for count @fn10($result: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn3 direct
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  instance mi0 function=@fn8 <- equals
+  str @str0 "unit-main\n"
+  output executable @fn4

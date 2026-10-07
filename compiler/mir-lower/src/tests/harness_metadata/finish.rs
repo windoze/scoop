@@ -696,6 +696,7 @@ impl Harness {
             boolean: self.boolean,
             string: self.string,
             core_protocols: hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                program_arguments: entry,
                 option: option_core,
                 iteration: iteration_core,
                 exceptions: exception_core,

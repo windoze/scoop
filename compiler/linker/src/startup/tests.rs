@@ -90,7 +90,8 @@ const SOURCE: &str = r#"
 const uint64_t image_a __asm__("scoop$test$image$a") = 11;
 const uint64_t image_b __asm__("scoop$test$image$b") = 22;
 const uint64_t root_entry __asm__("scoop$test$root") = 33;
-int scoop_rt_run_program(const void *const *images, uint64_t count, const void *root) {
+int scoop_rt_run_program(const void *const *images, uint64_t count, const void *root, int32_t argc, const char *const *argv) {
+    if (argc < 1 || argv[0] == NULL || argv[argc] != NULL) return 90;
     return count != 2 || images[0] != &image_a || images[1] != &image_b || root != &root_entry;
 }
 "#;

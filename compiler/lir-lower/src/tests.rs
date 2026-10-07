@@ -19,9 +19,9 @@ use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactOrdinaryNoArgUnitSignature,
-    ExactTypeKey, ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey,
-    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+    ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey, InitializationUnitKey,
+    LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
     PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
     PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
     PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
@@ -178,7 +178,7 @@ fn test_source_native_data_contract(
 }
 
 fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
-    if let mir::MirOutput::Executable { entry } = module.output
+    if let mir::MirOutput::Executable { entry, .. } = module.output
         && (!module.functions[entry].params.is_empty()
             || module.functions[entry].return_ty != mir::Type::Unit)
     {
@@ -198,7 +198,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
     let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(foundation);
     let entry_bridge = match module.output {
         mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
-        mir::MirOutput::Executable { entry } => {
+        mir::MirOutput::Executable { entry, .. } => {
             assert!(module.top_level.contains(&entry), "test entry is emitted");
             let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
                 SourceDeclarationSite::new(
@@ -223,7 +223,12 @@ fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
                 .id();
             let source = ExecutableSourceEntryIdentity::try_new(
                 &declaration,
-                ExactOrdinaryNoArgUnitSignature::new(unit),
+                ExactCallableSignature::new(
+                    scoop_identity::Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    unit,
+                ),
             )
             .unwrap();
             let mir::CallableSignatureSubject::Strong(implementation) = module

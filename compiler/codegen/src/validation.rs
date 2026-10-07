@@ -192,22 +192,6 @@ fn validate_output(module: &Module) -> Result<(), CodegenError> {
     executable_entry(module, entry).map(|_| ())
 }
 
-pub(crate) fn validate_executable_entry(
-    module: &Module,
-    entry: scoop_lir::LocalFunctionRef,
-) -> Result<(), CodegenError> {
-    let function = executable_entry(module, entry)?;
-    if !function.signature.arguments().is_empty()
-        || !matches!(function.signature.result(), scoop_lir::AbiReturn::UnitVoid)
-    {
-        return Err(CodegenError(format!(
-            "executable entry @{} must have signature () -> Unit",
-            function.symbol()
-        )));
-    }
-    Ok(())
-}
-
 fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenError> {
     for (_, descriptor) in module.meta.type_descriptors.iter() {
         let owner = descriptor.identity.exact_type();

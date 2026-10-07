@@ -245,7 +245,12 @@ fn make_object_public(declaration: &mut ast::ObjectDecl) {
 fn make_declaration_public(declaration: &mut Decl) {
     match declaration {
         Decl::Global(property) => make_property_public(property),
-        Decl::Function(function) if function.name.text != "__scoopThrowInitializationCycle" => {
+        Decl::Function(function)
+            if !matches!(
+                function.name.text.as_str(),
+                "__scoopThrowInitializationCycle" | "__scoopProgramArguments"
+            ) =>
+        {
             make_function_public(function)
         }
         Decl::Function(_) => {}

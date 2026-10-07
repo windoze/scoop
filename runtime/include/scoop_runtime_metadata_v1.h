@@ -18,7 +18,7 @@
 #error "Scoop runtime metadata ABI v1 requires little-endian byte order"
 #endif
 
-#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(6)
+#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(7)
 
 /* Unused program/core record magic values 0x53434f4f50505247 and
  * 0x53434f4f50434f52 are retired and must not be reused. */
@@ -219,7 +219,8 @@ typedef struct ScoopSafepointRegistrationDescriptorV1 {
     ScoopDigest256V1 normalized_stackmap_fingerprint;
 } ScoopSafepointRegistrationDescriptorV1;
 
-typedef uint32_t (*ScoopRootEntryGatewayFnV1)(void);
+typedef uint32_t (*ScoopRootEntryGatewayFnV1)(int32_t argc, const char *const *argv,
+                                            int32_t *out_exit_code);
 
 typedef struct ScoopRootEntryDescriptorV1 {
     ScoopDescriptorPrefixV1 prefix;

@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-    ExactOrdinaryNoArgUnitSignature, OdrMemberId, PackagePath, PersistentCallableBodyId,
+    ExactCallableSignature, OdrMemberId, PackagePath, PersistentCallableBodyId,
     PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId,
     PersistentInitializationUnitId, SourceDeclarationKey, SourceDeclarationSite,
 };
@@ -17,7 +17,12 @@ use crate::{
 #[test]
 fn executable_source_entry_proves_main_shape_before_refining_the_body() {
     let declaration = source_function("main", None, Vec::new());
-    let signature = ExactOrdinaryNoArgUnitSignature::new(PersistentExactTypeId([7; 32]));
+    let signature = ExactCallableSignature::new(
+        crate::Effect::Ordinary,
+        None,
+        Vec::new(),
+        PersistentExactTypeId([7; 32]),
+    );
     let entry = ExecutableSourceEntryIdentity::try_new(&declaration, signature.clone()).unwrap();
 
     assert_eq!(entry.root_cone(), ConeIdentity::SINGLE_FILE);

@@ -39,6 +39,13 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
         declaration
     };
     vec![
+        fun_sig(
+            "__scoopProgramArguments",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_generic("Array", vec![ty_named("String")])),
+            vec![throw_stmt(call("IllegalStateException", vec![]))],
+        ),
         class_decl(
             ast::ClassModifier::Open,
             "Throwable",

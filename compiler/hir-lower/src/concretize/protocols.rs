@@ -23,6 +23,7 @@ impl Concretizer<'_> {
             let class = self.lower_class_application(application, &[]);
             self.request_class_constructor(exception.callable(), class);
         }
+        self.request_function(protocols.program_arguments, Vec::new());
         self.request_function(
             protocols.exceptions.initialization_cycle_thrower,
             Vec::new(),
@@ -164,6 +165,11 @@ impl Concretizer<'_> {
             .collect();
 
         concrete::ConcreteCoreProtocols::Defined(Box::new(concrete::DefinedConcreteCoreProtocols {
+            program_arguments: self.function_by_key[&self.function_key(
+                FunctionSource::Local(protocols.program_arguments),
+                None,
+                Vec::new(),
+            )],
             option,
             exceptions: concrete::CompilerExceptionCore {
                 missing_context_constructor: missing_constructor,

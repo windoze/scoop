@@ -1,0 +1,22 @@
+@GCLeaf
+@Extern(name = "scoop_rt_program_argc", abi = "c")
+internal fun coreProgramArgc(): Int
+
+@GCLeaf
+@Extern(name = "scoop_rt_program_argv", abi = "c")
+internal fun coreProgramArgv(index: Int): Ptr<Int8>?
+
+internal fun __scoopProgramArguments(): Array<String> {
+    @Unsafe {
+        return Array<String>(coreProgramArgc().toInt64(), fun(index: Long): String {
+            @Unsafe {
+                try {
+                    return String.fromCString(coreProgramArgv(index.toInt32())!!)
+                } catch (failure: CharacterCodingException) {
+                    eprintln("invalid UTF-8 in argv[" + index.toString() + "]")
+                    throw failure
+                }
+            }
+        })
+    }
+}

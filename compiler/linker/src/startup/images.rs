@@ -64,7 +64,12 @@ pub(super) fn emit(source: &mut String, images: &[SelectedImage], section: &str)
             writeln!(source, "const uint8_t trap_{index}_{trap}[] __asm__(\"{name}\") __attribute__((used, visibility(\"hidden\"))) = {{{}}};", initializer(bytes)).unwrap();
         }
         writeln!(source, "const ScoopImageDescriptorV1 image_{index} __asm__(\"{}\") __attribute__((used, visibility(\"hidden\"), section(\"{section}\"))) = {{", image.name).unwrap();
-        source.push_str("    UINT64_C(0x53434f4f50494d47), 6, 240,\n    {\n");
+        writeln!(
+            source,
+            "    UINT64_C(0x53434f4f50494d47), {}, 240,\n    {{",
+            scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1
+        )
+        .unwrap();
         for (part, bytes) in image.coordinate.iter().enumerate() {
             writeln!(
                 source,

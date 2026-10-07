@@ -8,6 +8,18 @@ pub(super) fn validate_fixed_callable_signatures(
     let fundamental = surface.fundamental_types.entries();
     let unit = concrete_type(fundamental, 0);
     let string = concrete_type(fundamental, 10);
+    if !matches!(
+        surface.program_arguments.definition(),
+        crate::CoreProtocolCallableDefinitionV1::Function(_)
+    ) || surface.program_arguments.signature()
+        != &signature(
+            Effect::Ordinary,
+            Vec::new(),
+            application(fundamental, 11, string.clone()),
+        )
+    {
+        return Err(CoreCompilerProtocolSurfaceRelationError::ProgramArgumentsSignature);
+    }
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     validate(

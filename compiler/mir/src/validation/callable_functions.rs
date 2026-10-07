@@ -35,10 +35,33 @@ pub(super) fn validate_callable_functions(module: &Module) -> Result<(), MirVali
         }
     }
 
-    if let MirOutput::Executable { entry } = module.output
-        && !emitted.contains(&entry)
-    {
-        return invalid(entry, "the entry function is not emitted");
+    if let MirOutput::Executable { entry, arguments } = module.output {
+        if !emitted.contains(&entry) {
+            return invalid(entry, "the entry function is not emitted");
+        }
+        let parameters = &module.functions[entry].params;
+        let valid = match arguments {
+            ProgramArguments::Unused => parameters.is_empty(),
+            ProgramArguments::Local(builder) => {
+                emitted.contains(&builder)
+                    && parameters.len() == 1
+                    && module.functions[builder].params.is_empty()
+                    && module.functions[builder].return_ty == parameters[0].ty
+                    && module.functions[builder].gc_effect == GcEffect::Managed
+            }
+            ProgramArguments::External(builder) => {
+                parameters.len() == 1
+                    && module.meta.external_callables.iter().any(|(id, callable)| {
+                        id == builder && callable.gc_effect() == GcEffect::Managed
+                    })
+            }
+        };
+        if !valid {
+            return invalid(
+                entry,
+                "the argument builder does not match the entry parameter list",
+            );
+        }
     }
 
     Ok(())

@@ -9,7 +9,7 @@
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
-| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 输出与退出完成；入口、argv 和 ABI 升级待实现 |
+| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 待实现 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
@@ -157,3 +157,19 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 显式退出覆盖 0、1、37、255、256、负数和 Int 两端，父进程按 POSIX 低 8 位观察结果；验证缓冲内容保留，finally、release 和 atexit 均未调用。失败用例验证用户 toString 不参与诊断。阻塞用例保留活动 callback 和 C 字符串 pin 帧，分别在 exit 与 managed panic 的 stdout 刷新期间完成另一线程的真实 GC，再排空 pipe。
 - Darwin 定向复验 16 项既有异常、初始化与 program-link 用例，19 个变体、67 个进程、92 份 golden 通过。13 份旧 HIR 仅同步导入 arena 索引和 io.scoop 源码范围，eager 用例的旧 LIR 同步既有 DirectC。GNU/musl 另各通过 eager 失败的产物独立链接回归，2 个变体、8 个进程、8 份 golden。
 - 8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。旧产物复制用例复验前清理其只读临时文件，保留热缓存；没有进行全量语言回归。
+
+## M33-4c：四种 main、argv 与入口 ABI
+
+- HIR 从 root Cone 选择唯一的无参数／Array<String> 参数、Unit／Int 返回入口，展开透明 alias，保留完整源码签名和实际函数 identity。参数名任意，普通默认参数仍受原有声明规则约束；gateway 始终传入实际 argv，不执行默认表达式。library 和依赖的同名函数不参与选择。
+- 删除仅表达无参 Unit 的签名包装，沿 HIR/MIR/LIR、core protocol 和产物引用传递完整 ExactCallableSignature。argv 构造由 22 行普通 internal core helper 完成，复用 Array、String.fromCString、Option 与异常处理。runtime 在 eager 初始化前保存原始 argc/argv，NoGC 访问器原样读取，越界返回 null；无参入口不构造或解码 argv。
+- root gateway 使用三参数 C ABI，向独立 Int32 槽写入完整 main 返回值，以自身返回值区分成功 0／异常 1。参数构造与 main 共用失败出口；有参入口先构造数组，再调用 main 和写出返回值。eager gateway 保持原有无参数 ABI。runtime ABI 升为 11，metadata ABI 升为 7，RootEntry 大小保持 192 bytes；Rust 的发射、读取和链接入口共用版本常量。
+- 源码入口形态在 HIR 边界检查；后续保持身份、签名、引用与 ABI 校验，移除对象发布入口重复执行的无参 Unit 限制。新增实现按职责拆分，入口主模块 192 行，其两个辅助模块分别为 44、81 行。
+
+已完成的验证：
+
+- Rust fmt、受影响 crate 的 clippy 与 C 格式化／严格警告检查通过。入口选择、完整签名 identity、core protocol 的 wire／导入、MIR production／104 项结构校验、LIR gateway、codegen metadata 和链接器最终映像的定向测试通过。
+- Darwin/GNU 的 C startup 测试验证精确原型、原样 argv、独立输出槽及完整 Int32 边界值；合法失败仍走退出码 1，内部协议违例仍为 SIGABRT。
+- Darwin/GNU/musl 各 11 项正式 CLI、15 个变体、107 个进程、24 份 golden 在非更新模式下通过。四个正例覆盖 debug/release、Managed/NoGC、参数 alias、默认参数、eager raw argv、空串／空格／Unicode、原样 argv[0]、非法 UTF-8 下标、Int 正常返回 1、负数和两端值，以及 finally 与 normal/moving/minor GC；删除源码后均可独立链接、运行。父进程按 POSIX 低 8 位观察退出码，C 测试另验证完整 Int32 传递。
+- 七个 negative fixture 固定错误参数数量、vararg、可空／可变／元素不匹配的数组、错误返回类型和重复入口的完整诊断及源码位置。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。
+- Darwin 另有 8 项旧入口、初始化、独立链接和退出回归，在非更新模式下通过 13 个变体、73 个进程、44 份 golden。旧 HIR 同步完整签名表示、导入索引及既有 core 源码范围；旧 LIR 只增加 root gateway 的 C 参数和退出码槽写入。
+- 清理增量目录 2.85 GiB 和 481 个已链接的 Rust 中间对象 2.93 GiB，保留库、CLI、测试二进制及热缓存。没有执行无关全量测试。

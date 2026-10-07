@@ -311,4 +311,8 @@ uint64_t scoop_rt_thread_debug_caller_root_count(void);
 uint64_t scoop_rt_thread_debug_compiler_root_count(void);
 uint64_t scoop_rt_thread_debug_transition_depth(void);
 
+/* Read-only raw process arguments, available during eager initialization. */
+int32_t scoop_rt_program_argc(void);
+const char *scoop_rt_program_argv(int32_t index);
+
 #endif /* SCOOP_RT_H */
