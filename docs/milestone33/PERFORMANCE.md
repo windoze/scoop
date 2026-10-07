@@ -62,3 +62,53 @@ Darwin 时钟在此测量中约有 1 微秒分辨率，0 表示低于计时分�
 去掉每次 transition 的广播后，collector 有时需要等超时复查，因此 **停稳等待的尾部并非普遍改善**：GNU 的 1/2/4 线程 p99 约为 102 微秒，Darwin 8 线程完整停顿 p99 从 263 增至 345 微秒。条件等待的实际唤醒包含系统调度延迟，不承诺等于 50 微秒。当前取舍是显著减少高频 native 调用的全局争用，同时保留可推进的停稳等待；本记录不把吞吐改进写成全部 GC 延迟改进。
 
 初版不间断发起 GC 的测量在 Linux 两线程上超时；它会反复抢先取得 world lock。正式前后对照均使用上述 100 微秒间隔，超时记录不作为成功样本。
+
+## M33-1b/1c：真实 Scoop GCLeaf / DirectC
+
+2026-10-08 测量，硬件与 LLVM 版本同上。源码、计时与复现步骤见 [FFI benchmark](../../tests/benchmarks/ffi/README.md)，原始样本见 [Darwin](measurements/ffi-darwin.json) 与 [Linux GNU](measurements/ffi-linux-gnu.json)。native callee 位于独立的 C 对象，所有 caller 采用 O2、同一链接方式与同一实际操作，无 LTO、内联或 builtin 替换；每个返回值都进入校验和。每个工作线程只通过一次 foreign callback 进入 Scoop，计时包含该次 attach/detach。
+
+无 GC 配置采用 production runtime；每线程 2,000,000 次调用，三轮交替执行六条路径。下表单位 ns，仍是总墙钟时间 / 总调用数。scalar 为整数传参并返回，aggregate 为两个 Long 的 C-layout struct 传参和返回；两类工作负载分别与自己的 C baseline 比较。
+
+| 平台 / 路径 | 1 线程 | 2 线程 | 4 线程 | 8 线程 |
+| --- | ---: | ---: | ---: | ---: |
+| Darwin / C scalar | 0.776 | 0.418 | 0.210 | 0.108 |
+| Darwin / NativeSafe DirectC | 31.281 | 16.299 | 8.371 | 6.234 |
+| Darwin / GCLeaf DirectC | 12.557 | 6.826 | 3.473 | 1.781 |
+| Darwin / C aggregate | 0.751 | 0.418 | 0.210 | 0.108 |
+| Darwin / NativeSafe bridge | 28.904 | 15.418 | 7.739 | 7.283 |
+| Darwin / GCLeaf bridge | 13.752 | 8.043 | 3.841 | 2.247 |
+| GNU / C scalar | 0.930 | 0.460 | 0.223 | 0.137 |
+| GNU / NativeSafe DirectC | 30.977 | 15.990 | 8.904 | 5.803 |
+| GNU / GCLeaf DirectC | 16.237 | 7.882 | 4.622 | 2.379 |
+| GNU / C aggregate | 0.996 | 0.604 | 0.302 | 0.188 |
+| GNU / NativeSafe bridge | 35.256 | 17.786 | 9.511 | 6.753 |
+| GNU / GCLeaf bridge | 15.906 | 8.910 | 4.664 | 2.640 |
+
+GCLeaf DirectC 单线程耗时为 Darwin 12.557 ns、GNU 16.237 ns，普通 NativeSafe 分别为 31.281 ns、30.977 ns。它们仍明显高于直接 C 循环：优化机器码表明 Scoop 每轮保留正常的 `scoop_rt_safepoint` poll，C baseline 没有这项语言运行时义务。GCLeaf 的实际 native 调用已经直接传值，没有额外 bridge、根发布或状态切换；这里不将整段循环的差距归为 GCLeaf 调用协议，也不声称整段代码与 C 等价。aggregate 的构造、storage bridge 与拷贝成本单独保留，跨负载的微小排序不能证明某一种调用一定更快。
+
+### GC 压力下的停稳与完整停顿
+
+使用同一 Scoop 程序与启用测试观测点的 runtime 副本，工作线程各执行 20,000,000 次 scalar 调用，独立 collector callback 在每次 full GC 后 NativeSafe 等待 100 微秒。compiler 生成真实 stackmap、native transitions 和回边 poll。观测点自身会增加此测试配置的开销；无 GC 表格的 production runtime 不含这些调用。collector 超时复查仍为 50 微秒。
+
+下表单位为微秒，单元格依次为 p50 / p99 / 最大值。所有样本均未达到 100,000 条记录上限。
+
+| 平台 / 线程 | 调用 | GC 数 | 停稳等待 | 完整停顿 |
+| --- | --- | ---: | ---: | ---: |
+| Darwin / 1 | NativeSafe | 4,089 | 0 / 11 / 87 | 43 / 71 / 275 |
+| Darwin / 1 | GCLeaf | 1,791 | 6 / 21 / 159 | 55 / 80 / 257 |
+| Darwin / 2 | NativeSafe | 4,239 | 1 / 19 / 114 | 55 / 74 / 226 |
+| Darwin / 2 | GCLeaf | 1,785 | 13 / 27 / 80 | 68 / 87 / 313 |
+| Darwin / 4 | NativeSafe | 4,502 | 14 / 63 / 153 | 75 / 139 / 300 |
+| Darwin / 4 | GCLeaf | 1,799 | 29 / 63 / 100 | 90 / 128 / 313 |
+| Darwin / 8 | NativeSafe | 6,582 | 32 / 220 / 377 | 117 / 338 / 663 |
+| Darwin / 8 | GCLeaf | 2,299 | 148 / 408 / 578 | 253 / 550 / 774 |
+| GNU / 1 | NativeSafe | 4,623 | 0.946 / 101.801 / 135.836 | 116.575 / 225.623 / 1574.895 |
+| GNU / 1 | GCLeaf | 1,864 | 0.91 / 3.882 / 107.269 | 109.572 / 245.755 / 1617.321 |
+| GNU / 2 | NativeSafe | 5,005 | 4.204 / 101.868 / 103.407 | 124.191 / 227.657 / 1640.115 |
+| GNU / 2 | GCLeaf | 1,828 | 5.662 / 9.885 / 107.24 | 126.057 / 150.888 / 1862.071 |
+| GNU / 4 | NativeSafe | 5,194 | 4.964 / 102.074 / 149.019 | 143.032 / 241.72 / 1395.746 |
+| GNU / 4 | GCLeaf | 1,955 | 8.274 / 24.412 / 159.316 | 148.604 / 226.201 / 1146.368 |
+| GNU / 8 | NativeSafe | 6,159 | 10.158 / 102.241 / 144.701 | 171.483 / 276.33 / 1363.536 |
+| GNU / 8 | GCLeaf | 2,307 | 16.912 / 45.481 / 132.695 | 179.461 / 293.788 / 1377.457 |
+
+GCLeaf 的线程保持 managed，collector 必须等真实 poll；普通 C 调用已发布 NativeSafe 时可直接视为停稳。Darwin 8 线程下，GCLeaf 的等待 p99 为 408 微秒，高于 NativeSafe 的 220 微秒；GNU 的 GCLeaf 等待尾部在本次样本中较低，但完整停顿并非始终更短。吞吐、停稳和整轮 GC 是不同指标，不能用单次调用加速推导全部 GC 延迟改善。errno 捕获尚未实现，其 bridge 测量随 M33-5 追加。

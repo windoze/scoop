@@ -736,11 +736,13 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
-        bridge: super::GeneratedBridgeEntryIdentity::new(
-            scoop_identity::ConeIdentity::SINGLE_FILE,
-            scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
-        )
-        .unwrap(),
+        call_plan: super::CAbiCallPlan::StorageBridge(Box::new(
+            super::GeneratedBridgeEntryIdentity::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
+            )
+            .unwrap(),
+        )),
         signature: super::CFunctionType {
             params: Vec::new(),
             return_type: super::CReturnType::Void,
@@ -1157,11 +1159,11 @@ fn target_contract_and_fingerprint_match_the_fixed_vectors() {
     let profile = LirTargetProfile::DARWIN_AARCH64;
     assert_eq!(
         hex(&scoop_wire::encode(&profile.contract()).unwrap()),
-        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e010f01"
+        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e020f01"
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+        "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
     );
     assert_eq!(
         super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),

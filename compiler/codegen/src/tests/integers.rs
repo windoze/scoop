@@ -154,7 +154,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound_bridge(1),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(1))),
         signature: scoop_lir::CFunctionType {
             params: IntegerKind::ALL
                 .iter()

@@ -173,77 +173,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallDestination::Extern(id) => {
                 let declaration = &self.extern_functions[id];
                 let (params_match, result_matches, protocol_matches) = match &declaration.kind {
-                    ExternFunctionKind::C {
-                        signature: c_signature,
-                        ..
-                    } => {
-                        let return_type = c_signature.storage_return_type();
-                        let is_void = c_signature.return_type.is_void();
-                        if call.args().len() == c_signature.params.len() {
-                            for (index, (argument, parameter)) in
-                                call.args().iter().zip(&c_signature.params).enumerate()
-                            {
-                                let scoop_lir::AbiCallArgument::Direct(
-                                    scoop_lir::Value::CArgumentStorage(storage),
-                                ) = argument
-                                else {
-                                    return Err(CodegenError(format!(
-                                        "typed C extern call @{}: argument {} is not an exact C argument-storage address",
-                                        self.function.symbol(),
-                                        index
-                                    )));
-                                };
-                                let local_index = arena_index(storage.local());
-                                if local_index >= self.function.locals.len() {
-                                    return Err(CodegenError(format!(
-                                        "typed C extern call @{}: argument {} refers to invalid storage local{}",
-                                        self.function.symbol(),
-                                        index,
-                                        local_index
-                                    )));
-                                }
-                                let actual = self.function.locals[storage.local()].ty();
-                                let expected = parameter.storage_type();
-                                if actual != &expected {
-                                    return Err(CodegenError(format!(
-                                        "typed C extern call @{}: argument {} storage local{} has type {}, expected exact C storage {}",
-                                        self.function.symbol(),
-                                        index,
-                                        local_index,
-                                        actual.dump(),
-                                        expected.dump()
-                                    )));
-                                }
-                            }
-                        }
-                        (
-                            params.len() == c_signature.params.len()
-                                && params.iter().all(|argument| {
-                                    matches!(
-                                        argument,
-                                        scoop_lir::AbiArgument::Direct(value)
-                                            if value.storage_type() == &scoop_lir::RAW_PTR
-                                    )
-                                }),
-                            match result {
-                                TypedCallResult::Void => is_void,
-                                TypedCallResult::Indirect {
-                                    value,
-                                    convention: scoop_lir::IndirectResultConvention::CStoragePointer,
-                                    ..
-                                } => !is_void && value.storage_type() == &return_type,
-                                TypedCallResult::ElidedZst { .. }
-                                | TypedCallResult::Direct { .. }
-                                | TypedCallResult::Indirect { .. } => false,
-                            },
-                            matches!(
-                                protocol,
-                                CallProtocol::NativeSafe { .. }
-                                    | CallProtocol::NativeGcLeaf
-                                    | CallProtocol::ReleaseNativeLeaf
-                            ),
-                        )
-                    }
+                    // The module boundary already validated the complete C
+                    // signature, physical plan and caller protocol.
+                    ExternFunctionKind::C { .. } => return Ok(()),
                     ExternFunctionKind::Scoop {
                         signature: declaration_signature,
                         ..

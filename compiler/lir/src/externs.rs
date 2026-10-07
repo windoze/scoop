@@ -21,7 +21,7 @@ pub struct ExternFunctionIdentity {
 pub struct CExternFunction {
     pub identity: ExternFunctionIdentity,
     pub call_mode: CAbiCallMode,
-    pub bridge: GeneratedBridgeEntryIdentity,
+    pub call_plan: CAbiCallPlan,
     pub signature: CFunctionType,
 }
 
@@ -70,7 +70,7 @@ impl ExternFunctions {
             calling_convention: identity.calling_convention,
             kind: ExternFunctionKind::C {
                 call_mode: function.call_mode,
-                bridge: Box::new(function.bridge),
+                call_plan: function.call_plan,
                 signature: function.signature,
             },
         }))
@@ -140,7 +140,7 @@ impl scoop_wire::WireDecode for CallingConvention {
 pub enum ExternFunctionKind {
     C {
         call_mode: CAbiCallMode,
-        bridge: Box<GeneratedBridgeEntryIdentity>,
+        call_plan: CAbiCallPlan,
         signature: CFunctionType,
     },
     Scoop {

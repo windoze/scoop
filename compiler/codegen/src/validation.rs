@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
+mod c_call_plan;
 mod callbacks;
 mod constants;
 mod external;
@@ -606,6 +607,7 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
     for (_, function) in module.extern_functions.iter() {
         match &function.kind {
             ExternFunctionKind::C { signature, .. } => {
+                c_call_plan::validate(function)?;
                 for (index, parameter) in signature.params.iter().enumerate() {
                     validate_c_type(module, parameter, false, &mut HashSet::new()).map_err(
                         |error| {

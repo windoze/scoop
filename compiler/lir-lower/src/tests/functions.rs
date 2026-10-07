@@ -167,7 +167,7 @@ fn function_signatures_params_and_calls() {
 }
 
 #[test]
-fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
+fn c_extern_scalar_arguments_use_values_without_bridge_storage() {
     let mut b = Builder::new();
     let int8 = mir::Type::Integer(mir::IntegerKind::SIGNED_8);
     let consume = b.c_extern(
@@ -187,13 +187,6 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
-    let local = instructions
-        .iter()
-        .find_map(|instruction| match instruction {
-            lir::Instruction::Store { local, .. } => Some(*local),
-            _ => None,
-        })
-        .expect("C argument is stored in one exact typed local");
     let arguments = instructions
         .iter()
         .find_map(|instruction| match instruction {
@@ -205,12 +198,12 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
         .expect("C extern uses the native-safe protocol");
     assert_eq!(
         arguments,
-        [lir::AbiCallArgument::Direct(lir::Value::CArgumentStorage(
-            lir::CArgumentStorage::address_of(local)
+        [lir::AbiCallArgument::Direct(lir::Value::IntegerConst(
+            lir::LirIntegerConstant::Signed8(7)
         ))]
     );
-    assert_eq!(function.locals[local].ty(), &lir::LirType::I8);
-    assert!(lir::dump(&module).contains("extern0(c-arg-address(local0))"));
+    assert!(function.locals.is_empty());
+    assert!(lir::dump(&module).contains("direct-c=(i8 signext)->void"));
     assert!(
         !instructions
             .iter()

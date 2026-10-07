@@ -145,6 +145,8 @@ nullable data/code pointer 保留对应 exact enum 与 pointer 类型，不得�
 
 DirectC 由 LIR lowering 根据 canonical C signature 与目标 C ABI 确定完整的物理参数/结果、calling convention、小整数扩展和 Boolean 表示转换，codegen 按该计划发射 LLVM 类型与 ABI 属性，目标后端分配寄存器及栈位置。参数直接消费值，结果直接产生值；不预先构造 storage bridge 专用的参数局部变量、返回缓冲区或 memcpy 往返。必要的源码值与 C 表示转换以及 C ABI 本身要求的栈传参保留。StorageBridge 保留完整 storage signature，由所选系统 C compiler 分类 aggregate 和生成桥接；不能只设置 LLVM C calling convention 就把未经分类的 struct 直接传递。
 
+当前三个 profile 的 DirectC 参数与结果中，有符号／无符号 8-bit、16-bit 整数分别使用 signext／zeroext；Boolean 使用 LLVM i1 与 zeroext，32-bit、64-bit 整数及浮点、pointer 无整数扩展属性。TargetProfileContract 的 C ABI lowering 标识为 `ScalarDirectOrSystemCBridge`（wire tag 2），进入现有 target fingerprint 和构建缓存键。
+
 `captureErrno = true` 的 LIR 计划分别保存真实 C 函数结果 `R`、bridge 的 `Int32` 返回值，以及 Scoop `(R, Int)` 的 exact layout 和结果重建操作。带捕获的 bridge 继续通过原有 caller-owned C result storage 写回非 void 的 `R`，以 C `int32_t` 返回捕获的 errno；`R = Unit` 时省略原结果缓冲区，在 Scoop 侧构造零 payload 的 Unit 元素。普通不捕获的 storage bridge 保持原有返回方式。tuple 不出现在目标 C 函数原型中，也不作为 C struct 返回；必要的 C/Scoop 表示转换在已保存 errno 后完成。
 
 每次调用使用独立、在 native 调用期间地址稳定的 GC-free 临时存储；嵌套、递归与 callback 内的调用不能复用仍在使用的缓冲区。NativeSafe 调用在返回握手后使用结果，GCLeaf 与 release 按各自无切换路径使用结果。捕获值及包装 tuple 不增加 GC root、Scoop TLS/thread 操作或堆分配，也不能代替原有实参保活与指针生命周期规则。

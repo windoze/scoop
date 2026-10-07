@@ -96,7 +96,9 @@ fn render_unit(
                 .iter()
                 .find_map(|(_, function)| match &function.kind {
                     ExternFunctionKind::C {
-                        bridge, signature, ..
+                        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(bridge),
+                        signature,
+                        ..
                     } if bridge.unit() == plan.unit() => {
                         Some((function, bridge.as_ref(), signature))
                     }

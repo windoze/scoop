@@ -124,7 +124,11 @@ impl CanonicalLirFoundation {
         let mut callbacks = Vec::new();
 
         for (_, external) in module.extern_functions.iter() {
-            if let crate::ExternFunctionKind::C { bridge, .. } = &external.kind {
+            if let crate::ExternFunctionKind::C {
+                call_plan: crate::CAbiCallPlan::StorageBridge(bridge),
+                ..
+            } = &external.kind
+            {
                 insert_generated_bridge_entry(&mut units, &mut atoms, bridge)?;
             }
         }
@@ -313,8 +317,13 @@ impl CanonicalLirFoundation {
             .extern_functions
             .iter()
             .filter_map(|(_, external)| match &external.kind {
-                crate::ExternFunctionKind::C { bridge, .. } => Some(bridge.symbol_request()),
-                crate::ExternFunctionKind::Scoop { .. } => None,
+                crate::ExternFunctionKind::C {
+                    call_plan: crate::CAbiCallPlan::StorageBridge(bridge),
+                    ..
+                } => Some(bridge.symbol_request()),
+                crate::ExternFunctionKind::C { .. } | crate::ExternFunctionKind::Scoop { .. } => {
+                    None
+                }
             })
             .chain(
                 module

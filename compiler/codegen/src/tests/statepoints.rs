@@ -145,7 +145,7 @@ fn native_calls_publish_roots_transition_and_reload() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound_bridge(1),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(1))),
         signature: scoop_lir::CFunctionType {
             params: Vec::new(),
             return_type: scoop_lir::CReturnType::Void,

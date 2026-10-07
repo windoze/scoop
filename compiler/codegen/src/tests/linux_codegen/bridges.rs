@@ -196,7 +196,7 @@ fn fixture(target: TargetProfileId) -> (Module, String) {
             library: String::new(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound.clone(),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound.clone())),
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
             return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),

@@ -43,6 +43,9 @@ pub use abi::*;
 mod externs;
 pub use externs::*;
 
+mod c_call_plan;
+pub use c_call_plan::*;
+
 mod calls;
 pub use calls::*;
 

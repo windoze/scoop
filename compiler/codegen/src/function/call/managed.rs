@@ -301,6 +301,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
             }
             self.apply_nounwind(call);
+            self.apply_c_abi_attributes(destination, |location, attribute| {
+                call.add_attribute(location, attribute)
+            });
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
@@ -358,6 +361,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 )?;
             }
             self.apply_call_protocol(call, destination, &protocol);
+            self.apply_c_abi_attributes(destination, |location, attribute| {
+                call.add_attribute(location, attribute)
+            });
             match &result {
                 TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
                     ValueKind::Basic(value) => Some(value),

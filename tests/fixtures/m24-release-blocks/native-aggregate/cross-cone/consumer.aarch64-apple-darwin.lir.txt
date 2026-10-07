@@ -2,16 +2,15 @@ Module
   global @scoop$1$io$c3559d122df9d4496f5ad898e0dfdef297034b68f0defd79b7ffaeaf05946fcc = "\n"
   global @scoop$1$ss$baa7fe7c6122bda5fce8e11253f6c5121fd70ea318324d742e29acc862f56918 : ptr<managed> scan=refs[0]
   c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
-  extern ef0 count @m24_release_wide_count() -> i64 <c exact=()->Long bridge=@scoop$1$br$48650f361cbedac449b829bf6f54ae210fde82b232312a475354b4955e6e78f9 gc-leaf nounwind lib=m24_release>
+  extern ef0 count @m24_release_wide_count() -> i64 <c exact=()->Long direct-c=()->i64 gc-leaf nounwind lib=m24_release>
   extern ef1 m24_release_rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$92cd0ed8eb7d41f615bf13c82d9f915de5fe8b690e1408e9c3234d1f38d5e68e gc-leaf nounwind lib=m24_release>
   extern ef2 m24_release_wide @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$78b00dfaf6d34fef384ad6b34db64761219360d9e298a0a2f1ac96d78dfa2f0a gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$439f831e5987b260bffd7ea029960341c538f4fa2c15d3f2be0137648e77e16b() -> i64
     local %0 $call.1: i64
-    local %1 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none) extern0()
-    store local1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 () -> i64 extern0()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$9ea63aa4989b678d9cf5b8448c0a693399f692c0a2561f3dd7103572ca73dd6f() -> void
     local %0 $dependency.argument.0: i64
@@ -158,7 +157,6 @@ Module
   fun @scoop$1$cb$cd586dad3d6d2e6c10f7bc216aa307068dfdfd1e68092a00af29e9dd14aa8c0a() -> void
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
-    local %2 $sc.1: i64
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn1()
@@ -167,11 +165,11 @@ Module
     t1 = aggregate () : {}
     call managed-void-target2 sp<managed-call:2> live=[] sig=void2 () runtime @scoop_rt_gc_collect()
     t2 = aggregate () : {}
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none) extern0()
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t3 = sig=direct0 () -> i64 extern0()
+    store t3 -> local0
     store local0 -> local1
     call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (i64) local-fn6(local1)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     ret
   fun @scoop$1$cb$1ed9b16f4595ce1cc28c23053dc5e26c28dc48f3f6f12e0fbce46003604f4a2d(indirect<struct1 size=4 align=4 scan=none>) -> i32 <no-gc>
   block entry

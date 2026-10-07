@@ -1,8 +1,18 @@
 use super::*;
-use inkwell::values::AnyValue;
+use inkwell::attributes::{Attribute, AttributeLoc};
+use inkwell::values::{AnyValue, CallSiteValue};
 
 #[test]
-fn gc_leaf_call_preserves_side_effects_without_a_gc_boundary() {
+fn gc_leaf_bridge_preserves_side_effects_without_a_gc_boundary() {
+    check_gc_leaf(false);
+}
+
+#[test]
+fn gc_leaf_direct_call_preserves_side_effects_without_a_gc_boundary() {
+    check_gc_leaf(true);
+}
+
+fn check_gc_leaf(direct: bool) {
     let mut module = Module {
         release_hooks: Default::default(),
         cone: ConeIdentity::SINGLE_FILE,
@@ -21,7 +31,19 @@ fn gc_leaf_call_preserves_side_effects_without_a_gc_boundary() {
         meta: string_metadata(),
     };
     let bridge = outbound_bridge(1);
-    let bridge_symbol = bridge.symbol().to_owned();
+    let native_symbol = if direct {
+        "native_leaf".to_owned()
+    } else {
+        bridge.symbol().to_owned()
+    };
+    let call_plan = if direct {
+        scoop_lir::CAbiCallPlan::Direct(scoop_lir::DirectCSignature {
+            params: Vec::new(),
+            result: scoop_lir::DirectCReturn::Void,
+        })
+    } else {
+        scoop_lir::CAbiCallPlan::StorageBridge(Box::new(bridge))
+    };
     let native = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "leaf".into(),
@@ -30,7 +52,7 @@ fn gc_leaf_call_preserves_side_effects_without_a_gc_boundary() {
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
         call_mode: scoop_lir::CAbiCallMode::GcLeaf,
-        bridge,
+        call_plan,
         signature: scoop_lir::CFunctionType {
             params: Vec::new(),
             return_type: scoop_lir::CReturnType::Void,
@@ -91,24 +113,46 @@ fn gc_leaf_call_preserves_side_effects_without_a_gc_boundary() {
     )
     .unwrap();
     llvm.verify().unwrap();
-    let body = llvm
-        .get_function(&symbol)
-        .unwrap()
-        .print_to_string()
-        .to_string();
+    let function = llvm.get_function(&symbol).unwrap();
+    let body = function.print_to_string().to_string();
     assert!(
-        body.contains(&bridge_symbol),
+        body.contains(&native_symbol),
         "the observable native call was removed: {body}"
     );
-    for forbidden in [
-        "gc.statepoint",
-        "gc.relocate",
-        "native_safe",
-        "caller_root",
-        "readnone",
-        "readonly",
-        "nosync",
-    ] {
+    for forbidden in ["gc.statepoint", "gc.relocate", "native_safe", "caller_root"] {
         assert!(!body.contains(forbidden), "unexpected {forbidden}: {body}");
+    }
+    let call = function
+        .get_basic_blocks()
+        .into_iter()
+        .flat_map(|block| block.get_instructions())
+        .filter_map(|instruction| CallSiteValue::try_from(instruction).ok())
+        .find(|call| {
+            call.get_called_fn_value()
+                .is_some_and(|callee| callee.get_name().to_bytes() == native_symbol.as_bytes())
+        })
+        .unwrap();
+    assert!(
+        call.get_string_attribute(AttributeLoc::Function, "gc-leaf-function")
+            .is_some()
+    );
+    for forbidden in ["memory", "nosync"] {
+        assert!(
+            call.get_enum_attribute(
+                AttributeLoc::Function,
+                Attribute::get_named_enum_kind_id(forbidden),
+            )
+            .is_none(),
+            "unexpected {forbidden} on native call"
+        );
+    }
+    if direct {
+        assert!(
+            call.get_enum_attribute(
+                AttributeLoc::Function,
+                Attribute::get_named_enum_kind_id("nobuiltin"),
+            )
+            .is_some()
+        );
     }
 }

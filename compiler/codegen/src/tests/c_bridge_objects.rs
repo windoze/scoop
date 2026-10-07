@@ -169,7 +169,7 @@ fn bridge_module(count: u8) -> Module {
                 library: "fixture".to_owned(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            bridge: outbound_bridge(seed),
+            call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(seed))),
             signature: scoop_lir::CFunctionType {
                 params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
                 return_type: scoop_lir::CReturnType::Void,

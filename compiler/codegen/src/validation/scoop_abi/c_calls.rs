@@ -1,0 +1,129 @@
+use super::*;
+
+pub(super) fn validate(
+    function: &Function,
+    call: &scoop_lir::TypedCallView<'_>,
+    protocol: CallProtocol,
+    declaration: &scoop_lir::ExternFunction,
+    c_signature: &scoop_lir::CFunctionType,
+    call_mode: scoop_lir::CAbiCallMode,
+    call_plan: &scoop_lir::CAbiCallPlan,
+) -> Result<(), CodegenError> {
+    if !matches!(
+        (protocol, call_mode),
+        (
+            CallProtocol::NativeSafe,
+            scoop_lir::CAbiCallMode::NativeSafe
+        ) | (CallProtocol::NativeGcLeaf, scoop_lir::CAbiCallMode::GcLeaf)
+            | (CallProtocol::ReleaseNativeLeaf, _)
+    ) {
+        return Err(call_error(
+            function,
+            format!(
+                "C extern `{}` requires its declared C caller protocol",
+                declaration.source_name
+            ),
+        ));
+    }
+    if call_calling_convention(call) != declaration.calling_convention {
+        return Err(call_error(
+            function,
+            format!(
+                "C extern `{}` calling convention disagrees with its declaration",
+                declaration.source_name
+            ),
+        ));
+    }
+    if let scoop_lir::CAbiCallPlan::Direct(plan) = call_plan {
+        let params_match = call.arguments().len() == plan.params.len()
+            && call.arguments().iter().zip(&plan.params).all(|(argument, expected)| {
+                matches!(argument, scoop_lir::AbiArgument::Direct(value)
+                    if value.storage_type() == &expected.ty.storage_type() && value.scan() == &RefScan::None)
+            })
+            && call.args().iter().all(|argument| matches!(argument,
+                scoop_lir::AbiCallArgument::Direct(value)
+                    if !matches!(value, Value::CArgumentStorage(_))));
+        let result_matches = match (&plan.result, call) {
+            (scoop_lir::DirectCReturn::Void, scoop_lir::TypedCallView::Void { .. }) => true,
+            (
+                scoop_lir::DirectCReturn::Value(value),
+                scoop_lir::TypedCallView::Direct { signature, .. },
+            ) => {
+                signature.result().storage_type() == &value.ty.storage_type()
+                    && signature.result().scan() == &RefScan::None
+            }
+            _ => false,
+        };
+        return if params_match && result_matches {
+            Ok(())
+        } else {
+            Err(call_error(
+                function,
+                format!(
+                    "C extern `{}` call disagrees with its DirectC parameters or result",
+                    declaration.source_name
+                ),
+            ))
+        };
+    }
+
+    if call.arguments().len() != c_signature.params.len()
+        || call.arguments().iter().any(|argument| {
+            !matches!(argument, scoop_lir::AbiArgument::Direct(value)
+                if value.storage_type() == &scoop_lir::RAW_PTR
+                    && value.scan() == &RefScan::None)
+        })
+    {
+        return Err(call_error(
+            function,
+            format!(
+                "C extern `{}` bridge parameters must be direct raw storage pointers",
+                declaration.source_name
+            ),
+        ));
+    }
+
+    for (index, (argument, parameter)) in call.args().iter().zip(&c_signature.params).enumerate() {
+        let scoop_lir::AbiCallArgument::Direct(Value::CArgumentStorage(storage)) = argument else {
+            return Err(call_error(
+                function,
+                format!(
+                    "C extern `{}` argument {index} is not an exact C argument-storage address",
+                    declaration.source_name
+                ),
+            ));
+        };
+        require_local_type(
+            function,
+            storage.local(),
+            &parameter.storage_type(),
+            &format!(
+                "C extern `{}` argument {index} storage",
+                declaration.source_name
+            ),
+        )?;
+    }
+
+    let result_matches = match (&c_signature.return_type, call) {
+        (scoop_lir::CReturnType::Void, scoop_lir::TypedCallView::Void { .. }) => true,
+        (
+            scoop_lir::CReturnType::Value(_),
+            scoop_lir::TypedCallView::IndirectResult { signature, .. },
+        ) => {
+            signature.convention() == scoop_lir::IndirectResultConvention::CStoragePointer
+                && signature.result().storage_type() == &c_signature.storage_return_type()
+                && signature.result().scan() == &RefScan::None
+        }
+        _ => false,
+    };
+    if !result_matches {
+        return Err(call_error(
+            function,
+            format!(
+                "C extern `{}` result does not use its exact void/storage-pointer bridge convention",
+                declaration.source_name
+            ),
+        ));
+    }
+    Ok(())
+}

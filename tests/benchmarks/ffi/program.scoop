@@ -1,0 +1,78 @@
+@CLayout struct Pair(val first: Long, val second: Long)
+
+@Extern(lib = "ffi_benchmark", name = "bench_scalar") fun safeScalar(value: Long): Long
+@GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_scalar") fun leafScalar(value: Long): Long
+@Extern(lib = "ffi_benchmark", name = "bench_pair") fun safePair(value: Pair): Pair
+@GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_pair") fun leafPair(value: Pair): Pair
+@Extern(lib = "ffi_benchmark", name = "bench_mode") fun mode(): Int
+@GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_done") fun done(): Boolean
+@Extern(lib = "ffi_benchmark", name = "bench_pause") fun pause()
+@Extern(lib = "ffi_benchmark", name = "bench_run")
+fun run(worker: FunPtr<(Int, Ptr<Unit>) -> Long>, context: Ptr<Unit>,
+        collector: FunPtr<(Int, Ptr<Unit>) -> Long>, collectorContext: Ptr<Unit>)
+
+fun scalarSafe(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) { @Unsafe { sum += safeScalar(index.toInt64()) }; index += 1 }
+    return sum
+}
+
+fun scalarLeaf(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) { @Unsafe { sum += leafScalar(index.toInt64()) }; index += 1 }
+    return sum
+}
+
+fun pairSafe(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) {
+        @Unsafe {
+            val value = safePair(Pair(index.toInt64(), index.toInt64()))
+            sum += value.first + value.second
+        }
+        index += 1
+    }
+    return sum
+}
+
+fun pairLeaf(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) {
+        @Unsafe {
+            val value = leafPair(Pair(index.toInt64(), index.toInt64()))
+            sum += value.first + value.second
+        }
+        index += 1
+    }
+    return sum
+}
+
+fun main() {
+    @Unsafe {
+        val selected = mode()
+        val worker = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+            { count: Int -> when (selected) {
+                1 -> scalarSafe(count)
+                2 -> scalarLeaf(count)
+                4 -> pairSafe(count)
+                else -> pairLeaf(count)
+            } }, 1, ForeignCallbackMode.Reusable
+        )
+        val collector = foreignCallback<(Int, Ptr<Unit>) -> Long>(
+            { unused: Int ->
+                @Unsafe { while (!done()) { gcCollect(); pause() } }
+                0L
+            }, 1, ForeignCallbackMode.Reusable
+        )
+        run(worker.function, worker.context, collector.function, collector.context)
+        val failed = when (foreignCallbackFailure(worker)) { Some(_) -> true; None -> false }
+        val collectorFailed = when (foreignCallbackFailure(collector)) { Some(_) -> true; None -> false }
+        releaseForeignCallback(worker)
+        releaseForeignCallback(collector)
+        if (failed || collectorFailed) { throw IllegalStateException() }
+    }
+}

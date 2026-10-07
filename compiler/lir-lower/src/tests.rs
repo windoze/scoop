@@ -1080,9 +1080,30 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .iter()
         .next()
         .expect("at least one C extern");
-    let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
-        panic!("C declaration remains a C bridge")
+    let lir::ExternFunctionKind::C {
+        signature,
+        call_plan: lir::CAbiCallPlan::Direct(plan),
+        ..
+    } = &function.kind
+    else {
+        panic!("C scalar declarations use DirectC")
     };
+    assert_eq!(
+        plan.params
+            .iter()
+            .map(|value| value.extension)
+            .collect::<Vec<_>>(),
+        [
+            lir::CIntegerExtension::Sign,
+            lir::CIntegerExtension::Sign,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::Zero,
+            lir::CIntegerExtension::Zero,
+            lir::CIntegerExtension::None,
+            lir::CIntegerExtension::None,
+        ]
+    );
     assert_eq!(
         &signature.params,
         &lir::IntegerKind::ALL
@@ -1172,8 +1193,8 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .counts();
     assert_eq!(counts.c_abi_signatures, 1);
     assert_eq!(counts.native_contracts, 2);
-    assert_eq!(counts.bridge_units, 2);
-    assert_eq!(counts.bridge_atoms, 2);
+    assert_eq!(counts.bridge_units, 0);
+    assert_eq!(counts.bridge_atoms, 0);
 }
 
 #[test]

@@ -2,6 +2,7 @@ use super::*;
 
 mod dispatch;
 mod emission;
+mod native_c;
 mod protocol;
 
 pub(super) use protocol::LoweredCallDestination;
@@ -18,7 +19,6 @@ impl<'a> FunctionLowerer<'a> {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
                 let extern_ = &self.module.extern_functions[id];
                 let parameter_types = extern_.params.clone();
-                let returns_unit = extern_.return_type == mir::Type::Unit;
                 assert_eq!(call.args.len(), parameter_types.len(), "extern call arity");
                 let args = call
                     .args
@@ -27,44 +27,7 @@ impl<'a> FunctionLowerer<'a> {
                     .collect::<StorageResult<Vec<_>>>()?;
                 match self.extern_function_refs[&id] {
                     LoweredExternFunctionRef::C(function) => {
-                        let lir::ExternFunctionKind::C { call_mode, .. } =
-                            self.extern_functions[function.declaration()].kind
-                        else {
-                            unreachable!("C extern reference names a C declaration")
-                        };
-                        let destination = NativeCallDestination::C(
-                            lir::CCallDestination::extern_function(function),
-                            call_mode,
-                        );
-                        let mut bridge_args = Vec::with_capacity(args.len());
-                        for (value, ty) in args.into_iter().zip(parameter_types) {
-                            let value = self.project_c_value(&ty, value);
-                            let ty = self.c_storage_type(&ty);
-                            let local = self.new_hidden_local(ty)?;
-                            self.push(lir::Instruction::Store { local, value });
-                            bridge_args.push(lir::Value::CArgumentStorage(
-                                lir::CArgumentStorage::address_of(local),
-                            ));
-                        }
-                        let bridge_parameter_types = vec![lir::RAW_PTR; bridge_args.len()];
-                        if returns_unit {
-                            self.emit_native_call(
-                                destination,
-                                bridge_parameter_types,
-                                lir::LirType::Void,
-                                bridge_args,
-                            )?
-                        } else {
-                            let result_type = self.c_storage_type(result_ty);
-                            let result = self.emit_native_storage_call(
-                                destination,
-                                bridge_parameter_types,
-                                result_type,
-                                lir::RefScan::None,
-                                bridge_args,
-                            )?;
-                            self.restore_c_value(result_ty, result)
-                        }
+                        self.lower_c_call(function, &parameter_types, result_ty, args)?
                     }
                     LoweredExternFunctionRef::Scoop(function) => {
                         let destination = NativeCallDestination::Borrowed(

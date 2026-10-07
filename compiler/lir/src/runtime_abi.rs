@@ -832,7 +832,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "b603caa83ec6016338360cfb2d59461aaa4d66681f59908ca053288514782b19"
+            "9aaf3a9bce9801c47e563cce3f25fc74813602dadca4348c16fabf96c9e02694"
         );
         assert!(
             registry
@@ -888,7 +888,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "5755914a91d1106a86a1ce568ce8f66f4d7b9c792f86fb438a74cc547a1fb16a"
+            "2006fff54410dc8f58e4e03fca73d9761ee033b58f0184138cd812b88c358855"
         );
     }
 

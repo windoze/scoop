@@ -6,7 +6,7 @@
 
 | 批次 | 能力 | 状态 |
 | --- | --- | --- |
-| M33-1 | NativeSafe/collector、GCLeaf、DirectC | NativeSafe、GCLeaf 完成并通过三平台验收；DirectC 待实现 |
+| M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 待实现 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 待实现 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
@@ -58,3 +58,18 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 三平台各 10 项正式 CLI fixture、13 个变体、51 个进程、24 份 golden 均在非更新模式下通过。覆盖标量／aggregate、同 symbol 双模式、显式／缺省实参的 GC、实参抛异常、NoGC helper、泛型、真实 foreign-thread 并发，以及移除 provider/consumer 源码后的 `.slib` 消费和独立链接。debug/release 均执行 normal/moving/minor；8 份公共 HIR/MIR 在三个目标间一致。
 - 7 类 negative fixture 断言完整诊断与源码位置：非法声明目标、语法位置、generic/suspend、managed 签名、注解参数／重复、C extern 上的 NoGC，以及 unsafe 调用。nursery 修复后另有 20 次 release minor 并发运行全部通过。
 - 旧 fixture 只回归受影响的 imported value、Char、浮点、优化 profile 与 release 调用路径。AST/HIR golden 的变更对应删除注解、源码位置变化和 C 声明显式记录 NativeSafe 模式；对既有默认模式的调试拼写做机械更新，MIR/LIR 指令未改变。未重复执行无关的全量语言验收。
+
+## M33-1c：DirectC
+
+- 三个 target 的固定 cdecl 标量签名直接调用 native symbol。LIR 明确区分 DirectC 的值参数／返回与 StorageBridge；窄整数和 Boolean 的扩展属性按 LLVM 22.1 C ABI probe 确定。Char、handle/pin 的透明整数表示和 nullable data/code pointer 保留实际类型。按值 C-layout aggregate 继续使用 storage bridge。
+- DirectC 不再创建 bridge 专用参数／结果局部存储，不发布无用途的 outbound bridge recipe、定义或对象；实际 native contract 和 library requirement 继续保留。目标 C lowering contract 更新到 `ScalarDirectOrSystemCBridge`，同步格式固定向量与缓存／产物指纹。
+- NativeSafe、GCLeaf 与 release 的调用协议保持独立。DirectC 在声明和调用处携带必要的 signext/zeroext 与 nobuiltin，禁止按名称替换实际选中的 native symbol；未增加 memory/nosync 等纯函数属性。ABI 检查在模块边界完成，发射阶段复用结果，删除旧的重复完整 C 合同检查。调用 lowering 与检查分别抽出小模块，新增实现文件均控制在 130 行以内。
+
+已完成的验证：
+
+- workspace fmt/clippy 通过；增加 LLVM 测试后补做 codegen clippy。codegen 原组 339 项通过，随后 DirectC 和 StorageBridge 的两项 GCLeaf LLVM 测试通过；LIR 467 项、LIR-lower 154 项通过，slib 565 项及更新固定向量后的定向 1 项通过。C companion 严格警告检查、基准 Python 的 Ruff 格式化／检查通过。
+- Darwin/GNU/musl 同组各 8 项正式 CLI、15 个变体、99 个进程、54 份 golden，在非更新模式下通过。覆盖全部标量宽度、Boolean、Float/Double、混合与超寄存器参数、void、nullable pointer、Char、pin/handle、release，以及同 symbol 两种 GC 协议。`abs` 同名 C 实现使用可区分的结果，验证优化没有 builtin 替换。
+- 跨 Cone、泛型与 artifact-only fixture 保留 scalar direct 调用和 aggregate bridge，移除源码后的独立链接成功。14 份公共 HIR/MIR 与 Darwin 一致，GNU/musl 的 34 份实际 HIR/MIR dump 逐字节一致。musl 额外通过 PIE 的 debug/release 两个变体、16 个进程。
+- Darwin 另有 6 项旧 FFI／callback／release 回归、7 个变体、33 个进程、30 份 golden 通过。已有不变的 negative 诊断测试与 runtime TSan 结果继续复用；未重复执行全量语言 fixture。
+- 检查三个 target 的优化后机器码：小整数参数直接进入 C ABI 寄存器，调用真实 native symbol；GCLeaf 不含该调用专用的 transition/root/safepoint，NativeSafe 仍发布根并协调返回。实际 Scoop benchmark 的 scalar 循环不含 storage bridge 或 bridge 缓冲区，正常循环 poll 仍在。
+- Darwin/GNU 各记录 72 个无 GC 样本和 8 个真实 Scoop collector 压力样本；直接 C、NativeSafe DirectC、GCLeaf DirectC、aggregate bridge 分开报告，见 [PERFORMANCE.md](PERFORMANCE.md)。清理 4,674 个已链接的 Rust 中间对象，共 6.52 GiB，保留编译库与配套 CLI。

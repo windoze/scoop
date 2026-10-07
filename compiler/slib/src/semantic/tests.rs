@@ -76,7 +76,7 @@ fn foundation_fingerprints_have_fixed_vectors() {
         [
             "ff93330e0bbcf11a497ad603a6e21abf0e313e5d43ca9e6136b0965047279bee",
             "3653391c3c8c1a08a7446fc8a4f9bd9fdaf6e77a745ef57cf91090c3bf9b6efe",
-            "7bb28a182d9c25429e90efecadb06c2a91bade030648deb5d80d5bacb74672ce",
+            "3e66e691594c18aa4ba9c5cb2463f18e945888f1249be0276e046012b59e7091",
         ]
     );
 }

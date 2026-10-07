@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(encoded[0], 0xae);
         assert_eq!(
             record.target_fingerprint().to_string(),
-            "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+            "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),

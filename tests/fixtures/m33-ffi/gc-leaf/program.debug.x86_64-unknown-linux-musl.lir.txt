@@ -7,32 +7,22 @@ Module
   c-struct struct0 Pair fields=[Int@0/4,Double@8/8]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$cb3b5a26cf0ccc354c3e37e28152692e222e8ba5f9a59d2ec30539fe33476448 gc-leaf nounwind lib=fixture_native>
-  extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$cb3b5a26cf0ccc354c3e37e28152692e222e8ba5f9a59d2ec30539fe33476448 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$4c4d34579b835c466236b17ce851371bc072cf1f93fb6dd3d5b50923ff5592ac gc-leaf nounwind mode=gc-leaf lib=fixture_native>
-  extern ef3 leafCalls @m33_calls() -> i32 <c exact=()->Int bridge=@scoop$1$br$f41707612aaf36093d4d67401551977de0a7f9b89e9d0ed81ec21710e74ef37f gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef3 leafCalls @m33_calls() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   fun @scoop$1$cb$f9a3cdff5a04d354953b5375ad333e894798e3dc2fd30d3f4ad29241b9792e9c(i32, i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i32) -> i32 extern0(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$f3c733c8af9d2152eb1df94b9f4c68bb38232ffdec739dc39ff2ad81cf0bd165(i32, i32) -> i32 <no-gc>
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
-    store param0 -> local1
-    store param1 -> local2
-    call native-gc-leaf-indirect-target0 local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (i32, i32) -> i32 extern1(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$4802a025b776cfaa4b4d6f1276193dcff63e64f0f8cf99fc004b462585fe063a(indirect<struct0 size=16 align=8 scan=none>) -> sret<struct0 size=16 align=8 scan=none> <no-gc>
     local %0 $call.1: struct0
@@ -45,10 +35,9 @@ Module
     ret local0
   fun @scoop$1$cb$c2e198def99294e7beb27430aa5fece42349a11ce1947c0174521f7c9499ac81() -> i32 <no-gc>
     local %0 $call.1: i32
-    local %1 $sc.1: i32
   block entry
-    call native-gc-leaf-indirect-target0 local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern3()
-    store local1 -> local0
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 () -> i32 extern3()
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$aaa397932c769c19c9b1a85594cf3e93ac547322946e16efbaae462dc32bc712(i1) -> void
     local %0 $dependency.receiver: i1
@@ -115,18 +104,13 @@ Module
     local %2 $parameter.mode: i32
     local %3 $parameter.value: i32
     local %4 $call.1: i32
-    local %5 $sc.1: i32
-    local %6 $sc.2: i32
-    local %7 $sc.3: i32
   block entry
     store integer<Int>(0x00000001) -> local0
     store param0 -> local1
     store local0 -> local2
     store local1 -> local3
-    store local2 -> local5
-    store local3 -> local6
-    call native-gc-leaf-indirect-target0 local7 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local5), c-arg-address(local6))
-    store local7 -> local4
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (i32, i32) -> i32 extern1(local2, local3)
+    store t0 -> local4
     ret local4
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: i32
@@ -228,26 +212,12 @@ Module
     local %96 $call.2: i32
     local %97 $catch.3: ptr<managed>
     local %98 $call.4: ptr<managed>
-    local %99 $sc.1: i32
-    local %100 $sc.2: i32
-    local %101 $sc.3: i32
-    local %102 $sc.4: i32
-    local %103 $sc.5: i32
-    local %104 $sc.6: i32
-    local %105 $sc.7: struct0
-    local %106 $sc.8: struct0
-    local %107 $sc.9: struct0
-    local %108 $sc.10: i32
-    local %109 $sc.11: exception_record
-    local %110 $sc.12: ptr<raw>
-    local %111 $sc.13: ptr<managed>
-    local %112 $sc.14: i32
-    local %113 $sc.15: i32
-    local %114 $sc.16: i32
-    local %115 $sc.17: i32
-    local %116 $sc.18: i32
-    local %117 $sc.19: i32
-    local %118 $sc.20: i32
+    local %99 $sc.1: struct0
+    local %100 $sc.2: struct0
+    local %101 $sc.3: struct0
+    local %102 $sc.4: exception_record
+    local %103 $sc.5: ptr<raw>
+    local %104 $sc.6: ptr<managed>
   block entry
     poll managed-void-target12 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local0
@@ -261,68 +231,64 @@ Module
     store integer<Int>(0x00000005) -> local4
     store local3 -> local5
     store local4 -> local6
-    store local5 -> local99
-    store local6 -> local100
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[local2] local101 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local99), c-arg-address(local100))
-    store local101 -> local7
+    call native-safe-direct-target0 sp<native-safe:0> roots=[local2] t2 = sig=direct1 (i32, i32) -> i32 extern0(local5, local6)
+    store t2 -> local7
     store integer<Int>(0x00000005) -> local8
     store local8 -> local9
-    t2 = integer_compare_Equal<Int> local7, local9 : i1
-    store t2 -> local10
+    t3 = integer_compare_Equal<Int> local7, local9 : i1
+    store t3 -> local10
     store local10 -> local11
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 (i1) local-fn4(local11)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     store integer<Int>(0x00000001) -> local12
     store local12 -> local13
     store integer<Int>(0x00000007) -> local14
     store local14 -> local15
-    call managed-direct-target1 sp<managed-call:3> live=[local2:ptr<managed>@0] t4 = sig=direct1 (i32) -> i32 local-fn5(local15)
-    store t4 -> local16
-    store local13 -> local102
-    store local16 -> local103
-    call native-gc-leaf-indirect-target1 local104 = sig=indirect1 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local102), c-arg-address(local103))
-    store local104 -> local17
+    call managed-direct-target1 sp<managed-call:3> live=[local2:ptr<managed>@0] t5 = sig=direct2 (i32) -> i32 local-fn5(local15)
+    store t5 -> local16
+    call native-gc-leaf-direct-target1 t6 = sig=direct3 (i32, i32) -> i32 extern1(local13, local16)
+    store t6 -> local17
     store integer<Int>(0x00000007) -> local18
     store local18 -> local19
-    t5 = integer_compare_Equal<Int> local17, local19 : i1
-    store t5 -> local20
+    t7 = integer_compare_Equal<Int> local17, local19 : i1
+    store t7 -> local20
     store local20 -> local21
     call managed-void-target2 sp<managed-call:4> live=[local2:ptr<managed>@0] sig=void2 (i1) local-fn4(local21)
-    t6 = aggregate () : {}
+    t8 = aggregate () : {}
     store integer<Int>(0x0000000b) -> local22
     store local22 -> local23
-    call no-gc-direct-target0 t7 = sig=direct2 (i32) -> i32 local-fn7(local23)
-    store t7 -> local24
+    call no-gc-direct-target0 t9 = sig=direct4 (i32) -> i32 local-fn7(local23)
+    store t9 -> local24
     store integer<Int>(0x0000000b) -> local25
     store local25 -> local26
-    t8 = integer_compare_Equal<Int> local24, local26 : i1
-    store t8 -> local27
+    t10 = integer_compare_Equal<Int> local24, local26 : i1
+    store t10 -> local27
     store local27 -> local28
     call managed-void-target3 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void3 (i1) local-fn4(local28)
-    t9 = aggregate () : {}
+    t11 = aggregate () : {}
     store integer<Int>(0x00000009) -> local29
     store f64(0x3ff4000000000000) -> local30
     store local29 -> local31
     store local30 -> local32
-    call no-gc-indirect-target0 local105 = sig=indirect2 (sret struct0 size=16 align=8 scan=none, i32, f64) local-fn12(local31, local32)
-    store local105 -> local33
+    call no-gc-indirect-target0 local99 = sig=indirect0 (sret struct0 size=16 align=8 scan=none, i32, f64) local-fn12(local31, local32)
+    store local99 -> local33
     store local33 -> local34
-    store local34 -> local106
-    call native-gc-leaf-indirect-target2 local107 = sig=indirect3 (c-storage-pointer struct0 size=16 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local106))
-    store local107 -> local35
-    t10 = extract local35, 0 : i32
-    store t10 -> local36
+    store local34 -> local100
+    call native-gc-leaf-indirect-target0 local101 = sig=indirect1 (c-storage-pointer struct0 size=16 align=8 scan=none, ptr<raw>) extern2(c-arg-address(local100))
+    store local101 -> local35
+    t12 = extract local35, 0 : i32
+    store t12 -> local36
     store integer<Int>(0x00000013) -> local37
     store local37 -> local38
-    t11 = integer_compare_Equal<Int> local36, local38 : i1
-    cbr t11 then @if.then.1 else @if.else.2
+    t13 = integer_compare_Equal<Int> local36, local38 : i1
+    cbr t13 then @if.then.1 else @if.else.2
   block if.then.1
-    t12 = extract local35, 1 : f64
-    store t12 -> local39
+    t14 = extract local35, 1 : f64
+    store t14 -> local39
     store f64(0x3ffc000000000000) -> local40
     store local40 -> local41
-    t13 = float_Equal<F64> local39, local41 : i1
-    store t13 -> local42
+    t15 = float_Equal<F64> local39, local41 : i1
+    store t15 -> local42
     br @if.merge.3
   block if.else.2
     store false -> local42
@@ -331,38 +297,38 @@ Module
     store local42 -> local43
     store local43 -> local44
     call managed-void-target4 sp<managed-call:6> live=[local2:ptr<managed>@0] sig=void4 (i1) local-fn4(local44)
-    t14 = aggregate () : {}
-    call native-gc-leaf-indirect-target3 local108 = sig=indirect4 (c-storage-pointer i32 size=4 align=4 scan=none) extern3()
-    store local108 -> local45
+    t16 = aggregate () : {}
+    call native-gc-leaf-direct-target2 t17 = sig=direct5 () -> i32 extern3()
+    store t17 -> local45
     store false -> local46
     br @try.body.11
   block try.unwind.4
-    (t15, t16) = landingpad : (exception_record, ptr<raw>)
-    store t15 -> local109
-    store t16 -> local110
+    (t18, t19) = landingpad : (exception_record, ptr<raw>)
+    store t18 -> local102
+    store t19 -> local103
     br @try.dispatch.5
   block try.dispatch.5
-    t17 = begin_catch local110 : ptr<managed>
-    store t17 -> local111
-    call no-gc-direct-target1 t18 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local111, external-td10)
-    cbr t18 then @try.catch.12 else @try.next.13
+    t20 = begin_catch local103 : ptr<managed>
+    store t20 -> local104
+    call no-gc-direct-target1 t21 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local104, external-td10)
+    cbr t21 then @try.catch.12 else @try.next.13
   block try.exit_pad.8
-    (t21, t22) = cleanup_pad : (exception_record, ptr<raw>)
-    store t21 -> local109
-    store t22 -> local110
+    (t24, t25) = cleanup_pad : (exception_record, ptr<raw>)
+    store t24 -> local102
+    store t25 -> local103
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local109
+    resume local102
   block try.end.10
     cbr local46 then @if.then.16 else @if.else.17
   block try.body.11
     store integer<Int>(0x00000001) -> local47
-    invoke managed-direct-target2 sp<managed-invoke:0> roots=[local2:normal+unwind] t23 = sig=direct4 () -> i32 local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-direct-target2 sp<managed-invoke:0> roots=[local2:normal+unwind] t26 = sig=direct7 () -> i32 local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
-    call managed-direct-target3 sp<managed-call:7> live=[local2:ptr<managed>@0, local111:ptr<managed>@0] t24 = sig=direct5 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local111)
-    store t24 -> local97
+    call managed-direct-target3 sp<managed-call:7> live=[local2:ptr<managed>@0, local104:ptr<managed>@0] t28 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local104)
+    store t28 -> local97
     store local97 -> local51
     br @scope.14
   block try.next.13
@@ -375,12 +341,12 @@ Module
   block scope.15
     br @try.end.10
   block if.then.16
-    call native-gc-leaf-indirect-target5 local115 = sig=indirect6 (c-storage-pointer i32 size=4 align=4 scan=none) extern3()
-    store local115 -> local52
+    call native-gc-leaf-direct-target4 t29 = sig=direct10 () -> i32 extern3()
+    store t29 -> local52
     store local45 -> local53
     store local53 -> local54
-    t25 = integer_compare_Equal<Int> local52, local54 : i1
-    store t25 -> local55
+    t30 = integer_compare_Equal<Int> local52, local54 : i1
+    store t30 -> local55
     br @if.merge.18
   block if.else.17
     store false -> local55
@@ -389,7 +355,7 @@ Module
     store local55 -> local56
     store local56 -> local57
     call managed-void-target5 sp<managed-call:8> live=[local2:ptr<managed>@0] sig=void6 (i1) local-fn4(local57)
-    t26 = aggregate () : {}
+    t31 = aggregate () : {}
     store integer<Int>(0x00000000) -> local58
     br @while.cond.19
   block while.cond.19
@@ -397,80 +363,76 @@ Module
     store local58 -> local59
     store integer<Int>(0x00000040) -> local60
     store local60 -> local61
-    t27 = integer_compare_to<Int> local59, local61 : i64
-    t28 = integer_compare_Less<Long> t27, integer<Long>(0x0000000000000000) : i1
-    cbr t28 then @while.body.21 else @while.exit.20
+    t32 = integer_compare_to<Int> local59, local61 : i64
+    t33 = integer_compare_Less<Long> t32, integer<Long>(0x0000000000000000) : i1
+    cbr t33 then @while.body.21 else @while.exit.20
   block while.exit.20
     store local2 -> local82
     store integer<Int>(0x00000011) -> local83
     store local82 -> local84
     store local83 -> local85
-    call managed-direct-target4 sp<managed-call:9> live=[local2:ptr<managed>@0, local84:ptr<managed>@0] t29 = sig=direct6 (ptr<managed>, i32) -> ptr<managed> local-fn9(local84, local85)
-    store t29 -> local98
-    t30 = Eq local98, local2 : i1
-    store t30 -> local86
+    call managed-direct-target4 sp<managed-call:9> live=[local2:ptr<managed>@0, local84:ptr<managed>@0] t34 = sig=direct11 (ptr<managed>, i32) -> ptr<managed> local-fn9(local84, local85)
+    store t34 -> local98
+    t35 = Eq local98, local2 : i1
+    store t35 -> local86
     store local86 -> local87
     call managed-void-target6 sp<managed-call:10> live=[local2:ptr<managed>@0] sig=void7 (i1) local-fn4(local87)
-    t31 = aggregate () : {}
+    t36 = aggregate () : {}
     call managed-void-target7 sp<managed-call:11> live=[local2:ptr<managed>@0] sig=void8 () runtime @scoop_rt_gc_collect()
-    t32 = aggregate () : {}
-    t33 = heap_load local2 +16 : i32
-    store t33 -> local88
+    t37 = aggregate () : {}
+    t38 = heap_load local2 +16 : i32
+    store t38 -> local88
     store integer<Int>(0x0000002a) -> local89
     store local89 -> local90
-    t34 = integer_compare_Equal<Int> local88, local90 : i1
-    store t34 -> local91
+    t39 = integer_compare_Equal<Int> local88, local90 : i1
+    store t39 -> local91
     store local91 -> local92
     call managed-void-target8 sp<managed-call:12> live=[] sig=void9 (i1) local-fn4(local92)
-    t35 = aggregate () : {}
+    t40 = aggregate () : {}
     store global2 -> local93
     store local93 -> local94
     call managed-void-target9 sp<managed-call:13> live=[local94:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn10(local94)
-    t36 = aggregate () : {}
+    t41 = aggregate () : {}
     ret
   block while.body.21
     store integer<Int>(0x00000001) -> local64
     store local58 -> local62
     store local62 -> local63
-    call managed-direct-target5 sp<managed-call:14> live=[local2:ptr<managed>@0] t37 = sig=direct7 (i32) -> i32 local-fn5(local63)
-    store t37 -> local65
+    call managed-direct-target5 sp<managed-call:14> live=[local2:ptr<managed>@0] t42 = sig=direct12 (i32) -> i32 local-fn5(local63)
+    store t42 -> local65
     store local64 -> local66
     store local65 -> local67
-    store local66 -> local116
-    store local67 -> local117
-    call native-gc-leaf-indirect-target6 local118 = sig=indirect7 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local116), c-arg-address(local117))
-    store local118 -> local68
+    call native-gc-leaf-direct-target5 t43 = sig=direct13 (i32, i32) -> i32 extern1(local66, local67)
+    store t43 -> local68
     store local58 -> local69
     store local69 -> local70
-    t38 = integer_compare_Equal<Int> local68, local70 : i1
-    store t38 -> local71
+    t44 = integer_compare_Equal<Int> local68, local70 : i1
+    store t44 -> local71
     store local71 -> local72
     call managed-void-target10 sp<managed-call:15> live=[local2:ptr<managed>@0] sig=void11 (i1) local-fn4(local72)
-    t39 = aggregate () : {}
-    t40 = heap_load local2 +16 : i32
-    store t40 -> local73
+    t45 = aggregate () : {}
+    t46 = heap_load local2 +16 : i32
+    store t46 -> local73
     store integer<Int>(0x0000002a) -> local74
     store local74 -> local75
-    t41 = integer_compare_Equal<Int> local73, local75 : i1
-    store t41 -> local76
+    t47 = integer_compare_Equal<Int> local73, local75 : i1
+    store t47 -> local76
     store local76 -> local77
     call managed-void-target11 sp<managed-call:16> live=[local2:ptr<managed>@0] sig=void12 (i1) local-fn4(local77)
-    t42 = aggregate () : {}
+    t48 = aggregate () : {}
     store local58 -> local78
     store local78 -> local79
     store integer<Int>(0x00000001) -> local80
     store local80 -> local81
-    t43 = integer_Add<Int> local79, local81 : i32
-    store t43 -> local58
+    t49 = integer_Add<Int> local79, local81 : i32
+    store t49 -> local58
     br @while.cond.19
   block invoke.normal.1
-    store t23 -> local48
+    store t26 -> local48
     store local47 -> local49
     store local48 -> local50
-    store local49 -> local112
-    store local50 -> local113
-    call native-gc-leaf-indirect-target4 local114 = sig=indirect5 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local112), c-arg-address(local113))
-    store local114 -> local96
+    call native-gc-leaf-direct-target3 t27 = sig=direct8 (i32, i32) -> i32 extern1(local49, local50)
+    store t27 -> local96
     br @try.end.10
   block rethrow.normal.2
     unreachable

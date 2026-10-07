@@ -7,8 +7,8 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Pair> tagged size=24 align=8 variants=(struct0)@8+16 ()@8+0
   enum CoroutineSlot<Pair> tagged size=24 align=8 variants=()@8+0 (struct0)@8+16
-  extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$917c892ee572de0c72327002c40ddc87093160cbc6963637bd619e4bfc7aeb46 gc-leaf nounwind lib=fixture_native>
-  extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$917c892ee572de0c72327002c40ddc87093160cbc6963637bd619e4bfc7aeb46 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=fixture_native>
+  extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$d94eca243948231ba44978c2519e4659a7ca31774f9ac876341b0089d81dd9b8 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   fun @scoop$1$cb$fe9410d63f304ef7456f9efd1b63ee9649d4b33e402505fea3f3b9504005d19d(indirect<struct0 size=16 align=8 scan=none>, indirect<struct0 size=16 align=8 scan=none>) -> i1
     local %0 $logic.1: i1
@@ -31,26 +31,16 @@ Module
     ret local0
   fun @scoop$1$cb$45303d0ce1d48f969075fe26b9b90e41e39e0ef0309585a10f9bb13ba0b1a1e7(i32, i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i32) -> i32 extern0(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$279a8d6978ff728af1d4128e547fa921905ab42876c1911de1cbddc90f8f461a(i32, i32) -> i32 <no-gc>
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
-    store param0 -> local1
-    store param1 -> local2
-    call native-gc-leaf-indirect-target0 local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern1(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (i32, i32) -> i32 extern1(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$daaf3c8b5088c7000334bb9982438ecdf2c5dab53ada00b5f7a818f0e8343b55(indirect<struct0 size=16 align=8 scan=none>) -> sret<struct0 size=16 align=8 scan=none> <no-gc>
     local %0 $call.1: struct0
