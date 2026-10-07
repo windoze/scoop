@@ -8,7 +8,7 @@ Scoop 是一门静态类型、编译到原生代码的语言：以 Kotlin 核心
 
 - `docs/specs/SCOOP-SPEC.md` — 语言规范（语法、类型系统、核心库、FFI）；
 - `docs/specs/SCOOP-RUNTIME-SPEC.md` — 运行时规范（对象模型、GC 契约、FFI runtime functions）；
-- `docs/specs/SCOOP-IMPL-SPEC.md` — 实现大纲（parser → HIR → MIR → LIR → codegen → linker 的 pipeline 与各 stage 职责）；
+- `docs/specs/SCOOP-IMPL-SPEC.md` — 编译器与产物规范（各 stage 的输入输出、实体身份、目标 ABI、`.slib` 格式、构建与链接契约）；
 - `docs/ROADMAP.md` — 实现路线图（纵向主线策略与里程碑序列）。
 
 三份文档用中文撰写；代码中的标识符与注释用英文。

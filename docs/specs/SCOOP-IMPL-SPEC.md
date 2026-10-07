@@ -1,1976 +1,516 @@
-# Scoop 实现大纲
+# Scoop 编译器与产物规范
 
-2026-10-07，M31 的首批优化、按身份与 ABI 合并 ODR、nursery/minor GC 已完成实现及本阶段验收，详见 2.19、[M31 设计](../milestone31/DESIGN.md)、[验收记录](../milestone31/ACCEPTANCE.md)和[性能报告](../milestone31/PERFORMANCE.md)。历史阶段的正文摘要判等和单代 GC 约束已按 M31 条款迁移。
+本文规定编译阶段的输入输出、实体身份、目标 ABI、`.slib` 格式、构建命令、缓存与链接契约。源码语义见 [语言规范](SCOOP-SPEC.md)，对象表示、GC 与 native 运行边界见 [运行时规范](SCOOP-RUNTIME-SPEC.md)。
 
-2026-10-07，M30 已实现并通过验收：Float/Double 的 typed representation、常量、运算、codec 与完整产物消费贯通，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
+## 1. 范围与目标兼容性
 
-2026-10-05，M29 设计修订 generic companion：声明保留宿主 binder，完整宿主 application 决定 companion 类型、singleton 及初始化支持的具体实例，见 2.17、语言规范9.1.3与运行时规范2.7。此项已按 M29 实施记录实现；M21/M23 历史设计保留原文，其中“companion不带宿主实参、所有具体化共享对象”的实现假设由本次修订取代。
+一个 Cone 是一次独立编译的单位。library 和 executable Cone 都产生完整 `.slib`；executable 的最终程序由独立链接阶段从产物闭包生成。
 
-2026-10-06，M29 将编码改为由 companion/普通 codec 实现 `Encodable<T>.encode(value, encoder)`，与 `Decodable<T>` 共用显式依赖组合规则，撤销数据实例与容器/tuple 条件编码，见 §2.17。协议、core、JSON 入口和双向自动派生已完成，三平台全部适用 fixture 已覆盖；实际测试方式与结果见 [M29 验收记录](../milestone29/ACCEPTANCE.md)。删除旧条件关系和 tuple 编码生成键后，该批次格式为 HIR `identity-foundation/8`、`core-bootstrap-interface/9`、`cross-cone-interface/57`、`cross-cone-type-semantics/21`，MIR `cross-cone-type-bridge/14` 和 LIR `cone-production/7`；旧产物与缓存重建。零大小值布局和 runtime metadata ABI 4 保持不变。M26 的 ArrayGenerate、Char 与完整接口 application 派发规则继续见 §2.13。
+编译请求明确选择相容的 LIR target、backend、C bridge toolchain、runtime build 与 final-link 配置。阶段只消费其所需投影；library 编译不要求未使用的最终 linker、CRT 或 unwind archive，产物链接不要求源码编译器或 LLVM 可执行工具存在。
 
-共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
+| canonical target triple | LIR target profile | 对象格式 | 平台契约 |
+| --- | --- | --- | --- |
+| `aarch64-apple-darwin` | `org.scoop-lang.target-profile/darwin-aarch64/1` | Mach-O relocatable | Darwin/AArch64 |
+| `x86_64-unknown-linux-gnu` | `org.scoop-lang.target-profile/linux-x86-64-gnu/1` | ELF64 relocatable | Linux/amd64、glibc |
+| `x86_64-unknown-linux-musl` | `org.scoop-lang.target-profile/linux-x86-64-musl/1` | ELF64 relocatable | Linux/amd64、musl |
 
-`for` 在 Export HIR 前展开为普通调用、接口适配、Option 操作和循环，共有 HIR 撤销专用 For 与 portable binding-plan 编码，statement tag 9 退役且不复用，该变更自 `hir/cross-cone-interface/40` 起启用。迭代协议、求值顺序、ABI 与 GC 规则保持，由实际类型与 callable 记录表达。
+这些目标采用 little-endian、64-bit data/code pointer 与 16-byte 调用栈对齐。合法非 null pointer 可经内部 64-bit carrier 逐 bit 往返，null carrier 全零。data、code、managed 与 metadata pointer 的语义仍不同，不因此增加源码整数转换。
 
-静态 namespace 查询只依赖已选 nominal owner 和其实际 public binding 表，不以 provider 的 direct/support 角色过滤嵌套成员。direct package index 仍只包含直接依赖；exact、star、public import 与普通 receiver 查询共用实际终点绑定。公开绑定和外部名称引用的 reader 检查归属、typed target、namespace、role、闭合及既有转导出连续性，删除重复的 direct-provider 资格检查和仅服务该检查的输入表。该规则自 `hir/cross-cone-interface/39` 起启用；runtime ABI 与 GC 契约不变。
+backend contract 使用 LLVM 22.1、LLVM stackmap v3 和本规范的 GC/EH 约束。Linux 两个 libc target 共用 `org.scoop-lang.backend-profile/llvm-22-1-linux-x86-64/1`，但 native、runtime 与最终链接输入不能混用 glibc/musl。target、对象格式、调用约定、pointer/storage ABI 及实际 producer 配置必须相容；不支持的组合在生成目标产物前诊断。
 
-公开 typealias 的目标通过实际类型签名或直接 typed alias 边记录，外部 `AliasTarget` 只承担目标引用和实体归属检查，不再要求或保存别名专用的名称来源证明。源码的普通名称查找、可见性、类型实参和循环检查保持；已解析目标可来自可见类型的静态嵌套命名空间。该别名规则自 `hir/cross-cone-interface/38` 起启用；该批次共有 HIR 格式为 `/42`，旧 `/41` 及更早产物与缓存重建，不改变 runtime C ABI、对象布局或 GC 契约。
+## 2. 编译阶段与产物契约
 
-静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
+| 阶段 | 输入 | 输出与责任边界 |
+| --- | --- | --- |
+| parser | 当前 Cone 的完整源码集合 | 带准确源码位置的 AST 与语法诊断。 |
+| HIR | 当前 AST 与依赖 Export HIR | 完成源码语义检查，分别输出 ExportHir 和 LocalConcreteHir。 |
+| MIR | LocalConcreteHir 与实际选用的依赖 MIR metadata | 完整 concrete 类型、callable、显式控制流及执行 ABI。 |
+| LIR | MIR 与实际选用的依赖 LIR metadata、LIR target | 完整布局、ABI、GC roots、符号与物理定义要求。 |
+| codegen | 当前 LIR 与相应 producer 配置 | 目标对象、实际定义／引用与 GC/EH 数据。 |
+| `.slib` | 三层 metadata 与完整对象集合 | 可独立消费的确定性归档。 |
+| program-link | `.slib` 依赖闭包、runtime/native 对象、final-link 配置 | 定义与引用闭合的 executable。 |
 
-普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
+stage 只通过对应 IR/metadata 交换数据，不调用上游 stage 的实现。所有源码语义错误在 parser/HIR 结束；后续阶段报告自身的格式、引用、ABI、目标或链接错误。已验证且不变的数据在后续边界复用。
 
-依赖值类型的共有声明查询必须向 HIR 提供解析后的接口类型，具体化继续保留完整接口闭包。构建相互引用的 nominal 时先登记真实声明身份与类型 ID，再完成字段、父类型和方法签名，成功输出不含未完成记录。struct/enum 的经 class 间接递归与接口方法引用实现者不会创建第二份类型；非法按值循环仍由值布局检查拒绝。MIR 装箱直接使用该接口关系，并消费实际 provider 的 boxed TD 与分派定义；本 Cone 只生成自身定义所需的 adjust thunk。
+### 2.1 Parser / AST
 
-具有 intrinsic 表示的依赖值类型也通过共有 nominal 查询取得实际声明及接口。HIR 保存其完整解析结果，具体化建立带原声明身份的普通 struct 表示，MIR 按 canonical 类型取得该声明，不再通过 Defined core 分支寻找整数或 Boolean 的 owner。intrinsic 类型表示直接保存 typed kind；删除只包裹 kind 与前端来源编号的 `IntrinsicTypeDeclaration`。真实 nominal 身份与必要源码位置继续由既有声明和 source 表保存，不添加替代凭证或 wire 字段。
+源码集合非空，文件具有唯一 `SourceIdentity { cone, logical_path }`。manifest Cone 的 logical path 为标准化的 Cone-relative `src/...`；single-file 为 `main.scoop`。host 路径只用于本次 I/O 与诊断。
 
-primitive 声明按需查询并在本次 HIR 中复用。只有实际 Box、值 receiver 适配及函数变型适配需要的装箱源才进入 concrete nominal 表；未使用的 primitive、失败候选和未实例化默认模板不能仅因查询或 arena 存在而成为机器物化根。默认参数实例化沿相同的完整声明查询与装箱路径处理。
+AST 保留原始源码顺序、byte span、显式类型实参、位置／命名／spread／尾随 lambda 实参，以及独立的声明、表达式、模式和控制转移结构。文件至多有一个开头 package，其后为 import，再后为声明。qualified path 为非空 identifier sequence；package、静态 owner 与实体的分界由名称解析决定。
 
-泛型应用的实际类型实参及其结构组成在进入具体化前保留所需的 primitive 声明，覆盖普通函数、成员、名义类型和依赖模板。泛型正文中的 Box 或函数变型可能直到代入实参后才确定装箱源，不能依赖调用方偶然进行成员查找或接口转换来取得声明。声明查询复用既有结果，不重新检查已成立的语言约束；保留类型实参的声明本身不增加 concrete nominal 或机器物化根。
-
-独立 function/adapter 的 Structural ODR 发布仍受 M23-7 能力门约束。完整 lowering 输入不代表当前 production profile 已支持该发布能力。
-
-引用上行转换在 HIR 中用显式 `ReferenceUpcast` 节点保存内部表达式及目标类型，不能直接改写构造、调用或局部读取的原始类型。MIR 使用已有 `Retype`，不分配对象、不改变引用身份；构造器仍按实际所属 class 分配。默认值正文使用新 expression tag 58 保存同一操作，tag 44 继续退役；共有 HIR 格式更新为 `hir/cross-cone-interface/30`，旧产物与缓存重建，不改变 runtime C ABI。
-
-默认值中的参数自由 class 构造与 struct 构造共用实际 constructor 引用、参数实例化和调用选择；引用上行转换保留在正文中，实例化后继续使用相同的 typed 操作。
-
-虚调用读取当前 `ScoopTypeDescriptor` 的真实布局：runtime metadata V1 在 64 位生产目标上的 vtable 偏移为 88（type_id、完整 instance_shape、object_scan 和 parent 之后）。删除旧三标量 descriptor 前缀的偏移算法；这修正消费者读址，不改变 C ABI 或已发射 descriptor 格式。
-
-非泛型外来接口在 HIR 中保留真实声明、父接口及完整成员签名；外来 class 的虚槽与接口成员按 provider 的声明顺序和 typed override 关系解析。前端选中调用时保存完整的直接／虚调用／接口调用方式、typed 声明引用和所属表的槽位置。LocalConcrete/MIR 不为外来方法生成本地函数定义；MIR 接口槽直接保存完整参数、结果与 GC 签名，删除只为签名创建的不可达本地函数；LIR 使用实际 provider 的 canonical ABI，动态调用通过对象 TD 的 vtable 或对应接口 TD 的 itable 执行。外部 callee 不再一律要求 Direct，消费边界继续检查引用、receiver、签名、槽范围和 GC effect。 成员属性写入从已解析 getter 所属的真实 property 取得 setter ID 与可见性，前端形成完整 typed 调用。赋值先物化 receiver 再求值右侧；复合赋值与更新复用已有 place temporary、读取及写回路径。provider 的公开存储属性与计算属性都导出实际 accessor，MIR/LIR 不重解名称或另建 setter 来源记录。 接口 dispatch 签名直接消费完整 typed callable 参数与结果；自动生成或抽象 accessor 不要求普通函数的命名参数源码协议，内部参数显示名不承担实体身份或调用选择职责。
-
-删除仅由测试实现的默认值operation-typing、nested ABI及root/origin语义工厂和其证明数据、平行验证入口与专用测试。正式reader继续使用共有声明表、完整typed模板、类型与binder检查、来源位置、局部数据流及真实引用一致性检查。局部数据流直接借用模板与共有字段查询，删除重复body input及authority适配器；nested descriptor保留实际类型化身份、parent/path与binder数据，删除独立Standalone证明模式。语言操作规则由前端负责，不在IR/meta crate再复制实现。此清理不改变wire字段、profile版本、runtime C ABI或String表示。
-
-参数自由依赖class通过共有名义声明取得真实身份、modality、直接父类型和声明序字段，引用类型按GC契约传播，递归引用字段不展开成递归值布局。HIR保留完整声明及解析后的字段、父类型，不重建同名本地声明。外来class构造仍是对真实constructor的typed调用；HIR→MIR消费已选MIR绑定中的ClassInitializer角色，使用共有class分配路径创建对象，再将该对象作为receiver调用实际provider的初始化实现。构造表达式返回分配的对象，物理initializer返回Unit；普通返回class的函数不走构造分支。本地与外来initializer共用Callee表示、参数求值顺序和GC处理。 core默认导入层的构造调用和静态限定名同时查询普通Type/Value binding；用户新增的class、enum和typealias与其他依赖使用相同声明路径，不限于预设内建名字。此能力不增加来源凭证、core分支或runtime ABI，沿用现有类型、MIR绑定及LIR布局格式。 M23-6的真实class运行在单个最终镜像中链接实际产物及runtime；LLVM stackmap段按各对象贡献的完整v3 blob逐个读取，长度由已有count和对齐决定，保留每份格式、记录唯一性与精确PC检查，不增加展开预算。该读取不要求M23-8的多镜像启动或M23-9的program-link。
-
-共有导出绑定包含 enum 变体的真实 typed ID，nominal 的 `nested_bindings` 同时列出其静态命名空间中的嵌套类型、object value 与 enum 变体；变体归属由实际声明确定，不能误作包级值。`hir/cross-cone-interface/30` 更新该格式语义，旧 `/23` 及更早产物与缓存重建；既有 tag 不复用，不保留双轨 reader，runtime C ABI 和 String 表示保持。
-
-默认值引用收集与 reader 对 enum 模式、变体测试只记录实际 owner 类型及正文中的 typed variant 引用，不再将其计为构造器调用或追加独立构造器访问记录。真正的构造表达式仍保留完整构造器引用。`hir/cross-cone-interface/30` 同步这项引用集合语义，旧 `/22` 及更早产物要求重建；既有 body tag 保持且退役 tag 不复用，profile 与内容 fingerprint 正常更新。
-
-外来 enum 的 `when` 使用与本地 enum 相同的 variant 优先查找、字段模式、guard 与穷尽性规则。qualified 名称先走共有类型解析并核对实际声明身份；HIR 模式保存真实 enum 类型和 variant ID，concretization 按已有完整声明转换为普通 concrete enum 模式。enum 穷尽性记录只保存完整 subject 类型，不重复保存本地 application 索引；产物读回与默认值替换保留同一种记录，具体 enum 表示由该类型直接取得。payload 读取沿既有 MIR/LIR 的 tag/niche 与字段布局实现，不复制 provider 定义，也不新增 matcher 凭证或独立格式。默认值正文中的模式沿共有模板格式保留同一 typed 引用。
-
-组合值的 ZST 判定必须包含其实际外来字段：本地 tuple/struct 不能因字段事实保存在依赖表中就默认字段非零。producer 从完整 concrete 值表示取得依赖字段的 ZST 结果并在本次投影内复用；依赖事实仍保留实际 provider 引用，不复制为本地定义。
-
-跨 Cone 非泛型 enum 的参数、结果与嵌套值表示由共有依赖声明查询解析。HIR 保留实际 nominal、variant、payload field 身份及完整字段类型；concretization 仅建立消费者使用的值表示，定义与 dispatch 仍引用实际 provider。variant 次序、payload offset、tag/niche、GC scan 与 canonical ABI 使用既有 enum 布局算法，不从名称或相同布局恢复身份，也不为值传递增加来源资格表。验收使用源码产物中返回并再次传入的 enum，覆盖独立 tagged 值及 tuple/ZST 组合。
-
-跨 Cone enum 变体构造使用共有 nominal/variant 声明、源码参数协议与默认值模板。unit、位置参数、block 命名字段和构造函数式变体遵守与本地相同的参数规则；exact/star/alias import、透明 typealias 和唯一 expected enum type 均解析到真实 variant ID，并服从普通名称遮蔽。前端完成参数与默认值求值后输出包含 owner 类型、variant ID 和声明序参数的完整构造表达式；后续阶段沿共有 enum 表示与 ABI 生成值，不要求不存在的外部机器构造函数，也不创建额外来源资格。默认值中的构造保留相同 typed 引用，可由第三 Cone 直接消费。
-
-Strong producer 的两种产物表示从完整 LIR 各计算一次类型、safepoint、immortal 与本地初始化语义，digest 与 registration 直接复用这些结果；初始化仅在 digest 身份可用后补入实际依赖定义。外部初始化引用在解析时完成 definition 与物理导入核对，后续由全局唯一的 local unit 引用表达使用归属，不保存额外 consumer 状态或重复选择核对。descriptor 和 dispatch 直接保存 LIR 中已有的外部 typed 引用，不反向重新 materialize 外部对象或再次比较完整 ABI。实体与 definition role 的匹配只查询实体种类和角色，不借用虚构的 CORE provider；实际 definition、symbol、relocation、ABI 和 GC 检查仍由各自消费边界负责。此清理保持产物字段、指纹内容和 runtime C ABI 不变。
-
-canonical ABI 导出复用同次完整 IR 的实际签名和 callable definition，删除重复逐参数 layout ID 表及只为该表存在的重放入口。MIR callable 的 GC 检查沿结构类型递归使用已有 nominal facts；tuple 的完整参数、receiver 与结果按实际组成保留，不要求 nominal 导出。共有 reader 以真实声明和 MIR lowered signature 核对 ABI，dispatch 按实际 receiver 查询表示。`lir/cross-cone-layout-abi/3` 退役 callable field 5，其余字段编号保持；旧 `/2` 产物与缓存重建，profile 和内容 fingerprint 按格式正常更新。tuple 的字段与参数使用完整结构身份和已有存储算法，不为嵌套值补造独立 nominal、layout/TD definition 或来源记录。
-
-字段布局以完整 `ValueLayoutConstituentV1` 传递 exact 身份、目标、存储、对齐与 scan；嵌套 tuple 从实际元素递归计算并复用结果，不要求独立 layout definition。C-layout 的嵌套合同、enum niche 的真实指针种类分别随实际表示传入。C-layout 只为实际嵌套 struct 查询对应的 C 布局；整数、布尔、数据指针与函数指针字段直接使用目标标量布局，不要求结构化指针拥有独立布局记录。字段与实例中的布局数据是内嵌值，不构成 Link 符号引用；语义依赖图只沿实际 descriptor、dispatch、shape-support 和机器 relocation 引用闭合，读取边界继续核对完整字段身份、顺序、布局与 GC 事实。
-
-依赖默认值的 tuple 字面量与字段投影直接实例化为完整 HIR，类型沿同一共有签名查询取得。读取边界已核对的字段索引、元素类型和默认正文在实例化时直接使用，不另以 core 类型或单一 nominal 形式限制参数。
-
-MIR 组装先排除已经由普通 callable 表保存的实际声明，再生产需要独立 lowering 的定义；不为同一函数重建第二份绑定、完整验证后再丢弃。boxing 与 dispatch 的共有查询同时借用当前 Cone 的普通记录和依赖记录。每个定义只生成一次，签名、GC effect 与 typed target 沿完整 IR 和已有表消费，最终表继续拒绝重复定义。
-
-实际 HIR 调用在依赖 MIR 记录可用后完成一次调用根与逻辑签名核对，普通函数、accessor 与 constructor 共用该边界。MIR 和 LIR 的依赖集合分别从实际 typed 调用加入相应 callable 与 ABI 引用，沿共有 provider 查询消费已有定义；不得因旧函数表不含 constructor 而拒绝合法调用，也不在前置阶段和布局阶段重复核对同一调用。
-
-共有 nominal 声明直接保存 struct 主构造器的 typed declaration ID，供前端按实际语言角色检查 `@NoGC` 调用；不能从参数形状、字段布局或 provider 身份推断主构造器。主构造器继续保留源码 Managed、物理 NoGC 的既有合同；值构造本身不分配，`@NoGC` 的参数、结果与局部值仍须 GC-free，managed 次构造器仍禁止调用。`hir/cross-cone-interface/30` 在 `NominalDeclarationDetailsV1` 新增 field 8：空数组表示无值主构造器，单元素数组保存其 constructor ID；有构造器的 struct 必须明确该引用，引用必须属于同一 nominal 的声明集合，其他 nominal 不得填写。旧 `/21` 及更早格式退役并要求重建，既有 tag 不复用，profile 与内容 fingerprint 正常更新；MIR/LIR callable 格式和 runtime ABI 不变。
-
-跨 Cone struct 构造调用沿共有声明目录选择真实 constructor，前端保存完整参数、默认值、访问关系和 typed target。请求内 MIR 外部引用按实际 provider 与 Strong callable target 查询已有记录：直接 callable 复用原记录，需要独立 lowering 的构造器复用其完整逻辑／物理签名与 GC effect。Strong 根保存实际机器 target 和物理签名，不再另携带一个只允许 function/accessor 的资格 ID。LIR 使用同一 layout/ABI 依赖选择解析构造器的实际定义、symbol 和 relocation，并与 Strong 根的签名及 effect 关联；共有 materialization 同时服务普通调用和 dispatch。函数及 accessor 继续使用既有直接导出字段，构造器使用既有 M23-6 callable/selected 记录；每个定义只发布一次，不新增 callable wire tag 或授权外层；nominal 主构造器字段按上述 HIR 格式版本发布。
-
-MIR 输出在 HIR→MIR 边界完成一次整模块结构、类型与实际外来 callable 检查，并同时保留已生成的 canonical foundation、共有依赖选择和完整物化引用。通用 MIR 输出保留完整泛型实体；Strong profile 的 ODR 能力门仍在其消费入口检查，并共享已有 canonical foundation。driver、MIR production 组装和 MIR→LIR 直接消费同一完整输出，不再从未变化的 Module 重建第二份 foundation、重复验证外来调用或重跑整模块检查。production 与模块之间仍核对实际 callable、入口和初始化关系；直接借用已有签名记录，不构造第二份预期桥表。外部新产物的格式、引用、ABI 与对象检查继续由 reader 负责。此清理不增加凭证、状态机、wire 字段或 profile 版本，不改变 runtime C ABI、String 表示或后续里程碑范围。
-
-跨 Cone 的参数自由 class 继承直接使用依赖产物中的完整声明、真实基类、字段、接口与 dispatch selection。共有成员查询保存声明本身及其可见性，public、protected 和必要支持声明不改造成另一份 public 声明；前端按实际词法类和接收者静态类型执行访问、覆写及默认值规则。基类构造在已分配的派生对象上调用实际 provider 的 initializer，保持基类先于派生类的初始化顺序及移动 GC 接收者跟踪。继承的 virtual family 保留原 typed slot identity，派发表中的外来实现直接引用实际 callable；本地覆写只替换对应槽，未覆写的基类和接口选择完整传递。构造、super、成员与 getter/setter 沿共有调用、布局、ABI 和 relocation 路径消费，派生类再次发布后仍可由后续 Cone 使用。以上使用既有源码与机器声明格式，不增加来源资格、独立证明、平行来源表或后续里程碑能力。依赖虚槽的 lookup 域由 HIR lowering 按共有声明的 visibility 与 typed owner 计算，保留 protected 与外层 owner 约束；产物不重复保存该域，reader 不重放访问语义。只有本次实际物化的 descriptor 和派发表产生物理外部引用；依赖类的查询数据本身不形成 relocation。受保护的嵌套类型通过实际 owner 的 child 声明引用参与限定名查询，不能要求 public binding 或将其重建为本地声明。前端分别检查全部词法 owner 的有效访问域和 protected 成员自身的接收者规则；嵌套类型中的 public 成员不会额外要求接收者属于访问者的子类。嵌套构造、成员、enum 变体与 object 继续使用共有 typed 选择及初始化路径，访问错误与签名泄露在前端诊断。 已发布的可物化 nominal 声明必须同时具有完整 dispatch 与有限 BoxedValue/CoroutineStep/CoroutineSlot 支持，包括受保护嵌套类型和实际表示所需的支持声明；producer 与 reader 从同一共有声明闭包取得这些需求，public binding 不控制机器支持的生成。source-only 声明及仅存在于当前私有实现、未进入发布声明闭包的类型不因此成为发布根。 reader 的声明查询不再区分“仅当前 provider 支持查询”模式；本地与依赖的签名、父类型、accessor 和 variant 都按实际 typed ID 查询完整声明，保留 kind、arity、owner 与依赖范围检查。
-
-继承的实际产物验收同时覆盖 ZST 字段与交错参数/返回值、大值构造与虚调用的 indirect/sret ABI、含 managed 引用的聚合参数和基类/派生类字段、次构造器的基类先行初始化及 object 单例继承。派生类再次发布后，由后续 Cone 继续派生并执行 super 与虚调用；普通和移动 GC 运行使用同一完整产物。上述场景不增加新的机器表示或 runtime ABI。跨 Cone 初始化中的 inherited backing field 由共有 property、实际字段身份与声明关系解析，前端检查 getter/setter 可见性及字段就绪；不能用同名字段或调用 accessor 代替直接存储访问。完整 HIR 的初始化字段引用统一保存声明 class 的完整类型与原字段身份，concretize 后成为共有的 ConstructorReceiver 字段读写。基类完成后外来存储已就绪，computed/delegated property、不可见 setter、未就绪自有字段与 receiver 逃逸继续拒绝。现有产物已携带所需 property/field 引用，此项不增加 wire 字段或来源表。
-
-setter 的有效访问域包含关系由前端在声明处检查。共有 reader 保留 property/accessor 的 typed 身份、owner、签名、effect、声明位置和 public binding 一致性检查，删除第二套访问域集合运算、逐属性继承遍历及其专用测试。继承环和引用闭合仍在共有继承图边界检查；已检查的完整声明不附加来源或操作资格，也不因 selected 去重而反复重新证明源码访问。此清理不改变 wire、profile、runtime C ABI 或 String 表示。
-
-primitive 与 String 的接口默认方法使用前端识别的实际声明及已解析的接口实现参与普通成员查找。成员查找自身解析依赖中的父接口，不依赖此前是否发生过类型转换。重建 core 时的源码调用和下游的产物消费遵守同一候选选择、可见性、参数及 effect 规则；值接收者沿既有装箱路径适配，String 使用其既有引用表示。不得因这些类型使用内建表示而遗漏合法接口默认方法，也不为它们重建固定 provider 或增加后端资格。验收覆盖 Long、Boolean、String 的独立源码调用及跨 Cone 混合调用，保持现有 wire、runtime C ABI 与 String 表示。
-
-跨 Cone 的覆写按真实声明关系继承默认参数。默认来源保留原声明的 typed root、定义路径、正文和引用；下游再次发布时只关联新的参数位置，不把原声明改造成本地函数或重新解析其源码。未求值的继承模板也保留完整源码位置记录；位置收集复用同一模板遍历，不触发机器物化。来自同一定义的菱形继承只保留一个默认来源，互不相关的默认来源在覆写定义处报冲突；参数名仍由调用点静态声明决定。实际省略参数时复用共有的依赖默认值实例化，并把接收者显式转换或装箱为模板所需类型，默认值内部的动态分派、显式参数求值顺序及 GC effect 保持。参数自由的导入模板已经在提供方完成类型和 effect 检查，未改变的正文不参与本地泛型约束重放。该功能沿用已有完整默认值产物格式和共享 reader，不新增来源凭证、模板工厂、wire tag 或 runtime ABI；验收包括覆写、菱形继承、命名参数、ZST、大值参数与再次发布后的真实消费。
-
-产物 reader 的 MIR 类型和 callable 校验使用同一次 HIR 类型基础与继承图构建。按真实依赖顺序解析完整 MIR 类型、callable 和 dispatch，并在每个 provider 的实际依赖范围内检查类型基础与父类型引用；随后为整个不可变依赖闭包构建一次继承图及槽关系，各 provider 共用这张图核对类型表示、有限 shape、方法、构造器、object、派发、equality 与初始化契约。槽签名的接收者和完整代换始终从该槽所在产物的已验证身份表读取，不能用依赖集合末尾的无关产物代替；共有图不要求各个产物复制其它 provider 的未使用类型。固定 Unit 返回类型的比较使用原内建类型身份，不额外要求无关产物保存 Unit 记录。不得因处理另一个 provider、类型或 callable 而完整重建已检查的上游继承图；继承环、实际声明、槽及依赖引用检查继续保留。后续 LIR 消费完整的 MIR 结果，保留各自需要的格式、引用、签名、ABI 与对象检查。此调整不改变 wire、profile、runtime C ABI 或 String 表示，也不增加来源工厂、资格状态或缓存凭证。 实现入口统一为 `validate_mir_sources`，移除只为这两轮校验串联的 MIR-types 中间外层及重复 provider 遍历。
-
-完整 LIR 输出已保存 canonical foundation，codegen 不从同一未变化的模块再次构造该 foundation。LIR 在既有 Strong 能力边界检查 ODR 后，只追加当前 Cone 的 Strong 定义，不再次扫描未变化的 callable/ODR 记录。production 的符号表直接使用本次生成的定义表，对象分区直接使用 production 的符号记录；这些数据在 production 组合边界检查后，codegen 按 typed definition、atom 和 symbol 解析每项实际发射引用，复用完整记录，不重建整份预期表或再次完整比较。C bridge 与 C layout 入口只检查实际 C ABI、callback 声明及所需类型关系；callback 指令的 typed 引用与操作结果、Scoop CFG、dispatch、safepoint 与 root plan 在对象代码生成边界检查；不在每个无关入口重复完整验证。外部产物读取的格式与引用检查保持，wire、fingerprint 字段和 runtime ABI 不变。
-
-依赖 companion 与 static nested 访问复用共有 reader 的静态命名空间和原 typed binding，前端在值遮蔽之后沿实际 owner 逐段解析限定类型与表达式。转发调用、属性和默认参数使用实际 object receiver，并沿普通 singleton ensure/root 路径消费；限定 host 和 const 访问不额外初始化。限定或直接导入的 companion 属性赋值、复合赋值与自增复用共有 getter/setter 路径，保存一次实际接收者，在右值之前完成接收者求值与初始化。验收覆盖命名 companion、Companion 别名、转发、跨 facade、类型别名及可见性错误，由真实源码产生四 Cone 产物后链接运行。此项补齐真实声明关系及其消费路径，不引入来源凭证。
-
-`hir/cross-cone-interface/30` 补齐 object 的声明种类：source-shape 的旧 Object tag 8 退役，新 tag 9 保留 field 1=value、field 2=声明序字段，新增 field 3=`Standalone(1)` 或 `Companion(2)`；host 沿已有声明 key 的 typed owner 查询。命名 companion 发布名称与 `Companion` 两个普通 type/value binding，object 的公开方法和属性进入自身静态 binding 表。共有命名空间在本 owner 无同名 binding 时，沿已声明的 companion 关系转发其直接 binding；不复制成员声明、不用名称或初始化 metadata 推断 companion。旧 `/28` 产物与缓存重建，退役 tag 不复用，runtime ABI 不变。
-
-当前 Cone 的命名 companion 仍只有一个原声明 binding；其名称固定取源码声明名，`Companion` 是指向同一 binding 的静态名字边。构建本地 binding identity 时不能使用哈希表首先遍历到的别名。两种拼写均可查找，foundation、定义位置和缓存产物不随遍历顺序变化。
-
-产物的 identity graph 从 manifest 的当前 producer、实际直接依赖和已经读取的依赖实体构成；不无条件注册 CORE 身份，也不为 CORE 设置单独的重复过滤规则。CORE 与普通 provider 的声明使用相同的 typed 引用解析，缺失依赖、身份冲突及非法引用由共有格式与引用检查报告。默认 core 依赖仍由正常构建与前端依赖发现加入 manifest；本项不改变 wire 或 runtime ABI。
-
-代码生成在入口对本次完整且不可变的 LIR、目标 profile 和 executable 入口完成一次必要验证，然后按实际定义分成函数与非函数对象。各成员直接消费同一 LIR，不因发射另一个对象再次完整遍历类型、ABI、CFG、GC roots、safepoint 或身份表；LLVM 变换后的 IR 和新生成的对象字节仍在各自边界检查。generated-C 源码入口同样不在内部 helper 重复整模块验证。这一职责调整不改变产物格式、runtime C ABI、String 表示或链接语义。
-
-外来参数自由 struct 使用依赖中实际的 typed nominal 声明和完整字段类型。HIR 保留其完整成员、继承、构造器及字段声明，参数、结果、局部存储和嵌套字段使用同一实体。LocalConcrete/MIR 保存计算值表示所需的字段及真实定义 Cone；成员与构造器引用定义方 callable，layout、TD、ABI 和 relocation 由共有依赖查询取得，不在消费 Cone 重新定义外来函数或 Strong 产物。
-
-构造调用的别名展开使用既有类型解析结果，并把实际 nominal ID 交给同一构造候选查询。本地与导入 alias 均在各自候选状态内解析，只有获选调用提交该状态；失败候选不向消费集合遗留 alias 或 callable 引用。别名不新增 callable、ABI、布局或来源记录。
-
-共有 param-free 签名解析递归使用实际 nominal 声明和既有 ExactTypeKey，保留 tuple 顺序、函数 effect、指针所指类型与 native calling convention；缺失声明与未物化泛型仍按对应错误处理。普通依赖 nominal 的查询不以当前是否导入 core 协议为前提，intrinsic 的表示只由实际协议声明确定。该接入不新增 wire 字段或资格表，MIR/LIR 继续消费完整类型、真实 callable 与 canonical ABI。
-
-普通 final 成员按 receiver 的真实 nominal 声明查找，并通过共有调用路径传递隐式 receiver、参数、结果和 GC effect。默认参数、命名参数与 operator 使用同一候选决议。成员调用直接保存 typed 声明引用；实际做过 namespace 导入的调用同时保留该次查找路径，选择集合不再聚合另一份 import 路径用于认证调用。
-
-`hir/cross-cone-interface/30` 为无 namespace binding 的声明调用保留 `SourceDeclaration` reason（tag 3，只有 field 0 的 map）；既有 tag 1/2 保持。普通直接 callable 的 MIR 导出保存完整 GC effect，`mir/cross-cone-param-free-bridge/2` 的 field 1～3 保持 declaration、implementation 和 exact signature，新增 field 4（unsigned 1=Managed，2=NoGC）。旧 major 退役，profile、fingerprint 和缓存同步重建；runtime C ABI 与 String 表示不变。
-
-MIR 的普通直接 callable 与需要独立 lowering 表示的 callable 按 typed implementation 共用借用查询，dispatch 和 boxing 直接读取实际记录。每个定义只保存一份导出；删除禁止跨历史分区引用的资格限制和专用身份名单，保留重复定义、类型、签名、effect 与 provider 一致性检查。
-
-跨 Cone struct 字段读取按接收者的实际声明解析名称，并在 HIR 保留 typed field identity 与完整接收者类型。字段在具体化时映射到同一声明的字段位置，后续布局和 ABI 继续使用共有依赖表示；不得用同名或同布局替代身份。计算属性通过其真实 getter 声明进入共有 callable 路径，保留可见性、GC effect 和返回类型；固定表示字段不为读取额外生成函数。该消费改动不新增 wire tag、profile 或 runtime ABI。依赖默认值中的字段和 callable 使用定义时保存的 typed 声明与完整类型，实例化不重新要求公开 namespace 导入路径，也不再次证明模板引用集合。
-
-默认值依赖按定义处已解析的 typed target 保存，`DefaultDependency` 不要求消费 Cone 再取得 namespace 导入路径。定义处实际发生过的查找路径可以保留；生产器不为没有名称查找的字段、成员或支持声明补造 witness，也不保存全体依赖的第二份导入路径表。Unit、Any 与其他声明遵循同一规则。共有 reader 继续检查 provider、引用、类型、默认值正文及实际声明关系，不从这份路径信息授予调用资格。
-
-共有 HIR `cross-cone-interface/24` 明确此默认值依赖合同，保留默认值既有字段及 `SourceDeclaration` tag 3，不增加或复用 tag；`/21` 及更早版本退役，旧产物和缓存须重建。profile fingerprint 按实际 descriptor 更新，runtime C ABI、String 表示与 GC 契约保持。读取边界核对源码上下文及位置后，实例化复用同一不可变记录，保留定义位置与调用处求值位置。
-
-旧 `TypeFoundationSourceAuthorityV1`、`TypeDeclarationSourceAuthorityV1` 及仅供它们使用的 `Bound*` 绑定链退役。生产 reader 和前端继续使用现有共有声明表、typed identity 查询与完整 IR；移除这些 transcript 的独立编码器、逆向重建入口、无生产用途的重复来源表及专用测试与快照。`source_authority` 中确有生产调用的默认参数数据、可见性数据和身份查询按实际职责保留，不以新工厂或资格状态机替代被删除的代码。
-
-LIR dispatch 同样查询实际 provider 的普通或专用 lowering callable ABI，校验调用约定、完整签名与 receiver 表示后保留 typed implementation/body 引用；每个 slot 不再保存一份完整 callee ABI。布局依赖闭包沿共有导出查询真实类型，普通记录只编码于其原表。reader 在布局完成后先检查普通 ABI，再供 dispatch 和后续 Link 消费，不因表的位置重复重建或验证同一 ABI。
-
-共有声明表允许保存实际编译使用的 internal/private 顶层支持声明，包括初始化服务；可见性仍控制公开查找。reader 只核对声明关系中的 constructor、member、child、enum variant 和 accessor 引用完整，不另以从 public roots 可达为来源资格，也不为此再次遍历签名、binder 与默认值 body。对应类型、参数/default 和访问关系由各自消费边界检查并复用结果。 依赖查询直接使用真实 `ConeIdentity` 与 callable、property、type-alias 的类型化声明 ID；选择集合按这些 ID 保存完整接口和实际依赖路径。删除独立 world/projection/selection 品牌、仅为品牌服务的计数器和错误，以及从声明 ID 再映射到局部 u32 的三套重复表。候选选择依照当前依赖目录中的实际声明与表示，不要求由同一查询实例铸造；直接依赖的名称可见性、转导出路径、实际 provider 和引用完整性继续按共有规则检查。HIR 依赖目录、候选和已选声明只保存实际 provider 与类型化声明引用，不逐项复制 artifact 坐标/fingerprint 凭证；provider 身份直接来自已导入的共有 foundation，不再提供独立 certificate 或重算坐标身份。直接依赖与传递依赖使用同一输入数据和查询实现，直接依赖集合只决定当前源码可见的 package/public binding；不以分离的输入、视图或 seed 包装授予枚举资格。转导出保留实际 binding route，删除逐候选的 provider 凭证、重复 terminal 声明及其包装；候选选择使用已解析的声明目录，不重放未变化的 route 与 provider 证明。HIR→MIR 使用同次编译的依赖快照及完整声明：共有依赖选择在关联实际 MIR 定义时核对一次目标、逻辑签名和 GC effect，lowering 随后按实际 provider 与 typed target 消费同一记录，不重复比较未变化的声明和签名，也不再次比较来源凭证。缺失定义及最终 MIR 输出的结构、类型与外部引用检查仍在各自边界保留。普通构建依赖记录与缓存 fingerprint 继续承担定位和失效职责。MIR 外部 callable 引用保存实际 provider 与类型化声明，不另映射到带会话品牌的局部编号；调用位置保留 GC effect。MIR 类型与 LIR layout/ABI 选择按实际 provider 和 typed target 直接返回完整记录，不先铸造并验证中间 handle；依赖闭包、类型、ABI、物理引用和 GC 契约仍在其消费边界检查。同一声明或 target 在另一选择集合中是否存在，按实际目录查询决定，不依据集合生成顺序或计数器。该进程内数据简化不改变 wire/profile、实体身份或 runtime ABI。
-
-版本：0.8（草案）
-
-配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
-
-M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canonical ABI、dispatch、ZST、跨 Cone 消费与产物发布；同时删除编译器、slib、runtime 中额外的来源授权、防伪、资格认证、通用资源预算与计费、重复证明和仅为这些机制存在的框架。此约定修正历史设计中的冲突条款，将 core 专用机制推广到所有 Cone 不构成完成清理。正常类型、可见性、格式、引用、依赖环、缓存、ABI、内存范围与 GC 契约继续保留。
-
-## 1. 总体技术路线
-
-- 编译器实现语言为 **Rust**，LLVM 绑定使用 **inkwell**（feature `llvm22-1`）；个别 inkwell 未覆盖的 LLVM 子系统（statepoint / stackmap 等）可降落到 `llvm-sys`。
-- 固定使用本机外部 **LLVM 22.1** 作为 Scoop 编译器后端，不要求与 Rust 工具链内置的 LLVM 版本相同；M15 及当前路线不包含后端升级。`scoop` 选择的配套 `scoopc` 与 single-Cone codegen 必须确认实际 LLVM major/minor 为 22.1。artifact-only program-link 通过产物中的 backend 合同检查相容性，不加载 LLVM、不调用 `llvm-config`；它使用 final-link profile 明确选择的系统 linker 与 startup C compiler，这些工具不受 Scoop LLVM 版本号限制。
-- 编译器的 LLVM 绑定优先链接安装环境提供的共享库，无共享库时按 llvm-sys 支持的方式选择静态库；该选择仅影响编译器自身，不决定生成程序的 libc 或链接模式。
-- 使用 **LLVM stackmap** 生成 GC 所需的 metadata。
-- 使用 **LLVM landingpad** 作为 exception 的基础设施；M25起Itanium target由Scoop自有personality与异常记录直接建立在Level I `_Unwind_*`接口上，不依赖C++ ABI（Windows / catchpad 留待后续）。
-- runtime library 使用 **C 语言**，M15基线包含一个单代、STW、单线程collector的moving **Immix GC** 以及其他必须的 runtime 功能；分代及parallel/concurrent collector留待后续。
-- Scoop永久不支持执行managed代码、访问对象图或允许对象复活的GC finalizer。M15 collector在不可达判定、evacuation和reclaim中不调用managed用户代码；M24只按runtime spec 3.8增加同步typed GC-free release hook，不能扩展为finalizer。
-- M15首个可执行target固定为macOS/AArch64（Mach-O、LLVM stack map v3）。M22进一步把data pointer与code pointer恰为64位、两类AS0 null的内部carrier全零、且合法非null data/code地址可经各自内部64位carrier逐bit往返设为LIR-target必需能力；它只限定pointer representation，不产生`ULong ↔ FunPtr`源码conversion。M22不引入platform-native integer：当前64位pointer/size source surface暂以`Long`/`ULong`表示，`Ptr`的raw往返使用`ULong`、元素offset使用`Long`，`sizeOf`/`alignOf`返回`ULong`；以后讨论native integer时再逐项决定这些surface是否及如何迁移。profile在生成任何IR前验证，不满足者明确诊断，未来开放其他宽度/表示须先修订语言与FFI/runtime契约。源码构建的请求级选择由 registry 解析 `ResolvedTargetProfile` 的 `lir_target`、`backend`、`c_bridge_toolchain`、`runtime_build` 与 `final_link` 五个相容 projection；独立产物链接只解析本次所需的 LIR target 和完整 final-link 配置，并核对产物中已有 backend 合同，不要求未使用的 LLVM/compiler 存在。各 stage 只取得自身所需投影，不从 host 或其他 projection 补猜缺项。其他target在拥有自己的platform adapter前明确诊断，不允许以M13保守扫描或非移动collector回退。section发现、frame/location解释、线程栈边界、arena reservation与虚拟内存保护均隔离在runtime platform层。
-
-类型生产器直接返回完整的共有 type section；MIR 使用已有继承边、槽序、typed 实现目标及成员引用。类型物化和构造器选择查询已有共有 nominal/callable 声明，不另行投影来源 foundation、完整 protected 声明、构造器签名或参数协议来重复证明同次产出。删除这些副本的生产工厂、凭证外层、只用于副本的 reader 及测试。必要的类型、引用、继承、ABI 与格式检查保留在实际消费边界，未变化的数据复用已有检查结果。
-
-所有可见性的 nominal、callable、property、参数、默认值和定义环境由共有源码接口完整保存。protected 成员仍以 typed 引用参与实际 MIR callable 选择，其可见性和签名读取同一声明；构造器使用共有 nominal 的 constructor 引用及对应 callable，不在 inheritance record 再保存一份 payload。generic 词法 owner 不因访问域查询而要求 machine exact type。名义类型的 lookup/inheritance/slot 三份派生域不再保存和重验。
-
-`CrossConeTypeSemanticsSectionV1` 保留 field 1、2、3、8，field 4～7 退役；`NominalInheritanceInterfaceV1` 保留 field 1～4、7～9，field 5、6 退役，退役字段不复用。成员引用的 Constructor tag 2 随重复构造器通道退役，实际 constructor 始终使用共有 typed 声明。HIR `cross-cone-type-semantics/11`、required inventory、profile 与内容 fingerprint 同步更新，旧产物和缓存需重建；不保留旧来源副本的双轨兼容，不改变 runtime C 调用约定或 String 表示。
-
-LIR 的全部外部 TypeDescriptor 使用同一个 `ExternalTypeDescriptor` 实体、typed id 和 arena，保存实际 provider、exact type、symbol 及 definition plan。String 也从 MIR 中实际声明的 source exact identity 经过共有 descriptor 查询、layout selection 和 physical import 取得引用；其运行时角色不再提供独立 bridge、definition 恢复或 selected 豁免。MIR 保留 LIR 必需的 typed String 声明引用，driver 不再额外提供 Local/External String 授权输入。Strong registration 和 immortal object 的外来 TD 统一从真实依赖定义目录解析，Link 统一处理 descriptor 与 type-registration relocation。普通 self-import、重复 exact type、local/external 重叠及 ABI/GC 检查保持，不再为 String 重复读取协议和 shape-support 表。String 的内存表示与 runtime C ABI 不变。
-
-LIR descriptor 依赖是明确的 typed IR 引用。reader 验证可达 provider、exact type 的实际 descriptor 导出、递归依赖闭合及物理定义，不要求 descriptor 先出现在 HIR 的 value-layout 或 shape-support 物化根中，也不从协议表重新证明其来源。显式 descriptor relation 与从源码类型使用得到的 layout/shape 根共同闭合；遗漏必要依赖、错误 provider/类型与不一致物理合同仍拒绝。
-
-共有 Link import 表可以保留没有实际 relocation 的完整类型或 callable 引用；这类声明不生成虚构的 machine use。Link 只对实际 relocation 生成 requirement，并验证目标、provider、symbol、ABI 和定义一致性。删除“每个已声明 import 必须至少出现一次”的附加证明，以及初始化服务的专用豁免；缺失实际引用、错误定义和损坏对象仍由共有 verifier 拒绝。
-
-LIR 的外部 Scoop callable 使用同一个 `ExternalCallable` 实体、typed id 和 arena，完整保存实际 provider、typed target/body、canonical/physical ABI、caller root protocol、symbol 与 definition plan。初始化循环服务由前端选中的实际普通 callable 引用；MIR/LIR 与 Link 使用相同的导出和选择路径，不另保留初始化 ABI、来源资格或 Link requirement 分区。call destination 和 dispatch callable 共用 External 分支；本地与外来归属、符号、ABI、引用及 GC 检查按实际声明执行。internal 声明仍遵守普通源码可见性。
-
-MIR展开初始化ensure时，隐式创建的String消息同样是HIR→MIR类型使用，必须通过LocalConcrete的typed String引用登记共有source exact identity，即使用户源码没有String字面量或显式String类型。后续外部调用ABI分类只按该identity查询MIR类型，不按名称、固定digest或provider补齐缺失类型；内部异常carrier继续遵守2.2的Any值流限制。
-
-MIR的初始化服务与普通依赖调用共用`ExternalCallableUse`、typed id及arena；每项非可选地保存已提交的选择来源与GC effect，调用只使用`Callee::External`，初始化unit也直接引用同一id。选择引用统一指向同一`SelectedExternalMirSet`；每条选择保存完整provider、typed declaration、implementation、signature及明确的普通调用/初始化服务角色，不能凭provider推断。初始化服务经既有typed bridge验证后进入共有集合，不再保留core专用选择实体、借用凭证或第二套引用编号。当前Cone输出与strong sealer使用同一套来源覆盖、实际引用、签名及重复implementation校验，共用外部引用扫描；后续LIR lowering使用一个MIR→LIR映射，不能重新拆回两套调用arena或漏掉任一来源。选择实体的id与实际MIR use id仍属于不同typed domain。当前Cone MIR输出持有一个完整选择集合，strong sealer只接收该集合，统一检查consumer、选择覆盖、引用和implementation；HIR决定协议在本地定义还是导入，不另传泛型协议sidecar。旧metadata选择分区仅按明确角色投影，继续按其现有契约读取，直到完成后续合并。
-
-LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。
-
-共有依赖闭包将完整 SelectedExternalMirSet 一次投影为 SelectedExternalLirSet。每条记录都按实际 provider 与 typed declaration 查询普通 callable 导出，直接复用完整 ABI、symbol 和 definition；初始化角色不分支重建另一份记录，也不再回到 HIR 协议证明来源。MIR/LIR 之间继续检查实际 implementation 与完整签名一致性。String 的 TypeDescriptor 按实际 source nominal/provider 进入共有 descriptor 查询。
-
-协议导入保留实际 definition-origin 的 provider 与完整 typed callable 引用；其 provider 来自共有声明 metadata，不由导入 artifact 的身份补齐。driver 只保留前端所需的 ImportedCoreInputs。初始化选择直接查询实际 provider 的普通 MIR callable 导出，后续使用普通 LIR 导出；前端已经解析的角色和声明不再包装成独立来源证明。
-
-MIR type bridge 的本地类型导出必须包含由当前 provider 拥有的语言内建 Unit/Any。Unit 使用 core 实际声明的 nominal representation-support 和继承信息；没有普通源码声明的 Any 继续按语言内建事实投影。HIR facts 先完整发布当前 provider 拥有的 Unit/Any 固定语义，不能仅依赖普通 nominal roots 或源码签名触发它们。MIR 生产器从同次 sealed MIR 的 typed source-exact 引用与 HIR exact facts 投影其固定表示，并核对语言内建 nominal identity 及声明 provider；Unit 保持 ZST/GcFree，Any 保持根类型的 reference 语义，MIR 使用无成员、无 base 的 abstract class 表示和空 class dispatch schema，并由 LIR 生成既有 abstract-reference 布局；其 class-kind identity 不变。外来 Unit/Any 继续由依赖类型表提供，不能在每个 consumer 中重复发布，也不能将这一规则推广为 CORE 来源的任意类型豁免。当前 provider 的公共形状需求同时包含其 canonical declaration key 所拥有的 Unit/Any；它们不依赖普通源码 arena、public binding 或调用位置才成为提供方根。producer 与共有 reader 都按完整 typed builtin identity 和声明 origin 查询这两个根，foundation 必须含对应 canonical source key；不能只因依赖图含该 key 就把外来 builtin 当本地根。Unit 的 BoxedValue、Unit/Any 的 coroutine-step 与 coroutine-slot 沿同一 LocalConcrete、Strong、MIR/LIR ShapeSupport 生产和验证路径发布，必须有实际定义及完整布局、descriptor 和 GC 合同，不能绕过 helper 集合校验。
-
-HIR selected 目标以封闭分支区分语言内建类型与普通源码 nominal：普通分支必须同时借用已验证的表示和继承记录；Unit 的成员及 conformance 使用 core 实际声明，固定身份和 ZST/GcFree 事实保持不变。仅查询内建身份的 Unit/Any 分支按固定 typed declaration identity 及其真实 origin 核对 terminal provider，并借用该 provider 的完整 exact facts，分别保持 ZST/GcFree 与 reference/managed 语义。内建分支可承载 Signature、Representation、TypeTest 和 ShapeSupport 目标存在性检查；实际 shape-support 及机器使用仍由既有完整闭包验证。构造、成员、槽、单例和直接继承仍须各自真实声明与关系，不因内建身份获得操作资格。每次实际使用、语义边、来源、依赖可达性、selected 精确覆盖仍经过共有检查；该区分不增加 wire tag 或新的来源证明表。
-
-MIR callable inventory 按共同 HIR 的完整 owner、receiver、参数、结果和实际物化需求关联定义。未实例化模板保留完整语义接口，不要求不存在的机器正文；普通声明包含封闭泛型 application 不能因旧 source-only gate 被排除。实际需要的机器定义缺失是产物／生产错误，不以能力标签放过。
-
-LIR section 直接接收同次 MIR→LIR 已生产的完整五张导出表和 typed 依赖使用。lir-lower 按实际 MIR 使用、LIR external arena 与 Strong V2 初始化记录计算语义根，并核对物理引用的 provider、subject、symbol 和 definition；不重做 MIR source/export 全量验证，也不重新生成五张预期表。IR section 只负责导出关系与依赖引用闭合，不接收来源工厂或资格回调。reader 逐项检查新读入的组成表后保留这些表，随后解析 selected 和物理引用；不能再次传入另一套预期表，重编码并比较先前已经完成的同一检查。
-
-MIR 生产与读取共用已有的 `MirTypeBridgeDependencyViewV1`：它借用真实 provider 的完整导出表、初始化单元和普通 callable 定义。driver 从已解析依赖图提供可达 provider 的目录；section 不再保存 producer section 组成的递归依赖图，也不要求读出的依赖重新构造为 producer section。选择入口保留 provider 唯一性与实际 typed 引用闭包检查，manifest 依赖环检测复用共有图边界。读取结果可直接用于后续 MIR 类型、callable、dispatch、初始化和布局生产。
-
-非泛型 typealias 的声明、目标实体归属、public 可见性和外部引用在共有 HIR 声明边界检查。别名展开随后只处理实际 typed alias 目标、缺失目标及循环，不保存或查询逐边授权表，不重建依赖的 import/re-export 路径。已完成依赖的展开结果直接参与当前 Cone 的查询，共享最终 SignatureTypeKey；不能为同一别名链重复重走全部依赖。M23-6 完整 reader 保留展开结果供前端名称解析使用，生产与读取都不依赖测试专用来源工厂。
-
-MIR 的有限 generated nominal 从既有 source exact 关系和 ExactOwnerRoot 复算定义方；Cone-owned 只说明 Strong 归属种类，不能据此假定当前消费 Cone。BoxedValue、CoroutineStep 和 CoroutineSlot 的源 nominal、payload exact 与完整 provider 必须一致，缺失源关系或错误归属种类在 sealed materialization plan 建立时拒绝。本地 helper 进入本地 Strong 根，外来 helper 进入具有独立类型的依赖引用根；物理 MIR 表示可用于布局计算，但外来 helper 不得进入消费方的 layout、TD、dispatch 或 registration 定义。LIR 的 layout 消费入口必须从完整 selected layout/ABI 表核对这些依赖，并在正文降低前建立 typed external descriptor/boxed operand；仅有 source exact、MIR arena 或 runtime String 引用不授予新的类型测试、装箱或 helper 物化能力。源码 nominal 的实际 descriptor 用途和有限 helper 使用同一 provider/ShapeSupport 选择，缺少依赖选择或物理合同须返回明确错误，不得回退到本地生成或在正文中缺项 panic。该转置不改变 persistent key、wire schema 或 runtime ABI；完整源码、初始化用途、对象和双 view 发布门继续单独验证。
-
-装箱和拆箱的 refined operand 使用已有 TypeDescriptorRef 区分本地定义和外来引用，ZST 与非零 payload 继续保持封闭分支。本地引用从同一 LIR descriptor 定义校验；外来引用只能从完整 layout/ABI selection 中该 source nominal 的 ShapeSupport、BoxedValue helper、descriptor 和物理 import 合同构造，须核对完整 provider、payload exact、helper exact、目标布局与所绑定 external arena 条目。不能把外来 helper 转成当前 Cone 的本地定义，也不能从一个裸 external descriptor 或相同物理布局取得装箱资格。operand 保留既有 typed external definition 引用，使 codegen 能拒绝 arena 条目的 provider、exact、symbol 或 definition 被替换；payload 的大小、对齐、GC scan、实际 local 与 ZST 无 payload 规则继续校验。LLVM 通过共有 typed descriptor 引用解析发射外部符号，并继续使用既有 box/unbox runtime ABI。该内部 operand 变更不新增 wire 身份或来源表；完整 artifact、实际用途和最终 Link 覆盖仍按本阶段完成门校验。
-
-有限 shape-support 的装箱也从值类型的实际 typed 声明读取全部接口，并生成同一套 adjust thunk/itable；不能把 Integer/Boolean 的 intrinsic 表示当作没有接口。String 的 intrinsic 表示保持其源码 class 的 vtable/itable 要求，使用相同的 owner kind、receiver、slot 与 target 校验。LIR shape-support 的 source-kind 检查允许 struct 对应普通字段表示、intrinsic scalar 或固定 Unit value；具体 intrinsic family 仍由完整 HIR/MIR/layout join 核对，不能从 CORE 来源推断。
-
-完整 core 源码及新增值类型、接口、类和初始化声明的闭合子集必须通过同一 MIR/LIR export 组装路径；不得用测试手工补入基础类型表代替实际 producer 输出。此修正不改变语言行为、runtime ABI 或 wire 结构。
-
-MIR section 从同次 LocalConcrete 初始化单元读取两个生成函数的完整逻辑签名和 GC effect，并使用已有 typed materialization 对应 MIR 实现。type bridge 的 source initialization 表只导出参数自由 Strong 单元；泛型委托 application 的实际单元、callable body 和存储保留在本次 MIR materialization 与 LIR registration 中，由完整 reader 核对 application identity 与 declaration role。外部类型用途取实际经过 HIR→MIR 转置的 source-exact 关系及实际 provider；外部 callable 复用完整 ordinary selected 的 provider、declaration、implementation 和 signature，其余 nominal 成员进入 type bridge。初始化服务已经属于普通 callable，不重复加入 nominal-member 分区。section 直接保留本次 lowering 产生的完整导出与选择，不借来源适配器重建预期表或完整重放；外部产物在 reader 边界检查必要的格式、引用与跨层一致性。
-
-普通功能 fixture 验证诊断、IR 结构、类型、ABI、GC、相关符号和链接运行，不锁定与被测行为无关的整份产物、core 或 native 输入摘要。缓存命中与失效、构建确定性、产物读写及源码构建与 artifact-only 消费的一致性，优先比较同次测试中的摘要或字节是否相等／变化。固定摘要只用于输入严格受控、确实锁定编码或指纹规则的专门测试。结构快照需要处理易变内容摘要时，只按明确字段归一化并保留相等与引用关系；typed identity、符号、成员顺序、布局与引用结构不能笼统隐藏。此测试约定不改变生产指纹语义，也不能掩盖同等构建条件下的非确定性。
-
-## 2. 编译器 pipeline
-
-**模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。
-
-### 2.1 parser / AST
-
-解析源代码，为每个源文件生成语法树。
-
-M30浮点字面量保留十进制有效数字、指数、suffix及source span，表达式、annotation与pattern复用同一AST payload；不能在lexer中先解析成宿主f64。目标精度由HIR的candidate-local fit确定，再直接舍入并保存raw bits，详见2.18。
-
-lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以顶层声明、类型成员、块内语句为同步边界，在一次解析中收集同一文件的多个独立诊断。诊断按源码顺序输出；只要存在任一诊断，恢复得到的残缺 AST 必须整体丢弃，不得进入 HIR。
-
-M19起class/struct body使用保留源码顺序的typed member sum，而不是把method单独抽成列表后丢失property initializer与`init`的交错位置。AST分别表示普通/`val`/`var` primary parameter、secondary constructor、`this`/`super` delegation、stored body property、`init`和`super.method()`；supertype列表逐项保留constructor argument list是否出现，不能在parser按“有括号即class、无括号即interface”提前分类。`super`不解析成普通name expression，constructor/init/property恢复以type body item为同步边界。
-
-M20起call/constructor显式type-argument entry用`Explicit(TypeRef)`与`Infer(span)`的封闭sum区分普通类型与`_`。nominal type application仍只保存参数完整的普通`TypeRef`列表；parser不把`_`伪装成名称或缺失type，malformed显式列表在当前`<...>`恢复，不能吞掉后续value argument list或比较运算符。type parameter declaration或type application中的`in`/`out`/`*`不属于语言语法，按所在声明/type list产生稳定诊断。
-
-M21起AST以封闭property body sum表示initializer+accessor、Option omitted、computed、delegated、abstract、const与extern/raw storage候选形态，并完整保留property/accessor/constructor visibility、annotation、modality、extension receiver/type parameter、setter parameter及span；不能用`initializer: Option<_>`、`delegate: Option<_>`和若干bool拼出非法组合。所有可带visibility的AST节点以`VisibilitySyntax::{Explicit, Omitted}`保留来源，不能用缺失值表示待后续猜测；setter omission另由专用variant表示继承property。class/object body继续保留property/delegate/`init`的源码顺序；object、companion与static nested declaration保存typed owner语法关系。`lateinit`只产生稳定诊断，成功AST没有对应flag；`super<I>`使用专用qualified-interface-super节点，不降级成普通generic name/call。
-
-M22起integer literal AST保存无符号magnitude、radix、suffix与span，不在lexer压成`i64`；magnitude超过`2^64 - 1`的token产生可恢复诊断。普通表达式、annotation argument及其他受限常量语法必须引用同一literal syntax payload，不能保留平行的`AnnotationArg::Int(i64)`入口。AST以独立节点保存top-level非generic typealias、`StatementKind::For { pattern, iterable, body }`、`StatementKind::Break`、`StatementKind::Continue`与`Expr::CopyUpdate { base, NonEmpty<FieldUpdate> }`。Break/Continue只在spec第5章规定的statement/body位置成功解析，不得建立对应Expr variant或伪造`Nothing`类型；一般jump expression产生稳定未支持诊断。字段pattern保存字段标识符加boxed完整subpattern，不再用`rename: Option<Ident>`限制语义。range/rest/copy-update按表达式、pattern与postfix位置消歧；label、do-while与generic/nested alias只产生稳定未支持诊断，不能进入成功AST的半成品variant。
-
-M23-1先以经验证、不可序列化的request-local `Stage1SourceHandle`在AST外关联source；`AllParsedSources`的构造保证source集合非空、handle两两不同、属于同一请求且全部解析成功。该handle不是identity，host路径仍只作当次诊断decorator。M23-2起外层替换为typed `SourceIdentity { cone, logical_path }`：manifest Cone的logical path是normalized Cone-relative `src/...`，single-file Cone恒为`main.scoop`；host路径不写入AST semantic identity。两阶段使用同一个`SourceFile`表面：它以非可选`RootPackage | QualifiedPackage`保存至多一个文件头`package`，随后保存零个或多个`ImportSyntax::{Exact { exposure: Local | PublicReexport, path, alias }, Star { exposure: Local | PublicReexport, path }}`，最后才是declaration；package/import/declaration各有独立恢复边界。qualified path只保存非空identifier sequence，import selector和qualified type path的package/nested-owner/entity分界都由HIR的typed namespace按最长package前缀及static owner edge解析，parser不得把连接后的字符串当FQN。star import不能带alias。M23-3起manifest与source discovery由`scoopc`提供为当前Cone的typed输入；locator解析、完整依赖图与构建顺序只属于`scoop`，都不属于AST。
-
-M24 在 type body member sum 中增加独立 `ReleaseBlock { body, span }`；contextual `release` 不伪装为 method，也不改变普通 identifier。parser 保留完整 block 和位置，拒绝 modifier/annotation/参数/返回类型等非法拼写；HIR 诊断重复 block、非法 owner 和 block 内不允许的声明。恢复边界与其他 type body item 一致。
-
-M27 的 `context` 仍按位置识别：声明前缀保存有序参数 list，无 receiver 的 `context(value) { body }` 保存独立 ContextScope 节点；scope body 是 block，不先建立 Call/Lambda。非法 target、重复前缀和残缺列表在对应声明/表达式边界诊断。完整分层见 2.16。
+AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。语法恢复产生 Error；任何解析失败阻止成功 HIR 输出。
 
 ### 2.2 HIR
 
-同一 Cone 的继承检查使用已解析的 class/interface 父类型关系，按父声明先于派生声明的顺序完成属性覆盖、accessor 和普通方法检查。基类的 virtual family 与父接口的覆盖关系须在派生声明消费之前建立；同一 owner 内保持源码成员顺序。源码文件的排序、发现顺序及派生类型在文件中先出现都不能改变合法性或槽身份。依赖声明已携带完整关系，直接复用；该调度不改变声明身份、产物格式或 runtime ABI。
+HIR 完成名称解析、类型检查、重载与泛型实参选择、可见性、继承与覆写、模式穷尽性、构造／初始化规则、常量、效果及 FFI 声明检查。源码与依赖声明遵守同一语言规则；文件发现顺序、声明存储位置和 provider 读取顺序不能改变结果。
 
-隐式 receiver 的属性预查询用于区分值名称与类型限定名，复用完整 nominal application 的既有属性与可见性查询。宿主可以来自当前源码、依赖或完整 class 上界；不能假定 class 声明必有本地 arena ID，也不另建一套按裸 class ID 遍历继承的属性规则。预查询不提交候选或诊断，实际访问继续走普通 getter／setter 与成员调用路径。
+`SemanticHir` 保存已检查的声明与正文，对外有两个不同的输出合同：
 
-具体名义类型没有自身或基类属性声明时，属性查询还须包含继承检查已选定的接口默认访问器，保留实际 property、接口 application 及代入后的类型。该查询与普通方法复用同一 interface implementation selection，不按接口列表重新选择默认正文；class、object、struct、enum 的直接访问和接口视图访问遵守语言规范 §9.1.4 的相同 getter／setter 规则。
+- **ExportHir**：跨 Cone 的声明与必要正文。区分 public/re-export lookup、protected inheritance/slot、generic hidden support 和 interface dependency；支持声明的存在不扩大可见性。保存签名、默认值、const、alias、注解、类型关系与模板，普通非泛型函数的实现正文不复制给下游。
+- **LocalConcreteHir**：本 Cone 实际需要发射的完整实体与正文。全部类型参数已替换，所有调用、构造、字段、variant、slot 与 external target 已确定；不含未完成推断、待实例化请求或上游普通函数正文。
 
-core 默认导入按公开 binding 收集普通值，包含独立 object 的 `ObjectValue`；裸值引用与限定成员访问使用同一个 singleton identity 和初始化路径。object 名称仍服从既有词法、显式导入及同包名称的优先级，不建立仅供默认导入使用的单例或成员声明。
+两者使用不同的实体 ID 家族和显式映射。导出声明、完整泛型 application 与本地 concrete 实体不能用同一 arena index 或别名混用。
 
-具有闭合签名的 suspend 成员与普通成员使用同一名义声明物化闭包；suspend effect 本身不阻止其 owner、接口槽或实际正文物化。HIR 按已选声明产生 LocalConcrete，MIR 保留源码语义签名及既有协程物理签名，发布实际 callable binding，供下游通过同一接口／虚调用路径消费。未绑定泛型仍等待实际 application；该补全不改变协程 ABI 或新增平行导出表。
+每个 expression 具有非可选类型和 definition/evaluation origin。已解析调用保存完整逻辑签名、适配前 receiver 类型、实参映射、唯一 typed target 与效果；receiver 和实参的执行顺序遵守语言规范 8.5，不由类型求解顺序决定。
 
-协程调用所需的隐式失败构造器从同一次 executable expression 遍历收集，覆盖普通 Call、MethodCall、DirectSuperMethodCall 及函数值调用的实际 suspend target。依赖选择在 MIR 生成状态机之前完成，不因成员调用保留独立节点而漏掉现有 IllegalStateException 初始化入口。
+默认值、泛型正文及词法 callable 保存定义处绑定、完整 binder、局部值和 capture 身份。再次消费只替换实际类型与求值上下文，不重新选择名称、重载、字段或接口默认实现。局部函数和 closure 的捕获引用原绑定，不能改为消费方的同名局部变量。
 
-数组的隐式 application 从当前 core 声明或已导入 core 协议取得同一 typed owner，不复制外来声明到本地 class arena。Export HIR 的数组 assembly 保存完整 `TypeId` 作为结果类型，允许本地与外来数组 application；LocalConcrete HIR 再统一解析为具体 class。依赖调用的实参映射保留每个元素／spread 的源码索引，命名整数组直接使用显式值，省略时按实际协议选择默认模板或新空数组；所有显式表达式先求值，再按形参序物化参数。共有模板消费直接重建已有数组节点与实际成员调用，复用普通具体化、数组表示和运行时操作，不增加数组专用产物格式、来源资格或第二套布局验证。
+nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
-`Array(source)`／`MutableArray(source)` 从实际 intrinsic 数组声明建立转换候选，分别以另一数组种类的同元素 application 为唯一必需参数。导入候选在同一名称层的声明准备阶段解析真实 owner binder 和完整参数类型，与本地构造共用参数映射、约束求解、固定 typealias 及 MSC；不得以当前调用已推断的类型替代声明签名参与候选比较。选中后直接生成完整目标类型的 `ArrayClone`，沿既有泛型正文、默认值、布局与 GC 路径执行，不补造源码 constructor 或机器 callable。M26 的 `Array/MutableArray(size, init)` 在同一候选机制增加按长度初始化入口，按 2.15 产生完整 typed 操作。数组转换、按长度初始化和 `Ptr` 构造都是 intrinsic registry 规定的封闭源码入口。
+property 具有完整类型、读写能力、getter/setter、访问域与互斥的 stored/accessor/delegated/const/extern 表示。required accessor 有 Body 或 AbstractSlot 的明确类别；普通缺失初始化不能靠空正文、late-init flag 或可空类型补齐。
 
-import selector 从最长可见包前缀进入已选静态 owner 后，exact 与 star 的终点均使用 owner 实际 provider 的公开 binding，support provider 只参与这种 typed owner 查询。结果继续保留实际 binding target、conflict key 与终点 binding 的现有转导出引用；嵌套 namespace 不追加外层名称路径，不建立第二套 lookup 或授权记录。public import 直接发布该已解析结果，后续 consumer 按相同实体与普通类型规则消费。
+class 构造输出明确区分 allocation、同 receiver 的 initializer、this/base delegation 与 common initialization；完整成功路径、异常出口与初始化顺序已确定。abstract class 仅有供派生构造使用的 initializer。release policy 为 None 或携带完整 hook target 的 SynchronousGcFree。
 
-限定类型路径与普通 import 共用已解析的 direct dependency 公开绑定和最长包前缀规则。导入收集保留一次不可变的依赖包类型索引，包含仅导出 value 的包占位以保持前缀语义；后续候选探测复用该索引，不重新扫描产物或按 FQN 猜实体。当前与依赖的同包候选统一做普通可见性和歧义选择，随后沿 typed nominal owner 查找嵌套类型，并复用既有类型实参和 alias 展开入口。索引只属于本次 lowering，不进入共有 HIR 或机器表示，也不增加来源资格或独立语义验证层。
+singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
-非末段名义类型只提供静态 namespace owner；泛型外层无需实例化或补造类型实参。固定泛型 application 的 alias 也由实际 nominal owner 继续遍历，末段类型实参才进入普通 arity／bound 检查。alias 用作 namespace 时不额外产生 alias 目标引用；公开 typealias 的 `AliasTarget` 仍仅由最终类型签名或直接 alias 边中的实际目标构成。目标引用由最终公开声明直接收集；namespace 解析不增设来源记录或暂停 alias 解析栈，循环引用仍使用完整栈诊断。
+extern 声明产生完整 `SourceNativeExternalContract`：symbol bytes、逻辑 library/default namespace、function/data/TLS、mutability、C/Scoop ABI、calling convention、完整源码签名、GC effect 与定义位置。普通／suspend 效果与 GC effect 独立，后续不得由 symbol 或参数类型反推。
 
-静态嵌套类型不捕获外层类型参数。参数自由的嵌套类型及其构造器按自身实际 owner 与签名参与既有机器绑定生产，不能仅因词法 owner 链含有泛型外层而省略普通构造器导出；泛型嵌套类型仍按自身 application 单态化。
+C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不得含 managed reference，Scoop ABI direct ref 不改为 handle 或 pin。generic 条件按原 binder 保存并在实际 application 检查。
 
-M23-7 的外来指针与布局 intrinsic 从普通共有声明取得签名、owner binder、方法 binder 和 effects，参与既有候选推断后正规化到 `AddressOf`、`SizeOf`、`AlignOf` 及指针操作节点。它们不需要共有执行正文或机器 callable。`addressOf` 的原始 local/raw-global place 必须在普通实参临时复制之前确定；泛型 GC-free 条件复用 `Ptr<T>` 的现有传播。布局查询只要求值类型，具体化代换被查询类型后交给后续布局阶段求值（语言规范 13.10）。默认值与泛型正文直接消费既有 typed 节点与 selector，不增加格式分支或重复完整语义验证。
-
-M23-10 的跨 Cone extern global 读取、写入与取址沿同一个 `AddressOf`/place 路径：依赖查询按原 `PersistentPropertyId` 取得已经读入的 source-native contract，外部 place 保留该完整合同和实际值类型；具体化后复用普通 `GlobalStorage::Extern` 与 generated-C bridge。消费方 HIR foundation 在既有 source native contract 表中保留实际物化的原始合同及其必要 ABI 类型，引用原 provider 的属性实体，不制造 accessor 定义。可分发正文继续使用既有 `DefaultPlaceV1::Global { property }`，消费时从原 provider 补齐同一合同，因此不增加 section、schema 或 imported-native 属性模型。
-
-导入 core 的 GC intrinsic 使用真实声明签名和既有 `FunctionKind::Intrinsic` 消费路径；非泛型 intrinsic 保留原 `PersistentFunctionId`，不能伪装成泛型函数或请求不存在的 provider 机器定义。普通参数检查及 effect 检查完成后，MIR 沿同一 intrinsic 映射调用 runtime。泛型 pin／handle 操作仍按原类型参数实例化，不新增 runtime ABI。
-
-managed callback 的注册与操作在共同 HIR 正规化。导入 core 时按其真实 callback protocol id 解析模式、状态和 `Option<Throwable>`，并在实际使用时物化这些已有类型。`ForeignCallback<F>` 字段中的待实例化 `FunPtr<F>` 与本地声明共用 intrinsic struct application；实际函数类型确定后才生成具体函数指针表示。注册检查后仅保存规范化 `CallbackMode`，不把定义 core 的本地 enum arena id 带入消费方。注册点身份仍由当前源码定义位置、native／managed 签名、context 参数位置和模式组成；MIR 使用相同 family、adapter 与 gateway，注册表、线程 attach／detach、失败物化和 GC roots 契约不变。generated-C unit 的实际入口、签名与 context 描述符都可由本 Cone 的其他对象引用，分类复用已检查的目标 definition 和所属 unit；仅用于 C 静态断言的非物化项没有可引用符号，不以“非 primary”笼统拒绝合法数据引用。
-
-显式 `Ptr<T>(raw)` 从已解析的实际 `core_ptr` 名义声明进入特殊构造候选，与同层普通 callable 共用重载选择。当前声明和依赖声明共用 pointee 推断、参数与常量非零检查，并产生已有 `PtrFromNonZeroULong` 节点；固定 application 的 typealias 作为非参数化候选。依赖路径使用原 typed nominal identity 及其 binder，不补造本地 struct、普通 constructor identity、共有正文或机器函数。unsafe 和常量非零错误不改变候选适用性；仅在选中后提交诊断并结束该错误表达式的 lowering，避免回退到其他候选或产生级联的语句形态错误。合法调用保留唯一一次原实参求值。默认值及泛型正文沿现有节点代换和条件约束路径消费。
-
-`Ptr`／`FunPtr` 别名按既有结构化指针签名发布，`AliasTarget` 引用由该签名实际包含的 pointee／函数参数与结果中的名义类型构成；指针类型源码绑定不额外变成签名中不存在的泛型名义目标。直接指向外来 typealias 的别名仍保留原 typed alias 边；名称绑定仅参与普通源码查找，构造时从已解析类型取得实际 core owner。
-
-负责 desugaring、type check 和 overload resolution；仅分析当前 Cone 的 AST，通过同一语义查询消费当前声明和全部可达依赖的 HIR 导出。M23-6a 的共同 HIR 合同见 [设计](../milestone23/stage6a/DESIGN.md)：源码分析与产物解码产生相同的声明、类型 application、表达式、语句和正文结构；声明来源不成为类型、调用、模式或具体化的另一种语义分支。
-
-已检查的完整语义图称为 `SemanticHir`，它保留当前 Cone 的普通声明、模板和本地正文；`ExportHir` 是同一图按公开、继承、默认值与模板支持需求选择的导出投影。二者使用同一语义节点和原类型化身份，导出不重新降低正文、不复制声明身份，也不要求发布上游普通函数的实现。当前声明与依赖导出共同组成只读语义查询；依赖集合完整性和源码名称可见性分开，direct package、support 引用及 re-export 继续遵守语言规范 12.4。
-
-源码分析、导出投影与具体化均属于既有 HIR 工作流，不新增 stage 实现之间的依赖。默认值、普通函数、泛型正文、构造初始化和词法 callable 共用正文节点及必要的局部值、捕获、类型替换；编解码只做机械的身份／索引转换和边界验证。具体化按原定义身份、完整宿主／callable 实参和既有词法身份查询同一正文，不先创建独立 imported template 或当前 Cone 的同名替身。声明、泛型应用和具体实体保持不同的 typed ID；本地 arena 仅作实现内的存储索引，不能充当跨 Cone 实体身份。
-
-struct／enum／class／interface 的符号化 application 直接保存原声明身份及完整实参，四类 application 的 ID 继续相互独立。声明的 arena 位置通过已有身份关系查询，不作为 application 的模板身份；声明构建期间与完成后的查询使用相同原身份。类型替换按原声明重新应用完整实参，不从来源专用记录复制字段或恢复模板身份；内部存储调整不改变已经编码原身份的 wire 字段。
-
-候选求解器中的 nominal application 同样保存原声明与完整类型项，解出实参后调用共同的类型应用入口。构造目标自身仍保留 struct／class constructor 和 enum variant 的不同 typed ID；推断约束不另建按声明来源区分的应用种类。Ptr／FunPtr 与数组的表示从原声明的既定 intrinsic 类别取得，求解器只检查实际实参所要求的表示条件。
-
-调用与 callable reference 以同一组宿主／callable 形参、已知宿主实参、显式类型实参及已绑定 receiver 关系建立候选约束环境。源码和依赖签名只负责提供这些声明事实，不能各自重建形参上界或显式参数约束；构造结果的完整 application 约束与函数值的精确签名约束仍按其语言角色加入同一环境。
-
-enum 的 payload、直接接口与既定接口实现保留在同一份带声明形参的定义记录中；完整 application 只保存原声明与实参，不为每个读入 application 复制并预替换一套 variants。当前声明与解码声明共用 `Enum` 类型分支、variant 查询及字段替换。依赖的原定义位置、variant／payload 字段身份和普通实现归属继续通过原声明记录取得；声明存储位置不参与类型相等、可穷尽性或 GC 属性规则。
-
-struct 的字段、直接接口与既定接口实现同样保存在声明形参域内，当前声明与解码声明共用 `Struct` 类型及字段替换。投影、解构、拷贝更新与常量只使用完整 application 和原字段身份；拷贝更新保持基值只求值一次、更新表达式按源码顺序求值、结果按声明字段顺序组装。默认值与泛型正文的产物解码把该组装恢复为同一 `StructConstruct` 节点，继续使用共同正文替换，不再次选择构造器。普通声明表示、既定 intrinsic 表示和 C 布局属性保留各自的真实合同，声明来自依赖不构成新的值类型或布局种类。
-
-按值循环检查从共同 struct／enum 定义计算形参是否实际参与内联布局，再沿完整 application 把该关系代入当前声明图。依赖泛型包装器的内联参数参与当前声明的循环判断；已验证的依赖声明不作为新的本地 SCC 节点重新检查。Phantom 参数、class／interface／函数引用和指针边界终止内联关系。该分析在字段解析后、正文或具体化请求前完成，按原声明形成有限图，不为发现循环展开不断增长的实际类型应用。
-
-class 同样只使用原声明身份加完整实参的 `Class` application。字段名与类型、基类、直接接口及既定接口实现保存在声明形参域的共同定义中，递归引用先取得同一 application，再完成该定义；依赖应用不复制已经替换的字段或父类型。源码的属性与构造初始化关系仅引用共同字段的位置，初始化分析追加的委托字段也进入同一字段表。String／Array／MutableArray 的既定表示、object 的原 backing class 关系及外部虚方法的定义归属按已有合同保留，类型来源不构成新的 class 种类。
-
-interface 也只使用原声明与完整实参的 `Interface` application，形参与直接父接口保存在共同定义中。依赖接口在原声明域内解码一次；继承槽的参数和结果类型按父 application 组合到该域，实际查询和具体化再代入本次完整实参，不为每个应用复制一套预替换的方法。槽身份、覆写关系与默认实现选择复用原声明记录；覆写消除按原槽声明身份进行，不直接比较定义域中未替换的宿主与使用点的实际宿主。递归签名先取得同一 application。声明位置不决定接口类型的种类，不因读取或具体化重新选择槽，也不增加普通外部实现的发射根。
-
-四类名义定义共同保存已推导的 GC-free pointee 形参条件；struct 属性和 enum 的 `@NoGC` 标记也属于共同定义。产物读取只恢复原条件，消费方在实际完整应用上代入实参，使用既有 GC 属性分析与条件传播；签名、别名、父类型、嵌套类型和默认值均遵守同一规则。字段或方法是否被访问不决定类型应用是否合法，不重新分析提供方正文，也不重放已经完成的声明检查。仅在具体化代换后形成的完整值应用，在同一次字段／payload 具体化计算出 GC 属性后检查原 `@NoGC` 契约；复用该 GC 属性，不展开第二次布局分析。普通源码位置及泛型请求的实际触发位置随既有函数／构造队列传递，诊断定位当前 Cone 的使用点；位置不参与实例身份或去重。
-
-`hir/cross-cone-interface/43` 在 `NominalDeclarationDetailsV1` 增加必需的 field 9：两字段 product，field 1 为 `@NoGC` 标记（unsigned 0=false、1=true），field 2 为 GC-free pointee 条件的 binder-use 数组。该数组只允许 depth 0 的原名义形参，按 index 严格递增且不越界；标记只允许 struct／enum 为真。普通无条件声明也保存 false 与空数组。producer 投影已检查的原条件，reader 验证格式、种类和 binder 引用；不从使用点或布局重建原 annotation，不增加来源资格。旧 `/42` payload 缺少这些必要事实，明确拒绝并重建产物及缓存；MIR／LIR 格式与 runtime ABI 保持。
-
-具体化队列的函数请求以原函数、泛型函数、访问器或生成正文身份和完整宿主／callable 实参为 key；派生相等以既定生成规则与完整宿主区分。词法 callable 的原正文身份保留其定义处 parent／path，完整实参包括继承 binder。当前或依赖的 arena 位置只用于定位记录，不进入 key；相同请求在同一队列复用。方法的宿主实参与自身实参按同一顺序组合，`Ptr<T>` 的 pointee 也属于真实宿主实参。
-
-当前函数与读入模板共用同一个可调用签名记录，保存名称、执行方式、调用修饰、完整值参数／结果类型、效果和原位置；已完成实现继续使用共同 `FunctionKind`。来源记录只保存各自原声明、binder、接收者与词法关系，不再平行保存或在每次具体化时重新拼装一套签名字段。依赖效果在解码时转换一次，共同具体化直接借用原签名和实现；该内存模型迁移不改变既有正文 wire payload。
-
-调用提交按已选声明的执行方式检查当前挂起上下文，普通与泛型函数、成员、扩展和省略参数中的调用共用已有 forbidden-context 诊断；依赖中的 `suspend` 声明不能绕过该规则。检查发生在选定调用的提交处，不以当前上下文重新筛选重载或改变模板定义处的绑定。
-
-Export HIR 的直接调用共用 `Call` 与已有 typed callable target，目标保存当前已选 callable、已准备的完整模板 application 或普通外部定义引用。默认值替换、引用收集、调用条件及具体化按该目标取得既定声明；不按声明来源重新选择调用。成员与限定 `super` 保留原派发语义，词法函数保留捕获顺序，构造目标保留原构造身份，导出投影沿既定语言种类编码。
-
-当前与依赖模板成员共用 `MethodCall`／`DirectSuperMethodCall` 和 `MethodCallee`，普通成员目标直接保存同一 typed callable target。上界成员共用完整 `BoundCallableRef`，保存实际 receiver 类型、完整 class／interface application、原成员引用、已选声明目标与完整函数签名；默认值替换同时代换 receiver、宿主和签名。具体化从接收者已完成的共同 conformance 查询原 interface slot 的实现，实际外部实现继续引用提供方。普通外部 callable use 保留从已选签名解码的接收者类型；成员调用和函数引用按实际实现要求的接收者类型进行既定的上转型或装箱，调用点原静态类型独立保留。当前源码、解码正文、默认值与 callable reference 使用同一目标替换和上界解析算法；不重选 overload，不通过本地函数 ID 代替外部定义，不按 core 的来源重建另一套 conformance。wire 继续表达既定成员、上界及限定 super 操作，原槽身份与 runtime ABI 保持。
-
-局部函数直调在语义 HIR 与 LocalConcrete HIR 中都使用共同 `Call`，完整实参列表先保存隐藏捕获、再保存源码参数；捕获 ABI 由原局部声明及已选函数确定，不另设来源专用调用节点。局部递归在正文完成后按已选函数身份补齐隐藏实参，包含捕获首次使用之前建立的调用、引用及其接收者。默认值展开共同替换目标与全部实参；局部声明仍只保存词法元数据，直接调用不为其额外生成函数值实体。导出按原声明的捕获数量投影既有局部调用记录，读入时恢复共同 `Call`，wire payload 保持。
-
-LocalConcrete HIR 的直接调用也共用 `Call`，其 typed target 区分当前物化函数与普通外部定义；当前模板和依赖模板的物化函数使用同一 concrete callable 引用。调用的可选名称绑定仍作为原使用点数据保留，经过默认值替换和具体化不丢失；依赖调用记录按原声明和完整 application 查询实际依赖关系，MIR 的求值、挂起调用和 ABI lowering 从共同调用读取其实际目标。该内存表示迁移保持原 wire 调用记录与机器定义归属。
-
-外部调用连接验证从调用点完整 exact receiver 查询已有父类型关系；普通 nominal 与完整泛型 application 都参与同一继承查询。成员和扩展共用接收者关系检查，参数 ABI 仍核对适配后的实际实参；原静态接收者用于原声明的访问与归属关系，不要求它等于声明宿主。
-
-函数引用的命名、局部函数、成员、扩展及已正规化 intrinsic 目标共用同一表示和替换、投影、具体化过程。目标保存已选 typed callable；局部函数引用另保留定义处路径，其具体声明按已经请求的真实函数实体复用。引用环境的捕获值和接收者仍在各自创建点求值，定义路径不参与跨声明合并。当前与解码正文的引用使用相同规则，普通外部定义保留原提供方；该内存表示迁移沿用既有引用 wire payload。
-
-默认值中的引用在实际调用处展开时，其新 invoke 身份与绑定接收者位置属于该调用处的词法定义；引用表达式仍保留原默认值的定义位置和调用处的求值位置。再次读取引用时，从 invoke 已有的生成声明位置恢复引用身份的位置，不以外层表达式的原定义位置代替。生成声明记录已经承载这一事实，无需新增引用 wire 字段；本地和解码默认值遵守相同规则。
-
-源码与解码引用使用同一 `CallableReference` 实体及表达式节点，默认值、效果／类型遍历和具体化只保留一套处理。词法根存储当前的 typed 根或已经保存的 typed parent，二者只负责关联原定义；路径、完整宿主实参、目标和捕获共用同一记录，不复制一套解码引用正文。局部递归调用补齐隐藏捕获参数时，也遍历引用的接收者与捕获表达式；接收者在引用创建时求值，不能因位于引用实体中而遗漏该调用。
-
-局部函数正文中的自身引用使用该函数最终确定的捕获列表，包括在引用之后才首次使用的外层绑定。捕获来源是本次执行中的同一绑定，不能重新读取声明处局部值；泛型自身引用仍保留已选完整实参。补齐按已选函数身份进行，不按名称或局部定义路径猜测目标。
-
-源码与解码后的 lambda、匿名函数分别使用同一种词法实体与表达式节点。它们和局部函数共用正文定义的存储定位，原定义、完整正文实参、函数类型和创建点捕获随共同节点保留；解码已在消费方 binder 域恢复的实参必须显式保存，不能从原声明重新猜测。默认值替换、效果／类型遍历、导出投影和具体化不再设置导入闭包专用分支。当前声明身份表只登记当前正文定义，读入正文继续关联原生成声明；具体化沿同一原定义请求队列处理，不产生多余 application 包装或复制普通外部实现。
-
-单例值读取在语义 HIR 与 LocalConcrete HIR 中各使用同一 `SingletonValue` 节点；typed target 区分当前声明记录和依赖的原 object value 身份。默认值与泛型正文保存同一已选目标，效果和类型遍历不按来源拆分。MIR 从该目标取得实际初始化入口与已发布根，随后共用“调用 ensure，再读取根”的顺序；依赖读取引用定义方的入口和存储，不复制初始化状态、对象或根，也不改变既有初始化失败与移动 GC 契约。
-
-struct 与 class 构造各使用同一种完整 constructor application，保存所属名义 application 和已选构造声明的存储定位；读入模板不另建按来源区分的 application 或构造表达式。构造、默认替换、初始化委托、效果遍历和具体化共同消费这些 typed 目标，保留 struct／class 的不同身份与执行角色。完整宿主实参和原声明不因默认值展开或再次发布而丢失，普通外部初始化仍引用实际提供方实现。
-
-构造正文也共用原主／次构造角色、已选委托目标及参数计划。class 主参数存储和公共初始化字段使用完整宿主类型与原字段身份，普通属性与委托属性的初始化都表示为既定字段存储，委托实体关系保留在属性声明中。解码保留这些共同初始化步骤，不先展开成另一种导入专用构造正文；具体化从声明存储取得完整参数与正文后，共用参数替换、主参数存储、公共初始化和 `this`／基类委托的降低过程。既有初始化顺序、原定义位置和调用点求值上下文保持。
-
-构造具体化请求以原构造声明身份和完整 concrete nominal owner 去重。class 的源码构造与生成零参数适配器保留各自 typed 身份，struct 保留原 constructor 身份；当前／解码记录的位置只随请求定位正文，不成为请求 key。词法正文与构造发射依据同一原声明和完整实参计算 application context，不能为来源另算一套物化身份；词法归属查询本身不新增构造发射需求。
-
-公共初始化中实际被捕获的源码局部值按原定义处的 constructor scope 和完整 class 实参登记，与复制进不同终止构造器的运行时局部存储区分。公共片段的已读入局部绑定按原定义处选择器关联；实际闭包所引用的绑定即使来自同宿主的另一条已读入构造记录，也参与该 owner application 的词法查询，不要求那条构造器在当前实参下被调用。它们与默认值复用同一种词法值记录；同一源码绑定的多处存储不改变捕获的原值身份，未调用的词法父构造器无需发射。
-
-公共初始化片段的运行时局部选择器统一位于独立的 `Initializer` 结构路径下，与执行它的构造器自身委托／正文的局部存储分开；捕获仍引用片段定义处的原选择器和词法 materialization。 片段及创建点捕获表达式的 definition origin 保留原位置，evaluation context 则绑定实际执行片段的构造器；文件与表达式 span 不变，嵌套 callable 自身的正文仍使用自己的词法执行上下文。
-
-局部函数声明也保留在共同正文中，解码时不能因其没有运行时效果而删除；仅在具体化为执行正文时擦除声明语句。共同声明记录保存原定义路径、声明及出现处签名、宿主 binder 数、捕获值和定义位置，正文位置只负责关联当前记录或已读入实现。声明自身不请求具体实例，真实调用及引用仍携带完整实参。再次发布沿原声明投影；词法 parent 从该声明的既有 typed owner 关系取得，不改成展开或消费位置的 parent，既有 wire 声明 payload 保持不变。
-
-函数具体化在声明查询边界取得完整签名、实现类别、接收者与原捕获绑定，之后使用同一正文、参数和捕获替换过程。方法派发在该边界保留原虚方法 family 或接口 slot，槽编号只从实际接口 application 的已有映射取得。含正文的参数必须使用正文替换产生的局部值映射；显式 intrinsic／extern 实现无需正文局部值映射，初始化协调函数仍由所属初始化单元在 MIR 中生成。该过程不因声明存储位置而复制参数替换或派发降低算法，也不重新做语言选择。
-
-`protected` 的子类作用域保存原 class 声明身份，当前声明和依赖声明使用同一种访问约束。作用域包含与访问检查共用沿原声明基类边的祖先查询；当前 arena 只用于定位记录，不另设依赖子类约束或跨来源继承算法。完整 application 仍由类型系统保存，访问域只表达原 class 的子类区域；既有词法作用域、显式接收者和覆写覆盖规则保持不变。
-
-`private` 成员的词法作用域也保存原 nominal 声明身份；类、接口、值类型、对象及泛型声明不再把当前 arena 编号编码进访问约束。访问域正规化按原身份排序，词法包含和定义文件查询通过既有声明索引定位记录；嵌套可见性、文件限制及 private setter 的规则保持不变。
-
-抽象方法及抽象属性访问器使用明确的抽象实现类别，保留完整签名和参数局部值，不携带空的普通正文。具体化共用参数局部值的类型与身份替换，将该类别传给 MIR；MIR 按已有 abstract slot 合同生成 trap 实现。声明 modality 和 typed slot 继续表达覆写关系，模板导出不会把抽象声明当作可替换正文，声明效果仍沿既有 Scoop callable 合同编码。
-
-当前声明和读入声明共用上述实现枚举，初始化协调函数同样使用明确类别，普通初始化函数才具有可替换正文。完成读入声明时按其已保存的抽象／初始化合同建立该类别，不补造空正文；具体化直接借用共同类别及正文。MIR 从既有初始化单元关联生成协调实现，保持初始化顺序、失败缓存和重入语义，不为类别区分增加 wire 字段。
-
-enum 的具体化请求按原声明身份与完整实参复用同一缓存。声明读取边界提供原 variant／payload 字段身份和已检查类型，随后统一分配具体 enum、替换 payload、计算 GC 属性并降低既定接口实现；依赖普通方法继续关联原外部定义，不复制到当前声明的方法集合。递归引用先取得同一实例身份，再完成其字段与接口记录；该过程不重新选择成员或重放定义处类型检查。
-
-struct 同样按原声明和完整实参统一分配、字段替换、GC 计算及接口记录。声明读取保留实际 C 布局和 C ABI 投影；整数、Boolean、Ptr 与 FunPtr 的既定机器表示沿同一分配过程取得 canonical type。接口闭包从已经具体化的父类型记录取得，不重做成员选择。仅当前需要发射的实现进入方法、构造器与接口实现集合；普通外部方法和 primitive 装箱适配仍关联提供方定义，不能因统一具体化而复制实现或增加物化根。
-
-导入的 handle 声明在首次加载时，按已有完整 FFI protocol 的实际 generic nominal id 和声明中的唯一 field id 正规化 `UInt64Field` C 投影（语言规范 14.1、本规范 2.11～2.12）。提供方的 native-boundary 表只记录其实际使用的外来类型闭包；该表没有使用某个 handle 时，不能据此把其语言规定的 C 表示降为普通 struct。正规化结果随已加载声明复用，供 C-FFI 检查和 LocalConcrete 使用；不扩大 native-boundary 持久化集合，不新增产物字段，也不改变该 struct 的 Scoop aggregate ABI。
-
-LIR lowering 在 C extern 实参、结果和 native global 读写处，按 MIR 已检查的 `UInt64Field` 投影显式拆出或封装唯一字段，使 C storage 的整数类型与 Scoop 值的 struct 类型各自保持准确。CLayout 的构造与字段读取使用相同转换，嵌套字段按既有 C storage 布局保存。普通 Scoop 调用、局部变量、指针所指的完整值和 callback storage bridge 继续使用原 Scoop 表示；handle 的唯一字段与 C 整数具有相同内存布局，不新增指针复制或回调 ABI。codegen 继续检查每个操作的实际存储类型，不以相同字节数放宽类型相等要求。
-
-class 的实例缓存也使用原声明与完整实参，字段、基类、接口和既定方法记录在同一具体化流程中完成。String／Array／MutableArray 保留其既定表示，当前 object 的 backing class 登记继续在递归引用前建立关联；普通外部虚方法保留原 family 和外部定义引用，需要替换的泛型实现才进入共同函数请求。存储读取可适配声明记录，但不得重新推导继承、覆写或接口选择，也不得复制普通外部构造与初始化实现。
-
-interface 的实例与 family 分别按原声明及完整实参、原声明身份复用；当前和依赖接口共用父类型、槽映射与具体签名生成。每个继承方法保留到达其声明时的完整类型替换，不能用最外层接口的参数顺序解释中间父接口已交换或固定的实参。读取边界提供原槽、覆写关系、签名、效果和实现类别，继承去重只复用这些既定关系；普通依赖默认方法继续关联原定义，接口查询不增加外部实现的发射根。
-
-class 上界的属性沿同一完整 nominal 查询取得声明、字段和访问器；类型参数本身保留为访问检查的静态 receiver，查找类型使用其完整 class 上界。计算 getter／setter 复用普通 bound-method 记录及具体化，不在实例化时重新选属性；存储读写继续使用原字段身份和 owner application。默认值与正文保留相同的已选引用，不增加属性专用 wire 格式或 runtime 入口。
-
-已决议的普通调用目标共用 typed target，分别关联当前 callable application、需替换的原模板 application 或普通外部定义；函数引用与字面量模式复用该目标。字面量模式在定义处按普通成员规则选择 `equals`，整数 intrinsic 继续正规化为既定整数比较，Boolean／String 保留选定的普通目标。产物读取只恢复已保存的目标及模式，不重做相等成员选择；默认值与泛型正文使用同一模式替换，MIR 直接调用对应的本地或外部实现。可执行依赖闭包从实际模式中的相等目标收集普通外部 callable，不能只遍历显式 Call 表达式，也不把未使用模板里的模式提升为机器根。 共有 Literal 模式直接保存普通 typed 表达式，包含原定义位置与求值位置，不从分支或模板声明补造字面量的作用域。其 field 1 由常量值改为现有表达式记录，HIR interface 升至 `/42`；reader 沿同一表达式编解码和来源连接处理。
-
-词法 parent 使用原 `CallableTemplateOwner`，不保存依赖模板 arena 位置；局部函数、闭包与函数引用共用原定义及完整继承实参查询父 application。捕获绑定仍按原正文的局部值 selector 关联，存储定位不改变词法归属。
-
-普通函数、成员、构造与依赖声明共用上下文实参固定点。候选先建立 receiver、显式实参及声明上界约束；每个已求得的实参类型加入同一约束环境，完整的候选期望类型用于继续处理延期实参。nominal 构造的同一原声明期望 application（包括别名展开的固定目标）在求解实参之前加入等式约束，与当前声明构造一致；普通 callable 允许的外层结果约束在已有实参约束不能继续推进时参与，最后才尝试既有字面量默认阶梯。失败的默认类型尝试不提交候选状态；成功结果同时保留完整类型实参、源码顺序的参数值和各自 setup 语句。部分替换按声明 binder 查询，不把替换结果中的外层参数再次当成本候选的未知变量。此过程不因声明来自源码或产物而另设调度。函数值字段作为调用目标时，与普通字段访问共用已应用的字段引用，不要求字段类型或宿主来自当前源码。
-
-实参映射只读取声明参数的名称、必需／默认／vararg 协议，以及源码实参的名称和 spread 形状；源码声明与依赖声明共用同一映射算法。映射结果显式区分普通实参、vararg 元素、整数组、默认来源和空数组，并保留源码输入顺序；operator `set` 预留最后一个值参数也使用该过程。声明存储到参数形状的转换只传递已有信息，不另行执行命名、重复、遗漏或 vararg 规则。
-
-没有待推断参数的普通依赖调用也使用共同实参检查，约束环境此时为空；声明参数和结果类型只解析一次，缺失或不可解析的类型直接诊断，不以 `Any` 补齐签名。已有声明、receiver 和显式实参约束提供的完整形参类型直接用于表达式上下文，未添加实参约束时复用这份初始部分解。外层结果类型不用于淘汰普通候选，先按参数完成选择，再由使用位置检查结果类型；该规则与[语言规范](SCOOP-SPEC.md) 8.6 的返回类型限制一致。
-
-默认值的局部值与语句使用普通 `Body`，表达式结果、参数映射和 binder 是该正文的入口信息。读入依赖默认值时只将身份和索引映射一次，之后与当前声明共用同一默认值展开；不在每个调用点重走运输树的类型、局部值和控制流验证。lambda、匿名函数与局部函数保留原定义和捕获绑定，实际捕获表达式随每次展开替换；没有泛型参数的词法正文使用空实参列表。默认值局部值作用域保存原 callable 身份，调用方的临时变量不改变被捕获值的原定义身份。
-
-继承默认值保留从原定义参数到当前声明域的完整类型实参。每层继承按实际声明宿主的 application 组合代换，包括交换、固定和嵌套的泛型参数；默认来源的冲突比较也使用组合后的实参。再次发布时只更新默认参数归属及其 binder 映射，正文、receiver、局部值与定义位置继续属于原提供方。实际调用将该映射代入本次实参后进入共同默认值展开；不按覆写声明的参数位置重新解释原正文，也不重放未变化的正文校验。已有默认值格式能够表达此映射，无需新增 wire 字段。
-
-声明类型位置中的 callable root 按原身份查询当前与依赖声明，空实参不意味着定义必须属于当前 Cone。闭包及其捕获局部值可以属于外来普通默认值；reader 仍核对实际声明、位置和 application 连接，不能因 `NoSubstitution` 拒绝这个合法归属。
-
-捕获描述符分别保存本次读取值的来源和绑定的原定义。正常词法捕获直接绑定其来源；默认值展开改变读取位置时，绑定额外保留原 callable、默认作用域路径、局部值 selector 和定义位置。再次发布复用这些定义，不能把调用方临时变量重新解释成提供方的局部值。读入按原作用域与 selector 复用绑定，实际捕获表达式仍来自本次调用。共有 capture product 新增 field 4 表达这两种完整绑定形式，HIR interface 升至 `/41`；旧 `/40` 产物、required inventory、profile fingerprint 与缓存重建，runtime C ABI 保持。
-
-默认正文的直接引用集合与导出的正文节点一致。lambda、匿名函数和函数引用的 capture 是绑定描述符，其类型引用使用描述符保留的首次使用来源；创建点读取的局部值不作为另一棵正文表达式重复收集，不能因该读取位置与首次使用位置不同而发布多余引用。真实 receiver 和正文中的表达式仍按各自节点正常遍历，访问域检查与 reader 对完整引用集合的核对保持。
-
-发布声明的默认值所引用的词法正文加入同一正文依赖闭包；复用已收集的默认值引用集合，不只发布闭包描述符而遗漏其实现。普通默认值中的函数引用在实际展开点建立 invoke 身份，生成记录的位置属于该展开点，泛型调用点包含全部宿主实参；引用表达式仍保留默认值的原定义位置与本次求值位置。函数型适配沿普通 `FunctionCoercion` 和装箱路径执行。
-
-nominal 原声明身份在收集该声明的种类、类型参数元数与词法父声明后立即建立，先于其 self application；词法父身份直接复用已收集的原记录。它只依赖原声明位置、owner 链、种类与元数，不依赖签名解析或实例化结果。完整声明树收集完后只按各声明 arena 整理已有身份记录，import、签名约束与正文查询均消费同一结果。当前声明和依赖声明的 application 查询使用同一种原声明 ID 与完整实参，application 的缓存键不使用声明的本地 arena 索引。当前 arena 索引只由本次构建的反向表解析；object 与其 generated backing class 各保留实际种类的身份。导出直接复用已建立的身份记录，不在完成边界重新生成同一身份。
-
-struct 字段、class 存储字段和初始化字段引用均保存原 `PersistentFieldId` 与完整宿主类型；tuple 元素仍以结构位置区分。当前字段身份在实际字段确定后按需建立并复用，委托存储在初始化分析确定实际字段时建立，不为提前冻结身份而补造未完成字段。默认值替换只替换宿主类型，编解码保留同一字段引用，具体化从原字段身份映射到实际布局；成功 HIR 不保留来源专用字段引用。
-
-enum 正文引用的 variant 和 payload 字段使用原类型化身份与完整 enum application。构造、判别、payload 投影及 `when` 模式共用该引用，不区分当前与依赖声明；默认值只替换宿主类型，具体化按原 variant／field 身份取得同一完整表示。variant 与 payload 身份在变体声明收集完成后建立，后续正文分析与导出复用同一记录，不能按名称或布局回退。
-
-模式前缀与普通 qualified 类型引用共用包选择、import 分层和静态嵌套声明查询。名称结果保留原 nominal 身份或透明 alias 的完整展开类型；前者与 subject 的原声明相同即可沿用 subject 实参，后者要求完整类型相等。名称查找不为未提供实参的泛型限定名创建不完整类型，源码与依赖声明不另设模式解析入口。
-
-不可失败的 `val`／`var`、lambda 参数与 `for` 绑定在同一事务中直接生成普通声明、字段投影和已选 component 调用。字段访问、绑定及 `when` 模式从同一完整 struct application 查询声明顺序、字段身份与替换后的类型；class component 使用普通 operator 决议。成功输出不另存一份仅供互相校验的绑定形状和执行计划，不在展开时重演已完成的 callable 选择、字段范围或叶子调度。失败仍原子撤销局部值、候选状态和诊断副作用，命名模式按源码顺序求值，`..` 和 `_` 保持语言规定的跳过与调用行为。
-
-子类型、泛型约束、继承接口闭包与 Iterator application 查询复用同一已代换的直接父类型关系。查询保留完整 application 和定义域 binder；菱形路径按相同完整类型去重，不能把同一声明的不同实参合并。core 的整数、Boolean、String 表示从其真实声明取得父接口，不在查询中内置额外 conformance。继承环和按值环仍由对应的声明检查处理。
-
-类型参数的 class 上界和 interface 上界各自保留完整类型及定义位置，不按当前／依赖声明分裂记录。至多一个 class 上界及 kind／nominal bound 互斥仍由数据结构表达；诊断、访问域、成员查询、约束传播及导出从同一记录取得类型和源码顺序。参数替换不重新按来源重建另一种 bound。
-
-抽象成员的 trap stub 从原声明保留 owner 与成员名称；同一完整 application 在定义方与消费方生成的诊断常量一致，不能因导入时缩短显示名称而产生不同机器正文或 ODR definition。
-
-对外输出按消费者严格隔离为两个 IR：
-
-- **`ExportHir`**：只供下游 Cone 的 HIR 阶段消费，是 `SemanticHir` 中完整声明与必需正文的导出投影，并在结构上区分普通public/re-export lookup surface、公开owner跨Cone继承所需的protected inheritance/slot surface、以及exported generic template的hidden support closure；后两者不能枚举为普通import binding。它还包含非generic concrete声明的签名/成员/属性、导出的`const val`、non-generic typealias及作为callable接口在调用处展开的hygienic typed default template。default template节点保存已解析的kind-specific typed declaration reference及定义位置，public default不携带private/internal hidden dependency closure；前端完成可见性检查后，产物不再附加逐引用调用域覆盖证明。它不包含本Cone局部产生的concrete实例体。
-- **`LocalConcreteHir`**：只供本Cone的MIR阶段消费。它包含本Cone需要发射的全部local non-generic及fully instantiated type/function/body，并以封闭typed ref保存body实际使用的imported param-free external target；其中不允许出现type parameter、parameterized type/body、待完成的实例化请求或上游param-free implementation body。
-
-二者必须是不同的Rust输出类型，并使用互不兼容的实体id家族，例如`ExportTypeId`/`ExportFunctionId`与`ConcreteTypeId`/`ConcreteFunctionId`。禁止用同一个arena index、type alias、共享`TypeId`或运行期tag区分两侧实体。一个源码声明同时需要导出语义接口和本地实现时，HIR显式生成两个实体并保存类型化映射；不能让两个消费者读取同一节点的不同字段。
-
-`ExportHir`中的param-free导出声明不等于`LocalConcreteHir`实体：前者是跨Cone语义接口，后者是本地可执行实例。下游HIR确实需要前者来完成非generic调用、继承/接口检查、构造、重载、默认参数和const求值，但绝不能读取或重新发射origin Cone的concrete实例body；winner必须成为携带persistent origin与完整signature的external target。反之，本Cone MIR不得读取generic template；HIR必须先对实例化需求做固定点闭包、完成类型替换并生成结构完备的本地`LocalConcreteHir`实例体。
-
-所有**源码语义错误**必须在parser/HIR结束；之后的stage不再补做名称、visibility、generic inference、import或其他源代码错误处理。locator、完整DAG与cache错误由`scoop`报告，当前manifest/source discovery及显式dependency artifact集合错误由`scoopc`报告，`.slib`结构/member/capability/兼容错误由reader报告，ODR、native link与最终artifact错误由program-link报告；这些构建期错误不能伪装成HIR诊断。
-
-编译诊断以封闭的`DiagnosticSeverity::{Error, Warning}`携带severity，renderer不得从message文本猜测类别。parser恢复得到的诊断当前全部是`Error`；HIR把已提交的错误与warning保存在两个独立journal中，候选事务现有的`diagnostics.len()`基线只观察错误journal。probe只有winner整体commit时才提交其中的warning；失败候选只提交其选中的错误原因，clone-only分类probe则两者都不提交。HIR只有在错误journal为空时才输出结构完备的`ExportHir`与`LocalConcreteHir`，但warning无论多少都不阻止该输出；成功`HirOutput`另行携带按source span稳定排序的warning。warning不是语义IR，不进入任一HIR module、meta、dump、fingerprint或MIR输入；发生错误时，只报告真实已提交路径上的warning，不得泄漏被拒候选或分类probe中的warning。
-
-第5章规定的enum `when`疑似variant拼写warning在pattern完成typed resolution时产生：对每个实际提交的裸binding occurrence，若它位于`when`模式、当前递归匹配列的exact静态类型是enum且该enum没有同名variant，则该pattern仍正规化为catch-all binding，并在该identifier的精确span发出一条warning。该规则不扫描其他enum、不按大小写或相似度猜名称；已解析variant、qualified variant、`_`/`else`、非enum列及`when`之外的irrefutable binding均不发出。递归子pattern按自己的exact匹配列独立应用同一规则。
-
-HIR 在定义处完成名字、重载、可见性、默认来源、成员／槽选择及语言脱糖；开放模板允许声明作用域内的 binder，不允许残留推断变量。每个实际 generic application 确定全部实参后，通过同一声明／正文查询和具体化队列闭合调用与类型依赖，生成 `LocalConcreteHir`；普通函数使用空实参环境，来源不改变替换算法。具体化只处理类型／局部值／捕获替换、已选目标的 exact 派发及确实依赖实参的既有条件，不重新执行名称查找和重载决议。MIR不接收template、推断变量或待处理实例化需求，也不读取template后自行替换`TypeParam`。
-
-声明查询、源码可见性与机器物化是三个独立问题。查询或 arena 存在不建立发射根；根来自实际调用、构造、类型操作、导出实现和初始化等语言需求。普通声明包含 `Box<Int>`、继承／实现 `I<Int>` 或使用函数值默认参数时，按完整 application 继续闭合，不能沿用 M23-6 的 param-free/source-only gate 排除合法类型。上游普通函数、存储和初始化服务始终引用定义方实现；本次需要的泛型 application 进入当前具体化，沿原 Strong/ODR 身份交给 MIR/LIR。已验证且未变化的依赖事实直接复用，只有新实例的类型事实和新边需要计算或检查。
-
-每个`ConcreteTypeId`索引的实体都必须携带非可选的`gc_free: bool`。concrete enum实体还必须为声明顺序中的每个concrete variant携带非可选的`gc_free: bool`，enum自身的flag恒等于全部variant flag的逻辑AND。不存在“未知”的concrete类型，也不得使用`Option<bool>`、默认false、延迟回填或MIR/LIR递归字段来补齐该属性。尚未特化的generic template不是concrete type，可以在`ExportHir`中携带类型化GC-free条件，但该条件不是flag。导出的param-free concrete语义类型可在`ExportHir`中复制同样完备的属性供下游类型检查；它使用export侧id，不与本Cone的`ConcreteTypeId`共享身份。
-
-M16起，所有命名调用、成员/扩展调用、generic nominal构造、enum variant构造、operator调用和callable reference resolution共用一个HIR调用决议内核；M18把property-like `invoke`作为同一内核的新typed candidate组合。词法/receiver/import层内还要执行function-like与property-like的c-level分区。每个最终分区先做显式type-argument arity、receiver与调用形态等不依赖表达式类型的预过滤，再逐候选检查applicability并选择第一个至少含一个可应用候选的分区；每个候选独立拥有source-argument mapping、fresh inference variables、constraint set、postponed arguments及失败原因。single-candidate调用也必须进入同一可应用性管线，不能保留一条按元数直接lower的捷径。
-
-M23把import层具体化为typed binding source。无显式receiver的顺序为lexical/local → implicit `this` member → 当前文件exact import → current package → star import → core prelude → expected enum application的contextual variant fallback；显式receiver的真实member先于extension，而extension依次使用exact import → current package → star import → core prelude。相同persistent origin在同层合并为一个target并union其非空、canonical排序的`CurrentCone | DirectDependency { provider ConeIdentity, export binding id, witness hops }` source集合；不同origin保持候选。public import要求source全部是DirectDependency，菱形路径不能按first-loaded丢弃。每层仍遵循上一段的candidate-local applicability与“首个存在适用候选的层”，不得按dependency顺序、`.slib`来源或re-export路径增设tie-break。
-
-调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application与function type variance，并同时检查kind/class/interface bound；显式`_`只创建与整组省略时相同的candidate-local fresh variable。lambda、callable reference、裸enum variant（包括`None`）、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次actual inference隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete arguments。solver内部可以暂存未固定变量，但winner commit必须原子地产生全部concrete arguments、完整实参映射、coercion和唯一typed target；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出给下游补齐。
-
-普通函数、成员、混合 function-like 分区及 constructor delegation 共用同一 MSC 集合筛选。每次比较只读取完整声明 binder、映射后的声明参数类型，以及本次是否参数化、实际默认值数量和 vararg 信息；目标身份、诊断位置与提交动作留在原候选上。先按声明转发关系排除被严格支配者，再保留非参数化候选；默认值数量与 vararg 优先只作用于互相可转发的剩余集合。来源和声明种类不能另行实现这些优先规则，诊断排序及既有整数字面量默认类型偏好在共同筛选之后处理。
-
-当前与依赖泛型调用进入同一完整决议过程，按已完成的源码实参映射维护待检查输入，共用上下文依赖分类、partial constraint solver、默认类型种子顺序及 winner 提交；不能在导入路径另行组织推断。先收集不依赖期望类型的实参，再反复检查已有完整 hint 的输入；没有进展时，事务性尝试可独立推断的输入，成功后继续传播，全部失败时保留实际失败位置。宿主与 callable 参数仍分组，调用方已解析的外层 binder 可作为 hint，只有本候选尚未解出的变量需要等待。裸名称与限定名称的外来泛型 unit variant 从实际声明识别上下文需求，固定 typealias 的完整 application 不因原 owner 含 binder 而被重新视为待推断。每项成功输入只保留一份表达式和独立 sink，按原源码索引交给普通求值／参数物化；`addressOf` 保持在创建参数临时值之前解析的实际 place。模板、实例化输出与 ABI 不增加推断状态。
-
-M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。若这些temporary/sink位于`while`条件，HIR必须把它们保存在随条件重复执行的typed condition-setup区域，MIR在每次条件检查前执行该区域；不得把它提升到循环外，也不得因sink非空而拒绝普通调用或空安全脱糖。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
-
-当前声明与依赖声明的 winner 提交共用同一参数物化过程。输入是已选签名的完整形参类型、源码索引映射、各实参的 setup 语句及实际默认来源；声明存储适配只负责取得这些数据和默认正文，不重复组织求值。接收者与显式值先按源码顺序保存，默认值和 vararg 再按形参顺序产生，默认值可以读取此前已物化的参数。已经降低的内部调用保留已有求值结果，不额外创建求值临时变量。函数、成员、构造和 variant 的最终节点仍使用各自 typed 目标；指针取地址等已正规化 intrinsic 保留原 place 与既定出口。可调用性预查询沿同一可见成员和扩展候选读取真实 `operator invoke` 角色，包含本地值与捕获值的依赖类型；它只决定进入值调用决议，不以本地方法 arena 的存在决定合法性。最终适用性、访问域、infix 要求和选择仍由普通成员／扩展决议完成。
-
-命名调用中的值候选同时包含当前与依赖的属性、object 单例。按同一 import 层先选择值，再读取已选声明并探测函数值调用或 `operator invoke`；不把依赖值遗漏为未知函数，也不因其来源改变函数候选、值候选与扩展 invoke 的优先级。属性 getter 与单例初始化仍沿已有读取路径执行一次，函数值的实参数量、类型及禁止命名／spread 实参规则保持。
-
-候选的类型探测同样只执行一次共同过程：完整声明签名、源码实参映射、宿主绑定与调用上下文共同建立独立约束环境，再完成上下文固定点、完整代换和实参适配。普通函数的显式类型实参绑定 callable 参数；构造器与 variant 的显式类型实参绑定 nominal owner 参数，并从同一 nominal 的期望 application 取得等式约束。两种参数协议按实际声明种类区分，不能按当前／依赖来源区分。存储适配负责恢复原声明和签名，不自行组织另一轮推断；探测失败保留原事务及失败原因，诊断不得重新执行该候选。若既有非法声明已阻断后续表达式，失败探测保留此前的 error，不要求为同一问题再次生成级联诊断；无任何 error 的失败仍属于实现错误。构造结果的完整 application 检查、函数引用的精确签名检查及 intrinsic 的真实特殊输入沿共同约束规则处理。
-
-完整声明参数视图同时保留有序的 owner／callable binder、源码参数名、完整类型、Required／Default／Vararg 协议和原默认来源；当前 builder 与已读取声明只适配实际存储。getter／setter 的隐式参数直接来自其访问器签名，使用 Required 协议，不要求普通函数的命名参数表。实参映射、推断输入与 MSC 的声明类型从同一视图取得，不能在依赖分支另存一份按源码实参展开的 wire 类型。函数引用按既定绑定／非绑定 receiver 规则构造精确签名后，共用 owner 完整性、期望函数类型、效果限制及适用性检查；MSC 共用声明比较，引用不使用调用点的默认参数和 vararg tie-break。普通调用的整数 literal 偏好在 MSC 后统一执行，仍采用逐实参的 Pareto 比较。
-
-函数值调用同样先求值被调用的函数值，再按源码顺序求值各实参。实参降低产生的控制流、默认值或其他前置语句不能越过函数值及此前实参的求值：先收集各实参的表达式和语句，仅在后续实参确有前置语句时，将此前值保存为普通临时变量。函数值或实参来自可重绑定局部变量时也必须保存当时的值；异常继续终止后续实参与函数体执行。普通 `f(...)` 与显式 `f.invoke(...)` 共用此处理，已经完成的默认／泛型正文在具体化时保留既定顺序。
-
-struct/enum 的派生 equality 条件签名必须在继承与源码签名检查完成后、默认参数正文和 constructor 表达式 lowering 之前登记。默认参数可按普通规则选择派生 equality；生成完整应用正文由实际调用需求或公开参数自由值类型的导出需求触发，不能将其限制为普通函数 body 阶段才能使用，也不能覆盖已有的同型用户 equals。
-
-默认值lowering先登记全部export源码参数的定义输入，包含function、method、各类constructor与variant，再准备typed正文。候选参数调用形式只持有声明owner与参数位置组成的独立typed引用或已经完成的template引用，不通过尚未登记的正文arena索引推断Default/VarargDefault。winner实际省略参数时按依赖准备目标正文，始终切回目标定义文件、词法路径、receiver、类型参数及capture环境，结束后恢复调用方上下文；local default保存其真实声明点环境。继承default仍沿唯一override来源及真实类型代换取得provider。按照语言8.5.1，对正在准备的同一参数再次发生缺省展开时发出定义处环诊断；参数调用形式的查询和显式传参不触发该诊断。失败的参数不产生残缺source interface或伪造typed body，全部声明准备完成后才输出完备Export HIR。
-
-默认表达式在定义方HIR环境中完成名称解析、overload选择和类型检查，成为callable source interface中的hygienic typed template。HIR在const folding/desugaring前收集其直接绑定实体，并结构化检查`CallDomain(callable) ⊆ AccessDomain(entity)`；exported `public` default只能引用export/re-export实体，不能通过携带private/internal实体、保留未解析名称或调用方重查overload来绕过。成功结果为callable/type/property等每种实体保存真实typed目标及definition origin；前端缓存目标可访问域供继承导致调用域扩大时使用，不在每条引用重复保存owner和call domain，也不把该缓存序列化为凭证。generic function body仍可按既有规则拥有自身的private/internal typed dependency closure；该能力不扩展到default template。
-
-导出default使用`ExportDefaultExprId`及逐节点definition origin，非导出callable使用类型不兼容的`LocalDefaultExprId`；HIR内部只能通过封闭的`DefaultExprTemplateRef::{Local, Export}`把二者交给同一个实例化器，任何一类id都不得进入`LocalConcreteHir`。导出callable的参数metadata以封闭sum区分required、default template、vararg-empty与vararg-default，不用`Option<Expr>`加旁路布尔值拼出状态。template尚未对应一次具体求值，因此template类型不含可选evaluation origin；winner commit后的每个concrete expression则必须携带由不同类型组成、两个字段都不可缺失的`ConcreteExpressionOrigin { definition, evaluation }`。普通表达式的evaluation来自自身源码求值点；default实例保留template节点的definition，并统一使用发生缺省的call expression已有的evaluation。若该call也来自default实例，这一规则自然沿实例化链传播；进入独立callee或延后执行的lambda/local-function body时恢复该body自身的普通来源。
-
-默认template实例化器只在winner与完整type arguments已经确定后执行完整type substitution、前置parameter value绑定与上述通用origin构造，然后把展开结果作为调用处普通concrete expression交给统一lowering；它不得重新做名称/import/extension/overload决议，也不得依赖intrinsic registry、匹配callee identity或按expression kind建立专用分支。需要观察求值位置的语言设施统一读取所在concrete expression的evaluation origin。默认值实际展开时触发的物化能力错误同样使用该evaluation中的文件与span，不能把provider定义处的字节偏移当作consumer中的报错位置。`current_source_location`只是普通HIR intrinsic consumer之一，不是default实例化协议的一部分；definition/evaluation也不能以覆盖节点span、`Option`缺失后回退或consumer反推的方式互相冒充。
-
-本地声明与依赖声明的 `current_source_location` 均按已解析的 intrinsic kind，在 HIR 具体化时折叠为实际返回类型的 `SourceLocation` 值；依赖中的普通、泛型及默认参数调用不要求该 intrinsic 具有外部机器正文。当前源码的位置从源码文本取得，导入正文的位置直接读取同一 evaluation origin 对应的 canonical source record。函数与类型名称从该 context 引用的原声明及词法 owner 取得，随已读取的 context 缓存为普通显示数据；导入后的局部 arena 编号不参与名称恢复，显示数据也不进入持久化身份。driver 从当前请求和已读取依赖的 Cone 坐标提供文件名标签，HIR 将坐标与原 logical path 组合为语言 11.12 的 canonical semantic source path；诊断使用的 host locator 不参与这个值。此标签不参与符号身份或引用合法性，不增加 wire 字段、默认参数特例或源码重解析。
-
-默认值的定义方、发布方、原参数位置、binder mapping、definition/evaluation origin 与完整 typed 正文属于普通参数 metadata。默认值继承保留实际 provider；同一 source closure 的不同展开保持各自 owner arguments 与值作用域，不能按函数类型或名字反推身份。constructor、property、field、singleton、type 与 callable 引用各用自己的 typed id，并由依赖闭包解析实际记录。
-
-前端在定义处检查默认正文的类型、effect、数据流、局部作用域、receiver、访问域和调用合同。产物 reader 在读入时验证编码、typed 引用、owner/binder 范围和跨表关系；不能为同一正文另建 source-authority、逐类域证明、来源凭证、cursor 证明链或第二套操作语义。实例化器只做已解析正文的类型代换、参数绑定与来源映射；不同展开的实际类型关系由各自完整 IR 保证。
-
-foundation 保留需要发布的源码 local/generated identity、lexical parent、完整 binder 与定义位置。实际 object backing、adapter、derived equality 和 callable reference 使用原 typed 关系，不能用相同名称、形状或机器定义补缺。错误 provider、悬空声明、非法 owner/arity、局部值越界及引用环仍在各自明确边界拒绝。
-
-默认正文的nested callable验证按源码顺序维护词法声明作用域，direct call与local callable reference只能命中当前或外层仍有效的前置声明。同一作用域内重复声明身份拒绝，不同branch、loop body、when arm、catch/finally或独立default求值region可重复展开同一persistent声明，逐occurrence验证各自ABI。condition/guard/iterator/component的setup只与对应结果表达式共享求值region，不将声明泄漏到后续region；正文根的statement与末尾value共享作用域。不能通过全局声明集合接受前向调用或跨branch调用，也不能全局按identity去重。
-
-函数引用的source HIR必须保存其声明方完整owner type arguments，初始值按真实词法type parameter身份建立，包含未出现在函数类型或capture中的binder。默认值每次展开均逐项代换这组arguments；具体化用所得arguments确定invoke的父materialization，不能截取调用方代换表或从函数类型反推。lambda与匿名函数的显式body arguments也逐层组合代换；已经展开的descriptor不得重新从原函数binder初始化而丢弃中间映射。
-
-默认值的源码局部值作用域必须随Export HIR保留，包含真实的typed lexical root、structural path、binding、selector与definition site；导出和局部default适用同一规则。展开产生的调用方temporary拥有自己的值身份，不能替代嵌套callable捕获的定义方值身份。具体化按真实lexical materialization为所需default作用域构造值记录；前置parameter和this复用provider的同一selector身份，default内的声明保留其DefaultValue子路径，同一template的重复展开不重复声明语义值。此表只保留源码身份依据，不把template局部值注入provider的运行期body。局部函数只有自身泛型实参、词法父作用域不带实参时，其application保留`NoOwner`，捕获查询沿该关系进入`NoSubstitution`作用域，取得原绑定的值身份；该规则同样适用于默认值中的闭包值被局部泛型函数再次捕获，不要求父函数具有泛型application。
-
-词法嵌套callable仅在实际call/reference/closure creation或其body依赖请求时物化，不以source function arena中的param-free属性把未求值default的closure body单独加入发射root。命名局部函数的hidden capture parameter关系属于具体函数体，按源码descriptor的binding顺序和实际parameter local构造完整typed表；即使没有direct-call/reference使用点，已物化的body也必须携带此关系。MIR直接消费该关系，不扫描局部函数使用点来猜测ABI。LocalConcrete局部函数descriptor只描述已具体化声明；capture求值表达式由每个direct call或callable reference携带并在调用方的代换及local环境中具体化，不在共享的声明descriptor中用callee环境重放。 同一source closure在同一materialization中的多次创建共享唯一generated closure type与invoke body；MIR按typed persistent identity复用，并核对完整field identity、物理类型、函数签名和invoke target一致。每个creation仍保留自己的capture表达式和求值顺序，不能通过复用type复用某次调用的值。 具体化为每个实际创建点生成包含当前局部映射的记录；lambda、匿名函数和函数引用不能仅以原节点及类型实参缓存整条创建记录。正文、invoke 与环境类型仍按原定义和完整 materialization 复用。
-
-`LocalConcreteHir`中的函数/构造签名只保留callee执行所需的实际参数类型；每个call具有唯一concrete target、完整concrete type arguments及按形参顺序排列的全量参数表达式。命名参数、遗漏参数、source spread、default template、未物化vararg、`_`和inference variable一律不得进入`LocalConcreteHir`，因此MIR不知道也不重新实现源码调用协议。函数值调用从一开始就是函数类型元数对应的精确位置参数调用，不经过default/vararg declaration metadata。
-
-M19起primary与每个secondary constructor都是独立typed callable entity，但不能用普通`FunctionId`表示：class/struct source constructor id、带完整host type arguments的constructor application id、LocalConcrete initializer id分别使用kind-specific id家族。M17的parameter source interface、default template key与构造引用保存具体constructor id，不再用`ClassId`/`StructId`代替primary owner。primary parameter、class declared field与layout field也使用不同id；只有写`val`/`var`的primary parameter显式关联field，普通primary parameter没有field relation。constructor不声明自己的type parameter，其application只携带exact nominal owner arguments。
-
-HIR在模板定义阶段把primary与secondary一起送入M16/M17 candidate-local constructor resolution，完成duplicate signature、`this`/`super`唯一target、primary/base形态与delegation graph termination/cycle检查。class common initialization按源码顺序保存body property initializer与`init`；lowering时以typed `InitializedFieldSet`检查self/forward access，并用不能转成普通expression的`InitializingThis` capability限制receiver只做已就绪field direct read/write。失败candidate或无效declaration不得分配永久constructor application、default实例、graph edge或初始化body。generic nominal的constructor、delegation、initializer与init body在exact owner application确定后由HIR一并具体化。
-
-`LocalConcreteHir`必须把class construction表示为exact class allocation target加唯一initializer，把base/`this` delegation表示为same-receiver typed initializer direct call；terminal constructor结构上携带恰好一份primary store/common initialization，`this`-delegating constructor不能携带第二份。abstract class保留供derived `super`使用的initializer但没有合法allocation expression。struct secondary constructor是独立的typed value-returning callable，先取得delegated完整value再执行body。`InitializingThis`、field readiness、source member order、未验证delegation及“是否运行common init”的布尔flag都不得进入LocalConcrete输出。
-
-M24 的 release block 使用独立 `ExportReleaseHookId`/`ConcreteReleaseHookId`，以及只提供本 owner backing-field 读取的 `ReclaimingReceiver`。owner、词法/可见性、字段和完整展开后的操作由 HIR 按语言规范 9.1.6 检查；`ReleaseFieldRef` 已携带真实字段 identity、owner 和字段类型，LocalConcrete 中这些类型全部闭合。ReleaseValue 查询与 `gc_free` 分开，复用既有 nominal/representation/protocol 查询并缓存本次推导结果；泛型条件沿同一替换图传播，指针递归用有限类型图固定点处理，不建立通用预算或来源证明。
-
-release 的 source context 复用 owner 的 nominal context。局部值仍使用已有 definition path/selector；LocalConcrete 的 local-value materialization 使用 `CallableTemplateOwner::ReleaseHook(owner_exact_type_id)`（tag 7）与 `NoSubstitution`，不伪造 FunctionId、callable application 或初始化单元。它不改变其他 callable 的编码；禁止的 lexical callable 不增加新的 parent 身份。具体编码与 machine body 身份分工见 M24 设计 3.2、4.2。
-
-定义方在已有 NoGc effect 分析中推导普通 callable 的 `ReleaseCallability::{Unavailable, NoTransition { requirements }}`，requirements 只保存实际需要的 `RequiresReleaseValue` 参数条件。推导使用当前声明的 `TypeParamId`；共有 callable effect 沿已有 signature binder frame 编码条件的 depth/index，并在既有 binder scope 边界检查引用，不增加一种全局 binder identity。直接调用图按 SCC 传播，C/Scoop extern 函数调用、TLS、transition 或其他不合格操作使该 helper 为 Unavailable；这个结果只限制 release 调用，不改变普通 NoGc 行为，也不进入声明 identity、ABI 或 override/slot 相容性比较。当前定义和导入定义都通过已有 callable 接口查询该非可选结果。跨 Cone 非泛型 helper 只引用实际 provider 正文和导出的效果；reader 检查格式、kind 和 typed 引用，不在 IR/meta crate 重跑源码 effect 推导或要求额外访问凭证。泛型 application 在本次正常具体化中消解条件；默认值、operator/accessor、解构及 for/vararg 展开使用调用处的 release 上下文。
-
-release template 附着于共有 nominal 声明，保存完整 typed body、字段/调用引用与条件；wire 按原 nominal owner 保存，不序列化 stage-local arena ID，不增加 `PersistentReleaseHookId`。参数自由 owner 的实际 hook 由定义 Cone 发射，消费方只需其 policy 和外来引用；generic owner 的模板沿既有支持声明闭包供消费者实例化。LocalConcrete 以 `None | SynchronousGcFree { hook }` 表达完整 policy，区分本地 hook body 和实际依赖 owner，不能为外来对象伪造本地 body。仅类型用途的条件检查不新增机器物化根；实际发射的带 release policy 的 TD 必须闭合其 hook 和 registration。详情见 [M24 设计](../milestone24/DESIGN.md) 第 3 节。
-
-普通member body中的`super.method()`在HIR只收集direct base application的class member candidate，winner同时保存具体callable与强制direct证明；extension、property-like与interface default不进入候选。它可以在LocalConcrete中正规化为direct method call，但不得只保留virtual family或method name让MIR重新判断分派。
-
-M21把field/global读取统一到logical property模型。Export HIR中的每个property非可选地保存owner、name、type、read-only/read-write capability、`DeclaredVisibility`、`EffectiveLookupDomain`、可能的`SlotContractDomain`、getter/可能的setter typed ref、override/interface slot relation及互斥implementation representation；三种access类型不能互换，read-write capability也不能用`mutable + Option<setter>`表示。implementation以stored/accessor-only/delegated/const/extern-raw为外层sum；accessor-only的每个required getter/setter再使用`AccessorImplementation::{Body, AbstractSlot}`，从结构上表达interface混合default/abstract，不能用body `Option`加`is_abstract`。各分支只允许构造对应的`BackingFieldId`、`DelegateStorageId`、`InitializationUnitId`或const/native identity。property、getter、setter、backing field、delegate storage、global storage及interface accessor slot均使用不同typed id。
-
-HIR按spec 9.1.1在Option-omitted分支验证outer exact `Option`与`var`后生成普通typed `None` initializer；任何其他缺失initializer都必须落入computed/abstract/extern的合法结构或诊断。不存在late-init state、hidden bit或专用exception。stored accessor中的`field`直接绑定backing id且不进入nested closure scope；initializing receiver只能direct访问已就绪backing field，computed/delegated accessor仍不能成为绕过M19 readiness的调用路径。
-
-property read/write分别进入M16候选与M18 c-level/place管线，winner原子产生唯一getter/setter target、receiver evaluation与effect。generic extension property的type parameter只由receiver求解；M23允许generic delegated extension，并以origin property persistent id与完整exact receiver arguments形成program-wide specialization key。delegate的`provideDelegate/getValue/setValue`在声明处验证成三种独立typed role，在property定义处按普通candidate-local规则选择；每个consumer在LocalConcrete前完成template substitution，产生lazy exactly-once的effective delegate storage、root、init cell/failure slot、initializer/ensure和descriptor的完整ODR组，不保留role name、`by`节点、KProperty或反射metadata。相同specialization经不同Cone使用时必须链接为同一组地址，不能各自登记一份storage/unit。
-
-泛型扩展属性的 getter 与 setter 保留原 `PersistentPropertyAccessorId`，按 property binder 的声明顺序建立各自的 callable application。消费方使用 getter 的完整签名和现有约束求解器，仅从 receiver 静态类型选择逻辑属性并确定类型实参；该选择供读取、赋值、复合赋值和自增共用，setter 右值与 expected result 不参与重新推断。只写属性时不因借用 getter 签名而物化 getter 正文；实际使用的访问器进入原泛型正文队列，定义处绑定、独立可见性、effect 和 receiver 求值顺序保持。再次发布保存实际访问器声明及类型实参，不把扩展访问器改造成普通泛型函数或名义类型方法；此项复用已有 HIR interface 格式。
-
-M21的access domain是typed set/domain结构，不是可按枚举大小比较的visibility数字。HIR首先把每个普通`Omitted`正规化为typed Internal；override/constructor/interface member没有继承或隐式public特例，setter omission才继承property。随后分别计算owner intersection后的`EffectiveLookupDomain`、owner modality/access决定的`InheritanceDomain`和override声明承担的`SlotContractDomain`：override coverage比较最后一种，候选可见性比较第一种，abstract obligation要求slot覆盖inheritance domain，signature exposure覆盖lookup与slot的并集，各检查直接使用所需访问域。HIR再对protected receiver、public-interface contract、setter narrowing、const folding和M17 default统一执行集合包含检查；成功candidate/accessor保存实际访问关系，default/export ref直接保存typed目标与定义位置。private/internal实体不能因存在link symbol、core身份或被频繁使用而进入public Export候选，public member也不能扩大narrower owner的直接查找域；internal/private owner中的显式public override仍可合法填充public slot。`PublicSemanticSurface`只收集effective lookup为universal的显式public声明；仅通过public slot可达的实现仍保留在完整Export HIR及槽契约中，不进入普通foreign lookup接口表。entry-point检查可接受internal top-level `main`，但不把它改写成public声明。
-
-前端在名称查找、override coverage 和 signature exposure 的负责位置执行访问域检查；成功后直接保留 typed 声明引用、实际继承/override 关系及最终 lookup/slot 域。删除 `LookupAccessWitness`、`OverrideAccessWitness`、`PropertyOverrideAccessWitness`、`SignatureExposureWitness` 及仅携带这些记录的候选资格状态。后续候选物化、IR 与产物生成不复制访问域证明，不用 witness 的有无替代实际声明关系。可见性错误、protected 接收者规则、签名泄露检查和独立 setter 槽规则保持；不改变 wire、profile、runtime C ABI 或 String 表示。
-
-HIR lowering的slot检查沿用语言9.1.5：protected override仅在覆写protected root槽时继承root的protected覆盖域，不能借此收窄public槽；实现的direct lookup仍按自身owner计算。产物中的interface source schema只拥有自身role，其checked结果保留完整传递conformance集合，供祖先interface default的适用性检查，不能以不存在独立祖先role否定合法default；访问域不在reader重复重放。
-本地访问检查须把effective domain的词法可见性与成员自身的protected receiver校验分开；外层protected nested约束不能对内部class/struct/enum/interface/object的this或其他同类型receiver施加外层class继承要求。成员自身的visibility、typed声明owner及setter自身的access source决定是否执行receiver校验，不能仅凭合并后的domain中存在SubclassesOf推断。构造图重放已解析base clause时同样须进入该class/struct/object的声明owner上下文，并在结束后恢复；不能在无owner的上下文重新检查protected nested base的可见性。
-
-属性的显式setter visibility不能丢弃getter/property已经确定的slot参与方式：普通声明按setter自己的visibility与owner domain生成slot contract，override按setter自己的声明visibility生成coverage domain，再由继承检查绑定被覆盖的slot。不能直接复制getter的较宽domain，也不能以显式visibility为由把setter改成无slot的声明；private accessor仍遵守不参与继承/dispatch的规则。
-
-private accessor的函数modality在声明分配阶段正规化为Final，不能继承interface或open property的Open；其访问来源与逻辑property保持各自的真实visibility。private interface property的逻辑modality同样为Final，完整getter/setter body仍是必需条件，正规化不能把缺失body变成合法实现。public/default/abstract accessor继续使用原有interface或virtual slot规则，private setter不占getter对应的继承槽。
-
-constructor的Safety是Export HIR及LocalConcrete constructor实体的必需字段，不能从owner、调用位置或body重新推断。声明分配读取`@Unsafe`/`@Safe`，候选提交后检查所选constructor；参数default、delegation和secondary body按声明字段建立词法safety上下文，共同initialization显式使用Safe。generated零参数adapter继承目标的Safety，compiler主动构造的core exception合同仍要求Safe。public callable及独立constructor来源合同必须投影同一字段，不能把所有constructor统一写成Safe；这不改变GC effect的独立推导与验证职责。
-
-struct secondary constructor在Export及LocalConcrete的Secondary分支非可选保存已验证的GcEffect；primary值组装的内部leaf实现不等于源码`@NoGC`声明合同。声明阶段拒绝class constructor的`@NoGC`，source callable与独立constructor来源均投影真实secondary effect，MIR直接使用该字段。NoGC验证覆盖完整构造结果、参数、委托及body，并以function/class constructor/struct constructor的kind-specific typed节点统一传播GC-free实参条件；Managed wrapper也保留被调用者要求的条件，不能把constructor伪装成FunctionId或把条件扩散到宿主的其他重载。泛型递归验证消费同一完整调用图，constructor与function之间的非identity参数替换环同样在具体化前诊断。
-
-interface body中的裸名属性赋值与class body使用同一nominal成员优先级：local/capture之后，先在当前typed receiver及其继承关系中解析可访问property，再走extension/top-level层。成功结果复用显式receiver属性赋值的逻辑类型适配、setter权限与typed dispatch路径；不能因receiver是interface而跳过成员并报成未知变量。
-
-protected访问检查遍历当前nominal及其完整词法owner链，将class owner直接映射为自身，将object/companion owner沿已登记的typed backing-class关系映射为其class；explicit receiver使用其class application，相对于同一权限提供者作继承判断。HIR lowering中LexicalOwner到SubclassesOf的蕴含使用同一词法链；reader保留原typed owner，不再运行独立的访问域查询。该映射只用于subclass与protected receiver约束，词法owner/source identity继续保持原kind，不能把object改写成class声明。
-
-object type、singleton value、companion relation、published root与initialization unit使用不同typed id。M29起companion声明关联直接宿主及其binder环境，companion application非可选地携带完整宿主application；声明、参数已替换application和concrete实体分别使用对应typed identity，不以声明级object id代替全部具体实例。object复用M19 allocation/common initialization，但LocalConcrete只在完整初始化成功后产生typed publish operation。top-level runtime property/delegate和singleton各自拥有generated initializer及typed unit；HIR只对unit自有、脱糖后的initializer/delegate/base-argument/`init`body中的直接unit ref建图并诊断结构环，普通call/constructor/default/dynamic/FFI造成的re-entry交给runtime gate。LocalConcrete的每个typed initialization unit非可选地携带cycle throw target：定义core时是本Cone内部、普通managed、non-generic/non-suspend、无receiver且签名严格为`(String) -> Unit`的compiler-protocol function；ordinary Cone时是从同一trusted core artifact原子导入的对应strong external target。MIR才把ensure展开为`RunInitializer`/`Ready`/`Failed(rooted Throwable)`/`Cycle(GC-free stable path)`结果与对应CFG；Cycle先把path复制成普通managed `String`，再调用该target，LIR/runtime不得按core名称、constructor symbol或对象layout补目标。初始化内部catch、failure root及重新抛出路径可用`Any`作为不物化core `Throwable` TypeDescriptor的managed-ref carrier，但typed initialization-failure结构与runtime契约保证其中只能保存已物化的`Throwable`；它不是源码catch类型，也不能泄漏到普通值流。core exception contract仍验证编译器主动生成的零实参异常constructor，同时把cycle thrower作为独立且不可进入public prelude的必需compiler protocol。const在HIR完成visibility、依赖环和常量求值后成为普通typed value，不生成getter/storage/unit。
-
-泛型 companion 的隐藏零参数 initializer 复用共有 generic nominal initialization 模板及普通 class constructor 物化。其 constructor identity 和源位置保留在 object 的声明支持关系中，公开 constructor lookup 仍为空；源码不能显式构造 object。消费方按原 companion 声明和完整实参请求该模板，生成通常的 publish/ensure 函数、failure root 与 ODR 初始化单元；不伪造本地源码声明，也不建立第二套构造或单态化流程。
-
-interface function/property accessor按slot保存abstract/default body。HIR对每个exact owner先应用class-hierarchy实现，再选择唯一most-specific interface default；未实现与互不相关default冲突在定义处诊断。`super<I>`只接受direct superinterface上的concrete default并保存强制direct typed target。LocalConcrete/后续itable已明确为class/value implementation、interface default或adjust thunk，不保留候选集合或“以后选择default”的flag。
-
-const及静态initializer的内建整数一元/二元运算使用同一typed intrinsic声明：当前Cone查本地已验证intrinsic，导入声明从共有callable目录读取完整typed kind与GC effect，不要求也不伪造本地FunctionId。literal receiver选择仍逐个验证操作kind及实参类型，保留期望整数宽度、wrapping、比较和除零语义；generic source、普通同名函数或缺少完整intrinsic声明的候选不能成为常量执行来源。显式method/infix调用仍须验证其真实source调用合同及参数规则，不能由内建运算的能力代替。
-
-generic nominal的HIR类型只表示参数完整的exact application，class/struct/enum/interface继续使用kind-specific application id。实现/继承列表同样保存exact application；所有nominal参数固定invariant，HIR在声明/type位置拒绝`in`、`out`与`*`，并在subtyping、LUB与推导中要求同template实参逐项相等。MIR为每个实际使用的exact application建立独立单态化实体/TypeDescriptor；不得把不同实参擦除到裸template id。
-
-M14起，class/struct/enum/interface全部进入统一generic nominal单态化管线，并且每个declaration kind使用独立id家族：`ExportGenericClassId`/`ExportClassApplicationId`/`ConcreteClassId`、`ExportGenericStructId`/`ExportStructApplicationId`/`ConcreteStructId`、`ExportGenericEnumId`/`ExportEnumApplicationId`/`ConcreteEnumId`、`ExportGenericInterfaceId`/`ExportInterfaceApplicationId`/`ConcreteInterfaceId`。template、带完整exact argument的export application与fully specialized local entity三层id在Rust类型上互不兼容。禁止恢复`Type::Struct(StructId, Vec<TypeId>)`、`Type::Enum(EnumId, Vec<TypeId>)`、`Type::Interface(InterfaceId, Vec<TypeId>)`或`ClassId + Option<Vec<TypeId>>`等混合表示。每个concrete entity非可选地携带local-concrete侧kind-specific origin、全部concrete arguments及已替换的field/variant/base/parent/interface/member闭包；origin与export template/application id类型不兼容，显式映射只属于HIR concretizer。class使用ordinary/intrinsic representation sum且`gc_free=false`，struct/enum按exact payload生成完整`gc_free`与scan，interface exact application以`gc_free=false`形成独立TypeDescriptor/itable identity。class/struct/enum构造与普通调用使用同一固定点。M20起所有nominal application保持invariant；裸application、少写参数、声明点`in`/`out`及type argument中的projection/star均在HIR诊断。
-
-M20起，`ExportHir`为每个type parameter保存互斥的kind bound或结构化nominal bound set；后者以`None | One(ExportClassBoundId)`表达至多一个class bound，并携带零个或多个interface bound，每个bound保存exact application typed id与来源span。generic template中对有界receiver的调用保存typed `BoundCallableRef`；本Cone或下游Cone实例化必须把它解析为完整direct/virtual/interface信息。`LocalConcreteHir`不得含bound placeholder、未验证constraint或runtime dictionary。`ToString` / `Hash`只使用源码显式conformance；conditional equality仍由HIR证明并生成具体成员，不能把未知交给MIR。
-
-M14起，non-interface generic method使用独立的`ExportGenericMethodId`与`ExportGenericMethodApplicationId`；application结构化地携带kind-specific owner host（param-free nominal declaration或generic nominal application）与method自身实参，不能用一个无分组的type-argument Vec同时冒充两组参数，也不能假设generic method必然属于generic owner。HIR在声明处拒绝generic method的open/abstract/override/interface-slot形态；exact owner完成宿主substitution、method实参推导与全部bound检查后生成direct `ConcreteCallableId`。`LocalConcreteHir`中的每个origin非可选地保留独立的`ConcreteGenericMethodOriginId`、kind-specific `ConcreteClassId`/`ConcreteStructId`/`ConcreteEnumId` owner和非空method arguments，宿主实参只从该complete owner实体读取，不再平行保存一个可能为空或错位的Vec。generic宿主上的普通成员另有`ConcreteOwnerParameterizedMethodOriginId`，不能借方法名或owner origin代替方法自身来源。两类origin都不能表示或索引export template；HIR concretizer显式完成两侧identity映射。MIR再次建立本stage的generic free function、owner-parameterized method与generic method三组互不兼容的source id；每个instance结构化携带exact concrete owner、owner arguments与method arguments，禁止重新压平成单个Vec或用display name充当provenance。callable reference仍必须先形成单一concrete application，不能输出polymorphic closure或让MIR从expected function type补实参。
-
-param-free nominal的constructor在定义Cone完整预物化；generic nominal application只物化实际选中constructor及其委托/正文调用闭包，不能仅因类型出现便展开全部未使用重载。constructor与function进入同一正文物化固定点，先登记typed constructor application再展开正文，使普通递归复用既有实体。共同初始化中的局部callable沿真实源码constructor root和exact owner构造词法application context；该来源关系不要求物化未被调用的parent constructor正文，也不授予对它的machine-use资格。
-
-M23的导入成员复用共有持久 callable identity 与已有 template/application handle，不复制到本地源码声明 arena。推断分别使用 owner 与 callable 参数组：owner 实参由接收者继承闭包中的实际声明 application 固定，显式列表仅约束 method 参数。最具体候选比较继续按声明保留两组参数，不使用当前调用的推断结果。导入成员 application 非可选保存完整 owner type 和 method 自身实参；正文替换才临时生成有序参数列表。具体化继续使用现有 kind-specific `MethodOwner`、`CallableApplicationKey` 与 method dispatch，泛型宿主上的虚方法和接口方法不因消费方实例化而变为 direct。共享模板再次导出保留普通调用和强制 `super` 的区别；派发表可引用原普通外来定义或当前生成的具体方法，抽象方法沿现有 trap 路径。
-
-导入 protected 访问按原类型化源码 nominal owner 检查，普通声明与 generic template 共用同一继承区域，不要求先有 machine exact type。声明类与词法访问类的关系沿实际声明和父类引用查询；显式 receiver 仍必须是提供该词法访问上下文的类或其子类。构造器、方法和 setter 使用同一规则，setter 保留自身可见性；protected override 的槽覆盖域继续锚定原声明，泛型实参的替换与不变性由正常类型检查处理，不把不同 application 的类型关系擦除为相等。
-
-访问域及 override coverage 在 HIR lowering 完成；产物保留原声明的 visibility、typed nominal owner、slot identity 和所选实现引用，不另存可从这些声明推导的 domain，也不在 reader 重放 protected receiver 或可见性集合包含检查。`InheritanceSlotContractV1` 的重复 domain field 5 与 owner field 2 退役且不复用，field 1、3、4、6、7 保持原义；`hir/cross-cone-type-semantics` 使用 `/11`，required inventory、profile 和 fingerprint 同步，旧产物与缓存需重建。reader 继续检查声明归属、源引用、slot/signature/effect、abstract target modality 及实现继承路径；只有测试使用的 protected 访问证明 API 随重复 domain 通道删除，不建立替代证明表。
-
-普通类继承泛型 application 时，其自身成员仍使用该普通声明的 exact receiver 和实际 Strong 定义。MIR callable 的 receiver 检查沿原 typed owner 与完整签名连接；已有共有声明和实际 MIR 类型保证实体存在，不能额外要求它出现在只负责非泛型继承闭包的旧 HIR inheritance 清单中。泛型父类的表示、继承边及 ODR 成员仍由实际 application 的既有 MIR/LIR 数据提供。
-
-泛型抽象成员从共有声明和已验证 foundation 的原 definition origin 取得完整签名，消费方按实际宿主 binder 建立 receiver 与参数局部值，复用本地抽象方法的具体化和 trap lowering；共有接口仍不为抽象声明生产执行正文。抽象 accessor 的隐式 setter 参数沿用已有 accessor 声明位置，不要求普通命名参数协议，也不将这个源码参数标为无来源的 synthetic local。接口默认实现使用真实模板，继承与抽象 override 保留原 source dispatch selection；MIR 对调用根与接口表共同引用的同一具体方法只建立一个函数和实例记录。导入 struct/enum 在完成字段、variant 和父接口后，与 class 共用接口实现解析，并把完整 conformance 交给已有装箱、adjust thunk 与接口表 lowering；不得按名字补造实现或另建泛型派发表。
-
-HIR concretizer必须在模板图上分别维护nominal/callable/predicate的typed instantiation state。generic callable递归SCC中，每个环组合后的owner+callable参数替换必须为identity；合法普通递归在exact concrete key处复用已经intern的`InProgress`实体，非identity环作为polymorphic recursion在HIR诊断，不得凭深度、实例数或超时截断。`is`/`as`/`as?`目标必须引用参数完整的exact nominal application及其TypeDescriptor，不能擦除type argument或制造template-only通配descriptor。
-
-M14还允许registry批准的core struct/class使用`@Intrinsic`省略源码representation。registry声明同时区分fixed representation与generic representation family，并完整规定declaration kind、type-parameter arity/bound及声明contract；全部参数固定invariant。HIR必须把这类声明正规化为封闭typed `IntrinsicTypeKind`，把每个generic intrinsic application正规化为携带完整concrete参数的typed family representation，并在`ExportHir`/`LocalConcreteHir`各自的id家族中显式携带；不能表示为空字段普通类型。除下述 `Ptr`、数组转换与 M26 按长度数组构造的封闭入口外，implements、成员与用户可见constructor都来自源码语义表面；literal、boxing、allocation等hidden construction entry使用独立compiler entity，不进入overload候选。`Array<T>`/`MutableArray<T>`使用普通generic class application identity，旧的独立built-in array type identity必须删除；数组专用expression可以保留，但直接引用concrete class及element type。intrinsic kind/application同时确定GC-free/representation classifier所需的语义输入，具体layout仍由LIR按target生成。M22把`Ptr<T>`/`FunPtr<F>`分别登记为以exact GC-free value pointee type/ordinary function type参数化的data/code-pointer representation family；二者都没有普通field或primary constructor，不能进入普通字段访问、解构或copy-update路径。`core_ptr`的源码kind bound之外另有typed `RequiresGcFreePointee` application predicate：Export template保存并沿generic调用/type构造传播，LocalConcrete application必须已证明，不能以`T : value`或默认bool代替。`Ptr`另有registry封闭规定的`@NoGC @Unsafe` nonzero-ULong construction entry，winner立即正规化为typed `PtrFromNonZeroULong`；可证明的零值诊断且失败candidate不产生节点。`FunPtr`没有任何源码construction entry，任意`FunPtr<F>(...)`都不能进入成功HIR。两者内部全零pointer只由对应`Option.None`等niche lowering产生，不是裸pointer值。
-
-M22把整数intrinsic fixed representation统一扩为`Integer { signedness, width }`封闭族；每个实体仍是core nominal struct identity，不把表示kind当作源码type id。八个canonical声明固定为`Int8`/`Int16`/`Int`/`Long`的i8/i16/i32/i64与`UInt8`/`UInt16`/`UInt`/`ULong`的u8/u16/u32/u64。`Byte = Int8`、`Short = Int16`、`Int32 = Int`、`Int64 = Long`及`UByte = UInt8`、`UShort = UInt16`、`UInt32 = UInt`、`UInt64 = ULong`均通过普通transparent alias解析到对应唯一identity；`Int`/`UInt`不再是64位type或`Long`/`ULong`的alias。alias声明使用与type id不同的`ExportTypeAliasId`/resolver内`SourceTypeAliasId`，保存 visibility、origin 与 typed target，M21 signature exposure 在前端直接检查；展开图在HIR检查无环，完整target type tree的access domain必须覆盖alias domain，展开后的签名参与重复声明检查。alias不进入LocalConcrete type arena、layout、RTTI或mangling。真实跨Cone序列化由M23消费Export接口。
-
-integer intrinsic registry把每个源码name一对一正规化为`IntegerType(IntegerKind)`、`IntegerOperation::{NoGc { kind, operation: NoGcIntegerOperation }, Managed { kind, operation: IntegerDivRem }}`或`IntegerConversion { source, target_kind }`；不同variant直接表达封闭的operation/effect合同，不能表达operation/effect互相矛盾的状态。八个kind的登记key固定为`int8`/`int16`/`int`/`long`与`uint8`/`uint16`/`uint`/`ulong`：type、member与conversion name分别使用`core_<key>`、`<key>_<operation>`、`<source-key>_to_<target-key>`。完整operation集合为全kind的unary-plus/minus、inc/dec、add/sub/mul/div/rem、compare-to/equals、and/or/xor/inv/shl/shr与signed-only ushr；`IntegerDivRem`只含div/rem，`NoGcIntegerOperation`含其余项，全部conversion也只能产生NoGc运算。registry同时验证零/一参数、owner exact operand/result、shift的`Long`（I64）count、compare-to的`Long`（I64）结果、equals的Boolean结果及源码`@NoGC` presence与variant精确一致。`core_int`/`int_*`从M22起表示i32 `Int`，i64使用独立`core_long`/`long_*`；unsigned对应为表示u32 `UInt`的`core_uint`/`uint_*`与表示u64 `ULong`的`core_ulong`/`ulong_*`。任何kind都不能复用另一kind的provider。provider唯一性在结构化key与对应唯一源码name上验证，LocalConcrete以后不得保留annotation字符串或未类型化effect。
-
-整数 intrinsic 的实参类型失败保留候选探测已经得到的实际类型和期望类型。本地与依赖声明共用显式整数转换提示，包括宽度、符号性与固定 Long shift count 的不匹配；普通用户重载不附加 primitive integer 提示。诊断只读取原探测结果及已有 literal 定型信息，不为恢复提示再次降低表达式。
-
-integer literal在M16 solver内使用candidate私有`IntegerLiteralConstraint`，同时覆盖argument与receiver定型；receiver probe只枚举total `IntegerTypeCore`的八个owner，并只对已验证integer intrinsic或普通core range member继续普通member resolution，不能全局扫描用户/extension member。winner commit原子产生exact nominal type与HIR crate自有的`HirIntegerConstant::{Signed8(u8), Signed16(u16), Signed32(u32), Signed64(u64), Unsigned8(u8), Unsigned16(u16), Unsigned32(u32), Unsigned64(u64)}`之一。raw payload恰为W位且kind由variant派生，不能用平行`kind + u64 bits`表示高位/width可矛盾状态；nominal owner由total `IntegerTypeCore` map取得。无exact expected type时，无后缀literal按`Int`（i32）→`Long`（i64）选择首个可表示type，`u`/`U`按`UInt`（u32）→`ULong`（u64）选择；`l`/`L`只能提交为`Long`，`uL`/`UL`等组合只能提交为`ULong`。带exact expected type的无后缀或单`u`字面量仍可提交到同符号族的其他可表示固定宽type。由magnitude/suffix得到的default exact kind tie-break只在普通MSC及M17附加规则仍并列后运行；失败candidate不得写入literal/type/application arena。literal constraint、radix和suffix不进入`LocalConcreteHir`。const folding输出同一HIR typed constant，并与运行期wrapping/division/shift规则共享语义实现或测试向量；HIR/MIR/LIR中的const、annotation/default metadata、global/static initializer和constant image必须分别携带各自IR crate拥有、由相邻lowering穷尽转写的同构typed constant，不能跨crate type-alias或保留任一裸`i64`旁路。
-
-M22的source-visible宽度迁移在HIR core-contract验证中是封闭inventory：Array的size/index、`Hash.hash()`、所有integer及String的`compareTo`、integer shift count、`SourceLocation.line/column`、`@CLayout(aligned/packed)`参数及foreign callback `contextIndex`均必须是`Long`（I64）；`Ptr(raw: ULong)`及`toULong(): ULong`与`sizeOf`/`alignOf`使用`ULong`，pointer load/store/plus/minus的元素offset使用`Long`。ROADMAP排在M26的String length/index/slice尚未进入M22实现子集；M26增加这些surface时必须直接使用`Long`并把它们加入同一封闭core-contract inventory，不得先引入`Int`过渡签名。这些是为保留64位API语义做的源码类型迁移，不表示同宽的compiler/runtime metadata或raw pointer carrier获得`Long`/`ULong`身份。HIR IR crate自己拥有封闭`HirCLayoutValue::{Natural, A1, A2, A4, A8, A16}`与`HirCLayoutContract { aligned: HirCLayoutValue, packed: HirCLayoutValue }`；annotation的`Long`常量在进入成功HIR时立即正规化为该sum，不能把任意`u8/u64`对齐值交给下游。`LocalConcreteHir`中的compiler-owned static storage同样使用HIR自有的`HirStaticInitialState::{ZeroedForRuntimeUnit, EncodedStaticValue { payload: HirConstantImage }}`；`HirConstantImage`的integer leaf使用本节的`HirIntegerConstant`，pointer null携带provenance，aggregate leaf携带HIR exact type/id。Export HIR中需要传播的C-layout contract也只引用HIR侧类型，不能引用MIR/LIR crate的同名类型。
-
-core 定义方在 HIR 检查 `IterationCore` 的 Iterator template 与 ordinary `next` slot，Option 关系复用唯一的 `OptionCore`；消费方使用已读取的实际协议角色和共有 nominal 声明，不复制外来声明到本地 arena。source `for` 先按普通 operator 规则选择唯一 `iterator()`，再沿返回值完整的 base／interface／bound 闭包取得恰好一个 exact `Iterator<T>` application；相同 diamond application 去重，不同 application 报错，协议失败不回退到其他 operator。宿主来自本地或依赖不改变这套规则。HIR lowering 在同一事务中保存 source、iterator 返回值及其接口适配结果各一次，以实际 core slot 构造 `next` 调用，并以既有 `IsSome`／不抛异常的 payload unwrap 节点形成每轮条件与元素值；所有表达式保留完整类型和实际 callable／协议身份。值与引用的泛型适配复用普通 Box／ReferenceUpcast，concretization 按实际类型选择表示。binding pattern 完成不可失败性检查后与循环一起展开为普通 typed statement，Export HIR 与共有正文不再保留专用 For 节点、conformance witness 或 Some／None 关系副本。每个循环分配不可跨 callable 的 typed `LoopId`，Break／Continue 引用该目标；进入 lambda、匿名函数或局部函数时重置 loop stack。reader 检查既有语句的编码、类型引用与控制结构，不重放前端协议或名称检查。
-
-val/var、lambda与for共享由 HIR crate 拥有的 typed `IrrefutableBindingPlan`，均由 HIR lowering 构造并在提交 Export HIR 前展开为普通 typed statement。泛型正文、默认值和再次发布直接使用相同的共有语句表示；concretization 只映射既有 typed ref，MIR 不接收 source plan。除`_`及内建`Unit` literal写法外，binding位置的普通裸标识符直接形成新binding，不查询subject enum、import或既有value；`Unit`/`()`仍是literal并在binding plan中拒绝。显式`E.V`、`V()`、`V(...)`或`V { ... }`等shape只有按subject exact enum解析成功时才作为refutable variant拒绝，解析为struct的同形pattern继续按积类型处理。每个plan原子保存一个typed subject、immutable subject/投影/component temporaries、声明序完整field shape mapping、源码序depth-first runtime actions、typed component winner与叶binding mutability；没有投影、component或后续action的单一根binding允许把subject storage与该叶binding合并，这不改变求值次数、mutability或ABI。class component只通过M18 typed `Component { index }` role，写出的N个位置精确解析`component1..N`且不接受rest。lambda的一个composite pattern仍是一个logical source/function-type parameter，并只对应一个typed ABI classification entry；不得按叶binding flatten，物理`ElidedZst`/`Direct`/`Indirect`以及closure environment/suspend continuation保持独立。component抛出时跳过后续action但不回滚既有外部副作用；挂起前由普通coroutine liveness保存恢复后仍活跃的subject与已完成temporary，不为已经dead的wildcard/投影结果增加hidden keepalive；正常恢复后保存本次结果再继续，异常恢复等价于原call点throw并跳过后续action。plan构造的名称、field、component、effect与type检查在同一事务中完成，成功只提交到紧邻拥有者；嵌套于overload candidate的lambda plan保持candidate-private直到外层winner，失败只保留该路径选定的稳定诊断并回滚全部暂存实体。
-
-match pattern另行正规化字段/rest并进入递归constructor matrix。parser在binding/match位置都保留同一完整pattern syntax，二者只在结合subject type后的HIR分类不同。`Unit`/`()`优先形成内建Unit literal；其他enum subject裸名再查询同名variant：unit variant形成constructor，payload variant缺少显式shape时报错，仅名称未命中才形成带warning的catch-all binding，enum同名`Unit` variant必须限定或写出payload shape。字段shorthand精确等价于`field: field`，展开后的RHS始终重新执行所在上下文的完整分类；因此binding中的`{ Unit }`也按Unit literal拒绝而不创建binding，须写`Unit: value`，match则在相同Unit特例之后才执行其他名称的variant-first分类。struct与enum payload字段分别使用不可混用的checked field ref，声明序完整shape vector与源码序runtime action list共享ref而不共享裸index。constructor至少区分enum variant、Boolean、Unit、tuple/struct product、fixed-integer literal partition、open String literal与wildcard。integer partition以u128等能表达`2^64`的内部cardinality和去重singleton/interval表示`OtherInteger`是否有实例，不能枚举值域或无条件要求wildcard；negative literal在subject expected kind下复用普通literal commit/unary-minus折叠。guard行不贡献coverage；成功检查产出missing-witness-free proof与typed decision plan。只有proof允许`Impossible` default edge，不能按最后arm或variant名称计数。
-
-source CopyUpdate与contextual bare variant分别使用事务式typed plan/candidate。CopyUpdate先lower base并解析其exact type；若不是具有声明字段的struct，特别是任何enum，则在建立字段candidate、lower或求值RHS、以及commit plan之前产生稳定诊断并退出。合法struct winner把base按值保存到不可变typed temporary；成功plan原子保存exact struct application、经definition检查的`AppliedStructFieldRef`、源码顺序RHS及声明顺序重建mapping。winner/typecheck整体commit后、Export HIR提交前只展开为普通typed field projection与compiler-only raw `StructConstruct`，不经过任何源码constructor、initializer或default，也不产生`VariantTest`、`VariantPayloadProject`、`VariantConstruct`或compiler-generated throw。Export→LocalConcrete只穷尽具体化这些struct field ref；LocalConcrete拥有自己的checked concrete ref，且不包含CopyUpdate、字段字符串、Option短名、物理tag假设或待定expected type。MIR不得重新选择struct或字段。
-
-M22同时封闭全部compiler-owned enum producer identity。Export HIR的variant constructor parameter owner、nominal constructor source及default source owner保存经`EnumDecl`检查的declaration-local variant ref；需要exact generic application的`VariantConstruct`与`HirConstantImage::EnumUnit`保存applied variant ref。LocalConcrete、MIR与LIR各自拥有只能由本stage enum definition store检查构造的variant/field ref，相邻lowering逐variant映射，不能平行携带enum id与裸ordinal。Export/Concrete/MIR `OptionCore`原子保存Some payload field ref与None variant ref，并在各stage自行证明exact-two、单一type argument与specialized payload type，module/enum definition不再保留另一套`option_variants` pair。MIR enum definition保存该单态实例的canonical type arguments；structured MIR与CFG MIR的`VariantConstruct`以及LIR `EnumWrap`直接携带stage-local checked variant ref，各自边界validator检查完整result enum type（含arguments）、payload arity与逐字段exact type，codegen在统一LIR validation门完成检查后才发射。`HirConstantImage`/`MirConstantImage`/`LirConstantImage`的unit enum leaf同样携带对应stage的checked variant ref；MIR与codegen module validation在发射前按global exact type递归验证aggregate leaf、ref owner及payloadless约束。
-
-foreign callback同属该封闭producer集合。HIR core-contract验证必须一次性把`Reusable`/`OneShot` mode、`Registered`/`Active`/`Completed`/`Failed` state，以及`Option<Throwable>`的Some payload/None关系固化为exact checked variant/field refs；registration保存所选mode ref并按core中这两个ref比较，不能读取local ordinal。LocalConcrete、MIR与LIR family逐stage重建并原子保存mode/state/failure全部ref，bridge与operation只引用该family及其中已验证的身份。runtime ABI的mode/state整数是非nominal wire code：codegen只能通过family中角色到variant的封闭映射把mode ref编码为C值，或把state C值穷尽解码为对应LIR variant；未知state code必须进入fatal/trap路径，禁止把任意`i32`直接写成语言enum tag。failure结果只可使用同family验证的managed-reference `Option<Throwable>` payload/null关系，不得按nullable形状或字段零号重新猜测。
-
-compiler-generated `CoroutineStep<R>`与frame `CoroutineSlot<T>` metadata分别保存完整的`Completed` payload field/`Suspended` variant和`Value` payload field/`Empty` variant typed identity；所有生成expression从metadata accessor取得ref。为迁移兼容保留的coroutine `EnumTag`/`EnumField` reader仍是表示相关内部读取，但其ordinal只能由上述typed metadata accessor导出，producer不能写死`0`/`1`，也不能据名称或默认顺序重建identity。这个兼容reader不改变`VariantPayloadProject`必须由同stable value/variant test真边支配的验证规则。
-
-M22的普通range core源码surface包含四个独立nominal identity：`IntRange`、`UIntRange`、`LongRange`与`ULongRange`，后两者不得作为前两者的transparent alias。`Int8`/`Int16`/`Int`的range操作形成`IntRange`，`Long`形成`LongRange`；unsigned对应分别形成`UIntRange`与`ULongRange`。每个range/iterator计数器使用其element exact integer type，HIR不能在`Int`降为i32后仍把64位endpoint投影到`IntRange`。这些声明不建立compiler `RangeCore`、专用HIR/MIR/LIR节点或按type name分支；它们只经普通源码member、class、Iterator conformance与异常路径进入既有pipeline。
-
-此外归属 HIR 的语义工作：
-
-- 普通依赖模式中，`vararg` 参数和数组字面量隐式引入的 Array application 与显式泛型应用使用同一能力边界。当前 M23-6 未开放跨 Cone generic/ODR 物化，缺少可用的本地数组声明表示时，必须在 `vararg` 关键字或完整数组字面量处报告 `SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED`，不能跳过入口检查后访问不存在的 intrinsic arena、产生 panic 或补造类型。定义侧已有完整数组声明的正常解析保持；本条不改变数组语言语义、runtime ABI 或 M23-7 的范围。
-- 字符串插值脱糖（spec 6.2）、`?.`/`?:`脱糖（spec 7.3）、完整operator/infix及只求值一次的place展开（spec 9.3）、struct copy update（spec 4.5）与`for`（spec 4.6、8.7、11.8）展开等。安全方法调用的实参/default sink必须只位于`Some`分支；若callee返回`Option<R>`不得展平为单层Option。复合赋值与自增/自减先产生包含typed read/write能力的临时place plan，再正规化为普通call/assignment；MIR不能接收source operator token、候选、copy-update字段名或待重放operand。
-- 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 managed callable reference 都有独立的类型化实体 id。AST 的 `::name` / `receiver::name` 保持中性的函数声明引用表达式，不提前编码 managed/native 运行时类别；HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析，再由期望类型类别直接构造 managed callable reference 或 `FunctionAddress`，不能先构造前者再转换为后者。capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针。
-- 所有成员方法/计算属性 getter 的 `this` 及扩展函数的 extension receiver，在 HIR 中都是隐含的、不可重新绑定的按值参数（spec 3.3），不得用指向调用方 binding 的 place 表示其语义。value receiver 复制完整值，ref receiver 复制 ref value；后者的 HIR 类型仍是完整 ref type，不降级成 raw pointer。捕获 `this` 时捕获的就是该参数值；对 value-type `this` 执行 `addressOf(this)` 则对该 method activation 内物化的私有副本取址。
-- 函数值调用解析为独立的 callable-value call target；非函数值的任意表达式调用与property-like name call则选择唯一typed `operator invoke`并正规化为普通成员/extension call，两者不得混为“看名称像invoke”的分支或递归套用invoke convention。命名调用、函数声明引用表达式的 managed resolution 与 `FunPtr` native-address contextual resolution 是不同的决议入口。没有期望类型时只允许进入 managed 分支；只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能在明确的 `FunPtr<F>` 期望类型下直接解析为 `FunctionAddress`，普通函数值之间的型变转换则保留为显式 typed coercion。
-- 在 callable 签名、调用目标与 override / interface 实现关系中保留 `suspend` 标志；以显式、可嵌套的上下文状态检查挂起调用只出现在挂起函数或已登记的协程构建器中，不能把“当前无函数”当作默认允许。进入顶层属性、object/companion、实例属性、delegate、`init`、构造函数/构造委托及普通属性访问器等声明自身拥有的初始化/访问体时，必须压入带原因的 forbidden context；离开后恢复调用者上下文，所以 suspend caller 的显式构造实参仍可挂起。MIR 不为这些初始化入口或属性访问器生成 frame / continuation ABI。
-- 完成FFI注解的目标与共存检查：`@Extern` function必须是top-level、non-generic、non-suspend且无body；member/local、generic或suspend extern无论`abi`取值为何都在HIR声明检查报编译错误，不能让多个concrete ABI共用一个native symbol。函数声明引用表达式的`FunPtr` contextual resolution同样拒绝挂起函数及一切只能产生managed closure的形态。每个合法extern声明在同一步产生target-independent `SourceNativeExternalContract`，非可选地保存解析后的symbol bytes、逻辑lib/default-namespace、function/data/TLS与mutability、C/Scoop ABI、normalized calling convention、alias展开后的完整source signature和definition origin；Scoop ABI function还必须由已经完成共存/目标验证的source annotation构造独立`GcEffect`：无`@NoGC`时为`Managed`，显式合法`@NoGC`时为`NoGc`。该轴与普通/挂起function effect正交，MIR/LIR不得再从signature shape或callsite反推。`HirOutput`以独立`DeclaredNativeExternalContractSet`保存当前Cone全集，public/re-export binding只携带指向原contract的typed ref。该检查必须发生在单态化、closure转换、协程变换及extern符号发射之前。
-- FFI 类型检查必须按 ABI 分流：`classify_c_ffi_type` 只接受具有稳定 C 表示的 GC-free 类型；`classify_scoop_abi_type` 复用普通 Scoop typed ABI，并允许规范支持的 direct ref。`String` 等 ref出现在 C ABI 是诊断，出现在 Scoop ABI 不能被偷偷改写为 `PinnedPtr`、handle或 byte storage；两种 classifier及 `is_gc_free` 使用不同缓存/结果类型，不能合并成一个布尔值。extern global 只进入 C data ABI 分支，不能伪装成 Scoop ABI direct call。
-- 每个fully concrete value type在HIR输出非可选`ZstStatus::{ZeroSized, NonZero}`；`ZeroSized`只可由`Unit`或元素/字段全部为ZST的ordinary tuple/struct产生，enum沿用现有非零representation，并同时证明`gc_free == true`。两个status都不允许下游从“字段为空”或`size`默认值重算。HIR即使知道结果为ZST也必须保留构造/call/getter/RHS/array-element求值；C-FFI source-safety classifier只接受`Unit`作为void result，拒绝其他ZST C参数/result/global、空或含ZST字段的`@CLayout`，并仅把`Ptr<Unit>`作为`void *`例外；它不做target register分类。generic `@CLayout`的字段若依赖binder，Export HIR必须保存typed `CLayoutFieldRequirement::CFieldSafeAndNonZst { signature_type: SignatureTypeRef, declaration_field_path }`；provider只立即拒绝无字段或不依赖binder且已失败的声明，consumer在每个fully concrete application替换后重放同一predicate并在concretization点诊断，不能只导出一个已丢失条件的`is_c_ffi_safe`布尔值。
-- M13 的 managed callback registration是独立的类型化决议入口，不复用 `FunPtr` native-address resolution：HIR验证唯一`ForeignCallbackCore`，并仅在该core contract内部允许其deferred callback-signature参数`F`出现在`FunPtr<F>`字段/辅助签名；每个实际应用仍要求native函数类型显式、ordinary、非suspend且完全具体化，不形成通用`function` kind bound。`contextIndex: Long`和`Reusable`/`OneShot` mode必须为编译期常量，context index还必须非负且可索引该native signature，被选参数精确为`Ptr<Unit>`，全部native参数/返回值C-FFI-safe。删除context参数后得到的ordinary concrete `FunctionTypeId`是closure的真实expected type；core声明中的`callback: Any`不产生装箱。HIR以`PersistentCallbackRegistrationId`标识允许含binder的source conversion site；一次fully concrete materialization另以`PersistentCallbackApplicationId = { registration, CallableMaterializationContext }`标识，binder-free site才可使用`NoSubstitution`，普通generic callable与generic delegated initializer/ensure分别使用`Application`与`InitializationApplication`。registration/application不能互换，也不能把closure改写成`FunPtr`、`Ptr<Unit>`或无类型runtime call。 导入的 `ForeignCallback` 构造同样按已有 core protocol 的原 nominal id 拒绝，并在尝试构造参数推断前发出构造限制诊断；别名或限定名称不改变此规则，普通同名用户类型不受影响。
-- `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；唯一的 call 例外是通过 typed integer intrinsic registry 精确解析到 representation-level `NoGcIntegerOperation`、`ManagedIntegerDivRem` 或 integer conversion 的封闭整数常量运算。该入口按 exact callable identity 与 effect-specific target 区分，不按源码名称回退；其参数与结果保留 exact integer kind，常量 `div`/`rem` 除零在定义处诊断，其余结果与普通执行的 wrapping/边界语义相同。
-- 执行target-aware组合式控制流分析，结果为`ControlOutcome::{Fallthrough, Return, Throw, Break(LoopId), Continue(LoopId)}`集合而非bool。sequence只向后传Fallthrough，分支取union，每个loop消费自己的Break/Continue，finally只有实际离开当前finally的新outcome才替换旧outcome；据此同时检查非Unit callable无Fallthrough、分支结果合并与后续可达性（spec第8章）。该HIR分析sum不改变M25异常表示：Throw在MIR仍沿typed unwind edge而不进入normal `PendingTransfer`。
-- 按上述M16/M17、M18及M19契约完成候选独立的调用/构造/委托决议、property-like c-level分区、统一的默认template调用处实例化、vararg物化与源码求值顺序；为所有concrete expression及compiler-generated allocation/field-store/delegation edge完备地产生definition/evaluation origin，source-sensitive设施只通过普通expression lowering读取evaluation origin（spec 8.5、8.6、9.1、9.3）。
-- 装箱/拆箱的插入（spec 4.4.4 的 O(1) 规则）。
-- 以递归pattern matrix完成`when`穷尽性与稳定missing witness，并输出保持源码first-match/guard顺序的typed decision plan（spec第5章）。
-
-M23-6 只为已开放的 param-free 机器使用产生完整依赖。generic 默认值保留完整源码 typed 正文与定义环境，不因 metadata 存在而提前获得 M23-7 物化能力。语言协议应用按实际声明 identity 和完整实参分类；ordinary nominal、成员、构造及字段从真实 provider 的共有声明查询，类型代换复用前端已有算法。删除仅为 source-authority 服务的 profile 凭证、类型/值/callable 域绑定组合与重复来源投影。
+实际依赖分为 lookup observations 与 committed uses。前者包括空查找、不适用候选、star surface 和 re-export；后者才形成 MIR/LIR 的 callable、类型、布局与 native 需求。未展开默认值和未物化模板不产生机器调用。
 
 ### 2.3 MIR
 
-只接收**本Cone**的`LocalConcreteHir`以及由HIR `CrossConeUseSet`选出的**上游Cone MIR meta**（见下）。其输入类型签名不得接受`ExportHir`或未筛选的`.slib`reader结果，负责：
+MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。
 
-- 为HIR已经生成的每个concrete function/type建立MIR实体并做name mangling；MIR不执行generic type substitution，不接受`TypeParam`，也不从template生成实例体。
-- 每个MIR expression（包括desugared及MIR synthetic节点）直接携带非可选`MirTypeId`；创建节点与填入类型是同一操作。LIR只能消费该类型，不得按expected/context、operand、使用点或目标storage反向重建expression type。
-- 原样传播`LocalConcreteHir`中每个concrete type及enum variant的非可选`gc_free` flag。MIR自身创建closure/frame/adapter等synthetic concrete type时，创建该实体的同一操作必须同时生成完整flag；不能先留下缺失值再由全模块扫描补齐。后续enum布局、NoGC边界与FFI classifier消费这些已定稿flag，不得分别重做一套“是否间接含ref”的递归判断。
-- MIR同样原样传播非可选`ZstStatus`。ZST value node仍携带exact `MirTypeId`并保留其producer CFG/effect，只允许删除payload copy/load/store；ZST constructor、argument、assignment、MutableArray set RHS与spread的求值顺序不可因“没有结果bytes”消失。boxing仍是一次普通managed allocation；address-taken parameter/local/`this`产生独立place需求，而不是把所有ZST binding折成同一空值地址。
-- 为每个call标注direct/virtual/interface typed target；target已经引用完整concrete callable/slot id，并以封闭local/external target ref携带完整signature与persistent origin，MIR不重新运行overload或generic inference，也不以symbol字符串代替缺失external callable。
-- M19的class construction必须替换旧的flattened-constructor捷径：先对exact concrete class分配一次并建立initializing receiver root，再direct调用HIR指定的`Unit` initializer；base / `this` initializer以同一receiver direct调用，不分配、不改写最派生TypeDescriptor。primary/body property使用普通typed field store，base-before-derived、common sequence一次及secondary body内到外顺序已经由LocalConcrete结构给出，MIR不得递归拼接base argument/field或按constructor symbol重建。任一allocation/call后只使用relocated receiver；异常路径不产生construction result，失败对象由普通可达性回收。
-- M24 为当前实际物化的 hook 建立独立 typed arena；正文复用普通 MIR CFG 存储，没有普通参数，唯一隐含输入是后端提供的 runtime 私有 `RawObjectStart`。`ReleaseFieldLoad` 使用 typed field；其余数值、值聚合、raw pointer、静态调用和 CFG lowering 复用共有实现。MIR 输出边界复用既有 CFG/值操作检查，再检查本次 hook 的字段 owner、NoGc/C 目标和受限操作，排除 managed receiver、managed call、异常边、barrier、throw/suspend、root 或 transition；不重跑 HIR 的 ReleaseValue/NoTransition 推导。所有本地/外来构造共用的 `ClassNew` 正常结果路径在 initializer 返回并 reload receiver 后生成一次 `PublishReleaseReady { owner, object }`；其 owner 由完整 exact class policy 得到，不要求消费方拥有外来 hook 的本地 ID。base/this delegation、异常出口和普通返回 class 的 call 不生成 publish。MIR 输出边界检查新 CFG 的类型、引用和正常出口关系，后续消费者复用。
-- abstract class initializer仍生成普通hidden callable供derived使用，但不存在该class的allocation入口。struct secondary constructorlower为value-returning hidden callable，先调用typed delegated constructor得到完整值，执行body后按值返回。所有constructor initializer都是non-suspend，不进入coroutine transform。
-- `super.method()`的target在输入中已经携带强制direct证明，MIR不能因callee属于open/override virtual family而再次选择vtable。初始化receiver相关非法调用/逃逸已在HIR拒绝，MIR不保留运行期“正在初始化”flag。
-- M21 property read/write在输入中已经是concrete field/global operation或唯一accessor call；default/custom accessorlower为普通callable但保留getter/setter origin。delegate access已经是hidden storage read加普通operator target；MIR不读取source property name、accessor syntax或delegate role重新决议。
-- interface default/property slot的实现目标已经唯一，MIR机械建立vtable/itable及typed adjust thunk。qualified `super<I>`始终保持direct target，不能再进入itable。
-- object/companion与top-level runtime property生成独立initializer callable和`InitializationUnitId`。MIR把typed ensure展开为封闭init-enter结果及run/ready/failed/cycle CFG；cycle分支调用输入中已有的`Local | External` typed cycle throw target；外部初始化服务通过共有 selected callable/ABI 记录提供并核对所需 `String -> Unit` 签名与 GC effect，不形成 core 专用调用资格，也不扩大源码 prelude 可见性。singleton initializer按M19普通allocation/root/common sequence执行，成功边才写published root并完成unit；异常边必须在native catch仍active时把异常物化为managed `Throwable`，结束catch后才向coordinator发布rooted failure并从managed对象重新抛出。ordinary Cone的该内部catch/failure slot使用`Any` managed-ref物理载体以避免伪造core `Throwable` exact type，但只能由封闭初始化CFG读写。ordinary property/global访问携带ensure target，MIR不能假定“通常已在main前初始化”而删除gate。
-- 方法/扩展调用必须先以 receiver value 初始化完整类型的隐含 receiver 参数；MIR 不得让方法体持有调用方 binding place。该规则对 value/ref receiver 相同，只是参数值的类型与 layout 不同。后续可以做 copy elision，但若 value receiver 的 `@InteriorMutable`、`addressOf(this)` 或其他 unsafe 操作可观察存储，则必须保留独立的 method-local storage。
-- 为每个具体类型建立vtable/itable。本Cone类型实现上游exact interface application或继承上游exact class application时，表结构、TypeDescriptor符号与concrete target取自上游MIR meta。
-- 把结构化HIR降为类型化CFG：调用从嵌套表达式中按源码求值顺序正规化出来，控制边与异常unwind边显式化，`try`/`catch`/`finally`的cleanup路径在MIR固定。M22的integer div/rem在这里使用输入中已有的typed `ArithmeticException` constructor展开除零throw，并把signed `MIN/-1`直接分流到规定常量；安全路径才保留primitive operation。shift count在这里按width mask，并在窄左operand上显式缩到LLVM要求的同宽标量。每个loop建立显式header/body/exit；while condition setup只存在于header，for header执行next/Option branch，普通回边与Continue均进入同一header，Break进入exit。不能继续把condition setup复制到body尾。LIR只负责机械映射这些边。
-- M22把return专用cleanup泛化为normal abrupt-transfer routing。每个typed loop target同时保存break block、continue header和建立时cleanup depth；Return/Break/Continue只执行当前位置到目标之间被退出scope的cleanup suffix。普通Throw/Rethrow继续沿既有typed unwind、catch dispatch与cleanup edge传播，不能改写为词法goto或丢失M25 native record identity。每条正常离开active catch的edge恰好产生一次M25 EndCatch；跨finally的正常路径以`PendingTransfer::{Fallthrough, Return, Break, Continue}`保存动作及已进入cleanup cursor。finally内部完成的throw/catch或指向其内部loop的break/continue保留旧pending；只有实际离开当前finally的新动作才替换并从cursor之后继续，不能重入当前cleanup。目标仍在同一外层try/catch内时不得误执行其cleanup。
-- **concrete HIR输入 → closure转换 → foreign callback adapter → 协程变换**：输入中的所有callable与type都已concrete。MIR把lambda、匿名函数和callable reference转为显式closure类、invoke body与按值capture字段，把函数类型型变转为typed adapter closure；局部函数的direct call仍可使用带显式不可变capture参数的lifted function，取得callable reference时才物化closure。普通concrete captured value按其layout内联，不能把captured value或closure environment统一擦除为`Any`/opaque environment。每种synthetic closure/adapter都有独立实体id、TypeDescriptor、完整`gc_free`属性与递归scan。
-- closure 的首字段语义上是由编译器控制的 invoke entry，其余字段按确定顺序保存 capture。普通 closure invoke 使用 `(closure, source args...) -> R` 的 managed ABI；绑定 virtual/interface reference 的 invoke body 必须在调用时执行动态分派。已知不逃逸或立即调用的 closure 可以在后续优化中消除，但 MIR 的未优化基线必须先有完整、可扫描的结构。
-- 对每个实际使用的`PersistentCallbackApplicationId`，MIR在closure conversion之后生成独立的typed storage adapter，并以application为主键保存exact managed signature、固定storage/status ABI及mode；输入按顺序为closure ref、nullable ContextNode snapshot、result storage、删除context后的C-FFI-safe args storage与exception root slot（见2.16），内部按concrete `FunctionTypeId`调用closure。adapter在返回C前catch-all、物化managed异常并返回typed status；application、其source registration、managed adapter和M12静态NoGC callback bridge分别使用不同实体/id，不能由相同C signature合并；adapter是可分配、可GC、内部可抛但对C nounwind的managed入口，不能误标为NoGC。target-specific canonical C signature与trampoline unit只在LIR形成。
-- 对 closure 转换后的每个 concrete suspend callable，把 CFG 在挂起调用后切分为恢复状态，计算跨挂起点活跃的值并生成堆上 frame；每个挂起点生成与其结果类型精确匹配的 `Continuation<T>` 实际类型。frame、continuation adapter 与内部完成结果均有独立的类型化 id、TypeDescriptor 与递归引用扫描描述，不允许用 FQN 或 `Any` 作为实体/结果回退。
-- suspend callable 的内部 ABI 是 `(source args..., Continuation<R>) -> CoroutineStep<R>`，其中编译器内部值 enum `CoroutineStep<R>` 只有 `Completed(R)` / `Suspended` 两个变体。立即完成走 `Completed`；返回 `Suspended` 后只能由传入的 continuation 恢复。该 ABI 只用于编译器生成的 Scoop 托管调用，不用于 extern 声明或 `FunPtr`，MIR 不生成 FFI wrapper。变换完成后 MIR output 不再含源码级 suspend callable 或 suspend call。
-- 协程协议的具体化使用实际 core 声明和既有 callable 工作队列；本地与依赖声明产生同一组完整的 `Continuation<R>`、`SuspendTask<R>`、`SuspendRegistration<R>` 及成员实例，LocalConcrete HIR 独立保存这些具体协议，MIR 不以 core 的定义位置分支选择状态机。无正文 intrinsic 保留真实签名、效果和 intrinsic kind，不补造源码正文。跨 Cone 源挂起函数同时发布源签名与上述内部 ABI，消费方据源效果识别挂起点，并在同一 CFG 变换中传递 continuation、检查 step、恢复结果与异常。定义方的参数自由 shape-support 根及实际共有表示依赖补齐有限 start；新生成的协议 application 不递归成为另一轮任意 helper 根。
-- extern call/global use保留指向`SourceNativeExternalContract`的typed ref及类型化ABI/effect：C ABI进入独立native bridge实体；Scoop ABI直接保存普通Scoop typed signature、`GcEffect::{Managed, NoGc}`、`NativeBorrowed` protocol及direct-ref参数，不生成C storage bridge。两类实体id不能混用，也不能在MIR后续通过symbol string重新猜ABI或把`GcEffect`与ordinary/suspend effect合并；从上游选择的extern target必须把原contract加入`SelectedNativeExternalContractSet`，re-export或本地alias不得另造一份contract。
-- HIR→MIR lowering把`HirIntegerConstant`、`HirCLayoutValue`/`HirCLayoutContract`、`HirConstantImage`及`HirStaticInitialState`穷尽转写为MIR crate自己拥有的`MirIntegerConstant`、`MirCLayoutValue`/`MirCLayoutContract`、`MirConstantImage`与`MirStaticInitialState`，并通过显式mapping把每个HIR exact type/id重映射为对应MIR typed id；这些HIR类型不能作为共享type alias泄漏进MIR。`MirCLayoutValue`保持同一封闭`Natural/A1/A2/A4/A8/A16`值域，`MirStaticInitialState`保持`ZeroedForRuntimeUnit | EncodedStaticValue { payload: MirConstantImage }`外层sum；lowering不得从constant bits、initializer是否存在或任意数值对齐重新分类。
-- `LocalConcreteHir`交给MIR的intrinsic已经是封闭typed kind，compiler-generated异常已经通过完备`CompilerExceptionCore`给出类型与constructor callable；MIR不得按intrinsic/runtime symbol、class short name或FQN检索实体，也不得以panic/fallback补齐缺项。
-- 恢复失败在对应恢复状态入口重新注入为`throw`，沿原调用点的unwind/cleanup边传播。挂起不是作用域退出，不能触发`finally`。`CoroutineFrameState`是跨挂起控制流的唯一运行期discriminator；CFG→coroutine边界必须为每个物理suspend occurrence保留其pending context，并让每个完整success/failure state非可选且唯一地对应一条outer→inner的静态非空typed continuation chain。chain末项分别固定为`Fallthrough(post)`与`Throw(ManagedThrowable)`，fallthrough、loop exit、loop header和unwind target使用互不兼容的typed ref；一个state不能跨pending context复用，driver dispatch只能由这份checked metadata机械生成，不能另维护平行的`state → BlockId`表。target、cleanup cursor和chain都是GC-free编译期metadata，不进入frame；frame只保存state以及动态payload的exact typed saved slot。`Return(Unit)`没有动态payload；其他`Return(T)`必须引用owner frame内已经初始化的exact `CoroutineSlot<T>`。恢复失败和异常cleanup只可引用按runtime spec 5.4先物化并结束native catch的`CoroutineSlot<Throwable>`；普通Throw/Rethrow仍不进入该保存路径。任何路径都不能保存native block address、源码label、未初始化槽、`Any`/opaque payload或原生EH状态。
-- M13 将编译器生成的safe continuation adapter和frame lifecycle改为类型化原子状态机：MIR显式表示claim/completing/latched/consumed及`running/suspended/completed`转换，使用独立的64位对齐internal atomic-state scalar与acq_rel CAS取得唯一完成/驱动权，并保留payload store-before-release、acquire-before-read关系；该scalar不是源码`Long`属性，不得把这些操作伪装成普通integer/字段读写或按函数名留给codegen猜测。
-- 把HIR已经证明并类型化的`when` decision plan降为表示无关的`VariantTest`/literal test、`VariantPayloadProject`/field projection与跳转序列；保持arm/guard源码顺序，不重做exhaustiveness。只有带proof的Impossible edge可删除运行期fail，不能把最后arm擅自无条件化；具体tag/niche检查由LIR在取得layout后机械选择。
-- MIR以本crate专有的`MirVariantRef`（或结构同构的封闭类型）保存stage-local enum id与已经对该定义检查过范围的variant index，并以`MirVariantFieldRef`封闭保存该variant ref与已经对同一payload检查过范围的field index；两者只能经需要enum definition的checked constructor取得，不能让expression调用点平行保存裸enum id/index/field，也不能按variant名称或FQN回退。`VariantTest { operand, variant }`的operand必须是该exact enum且result固定为canonical Boolean；`VariantPayloadProject { operand, field }`的result type由typed field ref所指field的exact `MirTypeId`唯一导出。MIR module validation还必须用稳定value identity与CFG支配关系证明projection位于对同一operand与同一variant所做test的true-edge支配区域，不能按表达式文本或block名称推断；MIR不读取tag值、niche、null编码、slot或offset。
-- source `for`、struct copy update、bare variant、alias和literal constraint在进入MIR前已经消失；MIR只接收typed loop/control transfer、表示无关的variant/literal test与payload projection、普通aggregate构造/投影、exact integer constant/operation与唯一call/variant target。
-- 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
+MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Return、Break、Continue 只执行真正退出的 scope 清理；Throw/Rethrow 保持异常路径；finally 的覆盖规则和挂起不退出作用域的规则遵守语言规范。variant payload 只在同一值、同一 variant 的有效分支内读取。
 
-`docs/milestone23/DESIGN.md`第3.3节定义的persistent-identity mangler在artifact compatibility record中称为`persistent-v1`，也是当前唯一合法的`ManglingSchemaIdentity`。M23-2以前的compact mangler只属于未发布编译器的迁移前实现；M23-2必须直接删除其producer、parser和兼容分支，不把它写入或读入artifact。迁移前实现中的integer type code直接消费`IntegerKind`，不从source短名、alias拼写或物理LLVM type反推：
+所有调用已确定 direct、virtual 或 interface target。super 不重新进入动态分派；方法 receiver 为完整值参数，value receiver 的可观察存储属于本次方法调用。
 
-| `IntegerKind` | canonical owner | compact-v2 code |
-| --- | --- | --- |
-| `Signed, W8` | `Int8` | `I8` |
-| `Signed, W16` | `Int16` | `I16` |
-| `Signed, W32` | `Int` | `I32` |
-| `Signed, W64` | `Long` | `I64` |
-| `Unsigned, W8` | `UInt8` | `V8` |
-| `Unsigned, W16` | `UInt16` | `V16` |
-| `Unsigned, W32` | `UInt` | `V32` |
-| `Unsigned, W64` | `ULong` | `V64` |
+class allocation 只分配最派生对象一次，使用实际 exact TD；base/this initializer 不分配、不修改 TD。receiver 在可能 GC 的操作间保活并重读，只有完整构造成功后发布 release-ready 与结果。构造失败没有可用结果。
 
-这些compact code不构成任何已发布格式，也不得作为persistent mangler的fallback。transparent alias在进入旧mangler前已展开，compiler/runtime internal machine scalar也从来不是source signature type。M23-2迁移后，compiler-generated实体只使用自身的typed role/identity symbol；`scoop`、`scoopc` reader与program-link只接受manifest/cache key中的`ManglingSchemaIdentity::PersistentV1`。其symbol形态与linkage合同以`docs/milestone23/DESIGN.md`第3.3节为准。
+closure 具有完整捕获字段、类型、invoke 与扫描属性；绑定方法引用在调用时保留原动态分派。普通 local direct call 的捕获参数不改变原绑定身份。callback adapter 有精确 closure/native storage/status 签名，在返回 C 前处理全部异常。
 
-**MIR meta**：每个Cone的MIR同时输出一份metadata，随`.slib`导出（见2.6），内容包括：persistent HIR source id到external callable/global/constructor/accessor的typed bridge；各单态化实例的symbol、specialization key、ODR group、generic来源与具体类型实参；各导出exact类型的vtable/itable schema、slot/adjust thunk、exact generic ancestry/conformance与TypeDescriptor symbol。类型布局不在其中——布局由LIR生产、经LIR meta导出（见2.4）。MIR module以封闭`MirOutput::{Library, Executable { entry: FunctionId }}`保存产物分支；Library结构上没有entry，Executable的entry必须属于本module已登记callable。`ExportHir` template、`LocalConcreteHir` concrete实例与MIR实体使用不同typed id；跨层关系只能通过显式mapping表达，不能由name mangling反推。
+suspend callable 的执行 ABI 为 `(source args..., Continuation<R>) -> CoroutineStep<R>`，后者仅含 Completed(R) 与 Suspended。输出不保留源码级 suspend call；frame、continuation、恢复入口和 saved slots 均有独立身份和完整类型。跨挂起只保存已初始化的 exact payload，不保存 native block address 或 active EH record。
 
-enum 的 variant 与 payload field 在 LocalConcrete HIR 和 MIR 实体中必须直接携带非可选的 `PersistentEnumVariantId` 与 `PersistentEnumVariantFieldId`，与 struct field 的持久身份采用相同的保留规则。源码成员身份从 Export HIR 的 typed member relation 复制，泛型具体化只替换字段类型，不改变声明成员身份；协程生成的 enum 从既有 `CoroutineStepIdentity` / `CoroutineSlotIdentity` 取得成员身份，并在协议校验中核对实际 variant 与字段。跨层引用仍使用各层独立的 checked local reference，后续 type bridge / layout 投影通过该引用读取持久身份，不得按名称、显示字符串或 arena 编号重建。
+completion 与 resume 具有唯一获胜方，并明确 payload 的 release/acquire 关系。恢复失败沿原调用点的异常／cleanup 路径传播。挂起状态使用 frame 的 TaskContext，恢复前后的切换见 2.16。
 
-M23-6 的有限形状类型导出直接消费 sealed strong MIR 的 source shape-support 计划与实际 generated materialization。计划条目同时保存源码声明与已验证的 nominal/exact/物理类型 root，后续阶段不得重新按声明哈希查找物化目标：每个计划内的源码 exact root 输出对应 `BoxedValue`（仅值类型）、`CoroutineStep` 和 `CoroutineSlot` 的完整 MIR type record。生成角色与 exact identity 取物化关系，box payload 取既有 typed box identity 与实际字段类型，enum variant/field 取实际定义中的持久身份；GC facts 与字段顺序来自同一 MIR，box 的直接接口集合从同一次源码类型导出按 sealed payload exact 取得；机器 class 中供 dispatch 使用的完整接口闭包不替代直接继承关系。结果经过共有 type bridge identity/representation 校验并按 exact id 规范排序；未被该计划要求的执行环境和辅助形状不混入有限支持导出。失败不返回部分表。此入口生产完整类型桥接中的有限支持组成表，不单独授予 artifact 或导入能力。
+MIR metadata 保存源码声明到实际 callable、constructor、accessor、generated body 的映射，exact signature、GC effect、继承、dispatch、object/init 关系及 Strong/ODR 归属。它不定义目标布局；布局由 LIR metadata 提供。
 
-strong MIR 的每个 source shape-support 条目还必须绑定已验证的有限 helper 物化 root：值类型保存必备 box，引用类型显式标记无需 box，所有条目都保存必备 step 与 slot；每个 helper root 保留实际 typed location、nominal 与 exact identity。sealer 在确认源码需求与物化关系时一次解析这些绑定，类型导出及语义支持关系生产直接消费该完整计划，不再分别搜索全部 generated 类型或重新派生 helper 身份。MIR shape-support 表由该计划与同次统一类型表生产，使用共有 source/role/GC/provider 验证，缺少源码类型或任一 helper 类型时拒绝，不回退生成局部定义。
-
-M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR type-semantics 与实际 MIR。源码 nominal/exact 对应关系取 MIR 已保存的 source exact registry；表示取实际 struct/enum/class 定义，class 声明字段的持久身份取 HIR 已解析表示，并跳过 MIR 的基类字段前缀。直接继承边及目标无关 ZST/GC facts 复用 HIR 结果，实际字段类型仍经 MIR exact registry 投影。object 同时产出源码类型与 HIR 所有的 backing 类型，两者引用同一实际 class 表示。所有 HIR 表示必须恰有实际 MIR 目标，缺项或形状不匹配返回错误；不按名称补身份、不为缺失类型构造占位表示。源码表与有限辅助类型表可移动合并到同一 canonical 类型表，泛型继承等 ODR 闭包继续在 HIR 候选阶段拒绝，core 使用相同条件。
-
-MIR section 直接消费同一次 HIR→MIR 已生产的六张完整导出表、初始化单元记录和 typed 依赖使用。删除独立来源工厂、重复预期表、逐表比较回调及 source-join 凭证；生产侧不再次重建或完整验证已经检查的记录。读取边界按实际 HIR 声明、MIR 定义与依赖目录检查格式、类型、签名、effect、可见性、实体归属和引用关系，保留已检查组成表供后续使用，不重建 producer section。依赖选择仍检查实际 provider、完整 typed target 和引用闭包。
-
-普通 callable 导出在首次生成时根据真实声明解析 exact signature，并与实际 Strong body 的签名关联。组装类型导出时直接使用这些完整记录，不再次从 HIR 枚举、分类和比较同一普通导出全集。组装在生产其他 lowering 记录前排除已有普通定义；合并后的最终表统一排序并检查重复定义，不在合并中途再构建一张仅供重验的临时 canonical 表。外部 reader 对新读入数据的类型、签名和定义检查保留；本调整不改变 wire/profile、runtime C ABI 或 String 表示。
-
-M23-6 的正式 `scoopc` 发布与 `scoop` 依赖消费统一使用 `CrossConeLayoutStrong`。共有 reader 一次读入完整 HIR 类型语义、MIR 类型与 callable、LIR layout/ABI/dispatch 及真实对象；语义会话直接导入这些记录的实体映射，Compile 与 Link 引用同一完整结果。旧 M23-5 的独立提交、Link 重开及两份发布证明链退出正常路径，不把新 reader 的数据反向构造为旧 producer section。此前格式的依赖需重建；section tag 不复用，runtime C ABI 和 String 表示不变。
-
-初始化与存储的物理导入直接按实际 provider 的完整 Strong 初始化、静态存储记录解析定义、符号和 ABI；删除额外的 support-source 资格回调及空授权对象。当前源码的使用与选中依赖闭包在 MIR/LIR 对应边界核对，物理入口不再次以来源回调重放同一使用证明。
-
-driver 从当前完整 HIR/MIR foundation 的 canonical 实体记录直接建立类型查询图，复用依赖 reader 已解析的实体记录；不将同次编译的 foundation 编码后再解码、重哈希来取得查询入口。当前记录保持原有 HIR/MIR layer，依赖保持真实 provider 与共享 canonical key；合并仍检查 typed identity 冲突。LIR 的完整类型诊断目录由该图及实际 Cone coordinate 提供，供正常源码编译的布局与 descriptor 生产使用。外部字节的格式、哈希、引用和循环检查继续在 reader 边界执行。
-
-初始化单元在 MIR 物化时已经确定实际 initializer、ensure、完整逻辑签名与 GC effect；导出直接复制这些完整记录，不再投影第二套来源签名或保存 ProducerEmitted／ReaderSemanticReplay 证明状态。reader 从实际声明的 unit key 和同一产物的 callable 定义恢复相同数据，并检查真实 provider、ordinary Managed、无 receiver/参数及 Unit 返回值。实际机器定义与 relocation 在 Link 对象边界检查；两种消费使用同一记录类型，七字段 wire 不增加冗余 unit-role 表。
-
-构造器 MIR callable binding 从同次 HIR type-semantics 的构造记录、LocalConcrete 构造物化及 sealed strong MIR 共同生产。public/protected 构造记录决定完整导出范围，private 构造不由其实际存在自动获得导出资格。LocalConcrete 的已有 typed materialization 连接声明 id 与 MIR 实现，参数 exact 身份沿用共有构造签名投影；不得按名称或 arena 序号配对。struct 构造的源码与 lowered 签名均为无 receiver、返回该值类型；class 构造的源码签名返回该 class，而实际初始化函数接收同一 exact class 的隐藏 receiver 并返回 Unit。源码 GC effect 与实际函数分别保留，再经共有角色/签名验证。struct 主构造使用独立 PrimaryValueConstructor 角色：源码合同为 Managed，实际值组装 leaf 为 NoGc，参数顺序与完整字段 exact 类型一致，允许值包含引用而不授予源码 NoGC 调用资格；次构造保持源码 effect。泛型 struct application 的 callable binding 同样从具体构造记录取得次构造器的 GC effect，不统一写为 Managed；主构造仍使用 Managed 的源码 effect 和 PrimaryValueConstructor 角色。缺少任一所需构造、类型或实际 body 时整体失败。依赖类型通过共有索引借用。
-
-LocalConcrete HIR 与 MIR 的 singleton value 直接保存 Export HIR 已建立的 `PersistentObjectValueId`。本地 object-value 生产读取实际 published-root、初始化单元和 initializer/ensure callable 的完整签名及 GC effect。外来 object 的类型和字段通过共有声明查询保留原 nominal；实际值读取引用提供方的 object-value 记录、初始化单元及 published-root。MIR 把读取展开为普通外来 ensure 调用和 typed 全局读取，LIR 从已选择依赖的实际静态存储定义取得符号、布局与扫描合同。外来根不加入 consumer 的本地存储定义或 GC 登记表。直接发生在当前 initializer 的读取记录实际初始化依赖，普通函数内部的 ensure 由其自身负责。reader 在输入边界核对类型、provider、unit、调用签名及根的对应关系，后续使用完整结果；不按名称或 arena 位置重建身份，不添加来源资格或重复使用证明。 默认模板中的本地与外来 object value 使用同一引用表保留真实 value ID 和定义位置；对象类型与值共享可见域，默认值及继承默认值的域检查复用已有类型引用，不再缓存或重查第二份对象可见域。
-
-共有 HIR 表达式类型位置使用新增 `SingletonValue` 角色（tag 7）区分对象值读取与普通类型出现；位置保留原 exact object 和实际求值 root，对象值由同一真实 object 声明关联。HIR selected、MIR Object 依赖和直接初始化边共同消费这些 typed 位置；普通函数、独立闭包和未展开默认值不增加调用者初始化边。`cross-cone-interface/30` 保存该角色，旧 `/27` 产物与缓存重建；object-value product、静态根及 runtime C ABI 的格式保持不变。 object/companion 的属性初始化和 init 块位于其实际主构造正文时，按该构造器的 typed owner 关联同一 Object/Companion unit；这仍是单例声明自身的直接初始化，不展开普通构造器或外来函数的调用图。
-
-普通源码 callable 的 MIR binding 合并同次 HIR 公共 callable 接口、protected 成员及继承槽所需声明/实现，按已有 function/accessor 身份去重；重复声明的源码合同必须一致。实际参数、receiver 和结果复用 LocalConcrete → MIR 的共有 exact 签名投影，并与 sealed strong MIR 的实际 body、签名及 GC effect 连接。非泛型 abstract interface/class 成员使用实际 fatal trap body 与既有 typed slot，不因此获得源码 direct-call 资格；子类再次抽象化时保留基类 slot、使用子类声明的 body，并核对严格基类关系及除 receiver 外相同的签名。普通函数、extension、成员和 getter/setter 使用各自已有身份与角色，不按名称配对。accessor 必须沿用 Export HIR 的 Storage/StorageBody/Constant/Body/AbstractSlot 分类：直接存储与常量访问由已有属性计划表达，不虚构函数 body；public/protected 属性合同中的实际 getter/setter body 共同加入所需 callable 集合，包含单独受限的 setter。generic 模板、intrinsic 正规化操作、source extern 与构造器遵守各自的生产入口，不能伪装成普通 Scoop body。所需普通 body 或类型缺失时整体失败。
-
-被物化闭包要求的非泛型接口必须把全部成员声明加入 LocalConcrete，即使同一 Cone 的全部具体实现均选择子接口 override，或者当前没有实现者。默认成员物化正文，abstract 成员经共有抽象方法 lowering 物化 fatal trap；物化使用原声明自身的 interface owner 与已有 method request，不按某个具体实现的 itable 重新选 root。继承后的 abstract conformance 也引用原声明 owner，不以当前子接口创建第二份同身份函数。generic 接口保持按实际 application 的独立物化规则。
-
-装箱 thunk 的实际 MIR receiver/local 及正文操作保留对应的 interface type，与持久 lowered signature 的 exact receiver 一致；不能先擦成 Any，再在 ABI 导出时把两种 nominal 当作相等。共有 MIR 验证检查该 receiver 关系，LIR 继续将接口引用降低为同一 managed pointer。
-
-装箱分派的 MIR 关系必须同时保存实际 thunk、itable 位置与同次 lowering 已选定的目标 function；目标从 typed HIR conformance 直接传入，不能在导出时扫描函数名或猜测正文。callable binding 生产按实际导出 payload 选择已有 BoxingAdjust，复用 sealed MIR 的完整 Strong/ODR 根、实际 thunk 签名/GC effect 和目标的共有 callable binding；semantic signature 属于目标，lowered signature 属于 interface thunk，包含采用 interface default 的同一 box 重解释。缺失目标 binding、类型或实际物化根时整体失败，private 非导出 payload 的 thunk 不混入表。生成身份与 slot 格式保持不变。
-
-derived equality 的 MIR binding 直接遍历同次 LocalConcrete 已请求的完整生成函数，以既有 `GeneratedCallableKey::DerivedEquality { exact_owner }` 连接本地导出类型和 sealed MIR 的实际 Strong／ODR body。source exact signature 复用共有 LocalConcrete 投影，receiver 与唯一参数均为 owner、结果为真实 Boolean；semantic GC effect 来自 LocalConcrete，lowered GC effect 来自实际 MIR，二者必须一致。仅为当前本地类型表内的已有生成 body 生产 binding，不按函数名查找、不把显式 equals 当作派生体，也不为未请求的条件派生候选或不在本地导出范围的 owner 虚构 body。生成身份、typed signature、实际 materialization 不一致或缺少必需类型时整体失败，generic/structural ODR 资格仍由完整 profile 的既有规则决定。
-
-MIR dispatch schema 生产接收同次 HIR 的完整 slot 序列及实现选择、sealed MIR 和共有 callable/type 查询。class/object 表从实际 vtable/itable 读取目标；value 表从已物化的 box itable 读取 adjust；interface provider 保存声明的完整槽契约，不制造自身 itable，也不要求未使用的根声明具有机器 body/trap。顺序与槽数量必须逐项匹配 HIR，实际表项的目标还必须匹配已解析的 Concrete/InterfaceDefault/Abstract 选择，不按函数名或签名搜索实现。object 覆盖基类 virtual 方法或 accessor 时，HIR 与普通 class 共用既有 virtual family 的更新规则，final override 仍替换原 vtable 槽，不能仅替换 itable。object 与 backing 分别导出 schema，共用同一实际表；有限 shape helper 不重复导出 source schema。依赖 schema 由共有借用索引查询，缺失必需的源类型、物化、callable、槽或依赖时整体失败。
-
-abstract trap 的 C 字符串沿既有 `CallableCStringIdentity` 作为当前 body 的 `AddressTakenConstant` associated atom 发射。MIR 的 `Trap` 终结符直接保存诊断文本，结构化 lowering 使用对应的显式终止语句；该文本不进入托管 String 常量池，也不生成 immortal object 或 registration。LIR 从终结符生成已有的原生 trap 调用和 body 所属常量，不保留通过托管 String 参数识别 trap 的平行路径。共有 callable ObjectDefinition fingerprint 必须同时接收当前 definition 已验证的 runtime-scan 与 address-taken constant ranges，允许 body 只引用自己的这些 atom，并把 constant 的完整 bytes、typed role 及正规化重定位纳入同一 fingerprint；不能忽略常量、只散列 body，或接受其他 body 的本地符号。既有 runtime-scan atom 顺序保持，constant 按 atom id 排序追加；没有 constant 的既有 fingerprint bytes 不变。该修复适用于普通、跨 Cone 和 layout-strong 共有 object 路径，不新增身份或 wire tag。
-
-LocalConcrete → MIR 的 source exact relation 同时保留完整物化归属：非泛型 nominal 携带实际声明的 provider，nominal application 携带匹配的 specialization record，结构类型采用独立分支。导入 nominal 的 provider 从已验证 HIR 声明取得；compiler protocol 的 nominal 引用也保存同一真实 provider，不能把协议发布方或当前 Cone 当作定义方。Strong 计划只选 provider 等于当前 Cone 的 nominal 根；外部 nominal 可参与签名及物理计算，但不得在 consumer 取得同身份的本地布局或 descriptor 定义。Unit/Any 的 provider 来自其语言内建声明 key；object 使用已有源码 object 与 backing 的 typed 关系。归属分支必须与 exact key 相符，不能用缺省 ConeOwned 或可缺失的 specialization 补齐。String descriptor 的依赖引用还须与该 source exact 保存的实际 provider 一致，不能只比较 exact id 或排除当前 Cone。
+输出为 Library 或携带本模块非可选 entry 的 Executable，不能由 `Option<Entry>` 与独立 kind 拼成矛盾状态。
 
 ### 2.4 LIR
 
-M28 增加 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl` 两个封闭 LIR target，profile name 分别为 `linux-x86-64-gnu/1`、`linux-x86-64-musl/1`。两者采用 ELF64 little-endian LP64、16-byte 调用栈对齐，复用既有 scalar/aggregate/ZST Scoop ABI 分类；布局、native symbol 与 library identity 均保存实际 target，reader 不重建为 Darwin。LLVM `byval` 表示 caller-owned 的按值副本，其真实寄存器/栈传递由目标后端降低，不保证物理上传一个 C 指针。amd64 的 `sret` 使用 RDI，返回地址值遵守 RAX 结果规则。
+LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment、scan、调用 ABI、控制流与实际定义／引用。codegen 不按名称、实参、result storage 或上下文补类型、签名、poll 或逻辑 live set。
 
-ELF 对象读取复用 `object` 的 ELF64 parser，在对象边界检查 `ET_REL`、目标 machine、section/symbol extent、RELA 表和 group 引用。格式读取与架构 relocation 写入宽度分离；普通数据、代码、debug 的写入均按实际 relocation 类型检查范围，不统一假定 64-bit pointer。TLS 定义由 `STT_TLS` 和 `SHF_TLS` storage 识别，不套用 Darwin TLV descriptor 或普通地址规则。runtime index 使用同一目标相关对象读取入口和原有 ABI symbol registry，保存实际 libc target/C toolchain；ELF 本身不能证明对象采用哪种 libc，也不从 symbol 拼写推断 libc。对象读取结果在本次消费中复用，不增加来源认证或语义重放。
+每个 pointer（包括 null）具有 Managed、Raw、Code 或 Metadata provenance；LLVM opaque pointer 不抹去这种区别。managed 使用 address space 1，其余使用 0，转换必须为明确合法的 typed operation。
 
-两种 Linux libc 共用独立的 `llvm-22-1-linux-x86-64/1` backend profile。它复用已有 fields 1～25 的含义，field 19 为 X86=2、24 为 LLVM libunwind=2、25 为 ELF=2；field 23 增加 inner field 4 保存 cleanup-only TType omit（0xff），其余为 LPStart=0xff、catch TType=0x9b、call-site=1。追加 field 26 保存 `noredzone` 必需值 1，field 27 保存固定帧合同 `{1=DWARF SP 7, 2=DWARF FP 6, 3=FP 相对 SP+stack_size 的减量 8, 4=caller SP 相对 FP 的增量 16}`。Darwin 既有 profile bytes/fingerprint 保持；reader 接受多个已知 profile 不表示可把不同 target 的产物混用。实际工具链/CLI 支持与完成范围见 [M28](../milestone28/DESIGN.md)。
+Scoop ABI 保留完整逻辑参数序列及 exact identity，物理分类为：
 
-数组的共有 instance layout 与其他 managed object 一样关联 `ManagedObject` scan；该程序从对象起点读取长度并扫描元素区。TD 的非空 inline scan 则关联同一 layout 下已有的 `ArrayElement` scan，只扫描一个元素。两种 scan 保留各自的 typed identity 与实际程序，不能因共享 layout 而混用；GC-free／ZST 元素的 inline scan 仍为空。数组的 vtable／itable 使用实际 class application 的普通 dispatch schema，保留 core 源码声明的 `Iterable<T>` 等接口关系。
-
-数组下标读写的语言越界检查由 MIR 生成，失败沿普通异常路径抛出 `IndexOutOfBoundsException`；LIR `ArrayGet`／`ArraySet` 消费已检查的下标，codegen 不再重复生成 fatal trap。动态数组 assembly 保留长度求和、`Long` 上限及分配大小溢出检查，其必需的报错常量引用由 LIR lowering 生成，复用 `GlobalInit::CString` 的 callable owner、稳定路径与附属 atom。相同函数中的同文报错常量复用，Strong／ODR 分片随实际函数定义发射，不引用其他对象的私有 Cone-image boundary。canonical LIR 使用新增 instruction tag 57 编码 assembly 的完整常量引用，旧 tag 47 退役；已有 production section 仍保存同一格式的内容摘要，正文与常量变化自然改变该摘要，不增加产物字段或 runtime ABI。
-
-shape scan 的 `Sequence`／`Array` 子程序与根程序一起存入同一对齐的常量对象，primary atom 覆盖整棵已确定的扫描树；根位于对象起点，子程序指针是同一对象内的实际偏移。这样完整保留现有扫描指令与 runtime ABI，并使引用元素数组和递归组合的所有机器字节均属于实际 scan 定义，不生成无归属的私有 `.element`／`.part` 全局，也不另建扫描身份或发布格式。
-
-layout profile 的 LIR 生产入口在封存输出前，从已验证 HIR/MIR identity graph 与实际 Cone coordinate 生成每个已发射 descriptor 的 canonical exact type diagnostic name。该名称直接进入实际 LIR、registration、object bytes 与 layout export；导出阶段重放并逐字比较，不修改已封存输出，也不从 arena 的显示名称接受候选值。缺失声明、生成关系或 coordinate 时整体失败。
-
-跨 Cone 导出范围与本地物理定义范围分别闭合。五表的类型范围来自同次 MIR 的完整 source/support/helper 导出闭包，callable 范围来自对应 binding；无关私有声明的本地 layout、TD、dispatch 和 body 保留完整 Strong production、registration、object 及 fingerprint 验证，不因此扩充 HIR source roots。私有类型一旦成为公开字段、基类、签名或有限 helper 的传递依赖，必须沿同一闭包完整导出，不能按 visibility 过滤。有限 shape-support 计划的源码根及其 helper 必须具有 MIR type 与实际物理定义，缺失不能作为非导出类型跳过；ObjectBacking 仍仅提供对应 source object 的 shape。dispatch constituent 验证每条记录的本地 foundation 与 definition，完整 section 再要求导出 TD 的 vtable/itable 集合与 dispatch export 精确相等。Strong V2 与五表的 join 对每项 export 核对实际 registration，并允许完整本地生产表包含闭包外的私有定义。
-
-HIR 来源根发现必须遍历已要求 nominal 的全部真实存储字段，包括 struct 字段、enum payload、class 字段和 object backing 字段，保持字段类型的完整 nominal/application、tuple、function 与 pointer 组成关系。被这些字段引用的本地声明进入同一 source/support 闭包，外来声明继续由实际 provider 提供；字段可见性不影响表示依赖。既不扫描函数正文扩充根，也不展开无关私有 sibling。generic 声明及其字段引用只产生源码依赖，实际 application 与结构 helper 按已要求的操作沿既有 ODR group/member 物化。MIR 语义引用沿 tuple 展开到实际 nominal/application 叶子；function、raw pointer 和 native function pointer 采用既有引用或指针表示，不要求独立名义类型记录。生成 box、step/slot 的 payload 遵守同一规则，helper 自身保留独立类型记录及物理定义。
-
-实际 box payload 与 inline array element 需要独立 value layout 时，LIR 从原 exact identity 和完整存储组成生成该布局及 scan。结构布局复用已有 `StructuralType` group；MIR 已引入该 group 时继承原记录，否则由 LIR 首次生产。布局导出与 reader 使用既有 tuple/qualified-pointer 表示，嵌套 tuple 元素沿已有 value constituent 组合，不要求递归发射每个结构子元素的独立布局，也不为结构类型补造 MIR nominal 声明。含引用 box 的 inline scan 必须解析到这份实际 payload 布局。
-
-接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：
-
-M23-6冻结class跨Cone布局时，本地和外部base统一使用完整base instance作为prefix：继承field offset保持不变，derived nonzero field从base的完整size（含tail padding）之后按自身alignment追加，不复用base tail padding。此规则替换早期flatten全部base/derived fields后重新布局的实现，变更随M23-6 profile重建。abstract class仍提供完整FixedObject instance layout和initializer供derived使用；class allocation还必须持有独立ConcreteClass modality证明，不能仅凭FixedObject shape分配abstract class。interface/其他纯reference identity才使用AbstractRef；两者不能按“不可直接构造”合并。
-
-- 为每个 type 生成布局信息（struct/enum/tuple 布局、typed intrinsic fixed/family representation、`@CLayout` 的 pack/align、`Option` 同构形态的 niche 编码——spec 7.4），并生成布局完备的递归引用扫描描述：普通引用偏移、同起点 sequence、自包含`Array { length_offset, first_element_offset, stride: NonZeroU64, element: NonEmptyRefScan }`。所有scan在输出/哈希前必须化为runtime spec 2.2的normal form，LIR wire保存canonical tree而非待codegen排序/去重的任意children。`LirTargetProfile`非可选地提供data layout、Scoop ABI classifier、pointer widths、`maximum_managed_alignment`与`maximum_managed_object_size`，并规定C边界必须使用canonical generated-C bridge；它不包含system C compiler、LLVM machine backend、runtime build或final-link配置。其identity/fingerprint进入layout fingerprint与LIR/cache key，任何fixed object、box或array超过alignment上限都在本stage报错，codegen/allocator不能降级。intrinsic type按typed representation sum穷尽lower，不按FQN、空字段或使用它的operation识别；generic Array/MutableArray分支直接消费representation携带的concrete element type，并在函数lowering前为每个application建立唯一typed `ArrayTypeId`及完备的kind、element storage、stride/alignment、element scan和TypeDescriptor记录。含ref array的object scan固定写入length offset 16及实际对齐后的data offset，不能默认为24；所有数组指令显式携带该id，LIR/codegen不得扫描allocation、按layout/scan去重descriptor，或从operand/result type反推element/kind。variable allocation严格降低为String `alignUp(24 + len, 8)`、Inline array `alignUp(data_offset + count * stride, instance alignment)`或ZST array `data_offset`，所有算术checked且受object-size capability约束。M23 array入口不接收任意signed length：literal/assembly/vararg由非负component count checked求和；clone/互转则携带已验证source exact array/side-metadata witness并从`0..=INT64_MAX`的source size取得target count，再使用target refined TD分配。负值是invariant failure而不是编译器按名称构造异常。tagged enum直接消费MIR已定稿的逐variant `gc_free` flag：pure-value variant复用一个payload区，每个非GC-free variant分配独立连续slot；LIR不得重新递归判定“是否含ref”。完整值的构造先清零再写active payload，所有独占slot中的ref leaf可直接合并为固定偏移，LIR/runtime不得保留按tag分派的扫描路径；codegen必须把这些固定ref offset发射为LLVM aggregate中的AS1 pointer field，禁止用覆盖整个payload的byte array擦除managed provenance。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）。
-- M24 将 release body 降为独立 `LirReleaseHook`，ABI 固定 `void (RawObjectStart)`，raw receiver 使用 AS0。字段引用由已有 exact layout 一次解析为 offset、alignment 和值类型；ZST 字段产生 typed 零 payload 值，不伪造 offset load。Scoop helper 沿普通 local/external callable 及既有 ABI 调用；直接 C leaf 保留真实 `NativeExternalContractRecord`，需要 storage bridge 时复用同一纯 bridge，callsite 不带 NativeSafe/NativeBorrowed。非 TLS native global 的纯存储 bridge 在 release 和普通 NoGc 正文中使用显式 `NoTransition` 协议；其余访问保留原 NativeSafe 协议，二者以封闭 sum 配对所需 safepoint/root plan。这里不克隆 helper 或 bridge，也不改变普通 C extern 函数调用协议。`PublishReleaseReady` 为专用无 safepoint atomic OR/release。LIR 输出只检查本次生成 body 的机器操作、typed 引用和 ABI，禁止 AS1/managed value、statepoint、EH、TLS 与 transition；不重新遍历已经检查的依赖 helper 调用图。
-- layout输出是封闭`ValueStorageLayout::{ZeroSized { alignment: NonZeroPow2 }, NonZero { size: NonZeroU64, alignment: NonZeroPow2, scan }}`；ZST分支结构上只能携带`RefScan::None`。aggregate中的ZST field可以共享offset且不增加size。TypeDescriptor是独立的managed-instance契约：LIR内部必须以封闭`TypeInstanceShape::{FixedObject { ... }, BoxedValue { value: ValueStorageLayout, ... }, InlineBytes, InlineArray { element: ArrayElementStorage, ... }, AbstractRef}`表达五类instance，并由私有checked constructor保证offset/minimum/alignment与派生object scan一致；只有codegen/runtime ABI adapter可把它机械编码成M23的C product，reader必须验证后解码回该sum，不能让任意`instance_kind + inline_storage_kind + size/stride/scan`组合进入普通IR。allocation instruction只接受排除`AbstractRef`的`AllocatableTypeDescriptorRef::{FixedObject, BoxedValue, InlineBytes, InlineArray}`，各专用operation再要求对应refined variant；AbstractRef只可参与RTTI relation，runtime拒绝它只是防御而非普通控制流。exact ZST使用`BoxedValue { value: ZeroSized, nonzero minimum allocation }`，不能把value size 0直接写成可分配object size。boxing/unboxing operation以`BoxPayload::{ZeroSized, NonZero { source_place }}`和`UnboxResult::{ZeroSized, NonZero { destination_place }}`封闭，constructor验证它与exact value layout及`BoxedValueDescriptorRef`一致；ZST不需要伪payload pointer，non-ZST不携带第二份size/scan。`ArrayType`不保存可能为0的裸stride，而保存`ArrayElementStorage::{ZeroSized { alignment }, Inline { stride: NonZeroU64, alignment, scan }}`；只有`Inline`且scan非空时生成array scan node。ZST array allocation大小为对齐后的data offset，get/set/assembly/clone按logical count和整数index工作，clone仍分配新对象但不发`memcpy`，iterator不得从pointer差或end pointer判断完成。
-class 字段与 closure capture 的 ZST payload 读写在 MIR→LIR 阶段消除。lowering 先按既有顺序完整求值 receiver、capture initializer 和 assignment RHS，再使用同一 storage 分类区分零大小与非零存储；零大小读取显式产生携带 exact type 与 AbiZst 的 LogicalZstValue，零大小写入在保留求值后结束。不得向 codegen 传递 offset 0 的伪 payload HeapLoad/HeapStore，也不能让 codegen 根据空 LLVM aggregate 猜测语义。closure invoke pointer、非零字段和 compiler-owned state 继续使用各自已验证的偏移与指令；ZST 不改变对象头、继承 prefix、GC scan 或字段身份。
-
-MIR source constructor 的必需集合从共同 nominal/callable 声明与实际导出／支持需求取得，包含被模板合法引用的 private/internal 普通构造器；泛型 application 的构造器按完整替换后的实际需求生成。公开／protected 影响源码访问，不构成机器 ABI 导出的唯一资格；未用模板、未请求的声明及 object 隐式入口不因存在于源码表而成为构造器根。查询仅返回借用索引，producer 与 reader 共用，不新增 wire 来源清单。reader 从同一共有声明逐项核对完整语义签名、GC effect 与实际 owner：class initializer 把源码返回值转换为同一 owner 的 initializing receiver，并返回 canonical Unit；struct 唯一 primary 的参数类型序列与完整声明字段序列相同，既有 constructor duplicate-signature identity 保证同一 owner 下该签名唯一，其 lowered 角色为 PrimaryValueConstructor、GC effect 为 NoGc；其余 struct constructor 保持 ValueConstructor 与源码 GC effect。缺失、额外、错 owner、错参数、错 receiver/result、错误主次角色或 GC 漂移均拒绝。枚举变体仍使用 representation construction plan，generated callable、dispatch、初始化、selected 和完整 LIR/artifact 闭包继续按各自合同核验。
-
-初始化入口的 reader 校验先从实际 Strong generated callable 收集所需单元，再检查原来源、完整 initializer／ensure 对及其签名。只有存在实际初始化入口时，该产物才必须包含 canonical `Unit` exact type；没有初始化入口的普通库不因潜在的初始化协议而增加类型或机器根。原单元表中的未物化声明仍不形成需求；实际入口缺失来源、provider 不符、角色不完整或签名错误继续拒绝。同一未变化的 `Unit` 返回类型只核对一次，wire 与 runtime ABI 保持。
-
-MIR object value 与两个初始化 callable 的 reader 校验直接读取同一 artifact 的共有 HIR nominal 声明、已重放的表示和原有 initialization-unit foundation keys。object/companion的必需集合来自这些源码数据及实际物化需求，包含参数自由对象和M29的完整companion application；每个实际singleton exact恰有一个对应Object/Companion unit，普通属性初始化与generic delegated unit不参与该对象索引。object value 的 typed id、source exact、backing exact、实际 provider、published-root read plan 与 ensure target 必须逐项对应；initializer 和 ensure 的 canonical generated key、lowering role、ordinary/Managed、无 receiver/参数及 canonical Unit 返回值同时核验。缺项、额外对象或初始化入口、相同 owner 的冲突 unit 与任何关系漂移均拒绝，未实际请求的模板或私有源码对象不因其 foundation key 存在就成为机器根；封闭泛型父类型不能把已请求的普通对象排除。对象 transport 在 callable 解析后通过本地 canonical callable 表验证一次；后续完整 section 直接使用该 owned canonical 结果，仍必须完成其它 generated callable、dispatch、实际 initialization-use、selected、LIR 与双 view artifact 闭包。本步骤不新增 wire 字段、来源副本或 caller factory。
-
-共有 MIR reader 从同一 HIR foundation 的原 initialization-unit keys 关联完整 Strong callable/signature 表中的实际初始化定义，成对重放 Initializer 与 Ensure 的原 generated identity、实际 provider、ordinary 无 receiver/参数及 canonical Unit 返回值。只有存在实际 Strong 定义的参数自由 unit 进入已验证 unit 集合；源码 key、默认正文或未物化 object 本身不能制造机器根。任何已发布初始化 role 都必须具有原 source unit 和对应的另一个 role，两个签名分别同 MIR foundation 精确匹配；缺失 source/role、错误 provider、generic delegated application、签名或 callable role 漂移均拒绝。读取结果使用共有 MirTypeBridgeInitializationUnitV1，直接保存两个 typed callable 和 Managed 签名；不保存额外证明状态。实际 body、GC、LIR unit registration 与对象定义在各自消费边界关联核验，后续直接使用这些完整结果。共有 Compile 闭包持有完整已重放 unit 集合，不新增 wire 字段、来源表或 caller factory。unit 的 source owner 只表示身份归属，不自动产生 MIR type/layout 导出边；unit 合同的类型依赖来自其完整调用签名。实际 ObjectValue 使用仍独立闭合 source/backing 类型、ensure 与 unit，私有对象的本地 descriptor、初始化 body 和 storage 仍由完整 Strong/LIR 产物验证，不能为了验证本地 unit 扩大类型导出根。实际 external initialization-use 与 selected 仍须从已提交的 typed 使用重放，不能从本地 unit 列表推断 foreign body 依赖。
-
-派生 equality 的共有 MIR reader 从同一 HIR foundation 的原有 DerivedEquality application key 查询源码身份，并与已核验的 Strong／ODR callable/signature 表关联实际函数投影；后者只确定哪项源码 application 已有机器定义，不能反推源码资格。仅当前 provider 的已闭合 struct、enum 及 canonical Unit 进入类型桥接集合，私有未导出 owner、无关声明与未物化的默认正文 application 不增加导出根。每个实际导出的 application 必须保留原 generated identity 与 exact owner，semantic/lowered 签名均为 ordinary Managed、receiver 与唯一参数同为 owner、返回从共有声明及真实可达依赖按 Boolean intrinsic 角色查询的唯一 typed exact，lowering role 必须为 DerivedEquality。缺失源码 application、缺失或额外 binding、owner、签名或 GC 漂移均拒绝；实际 Strong／ODR 定义集合继续与同一 MIR foundation、LIR 和对象定义关联，源码 application key 本身不代表 machine body。该查询复用已有 identity 记录和临时索引，不新增来源表、caller factory 或 wire 字段。派生 equality 正文的 receiver 与唯一参数使用原 This、Parameter(0) local selector，但其定义站点是编译器合成；reader 仅在 local owner 的原 generated key 确为 DerivedEquality 时不要求这两个值的 definition origin，并拒绝为它们附加伪造的源码记录。其他源码局部值继续核对真实 owner 和来源锚点，不能按 generated owner 一概豁免。codegen 对 tagged enum 字段重放存储时，零大小字段必须保持 canonical offset 0，不加 variant payload 起点；非零字段继续按 slot 与相对偏移校验，全部字段的类型、大小、对齐、GC 属性和 scan 仍逐项检查。实际 initialization-use、selected-use 与最终 artifact 闭包仍须独立核验。
-
-MIR dispatch 的共有 reader 直接消费已验证 HIR 的完整继承、槽 schema 与实际选择，取得当前 provider 的必需 owner 集合、原始槽顺序和每个实际目标；object/backing 共享同一源码选择，内建 Any 仅按其 canonical typed identity 保留空 class vtable。槽调用签名从共有 HIR 根声明投影，interface 表只替换 receiver；抽象 class 与 interface 入口均使用完整 slot contract 中所选的实际 abstract 声明；根槽与 trap 声明可以不同，不再沿 base 链或扫描 callable 反推目标。引用 receiver 采用 canonical Identity/ReferenceDispatch；值类型 interface 表机械选择既有 BoxingAdjust identity，并核对其实际源码 target、语义签名与 Managed wrapper 签名。缺失或额外 owner、table、slot、适配入口，顺序、位置、目标种类、receiver、effect、GC 或 generated key 漂移均拒绝。共有 MIR transport 在 dependency-first callable 解析时使用同一依赖 type/callable/schema 索引验证 dispatch 一次，后续直接借用 canonical 结果；不新增来源副本、caller factory 或 wire 字段。有限 BoxedValue 的 MIR base-and-interfaces 复用同一次源码类型导出中 payload 的直接接口集合，不能把机器 class 的传递接口闭包写入该字段；实际 descriptor/itable 仍沿 payload schema 保留完整闭包。有限 helper producer 必须取得 sealed source shape root 对应的源码类型记录，缺失或 origin 不符立即拒绝。derived equality、实际 initialization-use、selected、LIR 和双 view artifact 的剩余义务仍分别完成。
-
-- 每个materialized exact type必须从已验证`ExactTypeRecord`生成非可选`CanonicalExactTypeDiagnosticName`。printer严格使用M23设计3.1的ASCII tag/delimiter/percent-escape grammar：先展开transparent alias，nominal只取canonical origin coordinate/package/typed owner/name，application、tuple、ordinary/suspend function、raw pointer与native function pointer递归打印exact key；不得读取import/re-export alias、使用点qualifier、mangle或通用pretty-printer。printer 使用显式遍历栈与当前路径环检查，按真实输出长度执行 checked 运算与 fallible allocation；不设置诊断名长度或展开工作配额。该byte span进入TypeDescriptor的canonical LIR definition；descriptor `ObjectDefinition`直接依赖该semantic leaf，span relocation只能指向内容相同的typed diagnostic atom，所以descriptor fingerprint与ODR member/object fingerprint都覆盖name bytes。reader从exact key重算，codegen只能机械发射。
-- 上述nominal source atom与compiler-generated atom是封闭两分支：closure/adapter/coroutine等generated nominal以M23设计3.1冻结的`GeneratedNominalRole + PersistentTypeId`打印，禁止使用source-name分支、arena ordinal、临时display name或mangle。
-- Scoop ABI参数分类以`AbiArgument::{ElidedZst { exact_type }, Direct, Indirect}`表达，return convention至少区分`UnitVoid`、`ElidedZst { exact_type }`、`Direct`与`Indirect`；source signature、mangling、callable identity仍含所有exact type。当前Darwin / AArch64 profile将scalar、qualified pointer与niche enum分类为`Direct`，将所有non-ZST tuple、ordinary struct、tagged enum与exception record分类为`Indirect`，不得用size threshold或LLVM/C aggregate coercion反推；Unit result为`UnitVoid`，其他ZST参数/result为`ElidedZst`。每个callable只保存一份按logical参数顺序排列的checked `ScoopAbiSignature`；physical signature机械生成为可选的首参数indirect result storage，再按logical顺序跳过elided ZST、发射direct value或indirect storage pointer。caller必须为每个indirect参数建立fresh exact storage；LLVM adapter在definition、call/invoke、dispatch与Scoop extern的同一physical index上发射`byval(exact LLVM type) align N`，在indirect result上发射`sret(exact LLVM type) align N`，显式statepoint wrapper把callee physical参数属性平移到intrinsic参数`5 + i`。callee仅在`addressOf`需要时为elided参数物化place token。raw `Ptr<ZST>`算术产生零byte displacement，load/store保持operand求值与unsafe validity contract但不访问payload；这些分支必须在typed LIR中显式，不能让codegen看到`stride == 0`、空LLVM aggregate或void后猜语义。
-- 每个LIR `RegisteredCallableBody`都取得`PersistentCallableBodyId`并输出callable registration计划，即使该body没有safepoint。该集合精确覆盖当前Cone中由LIR定义并最终分布到一个或多个`LinkObject`成员的普通managed/NoGC Scoop body、compiler-generated managed adapter、root/init gateway及M24 release hook；声明的native extern、runtime函数、generated-C bridge/trampoline或未来C/C++ producer定义的native body使用各自typed identity/capability且不进入该集合。registration identity与plan按`PersistentCallableBodyId`排序；foundation callable-body record为满足`RootGateway -> main`依赖使用稳定拓扑序，二者必须按typed body id验证全集并join，不得按index位置配对。LIR `Function`不保存可独立修改的raw symbol：物理符号与linkage由其`CallableBodyIdentity`一次性物化，Strong body使用Cone strong请求，ODR body使用ODR weak请求；canonical foundation必须收录全部请求，codegen只消费该已验证结果。模块输出保存封闭`LirOutput::{Library, Executable { entry: LocalFunctionRef }}`；Library结构上没有entry，Executable的effect-refined entry不重复保存符号字符串。当前可执行入口的固定C ABI shim只按该typed ref调用真实body，不成为第二个Scoop callable body、identity或foundation记录，codegen对Library不得发射该shim。member划分只是object物化与验证关系，不属于LIR semantic own-layer：每个实际body、definition range、materialized patch site、stackmap contribution与undefined-symbol use在object边界以`SlibMemberId`定位，但LIR semantic fingerprint不得纳入member assignment、archive ordinal/name、range或patch offset。M24后的callable body canonical key是封闭`Strong { owner } | Odr { member } | RootGateway { root_cone, main_body_id } | InitializationStartupGateway { unit_id } | ReleaseHook { owner_exact_type_id }`，v2 tag分别为1..5且字段按声明序编码；id为`SHA-256(ByteSpan("scoop-callable-body-v2") || RuntimeEncode(key))`，M23 v1使用相同encoder但domain为`scoop-callable-body-v1`且只有前四个variant。`RuntimeEncode`不是Wire CBOR镜像，两类encoder不得互换。M23 v1 artifact必须整体重建，不能混入v2程序。main、initializer、ensure、两个no-throw gateway及release hook是不同body；每个safepoint site key非可选地引用其owner body id，release hook则必须没有safepoint。root/init entry、failure-root、cell与普通init storage还必须使用owner绑定的refined LIR ref，不能退化为可互换的function pointer或static-storage ref。
-- M22的source integer value使用`I8/I16/I32/I64`精确scalar type；canonical source owner的对应为`Int8`/`Int16`/`Int`/`Long` = I8/I16/I32/I64，`UInt8`/`UInt16`/`UInt`/`ULong`共享对应宽度但携带unsigned `IntegerKind`，固定宽`Int32`/`Int64`/`UInt32`/`UInt64`等alias在进入LIR前已展开。constant非可选地携带该type，不再由`IntConst`默认I32或I64。signedness随typed integer operation与FFI storage contract携带，因为LLVM integer type本身不编码signedness。layout/constant global/boxing/array/enum/CLayout/callback/C bridge/mangling都消费同一`IntegerKind`；canonical generated-C精确拼写为`int8_t`/`int16_t`/`int32_t`/`int64_t`与`uint8_t`/`uint16_t`/`uint32_t`/`uint64_t`，实际target register classification与窄integer extension只由已验证system C compiler profile产生，不持久化为LIR C classifier。compiler/runtime内部enum tag、coroutine/init state、source span坐标、array/String count、layout size/offset、callback slot/generation、runtime type/safepoint id等均使用各自不同的internal typed scalar kind；即使物理上同为I32/I64/u32/u64/`size_t`，也不能伪装成源码`Int`/`UInt`/`Long`/`ULong`或互相混用。
-- MIR output中尚未布局的结构化constant image只使用2.3节规定的`MirConstantImage`，其integer leaf是对2.2节`HirIntegerConstant`合同穷尽转写后由MIR crate拥有的`MirIntegerConstant`；它不存在通用`Zero`或裸`i64`分支，pointer null必须携带provenance，aggregate leaf递归携带MIR exact type/id，integer零、pointer null与aggregate全零分别以各自exact typed leaf表达。MIR→LIR lowering穷尽消费`MirConstantImage`，通过显式typed-id mapping与已完成layout产生`CanonicalAllocationExtentBytes + Sorted<StaticImmortalRelocation>`；成功的LIR output不再保存一份可与canonical bytes矛盾的结构化image。对应LIR storage使用本crate自有的`LirStaticInitialState::{ZeroedForRuntimeUnit, EncodedStaticValue { template, relocations }}`，而不是复用或type-alias HIR/MIR的sum。即使encoded image的bits全为零也不能改写为前一variant，unit/root descriptor与owner-bound storage ref也不能从零bits反推。
-- integer arithmetic/Boolean compare、安全div/rem、已正规化shift与conversion以封闭typed operation进入LIR；`compareTo`必须是同时携带operand `IntegerKind`与固定I64（source `Long`）结果的独立variant（或等价结构），不能从lhs LLVM type构造`-1/0/1`。shift operation同样必须携带固定I64/source `Long` count契约，再由MIR按operand width显式normalize到同宽有效值。wrapping add/sub/mul/neg不携带`nsw`/`nuw`；MIR已保证div/rem路径不会触发LLVM signed overflow或除零，LIR/codegen不得重新发现这些语义边界。C type tree包含八个stdint source-storage kind，不能退回旧Int/UInt两项或按operand猜signedness；窄ABI extension属于validated system C compiler profile的实际lowering，不进入该tree。
-- C bridge的canonical source storage shape与C spelling使用下列封闭type tree（或Rust中结构同构的sum）：
-
-  ```text
-  CDataPointerStorage = DirectRaw
-                      | NullableEnum(NullableDataPointerEnumRef)
-  CCodePointerStorage = DirectCode
-                      | NullableEnum(NullableCodePointerEnumRef)
-  CDataPointee = OpaqueVoid | Object(Box<CType>)
-  CType = Integer(IntegerKind)
-        | Boolean
-        | DataPointer { storage: CDataPointerStorage,
-                        pointee: CDataPointee }
-        | FunctionPointer { storage: CCodePointerStorage,
-                            signature: CFunctionType }
-        | Struct(CStructRef)
-  CFunctionType = { params: Vec<CType>, result: CReturnType }
-  CReturnType = Void | Value(CType)
-  LirCLayoutValue = Natural | A1 | A2 | A4 | A8 | A16
-  LirCLayoutContract = { aligned: LirCLayoutValue,
-                         packed: LirCLayoutValue }
-  ```
-
-  `CType`不包含`Unit`；只有function result可以构造`CReturnType::Void`，因此parameter、callback argument、extern global/TLS或struct field在结构上无法使用void。data pointer必须同时保存storage shape与完整pointee：只有`Ptr<Unit>`能由checked constructor建立`CDataPointee::OpaqueVoid`并拼写为`void *`，其他合法`Ptr<T>`使用`Object(Box<CType>)`保留递归C object type，且constructor必须拒绝Unit以外的ZST或任何没有portable C object representation的`T`。这个递归tree始终有限；C-layout struct以fully concrete、non-ZST的refined `CStructRef`叶引用，不内联展开其field tree。struct definition间的by-value dependency必须无环，pointer edge只依赖forward declaration，因此允许`struct Node`通过data pointer指回自身，却不能构造无限size的by-value递归struct。
-
-  `DirectRaw`/`DirectCode`与两个`NullableEnum`分支由各自typed constructor建立；`NullableDataPointerEnumRef`与`NullableCodePointerEnumRef`是互不兼容的refined LIR ref，分别指向已经验证为携带对应Raw/Code payload、fully concrete且采用合法niche representation的enum，不能用通用`EnumDefId`或template id代替。前者还必须非可选地绑定该exact `CDataPointee`，后者非可选地绑定该exact `CFunctionType`；同一enum identity的绑定由LIR definition store exactly once建立，之后不能以另一pointee/signature重新取得ref。外层`CType`与ref内绑定不一致、当前module store没有该ref声明的同形绑定或同一enum被重复绑定为不同exact tree，均是malformed LIR并在任何renderer消费前拒绝。`CStructRef`同样只能由已经验证的fully concrete C-layout struct definition建立。每个`CType`都能total派生唯一storage `LirType`与唯一canonical generated-C spelling；C extern/callback/native-global不得再平行保存可矛盾的`LirType` / `CType`参数或结果列表。该tree是源码storage contract，不包含target register class、integer extension、`byval`或`sret`；只有匹配`ValidatedCBridgeToolchainProfile`的system C compiler可把canonical source降低为真实C ABI。C-layout struct的field以exact `CType`携带integer signedness、data pointee与pointer storage kind，ordinary Scoop struct的field以`LirType`携带；声明struct/layout必须用`Scoop { fields } | C { contract, fields }`等价的封闭representation或`PlainAbi::{Scoop, C(contract)}`区分，不得保留`fields: Vec<LirType> + Option<CLayout>`的矛盾状态。MIR→LIR lowering把`MirCLayoutValue`/`MirCLayoutContract`逐variant转写为LIR crate自有的`LirCLayoutValue`/`LirCLayoutContract`；两个stage不能共享type alias，后续IR也不携带任意`u8/u64`对齐值。C bridge按“header → C struct forward declaration → function-pointer typedef → 依赖拓扑序的C struct definition → extern/global/callback bridge”发射，不能用偶然的arena遍历顺序解决递归type tree的声明可见性。
-- MIR的typed `VariantTest`/`VariantPayloadProject`由LIR消费已完成的concrete enum layout，穷尽降低为tagged discriminant或niche/null test与对应payload projection；for的Option分流与when不得各自实现一套按名称或默认tag的旁路。LIR以本crate专有、只能从enum definition经checked constructor取得的`LirVariantRef`封闭保存`EnumDefId + valid variant index`，并以`LirVariantFieldRef`封闭保存前者与valid field index；MIR→LIR只穷尽映射两个stage的typed ref，不重新做名称解析。`VariantTest`直接产生`I1`，tagged时比较discriminant，niche时按目标是unit还是payload variant选择null/non-null结果；`VariantPayloadProject`的result exact `LirType`来自同一variant-field ref，tagged时使用对应slot/field offset，niche payload时复用carrier表示。module validation必须同时检查operand exact enum、variant/field范围、result type、同operand/variant test true-edge或已知构造及其未改写复制基于稳定`Value` identity的支配关系，以及managed/raw/code pointee provenance，不能按dump文本或block名称推断。
-- M19 class allocation在进入任意initializer前必须使用exact concrete layout / TypeDescriptor清零完整payload、初始化header并登记object-start/size；initializing receiver立即进入普通managed root plan，尚未写入的managed leaf以全0非引用形态接受完整class `RefScan`。initializer、base/`this`调用与`super`方法使用独立typed managed direct target；LIR/codegen不得按`ctor` symbol、class name或receiver位置分类。每个初始化field store使用layout给出的typed offset和普通write-barrier插桩点，不能因对象“刚分配”而无证明省略。
-- statepoint 的落地形态（M15修订）：LIR不直接包含LLVM intrinsic，但必须为每个managed poll/call/invoke输出完备typed root plan与非零`SafepointId`。普通poll/call的`StatepointLiveSet`逐项保存“post-site live source与可移动managed实参载体”的去重并集，以及其layout完成后的managed leaf path；LLVM 22.1会把direct AS1实参加入`gc-live`但不会递归发现aggregate leaf，所以上游必须同时表达两者。managed invoke另存normal/unwind后继liveness与实参载体的并集形成`ExceptionalRootSet`，且每项非可选地标出normal/unwind reload角色。Managed、NoGC、NativeSafe、NativeBorrowed使用不同typed target/callsite实体，不能用`CallEffect + Option<RootPlan>`表达可矛盾组合；这是对M14 `CallEffect`存储形态的替代，不允许旧enum与新callsite sum同时进入codegen。函数入口及每条循环回边由LIR lowering显式插入typed `ManagedPollSite`并在同一次backward liveness中定稿root plan；M22的普通body fallthrough与每条continue edge都必须经过对应header poll，可以共享header site但不能绕过。codegen不得发现CFG回边、补poll或重算live set，只把普通call/poll的ID写入`statepoint-id`并执行`rewrite-statepoints-for-gc`。
-- 含引用aggregate不能依赖RS4GC递归发现：codegen按`StatepointLiveSet`在普通call前把每个managed leaf materialize为独立SSA value，让typed call实参消费同一materialized source，call后显式rebuild，使RS4GC生成并使用对应`gc.relocate`且不重复登记同一source leaf。managed invoke在invoke前把全部`ExceptionalRootSet` leaf spill到独立类型的显式compiler root frame，codegen直接发射actual-call operands完整但零`gc-live`的`gc.statepoint` invoke，normal/unwind按各自edge role reload并pop；原AS1 value不得跨invoke。不能让RS4GC改写带AS1实参的普通invoke，因为它会自动加入实参root并生成不可用的exceptional relocation。
-- C ABI extern降为typed native-safe storage bridge call；Scoop ABI extern使用普通Scoop typed signature但降为typed native-borrowed call。两类调用都发布描述当前generated frame的typed caller-root frame，并把进入对应transition的architecture薄入口发射为带`SafepointId`但零`gc-live`的statepoint；薄入口捕获冻结segment的精确PC/SP/FP anchor。transition本身可能park并改写caller-root storage，因此入口返回后必须先从该storage重建所有含ref的direct/aggregate实参，实际native machine call才以这些新值作为普通nounwind调用；不得复用入口前求值的AS1 SSA实参。返回managed后当前frame只从已被collector更新的caller-root storage reload，不生成与其竞争的普通`gc.relocate`；外层managed frame由runtime从transition anchor按stack map更新。Scoop ABI root set还含全部direct-ref实参；含ref返回按return-convention sum携带调用前已清零并发布的result storage/scan。只有 C ABI bridge拥有 C type tree/`@CLayout` static-assert描述；Scoop ABI不得经过 byte storage bridge，也不得插入隐式 pin/unpin。
-- LIR必须把managed ref、raw data pointer、code pointer与metadata pointer保留为不同pointer provenance，直到root liveness/codegen完成；不能因LLVM使用opaque `ptr`而提前合并。M15 codegen把Managed发射为`ptr addrspace(1)`，Raw/Code/Metadata发射为address space 0；不同kind只可经typed operation转换。普通LIR不得对managed value执行`PtrToInt`或address-space cast；只有TLAB object publication与card-index计算两个封闭codegen internal boundary携带kind-specific pointer-conversion metadata witness，post verifier拒绝缺失、错类或附着于其他instruction的witness。Scoop EH的`BeginCatch`作为独立typed operation调用runtime验证opaque unwind record，并直接产生已登记、稳定的AS1 exception payload ref，不通过address-space cast或暴露record layout。outbound C ABI及由语义保证不触碰managed storage的可能无界NoGC区间发布live caller-root leaves并进入native-safe；持有direct ref的Scoop ABI native调用即使声明`@NoGC`也进入native-borrowed。caller-root frame以可寻址value storage加递归scan descriptor表达含ref aggregate并spill live SSA temp；tagged enum使用spec 7.4的固定ref偏移，不读取tag。Scoop ABI含ref返回槽在push前清零并一并发布，native返回后在leave可能park之前写入、恢复managed后reload。未初始化slot/raw pointer不得混入。
-- 每个LIR direct/indirect/runtime/extern call及invoke共享同一typed call模型。void/direct/indirect-result分别使用互不兼容的target/signature id家族；每个target实体原子地包含destination与layout完成后的完整signature/return convention，callsite variant再结构化地要求无result、必需out或必需result storage。effect/protocol使用互不兼容的Managed、NoGc、NativeSafe、NativeBorrowed target ref与callsite实体表达，并按前两条携带各自必需root plan；两类Native call均必带`SafepointId`和各自caller-root set，含ref return publication嵌入与return convention对齐的sum。local function在body lowering前由声明序registry一次性产生`ManagedLocalFunctionRef`或`NoGcLocalFunctionRef`；function-local dispatch store依据HIR/MIR提供的静态callee effect产生`ManagedDispatchSlotRef`或`NoGcDispatchSlotRef`。direct与dispatch destination只能携带对应ref，禁止先退化成无effect的`LocalFunctionId`/`DispatchSlotId`再用`from_view`、callee属性或symbol反向分类。不能使用`effect enum + Option<RootPlan>`、`Option<ReturnRoot>`、`out: Option<_>`或另放一份可能不一致的result scan。dispatch slot保存typed callable与对应target/signature；codegen不得根据symbol、实参、result temp或上下文推断/创建函数声明及root plan。
-- compiler-owned static storage直接携带完整`RefScan`与封闭`LirStaticInitialState::{ZeroedForRuntimeUnit, EncodedStaticValue { template: CanonicalAllocationExtentBytes, relocations: Sorted<StaticImmortalRelocation> }}`，静态managed object携带immortal object记录；codegen据此发射typed storage/immortal descriptor table，不能按initializer、symbol或类型名决定是否登记。`CanonicalAllocationExtentBytes`只能由layout完成后的checked constructor建立，长度恰为`allocation_extent`，padding、ZST token byte及Recursive scan的全部8-byte pointer leaf为canonical zero；`StaticImmortalRelocation { pointer_offset, target: ImmortalObjectDescriptorRef }`按offset严格递增、无重复，offset对齐且命中logical payload内的Recursive leaf。GC-free storage以显式`RefScan::None`表示并仍有identity descriptor，只是不进入GC root集合；它不能携带relocation。storage descriptor同时携带logical `byte_size`与恰为`max(byte_size, 1)`的`allocation_extent`；零尺寸值强制`RefScan::None`，底层仍发射独立、address-significant、非common/非`unnamed_addr`的1-byte writable identity atom。`ZeroedForRuntimeUnit`的Primary必须是`ZeroFill` section中的虚拟allocation range，artifact proof以boundary、alignment、extent和section级无relocation闭合，不伪造file bytes；`EncodedStaticValue`的Primary必须是`WritableData`中的file-backed range并逐byte验证template/relocation。verified proof直接保存`ZeroFill | FileBacked { checked_offset }`，definition fingerprint分别消费同extent的canonical zero bytes或已验证真实bytes。`__common`/tentative不是合法zero-fill表示。除同一ODR member已经coalesce外，两个storage allocation range不得重叠。
-- M21进一步把ordinary top-level/delegate storage、singleton published slot与initialization/root-entry failure slot全部作为typed compiler-owned static storage输出；显式`@Global`/`@ThreadLocal` raw storage仍是不同representation。需要initializer unit写入的property/delegate storage、published slot及两类failure slot只能构造`ZeroedForRuntimeUnit`，codegen把整个atom发射为canonical all-zero initializer；spec 9.1.3允许省略unit的值只能构造`EncodedStaticValue`，即使template全零也不改变variant，且不存在引用它的initialization-unit descriptor。Encoded atom的非pointer bytes逐byte等于template；每个非null Recursive leaf恰有一项actual object relocation和一项typed relocation record，二者target都是同一已登记immortal object start，其余leaf为null，禁止任意heap/interior ref。C record机械编码state tag、template span及relocation pointer/count；IR不得保留`Option<initializer>`或任意`GlobalInit::Storage.initializer`旁路。完整variant/template/typed target list进入`CanonicalLirDefinition`与RuntimeImage record key；`ObjectDefinitionPlan`覆盖writable atom、`StaticInitialTemplate { storage }` atom、非空时的`StaticInitialRelocationTable { storage }` atom及actual/record relocation，空sequence使用共享typed sentinel。只读数据section允许第一个atom之前有canonical zero前缀，以容纳LLVM排列在前的共享空sentinel；这些字节必须全零、没有relocation来源，引用仍检查sentinel的extent、alignment和不与atom重叠，不能把它们伪装成普通definition。其余section继续要求从已归属atom开始。ODR storage把这两个非空辅助atom列为同组member。object/link verifier从真实bytes/relocation table重建并逐项比较，variant、byte、offset或target不同必须在native coalesce前改变strong/ODR definition fingerprint并失败。每个init unit原子携带`PersistentInitializationUnitId`、仅诊断的coordinate/path、GC-free cell、generated initializer/ensure entry和对应owner-bound published/property/failure storage ref；schedule是封闭`EagerStartup { no_throw_gateway } | LazyAccess`，不能以可空gateway表示IR状态。codegen只在固定C ABI中把Lazy编码为zero fingerprint/null pointer，Eager编码为nonzero fingerprint/non-null executable pointer及已验证producer-table owner；v1没有per-Cone code range，不能要求runtime验证owner text区间。LIR发射static-storage/immortal/init-unit typed descriptor表，不能以nullable initializer symbol、命名约定或root表扫描反推unit kind。
-
-M23-11 恢复显式 raw global/TLS 的独立表示：MIR 的 `GlobalStorage::Local` 必须直接携带完整编译期常量，LIR 使用 `RawStorage { identity, ty, initializer, thread_local }`，不允许 `ZeroedForRuntimeUnit`，也不加入 managed static-storage/root registration。普通 managed storage 不携带 TLS 开关。raw 定义仍使用实际 typed storage identity、常量、对象 atom 与 relocation 参加产物和链接；Darwin/AArch64 TLS 的 primary atom 是 `__DATA,__thread_vars` 中的 24-byte 描述符，其 `AddressTakenConstant { StaticStorage }` associated atom 是 `__thread_data`／`__thread_bss` 初值区。描述符只引用平台 `_tlv_bootstrap` 和本变量初值区，平台支持沿既有 target-support requirement 解析，不能作为 Scoop runtime symbol 或测试专用豁免。GC-free 与常量类型检查沿现有 MIR/LIR 边界完成；runtime ABI、普通初始化顺序与失败缓存语义保持。 target-support 的既有枚举追加 `_tlv_bootstrap`（tag 2）；undefined requirement 的 section role 追加 TLS 初值、TLS zero-fill、TLS descriptor（tags 10、11、12），原 tags 保持；link-identity-closure 从 /8 升至 /9，旧产物和缓存重建。每个 use 已保存实际 member/atom/offset，无需另存 generated-C unit 来限制它只能来自某一种 producer。
-
-- runtime registry按Rust类型隔离`ManagedEntryTargetRef`、`GeneratedNoGcLeafTargetRef`、`NativeBorrowedEntryTargetRef`、`RuntimeInternalId`与`ForeignCallbackEntryRef`。generated managed code通常只引用第一种并产生statepoint；唯一额外入口是LIR封闭`GeneratedRootFrameOp::{PushRecursiveRegion { stable_base, byte_extent, scan: NonEmptyRefScan }, PopRecursiveRegion}`引用的第二种。该leaf只链接/移除当前TLS root frame，保证NoGC、nounwind、有限时间、无allocation/park/handshake/callback，作为普通NoGc call留在同一managed segment且不产生statepoint；它不能承载任意runtime symbol或被源码/extern引用。private constructor与CFG verifier要求push支配随后受保护的managed entry、pop只匹配链顶同一frame，并在所有可返回/展开出口严格LIFO；boxing的push必须先于`scoop_rt_box_value` statepoint，pop在从可能更新的temp完成copy/返回后。Scoop ABI native header（`runtime/include/scoop_rt.h`）只导出native实现可用的对象布局、native root与native-borrowed入口；generated code使用的managed entry与上述NoGC leaf位于`runtime/src/generated_entries.h`，runtime internal implementation位于`runtime/src/managed_entries.h`。runtime内部只调用internal implementation；C trampoline只引用callback gateway。public header不得直接或间接暴露两个私有header，也不得按当前TLS mode或direct caller地址在一个symbol中猜入口类别。
-- LIR中的pointer null必须携带`Managed`/`Raw`/`Code`/`Metadata` provenance；`Option<FunPtr>.None`的Code null、managed niche与metadata链尾不能合并成默认Raw null。裸`Ptr`/`FunPtr`在成功HIR中维持非零不变量：可证明的ULong零值`Ptr(0UL)`在HIR诊断，其他违反unsafe构造/算术前置条件或由声明为返回裸pointer的native函数交回null的程序行为未定义。layout、well-known String、TypeDescriptor parent/interface及dispatch entry全部通过typed id/ref连接，display/link symbol只用于最终发射，不作为semantic identity。
-- foreign callback adapter作为managed entry保留GC strategy/statepoint，C trampoline、signature descriptor与删除context后的args/result storage描述作为独立反向bridge数据交给codegen。continuation原子状态降为显式`AtomicLoad/Store/CompareExchange`或等价LIR指令并携带内存序。
-- 把 MIR 已显式化的 normal / unwind / cleanup CFG 机械映射为 landingpad + Scoop personality；`throw`、`BeginCatch`、`EndCatch`和rethrow分别接到typed runtime入口，`resume`继续映射为LLVM `resume` / `_Unwind_Resume`。M25 personality只接受codegen封闭生成的catch-all/cleanup LSDA形态，直接经Level I unwind context接口完成search/install，不委托C++或C personality。对suspend function的handler，进入可挂起的Scoop catch/finally代码前必须把exception payload物化为managed对象并结束native catch，任何native EH状态都不得跨挂起点。
-- 输出 LIR type/function list，不再包含任何 Scoop 特有的内容，可以机械翻译成目标 IR 或其他格式。
-
-**LIR meta**：每个Cone的LIR同时输出param-free导出exact类型的`ValueStorageLayout`、field offset/alignment、canonical C storage contract、Scoop ABI分类、递归引用扫描、TypeDescriptor/parent/interface/callable typed ref，以及已materialize generic application的ODR layout record，随`.slib`导出（见2.6）。ZST status、`ElidedZst` ABI、`ArrayElementStorage`和static storage的`LirStaticInitialState`/typed immortal relocation sequence都是required wire variant并进入layout/definition fingerprint。LIR还把每条source extern contract经`LirTargetProfile`规范化为`NativeExternalContractRecord`：`PersistentNativeExternalSymbolId`由LIR target profile与真实object linker-symbol bytes产生，contract fingerprint覆盖default/逻辑library requirement、kind/TLS/mutability、ABI、target calling convention，以及完整canonical C source-storage signature/layout fingerprint，或包含`GcEffect::{Managed, NoGc}`的Scoop exact-type/physical ABI signature；它不持久化system C compiler的register classifier、integer extension、`byval`/`sret`。完整record与origin进入LIR semantic fingerprint。param-free类型的layout/scan只在定义Cone计算一次；由上游generic template与下游local type组成的新application则在实际consumer Cone计算并进入同一specialization ODR group。下游引用已存在external exact实体时直接消费meta、不重算；结构上不能用可缺失字段把ZST、tagged enum、aggregate element、static初值或extern contract责任推迟给codegen。`String` 的 well-known runtime binding 保存完整 `TypeDescriptorRef`：定义方使用 Local，消费方通过共有 layout/descriptor 依赖选择使用 External，provider 来自前端选定的实际 String 声明。消费方不复制定义方的 layout、scan 或 TypeDescriptor；dump 和 codegen 按已有 intrinsic representation 与目标 ABI 处理物理格式。descriptor、type registration 及实际 relocation 进入共有依赖和 Link 记录，不设 core 专用 bridge、固定 provider、来源资格或额外授权外层，也不为满足使用次数制造 relocation。
-
-`ExactOwnerRoot`对param-free source nominal及递归依赖它的`BoxedValue`、`CoroutineStep`、`CoroutineSlot`与`CoroutineStart`回到该nominal的定义Cone，但该root只决定helper自身的owner，不豁免其typed dependency所需的materialization能力。为保证任一consumer可以独立编译，定义Cone必须对每个可跨Cone引用的param-free source nominal预物化并导出封闭、有限的非callable shape-support closure，包括source exact、`BoxedValue`（适用时）、`CoroutineStep`、`CoroutineSlot`及各自所需generated type/variant/field、layout/scan/TypeDescriptor与registration；即使定义Cone自身未触发相应box/coroutine用法也不能省略。`CoroutineStart<R>`的signature必然引用`Continuation<R>`或`SuspendTask<R>` generic nominal application，因而在 M23-7 具备实际 Nominal ODR 定义和引用闭包后加入 callable closure，不能在M23-3/6把这些依赖降级为Strong。consumer只能引用对应阶段已验证的external closure，不得替定义Cone发射同identity的Strong定义。nominal application仍归其Nominal ODR group，tuple/function/raw/native-function-pointer等结构exact type仍归StructuralType ODR group，不把任意consumer first use改成新的Strong owner。
-
-LIR中String与Array的可变长度表示不因源码integer重命名而改变：两者都在object offset 16保存独立typed `u64` physical count，offset 24是InlineBytes的data start与InlineArray过对齐前的data boundary；Array的实data offset仍为`alignUp(24, element_alignment)`。源码Array size/index/iterator index全部是`Long`；实际size限于`0..=INT64_MAX`，index实参仍保留完整I64输入域并由bounds CFG拒绝负数或越界值。M26 的 String length/index/slice 同样使用 Long，但单位是 Unicode 标量值；只有 byteLength 对应 physical byte count，字符定位见 2.15，不能把 byte offset 当作源码字符 index。HIR/MIR只能用携带范围证明的checked conversion把非负I64 logical count转成LIR的internal u64 count。allocation、clone/互转、bounds与dynamic `RefScan::Array`都消费该internal count，但它不是源码`ULong`值且不能调用源码integer operation。
-
-### 2.5 codegen
-
-M31 的普通 IR 优化、最终 GC 发射计划、ODR 物理选择和登记格式见 2.19。本节的 M15/M23 固定清单与摘要 tag 描述 M30 及以前的实现；原 OdrDefinition/StrongRegistration、预先固定的 image 表及“所有 LIR site 均一对一发射”的要求按 2.19 迁移，其余真实 ABI、relocation 与 GC 检查继续适用。
-
-M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每个函数的实际 section、symbol extent 与 RELA addend，不能把多个 `.text.*` 中相同的相对地址混为同一个 PC。LLVM v3 stackmap 的字段、LIR 站点及 LSDA action 校验共用；架构负责 frame size、SP/FP 寄存器、保存帧区域和调用指令边界。amd64 使用 LLVM 自带的解码器识别实际 call 及其结束地址，不使用固定 `return_pc - 4/-5`；该解码仅在 codegen 对新生成的对象执行，不使 artifact-only linker 依赖 LLVM。ELF `.eh_frame` 的 PC-relative signed-32 FDE/LSDA 引用和 personality 间接引用按真实 relocation 解析；`zR` 的普通 unwind-only FDE 与 `zPLR` 的 Scoop 异常 FDE 分开处理。两种 libc 复用同一 amd64 机器规则，后续 ELF AArch64 只需选择相应架构规则。
-
-物理 definition atom 清单按目标对象格式投影。Darwin 保持既有 compact-unwind、必要 EH-frame 和 TLV descriptor/template 分离；ELF 的非 release callable 使用 EH-frame，不产生 CompactUnwind atom，含 invoke 时另有 LSDA。ELF raw TLS 的 primary atom 是实际 TLS storage，不另造 Darwin template atom。ELF 边界符号使用实际 section 和 symbol extent，end label 的 symbol size 为零；新增符号及 section flags 不改变已有 relocation/symbol 索引。ODR definition 和同 member 的 associated LLVM globals 使用同一 COMDAT，后端生成的 callable stackmap/EH section 在对象物化时关联到其实际 group。stackmap 输入可写以允许 PIE relocation，最终按 §2.8 的脚本进入只读区域。Linux backend contract 的 CPU 字段明确为 `x86-64`；Darwin 的 `generic` 字段与既有 fingerprint 保持。
-
-ELF COMDAT 中原本私有的关联 storage（例如 TypeDescriptor 的诊断字符串、itable directory）保持 private/internal linkage 与默认 visibility；其计划中的 boundary aliases 使用 hidden weak 定义。加入 COMDAT 不把私有 storage 名称提升成额外的外部定义。只有原本属于 object symbol surface 的定义才按计划设置 weak linkage。
-
-generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF primary entry 使用实际 `STT_FUNC` 的 section-relative offset/size；一字节 signature/context 标记分别位于 `.rodata.scoop_sig` / `.rodata.scoop_ctx`，无指针 relocation。bridge 定义及边界采用 hidden strong linkage；外来 C 函数与 TLS 引用保留平台 ABI。Darwin 的 section 名称和发射形式保持。generated-C 编译沿既有 profile 禁用独立 unwind tables，不把 C bridge 当成含 Scoop stackmap 的 managed callable。
-
-generated-C 及 runtime requirement 的 relocation 分类使用目标架构的调用、普通地址与 TLS 引用语义。amd64 的直接调用采用四字节 PC-relative/PLT relocation，并要求指向函数起点的 `-4` addend；普通 data/GOT 地址与 TLS 引用不能互换。Linux target-support 在既有枚举追加 `__tls_get_addr`（tag 3），合同为 native pointer 参数、pointer 返回的 leaf helper；Linux registry 包含 memcpy 与该 TLS resolver，Darwin 保持 memcpy 与 `_tlv_bootstrap`。LLVM 发射的 Scoop TLS resolver 与 memcpy 调用沿同一个 target-support requirement 分类，不能把它列为 Scoop runtime ABI，也不能不经分类直接忽略。既有 Darwin 编码与 registry 不变。
-
-`.slib` builtin member 的 `LinkObject` role 从本次已选择的 LIR target 取得 target-profile 与 object-format；对象生成和 artifact reader 重建 materialization 时均显式传入同一选择，不使用 Darwin 默认值。member logical key 继续只描述实际 producer unit 集合；目标兼容性由已有 manifest/role 字段表达，不给单位身份增加重复的 target 编码。
-
-共有对象消费使用格式无关的 section/symbol 事实：section ordinal 为非零 32-bit 原生 section 索引，Mach-O 的 nlist ordinal 在读取边界扩宽；ELF 的长 section 名称、符号尺寸/TLS 类型、binding/visibility 与 COMDAT 信息保留实际值。文件头和原始 relocation 使用封闭 Mach-O/ELF 分支，不能给 ELF 填入伪造的 Darwin deployment、nlist flags 或 ARM64 relocation。metadata 中的绝对 64-bit 指针共用符号加 addend 的语义；ELF RELA 的 signed addend 与指令字段原始字节分别保存。
-
-ELF 对象中的 TLS 定义和实际引用必须保持 `STT_TLS`。按 member 发射时，未使用的 LLVM 外部声明不应仅因 hidden visibility 产生无 relocation 的未定义符号；尤其不能把未使用的 TLS 声明变成 `STT_NOTYPE`，导致同一存储在不同成员中出现 TLS/non-TLS 冲突。此规则同样适用于外来类型描述符和 callable，不能使相同 ODR body 的对象字节取决于 consumer 的其它导入。实际使用的 Scoop 声明及定义继续保留 hidden visibility。此规则不改变源码存储身份或跨 Cone 访问器。
-
-
-atom range 的持久 section ordinal 同样扩宽为非零 u32；CBOR 数值编码保持，Darwin 既有 bytes 不变。section role 新增 tag 13 `ObjectMetadata`，表示符号/字符串/重定位表、COMDAT 表、调试信息与工具链 note，不占用 Scoop definition atom。GCC 的 `.note.gnu.property` 保留给系统链接器处理。LLVM 的 `.data.rel.ro.scoop.*` 与 `.llvm_stackmaps` 在对象物化时设置 `SHF_WRITE`，允许 PIE loader 重定位；最终脚本分别保证动态产物 RELRO 与静态产物只读。
-
-ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol table 而未被引用的 undefined 条目（例如 GCC TLS 代码附带的 `_GLOBAL_OFFSET_TABLE_`）不产生链接需求。Mach-O 既有 producer profile 的 undefined 集合约束保持。
-
-当前 Cone 的 strong relocation closure 保存从已验证对象 envelope 取得的实际 target，并拒绝成员之间的 target 混用。后续 dependency、undefined requirement 与 code fingerprint 使用该 target 比较已有选择和 native requirement surface，不默认指定 Darwin，也不重新解析未变化的对象。glibc 与 musl 即使采用相同 ELF machine 和 relocation，也保持不同 target。
-
-可执行产物的 root entry 记录同样使用绝对八字节指针语义，failure-root 与 gateway 引用的有效 addend 必须为零。构建后链接与 artifact-only 链接均把已选择 final-link profile 的 target 传给 manifest/Link reader 和默认 core slot 定位；不能在入口或依赖查找中回退到 Darwin。
-
-program-link 的 startup C 生成共用同一 image 数组、root 引用和 `main → scoop_rt_run_program` 调用，原生名称遵守所选 target 的 symbol normalization。Darwin 数组位于 `__DATA_CONST,__const`，Linux 数组位于 `.data.rel.ro.scoop.startup`，由最终链接脚本落实只读权限。启动对象按对应对象格式检查唯一的 `main` 定义和计划中的 image/root/runtime 引用；ELF assembler 保留的隐式 GOT-base 符号由链接器提供，不作为额外源码依赖。
-
-ordinary native object 与 archive member 索引按已选 C toolchain 的对象格式读取。ELF 格式/extent/group/relocation 边界在索引时验证；common storage、隐式 constructor/destructor、LTO、可执行栈及 C++ EH 限制在成员真正选入时诊断，未被引用的 archive member 不引入这些执行行为。已索引的 ELF 成员选入时复用检查结果，不套用 Mach-O 的指令引用重建。
-
-M28 的 CLI 将 `--cc`、`--native-sysroot` 作为 C 工具链输入；`--sysroot` 仍定位 Scoop core。`scoop build/run/link` 与 `scoop-link` 的 `--unwind-prefix`、`--link-mode static|dynamic` 只用于 runtime/最终 executable，不使 library `.slib` 构建依赖 unwind archive。runtime headers 与最终 archive 使用同一 target prefix。Linux 默认缓存遵守绝对 `XDG_CACHE_HOME`，其次为 `$HOME/.cache/scoop`；Darwin 保持 `$HOME/Library/Caches/Scoop`，显式 cache 配置优先。
-
-父子 machine protocol 升为 3。target request 是三个必需字段的 product：field 1 为 canonical triple，field 2 为 C driver，field 3 为 native sysroot；后两项以零项/单项数组表示未指定/`HostPathCarrier`。这些 host locator 不进入 artifact identity。父进程向子进程传递已解析的 Linux driver/native sysroot，执行环境只恢复该 invocation 保存的 `PATH`、`REALGCC`，以及本次 scratch 目录的 `TMPDIR`；不重新从清空的环境猜测工具链，也不继承任意 caller 环境。子进程按明确 locator 查询实际工具合同，沿已有 C toolchain compatibility 检查消费产物。Darwin 继续由 Xcode 选择 driver/SDK，不伪造 Linux 参数。
-
-既有 compile cache 记录中的 target/backend 二字段选择扩展为 `(1,1)=Darwin/AArch64/LLVM 22.1`、`(2,2)=Linux glibc/amd64/LLVM 22.1`、`(3,2)=Linux musl/amd64/LLVM 22.1`；编码和读回必须保留同一选择，未知或不匹配的组合拒绝。Darwin 原有记录字节不变，Linux 两 libc 的 cache key、产物和缓存记录保持隔离。
-
-共有 metadata pointer reader 以绝对 64-bit relocation 的语义读取引用：Mach-O `UNSIGNED` 的 addend 来自原始八字节字段，amd64 ELF `R_X86_64_64` 的 addend 来自 RELA 的 signed 字段；两者都必须先确认实际 write width 为八字节。原始字段字节与 native relocation form 仍独立保留。要求指向 symbol 起点的 registration 检查有效 addend 为零；指向 associated atom 的 pointer 则按 section/symbol base 加 addend 核对实际 atom 地址。不能因 ELF 原始字段为零而忽略非零 RELA addend，也不能把 PC-relative/GOT/TLS relocation 当作 metadata 绝对指针。
-
-ELF 的 `.rodata.str*` 接受两种只读字符串输入：普通 `SHF_ALLOC`，以及 `SHF_ALLOC | SHF_MERGE | SHF_STRINGS`。Scoop 需要保留独立地址的诊断 atom 可由 LLVM 以第一种形式发射；section 名称不能代替实际 merge 属性。其余 write/execute/TLS 属性仍按所属 section role 检查。
-
-零尺寸 static storage 的一字节地址 token 仍按初始化类别选择 section：`EncodedStaticValue` 使用 file-backed writable data，`ZeroedForRuntimeUnit` 使用 zero-fill；不能仅因语言值大小为零而改变已计划的初始化物化形式。
-
-ELF callable 的 EH personality 间接指针是该函数的 backend contribution，使用已有 `AddressTakenConstant` role 与 `CallableBody(body)` subkey 规划关联 atom。物化时将 LLVM 的 `DW.ref.scoop_eh_personality` 定义重命名为该 atom 的 start boundary，保留原 symbol/relocation 索引，并放入 `.data.rel.ro.scoop.personality`。其旧的独立 COMDAT group 退役；若所属函数为 ODR，则指针及其 RELA 与 EH/stackmap 一起加入函数 group。普通函数按其 Strong boundary 物化。helper 不形成新的语言实体、runtime ABI symbol 或独立 ODR 定义；CIE 到该边界的引用按已有本地 atom 指针解析，pointer 到 Scoop personality 的引用沿已有 EH requirement 解析。
-
-独立 `.slib` reader 的 stackmap normalization 按已选择 target 使用架构帧合同，LLVM v3 字段解析、site/owner 匹配和 canonical fingerprint 共用。amd64 要求 `N >= 8`、`N % 16 == 8`，SP/FP 的 DWARF 编号为 7/6，`FP = SP + N - 8`；root 必须是 `[SP, FP)` 内八字节对齐的完整八字节 indirect slot，base/derived 相同。reader 使用不依赖 LLVM 的成熟 amd64 解码库，从实际函数起点解码至最后 safepoint，确认 return PC 是直接或间接 call 的下一条指令边界，并确认首个 call 前已保存 RBP、建立 RBP frame chain。该检查不按 call opcode 的局部字节猜测指令长度，不引入新的产物字段或重复的语言语义检查。
-
-对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。
-
-ELF raw callable/shape atom 的 section-symbol 引用以同一定义中覆盖 section 起点的 atom 作为基址，编码该 atom 的 typed identity 与相对 offset；section ordinal 不进入 fingerprint。RELA addend 仍独立保留，与对该 atom 起点的本地符号引用一致。这里规范化的是 relocation 的符号基址，不把 PC-relative addend 当作绝对地址，也不固定加四或五来猜测指令尾部。若 section 基址没有当前定义所属的实际 atom，则拒绝；metadata 的语义指针继续按已验证的实际目标地址处理。
-
-M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
-
-codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：
-
-root/init gateway 在 LIR 中使用已有 RootGateway/InitializationStartupGateway body kind，强制入口 poll 使用本 body 的 safepoint ID 并发布准确 managed anchor，再执行调用/异常路径；不新增单独的 entry 身份或资格记录。runtime对每次C→gateway调用独立执行runtime spec 2.8的boundary/epoch enter-leave协议；`EntryPending`只证明尚无managed frame，不得把C PC当anchor。gateway须在返回GC-free status前发布failure root并EndCatch，编译器CFG verifier不能允许绕过入口poll或让异常跨C frame的出口。
-
-packager的`scoop-code-v1`输入依次为按`SlibMemberId`排序的全部`LinkObject`之`LinkMemberFingerprint`、按`CapabilitySortKey`排序且同capability唯一的`KnownLinkExtensionCodeContributionV1 { capability, canonical_projection }`、canonical native library requirements，以及完整`CanonicalDefinedLinkSymbolOwnerSet`、`CanonicalUndefinedSymbolRequirementSet`与`CanonicalNativeExternalContractSet`。projection只能由known Link handler从verified输入机械构造：Link-required blob的projection覆盖其按member排序的link-member fingerprint及canonical native-library requirement；registry声明Code sink的metadata section则使用其冻结的semantic projection。M23-5 `cross-cone-link-closure/1`的projection精确为semantic-import array，即使为空也保留该capability贡献，物理requirement与coverage不进入其中。三张symbol/contract表按各自typed key排序并保存canonical key/payload，诊断origin不参与code fingerprint；仅owner/requirement/contract改变、object bytes不变也必须使code/link key失效。diagnostic与unknown optional blob不进入code fingerprint，插入它们导致的archive ordinal/物理名变化也不能污染既有link member fingerprint。完整编码与stage输入见M23 stage3设计14.4与stage5设计13.2。
-
-object verifier为每条带`{ member: SlibMemberId, relocation }`定位的undefined-symbol use产生封闭`UndefinedSymbolRequirement::{ScoopOwned(persistent_entity), SourceExtern(contract_id), RuntimeEntry(runtime_target), GeneratedBridge(unit: GeneratedBridgeUnitId), TargetSupport(profile_capability), MemberCapability(capability_requirement_id)}`，并交叉验证typed IR、extern contract、runtime ABI registry、C bridge plan、target compiler-support能力表或当前known `LinkObject.verifier_capability`的规范化契约。每个non-local strong/weak/common definition则唯一映射到`DefinedLinkSymbolOwner::{ScoopDefinition(typed owner), GeneratedBridge(atom: GeneratedBridgeAtomId), TargetSupport(profile definition id), MemberCapability(capability definition id)}`及其linkage/visibility/kind/canonical contract；local/debug symbol只由capability allowlist约束。每种known capability还必须锁定target object kind与有界load-command/section/symbol policy；Darwin/Mach-O input必须是`MH_OBJECT`，拒绝`LC_LINKER_OPTION`/autolink、embedded linker directive，以及未被上述typed owner认领的external/weak definition，不能用额外强符号抢占runtime/其他member provider。manifest保存完整member-aware defined/undefined index，consumer按`lir_target`、runtime ABI以及该candidate适用的`backend`或`c_bridge_toolchain`受检producer evidence重验；不得用任意symbol前缀、文件名/扩展名、C compiler来源或无类型allowlist豁免。bridge入口和后端memory/TLS/EH helper使用各自owner/requirement及library依赖，只有`SourceExtern`映射源码contract；`MemberCapability`只能由已登记handler给出完备definition或ABI/library约束，不能成为接受任意symbol的escape hatch。无分类、同一symbol/use多分类或无对应producer/capability均拒绝。公开runtime/target support symbol可与源码extern共用，但能力表必须提供完整canonical native ABI/library contract并与声明逐字段相等；compiler-private runtime、Scoop-owned和generated bridge symbol不允许源码extern占用。
-
-codegen的具体职责为：
-
-- 将 LIR output 机械翻译成目标 IR（本阶段为 LLVM IR），再把实际产生的provisional native outputs正规化为`ProvisionalLinkObjectMembers`集合；codegen/finalizer/packager接口及其分支不得编码“当前恰好产生几个object”，更不能把某次实现结果提升为每个Cone或每个`.slib`的基数不变量。
-- 对LIR `VariantTest`/`VariantPayloadProject`只按已经选定的tagged/niche representation发射LLVM比较或投影：test直接产生`i1`，projection复用既有typed aggregate/pointer安全物化机制并保持managed/raw/code address-space provenance。codegen在发射前防御性复核typed variant、field、result与pointee provenance，不按名称、FQN或使用场景补source语义分支，也不为这两个primitive增加runtime ABI。
-validated LLVM backend profile 的 frame-pointer=all 策略适用于全部 Scoop callable，包括 NoGc 函数；GC strategy 的设置仍由 typed GC effect 独立决定，NoGc 不得因 frame 策略而加入 statepoint GC。LLVM producer 与 rewritten-module verifier 必须同时应用和核对该 frame 策略，使 NoGc 次构造器等包含普通调用的函数保持 canonical frame，避免因遗漏 profile 属性而产生预定 associated-atom 闭包外的 unwind-only EH frame。managed 的 tail-call 与精确根规则继续按既有 profile 执行；associated section、CIE/FDE、compact unwind、LSDA 和对象范围的完整校验仍然必需，不能通过忽略额外 backend section 接受不完整定义。
-
-- Scoop LLVM codegen只从本次single-Cone请求中已验证的`lir_target + backend`创建TargetMachine：前者提供canonical triple/data layout、object format、pointer/layout/Scoop ABI与symbol normalization，后者完整提供resolved CPU/features、relocation/code model、LLVM 22.1 SelectionDAG/标准TargetMachine pipeline、managed address space=1、stack-only statepoint root policy、stack-map v3 location capability、`frame-pointer=all`、disable-tail-calls、Mach-O emission及M25的Itanium/DWARF unwind、Scoop LSDA subset、exception data register、unwind provider与artifact inspection能力。SDK/deployment、system C compiler、runtime source/build flags及最终linker actions不属于这两个projection。LLVM-produced candidate必须非可选地携带并由verifier核对`ValidatedBackendProfile`；关键flag不允许以`flag_if_supported`静默省略。除profile registry外，codegen、`scoopc`与program-link不得match profile identity或散布host OS/arch条件，只读取各自完备capability。
-- 为每个进入当前LIR layout/type closure或param-free exported LIR bridge的runtime-materialized `PersistentExactTypeId`生成`TypeDescriptor` registration（runtime spec 2.2：类型标识、封闭`FixedObject | BoxedValue | InlineBytes | InlineArray | AbstractRef` instance shape、`object_scan`与`inline_scan`、父类型与普通vtable/itable，以及M24的typed release policy）；只存在于未替换Export HIR template/binder中的type不提前生成。`ValueStorageLayout`只描述未装箱value；`FixedObject`只描述class/closure，value exact type必须使用`BoxedValue`。其payload offset为`alignUp(16, value alignment)`、minimum为按instance alignment规范化的header+padding+payload，object scan由value-relative inline scan作checked offset translation；因此over-aligned value/ZST不能继续假设payload固定在`+16`。array TD的minimum object size/data offset与独立`ArrayElementStorage`写入不同字段，绝不能继续把一个`size`同时当instance size和element stride。interface/managed function/`Any`使用不可分配的`AbstractRef`；未来源码可命名的`Nothing`进入exact-type closure后也必须使用`AbstractRef`，该runtime契约不要求M22的jump statement提前物化`Nothing`类型或descriptor。`AbstractRef`不能靠`size == 0`与ZST混淆。每个generic application及tuple/raw/native pointer等结构exact type保留独立identity，后者用`StructuralType` ODR group跨Cone materialize；不按template、display string或相同layout合并。M24 physical TD在`function_result`后、`related_types`尾表前追加nullable release-hook entry，但LIR保持`None | SynchronousGcFree` sum并由adapter机械编码；除合格普通final class FixedObject外必须为null。`Any`没有方法或固定槽，TypeDescriptor不含通用equals/hash/toString入口。
-- ZST codegen只对真正需要place identity的参数/local/`this`发射满足alignment的1-byte stack token；同时存活的不同address-taken place不得共址。compiler-owned static及本地raw global遵守2.4/2.8同类token与linkage规则，C-boundary extern global/TLS仍由FFI classifier拒绝。普通ZST SSA value、field copy与return不发payload storage；box按`BoxedValue.inline_offset/minimum_size`分配，不能把ZST或普通over-aligned payload固定放在header后。`BoxPayload::ZeroSized`机械调用无payload参数的`scoop_rt_box_zst`；`NonZero`先把完整value写入跨调用地址稳定且按value alignment对齐的caller temp。若exact TD inline scan非空，codegen必须先以该scan push覆盖temp的NoGC native recursive-region root，再调用只接收该place的`scoop_rt_box_value`；push必须早于runtime managed-entry handshake/park，root贯穿handshake、allocation与copy，moving GC原地更新temp，返回后caller才按LIFO pop。runtime入口只验证该root已活跃，不能在入口内补登记；空scan分支可省略push/pop。codegen/root-plan verifier不得只保活拆出的旧AS1 SSA leaf、从push前副本复制或传入managed-object interior pointer。unbox同样分流到无destination的`scoop_rt_unbox_zst`或带destination的`scoop_rt_unbox_value`。四个入口的size/alignment/scan均只取自refined TD，旧`box(td,payload,size,scan)`不得继续发射。array codegen对`ZeroSized`分支只计算/保存logical count并执行bounds/evaluation，不做stride除法、pointer-progress、element GEP load/store、barrier、scan loop或零长`memcpy`。
-- 发射M21 typed static-storage与initialization-unit descriptor表、generated initializer/ensure entry和singleton published/failure root。ensure/publish/fail走runtime spec 2.7的managed init-coordinator入口并使用普通statepoint/invoke root plan；codegen不执行initializer、不按名称选择object/property，也不为Option-omitted property生成late-init检查。
-- M24 为 `LirReleaseHook` 发射 address-significant、nounwind 的 raw C ABI thunk 与普通 callable registration；没有 GC strategy、statepoint、stackmap、personality/LSDA 或 transition。参数自由 owner 沿 Strong 定义，generic exact owner 的 hook、TD 和相应 registration 沿同一 nominal ODR group；其他独立 helper 保持自己的 owner。object reader 校验实际布局、hook relocation、body/owner、registration 与已声明调用目标，复用已有 generated-C/target-support 检查，不以符号扫描证明任意 C 代码不会回调或阻塞。artifact-only linker 处理真实外部符号与 ODR 地址，不重新执行 HIR effect 分析。
-- M23为当前Cone在全部LIR-produced `LinkObject`成员的联合定义空间中发射由`ConeIdentity`派生、名称唯一的hidden strong `ScoopImageDescriptorV1`，内嵌canonical coordinate与`RuntimeImageFingerprint`，并按固定次序强引用static-storage/immortal/init/type-registration/safepoint-registration/callable-registration六张producer pointer表；普通external ref不进入producer表。manifest以`image_owner_member: SlibMemberId`指向实际定义它的唯一`LinkObject`，所有成员联合验证必须证明恰好一个image descriptor；不能要求它位于固定文件名、扩展名或ordinal。每个`RegisteredCallableBody`在其实际所属的provisional member finalization graph中发射callable record，保存body id、独立ObjectDefinition fingerprint与address-significant entry；generated C bridge及未来native producer的非LIR body按自身capability验证，不伪造该record。不同body id禁止`unnamed_addr`、MergeFunctions/function alias folding，final-link profile禁用function ICF，只有同一已验证ODR callable member可coalesce。所有record严格镜像共享`scoop_runtime_metadata_v1.h`的magic/version/size/field order，codegen用LLVM `DataLayout`、C `_Static_assert`与object `offsetof` verifier锁定；不再导出固定`scoop_image_*`全局名，也不在每个Cone发射program descriptor或C `main`。root main和eager unit分别发射返回`Succeeded | Failed`、内部catch/物化并写registered failure root的C-callable no-throw gateway；gateway使用自己的body id，record中的gateway fingerprint必须镜像同一callable body fingerprint。C runtime不得直接调用可能展开的managed main/ensure；generated-C canonical command必须显式关闭stack protector、同步unwind table与异步unwind table并把三项纳入canonical flag fingerprint，不能依赖compiler默认值。每个unit编译成功后必须在封存前按typed atom authority物化boundary：唯一`PrimaryEntry`精确占有从起点开始的非空`__TEXT,__text`，1-byte `SignatureDescriptor`/`ContextDescriptor`分别独占`__TEXT,__scoop_sig`/`__TEXT,__scoop_ctx`；共同Mach-O symbol-table重建器加入external start/end并同步修正undefined relocation index。缺失/多余atom、错section/extent/plan、符号冲突或compiler产生stack-check/unwind support均失败；不得由相邻symbol、nlist size、普通`__const`或临时label猜range，也不得保留无boundary旧路径。canonical source只使用不包含`<string.h>`的`__builtin_memcpy`；它只可内联或降为已登记`memcpy` target support，`__memcpy_chk`等fortify派生symbol必须失败。
-- 最终 LIR 的 `StructDef` / `EnumDef` 必需携带实际 `PersistentExactTypeId`，由 MIR 的 source/generated exact-type record 直接传入，完整 key 复用 `LirMeta.exact_types`。局部 arena ID 只用于表示表索引；canonical LIR、ABI 与全局引用使用记录中的持久身份。名称、相同布局或字段集合不能作为身份回退，后续字段、表示和扫描填写保持该身份；泛型实例保留完整 application 的 exact-type ID（2.13）。
-- M23-7 的函数 canonical LIR leaf 从实际最终 `Function` 的 ABI、GC effect、指令、正常/异常 CFG 与 root plan 计算，使用 `scoop-lir-definition-v1`。入口可达块按固定后继顺序遍历，local/temp 按首次出现规范化；诊断名称、arena 编号、未使用槽和不可达块不进入该语义投影，所有实际对象 atom 仍由 ObjectDefinition 覆盖。production 新增必需 field 13，按 body ID 保存 `{1=body, 2=LIR fingerprint}`，ODR 必需追加 `3=OdrAbiFingerprint`，精确覆盖 foundation 中全部 callable-body，包括普通 Strong/ODR 正文与 lowering 已生成的 root/init gateway；均编码实际 Function，不用空记录或入口计划替代 gateway 正文。reader 核对集合、引用、排序与摘要格式后复用，不重新编译正文。canonical callable 首次接入时，两种 production schema 升至 strong-production/13、/14，旧 /11、/12 产物重建；当前完整泛型 profile 使用 2.13 的 cone-production/3，另包含实际名义类型的 shape 内容。
-- LIR非可选输出`CanonicalLirDefinition`、覆盖每个实际物理 strong/ODR 定义的 member-independent `ObjectDefinitionPlan`及独立`DigestFinalizationPlan`。digest kind封闭为`SourceSignature | Layout | Scan | LirDefinition | ObjectSupport | ObjectDefinition | StackmapRecord | OdrDefinition | StrongRegistration | RuntimeImage`；前四种从canonical LIR metadata产生，其他种从受检object range或canonical runtime record产生。`DigestFinalizationPlan`只携带member-independent `DigestPatchIntent { intent_id, source_node, target_definition: ObjectDefinitionPlanId, atom_role, semantic_field_role, width=32 }`，不含member、section或offset；同一owner下不同role的definition以精确plan id区分，不能靠owner反查。各native producer发射所有graph-managed digest slot为零的`ProvisionalLinkObjectMembers`，其materialization relation再把每个plan绑定到`SlibMemberId`，并把每个intent唯一物化为`MaterializedPatchSite { intent_id, member: SlibMemberId, checked_offset }`；该关系及物理range/offset不进入`LirSemanticProjection`或LIR wire。`ObjectDefinitionPlan`只描述typed owner/role和primary/associated boundary，不保存实际range或digest offset。validated `GeneratedBridgePlanSet`除wire中canonical unit/atom id投影外，还必须保留foundation已验证的完整typed identity-key authority；reader逐项重建相等后返回该authority，不能从decoded裸id产生proof。独立object verifier解析每个真实object并输出带同一`SlibMemberId`的`DefinitionAtomRange`、associated record、materialized patch site与`VerifiedObjectDefinitionIndex`；range不能跨member，strong root/init gateway、param-free TypeDescriptor与strong registration不得绕过plan只相信LIR。
-- finalizer对整个`ProvisionalLinkObjectMembers`集合严格按typed单向DAG工作。每个node只读取canonical source及`DigestInputRef`声明的直接input；object-backed hash的normalize视图只保留传递依赖slot，node自身及peer/descendant/无关slot归零，不能用“遍历时尚未计算”决定输入。允许边封闭：semantic/support leaf无依赖；stackmap依赖owner signature/support；object definition依赖semantic/support/associated stackmap；每个 ODR node 依赖其自身 member 的 LIR/object/stackmap；strong registration依赖自己的LIR/layout/scan/source/object及适用stackmap；runtime image显式依赖每个canonical record key实际出现的definition/layout/scan/descriptor/gateway/callable/stackmap节点。跨Cone ODR canonical序列分别按`OdrMemberId`、`DigestNodeId`与`PersistentSafepointSiteId`排序；`SlibMemberId`只定位实际bytes，不进入ODR或LIR semantic fingerprint。callable registration的`body_definition_fingerprint`来自该body的ObjectDefinition，registration identity中的definition则仍来自StrongRegistration或OdrDefinition；root/eager gateway字段是同一body digest的镜像，不能另算第三个digest。交叉record只hash typed identity，除非其digest就是当前record字段。finalizer逐member回填后重跑相同graph/object verifier并封装不可再改的`VerifiedLinkObjectMembers`；每个slot必须无relocation、固定32 bytes、恰有一个writer且初始为零。packager看到全部verified link members、其他typed auxiliary members、canonical native library requirements、完整`CanonicalDefinedLinkSymbolOwnerSet`、`CanonicalUndefinedSymbolRequirementSet`及`CanonicalNativeExternalContractSet`后才以`scoop-code-v1`计算composite `CodeFingerprint`，随后计算member/manifest hash及`ArtifactFingerprint`；不能让codegen回写LIR meta或在pack后修改任何member。
-- `DigestKind`的wire/hash tag按上述十种顺序固定为1..10；每个node id由`scoop-digest-node-id-v1`、kind及canonical persistent owner/role key产生，direct input按`(kind tag, node id)`严格排序去重并编码kind/id/digest。strong record必须按M23设计3.4的精确`scoop-strong-registration-v1`公式计算：canonical source是own-definition归零后的完整`RuntimeImageRecordKey` sum bytes，最外层sum tag唯一表示record kind；variant内registration不含kind，公式也不得另行前置第二份kind。它强制Strong linkage/零ODR id，只把自己的definition slot归零，保留其余已声明input digest与typed pointer role；不得以“domain-separated”占位、object地址或遍历顺序代替。RuntimeImage使用runtime spec 2.8的little-endian/tag/count encoder及产物golden vectors；runtime消费实际记录，不重算RuntimeImage或另建Graph摘要。
-- 展开登记表中归属 codegen 的 `@Intrinsic`（见 2.10）。
-- 普通（非 suspend）extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）；C ABI只生成canonical generated-C storage bridge source，并由`scoopc`中的known native-member producer在`lir_target + c_bridge_toolchain`下编译，Scoop ABI直接发射managed external call并接受direct ref。generated-C candidate必须非可选地携带并由verifier核对`ValidatedCBridgeToolchainProfile`，不能拿LLVM backend profile或当前机器默认C compiler代替。packager必须先以同一个请求profile原子核对manifest C-bridge production中的profile id/fingerprint、template/flags fingerprint、generated unit全集、planned/actual member全集与每个actual object的deployment envelope，形成只涵盖profile/unit/member/envelope的typed proof；其后再独立完成atom/symbol/relocation/requirement验证，不能让object在一个deployment下通过却在manifest中声明另一个profile。完整generated-C semantic proof从bridge plan的full key authority重建每个materialized atom的definition及singleton primary object atom，拒绝member中的缺失/额外definition、associated atom relocation、跨atom local与section-base target；outbound/global、managed callback及static callback分别必须命中同一typed native contract、`CallbackInvoke + signature descriptor`或由storage-bridge id重建的strong callable body。每个`LinkObject`中由源码extern目标产生的undefined relocation都必须由对应capability的object verifier以`{ SlibMemberId, relocation }`关联到唯一`NativeExternalContractRecord`，symbol bytes、调用/data kind与生成的ABI shape逐项一致；未使用声明仍保留record但可以没有relocation。generated-C模板允许引入的target-native helper使用绑定target id/fingerprint及完整C-bridge profile id/fingerprint的`CBridgeTargetSupportRequirement`闭合集合；当前只含`Memcpy`，且只有同一production envelope证明的generated-C member可以产生该use，Scoop LIR member、未知helper或仅凭symbol string命中均失败；同名源码extern先按unit的typed semantic target匹配，不能被support分支抢先分类。target-support closure必须与source/runtime/EH closure逐字段共享同一strong relocation closure和target，并按member/atom/offset/target-slot逐use重整generic同名命中；finalizer不得直接消费未完成producer-specific reconciliation的runtime/EH结果。codegen依赖HIR已排除suspend extern，不识别或发射hidden continuation FFI ABI。
-- M13 按`(C signature, context index)`为实际导出的 managed callback生成/复用静态 C ABI trampoline：按真实C签名编组storage、排除context参数、携带signature descriptor调用runtime callback gateway；trampoline地址与runtime-owned opaque cookie配对使用，不生成每个closure实例的可执行代码。异常时trampoline按C返回类型产生全零值。foreign-thread attach/detach、generation cookie、异常handle及token retain/release由runtime实现，codegen只消费LIR中已定型的adapter/trampoline描述。多mutator下的card mark必须发射atomic monotonic store/RMW。
-- M15在SSA construction/SROA之后运行`rewrite-statepoints-for-gc`，随后执行专用post-RS4GC verifier：普通managed call/poll的每个预期AS1 leaf必须有支配全部post-site use的`gc.relocate`，原root不得在可达post-site path继续使用（PHI按incoming edge判定）；每个managed函数入口及每条循环回边必须对应一个LIR poll/statepoint；invoke不得有exceptional relocate；NativeSafe/NativeBorrowed的唯一statepoint位于transition薄入口且`gc-live`/relocate必须为空，实际native call不得另有statepoint，当前frame跨transition只从显式root/result storage reload；managed aggregate不得未经拆叶live-through；AS1 derived pointer不得跨safepoint；Raw/Code/Metadata不得进入`gc-live`；kind-specific internal pointer conversion witness必须与instruction匹配。通过LLVM module verifier或存在stackmap section都不能替代这些检查。
-- LIR 在构造 root plan 与分配 safepoint 身份前折叠同一基本块内已知的布尔条件，包括默认实参物化产生的局部值复制链、布尔取反与相等比较。同块内直接取得的局部地址及其复制可以关联到原存储，只有类型相同的 load/store 才沿该关联传播；未知地址写入、调用和 GC 站点使可取地址存储的已有常量失效。基本块之间不推测未建立的数据流事实。随后由已有 CFG 可达性处理删除死分支及其 safepoint，避免 LLVM 的 SSA/SROA 先删除这些站点后才发现清单不一致。该处理不改变源码求值顺序，post-RS4GC 和对象边界仍精确核对实际站点。
-- M25增加EH artifact verifier：每个含landingpad的function必须使用Scoop personality，LSDA只能含`backend`声明的catch-all/cleanup encoding、call-site与action链，landing pad地址必须位于所属function。最终链接产物不得导入C++ EH的`__cxa_*`接口、gxx/gcc personality或C++ terminate，也不得加载libc++abi；Linux CRT/libc的`__cxa_finalize`、`__cxa_atexit`退出清理沿runtime spec 5.5允许；Darwin/AArch64的`final_link`由默认`libSystem`解析允许的Level I `_Unwind_*`集合，linker args不含`-lc++abi`或显式`-lunwind`。
-- LLVM 22.1 statepoint machine lowering是固定后端契约而不是artifact启发式：SelectionDAG保持`max-registers-for-gc-values=0`，标准TargetMachine machine pipeline在register allocation后运行`FixupStatepointCallerSaved`且保持`fixup-allow-gcptr-in-csr=false`。Scoop不向用户暴露或透传LLVM command-line option，不为statepoint设置`DeoptLiveIn`；若未来内部配置允许GC pointer进入vreg，仍必须由该post-RA pass把全部GC register operand改写为stack spill。codegen不能改用GlobalISel、自定义缺失该pass的machine pipeline或依赖hidden option的外部进程状态。
-- 每个 statepoint 使用其 typed site 的 `SafepointId` 设置 `statepoint-id`。M31 在 LIR 根需求和最后一次普通 IR 变换后得到最终发射计划，每个保留 site 有唯一 owner/role、实际 instruction 与完整 managed leaf；已证明不可达的 site 从实际清单移除。managed poll/call/array allocation 的 root-pair count 来自最终 typed managed leaf，invoke/native transition 为零；NoGC body 不得含 site。object verifier 用该计划核对 v3 stackmap 的 ID、header、零 deopt、root count、location 与原始 return PC，不能从输出数量反推根需求。当前 GC pair 仍要求相同、可写的 8-byte SP/FP Indirect slot；普通 deopt/live-out 不得误分类。profile 违规仍为 compiler/toolchain invariant failure，runtime 按精确原始 return PC 查询，不以 ID、PC 偏移或地址范围猜测。
-
-codegen **不需要任何上游 meta**：上游信息已逐层吸收进本Cone的LIR；MIR只保留typed persistent origin，LIR在body/layout/site等最终owner形成并完成Strong/ODR分类后集中产生symbol request。对上游函数/TypeDescriptor的引用一律发射为external symbol，链接期解析。所有Scoop-owned linker-visible symbol都由kind-specific persistent entity/ODR id按版本化mangler产生；FQN、短名、arena序号和Cone-local overload discriminator不能进入跨Cone判等。链接层规则：
-
-- **重复实例去重（M31）**：沿用四类 specialization 及原 group/member identity。普通依赖语义一致后，只比较重复 member 的完整 typed key 与 ABI；独立 helper 取并集。正文与其 EH/stackmap/registration 必须同选，泛型状态与初始化的必要引用闭合。物理选择由 2.19 的 artifact-only program-link 完成，不再以 canonical LIR 或对象字节相等为准。
-- M31 删除 `OdrDefinitionFingerprint` 与仅服务 ODR 内容判等的 canonical LIR/object/stackmap 汇总；ABI 摘要和各自产物实际格式、符号、typed relocation、范围、EH 与 stackmap 正确性检查保留。代码内容仍进入普通 Code/Artifact 和链接缓存，不新增优化前正文指纹。M23-7 的摘要公式与 tag 作为退役格式记录，不再生产或消费，迁移见 2.19。
-
-callable-body member 的 ABI payload 为 `{1=GC effect, 2=ScoopAbiSignature}`，直接复用最终 Function 的 GC effect、调用约定、参数/结果、物理类型、布局和 scan 编码，不遍历正文或 CFG。production field 13 的 Strong record 仍为 `{1=body, 2=LIR fingerprint}`，ODR record 必需追加 `3=OdrAbiFingerprint`；实际 group/member/role 从同一 foundation 的 body/member key 恢复，不能在 wire 复制或猜测。refined `CallableOdrMemberId` 由实际 member key 构造或解析时保留 group/role，wire 仍只有原 ID；后续计算直接消费已解析 body key，不把上游 key 重复发布到 LIR 表。reader 拒绝 Strong 带 ODR ABI、ODR 缺少 ABI；验证后的记录以完整 sum 保存分类和必需数据。body 的 ODR definition 组合自身 primary atom 的 LIR leaf、body ObjectDefinition leaf 和按 site 排序的全部所属 normalized-stackmap leaves，复用既有对象与 stackmap 结果。生产与读取共用计算入口，Strong callable 记录编码保持；当前 ODR 分支由 cone-production/3 与实际 shape 内容一并发布。
-
-M31 的 callable/safepoint registration 从实际 production/GC 发射计划取得 body/entry、site/runtime-id/owner/role/root-pair count。注册 ABI 只描述 record kind/version/byte size，函数签名属于 body 的 ABI；site/root 数量与 normalized stackmap 是该实现的数据，不能用于跨优化 ODR 判等。登记公共 definition 字段及专用摘要按 2.19 删除，保留的 body/stackmap 字段只核对自身实现，正文与登记同选。
-- 任一function owner的associated record闭包同时覆盖`__gcc_except_tab` LSDA、`__eh_frame` FDE/CIE relation、`__compact_unwind`与LLVM stackmap function/callsite payload，并按typed strong/ODR owner与relocation归属；共享CIE等用canonical support fingerprint引用。safepoint registration的normalized fingerprint须与stackmap payload一致。group可typed-ref其他canonical group，但不能把自身产生的runtime identity漏在组外；object测试从真实Mach-O重算strong/ODR definition map/fingerprint并对primary atom和每类associated metadata做篡改测试，link后再验证TypeDescriptor与storage allocation range确实唯一。
-- **符号可见性**：`internal`符号可本地化；被导出的generic body通过其既有typed dependency closure保留必要的可链接名字。导出default在HIR已被限制为只引用export/re-export实体，不得以强制导出内部符号补救非法可见性（spec 8.5、12.5）。
-
-### 2.6 `.slib` 打包
-
-M23-2起所有wire/persistent hash共用唯一framing：`ByteSpan(bytes) = little_endian_u64(bytes.len) || bytes`，`DomainSeparatedCborHash(domain, value) = SHA-256(ByteSpan(ASCII(domain)) || WireCborV1(value))`；长度先checked转换为`u64`，domain逐byte固定且不带NUL。本文其余“domain-separated hash”或“domain + canonical value”表述都指该函数，不得各stage复制编码或省略length framing。只有`PersistentCallableBodyId`使用runtime metadata encoder：M23为`SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncode(CallableBodyKey))`，M24仍使用`RuntimeEncode`，但key/domain改为`CallableBodyKeyV2`与`scoop-callable-body-v2`。`RuntimeEncode`与`WireCborV1`是两套显式schema，不能互相替代。其他可变长raw片段必须使用`ByteSpan`，只有公式明确标为raw的定长typed digest/id才可直接拼接。
-
-M23的`.slib` v1是target-specific、bitwise reproducible的deterministic **normal、self-contained** `ar` archive（spec 12.5），不是thin archive、外部成员引用或“把目录旁文件视为payload”的索引；任何payload即使碰巧以另一种archive magic开头也不递归解释，只有显式`ExtensionBlob`时可作为opaque bytes保存且永不因此成为link input。`manifest.cbor`固定为首项；其余payload由manifest中的typed member directory完整声明并按`SlibMemberId` bytes严格排序，短名为从0开始的ordinal机械派生的`m`加8位零填充十进制。writer固定输出SysV/GNU short-name byte encoding：`!<arch>\n`、`name/`加space、mtime/uid/gid为十进制0、mode为八进制`100644`、无前导零十进制size、`` `\n`` trailer和奇数payload后的`0x0A` pad；reader为保证唯一bitstream拒绝其他等价header spelling。metadata使用M23设计4.1唯一的RFC 8949 deterministic CBOR codec和显式整数field tag，不直接序列化当前Rust struct、enum discriminant、arena index或HashMap顺序。reader拒绝thin/external/path-like成员、重复或未声明payload，以及`/`、`//`、`__.SYMDEF*`等未由协议声明的ar special member；不能把host `ar`工具默认生成的符号表当作可忽略输入。
-
-每个非manifest payload具有完整`SlibMemberRecord { id, stable_key, role, byte_length, sha256 }`，CBOR field key固定为1…5。`SlibMemberId`由当前`ConeIdentity`与producer给出的canonical、稳定且非路径的member key经domain-separated hash产生；物理archive名、输入basename/扩展名与生成顺序都不参与身份。stable-key和role是variant tag同为`HirMetadata=1, MirMetadata=2, LirMetadata=3, LinkObject=4, DiagnosticAttachment=5, ExtensionBlob=6`的v1封闭sum；HIR/MIR隐含Compile purpose，LIR隐含Compile与Link，LinkObject隐含Link。目录恰有一个三层metadata成员和任意多个其他成员，API不得以固定名字、后缀、ordinal或数量识别它们。
-
-底层`DecodedSlibEnvelope`、`ValidatedGraphArtifact`、`ValidatedCompileArtifact`与`ValidatedLinkArtifact`是不可混用的类型：raw只完成受限canonical container/directory/兼容头/全部hash验证；Graph view增加identity/dependency/kind/target graph proof；Compile view增加HIR/MIR/LIR decode与跨层结构验证并只保存hash-valid object envelope；Link view解码LIR verification surface并非可选地携带`NonEmpty<VerifiedLinkObject>`、`VerifiedImageOwner`和canonical Link extension requirement。closure API是`ValidatedArtifactClosure<P>`，其中`P`只能是不可擦除的Graph/Compile/Link marker；Diagnostics只是decorator。M23可发布Cone artifact必须复用共有语义结果构造 Compile 与 Link view，但compiler不能取得未验证object的link API，program-link也不能把Graph/Compile view冒充已验证link input。
-
-`MemberStableKey`必须按同tag role合法配对；LinkObject key携带完整verifier capability与非空的capability-owned canonical logical key，diagnostic/extension key携带role capability及同类logical key。`CapabilityId` map固定为`1=namespace, 2=name, 3=NonZeroU32 major`，namespace/name的grammar与1…255/1…63 byte上限按M23设计4.1冻结；purpose bit固定为Graph=0x1、Compile=0x2、Link=0x4、Diagnostics=0x8。M23-6 基线的内建 target/object/verifier id 为`org.scoop-lang.target-profile/darwin-aarch64/1`、`org.scoop-lang.object-format/mach-o-relocatable/1`、`org.scoop-lang.link-object/scoop-lir/1`和`org.scoop-lang.link-object/generated-c-bridge/1`。
-
-`scoop-lir/1`、M23-7 过渡 `/2` 与现行 `/3` 使用相同的 logical key，固定为 map `1=NonZeroU32 unit_count, 2=Digest256 unit_set_digest`，digest是domain `scoop-lir-object-unit-set-v1`与按bytes严格递增、去重、非空的`ObjectDefinitionPlanId` array之canonical hash。`generated-c-bridge/1`使用相同map shape，digest domain为`scoop-generated-bridge-object-unit-set-v1`，数组元素为`GeneratedBridgeUnitId`；后者hash domain `scoop-generated-bridge-unit-v1`与封闭key `OutboundFunction=1 | GlobalRead=2 | GlobalWrite=3 | GlobalAddress=4`（各携带native contract fingerprint）、`CallbackTrampoline=5 { c_signature: CanonicalCAbiSignatureFingerprint, context_parameter: CallbackParameterIndex }`或`StaticCallbackTrampoline=6 { storage_bridge: PersistentGeneratedCallableId, c_signature: CanonicalCAbiSignatureFingerprint }`。`GeneratedBridgeUnitId`只标识与producer无关的semantic recipe；producer-specific atom使用`GeneratedBridgeAtomKey { producer: ConeIdentity, atom: GeneratedBridgeAtomRoleKey }`及`DomainSeparatedCborHash("scoop-generated-bridge-atom-v1", key)`，role封闭为`PrimaryEntry { unit } | SignatureDescriptor { unit, signature } | ContextDescriptor { unit, context_index } | StaticAssertSupport { unit, layout }`。同unit的前三种可物化role由不同Cone产生时必须得到不同atom与strong symbol；后一种只得到producer-specific identity/proof。LIR canonical definition、ODR leaf及undefined relocation只能引用unit，object verifier核对实际atom relocation后规范化回unit；defined owner、range与member materialization仍引用producer-specific、已物化atom。`CallbackParameterIndex`是canonical CBOR unsigned `u32`编码的zero-based typed newtype，必须索引该canonical C signature中实际被cookie占用的`Ptr<Unit>`参数；负数、超过`u32`、越界或类型不符都在生成unit前失败。managed trampoline只按该signature/index pair复用，不携带具体closure、registration/application、managed adapter或callback body id；LIR另以`{ PersistentCallbackApplicationId, CanonicalCAbiSignatureFingerprint, GeneratedBridgeUnitId }`保存三层bridge relation。静态`@NoGC` trampoline按storage bridge的稳定`PersistentGeneratedCallableId`及canonical C signature复用；不得使用arena id、link symbol或`PersistentCallableBodyId`替代。manifest保存完整plan/unit以及每个实际物化atom到member的materialization relation，reader由full key重算index合法性、count/digest并证明每个unit与预期producer atom的完整关系、集合互斥、全部object atom/record/support均由该集合typed派生。分组变化只改变code/artifact层。writer、reader、fingerprint与diagnostic只调用共享wire crate的同一canonical codec并以跨实现golden vector锁定；不能直接序列化Rust discriminant、自由文本或各自复制编码表，否则无法保证同一logical member产生相同id与digest。
-
-`StaticAssertSupport`只有identity/proof record，成功object中没有对应section bytes，因而不能产生`ObjectDefinitionPlan`、defined owner或range；只有前三种bridge atom role可以物理materialize。
-
-unknown optional capability在先验证directory、长度与hash后可跳过，且不进入任何semantic view。v1 `ExtensionBlob.required_for`只允许0或恰好Link bit；Graph/Compile/Diagnostics bit、多bit组合、unknown bit/tag都作为非法role拒绝。unknown Link-required capability仅在构造Link view时于payload解码前fail closed，Graph/Compile保持其opaque envelope；unknown `LinkObject.verifier_capability`同样只阻止Link view。known Link handler的封闭v1输出只有`CanonicalNativeLibraryRequirementSet`，handler绝不能返回object、raw linker argv、host path、linker script、unchecked archive或任意bytes。所有Scoop、generated bridge及未来C/C++ producer的可链接object必须直接使用`LinkObject` role，不能让blob成为第二条object入口。
-
-LLVM codegen、generated C bridge及未来经过定义的C/C++ producer都可为一个Cone产生零个或多个candidate object；`scoopc`汇总后要求全部LinkObject联合满足上述非空/唯一image约束。每个candidate都按其known verifier capability与`lir_target`验证，并保存producer-specific profile provenance：LLVM-produced candidate必须绑定`backend`，generated-C candidate必须绑定`c_bridge_toolchain`；两者不可互换，缺项也不能从object、host或另一projection反推。packager只接收`VerifiedLinkObjectMembers`与其他typed auxiliary members；reader或program-link不得在读artifact时编译源码，也不得假定某种producer恰好对应一个object。
-
-M23-2三层metadata outer schema均固定为1，foundation capability最初为`org.scoop-lang.hir/identity-foundation/1`（M23-6 的 intrinsic native 表示升级为 `/2`，typed C 投影再升级为 `/3`，见本节后文）、`org.scoop-lang.mir/identity-foundation/1`与`org.scoop-lang.lir/identity-foundation/1`，这些基础 payload 直接进入完整 Strong 生产 profile；旧 identity-only profile 及独立 writer/reader 已退役。HIR foundation携带declaration/binding/slot/exact-type等完整canonical key record、source extern contract、`PersistentCallbackRegistrationId` record及`NativeBoundaryTypeDefinitionRecordV1`；其中definition-origin required set按实体是否有源码声明判定，reserved-core源码声明与普通Cone声明相同，只有固定identity的`CoreBuiltinNominal::{Unit, Any}`从type required set排除，禁止按producer/origin Cone整体跳过。MIR foundation在其上只声明MIR新引入的concrete callable/callback application、generated exact type、exact managed signature与callback storage/status ABI relation；MIR production的strong callable surface按`CallableOwner` canonical顺序编码，而foundation signature relation按自己的typed subject sort key编码，reader必须以`CallableSignatureSubject::Strong(owner)`作typed join验证全覆盖与签名相等，不得把两张各自规范排序的表按相同index位置配对。LIR foundation增加`ValidatedLirTargetSelection`下的native symbol/contract、canonical C signature/layout fingerprint及其preimage、包含`GcEffect`的Scoop physical signature、bridge unit/atom与callback bridge relation。每个persistent identity只由最早引入它的一层声明一次；相同32-byte值若属于不同kind仍进入不同typed table，但同kind跨层重复声明必须失败。identity declaration wire record必须同时保存typed id与exact canonical payload供reader重算，不能只传arena index、symbol或digest；与此分离，LIR foundation field 1是按id严格递增的runtime-materialized `PersistentExactTypeId`引用集合，reader必须把每项解析到HIR/MIR已验证的exact-type声明，不能再接受或生成复制`{ id, key }`的旧格式。
-
-普通 Cone 的 HIR exact-type 记录引用外部 nominal 时，以共有 typed 引用表记录实际 provider 和 `PersistentTypeId` 或 `PersistentGenericTypeId`，并在同一 identity session 中由显式依赖的完整声明解析。core 与其他依赖使用同一路径，不另建 core-external authority 表，不将外部声明改写成本地声明。名称查找、可见性、类型与表示分别使用对应的共有 metadata；String 的物理定义通过普通类型选择和 TypeDescriptor 引用取得。
-
-M23-6 将旧的 core-only native-boundary 投影迁入共有外来类型闭包（见 2.12）。producer 从当前声明或已验证依赖 metadata 取得实际 nominal 的 owner、参数、字段/variant 与表示，reader 在同一 identity session 中按显式 dependency 解析并逐项核对；不得只接受 `ImportedCoreInputs` 提供的整数/Boolean/String 专用列表，也不得以 CORE 来源代替完整声明关系。只持久化本次 extern/callback 传递闭包实际使用的 native-boundary 记录，外部 owner 与共有 typed 引用表一致。
-
-primitive/pointer 等表示沿用前端正规化后的 typed kind；Unit/Any 保留既有语言内建身份。C-safe、GC-free、泛型物化与可用 layout 按对应共有规则检查，删除专用 core 权限不提前开放后续阶段能力。native-boundary witness 仍不提供一般 lookup/scan/dispatch 服务，不复制上游 AST/body、不按名称或固定 CORE 身份补造声明。
-
-`NativeBoundaryTypeDefinitionRecordV1`的exact payload为`{ owner: Concrete(PersistentTypeId) | GenericTemplate(PersistentGenericTypeId), type_parameter_count, shape }`；shape封闭为`Reference`、按source顺序携带field/type与`@CLayout` policy的`Struct`，或按source顺序携带variant/field/type的`Enum`。它只覆盖extern、callback registration/application及target contract引用类型的传递source-nominal闭包，用于重算C-safe predicate、canonical C storage/layout与Scoop physical signature；不携带scan、dispatch或一般consumer lookup，也不从Compile API暴露为通用layout服务。foundation中的layout/scan/dispatch record同样只有identity key，不构成可复用ABI证明。M23-6 通过 required MIR/LIR section 提供完整跨 Cone layout/ABI/scan/dispatch 数据。实际 exact type identity 和 extern/callback 语义保持一致；清理导致的格式变化按 capability/profile 版本规则要求重建，旧冻结条款不能阻止移除专用机制。
-
-M23-6 详细契约见 `docs/milestone23/stage6/DESIGN.md`。`cross-cone-layout-strong/3` 在 M23-5 inventory 上增加 HIR `cross-cone-type-semantics/8`、MIR `cross-cone-type-bridge/1`、LIR `cross-cone-layout-abi/3`（Compile-required）及 LIR `cross-cone-layout-link-closure/2`（Link-required），并将 strong-production/13 替换为 /14。三条 Compile section 进入对应 semantic layer；Link-only section 仅以 physical-import semantic projection 进入 Code，member/use 位置只作 LinkValidationOnly。独立 `cross-cone-type-source-authority/1` 草案退役；必要声明、private representation、参数/default、实际 selected use 与访问关系合并到共有 metadata，producer 和 bytes-only reader 共用完整 identity、依赖、语义、ABI/layout及 object 校验，不要求第二份来源授权 transcript 或外部 factory。source-only 声明保留完整源码接口；机器导出与有限 shape-support 按真实物化闭包应用 M23-7/10 gate，实际需要不支持能力时拒绝，不能只因尚未物化的声明存在就拒绝整个 library。protected inheritance与opaque representation support不得混入旧public lookup surface；core与其他producer共用MIR/LIR shape-support表、完整性校验和typed查询；MIR section不再从旧core root字段构建第二份查询表。现存production桥仅服务尚未迁移的生产路径，不作为通用类型section的root来源。通用consumer API必须验证type facts、source-to-MIR relation、target layout/scan、typed ABI、TD/dispatch及完整source-root obligation后才构造。初始化服务与其他普通 callable 共用导出、selected 及 Link requirement；普通 callable 和 general shape use 形成互斥 object 分区；core形状定义与其他provider共用shape-link，不能因为属于production形状计划而整组禁用，实际重复relocation分类仍拒绝；新增object-definition target为tag12 `DependencyShapeStrong { provider, subject }`，既有tag与identity/native contract编码不变。三层outer schema仍为1，production继续拒绝所有ODR，Array等generic/structural表示测试不构成M23-7物化能力；本阶段须在单 image harness 中对实际多 Cone 产物链接并执行普通与移动 GC 验证；multi-image startup、artifact-only program-link 和最终工具链集成仍留 M23-8/9/11。
-
-该profile还将`org.scoop-lang.lir/strong-production/13`替换为`org.scoop-lang.lir/strong-production/14`（Compile与Link required，Lir/Code/RuntimeImage sinks）。V2使用九字段 product（field 2～9 与 canonical callable 正文 field 13）和runtime registration/image ABI，版本化TD parent/interface引用、可选TD引用与dispatch callable引用的closed sum，加入携带provider及exact/body id的DependencyExternal分支；保留的 Local/Runtime 及 optional Absent 编码继续复用；CoreExternal 按 2.12 退出，tag 不复用，core 外部目标同样显式保存实际 provider。ordinary dependency parent/itable/implementation必须直接出现在完整V2 semantic plan中，不能写成Absent或CoreExternal再由sidecar补齐。旧capability不改义，新profile拒绝同时存在两个strong-production版本；该section major升级与下述M24 outer schema/runtime ABI升级互相独立。
-
-V2也把initialization dependency的验证域扩展到已选中的显式dependency unit：wire仍保留原`PersistentInitializationUnitId`序列，内存以Local或DependencyExternal的closed proof区分；foreign unit必须命中同一closure内provider的完整unit/descriptor/definition。当前producer表仍只声明本地unit，不复制foreign record、不省略真实ensure edge，也不从foreign body推断新的dependency。V1仅解析本Coneunit的旧验证规则不变。
-
-M24 按 [M24 设计第 4.3 节](../milestone24/DESIGN.md#43-版本迁移) 统一迁移。deterministic-ar container、bootstrap manifest、persistent identity、mangler 和 runtime metadata encoder 的 schema 保持 1；HIR/MIR/LIR outer schema 升至 2，foundation 分别从 3/1/2 升至 4/2/3。正式 `cross-cone-generic` profile 从 M23 已实现的 /2 升至 /3；共有 HIR interface 从 /44 升至 /45、type-semantics 从 /12 升至 /13、MIR type bridge 从 /6 升至 /7、LIR layout ABI 从 /5 升至 /6，其余实际变化的 production/link section 同表升级。沿用现有 section 与 reader，不创建 release 专用产物 profile、证明包或兼容双轨。旧 schema/profile、混代或旧 required section 明确要求重建。
-
-runtime 的八类 prefixed record 仍用 ABI 3，TypeDescriptor 固定部分从 144 扩至 152 bytes。兼容摘要以当前实际 encoder 为基线：`LanguageAbiContract` 的 CBOR 从 `a10101` 变为 `a10102`；`RuntimeAbiContract` 从 `a3010302010301` 变为 `a3010402010302`，其中 field 1 是本轮完整 runtime contract revision 4、field 2 保持既有值 1、field 3 为 release-hook TD contract 2。field 2 不能重新解释成 metadata prefix ABI 3；旧 M24 文档的 `a3010202030302` 不作为实现向量。composite descriptor 的 callable-body schema（field 6）及三层 outer schema（field 11～13）取 2，其他未变字段与 hash domain 保持。摘要由共有 encoder 生成并锁定 golden，不手抄另一套 hash 表。callable body 全部采用 v2 domain；由 body 派生的 safepoint/registration/member ID、定义摘要、profile 和缓存同批重建，source/exact/application/ODR group identity 不变。
-
-manifest非可选地记录magic/container与三层wire schema version、language/runtime/identity/mangling ABI、canonical coordinate与`ConeIdentity`、kind、exact direct dependencies及三层semantic fingerprint、target/backend profile、每个非manifest成员的完整typed record、三层/code/runtime-image/artifact fingerprint、re-export/prelude摘要、ODR完整member/definition fingerprint、每个object-definition/patch intent/generated-bridge unit到`SlibMemberId`/actual offset或member的完整materialization relation、全部按member分区的strong/ODR definition range及每组引用的精确range子集、runtime type/safepoint/callable body full-id映射、六类runtime registration摘要、完整member-aware `DefinedLinkSymbolOwner`/`UndefinedSymbolRequirement` index、完整`NativeExternalContractRecord`表，以及target-tagged native **library** link requirements。manifest还非可选地保存唯一`image_owner_member: SlibMemberId`；它必须指向`LinkObject`，并与全部LinkObject联合扫描得到的唯一当前Cone image descriptor互证。defined/undefined contract与library requirement是不同required字段：各自按typed key排序并含canonical key/payload，library requirement只携带逻辑库名、kind、顺序/分组与target条件。它们都不携带producer host绝对搜索路径，并沿全部typed link-purpose member与transitive closure传播。最终链接输入与缓存由普通`ResolvedLinkPlanFingerprint`记录，不另发射Graph fingerprint。
-
-`MemberFingerprint`精确hash domain `scoop-slib-member-content-v1`与canonical五字段`SlibMemberRecord`；`LinkMemberFingerprint`换用domain `scoop-slib-link-member-v1`但编码同一record，且只能用于LinkObject或Link-required ExtensionBlob。capability/purpose只在role内编码一次。`ArtifactFingerprint`覆盖移除该字段后的canonical manifest与按directory顺序排列的全部非manifest `MemberFingerprint`，因此任何附件/blob改变都会改变完整envelope identity。`CodeFingerprint`使用domain `scoop-code-v1`，精确覆盖按`SlibMemberId`排序的`LinkMemberFingerprint`、known Link handler contribution、C bridge production、native library requirements、defined-symbol owner set、undefined-symbol requirement set、去除source/diagnostic provenance的extern contract set，以及capability registry指定进入Code sink的strong-production与无Code字段manifest canonical projection；M23-3的完整九字段schema见milestone23 stage3设计14.4。不存在较早六类输入的兼容hash入口。三层semantic fingerprint只覆盖各层`LirSemanticProjection`等canonical语义投影。archive物理名/ordinal、optional diagnostic/blob，以及member assignment、actual definition range与patch offset不得反向进入LIR semantic/ODR fingerprint；跨Cone ODR leaf按`OdrMemberId`、`DigestNodeId`或`PersistentSafepointSiteId`等canonical semantic key排序，`SlibMemberId`只作actual member定位。writer回填artifact字段后重新编码，reader按同一排除规则重算；各层派生digest严格遵守2.5的单向DAG与各自归零集合，manifest不得包含自身member hash或建立哈希自引用。
-
-三层metadata分别为：`ExportHir`的public lookup、inheritance/slot、generic hidden support、interface dependency、source-interface/default与binding/re-export closure；MIR meta的exact executable/dispatch bridge；LIR meta的exact ABI/layout/scan/TypeDescriptor bridge。core的普通callable与其他Cone使用共有MIR/LIR导出、选择和ABI桥，不再按core export binding发布第二份callable目标表，也不保留对应prelude consumer投影入口。共有调用桥绑定MIR exact signature、canonical Scoop ABI、calling convention、GC root plan、persistent symbol request与required callable-body definition，并由共有artifact闭包核对。初始化环服务以独立typed compiler protocol引用，不能兼作源码prelude候选。
-
-M23-5 的旧执行子集属于阶段能力边界；M23-6 按 2.12 合并外来类型查询与产物消费路径。Compile closure先在一个原子identity transaction中导入全部provider，再使用同一输入和查询实现构造`SemanticWorld`；直接依赖集合控制package/public binding名称可见性，全部依赖按typed id取回definition；re-export保存从immediate direct provider到terminal declaration的完整canonical route。HIR分别输出lookup observation与committed selected set；前者覆盖空/不可访问/shape/applicability/MSC结果，后者才可投影到MIR/LIR。参数自由 ordinary top-level callable/property accessor 从真实 provider 的共有声明与类型表示取得完整 MIR/LIR 调用记录和实际 Link use；provider export、consumer selected、canonical ABI、symbol、required definition与actual relocation必须逐层一一对应。所有外来 Scoop strong use 按实际 provider/typed subject 进入共有 Link requirement 验证；String 与初始化服务不保留独立 CoreStrong 来源分区。各 capability 的 use site 仍互斥且联合完整，退出的旧编码按 2.12 迁移。`LocalConcreteHir`仍是本Cone瞬时输出，绝不写入`.slib`。reader 返回包含完整记录的 HIR、MIR 和 LIR 输入；各 stage 通过类型化实体 ID 及实际 provider 查询所需信息，不设置 branded set、来源资格或二次铸造 handle。必要的实体种类、引用与格式检查继续由明确边界负责。
-
-上述分区还必须贯穿`scoop-object-definition-v1`正规化：旧`FinalUndefinedSymbolRequirementV1`
-wire与tag 1..7保持不变，ordinary dependency use改为object-fingerprint内部的
-`DependencyStrong { provider: ConeIdentity, target: StrongCallableDefinitionOwner }` target，RuntimeEncode tag为11
-并按provider、owner顺序编码；tag 8..10继续分别属于static-storage、sentinel与owning-associated-atom。
-它只能由cross-Cone requirement的import index解析到已验证semantic import后构造，不能按symbol猜测。
-fingerprint入口消费typed old/new partition并验证互斥联合覆盖同一object closure，因此新增分区既不会污染
-旧undefined-requirement wire，也不会使包含dependency call的body缺少canonical relocation target。
-
-上述Link-only closure的semantic import是Compile-facing LIR selected bridge去除declaration与
-calling/root decorator、再按`(provider, target)`排序的无重复Code projection；物理requirement按
-`(source member, containing atom, offset, target slot)`排序。object coverage proof保存与旧link
-identity closure相同的完整`CodeLinkObjectMemberSetV1`，并以domain
-`scoop-cross-cone-object-coverage-v1`对该成员集及全部cross-Cone use site的canonical preimage计算
-typed digest。Link reader必须从最终object重建成员集、use set与digest；wire中的digest本身不授予
-authority。
-
-reader先执行所有view共享的“受限canonical normal-archive读取 → manifest/directory/hash/compatibility验证”，随后按`P`分层：Graph只验证graph envelope；Compile解码HIR/MIR/LIR、验证index/identity/arity/origin/visibility/bridge并完成typed remap/semantic-world commit；Link解码LIR verification surface、运行Link handler、重算native contract与每条member-aware defined/undefined use、ODR/range/patch/image owner。失败必须丢弃整个artifact。known capability handler必须共享而不能另开无界解析器。unknown required field/variant、重复key/member、indefinite CBOR、缺失section、跨member range/patch、损坏hash或同identity不同payload均为结构化错误，不得panic、OOM或以FQN/symbol/文件名补猜；较弱view不能调用较强view的API。
-
-公开 binding route 和依赖引用按真实 direct/support 图、typed binding 与 terminal declaration 验证。路由环与不可达 provider 拒绝；已有声明和路由结果复用。
-
-共有 HIR 的实际 `SourceBinding` 调用在进入 MIR 前，必须按外部引用的 typed target 和真实 provider 查询同份已验证 callable declaration，逐项核对逻辑 receiver、声明序参数及结果的完整 exact type。成员的隐式 receiver 来自声明的 nominal owner，extension receiver 来自原声明；Unit/ZST 参数仍占逻辑参数位置，不能按物理参数数目比较。每个调用位置独立核对，后续调用不能借用同一 target 的首个调用结果；泛型 binder 或未代入的 owner 不得按无参数签名通过。本项直接复用共有声明到 exact type 的 canonical 查询，HIR producer 与 ordinary/layout 的共有 reader 使用相同检查，MIR 阶段继续核对实际 Strong 正文和被选机器签名；源码访问、dispatch、运行时角色及完整 selected-use 闭包仍分别校验，不由本项推导新资格。不增加 wire 字段、版本或 CORE 特例。
-
-共有 HIR 的每个实际 `SourceBinding` 调用在完整源码签名校验通过后，还必须从同一份 callable declaration 的逻辑 receiver、声明序参数及结果推导 `Signature` 类型用途；nominal member 的逻辑 receiver 使用声明 owner，extension 使用原声明 receiver，复合签名递归保留所有 nominal 构成及其共有表示闭包。Unit/ZST 逻辑位置继续参与逐次校验，重复类型仅在最终 selected 集合去重；仅有可见声明或候选 selected 项不会产生调用签名用途。producer 与 layout reader 复用 ordinary/layout 的共有 HIR 元数据执行同一推导，精确拒绝缺失、额外及错误 provider/exact 的签名用途，本项处理传参后的逻辑签名，不把声明 owner 冒充 `MemberCall` 所需的转换前静态 receiver；source access、member/slot 操作、singleton 及完整 selected-use 闭包继续独立校验。不增加 wire 字段或版本。
-
-实际源码构造与函数、访问器共用 call-site 记录和签名检查。class/struct 的 Constructor 与 enum 的 VariantConstructor 保留各自完整 typed target；构造表达式的逻辑实参为已展开默认值后的声明序参数，不包含 MIR initializer 的隐式 receiver，结果匹配实际声明的名义 owner。泛型 owner 或未代入签名按本阶段的实际物化能力处理。Construct、Signature 与 Representation 依赖从这些真实目标及完整类型取得；reader 在消费边界检查 provider、owner、参数、结果和引用关系，随后复用结果，不追加 CastFailure role 或第二份 compiler-protocol 投影。源码访问和 abstract class 分配规则由前端负责；MIR/LIR 保留实际实现、ABI 与对象检查。
-
-实际直接调用的 receiver 在参数适配之前保留静态类型。Export 与 LocalConcrete HIR 的普通 Call、ImportedDependencyCall 使用必需的 SourceCallReceiver：NoReceiver 或携带完整静态类型的 Receiver；top-level 函数及构造调用使用前者，extension 与 nominal member 使用后者。类型代入、default 复制和导入物化必须映射原类型，不能从适配后的首参数或声明 owner 补出。共有默认表达式的 Call 同时保存该信息：原 tag 44 退役，新 tag 57 的 field 1、2、3 分别为原 callee、arguments、receiver；receiver 采用 tag 1 无 payload 的 NoReceiver 或 tag 2、field 1 保存完整 signature type 的 Receiver。共有实际 call-site 在原 field 1～6 后新增必需 field 7，采用相同 receiver 和类型化 exact id。reader 从已验证声明独立核对 receiver 的有无与使用种类，逻辑参数及结果仍逐次按适配后签名验证；原始 receiver 另参与类型关系、成员选择及访问闭包，不授予访问或机器资格。拒绝缺失、错误角色、无实参的 receiver 与 runtime 构造携带 receiver。此变更将共有接口升级为 hir/cross-cone-interface/30，仅保存类型关系的类型接口同步升级为 hir/cross-cone-type-semantics/8；旧 major、旧 Call tag 和旧六字段 call-site 拒绝，inventory、fingerprint、cache 与 golden 同步重建。runtime ABI 和 persistent entity identity 不变。
-
-导入默认值中的普通成员与 `super` 成员调用保留原成员调用节点及已选声明，统一经过已有的成员接收者适配。即使目标不是泛型，也不能提前改写成未适配的普通 Call；派生类接收者按声明 owner 执行引用上行转换，值接收者按实际目标执行已有装箱操作，随后再产生完整的 LocalConcrete 调用。原静态 receiver 与适配后实参分别保存，共有签名检查保持不变。
-
-共有 selected 的 MemberCall 用途从实际 SourceBinding call-site 逐次推导。完成同一次调用的逻辑签名核对后，nominal Function、Getter、Setter 分别保留完整 typed 声明；accessor 的角色从真实 provider 的 canonical PropertyAccessorKey 读取。receiver 使用参数适配前保存的静态 exact，沿实际共有 nominal 声明的 class base 与 interface 边证明其可到达声明 owner；每次调用先验证，再对完整用途去重，不能因同一目标已有正确调用而省略其他位置。选中记录的 provider 是成员声明所属 provider，不能使用 receiver 所属 provider；当前 Cone 的派生类型调用外来基类或接口成员也遵守此规则。原始 receiver 与声明 owner 的 Signature/Representation 及传递需求分别闭合；构造调用、top-level 与 extension 不产生 MemberCall。source object exact 不由 backing exact 替代，generic/source-only 类型继续遵守 M23-7 物化边界。producer 与 Compile/Link reader 使用同一从共有来源推导的集合，候选表在这一用途分区必须精确相等；缺失、额外、错误 provider、声明角色或 receiver 均拒绝。此检查不替代成员访问、slot/dispatch、MIR 实现与机器布局闭包，不新增 wire 字段或版本。
-
-实际 extension 调用的原始 receiver 同样须独立重放类型可应用性，不能因适配后的首个逻辑参数已匹配声明而省略。expected receiver 从实际 provider 的共有 extension 声明取得，actual receiver 使用 call-site 保留的适配前 exact；按语言规范 3.1、3.2、8.1.1、8.6 核对 exact 相等、到 Any 的上行关系、真实 nominal class/interface 继承，以及同挂起性和元数下函数参数逆变、结果协变。tuple、原生 pointer 与 native function pointer 不按元素或签名生成隐式型变，整数也不因位宽或表示相似建立子类型关系；generic/source-only 物化继续受 M23-7 限制。每次调用分别验证，失败保留原调用位置、actual receiver 与 expected exact；构造及无 receiver 的 top-level 调用保持各自角色，extension 不生成 MemberCall。两端类型与其传递需求仍从共有来源完整收集，派生关系不能用同名、同布局或 provider 标签替代。producer 与 Compile/Link reader 复用同一检查；函数类型关系的重复子查询只在本次调用中复用，跨调用不跳过校验。此项不替代实际适配操作、装箱/函数 adapter、访问或机器 ABI 闭包，不新增 wire 字段或版本。
-
-不含泛型参数的普通 top-level 与 extension function/accessor 的 exact nominal 签名分类同时包含语言内建 Unit 和 Any；两者使用固定 canonical typed declaration identity，provider 沿该 declaration key 的真实 origin 取得，不要求补造普通 nominal 声明记录，也不能按名称、布局或当前 provider 代替身份。Any 在 receiver、参数、结果以及默认值实例化中始终保留自身 exact type，参数适配前的实际类型与普通上行转换仍分别保存和核对。已选择调用必须闭合共有 Signature/Representation 用途、实际 MIR implementation、完整 logical signature、LIR ManagedValue layout 与 canonical ABI，Compile/Link reader 按同一入口重放；相同物理 ref 表示不能替代 Any 与其他 nominal 的语义身份。此分类仅补齐已有共有表示的语言内建类型，不授予成员、构造、generic/ODR、结构签名或 native 调用资格，不新增 wire 字段或版本。
-
-共有 canonical Scoop ABI 正规化从已经注册的 exact key 识别语言内建 Any，按目标的 managed pointer 布局计算其大小、对齐、GC 属性和 direct 参数/结果形式，并保留完整 Any exact identity；Any 同样参与既有非空 managed-reference niche 判断。该固定语言表示不依赖 native-boundary witness 或普通 nominal arena，计算本身不产生 provider definition、成员或布局消费资格，实际可达依赖及 ManagedValue 布局仍须由共有产物闭包核对。缺失 exact key 继续拒绝；其他同名 nominal 仍查询自身声明。C ABI 中按值传递 Any 继续按既有 managed-reference 规则拒绝。
-
-同次编译完成的归档直接保存完整产物及其普通摘要；摘要由已有 manifest、语义 fingerprint、最终对象和生产记录产生，只记录后续构建与缓存实际需要的信息。原子发布直接写入这些归档 bytes，回读仅核对字节一致后替换目标，不重新创建语义会话或把当前产物和全部依赖再次交给 reader。外部输入的产物仍由共有 reader 检查格式、引用、ABI、符号和实际对象。删除已退出正式路径的 M23-5 归档 writer、双版本发布包装及其专用测试；发布接口只接收正常编译结果，不保留用于取得发布资格的 raw-bytes 重放入口。此清理不改变 wire、runtime ABI 或 String 表示。
-
-layout profile 的 Link reader 在同一共有语义重放之后，必须从当前 artifact 已验证的 LIR definition plans 与 generated bridge plan 重建完整 producer unit 分区，再逐项核对 Link identity closure 的实际对象物化表。普通 Strong 与 generated C bridge 使用各自 typed unit id，不以候选 member id 或名称补出所属关系；每个 unit 恰好物化一次，完整 member id、顺序和分组都须与重建结果相等。物化表与原 archive 的 LinkObject directory 精确对应，稳定键、role 和实际 payload 均须存在且一致，额外对象、漏项、错 provider 或 foreign unit 均拒绝。该查询与 ordinary Link reader 共用检查，不重开或复制整个产物，不新增 wire 字段、CORE 例外或机器资格。本项只关闭物化与目录关系，对象内容、重定位、registration、Code/runtime 指纹和完整 Compile/Link 一致性仍须继续验证。
-
-layout Link 对象内容重放在同一次共有语义与物化表校验中读取原 archive 的实际成员，显式接收已解析的 C bridge toolchain profile。它复用共有检查重建 generated C production、envelope 与符号计划，逐个 digest patch intent 核对真实目标定义、member、完整集合和 canonical 顺序；随后从最终对象只归零这些已核对的补丁槽，重放 Strong 符号、重定位、definition atom 范围及补丁物理位置。stackmap 与 safepoint、callable、type、immortal、static storage、initialization 六类 registration 均对照同一 Strong 计划检查实际对象，type 与 initialization 使用 V2 的完整外来引用关系。成功结果按 artifact 保留原最终对象、归一化对象及全部物理检查结果，不回读文件、不替换元数据、不复制整份未信任 Link wire；Compile 输入不能冒充 Link 对象重放输入。失败不返回部分对象集合。对象内容检查与 actual undefined-use 分区、registration dependency 指纹、Code/runtime 指纹及最终对象补丁检查共同完成一次产物边界验证。后续 Compile/Link 查询复用同一不可变结果，不再附加源码操作或发布资格。
-
-layout Link 的符号用途重放紧接同一次对象内容校验，依赖 owner 集合只取当前 artifact 显式可达且已完成对象校验的提供方，不接受调用方拼装的 owner 表。每个提供方的 canonical defined-owner 集合从实际 Strong symbol/atom 关系重建；物理 import 的 typed subject、派生 definition、规范化符号和实际 terminal owner 逐项核对，consumer 或其他 provider 不能定义该外来 Strong。按依赖顺序纳入新的实际 owner 集合时，当前物理 import 同此前所有提供方核对，此前物理 import 也同新增提供方核对，覆盖兄弟依赖与两种到达顺序；这些排他性检查不把兄弟依赖加入可查询依赖集合。普通 callable、String/初始化角色和一般 layout/dispatch/shape 使用共有 provider 查询及各自完整合同，随后保留 native、runtime/EH 和 generated C target support 的全部余集，每条实际 nonlocal relocation 恰好分类一次，精确覆盖同一对象闭包。普通调用和 dispatch 可以引用同一实际 callable，并复用已解析的 symbol、provider、typed target 与 ABI；用途分类不排斥目标交集。reader 借用原 Link wire，逐项比较重建的 defined/undefined 表、ordinary 和 layout semantic import 及完整 requirement 记录，不把候选字段转换为证明，也不复制整份候选 section。失败不返回部分闭包。成功状态保留原对象、完整 typed 用途和真实 provider owner 关系；最终对象 coverage、登记依赖、Code/runtime 指纹和补丁在同一次读取中按各自数据关系检查，不重新检查来源资格或授予发布权限。
-
-layout Link reader 在完整符号用途分区之后，复用生产端的六类 registration 算法，从同一归一化对象重算 registration leaf、callable body、descriptor/layout、immortal definition、storage shape 及 initialization dependency 指纹。callable 与 immortal 使用完整的实际用途查询，外来类型与初始化引用保持 V2 的实际 provider/typed target。普通 callable 导出用于 dispatch 时复用共有定义与 ABI，不另建平行导出。reader 随后按同一 Strong digest plan 写入全部 registration、runtime image 和 entry 补丁，逐 member、逐 byte 比较重建结果与原 archive 的最终对象；不得只归零候选补丁后接受任意最终 digest。runtime image 使用原 manifest 的兼容合同和已校验的真实直接依赖及六张登记表重算，并精确核对外层 runtime-image fingerprint，以及原 production manifest 的 image-owner、registration identity、完整 registration fingerprint 集合和 runtime-image 四项投影。整个过程借用原输入，不修改 artifact，不从候选 fingerprint 补造证明；失败不返回部分闭包。成功结果在原共有 Link 读取状态中保留完整对象最终化结果；Code fingerprint、最终 object coverage 和其余 production 字段在同一次读取中完成检查；双 view 直接引用完整结果。既有 wire、runtime ABI、capability 与 tag 不变，不新增 core 例外或来源授权。
-
-layout Link reader 在最终对象补丁重建之后，以同一份 V2 最终对象和原 manifest 的完整 member directory 重算全部 LinkObject fingerprint；Scoop 对象与 generated C bridge 均参与，member、稳定键、role、长度、内容 digest 与完整有序集合逐项一致。Link identity 的最终对象集合、image owner 六字段及 library/executable entry owner 分支必须从同一实际对象证明重建并逐字段比较，不能只接受相同 member 或 producer。普通调用与 layout/shape 两张 Link closure 的 object coverage 继续使用各自原有 hash domain，从完整最终对象集合和已校验的实际 relocation-use 集合重算；分类使用的 Strong relocation proof 必须与最终对象逐 member 内容及完整 binding 一致。原始三个 closure 的对象集合和两项 coverage digest 均须精确匹配，缺失、额外、重复、乱序、错误 fingerprint、owner 或分支均拒绝，reader 不补齐、不排序修复候选投影。失败不返回部分闭包；成功状态按所有权保留同一完整最终对象集合。Code fingerprint 和其余 production 字段在同一次读取中完成检查，Compile/Link 复用完整结果；不改变 wire、capability、runtime ABI 或增加 core 例外。
-
-layout artifact 的 Code 读取复用 producer 的九字段 canonical 输入和 `scoop-code-v1` domain；object directory、两类 Link import、generated-C production、native requirement、defined/undefined 和完整合同来自同一次机器数据与对象检查。Strong V2 contribution 读取原产物的不可变 payload，不重新打开文件或制造可发布 Strong section。M23-9 按 2.8 分离独立 Link：cone/source form、直接依赖、输出分支和机器引用由实际 manifest、foundation 与物理数据提供；source count 和源码分发规则的生产语义留在 Compile，不为 Code 比较重建 HIR/MIR 语义世界。外层与 production manifest 的 Code 必须匹配本次实际输入。成功结果保留原对象和已计算摘要供 Compile/Link 共用，同次发布直接消费完整 IR 与对象汇总，不重读自身产物。
-
-独立 `identity-foundation` artifact profile（旧 `/1`、`/2`）退役。删除只供旧测试使用的 `IdentityFoundationMetadata`、`IdentityFoundationArtifact` writer，以及 `DecodedIdentityFoundations`、`IdentityCheckedFoundations`、`StructurallyValidatedFoundations` 和 native-boundary/commit 外层组成的平行 reader。三层基础 identity payload、真实依赖身份解析、类型/ABI/GC 契约与完整 Strong 产物 reader 保留；测试直接使用共有容器或完整生产 reader，不保留只有 identity、没有实际编译输出的产物路线。
-
-生产 profile descriptor 只编码必需 section 清单：field 1=id、2=required_manifest、3=required_hir、4=required_mir、5=required_lir。原 field 6～9 及独立 `ArtifactValidationPolicy` 退役，不复用；删除仅服务于旧 profile 或未来占位的 availability policy、publication class、Link proof policy 与 ODR policy 数据。完整生产产物的 Code/RuntimeImage fingerprint 必须 Available，由 manifest 读取规则检查；ODR 在本阶段的 Strong 输入边界拒绝，optional/unknown section 按实际 purpose 与 registry 规则处理。`single-cone-strong`、`cross-cone-semantics-strong`、`cross-cone-layout-strong` 的 major 均升为 3，旧 `/1`、`/2` 产物和缓存重建。profile fingerprint 继续覆盖这个实际格式描述，runtime C ABI 与 String 表示不变。
-
-M23-9 的独立 Link reader 使用新增 `org.scoop-lang.lir/link-support/1`，只补实际 runtime 数据 alias；身份、native 合同、完整 ABI 和布局／scan 直接复用原 foundation 与 layout ABI 记录。该 section 对 Compile/Link 必需，普通 Code contribution 覆盖其 canonical payload；既有 language section、container、runtime ABI 与对象格式保持。`cross-cone-generic/2` required inventory 和 descriptor fingerprint 更新，旧产物／缓存重建，详细字段和消费边界见 2.8 及 [Stage 9 设计](../milestone23/stage9/DESIGN.md) 第 3、9 节。
-
-### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
-
-M28 的 C bridge 工具链按 Darwin/Apple Clang 与 Linux/GCC 区分完整平台合同，不为 Linux 填充伪造 SDK 或 macOS deployment。Linux glibc/musl 分别使用 `linux-x86-64-gnu-gcc/1`、`linux-x86-64-musl-gcc/1` C bridge profile；保留 contract fields 1～8，field 4 为 `{1=Linux tag 2}`，field 5 为 `{1=GCC tag 2, 2=完整数字版本, 3=实际编译输入摘要}`。摘要覆盖已选 driver、实际 GCC、specs 和被探针消费的开发 headers；调用路径是非持久 locator。flags 沿用 C11、object、O0/g0、no-common/no-ident/no-stack-protector/no-unwind-tables/no-asynchronous-unwind-tables/no-builtin，增加 PIC，不传 Apple `-target`、`-isysroot`、deployment flags。显式 native sysroot 及已解析的 PATH/REALGCC 由 invocation 保存并传给 GCC；不能因 `env_clear()` 丢掉 wrapper 所需的执行环境。临时文件使用当前构建目录。实际链接器、CRT 和 unwind archive 仍由 final-link 输入负责，纯 `.slib` 的 C bridge 构建不要求 unwind archive。
-
-Linux runtime 构建从所选 unwind prefix 读取 headers，与 runtime 源文件一样按相对名和内容捕获到私有编译目录；原始 locator 只用于输入位置与本地缓存，不进入产物 identity。默认 prefix 为 `<Scoop sysroot>/native/<canonical triple>/unwind`。仅编译 runtime 对象不要求该 prefix 已有 archive；最终链接才读取 `lib/libunwind.a`。
-
-本地 LLVM 22.1.2 unwind 准备脚本包含已复现的 ELF 索引未命中兼容修复：有效搜索表未命中时，不再触发依赖 `.eh_frame` 零终止的无边界扫描。修复应用于私有构建副本，不写入用户的 LLVM 源码，不改变公开 unwind ABI，也不增加来源证明或版本认证要求；其机器字节作为普通最终链接输入。
-
-最终链接配置以 Darwin 与 Linux 两种完整平台分支保存。Darwin 保持原 Apple ld/TBD 合同；Linux 通过同一已解析 C driver 安排 CRT，显式启用 `-nodefaultlibs`，选择 LLVM unwind archive、libc、数学/线程库和 GCC 算术 builtins，并检查没有引入第二套 GCC EH provider。默认 gnu 为 dynamic PIE、musl 为 static ET_EXEC；musl 显式 dynamic 为 PIE，glibc static 不在 M28 范围。实际 native link probe 的输入 trace 提供 CRT/libc/归档内容摘要，最终配置还包含 GNU ld、collect2、metadata script 与模式 flags。普通编译不执行该链接探针，最终 ELF 检查实际模式、目标 interpreter、EH header、RELRO 和 text relocation。`--cc`/`--native-sysroot` 在本阶段用于 Linux；Darwin 保持系统选定的 Xcode 开发环境。
-
-program-link 的原生 namespace 按 Mach-O/ELF 保存各自完整状态，静态对象与 archive 选入仍使用共有定义和引用工作队列。ELF 系统 namespace 从已选最终链接输入的归档定义和 DSO 默认可见导出取得；编译器、链接器等工具 executable 不提供程序符号。版本化导出只以默认版本参加未显式指定版本的源码 extern 解析，TLS 与 IFUNC 分别按 TLS 与函数种类检查。最终驱动按原顺序追加所选系统库，实际未定义引用由链接器闭合；不把 libc 的 archive 成员当作需要重做 Scoop native source 限制检查的用户对象。ELF startup、String alias 和 linker-defined stackmap 边界使用目标的真实符号拼写。最终 ELF 验证输入已确定的地址身份、startup image 数组、metadata 权限与 stackmap/EH 保留等新增链接事实；不重新证明整个程序的机器指令。 ODR callable 的 stackmap 随 COMDAT 一起合并；Link reader 已确认相同定义的内容一致性，最终检查按每个保留组的一份 metadata 核对，不要求重复输入产生重复 stackmap。
-
-Linux ordinary native 库查找使用 `.o`、`.a`，动态模式另接受 ELF `.so`；显式 framework 或静态程序的动态库需求报平台/模式错误。用户 `.so` 输入为普通 ELF DSO，不接受 PIE executable 或夹带额外链接动作的 linker script。DSO 保存实际 SONAME、DT_NEEDED、导入/导出版本及 function/data/TLS 种类；未版本化的源码调用只匹配默认导出，依赖中的版本化导入按实际版本检查。 GNU ld 对未版本化的 undefined symbol 可以保留版本索引 0；这不取消 symbol table 中的 GLOBAL/WEAK 导入，其引用仍须参与闭合。 已选 DSO 中没有由自身依赖闭包或系统库提供的普通强引用，继续推动共有静态归档工作队列，允许原生 DSO 调用 executable 中按需选入的 C 实现。无 SONAME 的库保留文件名作为链接名称。源码显式绑定的库须自身提供定义，ELF DT_NEEDED 不作为 Mach-O re-export；共有默认 namespace 仍诊断有歧义的原生定义。 已选 DSO 的同名默认导出若使实际 ELF 顺序无法实现源码显式库绑定，也作为原生符号冲突诊断，不模拟 two-level namespace。链接使用已读用户 DSO 的私有字节副本，记录正常加载名称与原库目录，不把临时目录写入 executable 的依赖。依赖查找复用显式 library roots、DSO 所在目录及其实际 RPATH/RUNPATH 与所选系统库目录；选中 DSO 的完整依赖闭包按根库顺序及广度优先依赖顺序作为动态输入链接，原目录保存为 RUNPATH，最终加载仍遵循 ELF loader 的正常规则。
-
-Linux runtime 的已有 SHA-256 canonical fingerprint 由固定的 Mbed TLS 3.6.6 SHA-256 模块提供，最小配置只启用 SHA-256，不引入 TLS、PSA、证书或新的 digest 协议。所需上游源文件和 headers 连同许可证纳入 `runtime/third_party/mbedtls`，与 runtime 源码一样进入构建输入；普通构建与 artifact-only 链接不联网下载。Darwin 继续使用 CommonCrypto，两者必须通过同一摘要向量。Linux image 收集从加载后的 ELF program headers 与当前 VM permissions 完成；动态和静态的只读 metadata linker script 位于 toolchain，由构建工具打包使用，不能让 artifact-only consumer 为此读取 runtime 源码树。
-
-target resolution 只解析编译所需的 LIR/backend、C bridge 和 runtime-build 源/参数选择；最终 linker、CRT、unwind archive 按 executable 构建或 artifact-only link 的实际需要另行解析。不得要求 library-only `.slib` 构建先具备 executable 工具链。runtime 源集由共有 runtime 与所选 OS/image/architecture 组件拼合，Linux 两种 libc 共用源码选择。runtime 的外部 C header 依赖按编译器实际 depfile 中的绝对文件 locator 与内容摘要保存在本机构建缓存，不再要求它们归属伪造 SDK；该 cache schema 升级不改变 `.slib` 或 runtime ABI。
-
-本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。
-
-M23-11 的详细设计见 [公开 CLI、单文件模式与总验收](../milestone23/stage11/DESIGN.md)。`scoop` bin 直接连接已有 graph、snapshot、cache、runtime-build 与 program-link 库入口；配套 `scoopc` 默认取当前 `scoop` executable 所在目录中的同名工具，也可显式指定其路径，再检查现有 machine capability 与实际 executable 内容。不得从任意 PATH 命中另一个 compiler，也不增加来源授权。当前开发发行的 sysroot/runtime 默认位置由 toolchain 配置提供，命令行可覆盖；全局缓存由 `scoop` 管理，显示路径和程序参数不进入编译键。
-
-`scoop build [root-input]` 和 `scoop run [root-input]` 省略输入时，CLI 先补为调用者 cwd 下的 `Cone.toml`，再进入同一 manifest 读取与图构建流程；不向父目录查找，也不通过扫描源码推断 single-file。该文件缺失、错类型或内容无效时报告正常输入错误。显式目录／manifest／`.scoop` 的分类规则保持；`run -- <args>` 同样使用当前 `Cone.toml`，`--` 后参数不参与 root 选择。低层 `scoopc build` 的输入仍必需。
-
-build/run 接受 `--profile <debug|release>`，默认 debug；`--release` 等价于 release，与显式 `--profile` 同时出现时是参数错误。`BuildProfile::{Debug,Release}` 属于 umbrella 构建配置，与 `ResolvedTargetProfile` 和 `.slib` artifact profile 分开。M23-11～M30 只落实输出布局，两者使用相同编译设置；M31 按 2.19 将实际优化配置传入 child 与 producer，并更新对应缓存、Code 和链接输入。源码实体与 ABI 不因 profile 改变；runtime 构建配置独立，当前默认 O2 不应被误写为随 release 才开启。
-
-公开 `scoop link` 接受 `--root-slib`、重复的 `--dependency-slib`／`--cone-path`、必需的 `--runtime-objects`、target、native library search roots 和 `-o`。它只沿产物的 exact dependency 表定位其余 `.slib`，复用普通 artifact search 规则；core 可从显式产物或已有 sysroot artifact 位置取得，不能回退到源码构建。它只解析 Link 所需 target/final-link projection，不启动或探测配套 `scoopc`、不读取 runtime/Scoop 源码。`build/run` 的 runtime 输入则为封闭的“列明源码构建”或“显式 runtime 对象索引”两种选择，交给同一个 program-link。
-
-诊断由产生它的阶段在尚持有源码映射时转换为结构化记录；primary 和每条 note 均保留实际 Cone、logical source 与 byte span。不能把整组 compiler error 渲染为字符串，再以 `DiagnosticOrigin::None` 代替已有位置。父进程保留先前节点的 warning 和当前失败原因，只在显示层附加本次 locator；缓存 warning 使用 canonical source，命中时重新装饰。stdout 留给被执行程序；工具的 human 或逐行 JSON 诊断及结果写 stderr。
-
-产物读取错误同样保留本次 locator 和 reader 已有的结构位置：容器、manifest、metadata 或实际 member 加其 wire field path。入口不得先将 typed reader error 压成字符串再猜测位置，也不得为补诊断重新读取或校验产物；human 与 JSON 展示同一位置。整份产物的 I/O 失败定位到容器，不能伪造成当前源码 span。
-
-独立 Link reader 的失败保留当前正在消费的 ConeIdentity 及已有 member／section／语义字段位置，入口从本次产物清单附加 locator。依赖闭包错误沿实际 typed 边定位到 dependent，缺失 provider 不能被报告成某份并不存在的源码；wrong kind、extra provider 和内容冲突保留对应实际产物位置。诊断位置不进入产物格式或内容摘要。
-
-构建准备完成时保存实际 cache root 的解析路径，之后输出发布复用该路径检查目标是否落入缓存。源码和缓存条目在快照完成后移走，不得使已经完成的内存产物链接或发布失败。输出与输入的别名检查只取得路径和文件元信息，不重新打开输入内容；不存在的旧 locator 仍按其路径比较，不要求恢复原文件。
-
-公开构建结果区分 Library／Executable，提供可定位的 root、完整 dependency artifact 清单和所选构建 profile；Executable 另含实际发布的 binary、runtime index 和 link-plan fingerprint，不返回已经销毁的 staging 路径。清单供显式 link 复用，不是另一套图或产物协议。`run` 与 build 共用稳定输出布局，在程序启动前完成工具输出，随后原样继承程序 stderr，不把程序输出包装为 JSON；用于确保本次执行不被并发发布替换的私有副本仅保留到程序退出，稳定输出继续保留。
-
-显式 stage dump 是普通编译的观察输出。`scoop build --emit <ast|hir|mir|lir|all> --dump-dir <dir> [--dump-scope root|sources]` 默认只观察 root；sources 覆盖图中全部源码节点，不从 prebuilt 反造 AST 或 LocalConcrete HIR。一个被观察节点只启动一次 child，在同次实际 pipeline 中取得请求的 dump；HIR dump 同时显示 Export 与 LocalConcrete，并以 CrossCone 区域显示同次 HIR 生产的共享接口、source constructor 合同和导入 application；LocalConcrete 保留实际 shape-support roots。共享声明、默认参数／泛型正文、引用与 definition source 按已有 canonical 表顺序输出，arena 按本地 id 顺序输出。观察只读取已有 typed 数据，不重新投影、解码或验证，也不改变产物内容。普通 cache hit 不启动 child；显式观察的源码节点即使命中仍重新编译一次，使用相同源码／依赖快照和编译键，不增加 dump cache 或第二条语义管线。该请求不省略正常产物生产，失败不得返回成功 artifact。machine transport 仍是单 request／response 的 length-prefixed canonical CBOR；M23-11 将请求／响应协议升至 2，以封闭文件输出请求携带非空、唯一、有序的 stage 集合和目录，返回逐 stage 文件位置与内容摘要。machine stdout 只含协议 frame；旧单 stage 的 machine 形态按版本拒绝。协议 capability 及编译缓存随版本失效，`.slib`、identity、runtime ABI 和 link-plan 格式不因 dump 改变。
-
-显式观察不消费缓存产物来替代本次编译；其 child、实际新产物的检查及 dump 输出
-在编译键独占锁之外完成，只在比较和原子发布缓存条目时取得该锁。普通缓存未命中
-仍在独占锁内再次检查并去重编译；普通命中仍复用已有结果。并发观察各自生成所请求
-的 dump，相同产物沿既有规则复用缓存条目，差异仍报 nondeterminism；失败不发布成功
-产物。不增加 dump 缓存、并发登记表或新的格式/协议版本。
-
-build/run 的默认 target root 为 manifest Cone root 下的 `target/`，single-file 则为调用者 cwd 下的 `target/`；显式 `--target-dir <dir>` 相对调用者 cwd 解析并替换该根。实际输出目录统一追加 `<canonical-target-triple>/<debug|release>/`，即使省略 `--target` 也保留已解析的 host triple。manifest library 的文件名为 `<cone-name>.slib`，manifest executable 为 `<cone-name>`，single-file 为 `<sanitized-input-stem>`；用户可见路径不再含 content fingerprint。build 的 `-o` 单独覆盖最终 root 文件的完整路径，不追加 triple/profile；它与 `--target-dir` 可同时使用，最终文件以 `-o` 为准，内部产物缓存仍独立由 `--cache-dir` 决定。所有物化均复用同次已检查结果、目的位置锁与原子发布，不重新链接或重做 final verifier；library 不与可变用户文件共享 cache inode。相同目的位置由最后一次成功发布替换，失败保留旧文件。`run` 先完成同样的稳定输出发布，再执行同次链接结果保留的私有副本；副本与稳定 binary 位于同一目录以保持 `@executable_path` 语义，argv[0] 使用稳定 binary 路径。它继承调用者 cwd、environment、stdio 与原始程序参数，结束后仅清理私有文件并保留真实 exit/signal；工具失败不执行旧 binary。历史 driver 和 fixture runner 已在早先提交中删除，M23-11 必须恢复正式 CLI 的历史端到端测试覆盖，不能把仍在磁盘上的 fixture 或仅 stage 单元测试视为已经通过该完成门。
-
-M23-11 同时将现有 Rust-based fixture infra 迁到统一的 Python runner：fixture 的发现、环境准备、工具执行、诊断／dump／运行结果比较及快照维护共用一套数据规则。acceptance criteria 可写在 fixture 源码注释或附加描述文件中，两种载体使用同一 schema，统一表达执行条件、步骤与断言；不得按文件名、目录、里程碑或单个 case 在 Python 中硬编码行为。新增 fixture 原则上只增加源码、描述和期望文件，只有现有规则确实不能表达新的实际测试能力时才扩展公共规则。迁移验收须同时恢复覆盖并删除原 Rust fixture runner、专用测试编排／快照辅助代码及不再使用的依赖与入口，不保留两套长期实现。普通 Rust 单元测试继续验证内存中的算法、类型结构和内部不变量，不再承担文件 fixture 的发现和执行编排；这项迁移不改变生产 compiler、IR 或 runtime 的语言与边界。
-
-`scoop` 与 `scoopc` 都不是编译器stage，但边界属于M23的必需实现合同。面向用户的umbrella binary `scoop`与低层compiler binary `scoopc`的关系类比Cargo与rustc：`scoop`拥有root-input分流、locator、完整多Cone图、全局artifact cache与构建顺序；`scoopc`一次只发现、解析、lower、codegen并打包命令行指定的**一个**Cone。稳定命令形态为`scoop build [root-input]`、`scoop run [root-input] [-- <program-arg>...]`以及`scoopc build <Cone-root-or-Cone.toml-or-file.scoop> --direct-slib <direct.slib>... --support-slib <support.slib>... --out-slib <current.slib>`；用于定位／展示的 path 不进入 Cone/member/entity identity、fingerprint 或 semantic source path；M23-10 真正写入 executable 的 install name/RPATH 另按 2.8 纳入 link plan。大量参数未来可等价搬入response file，但不能形成第二套graph或artifact协议。
-
-`BuildRootInput`/`CurrentConeInput`都是封闭sum `ManifestCone | SingleFile`。`CurrentConeInput`及operand分类由`scoop-manifest`统一提供，`scoop`与`scoopc`复用同一分类结果与错误类型；具体请求的target、core和输出配置仍由各自入口负责。operand basename扩展名精确为`.scoop`且跟随symlink后的目标为已存在regular file时选择`SingleFile`；symlink cycle、dangling link或最终目标非regular file失败，resolved host path只作locator。目录要求下存`Cone.toml`，其他regular file只在精确命名为`Cone.toml`时可作manifest root；不存在、错类型或其他扩展名不做启发式回退。`SingleFile`的semantic projection固定为reserved `scoop:single-file:0.0.0`、`Executable`、唯一logical source `main.scoop`与唯一trusted core direct dependency；用户manifest不能声明该coordinate，一个graph至多有一个该root。`scoop build/run`的该分支在请求配置边界拒绝`--cone-path`，`scoopc`的该分支不接受`--direct-slib`/`--support-slib`；两者都不读取相邻manifest、其他Scoop/C/C++ source或blob；其`.slib`可作content-addressed cache value，并可作为产生它的build/run或显式`scoop link --root-slib`的唯一executable root，但不可作为可分发artifact发布、作dependency或被manifest locator引用。cache key另外包含source digest、core三层fingerprint、compiler/schema/target/toolchain，不用绝对路径或source digest取代Cone identity。
-
-`scoop build <file.scoop>` 没有 `-o` 时，默认把 binary 原子发布到 cwd 下 `target/<canonical-target-triple>/<profile>/<sanitized-input-stem>`，`--target-dir` 可替换 target 根；stem、profile 名称和 destination 不进入 semantic identity。完整 artifact／link-plan fingerprint 仍用于内容记录和既有内部缓存，不再承担用户输出目录命名。`scoop run <file.scoop>` 同样发布稳定结果，并保证执行该次成功构建的 bytes；相同 basename 的后续成功构建可替换稳定输出，不能让当前 run 执行另一调用的程序。显式`scoop link --root-slib`接受single-file `.slib`时从普通 core artifact locator 取得依赖，默认 sysroot 只作查找位置，要求 identity、root edge 记录的三层 semantic fingerprint 及 ABI 匹配，并把当前core code/artifact fingerprint纳入link plan；它不要求不存在于dependency table中的byte-exact旧artifact，且拒绝在dependency位置出现该reserved root。
-
-single-file的“只依赖core”只约束Cone graph，不删除源码`@Extern`及已登记member capability产生的逻辑native library requirement。host native library候选只由`scoop`/program-link通过显式`--library-path`解析；fixture companion `.c`/`.cc`由runner显式构建成满足已有typed requirement的library，再把搜索根传入。CLI不接受没有typed requirement来源的raw object/archive，任何组件也不得自动发现相邻native source、archive或blob。
-
-workspace 实现边界为：`compiler/driver` 继续提供 single-Cone `scoopc` bin/lib；`compiler/scoop` 提供构建编排，并在内部模块实现 runtime 源文件／头文件构建与缓存；`compiler/linker` 提供 `scoop-linker` 库和只接收产物的低层 `scoop-link`。不为 runtime-build 的单一编排调用方新建独立 stage 或工厂。`compiler/toolchain` 负责明确工具、相容 target/profile 与配套 compiler 的解析，不依赖 parser/lower/codegen；manifest/protocol 保存共享清单和子进程消息，IR/meta 保存 stage 间数据。scoop 可依赖这些基础设施和 linker，但不依赖 scoopc library 或上游 stage 实现；linker 不依赖 parser/lower/codegen 或 LLVM。scoopc 不依赖 scoop/runtime-build/program-link，parser/lower/codegen 也不为链接工具发现而依赖 registry。各 stage 只消费其实际输入数据，不把 locator、工具路径或缓存状态写入语言 IR。
-
-外部进程的启动、pipe 读回、中断转发和退出收割复用 `compiler/process` 的小型 I/O 工具。它服务已经存在的 compiler、generated-C compiler、runtime compiler、linker 和 run 调用，依赖 std、signal-hook 与 rustix，不读取语言、产物或调度状态。进程 guard 离开作用域时收割仍存活的直接 child；SIGINT/SIGTERM 等转发给当前直接 child，child 中的相同工具再处理自身的外部编译进程。收到中断后不再启动新工具，清理后保留真实 signal。此复用不引入 stage 通信、job-control、任务插件、通用超时或资源预算。
-
-`scoop`对`ManifestCone`读取`Cone.toml` v1、解析source/prebuilt locator并构造只含exact version的完整静态DAG；对`SingleFile`构造只含trusted core与synthetic executable root的两节点graph，不解析任何dependency locator。它只对未显式声明core的非core Cone注入reserved `scoop:scoop.core:0.1.0` direct edge，core root不依赖自身。core显式source/artifact/search-root locator与其他依赖共用发现流程；完整显式发现结束仍无core节点时，按语言规范12.3选择默认sysroot来源：`lib/scoop.core`存在则读取其源码manifest，仅当目录不存在时读取`artifacts/<canonical-target-id>/scoop.core.slib`。已选来源的读取、格式或一致性错误直接报告，不回退；source与prebuilt分别复用共有locator和节点展开。core prebuilt和其他prebuilt共用完成验证，依赖由实际artifact graph决定，不要求core具有已完成的自身依赖。它在启动第一个compiler子进程前验证coordinate/content唯一、artifact locator无歧义、dependency全部为library、target/ABI/schema/fingerprint兼容、同一`group:name`单版本，并以SCC/typed edge给出cycle path。canonical dependency-first order每轮只把“全部direct dependency已完成”的剩余Cone放入ready set，再按coordinate bytes取最小；不依赖edge存储方向或并发完成时序。M23不实现package registry下载、version range求解或dynamic loading。
-
-core源码节点与其他library节点共用immutable source snapshot、普通Manifest cache-key投影、CacheReceiptV1、per-key锁和child完成流程。删除CoreSourceSnapshotKey、bootstrap-profile附加hash、core slot receipt及slot锁；core使用Compiled/CacheHit两种普通完成状态。child读取staging中的ManifestRoot快照，其输出由相同artifact验证与cache发布函数处理。下游从completed依赖取得core artifact路径，不要求sysroot slot或专用来源标签。
-
-`scoop` 先以 manifest source projection、prebuilt summary 或固定 single-file projection 形成用于定位和调度的 `ResolvedBuildGraph`。prebuilt 与 cache 候选在实际消费边界检查 envelope/hash、coordinate、依赖 fingerprint、target/profile 与内容，已读入且未变化的数据直接复用。每个 source cache miss 恰好启动一次配套独立 `scoopc`，向其传入完整 direct/support 产物；不得把多个 Cone 的 AST/IR 放入同一 compiler 进程或调用内部 pipeline 绕过 artifact 边界。编译器负责其消费的语言语义与当前产物的完整生产；父进程核对输出归档、结构化结果和 planned cache key 后原子发布缓存，不为发布再次重放整套 Compile/Link 语义。子进程失败后不启动 dependent 或 program-link。library root 返回完成的 `.slib`；executable root 同样先完成自身产物，再由 2.8 的 reader 读取实际 Link 闭包；同次已有的对象 bytes 与检查结果直接传递。
-
-全局build cache只属于`scoop`。single-Cone key至少覆盖normalized manifest或固定single-file semantic projection、全部source content digest、compiler/toolchain/protocol、language/schema/runtime ABI、`ValidatedLirTargetSelection`中的LIR-target/backend fingerprint、实际产生generated-C member时的C-bridge toolchain fingerprint，以及实际上游三层Merkle semantic fingerprints；CLI operand/display path不进入key。prebuilt的stale edge只能失败，不能在`scoopc`内暗中重建。`scoopc`不读写全局cache，只把指定输出写到临时路径，核对回读 bytes 与同次完成的归档相等后原子 rename。允许保守重编译，不允许因re-export bytes或winner未变、负查询未记录而漏掉上游语义变化。
-
-直接调用`scoopc`时，manifest分支的每个exact direct dependency必须与提供的artifact按`ConeIdentity`一一对应；当前协议单独传递的core artifact同样参加manifest coordinate集合验证，其余依赖使用`--direct-slib`，`--support-slib`恰好提供这些direct artifact递归引用的其余完整transitive closure；两组互斥且参数顺序不影响结果。single-file分支要求两组均为空且只消费trusted core。core artifact由构建请求或默认sysroot locator加入普通依赖闭包，不要求它位于保留slot，也不从物理路径派生intrinsic授权。reader先按artifact自报typed identity重建该闭包，并在解析当前源码前拒绝missing、duplicate identity、same identity/different artifact、direct/support错分、从direct edge不可到达的extra、stale direct或transitive edge、cycle、同`group:name`多版本、dependency为executable、core缺失或版本不匹配，以及kind/target/schema/language/runtime/identity/mangling ABI不兼容。验证closure不是解析locator或build graph；`scoopc`绝不跟随上游manifest locator、读取上游source、递归构建或重建任何上游Cone。
-
-当前manifest Cone的源码集合由`scoopc`递归发现`src/`下扩展名精确为`.scoop`的regular file，并按normalized Cone-relative UTF-8 path bytes排序；symlink逃逸、链接环、归一化重复、非UTF-8与空集合在parse前失败；逐跳解析检测重复链接，目录遍历检测当前路径上的目录环，不设累计跳数配额。single-file Cone的source set结构上只含用户指定的一个regular file，logical path恒为`main.scoop`，相邻文件不进入候选。各层用封闭`ConeOutputKind::{Library, Executable { local_entry }}`表示产物，不使用`Option<Entry>`拼装可矛盾状态。任何executable不能成为dependency；library无需entry，executable必须有ordinary non-generic non-suspend `() -> Unit` top-level `main`，dependency中的同名函数不参与入口选择，且`Executable.local_entry`非可选。无论kind为何，`scoopc`唯一正式输出都是当前Cone `.slib`；它不生成program descriptor、不读取或构建runtime输入、不解析host native library search path，也不调用最终native linker。历史fixture runner必须经正式`scoop` orchestration的`SingleFile`分支迁移，不得直接调用`scoopc` pipeline library或维护第二套synthetic manifest；内部test allowlist仍只能授权精确intrinsic provider，不授权额外Cone dependency或生产identity。
-
-`scoopc`把当前Cone全部带`SourceIdentity`的parsed source、由direct/support artifact构造的共有semantic world及compiler protocol输入交给HIR。HIR输出的`CrossConeUseSet`分为`LookupObservationSet`、`SelectedExternalSet`与其中typed-refined的`SelectedNativeExternalContractSet`：第一项记录查询过的binding/snapshot，包括空层、全部不适用候选、star surface与MSC rejected candidate；后两项才用于向MIR/LIR投影实际需要的上游meta与原始extern contract。`SelectedExternalSet.hir`在producer侧精确形成general HIR external-reference table的`ConcreteSelectedUse` role；由于`LocalConcreteHir`不持久化，reader把它作为显式selected edge验证，并由需要machine use的target继续与MIR/LIR selected bridge交叉闭合，而不从export surface反推瞬时concrete use。当前Cone全部declared extern仍独立进入自身artifact，不因未选用而删除。三层semantic fingerprint都是Merkle fingerprint：除canonical own-layer projection外，还按typed support/re-export edge纳入对应origin artifact同层fingerprint；`LirSemanticProjection`明确排除member assignment、archive placement、actual range与patch offset。M23 v1的HIR compile key强制纳入全部direct dependency HIR Merkle fingerprint，直到完整observation闭包经测试证明可安全精确裁剪；MIR/LIR可消费selected set，或保守纳入全部direct dependency同层fingerprint。
-
-普通依赖调用在实际Export/LocalConcrete HIR expression中保留该次winner的完整typed binding与lookup route；共享callable handle仅按terminal callable去重，不能以selected集合中合并后的route替换某次使用的来源。默认值展开保留原definition origin与本次evaluation origin，并复制该正文实际引用的binding；同一调用目标、同一默认正文的多次求值仍是不同occurrence。sealed HIR的使用遍历以实际CallableMaterialization为正文根，按正文结构的先序为每个expression编号；编号不是arena id或新的persistent entity id。函数、class constructor、struct secondary constructor的delegation setup/arguments/body、pattern/guard、循环setup和closure/callable-reference的求值capture均完整遍历，嵌套函数正文使用自身materialization根，未进入LocalConcrete的源码或默认模板不产生具体使用。遍历只借用真实节点，不另存平行使用transcript；root、索引、target、binding及definition/evaluation来源共同供后续共有selected和跨阶段闭包验证。封装前逐occurrence核对callee属于同一selection、binding target及route属于真实winner闭包；重复目标不能跳过这些检查。
-
-普通依赖callable的源码解析集合与机器使用集合分别按其职责闭合：Export HIR及默认正文投影保留完整已解析声明，只有实际LocalConcrete正文中的调用才产生ConcreteSelectedUse、MIR callable use和后续LIR选择。共有HIR外部引用中的该角色从每次实际调用自己的binding合并，未展开default或未物化源码正文的route不能借同一target进入该角色。MIR投影以sealed HIR的完整正文遍历为输入，逐occurrence验证后才按具体callable use去重；不能以整个source selection或import arena作为机器根。默认模板仍保留完整typed引用与DefaultDependency等源码角色，reader分别校验源码闭包和实际HIR/MIR选择，缺失或多余机器选择继续拒绝。该区分不改变const与type-alias的既有内联与源码引用协议，也不开放generic或native物化。
-
-普通与 layout 产物中的 canonical C layout 合同同时覆盖实际 native 使用和已物化的本地 CLayout 表示。读取方在共有声明及实际依赖闭包验证后，使用同一物理物化 exact type 清单与共有 nominal 的 CLayout policy 收集表示根，再按实际 provider 的完整字段类型、aligned/packed 和 target 重算合同；native-only witness 闭包仍只由真实 extern/callback 使用决定。额外表示根不从候选 C layout 合同反推，不新增 native callable 或 witness。普通 Compile reader 在每个 provider 的可达依赖均可借用时完成这一重放，缺失、额外或非 canonical 合同仍按完整集合拒绝；无 native 调用的合法 CLayout 可以发布并从最终 bytes 重读。不修改 wire、runtime C ABI 或 persistent identity。
-
-MIR 从完整 HIR 声明与实际物化正文生成 callable 导出。公开声明、继承接口需要的 protected 成员、实际 slot root 与选中的源码 implementation，以及 logical property 的 getter/setter 均按其语言用途处理；Storage/Constant accessor 不产生函数 binding，StorageBody/Body/AbstractSlot 保留正文或 fatal trap。抽象 override 保留自身 typed declaration，外来声明按实际 provider 留在依赖侧，object 成员的逻辑 receiver 使用源码 object exact。
-
-无参数的普通函数、extension、final nominal 成员和需要正文的 accessor 使用普通 callable 表，保留完整 exact signature 与 GC effect；其余成员、constructor、trap 和生成的适配函数使用相应的 lowering 记录。两类记录通过同一个 typed target 查询，实际重叠的源码 callable 只导出一份。某个 nominal 的字段布局仍为 source-only，不会取消已经合法的普通函数签名，也不能为它补造 type-bridge binding 或 descriptor。reader 在产物边界检查声明、实际 implementation、签名、GC effect 和 lowering role 的一致性；dispatch、selected closure 和初始化消费已经检查的记录，不复制签名或重复建立来源证明。缺失定义、重复 typed target 及签名不一致仍是产物错误。
-
-共有 property 声明完整保留每个 accessor 的源码实现形式。`hir/cross-cone-interface/30` 的 property 声明仍为八字段，field 6 的 accessor 集合改用 tag 4=ReadOnly、tag 5=ReadWrite；field 1 为 getter，ReadWrite 另有 field 2 为 setter。每个 accessor 是恰含 field 1=typed accessor id、field 2=实现形式的二字段 product，实现形式采用 unsigned 1=Storage、2=Constant、3=Body、4=AbstractSlot。旧身份单项形式的 tag 1、3 退役，tag 2 不复用；public lookup 的 capability 及 setter 可见性含义不变。setter 若存在，身份与实现形式必须同时存在；getter/setter 可各自为 Storage 或 Body，不能由 property 的 RuntimeAccessor 总类推断它们都有正文。Const 必须是只读 Constant getter；AbstractSlot property 的 accessor 全部为 AbstractSlot，RuntimeAccessor 不含 Constant 且不能全部为 AbstractSlot；各 accessor 的 AbstractSlot 形式还须与同一共有 callable 声明的 Abstract modality 一致，Storage/Constant 必须没有 dispatch slot。producer 从同一次 Export HIR 的实际 getter/setter 实现投影，MIR callable 生产与 reader 通过该共有声明区分需要正文的 Body/AbstractSlot 与直接读取的 Storage/Constant，不枚举 MIR 候选来补来源。此变更不序列化正文或 LocalConcrete id，不授予私有/受限 accessor 额外访问权，不改变 persistent identity、runtime ABI 或源码行为；旧 section major、profile/fingerprint 与缓存必须重建。
-
-实际 Box、Unbox、is 与 as 操作的形状依赖由共有 HIR external reference 中的 Expression type site 查询：只接受 TypeTest 或 BoxedValue 角色，且该位置完整 exact 必须恰为当前 reference 的 source nominal，结构类型的 nominal 成分不能冒领结构类型的 helper。查询从同一 identity graph 核对真实 provider，按完整 typed source id 去重，并由 HIR selected、MIR producer 与共有 MIR/LIR reader 共用；普通签名、仅存储、SizeOf/AlignOf、未展开默认值和未物化泛型正文不产生形状用途。MIR 将这些实际根关联到提供方 ShapeSupport，闭合原 source exact、boxed、coroutine-step/slot 等有限 helper；LIR 将其关联到同一 provider 的 ShapeSupport，并沿现有完整合同闭合 layout、descriptor、dispatch 和 scan。不能只保留 ManagedValue layout、从候选 selected 或外部 descriptor arena 反推 HIR 根，也不能在 consumer 重新定义提供方 helper。缺失、额外、错误 provider/source 与结构类型成分冒领均由完整集合比较拒绝；这一关联不改变 wire 或 runtime ABI，实际访问、初始化用途、物理引用与最终 Compile/Link 校验继续按原完成门核验。
-
-MIR 的依赖闭包按实际 provider 和 typed target 查询完整类型、callable、dispatch、object、shape 与初始化记录。普通 callable 导出保存完整 exact signature 和 GC effect，与 constructor、adjust 等需要不同 lowering 表示的记录共用查询；同一 implementation 只保存一份。dispatch 和 selected 可以引用普通导出中的实际成员，不受历史 section 分区限制。生产侧从已物化使用及导出语义边生成闭包；reader 在外部字节边界检查 canonical 次序、唯一 provider/target、引用可达性及 selected 完整性，后续阶段复用这些完整记录。闭包不反向推导源码使用，也不承担额外来源或操作资格证明。
-
-LIR selected 闭包使用完整 MIR 引用及 manifest 中实际可达的依赖。reader 先检查布局与普通 callable ABI，再检查其余 callable、dispatch、descriptor 和 shape-support 记录；dispatch 同时查询两类已有 callable 记录，按实际 typed target 取得 ABI 与 body symbol，不在每个 slot 内另存一份 callable ABI。普通 callable section 在原有字段编码一次，布局导出上下文仅共享已经读取的记录。
-
-类型用途通过 actual exact type 关联所属 provider 与当前 target 的 ManagedValue layout。selected 闭包沿现有 layout、descriptor、dispatch、callable 和 shape-support 引用检查缺失目标、重复目标、不可达 provider、错误 target profile 和 ABI 不一致。普通 callable 与其余 callable 共用引用规则，不能按旧表分区拒绝正常 dispatch 或 selected 用途。完整结果复用于后续物理引用与 Strong object 检查；发布时不重新解码未变化的记录或再建立操作资格。Compile 与 Link 仍检查各自消费的格式、符号、定义及 relocation 合同。
-
-共有 Compile reader 在 LIR 语义依赖图之后，将 Strong V2 与同一 artifact 的五张导出表逐项关联，再从原物理 transport 的 provider 与 typed subject 查询 manifest 可达依赖的实际 definition、symbol 和七类完整合同。候选只指定待核对的合同，不产生源使用根；原数组必须严格 canonical，重复、本地冒领、不可达 provider、合同漂移和缺失的实际引用均拒绝。Strong 中所有实际 ancestry、itable、dispatch callable 与外来初始化依赖必须命中相应物理记录；目标存在布局语义导出时，同时保留该导出的 semantic selection。普通导出中的 callable 可同时用于直接调用和 dispatch，不要求另造布局语义导出或拒绝两种用途引用同一实际目标。初始化和 storage 查询由 reader 私有实现直接借用同一 MIR 导出、已重放 selected 关系及 Strong unit/storage；普通 accessor 不开放 backing storage，singleton 只关联其 published root，初始化支持不得跨到其他 unit 的 storage/failure root。查询接口按实际 provider 返回完整定义、ABI 和合同；同一消费边界已核对且未变化的物理引用直接复用。结果保留实际完整 production、导出记录和 typed 依赖，后续消费直接使用这些数据；实际 object 使用覆盖与 ABI 一致性仍由相应边界检查，不另外证明 HIR 来源资格。本步骤复用现有合同与 Strong join 算法，不新增 wire、来源 factory 或 CORE 例外。
-
-MIR type bridge 的类型表示与有限 shape-support 从同一产物的共有 HIR 声明重放。reader 按所有权先解析原七字段中的 types 和 shape-support，保留其余尚待检查的 callable、dispatch、object、initialization 与 selected transport；不复制或重新解码 types，不把这一中间状态作为完整机器消费资格。各 provider 只借用 manifest 中真实可达依赖的已检查类型组成表，沿原 identity graph 完成 HIR facts/representation/inheritance 与 MIR 的关联。源码类型 inventory 来自完整共有 representation 闭包及当前 provider 拥有的 Unit/Any；逐项核对 source/generated origin、GC/ZST、完整字段和 variant 的声明序、exact 字段类型、CLayout、InteriorMutable、class modality、base/interface 与 object backing。有限 helper 的源码根从同一 public surface 和共有 materialization closure 取得，shape-support 与相应 MIR helper 必须精确覆盖；无关或 foreign helper、遗漏源码类型、额外类型和跨表差异均拒绝。此关联不增加来源授权 section、调用方 source factory 或平行声明副本；原 MIR section wire 不变，callable、实际 selected use 与 LIR 仍须完整；外部输入的 Compile/Link 检查复用完整结果，同次产物按共有发布路径直接写入。
-
-共有 struct 源码形状完整保留声明的 `@InteriorMutable` 标志。`StructSourceShapeV1` 的既有 tag 3 改为四字段 closed product：field 0=tag、field 1=完整声明序字段、field 2=CLayout policy、field 3=interior_mutable（canonical unsigned 0 或 1）。普通与必要支持声明、嵌套 protected 源码支持均使用这一份形状；标志不由字段大小、GC/ZST、CLayout、可见性或 provider 身份推断，未标注声明显式为 0。producer 从同一次 sealed Export HIR 的 struct attributes 投影，读取方保留该标志供普通类型查询和 MIR 表示关联使用，不能默认补齐缺失字段。缺字段、旧二/三字段格式及非 0/1 标志均拒绝。共有接口升级为 `hir/cross-cone-interface/30`，承载嵌套源码形状的类型接口同步升级为 `hir/cross-cone-type-semantics/8`；required inventory、profile fingerprint、HIR fingerprint 与缓存同步失效并重建。该变更不修改已有语言的内部可变性规则、persistent identity 或 runtime ABI，不增加独立来源授权记录。
-
-共有类型位置同时保留已物化表示和生成语义的必需类型依赖。`hir/cross-cone-interface/30` 在既有 type_sites 和类型中增加 tag 6=FieldStorage、tag 7=EnumVariantFieldStorage、tag 8=ConstructorInitializerResult、tag 9=InitializationCycleMessage；各为三字段 product，field 0 为 tag，field 1 分别为 PersistentFieldId、PersistentEnumVariantFieldId、实际 CallableMaterialization、PersistentInitializationUnitId，field 2 为完整 exact。这些位置直接归属于原有字段、variant payload、constructor 或初始化单元，不另存来源授权记录。LocalConcrete class field 与 struct field 一样直接保留其持久化字段身份，不由字段名或 arena 下标重建。producer 只遍历真实物化类型闭包内的字段与 payload；class initializer 的结果按语言语义为 Unit，实际初始化单元的循环错误消息按其已解析协议使用 String。未物化 enum、未展开默认正文和仅作查找的类型身份不产生记录。读取方沿同一 foundation 检查 typed owner、真实 provider 与 definition origin，生成位置还须核对 constructor/初始化角色及相邻 MIR 的实际依赖。共有 external references 在完成位置、来源与 foreign nominal 分发校验后，可临时查询完整的实际外部类型依赖；该查询不增加 wire 表，也不单独授予机器层消费能力。producer 从同次完整 typed IR 汇集实际类型用途；共有 HIR reader 核对完整 foreign nominal 分发、重复位置、typed owner 与 provider 后，物化查询及 MIR/LIR 复用同一记录。后续阶段继续核对各自实际类型表示、签名、ABI 与传递引用，不为重复证明 HIR 使用来源而重算和比较整份类型根；旧 major、未知 tag、错误 owner、错误生成角色和缺失身份均拒绝，profile 与 fingerprint 同步重建。
-
-共有 HIR 外部引用保留同一次已物化 LocalConcrete 的表达式、签名与声明类型使用。`hir/cross-cone-interface/30` 的 ExternalHirReferenceV1 仍为六字段 closed product，必需 field 6 为 type_sites 数组；每项改为以 field 0 为 tag 的封闭和类型。tag 1=Expression，field 1～5 依次为实际 CallableMaterialization 正文根、根内 expression_index、ConcreteExpressionOrigin、表达式类型角色、完整 exact；角色 unsigned 1～5 仍为 Value、SizeOf、AlignOf、TypeTest、ArrayElement。tag 2=CallableSignature，field 1～3 为实际 CallableMaterialization、签名位置、完整 exact；签名位置为 field 0 的 tag 1=Receiver、tag 2=Parameter（field 1 为去除 receiver 和局部函数隐含捕获前缀后的源码参数声明序 index）、tag 3=Result。捕获值继续通过原 LocalValue 身份记录类型用途，不占用源码参数位置；实际 MIR/LIR 调用 ABI 仍保留捕获前缀。tag 3=LocalValue，field 1、2 为 PersistentLocalValueId 与完整 exact。tag 4=BackingStorage、tag 5=DelegateStorage，field 1、2 为既有 typed PropertyOwner 与完整 exact。各分支字段必须完整，禁止以可选字段、虚构 expression_index 或 arena 序号拼接声明位置；旧五字段 type-site item、旧 major、未知 tag 及额外字段均拒绝，profile、HIR fingerprint 与缓存同步重建。
-
-producer 从实际函数和构造器的 receiver、声明序参数、结果，正文内 source-backed local value 及实际 global storage 投影声明分支，保留 private 签名、未读取的参数/局部变量、全局声明和初始化相关 generated callable 的类型。局部捕获沿既有 PersistentLocalValueId 指回同一声明，重复观察只能在 exact 完全一致时合并；synthetic temporary 由其实际表达式/生成签名承载，不伪造源码声明。仅作前端操作声明的 Intrinsic 函数不产生签名根，其实际操作由表达式记录承载。GenericSourceMetadata 的未展开默认正文不加入该集合。数组按 variant、完整 typed 位置和表达式角色严格排序，组内重复位置及冲突 exact 拒绝；外部引用 role 8=ExecutableTypeDependency 当且仅当 nominal target 拥有非空 type_sites 时出现，包含已物化实体的签名与存储依赖。
-
-每个位置沿 exact key 的结构子类型保留全部实际 foreign nominal；跨 nominal 的同一位置必须保存完全相同的记录。reader 使用同一 identity graph 与真实可达依赖重算这一分发集合，验证完整有序集合、target/provider、表达式 definition/evaluation 来源，以及声明位置在当前 foundation 的 callable、local-value 或 property 身份及源码归属；NoSubstitution 以外的物化继续由既有 ODR capability gate 拒绝。声明分支沿既有 canonical key 与 definition origin 查询，不重复保存一套来源证明。委托属性的生成 accessor 在进入其真实 callable 源码上下文后生成合成 thisRef、storage read 与协议调用；正文构造结束或诊断退出均恢复外层上下文，不能让合成操作沿用外层 File 求值来源，也不放宽 reader 的正文归属检查。source-point 完备步骤继续从同一 interface 的 call_sites 和 Expression 分支收集 definition/evaluation span 端点，与已有声明/default 来源点合并；真实 UTF-8 源码生成本地映射，依赖来源只使用已有 canonical source record。类型记录本身不授予名字查找、访问、调用、TD 或机器资格；binding witness、call_sites、实际 type/member/slot/use 与后续 MIR/LIR selected join 仍分别验证，不从 MIR、候选 selected、layout 或 primitive arena 反推根，也不新增调用方 source factory 或平行来源表。
-
-共有 HIR 外部引用在 `hir/cross-cone-interface/30` 中保存实际源码调用位置。ExternalHirReferenceV1 的 field 1～4 为 origin、typed target、roles 和名称解析路径，field 5 为 call_sites。每个 call site 的 field 1～5 为实际 CallableMaterialization 正文根、expression_index、ConcreteExpressionOrigin、完整逻辑实参 exact type 序列和 result exact type；field 6 区分 SourceBinding 与 SourceDeclaration，field 7 保存适配前的 SourceCallReceiver。SourceBinding 使用 tag 1，引用实际名称导入路径的非空 canonical u32 index 集合；成员与实际声明调用使用 tag 3 的 SourceDeclaration，直接关联 typed declaration 与 provider，不要求额外导入路径。原 CastFailure reason tag 2 退役。生成的异常构造使用完整 typed 操作和真实声明引用，不复制一份源码 call-site 或独立协议证明。
-
-extension receiver 为第一个逻辑实参，重复参数、Unit 和 ZST 均不得省略。call_sites 按正文根与 expression_index 严格排序；一个位置只记录一次调用。producer 从完成默认参数展开和物化后的 typed IR 收集记录，未物化正文不产生使用。reader 检查格式、引用、表达式归属和调用签名，并将已经确认的调用与 MIR/LIR selected 及 Link 引用关联；不得用额外证明记录替代实际声明和完整签名。缺字段、重复位置、越界路径索引、错误 provider、声明或签名均拒绝。版本早于本 capability 的 artifact 与缓存需要重建；runtime ABI 不变。
-
-`scoopc`在请求边界把协议或默认locator提供的core artifact并入普通direct dependency输入；不得先独立验证core再把相同bytes解码进另一份依赖closure。后续core协议投影借用这份共有closure中的实际成员，不构造第二份Compile/Link view或SemanticIdentitySession。
-当前Cone为core时同样运行共有依赖图与Compile/Link closure验证，空依赖也产生完整的空closure和identity session，不再使用BootstrapEmpty或不能读取的专用依赖状态。共有 reader 只检查实际 direct/support 依赖、provider、版本和引用，不规定某个 identity 必须拥有空依赖或必须列出 CORE；默认 core 边由构建请求归一化加入，不能在产物图校验中重复推导。默认core边仅在当前Cone不是core时加入；core协议投影是需要导入该协议的消费者在共有验证之后的步骤，不属于所有依赖输入必需的返回值；发布始终读取同一已验证输入中的dependency records与拓扑顺序。
-验证后的当前源码输入只区分Manifest与SingleFile，不再增加core bootstrap源码形态，也不在两种源码形态中分别存储相同的protocol artifact。ValidatedSingleConeBuildRequest必需持有当前输入、完整依赖closure和独立的非可选protocol来源：当前声明或共有closure成员的导入投影。验证只在共有closure成功后确定该来源，源码解析仅按实际输入形态分支；后续HIR/MIR/LIR与publication直接使用同一protocol来源，不从源码路径或source-form标记重新推断。
-`scoop`为所有manifest源码节点从同一ResolvedDependencyProjection读取实际direct/support artifact路径，包括当前core；缺失projection必须报共有错误，不能用空列表代替。machine request的current输入只允许带显式路径的ManifestRoot和SingleFile；已删除不带路径的TrustedCoreBootstrap及其旧wire tag，reader直接拒绝，driver不得据此隐式发现sysroot源码。ManifestRoot请求无论protocol为当前声明还是导入，都完整保留direct/support列表并检查实际依赖关系；single-file依赖限制与完整graph/closure验证保持不变。
-HIR使用统一CurrentConeSources与lower_current_cone入口；输入显式区分当前声明提供的compiler protocol与导入的protocol，但两者均携带当前Cone匹配的共有semantic world。成功的DependencyHirOutput始终保留已提交的依赖选择与binding witness，不因protocol来自当前声明而丢弃它们。协议分支一致性由已有Output契约检查，公共接口和foundation投影统一读取该完整输出；不再另设生产用CoreBootstrapSources或core-only HIR lowering入口。当前Cone源码（包括正在编译的core）按其package参与本地声明收集与显式import解析；prelude层只承载外部core声明，不能仅因源码的core协议身份而跳过当前Cone的import。
-
-MIR同样使用统一lower_current_cone入口与SelectedExternalMirSet。DependencyMirOutput持有完整共有依赖选择，初始化角色与普通调用使用同一typed记录和引用域；HIR决定本地或导入protocol，driver不另传MirProtocolSelection或第二份来源标记。lowering在完整输出边界验证并映射外部callable，输出保留实际选择及物化引用；Strong组装和LIR入口直接消费这些记录，不再次验证同一模块或重建foundation。本地protocol的初始化失败调用指向本地声明，导入protocol通过已有typed引用取得目标。
-
-driver的MIR/LIR编排共用同一machine-stage实现：从完整HIR输出及共有semantic closure投影实际依赖选择，建立MIR foundation、公共调用桥和strong materialization，再从保留的MIR选择投影LIR输入。core路径不得自行用空选择替代输入中的实际依赖；core shape-source由HIR的非可选materialization契约取得，协议导入只改变对应typed protocol参数，不改变通用依赖调用、输出校验或公共桥的产生流程。MIR strong sealer与LIR lowering对core consumer使用相同的选择归属、数量、签名、GC effect与引用完整性规则，不得仅因consumer为core而拒绝共有依赖选择。
-
-manifest parser与driver请求归一化不得为当前core设置dependency必须为空的专用规则。显式direct/support输入继续保留输出隔离、manifest direct-set匹配和完整artifact closure校验；依赖的locator错误、回边及自环在共有发现/graph阶段报告，不能退回默认sysroot或忽略声明来构造空依赖。single-file的core-only约束保持不变。
-
-driver的HIR stage把完整DependencyHirOutput、canonical foundation、production section、公共interface与ABI leaf classifier保存为一个不可缺字段的共有产物。foundation投影、公共interface产生和源码位置补齐只有一份实现；classifier根据HIR中已确定的protocol来源读取当前或direct provider的普通nominal interface。最终strong-profile封装消费这一共有HIR产物、strong MIR与完整LIR，统一执行HIR ODR检查并携带各层公共接口，不为core复制投影或封装流程。
-
-依赖 closure 失败在已加载的 artifact 表仍可用时，将 reader 的实际 slot／provider 关联回该输入 locator，并保留 metadata／semantic field 路径。driver 的结构化错误传递该来源，umbrella 将 child 使用的依赖快照 locator 显示为本次原输入位置；不得先格式化错误再解析文本寻找文件，也不得重新读取或验证 closure 只为恢复诊断上下文。
-
-公开 LIR dump 在同次 registration production 完成后，除本地模块外还显示实际初始化依赖：保留模块的本地 arena `deps`，并为含外部依赖的单元追加 canonical unit、provider 与完整 dependency 序列。数据直接取自已产生的 typed registration，不从源码推断、重读产物或再次验证；观察输出不改变产物格式、指纹或 runtime ABI。
-
-parse完成后，core、普通manifest和single-file使用同一个ParsedSingleConeBuildRequest及production/publication入口。Cone record由已验证当前输入推导；dump、HIR warning、实际依赖记录、codegen、artifact验证与原子发布共用编排，protocol来源仅选择对应typed HIR/MIR/LIR投影。共有production错误保留失败阶段，并在HIR成功后携带其warning及原始源码上下文；CLI分别渲染warning和错误，machine failure response把warning作为独立typed diagnostic追加，不能只把warning拼进error message或在失败时丢弃。
-
-`scoopc`在前端解析intrinsic annotation并正规化为既有typed IR。core源码使用普通manifest、source discovery与stage编排，允许用户指定源码目录和输出文件；不创建CoreBootstrapAuthority或把源码路径与输出slot绑定。desugar所需声明从基础库的普通导出解析结果取得，后续stage使用typed声明和操作，不消费源码授权token。
-
-`scoopc`必须保留HIR warning直到本Cone最终结果：成功`CompileSuccess`携带typed warning列表；若后续codegen/pack失败，则把warning附到已经确定失败的error report，不能因`?`提前返回而丢失，也不能因warning非空改变成功/失败。它通过版本化结构化通道向`scoop`报告typed diagnostic；`scoop`只按graph phase、Cone与source/member identity稳定排序和标注，不解析或改写子进程的人类stderr文本。直接CLI在成功编译时仍以零状态退出并把warning渲染到stderr；`--emit` stage dump使用既有stdout通道。fixture成功快照仍以AST/HIR/MIR/LIR开头，仅在warning非空时于LIR之后增加独立warning section；runner从同一orchestration result或child protocol取得这些typed输出，不把dump混入被测程序stdout。
-
-`scoop run`必须先完整执行与`scoop build`相同的graph、cache、single-Cone child、artifact 消费检查、runtime-build 与 program-link 流程，成功后才启动已验证binary；不得增加interpreter/JIT或跳过`.slib`的路径。`--`之后的参数原样形成program argv且不进入build key；child继承调用者cwd、environment与stdin/stdout/stderr。tool diagnostic/warning只写stderr，启动成功后透传program exit status或signal，启动失败使用独立tool error状态。
-
-值类型的interface装箱adjust统一接受InterfaceMethod、PropertyGetter与PropertySetter三种已有dispatch role；getter/setter沿各自typed accessor slot生成独立identity与body。VirtualMethod仍拒绝；实际itable位置、interface exact receiver、payload root及generated callable关系仍由共有MIR验证检查，不新增slot tag或identity格式。
-
-当前Cone的HIR→MIR→LIR形状物化需求统一由本Cone共有公共声明投影：先按export binding identity的实际exporter选取当前Cone的DeclaredCurrent绑定，不能把聚合读取的其他provider公共绑定误作本地需求；仅表示与继承依赖闭合的本地public param-free nominal生成完整source、按需box、coroutine step与slot。HIR携带必备LocalShapeSupportPlan，空需求使用空roots；不以core协议的Defined/Imported分支替代需求。MIR接收同一typed source集合并核验规范顺序、实际source/exact与helper，LIR对实际producer验证完整layout、scan与descriptor，删除Core/NotCore物化分支及固定CORE归属。reader从共有direct public surface及完整nominal/callable声明独立重建相同需求。alias、reexport和generic template不自动增加本地物化根；协议选择与形状需求互不决定。
-
-M23-6 的有限 param-free 闭包是历史实现范围；M23-6a 起，nominal 表示与继承需求直接读取共同声明及完整 application，按导出实现和实际使用闭合字段、enum payload、父类型、构造器、成员／accessor 与 slot 签名。封闭 generic application、合法 suspend 或 native 签名不再把宿主类型整体标成 source-only；语言禁止的成员形态仍在定义处诊断。未绑定模板等待真实 application，引用类型字段不递归物化 referent 全部方法，helper 不展开成无限支持族。producer 保留实际需求与完整类型事实，reader 对新输入核对 typed 声明、引用、表示及定义关系，后续直接复用；不再次执行语言选择或构建来源资格集合。public binding 只负责名字查找，必要的 private/protected 支持保持原身份和可见性。外部实体关联其实际 provider 的 MIR/LIR 记录，Link 继续消费已验证产物，不以待验证形状表反推语言需求或替换声明来源。
-
-共有 nominal 物化查询必须保留各条依赖的语义角色：普通字段、enum variant 字段、完整直接继承类型、公开或 protected 构造器、实际 virtual/interface 槽。查询只借用同一 canonical nominal/callable 声明；字段保留原 typed field identity，callable 保留完整原声明、签名与 effect，不能把 private 字段、重复类型位置或 accessor 槽归并后丢弃。generic owner 不进入本阶段的参数自由物化遍历，private/internal 构造器及非槽普通成员不自动产生类型机器需求；构造器/槽所属的参数自由 nominal 必须存在于同份声明集合，不能静默忽略悬空 owner。槽需求同时来自声明自身的 slot relation 和共有 nominal 的实际 dispatch selection；值类型或 final 类的接口实现即使没有自己的物理槽，也必须按被选择的完整 typed callable 加入签名与 effect 判定，不能仅因 slot_relations 为空而漏掉实现。相同实现被多个槽选择时，保留原声明的完整参数序列；实际选择关系仍由原 nominal metadata 单独验证。现有 source-only 传播与后续 selected 语义边生成应复用此查询，它不保存新 wire 表，不授予来源访问或机器资格。
-
-HIR 类型接口的生产入口必须借用同一 artifact 的共有 foundation、已验证 identity graph 与 HIR interface，以及实际可达依赖的同类元数据，不能固定发布空的 selected 表。Signature、Representation 与 TypeTest 三类类型用途从共有 external reference 的实际 type_sites 逐次读取：调用签名与 constructor initializer result 贡献 Signature，类型测试保留 TypeTest，其余值、存储及 sizeOf/alignOf 等用途贡献 Representation；初始化循环消息保留其实际 String 参数依赖。完整 exact 及源码位置继续保留在原 type_sites 中，持久化 target 只对实际 provider 与 nominal exact/use kind 去重。Signature 和 TypeTest 均需要同一类型的 Representation；闭包从实际类型用途及当前类型导出所需的参数自由名义声明继续沿完整字段、enum payload、直接继承及 constructor/slot 签名递归，包含 private storage 和无自身物理槽的实际 interface implementation。每个 provider 的共享声明决定其 source-only 边界，不能通过外来 selected 或同名类型绕过；Unit/Any 仅沿固定语言身份处理。共有 Compile reader 独立重算这三类用途并与候选表的对应分区精确比较，拒绝缺项、额外项、错误 provider 及仅在无关 artifact 中存在的依赖。不增加来源 wire 表；这项类型依赖闭合不代替各次 source lookup/access、receiver/default/support parent 证明，以及操作用途和最终 Compile/Link 资格。
-
-共有 HIR selected 同时从当前可物化声明的完整直接父边重建 Inheritance 用途。derived 必须属于当前 provider；target 的实际声明 kind 决定 ClassBase 或 Interface，完整 typed derived、target exact 与 terminal provider 一并保留。每条当前直接边独立处理，相同父类型但不同 derived 不得合并；本地父边不产生 external selected，递归读取依赖声明的父边只贡献 Representation，不冒充当前声明的直接继承。父类或接口自身的完整表示与签名依赖继续沿原闭包展开。源码泛型或不能完整物化的声明不生成该用途，Unit/Any 内建身份不构成继承资格。producer 与共有 Compile reader 使用相同声明查询重建四类用途，Inheritance 与 Signature、Representation、TypeTest 的候选分区须精确相等，缺失、额外、错 derived、错边种类、错 provider 及不可达依赖均拒绝。声明来源、访问域、modality、override 与 slot 关系仍由原共有继承重放验证；该扩展不增加来源记录、wire 字段或机器资格，后续五类操作用途和完整 Compile/Link 验证继续属于发布条件。
-
-HIR 中保留为 Cast 节点的普通与可选运行时类型转换显式保存实际 checked type；Export HIR、LocalConcrete HIR、泛型默认值实例化和默认正文运输均保留这一必需字段。结果仍分别为 T 或 Option<T>，读取方必须验证其与 checked type 的完整类型关系，不能从结果类型反推或默认补齐目标。默认表达式 Cast 的既有 tag 37 使用四字段 closed product：field 0=37，field 1=完整 operand，field 2=checked_type（SignatureTypeKey），field 3=optional（CanonicalBoolean）；缺少 checked_type 的旧格式拒绝。该目标参加原默认正文的类型、引用、访问域、来源遍历；MIR 直接消费实际目标，不从 Option payload 重新解析。
-
-共有表达式 type_sites 的角色 1～5 保持含义，unsigned 6=BoxedValue，unsigned 7=SingletonValue（见 object value 与初始化规则）：Box 保存 operand 的完整 exact，Unbox 保存实际 payload 结果 exact；Cast 与 IsInstance 均以 TypeTest 保存完整 checked exact，可选转换不以 Option<T> 冒充目标。每次操作继续使用自身正文根、expression_index 和 definition/evaluation 来源，记录加入原 external reference 的完整 foreign nominal 分发。共有 HIR selected 查询从这些实际 TypeTest/BoxedValue 操作重建 ShapeSupport：只有整个操作 exact 为外来 source nominal 时，才对该实际 owner/provider 请求完整有限支持；结构类型的内部 nominal 仍参加原类型依赖，不能冒充整个操作的 helper owner。相同 helper 目标可去重，但各操作位置及原类型记录仍全部验证；本地类型不产生 external ShapeSupport。读取方独立重算并精确比较 ShapeSupport 分区，拒绝遗漏、多项、错 provider、错 payload 和借用结构成员身份。该步骤不授予构造、成员、槽或单例的源码操作资格，最终 MIR/LIR、object 与 Compile/Link 关联仍须完成。
-
-上述转换字段与表达式角色更新将共有接口升级为 hir/cross-cone-interface/30，仅保存类型关系的类型接口同步升级为 hir/cross-cone-type-semantics/8；required inventory、profile fingerprint、HIR fingerprint 和缓存同步失效并重建。旧 major 不能混入 Compile 或 Link view；persistent identity、runtime C ABI 与 capability kind 不变。
-
-运行时类型转换的失败构造使用前端解析的实际异常类型与 constructor 引用，并沿共有的类型、callable、ABI 和 Link 路径消费。删除由 Cast 反向投影的独立 CastFailure call-site、RuntimeOperationDependency role，以及 reader 对同一目标再按 compiler protocol 进行资格判断的通道；普通源码调用的位置、参数、结果与 typed 引用检查保留。共有 HIR 格式更新为 `hir/cross-cone-interface/30`，原 call-site reason tag 2 与 external-reference role tag 9 退役，不复用；旧产物、profile fingerprint 与缓存重建。该调整不改变转换失败抛出 ClassCastException 的语言行为、runtime C ABI 或 String 表示。
-
-M23-6a 的 nominal 物化根由实际调用、构造、导出实现、类型操作和初始化需求产生，使用完整 application 的同一固定点；不再把 source-only 标记沿 nominal 依赖传播。查询、generic application 的来源记录、未求值默认值和未实例化正文自身都不是发射根。对象、companion、singleton value、published root、initialization unit 与 failure root 保留各自 typed 语义／concrete 映射，不转换 arena 下标冒充实体；lazy 初始化随真实需要进入闭包，eager 全局初始化仍是必需根。协议操作沿原 typed 角色建立实际需求，不预物化整个 core 声明表。nominal 生产保留实际请求的完整表示、继承和 exact 关系；开放或未使用模板无需伪造 concrete 实例，封闭泛型父类型和签名不能被旧 gate 排除。
-
-LIR strong-production两版的字段8统一为有限shape-support计划数组，删除Core/NotCore包装及CORE固定definition owner；所有source、root和definition按实际producer核验，reader从独立source需求重建完整八role计划。旧字段8 tagged sum必须拒绝并重建artifact；top-level 当前为九字段（field 2～9 与 canonical callable 正文 field 13），退役的 field 1、10 不复用；persistent identity 和 runtime image ABI 保持不变。此生产计划证明物理definition义务，不代替共有MIR/LIR语义表的完整性证明。
-
-core的普通声明接口使用与其他Cone相同的Export HIR投影：nominal、callable、property、alias、source interface、default、const与definition-source表不得按core身份清空。param-free callable的通用MIR/LIR export bridge由相同资格规则产生，reader按同一关系验证；只有前端intrinsic正规化和desugar协议引用保留对应typed角色。
-普通core函数与property的prelude候选从同一provider公共绑定取得，复用普通依赖的重载、命名实参、默认参数/const读取与HIR选择；默认参数正文调用core函数同样通过普通typed callable绑定。MIR/LIR consumer selection与codegen不得因provider是core而拒绝，也不得重新生成专用core调用桥。ordinary HIR统一入口携带dependency semantic world，删除绕过该世界的core-only入口。导入默认参数保留provider的源码诊断记录；single-file产物的单源码约束只统计当前Cone的source identity，不把保留的外部定义源码算作当前输入。producer与reader使用相同计数规则。
-ordinary HIR只保留实际提交的通用依赖选择，不再保存独立core callable/type/value选择表、ImportedCoreCall或对应空arena。导出默认参数引用所需的公共绑定route由同一dependency world提供，适用于全部direct provider；不得由core专用选择凭证重新构造。已类型检查的外部exact fact依照声明的provider归属产生依赖边，并由共有metadata闭包校验，不附加core身份或第二次foundation成员资格门槛。
-core的普通callable与value使用共有HIR声明接口，不再额外发布、序列化或校验core callable/value目标表。prelude的函数和属性查找来自共有dependency world；compiler protocol的声明签名由其typed声明引用核对，不依赖第二份普通callable表。
-core不额外保存prelude snapshot或复制普通公共绑定表。名称查找使用共有direct public surface与dependency world；Option的owner、variant与payload身份只由既有typed compiler protocol承载，变体归属、payload位置及Some恰一字段/None无字段的结构契约在同一protocol reader核对。
-
-导入 core 的 Option 语法角色直接查询该协议中的实际 generic owner、variant 与 payload identity。`T?` 通过共有名义类型 application 解析，Option 运算在具体化后的同一 enum 上恢复对应 variant/field 引用，MIR 继续降低为普通构造、tag test 与 payload projection；不复制 core 源声明或新增协议物化队列。`as?` 成功分支中的 String、class、interface 等引用载体保持原引用，只有值类型目标从 box 中提取 payload。外来 unit variant 的静态初值保留实际 owner type 与 variant identity，经既有具体化产生相同的常量 image，不能把无求值的 `None` 改为 runtime initializer。
-
-外来泛型 enum variant 与函数、constructor 共用候选实参映射及约束求解；签名来自共有 enum/callable 声明，推导完成后直接构造值，不要求不存在的 callable body 或机器函数。裸泛型名在限定变体时仅表示 typed 声明命名空间；已应用 typealias 保留其 exact owner 实参。所有分层查找、遮蔽、字段形式、默认值、类型不变性与 bound 规则保持。
-core prelude的类型名与透明alias也从共有dependency world按type namespace查找，与value namespace分别保存并遵循相同的低优先级规则。基础类型的typed identity由既有protocol正规化，alias引用绑定保留共有provider给出的完整route；不再维护CorePreludeOnly、ImportedHirSet或第二份core类型名称表。ordinary consumer除语言内建Unit/Any外，不得在公共名称查找失败后凭基础类型短名回退。
-现有param-free调用桥的exact nominal分类从共有nominal interface声明推导；生产端使用当前声明与显式依赖闭包，前端的dependency selection直接使用所属SemanticWorld中的声明，slib reader逐provider限定为当前声明及其实际传递依赖。不得只从core取得全部签名类型依据，也不得接受调用方另行提供的类型资格表或把同一构建图中的无关provider用于补齐类型。分类从实际 nominal 叶递归形成完整 param-free exact signature，不代替实际 MIR 实现、完整类型/布局、canonical ABI、访问与物化能力检查；未物化 generic 继续由其阶段能力规则处理，source-only声明不能由此取得执行能力。具体nominal使用typed声明id形成exact identity，语言内建Unit单独保留。空集合按共有规则处理，不要求额外CORE provider。ImportedCoreInputs 仅持有已导入的 compiler protocol；native-boundary 和公共声明查询使用共有依赖接口。SemanticWorld通过直接依赖集合建立源码名称索引，传递依赖的声明按真实typed id查询；不建立额外的provider来源资格或分离视图。
-canonical Scoop ABI重放直接查询同一provider的共有nominal表示，保留完整struct字段、enum variant/payload声明序、CLayout policy与引用类型的managed表示；private storage support与公开声明使用同一查询。与extern/callback的计算共用表示和ABI算法时，只建立临时表示视图，不为普通Scoop签名制造或发布NativeBoundaryTypeDefinitionRecord。已有native-boundary记录与共有声明重叠时，其owner、参数数和完整表示必须一致；仅native契约需要的显式C投影保留在native路径。缺失依赖、错误provider、字段或variant身份、表示冲突及递归值布局按共有规则拒绝，不以同布局或类型名称补记录。
-删除 CoreHirInterface 的独立类型目标表及旧 wire 字段；当前 HIR `/4` section 直接保存完整 compiler protocol 角色，String 不再另存 capability，字段与版本规则见 2.11。shape-support的具体nominal根从共有DeclaredCurrent公共绑定推导，strong reader从已有direct public surface与HIR foundation推导同一集合；alias、generic和re-export不增加本Cone形状根，重复声明目标合并并按typed id排序。该共有投影不新增序列化表，不改变当前core强制物化的范围；缺失绑定或本地声明由共有metadata关系检查拒绝。
-MIR production不再复制core形状根列表：删除CoreMirBridge的wire字段2及CoreMirShapeSupportRootV1，旧字段按不兼容格式拒绝。driver将HIR已提交的完整shape source声明传给MIR strong sealer；sealer由声明重建typed source/exact，检查规范顺序及实际MIR source、box、coroutine step/slot物化，直接保留供LIR消费的声明，不再与第二份序列化清单比较。slib的形状来源与LIR完整性仍由共有公共声明/foundation投影验证；compiler protocol签名和现有typed identity检查保持独立。
-MIR production删除重复CoreMirBridge及字段1；字段2保留entry，字段3的每条完整StrongCallableBridgeV1新增必需CallableRole（Ordinary或InitializationCycle）。共有角色也用于MIR/LIR外部选择，不进入persistent identity。初始化服务的实现和签名只由共有strong callable记录保存，不再另存definition/implementation副本；HIR投影按已正规化的typed protocol声明设置角色，并核对普通、无receiver的(String) -> Unit签名。共有表拒绝重复初始化角色和非function目标；production按实际producer核对必需角色，reader以HIR协议逐项核对角色及签名，LIR从同一记录取得本地目标。旧三字段production和缺少角色的旧strong记录直接拒绝，artifact/cache须重建；entry、foundation identity、LIR旧协议wire及runtime ABI不变。MIR strong sealer与reader仍要求共有表完整覆盖foundation的实现和签名，角色不得作为省略实现的替代。
-LIR 的所有普通依赖 callable（含初始化循环异常函数）使用完整 `CallableAbiRecordV1`；target、canonical ABI、expected symbol、calling convention、caller root plan 及 required definition 只保存一次。`ParamFreeLirCallableExportV1` 的 wire 为 `1=declaration, 2=callable ABI record`，没有初始化发布记录或外部服务记录。读入时按实际 provider 与 typed target 检查 body、symbol、definition、逻辑及物理签名；同次 lowering 已完成的记录直接进入后续导出与选择。
-
-普通 callable 与 layout/ABI 发布从 typed StrongCallableDefinitionOwner 取得同一 MIR 记录、物化根和 LIR body，按实际 exact 签名、GC effect、calling convention 与布局构造完整 ABI。初始化函数使用这条普通 callable 路径，没有单独的 ABI 生产、投影、重放或导入适配；前端和 MIR 保留其 ordinary、无 receiver、String 参数和 Unit 结果的语言角色规则。
-
-String 的旧外部描述符桥已删除；它直接使用通用 layout 选择与 LIR arena 中的完整 ExternalTypeDescriptor。共有wire为四字段closed product：1=provider、2=target、3=expected_symbol、4=required_definition；旧隐含CORE的三字段格式拒绝，artifact/cache须重建。reader在共有identity graph中解析provider和exact target，由实际provider重新推导symbol/definition并逐字核对完整record，definition的owner/role/primary symbol使用同一关系校验。String 的 well-known 角色明确引用实际记录与 provider，专用协议外层及 CORE 来源检查按 2.12 删除；不能把其他外部描述符按provider归入String角色。不再保留StrongExternalTypeDescriptorBridgeV1、core专用TD identity helper或CoreExternalBuildError。
-
-HIR foundation的外部source nominal与generic nominal引用表适用于全部Cone，包括core；reader不得禁止core引用依赖类型。各项必须是本foundation未声明且被exact type使用的typed identity，并参与共有identity注册与依赖闭包解析。该表仅记录外部引用，不构成core来源授权。
-HIR semantic world只区分direct与support provider，core使用同一输入、typed实体索引及package/static名称索引，不另设trusted provider、core入口校验或缺省core依赖断言。依赖存在性与闭包由普通图验证负责。core prelude的较低查找优先级在lowerer名称查找层保留；收集当前包的直接依赖贡献时排除该隐式prelude provider，显式namespace查询仍使用共有完整索引。
-
-core由`scoop`调度配套`scoopc`独立编译为普通library `.slib`，不隐式依赖自身；用户可直接构建修改后的core源码。普通编译不合并core AST。基础库的类型、函数、prelude和desugar引用使用同一份普通声明metadata与依赖导入路径；intrinsic在前端正规化，MIR/LIR按既有typed IR计算表示、调用与ABI。移除仅用于重复证明core来源的专用接口表、授权对象、绑定及调用桥。
-
-String 由前端解析为实际 typed class，MIR/LIR 与 Link 使用同一 provider 的 exact type、TypeDescriptor、registration 和 relocation。现有 C ABI 的 `scoop_td_String` 表示 runtime 所需的 String descriptor 地址；链接使用实际声明的定义，不从固定 CORE identity 重建它，也不按名称或同布局替换类型。对象头为 16 bytes，length offset 为 16，inline bytes offset/minimum 为 24，alignment 为 8；`InlineBytes` 的 size/stride/alignment 为 1，object/inline scan 为空。保留这些真实表示和边界检查，不单列重复的 String 布局/scan 副本、capability-kind digest 或 program/core binding 证明。
-
-M23-6 已删除没有实际 producer/consumer 的 `ScoopRuntimeCoreBindingsV1`、`ScoopProgramDescriptorV1`、固定 String capability ID 及其 LLVM 布局镜像和专用测试。未使用的 program/core magic `0x53434f4f50505247`、`0x53434f4f50434f52` 退役且不复用。M23-8 规定 `scoop_rt_run_program(images, image_count, root_entry)` 直接消费实际 image/root 引用，统一初始化 registration 与 coordinator 参数；metadata ABI 升至 3，字段布局及 String 表示保持，格式迁移见实现规范 2.14。M23-9 生成同一入口的实际启动对象，不另建 program/core descriptor 或 String 授权表。
-
-M15起`scoop`把用户target选择交给唯一registry，并原子构造不可部分有效的`ResolvedTargetProfile { lir_target: LirTargetProfile, backend: ValidatedBackendProfile, c_bridge_toolchain: ValidatedCBridgeToolchainProfile, runtime_build: ValidatedRuntimeBuildProfile }`。registry检查四项的canonical triple、object format、deployment、calling convention、pointer/storage ABI、producer output与link input互相相容；M23-2的artifact只持久化前两项组成的`ValidatedLirTargetSelection { lir_target: LirTargetProfile, backend: ValidatedBackendProfile }`，不伪造后三项。`lir-lower`只接收`lir_target`，Scoop LLVM codegen接收`lir_target + backend`，generated-C producer接收`lir_target + c_bridge_toolchain`，runtime-build接收`lir_target + c_bridge_toolchain + runtime_build`，program-link 接收 `lir_target + final_link` 以及已经检查的 Cone/runtime/native 输入，并使用 final-link 中明确的 C compiler 生成本次启动对象。SDK/deployment、实际system C compiler identity、canonical generated-C template/flags、runtime source/build rules、default native providers与linker actions分别属于后三个projection，不能暗中塞回LIR-target或backend contract。
-
-对 executable root，后续 `scoop` 按实际 runtime-build projection、C compiler identity/flags、源码与 build rules 构建普通对象及符号/ABI 摘要，再交给 program-link。完整构建结果直接使用，普通缓存按实际输入和内容失效；外部对象保留格式、引用、target 与 ABI 检查，不设来源资格或不可伪造包装。M28 的 registry 提供 Darwin/AArch64 与 Linux glibc/musl amd64；unsupported target 在任何 LLVM IR/object/runtime 构建前诊断，final-link projection 仅在 executable 链接时解析。任何projection都不能从host triple、`llvm-config`路径、另一projection或已生成object反推。runtime platform能力由Mach-O image、Darwin thread/VM及AArch64 frame/anchor三个正交组件组成；Linux/Aarch64或macOS/x86_64等新target复用已有维度，只补缺失组件。通用runtime不能用C预处理器选择多套平台行为，也不能用可空operation表示残缺platform bundle。新增target的允许改动面限定为registry映射、projection组合、缺失平台组件、build source set及artifact测试；通用codegen/collector通过依赖边界测试禁止导入具体profile，runtime单元测试使用fake platform bundle。
-
-### 2.8 artifact-only program-link
-
-详细设计见 [M23-9](../milestone23/stage9/DESIGN.md) 与 [M23-10](../milestone23/stage10/DESIGN.md)。program-link 是独立 stage；`scoop build`、`scoop run` 与显式 `scoop link` 共用其库入口，M23-9 同时提供只接收产物的低层 `scoop-link` 进程入口。它消费完整 `.slib` Link 闭包、普通 runtime 对象集合、LIR target、final-link profile 与输出路径，M23-10 增加已有 native requirement 的显式 library search roots。不读取 Scoop 或 runtime 源码，不调用 parser、HIR lower、具体化或其他上游 stage。它可以调用 profile 中明确选择的 C 编译器，仅编译本次生成的固定启动代码；不编译用户 C/C++，不重新生成依赖中的 bridge。runtime-build 与缓存仍由 `scoop` 编排。
-
-**独立 Link 读取：**M23-8 的实际 reader 仍通过 `decode_cross_cone_layout_link_sections → into_shared_sections → replay_semantics` 读取完整 HIR/MIR；M23-9 必须解除这个依赖。共有 reader 直接复用三层 foundation 的 canonical identity key、MIR callable signature 与 LIR native/C ABI 数据；新增 `org.scoop-lang.lir/link-support/1` 只补 runtime 固定数据符号到实际定义的 alias。新 section 是单字段 map `{1=runtime_data_aliases}`；原设计预留的 `abi_support` 没有实际缺项，删除该字段，不复制已有完整 ABI／布局或身份／合同表。已有 manifest、production、defined/undefined、ODR、对象范围和 relocation 记录原位复用，不另建语义证明表。该 section 的具体字段、闭包和 fingerprint 规则见阶段设计第 3、9 节。
-
-Link reader 检查外部字节的 envelope/hash、required inventory、identity/key、引用、ABI、对象及实际生产数据，不展开 HIR 模板、不重做可见性或从 MIR 重新计算全部布局。Compile consumer 仍检查其真正消费的完整语言语义；同次编译从已完成的 IR 直接投影 Link 数据，已有对象结果直接复用，发布不回读重放。一个已经读入的 Link 闭包保留原对象 bytes 和检查结果，program-link 不重新打开路径或完整重验。同次 Compile/Link 对同一 Link 数据调用同一个对象／引用实现。
-
-字段和 callable ABI 的结构化值存储遵循既有组成规则：nominal 值读取实际导出的 layout；tuple 由 canonical exact key 的元素存储组成，函数值、裸指针与 native function pointer 使用目标规定的指针存储。后者可以只有内嵌 `ValueLayoutConstituentV1`，不要求额外 layout identity 或物理定义。Link 从已检查的 exact key 和 nominal layout 计算这些存储并复用结果，核对实际字段的 layout ID、位置、scan 与 ABI 大小／对齐；不为满足读取器而补发无实际用途的布局定义。
-
-从显式 root artifact 读取唯一 executable entry，按 manifest 的完整 direct dependencies 检查可达闭包、单版本、重复 identity、stale semantic fingerprint、target/backend/runtime ABI 与 source form。依赖必须为 library；不可达或冲突 artifact、缺 root/dependency 均为输入错误。重复 locator 指向相同完整 artifact 时在低层请求规范化中合并；同 identity 不同内容失败。canonical order 使用语言规范 12.3 的逐次 ready-set Kahn 顺序，不按输入顺序或拓扑层排序。Link 读取不要求 caller 提供第二份 root coordinate、direct edge 或前端 session。
-
-每个 Cone 按该顺序、每个目录按 `SlibMemberId` 顺序，将全部 `LinkObject` 恰好提取一次。对象集合包括 Scoop 与已经物化的 generated-C bridge；不按文件名、扩展名、ordinal 或固定数量选择。diagnostic、opaque 和 unknown optional 成员不作为对象；当前 Link purpose 所需但不能处理的 capability 失败。私有临时目录中的文件以实际 Cone/member 分隔、create-new 写入；不同归档内相同物理成员名不发生覆盖。路径只用于 I/O 与诊断，不承担实体身份。
-
-**定义、引用与 ODR：**M31 复用原逐 `(OdrGroupId, OdrMemberId)` 归属与引用解析，在普通依赖语义一致后比较完整 key/ABI，并按 2.19 选择兼容物理定义及其附属数据。删除 OdrDefinitionFingerprint 比较；独立 helper 保留合法并集，Strong 定义仍由原 provider 提供。引用覆盖来自完整 typed import 与真实 relocation，metadata-only import 可以没有机器引用，不能强迫每项语义查询都物化 callable。已经读取的对象、ABI 和引用结果复用，最终链接只验证本次选择与加载产生的新事实。
-
-所有 `SourceExtern` 按同一规则处理：先按实际 target/symbol 合并完整 library、function/data/TLS/mutability、C/Scoop ABI、calling convention、GC effect 及 signature/storage，再从本次实际对象和 provider export 中解析定义。M23-9 只提供 runtime 对象和固定 SDK 系统 provider，不按 core 身份、函数名或 core 已用 API 建立白名单。未被 core/runtime 使用的系统 export 同样可由普通 extern 引用；缺失定义、合同冲突及既有保留符号冲突对所有 Cone 同样报错。与实际 `RuntimeAbi`／target support 需求共用符号时，继续比较已有完整合同，不改变 SourceExtern 分类。普通外部对象没有完整函数类型时，不伪造 ABI 证明，外部实现遵守声明仍按语言 FFI 契约负责。M23-10 增加新逻辑 library、archive 等物理输入的供应，复用同一合并与解析器。
-
-定义方 MIR 为参数自由的 source extern 生成普通 Scoop ABI 薄入口，沿原 extern lowering 转发参数和结果；C ABI 继续使用已有 generated-C bridge。该入口是原 source function 的 Strong callable body，参数与结果来自同一声明；入口包含 native transition 与 caller-root publication，因此其 Scoop callable GC effect 固定为 Managed。原 native callee 的 GC effect 继续保存在 HIR source effects 与 native requirement 中，C leaf 或 Scoop NoGc 声明均不能把此入口降为普通 NoGc 调用。HIR implementation 仍保留 SourceExtern 身份。消费者通过已有 HIR/MIR/LIR callable bridge 调用这个原 provider 的入口，普通 import、泛型正文和默认参数不另行生成包装或复制 native 声明。额外 library 的输入供应由 Link 决定；不再在 HIR 以 M23-10 阶段限制笼统拒绝 native dependency call。 generated-C 的 canonical flags 同时包含 `-fno-builtin`，禁止系统 C compiler 按普通 extern 名称（如 `abs`）用 builtin 替换实际调用；flag contract 新增 tag 13，fingerprint 随之变化，旧 bridge 产物与缓存重建。
-
-本地具体化的普通 managed 泛型正文及其生成闭包调用参数自由 source extern 时，也必须使用上述原 provider 的 Scoop 薄入口，使同一 specialization 在定义 Cone 和消费 Cone 具有相同调用边界和对外 GC effect；M31 允许不同优化实现具有不同的合法 safepoint 序列。不能因 native 声明恰好位于当前 Cone 而绕过该入口。NoGc 正文与 release block 的直接 native 调用仍遵守既有调用规则；release leaf 见 2.13。
-
-**runtime-build：**输入为实际 target、C toolchain、构建规则、列明的 C/assembly 源文件及所依赖头文件内容；输出为任意非空数量的普通 relocatable object 和完整定义／引用摘要。runtime 不再定义 C main、Scoop main 或第二份 image。源码和头文件、实际 compiler/SDK、flags、runtime ABI 与 build-rule 变化使缓存失效，修改 mtime 不代替内容检查。构建 key 与对象内容 fingerprint 分开；一次成功构建的完整结果直接交给 linker，缓存或独立进程读入对象时检查 bytes、格式、符号、ABI 和引用。普通对象索引只是缓存／进程交接记录，不是新的可分发容器、来源授权或不可伪造凭证。
-
-program-link 生成普通 C main、静态 image pointer array 与唯一 root entry 引用，调用 `scoop_rt_run_program(images, image_count, root_entry)` 并返回结果。M31 增加 ODR 物理选择后最终 image descriptor/producer pointer 表的生成，数据来自已验证 artifact 的实际所选记录；不复制 TD、storage、初始化状态或 gateway 正文，不运行 HIR/MIR/LIR 或 LLVM，也不读取 runtime 源码/header。startup/native-object 输出工具与实际选项仍来自 final-link projection，选择结果和新生成 metadata 一同进入链接缓存；详见 2.19。
-
-现有 `scoop_td_String` 保持同地址的符号 alias：定义方从已解析 LIR String 引用保存实际 TD target，linker 据此绑定固定 runtime 数据符号。alias 不分配 TD、pointer slot 或新类型；不从 CORE identity、FQN、诊断名或 InlineBytes 布局猜 target。它按普通 definition/reference 与既有 String 表示合同检查，不能成为 runtime/program 来源证明。
-
-**固定 Darwin/AArch64 输入：**final-link profile 解析实际系统 linker、startup C compiler、SDK/deployment、固定系统物理输入、实际 export 目录与有序参数。正式链接直接调用明确选择的系统 linker，不借 `cc` 默认补入搜索目录、compiler-rt、startup object 或动态库。基本系统 provider 为 SDK 中的 libSystem，Level I `_Unwind_*` 沿其正常 re-export 解析；不添加 libc++abi 或独立 `-lunwind`。SDK stub 内容、实际 install name、target/deployment 和导入合同属于正常输入记录，不另建立 platform pinning 或来源认证协议。
-
-当前 target 禁止 `-dead_strip`、不同 body 的 function ICF、LTO、未声明的 autolink/directive、raw 用户 linker options 与 C++ ABI 依赖；显式保留 `-no_deduplicate`。`__LLVM_STACKMAPS,__llvm_stackmaps` 通过 `-rename_section` 移到 `__DATA_CONST,__llvm_stackmaps`，由 dyld 修正地址后保护为只读。固定 profile 只登记实际出现的 linker-generated header、stub/GOT、unwind、fixup 等结构；没有额外 support object 时集合为空，不创造虚拟对象或 `SlibMemberId`。未知实际输入或额外动态库是错误。
-
-当前 Darwin profile 通过 `-no_fixup_chains` 明确使用传统 rebase/bind 格式；final verifier 只实现当前实际输出，不增加没有调用方的 chained-fixup 备用 reader。SDK v4 stub 按 Darwin arm64／arm64e 兼容规则选择目标，并读取完整 re-export 闭包。
-
-传统 lazy stub 的系统需求 `dyld_stub_binder` 由 `ld` 生成；profile 明确记录该符号，检查所选 SDK export，并纳入工具链 fingerprint。它不引入额外对象，不成为接受其他未分类 undefined 的规则。
-
-**计划、产物检查与发布：**链接前保存实际 root/依赖、各 Cone Code 与对象内容、runtime 对象、startup 对象、系统 provider、String alias 和有序操作，形成普通 `ResolvedLinkPlan`。profile/toolchain/deployment 与实际参数进入其 fingerprint，物化路径和输出路径不进入。M23-9 不缓存最终 binary；不为缓存预设 receipt、CAS proof 或多层 evidence 状态机。临时文件由已读 bytes 物化，后续 command 使用同一份文件；外部路径改变不能让实际链接悄悄换输入。
-
-系统 linker 的 map/trace、symbol/load-command/binding 信息用来核对实际输入、输出定义与动态导入。最终 verifier 只处理链接新产生的事实：Mach-O target/entry，唯一 C main、root 与每个 image 的实际引用，所有受控 definition/use 的解析，String alias 同址，重复 ODR 的唯一 winner 地址，不同 type/body/storage 的必要地址区别，保留的完整 stackmap section、EH/GC 所需段，以及没有额外动态 provider 或禁止依赖。最终文件中的指针按该 profile 的 rebase/bind 或 chained-fixup 格式读取；不能把磁盘编码直接当 ASLR 后地址。
-
-M31 在 native link 前已选定 ODR 定义及其附属对象；最终 link map 必须与该选择一致，核对实际 Cone/member、地址与符号表，再使用所选候选的原 relocation 检查引用。落选对象不得进入最终输入或用于解释最终字节，native linker 不能重新选择另一份实现。generated-C trampoline 等引用继续沿各自真实 provider 和 typed unit 解析；单一候选、Strong、缺失定义及非法重定位仍复用原检查。
-
-链接前的 canonical identity、ABI、ODR body 与对象内容检查不在最终 verifier 再执行。stackmap 的对象 payload 已由 reader 核对；最终 verifier 检查完整 blob 保留和可定位的链接目标，Stage 8 runtime 在实际加载地址／权限边界执行全量 site/owner/PC/payload 与 registry 检查。runtime 不重算 RuntimeImage/Graph/ODR 全图；正常链接也不运行用户程序来取得“通过证明”。完整静态交叉核对可以用于显式验证或测试，不能成为每次发布和启动的重复门禁。
-
-所有必要检查通过后，将临时 executable 原子物化到输出路径；失败保留原输出，不发布部分 binary。必要的 Mach-O ad-hoc code signing 是目标平台已有装载格式要求，不扩展为 Scoop 来源授权。返回普通输出路径、计划摘要和诊断。
-
-**M23-10 native 输入：**沿 `ArtifactLinkRequest → link_program → ProgramInputs` 接入显式 library search roots，复用已有 native 合同合并、对象读取、startup 与 final verifier。逻辑 requirement、完整 SourceExtern 合同以及实际对象引用是输入；不另造 native HIR、模板执行器、source extern 包装器或 runtime image。普通 native 文件不是 `.slib` member，不要求 Scoop producer 标识或专用 verifier 凭证。当前没有生产调用方的 Link-required blob handler、Cone 内 C/C++ producer、通用 semantic-effect 插件以及逐 contribution/binding 的证明摘要均不实现；unknown required capability 继续在真实消费边界诊断。
-
-`TargetDefault`、显式 library kind、默认命名空间与歧义规则按语言规范 12.5 和 M23-10 设计第 2 节解析。`NativeLinkRequirementKey` 的现有 target/library/kind/grouping 字段及 source/target native ABI 编码保持；实际编译器仍产生 `TargetDefault + Independent`。已有 `OrderedGroup` 只作为输入的候选排列约束，按 group/position 规范化，不由它引入 whole-archive、脚本、任意 argv 或新的链接模式。相同完整 requirement 合并全部来源；相同物理输入被不同 requirement 引用时保留关联，但不重复加入同一对象。
-
-native 输入只需要实际内容记录：direct object 的内容和符号／引用、archive 的原始成员索引与被选成员、dynamic provider 的 install name／export／依赖及绑定。保留原文件 bytes 或已选 target slice；static 对象按原 bytes 物化，dynamic 输入按下文生成标准链接 stub。linker 不重新打开原 locator。`NativeInputId`、archive member 的完整定位及 `NativeDynamicProviderId` 只区分不同输入实体，不衍生 selection receipt、verification token 或完整程序信任链。对象原始 offset/index 是对应不可变文件内的合法物理定位，不替代 Scoop persistent identity。
-
-archive 使用现有 `object` crate 的 normal ar 读取能力，解析 BSD/GNU 名称与索引，保留原始 ordinal、header/payload offset、length 和 digest。同名、同 bytes 的不同成员仍可区分；thin、外部成员、嵌套 archive、损坏边界及普通成员不是目标对象等错误在索引时拒绝。先读取全部候选的必要格式和定义索引；完整 relocation、EH/TLS 及初始化效果检查只施加于本次选中的成员，复用已读结果。未选中对象的 autolink 或构造器不影响输出，也不成为新的验收拒绝规则。
-
-archive 抽取由同一个符号解析器以有限工作集完成：从实际 Cone/runtime/startup/direct-object 引用开始，在其合法 library/provider 候选中选择定义；加入成员后继续处理新增 undefined，直到闭合或报告未解析引用。归档内用物理成员顺序确定候选，相同物理成员最多加入一次。显式 library 不能被其他库中的同名符号满足；默认／普通 native undefined 的多 provider 歧义不能按 search-root 顺序解决。解析后的成员作为有独立 origin 的 `.o` 交给系统 linker，不再把整个 archive 交给它作第二次抽取；map/trace 因而可以精确核对实际成员，零抽取不伪造空对象。普通 native 重复定义不借用 Scoop ODR 判等；已选对象中的 common/tentative 和相冲突 weak 定义按阶段设计的明确范围拒绝。
-
-普通对象继续检查 Mach-O target/deployment、真实符号 kind、数据可写性、范围和 relocation；允许 C 的普通 unwind 信息以及静态／零初始化的 TLS。TLS 使用实际 Darwin TLV 结构与系统 bootstrap，不能当作普通全局变量或 managed GC root。当前 native 输入拒绝实际纳入的 constructor/destructor、动态 TLS initializer、bitcode/LTO、embedded linker options、Objective-C/Swift metadata，以及 M25 禁止的 C++ ABI／personality 依赖；不建立可配置的逐 effect handler 框架。外部对象缺少完整类型时只检查可观察事实，未携带 ABI 的普通 C helper 引用不被伪造成 SourceExtern 或完整类型合同。
-
-dynamic reader 复用已有 SDK stub、Mach-O 和 export 读取，保留 provider 之间的普通 load 与 re-export 边。固定 libSystem 作为已有系统 provider 参与同一最终绑定表；一般 native dylib/framework 按显式根和实际装载引用形成输入闭包。只读取／保留实际需要的文件，不复制 SDK 或第三方库目录树。Mach-O undefined 不携带 library，单一库顺序不能保证多个重名 export 下的独立显式选库；program-link 从已解析 binding 为每个直接 provider 生成标准 `.tbd` v4，只列本次选择的普通／TLS／weak import，并保留真实 target、install name 和版本。re-export 按已验证输入图投影为公开 owner 的可见符号，stub 不再递归导出子库；运行时仍加载原 provider。固定 libSystem 使用同一投影，包含实际 linker-generated 需求。ld 接收这些 create-new stub，不再隐式读取原 dynamic locator 或间接库；原 bytes、投影规则和生成 stub 进入 plan。target 使用 `-no_implicit_dylibs` 和 two-level 模式，最终 ordinal 按真实 load-command 序列解释，不能继续假定只有一个 library 或 `ordinal == 1`。这一步是链接接口的实际物化，不增加 IR section、分发格式或 producer 凭证。
-
-一般 provider 的 `@rpath` 在编译时从明确目录解析，必要目录以确定顺序成为输出 `LC_RPATH`；实际 install name/runpath 是 executable 内容和 plan 的组成，不能以“路径只是 locator”为由丢弃。原始 `.slib`、object、SDK 与临时快照路径仍只是 I/O 数据。直接 provider 接受绝对 install name 或 `@rpath/...`；依赖中的 `@loader_path` 相对实际 provider 位置解析。需要输出目录布局才能解释的直接 `@loader_path`、`@executable_path` 及未知装载形式明确拒绝；本阶段不增加 native bundle 部署。系统库沿已选 SDK ABI 消费，不宣称 SDK stub 摘要等于运行机器上的 dylib 或 shared cache。
-
-本阶段计划使用 `scoop-resolved-link-plan-v2`，包含必要 native 内容、库绑定、archive 选择、dynamic 依赖、实际 runpath 与有序命令操作。final-link profile 的实际规则／参数同步进入其内容 fingerprint；不改变 LIR target、backend、native ABI、runtime 对象索引或该阶段的 metadata ABI 3；M27 的 ABI 4 迁移见 2.16。现有 `.slib` native requirement 已完整，不为了本机 native 输入增加新的 IR section 或改变三层语义摘要。正常链接不实现 final-link cache；后续若增加缓存，按实际内容、合同、操作和工具失效。
-
-最终检查只处理链接新事实：原生对象在 map/trace 中恰好出现一次，native 定义与真实引用相符，动态 ordinal/symbol/provider、必要 TLV、load commands 与 runpath 符合计划，同时保持原 Strong/ODR 地址、String alias、完整 stackmap 和 startup 检查。不能把未用 export 当作要求全部绑定，也不能让外部 provider 替代 Scoop/runtime/program 定义。对象语义、语言类型与完整 ODR 内容不再重验；runtime 仍负责加载后的 GC 与 initialization 契约。通过后沿原路径原子发布，失败保留旧输出。
-
-原生对象的原始重定位表与 Scoop 对象共用 ARM64 形状／配对／边界解析。普通局部引用在对象边界检查；参与全局符号解析的引用保留实际 symbol、section 和 offset，最终按 map 中精确的私有对象路径及该对象内保留符号定位，再用共有指令／fixup 检查关联已选静态定义或动态 provider。link map 的对象编号必须唯一，不能用 basename 猜测 archive 成员；不为普通 C 函数构造 Scoop atom 或实体。ld 重建的 unwind 与调试段不按原字节位置验证，仍保留相应结构检查。
-
-M23-11 再完成 umbrella build/run/link、single-file 与历史 fixture 的总迁移；本阶段的独立进程和源码产物组合必须先在真实 `scoop-link` 入口完成。
-
-### 2.9 虚/接口调用分派
-
-- M23-6 的 HIR type/inheritance producer 从同一份已解析成员与继承选择生成完整槽契约：每个 schema 中的 typed slot 恰有一个根声明、完整签名、访问域及 `Abstract | Concrete | InterfaceDefault` 实现。基类槽顺序、final override 和接口最具体实现选择复用普通 HIR 结果；getter/setter 保持不同声明角色，private interface helper 不进入槽表。槽根的访问域不随实现 owner 收窄。同次编译直接消费该完整输出；外部产物在 reader 边界检查声明、继承与签名关系，不另建 core 专用派发规则或生产侧 metadata 回读。
-- 同一生产入口输出 protected 方法、属性、accessor、构造及递归嵌套声明；public/protected 构造从共有源码构造记录投影，不从 public lookup 表反推所需接口。每个具体 owner 的继承记录保留完整 protected member 引用，generic nested 声明仅保存源码接口。参数协议按实际声明身份去重，来源表由实际表示、继承、protected 声明、参数及默认值字段精确收集；producer 与 reader 共用同一个递归来源遍历，不能遗漏 private setter 或 nested support 中的来源，也不能把未使用来源整表加入。
-- 类型接口的默认参数使用共有源码参数协议、完整 typed 正文与实际声明引用。只投影接口实际需要的模板；继承默认值保留原声明的 root、path、binder 和正文来源，发布 key 取当前声明，访问规则由前端依实际声明检查。源码位置取共有正文及其完整定义记录，不构造独立 source default 副本、访问证明或第二份 occurrence/receiver 索引。generic nominal 的默认值保留源码类型参数，实际物化继续遵循所在阶段的泛型规则。
-- MIR 为类及装箱值建立实际 **vtable**（类层次分派）与 **itable**（接口分派）；接口自身只保存按槽序排列的完整声明签名，不制造指向默认正文或 abstract trap 的自身 itable。标注 call kind 时，virtual / interface call 的 target 指向对应 table entry，direct call 指向具体函数符号。
-- 接口槽契约保存原 typed slot、位置及完成替换的 receiver、参数、结果、execution 和 GC effect，不要求根声明有机器 callable binding。类和值类型的实际表项必须具有完整实现目标，并与接口契约逐槽匹配；实际目标仍按既有 callable、receiver adaptation 和 ABI 规则检查。未调用或被抽象 override 压制的默认正文不能只为槽签名或引用闭包而被物化。完整源码覆写选择由 HIR 负责，MIR/meta 不重跑该语言规则。
-- 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。vtable从slot 0开始只包含真实virtual成员并允许为空；`Any`无成员，不预留equals/hash/toString前缀。`ToString`/`Hash`及interface operator equals走普通itable，open class equals走普通vtable。
-- **引用 receiver 的直接适配**：class override及interface default表项可直接引用声明owner不同的目标方法。跨Cone schema必须显式保存`Identity | ReferenceDispatch`适配种类；后者以该表的exact implementor为起点，在同一typed继承/接口/Object→backing图中分别证明slot receiver与target receiver可达，二者均须是引用类型。验证器重建最短路径，同长路径按完整exact-id序列的canonical bytes排序取最小者；wire不保存任意可选路径。参数、结果、execution及GC合同仍须逐项相等；这不是按LLVM pointer形状接受不同signature，也不允许把value receiver作为引用直接传入。所有需要payload读取、值copy或其他实际变换的情况仍使用既有typed adjust thunk。
-- **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload。vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**；thunk 语义上从 payload 读取值，并用它初始化真正成员函数的按值 `this`。只有在不可观察的情况下，codegen 才可把它优化成对 payload 地址做 header 偏移后直接传递；需要取址或存在 interior mutability 时必须先复制到私有临时存储。如果所选实现是 interface default，adjust 保留同一个 box 并将 receiver 重解释为该 default 的 interface；此分支不读取 payload，仍由 payload 的 exact interface conformance、generated boxing identity 与完整目标签名验证。
-- **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
-- **interface 槽序**：按直接父接口的声明序递归收集继承成员，再追加当前接口声明的成员；同一 exact application 在菱形路径中只访问一次。完整收集后按 HIR 的 typed override 关系移除被覆盖的旧成员，保留其余成员的相对顺序，getter/setter 分别处理。private helper 不占槽。Export HIR 的 source schema 与 LocalConcrete HIR 使用同一规则；类 vtable 则保留 base prefix，override 不改变既有 family 的位置。
-- **generic exact application**：generic class/interface receiver始终携带参数完整的exact静态application。普通class继承或interface conformance只能到达声明中写出的exact base/interface application；调用继续使用该exact application对应的direct/vtable/itable路径，不存在按同template其他实参查找的view slot、bridge或wildcard table。
-- **interface没有Self/object-safety分类**：`Self`不进入AST/HIR内建type kind；若源码使用该标识，只走普通名称解析。每个合法exact interface application都是普通reference type并拥有独立TypeDescriptor/itable identity，不输出`object_safe`、`requires_sized_self`或类似flag。interface方法签名只能引用普通类型及interface宿主参数；HIR在声明处拒绝方法自身的type parameter，因此每个合法method都有固定semantic slot/signature，经concrete、exact interface或bounded receiver均可调用。M29的`Encodable<T>.encode`与`Decodable<T>.decode`同样是普通实例方法，receiver是companion/codec，encode另接收显式T，decode返回T；不增加工厂slot或特殊类型。未来开放method-level generic interface member前仍须先定义跨Cone specialization/itable ABI。
-- **其他泛型成员函数不参与虚分派**：class上的泛型成员必须为final，值类型成员本来即为final；open、abstract、override、覆盖既有virtual slot或充当interface实现都在HIR定义检查拒绝。exact owner调用标为direct concrete target，不是virtual slot。泛型宿主参数与方法自身参数使用export侧不同typed id空间，单态化键按“宿主参数在前、方法参数在后”携带完整实参，并生成不再含该参数空间的`ConcreteCallableId`；不能按名称或裸索引拼接两组参数，MIR也不能通过跳过table insertion来掩盖一个上游仍标为virtual的非法组合。
-- **结构化表达式降级**：AST 在表达式位置直接表示 `if` / `when` / `try`。HIR lower 先确定所有正常分支的共同结果类型，再分配一个类型完备的隐藏结果 local，在每个可正常结束的分支尾写入该 local，并把原有 HIR 结构化语句追加到表达式的 desugaring sink；表达式本身成为该 local 的读取。结果为 `Unit` 时无需结果 local，但仍须保留分支尾表达式的求值。HIR 保留这些结构化控制语句；MIR lower 在内部完成结构化控制降级后，统一输出基本块 CFG，不新增内嵌 CFG 的表达式节点；LIR 只接收该 CFG。
-
-### 2.10 intrinsic 的分阶段处理
-
-不同的 intrinsic 在其**信息就绪的最早 stage** 展开，而不是集中在 codegen：
-
-- 编译器内置一张 **intrinsic 登记表**：`name → （typed intrinsic id、合法annotation target、展开stage/representation owner、完整声明shape/signature约束）`。type target的shape还必须以非可选结构给出declaration kind、type-parameter arity/bound及fixed/generic-family representation；所有参数固定invariant，`Array<T>`/`MutableArray<T>`均要求一个无bound参数。target包括function/method及M14的compiler-represented struct/class。`@Intrinsic("name")`的字符串只存在于AST/HIR验证入口；name必须在表中且provider通过2.7的authority策略，否则HIR报编译错误。验证后的`ExportHir`/`LocalConcreteHir`保存封闭typed id/kind/application，不继续携带name字符串。
-- **检查与展开分离**：无论在哪一阶段展开，类型检查、`value` / `ref` 约束检查、注解共存检查一律在HIR完成（与“所有源码语义错误在parser/HIR结束”一致）。
-- 晚于HIR展开的intrinsic在`LocalConcreteHir`及后续IR中以“完全实例化的typed intrinsic/call target”形式存在；其type argument已全部确定，因此不构成generic节点，也不对MIR输入“不含generic”的不变量设例外。link symbol只能是该typed target的发射属性，不能反过来决定intrinsic kind或函数签名。
-- 每个 intrinsic 恰好展开一次；其后的 stage 只看到普通 IR。
-
-初始分类：
-
-| 展开 stage | intrinsic | 理由 |
-|---|---|---|
-| HIR→LIR typed contract | intrinsic type declaration | HIR把源码nominal surface绑定到`IntrinsicTypeKind`；MIR原样传播typed kind，LIR按target穷尽生成representation/layout，不存在按名字展开的单一stage |
-| HIR | `current_source_location` | 读取所在concrete expression通用的evaluation origin并折叠为`SourceLocation`值实例，其`line`/`column`使用`Long`（I64）；不读取default metadata，也没有default专用展开路径（spec 11.12） |
-| HIR | `Ptr`的特殊nonzero-ULong构造、`FunPtr` native address、`ptr_to_ulong` / 其他`ptr_*` / `address_of` / `size_of` / `align_of`的源码使用 | 在core contract验证、候选决议和unsafe/lvalue/type/nonzero约束检查后正规化为类型化专用节点，不把intrinsic名称或公开representation传给下游 |
-| HIR | `foreign_callback_register`及callback token retain/release/state/failure | 验证`ForeignCallbackCore`后直接生成类型化registration/token操作；source site取得`PersistentCallbackRegistrationId`，每个concrete materialization再取得不同的`PersistentCallbackApplicationId`；registration以native函数类型和`Long`（I64）常量`contextIndex`派生managed closure expected type，不按`Any`普通调用lower |
-| LIR | `size_of` / `align_of`、`ptr_load` / `ptr_store` / 指针算术、`address_of` | 依赖 2.4 的具体布局以及 address-taken local / parameter 的稳定存储；`size_of`/`align_of`将内部checked layout size物化为source `ULong`，pointer offset则从source `Long`精确降级，最终生成布局常量、带对齐的 raw memory 指令和局部地址 |
-| codegen | typed integer/float算术、比较与转换，以及LIR raw pointer指令 | 按typed kind机械映射；integer wrapping不带overflow flag，division/shift只接收MIR已guard/normalize的operation；float不带fast-math假设，具体规则见2.18；此时不再按intrinsic名称分派 |
-
-共有CallableSourceEffectsV1的implementation必须完整表达实现种类：Scoop、Intrinsic(IntrinsicFunctionKind)、SourceExternScoop或SourceExternC。整数intrinsic的GC effect必须与typed kind一致，execution必须为Ordinary；builder与reader使用相同检查拒绝矛盾组合。Intrinsic的typed kind是该声明的必需数据，不能只保存标志再到core专用operation表补全，也不携带provider授权或annotation字符串。implementation wire使用closed sum：field 0为tag（1/2/3/4），仅Intrinsic具有field 1=完整typed kind；其余分支为单字段map，旧unsigned leaf格式拒绝并要求重建artifact/cache。生产投影直接保留已验证的FunctionKind::Intrinsic.kind，共有semantic world和依赖选择按声明读取同一完整记录。导入的整数常量运算从共有callable目录查询对应typed kind与GC effect，删除ImportedCoreProtocols中的重复compiler-operation载体和查询；常量method/infix调用按同一声明的typed id读取canonical源码名称，并使用共有source interface中的参数名及effects中的infix标志；解析结果完整保存常量执行所需的调用属性，不依赖本地FunctionId。源码名称只用于候选匹配，不能用预设英文名称或FQN推导intrinsic kind。非const实例成员执行仍需经过普通跨Cone调用选择。
-
-整数representation intrinsic在HIR完成普通源码候选、receiver、命名/默认参数与effect检查后即成为独立的typed操作，不再是对源码函数的调用。Export HIR、LocalConcrete HIR及default body均只保存完整IntegerKind、operation/conversion和typed operands；不得为了跨Cone运算伪造本地FunctionId，也不得在正规化后保留仅用于再次证明来源的callee引用。整数literal pattern的equals同样保留typed IntegerKind。NoGc/Managed由封闭operation variant确定，generic effect分析只继续遍历操作数；default投影与实例化直接保留该typed操作，不重新按intrinsic registry查函数。默认正文的整数操作wire删除callee字段及其冗余callable reference，旧字段格式拒绝并要求重建artifact/cache，既有exact identity、访问witness及extern/callback contract bytes不变。Managed 整数运算与其他整数 intrinsic 在前端完成普通候选选择后正规化。除零分支按实际 `ArithmeticException` 声明保留完整类型，实际物化时查询所需 layout 与零参数 constructor（含默认参数适配入口）；源码接口可保存尚未使用的默认表达式。若实际运行点所需异常类型只有 source-only 表示，前端在输出 LocalConcrete HIR 前报告共有 layout 诊断。MIR 与强制 `as` 的失败分支共用普通异常分配、constructor 选择及 throw 路径，不要求 Defined core，不补造调用来源证明或独立操作依赖记录。导入成员从共有callable目录按实际nominal owner id及源码名/操作角色匹配；与其他导入调用复用实参协议、候选私有探测、MSC和winner commit。成员候选与由import binding到达的候选共用源码interface/default/source-origin视图，但成员候选不伪装成top-level binding。成功探测必须完整解析receiver、参数和结果类型；前端可正规化intrinsic在winner commit中直接生成typed操作，不生成M23-5 strong外部调用，也不修改该旧capability的范围。相等比较的已lowered操作数与literal pattern的subject type使用显式输入variant进入同一候选探测，复用参数映射、签名适用性及MSC；不能构造虚假AST/local或再次求值操作数。已确定类型的操作数不再参与source literal偏好。模式winner直接提交完整typed equality plan及适配后的literal，不物化不存在的receiver值或调用临时变量。unsigned负字面量模式复用常量运算的共有intrinsic声明查询。相等比较在右侧lowering产生语句时，先把左值物化为临时值，再按源码顺序接入右侧语句，避免嵌套实参先于左侧求值。
-
-### 2.11 IR输出完备性与typed identity
-
-本节是所有stage的结构性约束，而不是debug assert约定。只要某项是下游正确转换所必需的信息，上游输出类型就必须使它非可选且类型化；禁止由下游根据context、arena内容、名称/符号、容器长度或默认值猜测/补齐。
-
-- **expression type**：HIR与MIR的每个实际expression都直接携带非可选type id，包含Unit、synthetic、box/unbox、array/enum、closure/callback/coroutine节点。M22的Return/Throw/Break/Continue是jump statement，不是缺失type的expression；无正常完成路径由`ControlOutcome`封闭sum以及控制表达式分支的normal-completion状态表达，不得为jump伪造`Nothing` type id。未来加入源码可命名的`Nothing`与一般jump expression后，实际产生的每个`Nothing` expression仍必须携带非可选exact type id。generic expression只引用参数完整的exact application；LIR lowering不得提供`expr_ty`反推器或用expected type替代缺失类型。
-- **function type canonical identity**：每个`FunctionTypeId`实体直接保存唯一`canonical_type: TypeId`，interning保证二者一一对应。Export与LocalConcrete使用各自id家族；消费者不得扫描type arena寻找反向映射或重新intern同形type。
-- **compiler core identity**：只有编译器会脱离普通源码引用主动构造或调用的well-known实体，才在HIR一次验证并输出非可选typed结构。intrinsic type与function intrinsic分别使用封闭typed kind；前端声明规则只影响 intrinsic 的识别和类型检查，不产生 provider 授权，也不成为后续 IR 或 reader 的来源资格。M22把旧Int/UInt二字段结构替换为`IntegerTypeCore`对八个`IntegerKind`的total map，每个kind恰有一个canonical nominal owner；缺项、重复或kind/owner不符不能进入LocalConcrete。`CompilerExceptionCore`至少完整给出`Throwable`及编译器主动生成的`UnwrapException`、`ClassCastException`、`ArithmeticException`、`IndexOutOfBoundsException`、`IllegalStateException`类型/constructor；`IterationCore`完整给出Iterator template、next exact slot及本模块canonical checked `OptionCore`关系（Option template、Some payload field、None variant），不得另存第二套Some/None身份。缺项不能进入MIR。M26 的按长度数组构造在生成的 managed CFG 中主动抛出 `IllegalArgumentException`，因此将该类型及零实参调用目标加入同一 exception protocol；range 仍按普通 core body 调用。普通core能力不得因为由intrinsic type实现就建立专用旁路：`ToString`、`Hash`、全部普通operator、`print`/`println`及其实现都使用普通interface/member/extension、generic callable、conformance与call target实体；primitive/array/pointer operator可以在winner确定后按其typed intrinsic kind正规化，但候选能力只能来自源码声明。新增可由Scoop表达的intrinsic-type能力只修改core源码，不增加`FormattingCore`/`HashCore`/`EqualityCore`/`OperatorCore`之类的编译器结构。
-- **call**：LIR call/invoke必须统一引用typed target。signature在layout完成后明确全部参数、calling convention及return convention；void/direct/indirect-result使用不同target/signature id家族和对应callsite variant，使缺失/多余out、storage或scan在类型上不可构造。M15进一步把Managed、NoGc、NativeSafe、NativeBorrowed target/callsite ref按Rust类型隔离：ManagedPoll/ManagedCall必带`SafepointId + StatepointLiveSet`，ManagedInvoke必带`SafepointId + ExceptionalRootSet`，NoGc无root plan，两类Native必带`SafepointId`、各自caller-root set及按return sum决定的result publication；不能保留`effect enum + Option<root plan>`让下游补齐。direct、runtime、extern及dispatch slot遵守同一规则；codegen只机械声明/调用，不按symbol或callsite推导签名/root。
-- **pointer provenance**：所有LIR pointer value（包括null）都携带`Managed`/`Raw`/`Code`/`Metadata` kind；不同kind间转换必须是显式instruction。opaque LLVM `ptr`不构成在LIR中擦除kind的理由。
-- **layout/metadata连接**：layout、well-known String layout、TypeDescriptor parent/interface、vtable/itable及callable全部使用typed id/ref。跨Cone实体用区分local/external的typed引用，link symbol只是external entity的发射属性；名称只用于显示/诊断。
-- **persistent跨artifact identity**：每种可跨Cone引用的declaration、binding、slot、layout、static storage、immortal object、initialization unit、callable application/body、callback registration/application与safepoint site分别使用不同persistent newtype。除callable body的`RuntimeEncode`例外外，其值统一由`DomainSeparatedCborHash`对canonical definition/specialization key产生；key包含origin `ConeIdentity`、typed owner chain、kind及语言重复声明规则所需的normalized signature，但不含body、arena ordinal、host path或link symbol。`PersistentCallableApplicationId`的key非可选地拆为declaration origin、`NoOwner | ExactNominalOwner | EnclosingCallableApplication | EnclosingInitializationApplication { unit }`及`NoCallableArguments | NonEmpty exact arguments`；第四项用于generic delegated extension或M29 generic companion的initializer/ensure词法作用域内的named local generic application。`Initialization` generated template key只以声明级initialization unit终止；generic delegated extension与generic companion的application unit只存在于`CallableMaterializationContext::InitializationApplication`或上述enclosing owner，实际body/emission root必须从该context取得，不能把application unit写回template identity。普通generic-owner member、generic method、extension accessor与local generic分别使用规范的closed组合，phantom binder仍计arity，调用点receiver不能替代声明宿主application。callback source site的`PersistentCallbackRegistrationId`与`{ registration, CallableMaterializationContext }`的`PersistentCallbackApplicationId`不可互换。concrete type统一使用封闭`ExactTypeKey::{Nominal, NominalApplication, Tuple, Function, RawPointer, NativeFunctionPointer}`产生`PersistentExactTypeId`；`Ptr`/`FunPtr`不能与普通nominal/managed function混用，TypeDescriptor直接登记exact type而不另建竞争identity。`CoroutineStep`、`CoroutineSlot`、`BoxedValue`与`CoroutineStart`按`ExactOwnerRoot`求唯一Cone/Nominal/Structural root，不能按first-use Cone另建owner；定义Cone在M23-3/6预物化非callable有限shape-support closure，依赖 generic nominal application 的 start callable closure 到 M23-7 随实际 ODR 定义和引用闭包加入。M24后实际machine body以封闭`CallableBodyKey::{Strong, Odr, RootGateway, InitializationStartupGateway, ReleaseHook { owner: PersistentExactTypeId }}`、domain`scoop-callable-body-v2`和仍为v1的runtime metadata encoder产生`PersistentCallableBodyId`；五个tag固定为1..5，旧v1 reader/artifact按schema不兼容拒绝。root gateway payload顺序固定为root Cone/main body，startup gateway只含unit，release hook只含owner exact type id。wire同时保存typed id与canonical key供reader重算，serialized table index只可作压缩索引；reader验证后再分配consumer-local arena id。同origin declaration经钻石路径复用一个world entity，tuple/function等结构exact type则只按其规范key intern，不按FQN/layout混并。
-- **stable symbol/ODR identity**：所有Scoop-owned linker-visible实体由persistent entity/ODR id经唯一版本化mangler命名；runtime ABI与用户指定`@Extern` symbol除外。`runtime_type_id`与`SafepointId`从各自persistent full key以独立domain导出非零固定宽度值；program-link允许同一full key的ODR重复经definition-fingerprint/address验证后去重，但不同full key映射到同一固定宽度值必须报碰撞，不同Cone各自从小整数开始编号不合法。generic/materialization specialization key以封闭sum区分nominal、callable、delegated-property与structural-type；Callable直接内嵌完整`CallableApplicationKey`，其他variant保存其template origin/exact arguments或`PersistentExactTypeId`。group member使用`OdrMemberKey { group, role, discriminator }`；除role×discriminator矩阵外，validator必须从discriminator canonical key沿typed owner链回溯到该specialization唯一root，不能把任意全局typed id、producer Cone或同layout实体挂入。同一 member 的 definition fingerprint 必须一致，同组独立成员可以取并集；role 只区分 member，不改变 group key。
-- **结构上排除非法组合**：read-only/mutable native global使用互斥access variant并分别携带完整bridge id；M21 logical property以stored/accessor-only/delegated/const/extern-raw外层sum配对合法storage，accessor-only再以Body/AbstractSlot封闭sum表示每个required accessor，read-only/read-write capability以不同variant携带必需target；object type/value/published root/init unit使用不同id；foreign callback有结果/无结果operation使用不同variant；caller root只能持有无法表示空扫描的`NonEmptyRefScan`；tagged enum field把type与offset放在同一`EnumFieldRepr`，不得使用平行Vec；call/function return不得使用`Void + result storage`一类可矛盾组合；class constructor以互斥sum区分`this` delegation与携带common initialization的terminal；call type argument使用`Explicit/Infer` sum且`_`只存在于source inference entry，成功IR只保存完整concrete argument，不能用nullable type或空argument Vec表示“以后再推断”。M22进一步要求integer constant与operation携带非可选kind、Break/Continue携带typed LoopId、loop target携带break/header/cleanup depth、pattern Impossible edge携带exhaustiveness proof、for/copy-update 在前端保存完整 typed winner 并在 Export HIR 前展开；不能以默认I32/I64、整数loop depth、可选variant或bool exhaustive替代这些关系。
-
-M24 的 concrete release policy 只属于已满足条件的普通 final class；Export 可以保留完整 generic template。每个 stage 用本 crate 的 `None | SynchronousGcFree { typed hook target }` 表示合法分支，只在 C metadata 边界使用 nullable pointer。独立 hook ID、raw reclaiming receiver、typed field read 和 construction success-edge publish 直接表达所需语义。验证分工为：前端检查语言与 effect；lowering 检查自己产生的 IR；reader 检查新输入的格式、类型/引用和物理定义；linker 检查实际绑定/ODR；runtime 检查加载地址与 GC 契约。同一不可变结果复用，不建立 release 来源资格、独立证明记录或多阶段完整调用图重放。
-
-typed id按实体类别隔离：type、function type、generic function、fully substituted generic request、concrete function、runtime function、extern declaration、dispatch slot、layout与TypeDescriptor不能共享裸整数或type alias。跨stage映射必须显式输出typed relation；FQN、short name和link symbol都不能作为id失败后的回退。
-
-canonical Scoop 参数与返回值的 direct/indirect/ZST 分类由 LIR 的共有目标规则完成，native-boundary 与 exact-layout 重放调用相同入口。旧 callable bridge 使用当前 callable 所属 artifact 的 identity 图，并借用其实际可达依赖的 native-boundary source witnesses；同一 owner 的重复 witness 必须逐项相同，不能由 core 身份选择第二套类型表。layout profile 的普通 callable 使用相同的共有 nominal 表示重放 ABI，并逐项核对已经发布的 ManagedValue layout；重复、target/role 不匹配或与 source ABI 不一致的布局整体失败。普通 bridge 已允许的 source-only nominal 签名不要求补造完整 layout/TD 导出，其表示必须从同一实际 provider 的共有声明取得，不回退到 core witness。ABI expectation 与实际记录的比较仍包含完整 logical signature、GC effect、参数次序与返回方式。
-
-共有 Compile reader 在布局验证后先读取普通 callable ABI，使后续 dispatch 可以按 typed target 查询实际记录。它使用已确认的 MIR exact signature、GC effect、实际可达依赖及共有 nominal 表示查询，按 canonical Scoop ABI 规则检查 receiver、声明序参数、结果、Cdecl 和 caller root plan。每个 artifact 的表示索引仅建立一次；已有 ManagedValue layout 的签名位置按该 target 核对，已合法的 source-only nominal 签名仍按真实声明表示处理。
-
-实际 Strong body、symbol、definition 与 primary atom 按 provider 和 typed target 关联；外部选择匹配 MIR 的声明、implementation、签名及 GC effect，再复用 provider 的完整 ABI。缺失、重复、乱序、不可达 provider、表示冲突和 ABI 不一致均拒绝。检查后的普通记录与其余 callable 共用查询，供 dispatch、selected 闭包、初始化及 Strong object 关联直接使用。普通 bridge 仍在原有两字段 section 中保存，六字段 callable ABI 不按 slot 或消费用途复制。
-
-共有 Compile reader 通过普通 MIR/LIR callable 关联检查初始化函数的实际声明、body、完整 canonical ABI、symbol 与 definition，复用同一 callable 导出结果。初始化语义的签名和 effect 由前端协议解析及 MIR 角色关联负责；LIR 不再从协议重投影初始化 ABI，不单独读取、重放或保存第二份服务 ABI，也不按角色拆分外部定义目录。
-
-Strong V2 reader 的 digest 图由同一 artifact 的实际 LIR foundation、已校验的八字段 runtime registration 语义和源码 entry 角色重建，不接收调用方另给的预期 digest 图。待验节点先只向该 foundation 的已有 typed owner 解析，验证 identity、顺序、边、patch 与无环关系；该临时结果用于 registration 的相互引用校验，不成为最终图的依据。随后 producer 与 reader 共用相同的按角色投影算法，从 callable、safepoint、type descriptor/layout、immortal、static storage/scan、初始化 schedule、entry 和 image 逐项生成完整节点、直接输入和 patch 集合，并精确比较全图及九字段 Strong section。缺失、额外或替换的合法节点/边/patch 不能因仍然无环而被接受；external 初始化依赖不新增本地 digest 输入。类型与 callable 的源码/selected join 及实际 object 校验继续由完整闭包执行。不增加 wire、来源证明或独立预期表。
-
-共有 Compile reader 在布局和普通调用表验证后，按同一 manifest 的依赖优先顺序读取完整 Strong V2 section。entry 取已关联的 MIR 输出协议，有限 shape-support 根取共有 HIR 公共与必要支持声明；依赖 descriptor/callable 的物理定义和初始化单元从实际可达 provider 的同一 foundation 与 registration 查询。初始化本地定义由本产物的 registration identity、foundation 和 digest 图解析，外部目录只携带其他 provider 的定义。reader 完成 registration、digest DAG 和九字段 section 的必要一致性检查，保留已读完整数据；不从物理目录反推源码资格，不重新解码和证明同一结果。Compile/Link 复用这份语义结果，Link 追加实际对象和 relocation 检查；同次编译的完整输出直接发布，不以再次完整读取产物及全部依赖作为发布门禁。
-
-Strong V2 的引用按实际表关系检查：digest owner 只查询其对应的 foundation 表，patch 只查询 definition/atom，输入边使用节点索引。类型及初始化检查覆盖必需的 typed 引用、物理字段与计划关系；不记录或估算遍历、索引、分配的逻辑成本，也不设置资源配额。
-
-native-boundary foundation reader 对本地与外来 owner 统一解析同一 identity graph 中的 canonical 声明 key，并按实际声明 kind、参数个数、binder 和字段/variant owner 重建记录；仅登记外来 typed id 而缺失 canonical 声明不能替代此校验。字段与 variant 完整性使用当前 artifact 加已验证依赖闭包中的共有 canonical records，既不将依赖记录登记为本地定义，也不以零字段、Reference 或 CORE 来源授予额外资格。重复、缺失、错误 owner、错误 kind 和错误参数数量由共有规则拒绝。
-
-共有 public nominal source shape 必须保留 struct 声明的 `@CLayout` 策略，不能从字段列表或 provider 身份推断。M23-6 的 `org.scoop-lang.hir/cross-cone-interface/2` 在 struct shape 中保留 tag 3、field 1 源码序字段列表，并增加必需 field 2，保存与 type-semantics representation 共用的 `NominalCLayoutPolicyV1`（Ordinary 或完整 aligned/packed contract）。nominal source contract 与 nested source support 使用同一 constituent。producer 从 sealed HIR 的实际属性投影，reader 对 public source shape 与独立 representation 同时核对字段及 policy；intrinsic source shape 按下一段的 `/3` 格式明确保存类型种类。缺少 policy 的旧 struct payload 拒绝，artifact/cache 必须重建；profile descriptor/fingerprint、Compile/Link inventory 与 HIR contribution 同步更新。native-boundary witness、exact identity 及 runtime C ABI 的既有 bytes 不变。
-
-M23-6 将 `org.scoop-lang.hir/cross-cone-interface` 继续升级为 `/3`：共有 `NominalSourceShapeV1` 新增 tag 6 的二字段 closed product（field 0=6、field 1=`NominalIntrinsicRepresentationV1`），直接保留前端正规化的完整 intrinsic family；tag 1～5 的既有含义保持。声明 kind、泛型 binder 数量及 bounds 必须符合该 family 的合同；public、nominal source contract 与 nested support 复用同一校验，独立 representation 与 source shape 必须逐项相同，不能用空 struct、普通 class 或相同布局代替 intrinsic 声明。常量按自身 value type 的 typed id、vararg 按实际参数类型中的 generic template id 查询其 canonical 声明与可达 provider，验证该声明的 intrinsic family 以及完整元素类型关系；不按 CORE 坐标、Core/NotCore、名称或另一个候选类型补出目标。旧 `/1`、`/2` 及缺失 family 的旧 intrinsic payload 拒绝并重建 artifact/cache；native-boundary 的最小 source witness 仍按实际声明 kind 投影既有 struct/reference 格式，其 wire 与 runtime ABI 不变，完整表示和布局不由该 witness 推断。
-
-protected callable 与 dispatch slot 的 source binding 直接使用 `CoreBuiltinNominal::Unit` 的语言内建 typed identity，不再为取得 Unit 接收整套 imported core 类型协议或保存第二份 Unit nominal。setter 返回与 slot 的 exact Unit key 仍按共有签名规则验证；该内建身份例外不能推广到整数、Boolean、String、Array 或其他源码 nominal。此输入清理不改变 wire、persistent identity、runtime ABI、可见性或 ODR gate。
-
-HIR nominal type 导出从同一次 Export/LocalConcrete HIR 计算实际表示与继承的必需集合，依赖包括自身字段、enum payload、完整 class base、interface ancestry、构造器参数，以及实际 virtual/interface slot 的参数、结果与 execution。依赖是否完整按实际 application 判断；普通宿主的 `Base<Int>` 或 `I<Int>` 父类型保留全部实参，不能因为原父声明带 binder 而把宿主排除。原普通声明继续对应定义方 Strong 表示，实际泛型父类型沿原 application/ODR 需求物化。共有继承、槽与接收者查询对完整 application 替换原声明 binder，复用已检查声明和 exact 类型事实；不把泛型父类型伪造为新的参数自由源码声明。引用类型环按有限图处理，继承与按值循环仍由负责的语言检查拒绝，不能通过截断字段、父类型或 slot 消除真实依赖。公开查找、语义支持和机器定义分别沿各自实际根闭合；MIR/LIR 继续检查完整表示、槽签名及定义关联，不以旧里程碑 gate 或来源资格替代这些关系。
-
-M23-6 的 exact fact 归属沿与 exact identity 相同的 typed nominal 输入计算。普通 struct、enum、class、interface 使用实际 source nominal key 的 origin；compiler 表示的整数、Boolean、String 在定义图中查询其真实 nominal owner，在导入图中使用对应 ImportedHirNominal 保存的 provider。Defined/Imported 只选择引用形式，不得据此把 source-defined 类型的归属固定为当前 Cone 或 CORE。Unit、Any 使用规范规定的内建 canonical declaration key 的 origin；tuple、function、Ptr、FunPtr 等结构类型不伪造 source nominal provider，继续按既有结构类型与 ODR 规则处理。local/dependency exact facts 的分类与缺失支持检查共用此查询，既不从 FQN 或显示名补身份，也不建立专用 core 事实入口；本次修正不改变 fact wire schema 或 runtime ABI。
-
-默认值引用是普通依赖索引：六类记录各保留真实 typed target 与 definition origin，正文与索引在读取边界核对一次。定义处的名称、类型、effect 与调用域覆盖规则由前端负责；继承默认值遇到类型代换或调用域扩大时检查实际变化，未变化的事实直接复用。producer 不重建访问域，reader 不再分别重放 type、value、callable 与 direct/slot 的访问证明；产物仍检查实际 provider、typed 引用、owner/binder 范围、局部值范围及跨表一致性。字段、构造器与全局值引用在共有 reader 边界对照已解析声明的实际 owner、种类和作用域；局部函数引用必须对应正文携带的声明。复用已验证的身份图与正文索引，不重新推导访问域。默认引用 record 采用两字段 map，field 1=target、field 2=definition_origin；旧 witness 的 field 3 退役且不复用。共有接口升级为 `hir/cross-cone-interface/30`，旧 `/24` 及更早产物与缓存重建，profile 与内容 fingerprint 同步更新。运行时 C ABI、String 表示及必要 GC 契约不变。
-
-M23-6 的共有 property/accessor 声明使用 `hir/cross-cone-interface/30`。section 的十字段结构保持，field 4 改为恰含 field 1=公开查找记录、field 2=必要支持声明记录的 closed product；两组按 typed property declaration 排序，组内及跨组重复均拒绝。共有 PropertyDeclarationRecord 的八字段依次为 declaration、owner、own binder、extension receiver、value type、完整 getter/setter identity 与各自源码实现形式、representation 与 declared visibility。accessor 集合使用 ReadOnly 的 tag 4 和 ReadWrite 的 tag 5，getter/setter 各保存 typed id 与源码实现形式；旧 tag 1、3 退役，public setter capability 的 tag 2 不用于该声明集合。公开 property record 是三字段 product，依次保存共有声明、getter lookup access 与 setter public access；声明须为 public，read-only 的 setter access 固定为 Restricted。公开查找信息与源码声明分离，受限 setter、private/internal/protected property 以及 owner 受限的 declared-public property 均保留完整共有声明，不因此产生公开查找或机器能力。必要 property 从共有 nominal 的完整成员关系闭合，其类型和 binder 引用沿同一必要 nominal 闭包保留；按实际使用保留顶层支持属性；是否从 public roots 可达不作为读取资格。所有共有 property 的 getter/setter 必须在同一 callable 声明表精确覆盖，完整保存参数名与类型、结果、effects、modality、declared visibility 和实际 slot relations；getter 可见性与 logical property 一致，只有公开 lookup 指定的 accessor 进入 public 分区。producer 从同一次 sealed HIR 投影；普通 reader 从共有声明、同一 foundation 的 typed property/accessor key 与 definition origin 验证 owner、role、签名、representation 和完整覆盖，支持声明通过实际 provider 和 typed ID 查询，保留声明 kind、owner 与依赖范围检查。旧 section major、旧 property array/record、缺失或重复 property/accessor、错误 owner/role/type、私有 accessor 被提升为 public lookup 均拒绝；profile、HIR fingerprint 和缓存同步重建。该扩展不改变 runtime ABI，也不开放后续 generic、native 或 ODR 物化。
-
-普通 `.slib` reader 关联共有 property 与 accessor 的身份、owner、签名、effect、definition origin 和 public lookup 分区，保留完整支持声明。setter 有效域的包含检查由前端负责，reader 不另建 visibility-domain 或 subclass 推导。writer 的 SignatureDependency 同时遍历共有 callable/property 的公开与支持分区，binder、receiver、参数、结果和 property type 使用与 reader 一致的 wire path；依赖类型按实际 typed origin 归属，受限 setter 的 Unit 返回值也必须保留在引用闭包中。
-
-M23-6 的共有 callable 声明使用 `hir/cross-cone-interface/30`。section 的十字段结构及 nominal 分区保持；field 3 改为恰含 field 1=公开查找记录、field 2=必要支持声明记录的 closed product，各组按 typed callable declaration 排序，组内及跨组重复均拒绝。共有 CallableDeclarationRecord 保存 declaration、owner、own binder、extension receiver、完整参数名及类型、result、effects、modality、declared visibility 与实际 typed slot relations，共十字段；词法 owner 与 definition origin 继续查询同一 foundation，不另复制来源记录。公开记录是恰含 field 1=该声明、field 2=public lookup access 的二字段 product，要求声明确为 public 且查找/slot 合同一致；支持记录不产生 public binding 或查找能力。支持函数、source constructor 与 enum variant constructor 从共有 nominal 的完整声明关系闭合，保留 private、internal、protected 及 owner 受限的 declared-public 成员，排除 object 隐式初始化构造器和生成 adapter；被签名、binder bounds 引用的本地 nominal 沿同一必要声明闭包保留，按实际使用保留顶层支持声明，包括语言初始化入口。参数/default 协议与同一份 callable 声明逐项关联，不能用公开可见性过滤掉必要支持签名。producer 与普通 reader 共用 typed declaration/parameter 关系和完整签名验证；当前与依赖 provider 的完整签名均按实际 typed ID 查询，公开名称查找与已持有声明引用分开处理。旧 major、旧单 array callable 表、旧九字段 callable 记录、错误 owner/角色、缺失或重复支持声明均拒绝，profile、HIR fingerprint 与缓存同步重建。该扩展只补全源码 metadata，不授予 generic、native 或 ODR 物化能力。
-
-共有源码参数协议和默认值必须精确覆盖公开查找声明及必要支持声明中的所有 source callable；accessor 没有命名实参协议，仍由同一 callable 声明保存完整签名。不能把非公开参数改成 Required、删除默认正文或省略继承来源。必要源码声明集合从公开表面出发，沿完整 nominal 的词法子声明、继承、字段、成员签名与参数协议，以及每个默认正文的实际 typed 引用和原始定义 provider 迭代闭合；默认值中实际需要的本地顶层 function、property、nominal 进入对应支持分区，并递归保留它们自己的参数协议和默认值。正文内 local/generated callable 只由其实际附着的正文声明闭合，不提升为顶层支持记录。producer 与普通 reader 分别从真实 HIR 和已解析的共有声明/正文重算这一有根集合；缺失记录、多余记录及只能互相引用却不可从公开根到达的支持环都必须拒绝，不能让待验证支持表自行成为根。公开查找资格与机器物化资格仍分别由公开关系和既有阶段能力决定。section 的字段与格式不变，不新增平行的源码证明表。
-
-M23-6 的共有 nominal 声明表使用 `hir/cross-cone-interface/30`。section 的十字段结构不变；field 2 改为恰含 field 1=公开查找记录、field 2=必要支持声明记录的 closed product，两组都按 typed source owner 排序，组内及跨组重复均拒绝。每个 nominal record 保留原八个字段，并新增必需 field 9 的完整声明信息：field 1=modality、field 2=declared visibility、field 3=全部声明构造器、field 4=全部声明成员、field 5=全部直接词法子类型；它们与原有 kind、binder、supertypes、完整 source shape 合成唯一的源码声明合同；词法 owner 与 definition origin 从同一 foundation 的 typed 声明 key 和 subject 记录取得，不在声明表再复制来源记录。原构造器、成员和 nested binding 字段继续表示公开查找关系，必须是完整声明关系中有效的公开子集；支持记录的这些查找关系必须为空。签名与继承中的 typed 引用通过实际依赖 provider 查询同一份完整声明，允许引用必要支持声明；public binding 单独限定源码名字查找，不限制已解析声明引用的类型查询。object 隐式初始化入口保留既有 typed constructor identity，但不属于源码构造器声明，也不进入构造器查找。支持数据沿当前公共声明的继承、完整字段类型及声明的完整词法子树闭合；被引用的子类型递归保留自身完整声明，也可以保留实际使用的顶层 private/internal 支持声明，保留 private、internal、protected 和 source-only 声明，但不产生 public binding、机器根或执行能力。producer 从同一次 sealed HIR 投影；普通 reader 通过已有 identity graph、definition origin、typed owner 和声明关系验证，并与 foundation 中属于这些 nominal 的构造器、成员和子类型 keys 对齐，拒绝遗漏的声明关系；公开与支持查询共用同一份 source shape、modality 与访问数据，不另存 nominal 来源证明副本。旧 `/1`～`/6`、旧 array 表形状、缺失声明信息、重复或错 owner 的记录均拒绝；profile、HIR fingerprint 和缓存随版本同步失效并重建。该共有声明扩展不改变 runtime ABI，也不提前开放 generic、native 或 ODR 物化。
-
-class/object 的 backing storage 类型可以引用不可公开查找的声明；共有字段语义检查按同一 identity graph 的实际 source declaration key 查询 kind 与 own binder arity，并核对 provider 可达性。这种结构查询不要求目标拥有 public binding，也不授予成员查找、源码签名暴露或机器表示资格；公开 property/callable 的类型与访问域继续经过各自完整检查，layout/ABI 仍须取得完整表示。
-
-此前 `org.scoop-lang.hir/cross-cone-interface/4` 引入的完整声明字段编码由 `/5` 保留。class source shape 使用 `{ 0: 7, 1: declared_fields }`，object source shape 使用 `{ 0: 8, 1: value, 2: declared_fields }`；旧 class tag 1、object tag 5 退役，不复用，其余 shape tag 保持。class、object 与 struct 共用二字段 source field record（field 1=完整 `PersistentFieldId`，field 2=完整 `SignatureTypeKey`），字段按源码声明顺序保存，重复 id 拒绝。class 包含全部自身 backing/delegate 字段及其类型，保留私有字段与泛型 binder，不复制基类字段；object 字段必须引用由实际 object nominal id 派生的 `ObjectBackingClass`，并具备 object backing property 角色。public、nominal source contract 与 nested support 共用该模型及 typed owner、字段角色、binder、引用闭包检查；private 支持信息不产生 public binding。参数自由的 representation 与该源码字段序列逐项关联，不能只比较 class/object kind。字段类型中的外来 nominal 必须进入共有 signature dependency 闭包，按实际 provider 解析。旧 `/1`～`/3`、旧 shape tag、缺失字段及 optional 旧版本混入拒绝；Compile/Link inventory、profile fingerprint、HIR contribution 与缓存一致更新并重建产物。此变更补齐源码信息，不从源字段授予机器物化能力，不改变 persistent identity 或 runtime C ABI。
-
-native-boundary producer 的外来类型输入统一为当前构建的 `ImportedSemanticWorld`，不再由 compiler protocol 输入附带 core 类型名单。对每个已持有的 nominal owner，先在共有依赖闭包定位实际持有 canonical 声明的 provider，再用该 provider 的 source shape 与 canonical 字段/variant key 构造 source witness；Reference 只能由实际 class/interface/object 声明 kind 得出。若非公开声明已存在于 provider 的已验证 native witness 闭包，可复用该记录，但不扩展公共查找；两份表示同时存在时须一致。缺少 owner 或 value shape 必须报闭包缺失，不能猜测 CLayout。当前与外来记录统一继续遍历全部 struct 字段、enum variant payload 和嵌套 signature type，按 owner 去重并规范排序，只保留本次 extern/callback 根所需的传递闭包。direct 与 support provider 的 typed 查询规则相同，不生成本地声明或新的授权载体；generic 声明的结构闭合不放宽 ODR/执行 gate，通用 layout/scan 仍由 M23-6 type/layout section 提供。
-
-compiler protocol constituent 的 producer 与 reader 不将 `ConeIdentity::CORE` 作为声明资格：callable、nominal、enum variant/payload 和 imported protocol id 均解析已有 canonical 声明，使用共有 definition-origin 与 typed identity 约束。callable 保留完整 source signature、owner/own binder 组、constructor result 和 generated-adapter source 校验；protocol product 保留封闭角色、effect、type/member 关系、签名与固定角色完整性校验。enum member 必须关联实际源码 enum owner，不能接受 generated member 或缺少 owner 的记录。Unit 的语言内建身份规则保持不变。此 constituent 清理不扩大前端 intrinsic 声明权限、不引入公开名称，也不改变 typed 引用的编码；完整 operation 表按下一段退役，Core/NotCore 外层按下述 `/3` section 修订迁入实际协议定义。
-
-M23-6 退役 compiler protocol product 的 field 9（完整 intrinsic operation 表），该编号不得复用；`org.scoop-lang.hir/core-bootstrap-interface` 的 `/2` 修订使 product 仅编码 field 1～8，旧 `/1` 与九字段 payload 均拒绝并重建 artifact/cache；当前 section 格式继续按下一段升级为 `/4`。完整 intrinsic kind 只由共有 callable effects 承载，source owner、own binder 个数、参数、结果和 execution 按实际声明与已解析语言类型角色重放。共有 Compile 与 layout-profile 的 callable/public-surface 验证逐项检查已发布的 intrinsic 声明，不再要求后端 metadata 重复发布整套 operation 名单；同一 provider 重复 kind、缺失或冲突的类型角色、错误声明/签名均拒绝，固定协议产品中仍为前端所需的 callable 角色保留完整 typed 引用与各自合同检查，已发布 intrinsic 的声明 id 必须与对应固定角色一致；本地未发布的 intrinsic 操作由前端完整声明合同与实际 typed HIR/MIR/LIR 保证，不虚构公开 source callable。原先只在 operation 表检查的 GC control 合同前移到 HIR；构建语言基础库时，`GcCollect` 与 `GcStats` 各需一个 top-level、无 receiver/参数/泛型、ordinary 声明，结果分别为 Unit 与实际 ULong 类型；缺失与错误形状在前端按声明来源诊断。
-
-HIR 的 `org.scoop-lang.hir/core-bootstrap-interface/4` 直接保存完整 `CoreCompilerProtocolSurfaceV1`，删除重复的 `RuntimeCoreCapabilityV1::String` 与 `CompilerProtocolDefinitionsV1` 外层。section 的 field 2、3 继续保存 output contract 和 direct public surface，field 5 以长度为 0 或 1 的 array 保存本产物定义的协议角色；旧 field 1、4 及旧资格分支 tag 1、2 退役，不复用，旧 `/1`～`/3` 产物与缓存重建。String 的 source identity 只在已有 fundamental type 角色中保存，exact identity 由该真实声明的 `ExactTypeKey::Nominal` 得到；不再维护第二份 source/exact 记录或比较两份投影。前端完成 intrinsic 识别与语言声明检查，后续阶段直接消费完整 typed 角色、共有声明与实际 provider；reader 保留格式、引用种类、签名、effect、成员归属和跨表一致性检查。初始化循环服务的实际函数、String 参数、Unit 结果及 canonical ABI 继续沿共有 callable 路径使用。此修订不改变 String 表示或 runtime C 调用约定。
-
-MIR production 的 `CallableRole::InitializationCycle` 是实际 strong callable 的语义角色，不由 `ConeIdentity::CORE` 决定是否必需、禁止或只能与 library output 配对。producer/reader 保留角色唯一性、source function kind、完整 strong signature 覆盖与逐项重放、entry 的实际 artifact 归属和实现存在性；相邻 HIR/MIR 校验根据本产物实际发布的 protocol definitions 精确核对初始化角色有无、typed implementation、String 参数、Unit 返回及 ordinary effect。删除 metadata 中基于 CORE 坐标的缺失/多余角色与 library-only 分支，不回退到固定 provider 或名称；MIR 既有字段和角色 tag 不变，旧 artifact 由配套 HIR `/3` profile 修订统一失效。
-
-初始化循环异常服务是前端已解析的实际 typed 函数声明。声明以原可见性进入共有 callable 支持记录，实际 MIR body、LIR canonical ABI、导出与依赖选择均使用普通 callable 表；internal 服务不加入 public lookup。`InitializationCycle` 只表达 lowering 选择失败分支目标的语义角色，不产生来源资格、第二份 ABI 或独立 Link owner/requirement。lowering 生成的调用可以没有源码 lookup 记录；已有源码调用仍核对实际目标、provider、参数、结果与物化根，所有生成调用仍核对完整 typed 依赖和 ABI。 Strong production 的两种表示当前使用 `/13`、`/14`：删除初始化专用 ABI field 11 和外部服务表 field 12，section 保留 field 2～9，并由新增 field 13 保存实际 callable 正文的 canonical LIR 摘要，共九字段。旧 field 1、10、11、12 及服务表 tag 1、2、3 全部退役且不得复用；旧产物和缓存按版本规则重建。普通 MIR/LIR callable、layout/ABI、registration 与实际 provider/typed target 继续承担完整调用和物理引用信息，不保留空表或兼容双轨。runtime C 调用约定、String 表示和登记语义不变。 `link-identity-closure` 同步升级为 `/3`，退役旧 final undefined requirement 的服务专用 tag 8 及 object-definition fingerprint 的服务专用 tag 13，均不复用；普通外来 callable 继续使用现有 `cross-cone-link-closure/1` 的 typed target 记录，runtime 编码不新增服务分支。 registration reader 完成结构与引用检查后直接返回完整 registration production 数据，不保留仅用于限制编码或导出资格的中间凭证包装。 仅由旧测试使用的 single-Cone 发布凭证、独立 Compile/Link 双重读取与第二套 atomic publisher 一并删除；正式 M23-6 发布继续使用完整编译输出及共有原子写入路径，普通摘要保留。
-
-初始化单元直接携带所需的本地或外来 callable。共有 MIR 依赖选择从这些单元收集实际 provider 与函数引用，driver 不再另走一次初始化服务选择；MIR 不保存 Local/ImportedUnused/Imported 的配对状态，也不逐单元再核对一份全局来源记录。MIR/LIR selected 表不复制初始化角色、不限制只有一个该角色，也不提供服务专用添加入口。声明发布需要的语言角色继续保留，实际 target、签名、GC effect、ABI 与依赖关系由共有记录及消费边界检查。该进程内简化不改变 wire、runtime C ABI 或初始化与失败缓存语义。
-
-普通顶层 stored property 在源码声明阶段统一生成实际 getter/setter 正文，包括 private/internal 且使用静态初值的属性；读写仍沿原访问域、setter 能力与求值顺序检查。纯存储访问器在静态初值且完整值表示为 GC-free 时使用 NoGc 合同，保留既有存储读写的 effect；运行时 ensure、自定义正文与 managed ref 不参与这一推导。泛型正文及嵌套 callable 引用这些参数自由的原属性访问器，提供方和消费方具体化使用同一目标。访问器中的 backing `GlobalRead`/赋值和初始化 ensure 留在提供方，所需 hidden callable 沿普通模板支持闭包发射、选择与链接；下游不复制全局存储或另建存储导入表。自定义访问器的 `field`、初始化写入、成员字段与显式 native storage 保留各自原路径。此正规化遵循语言规范 9.1.3、13.2，不增加 wire 字段或 runtime ABI。
-
-生成的普通顶层纯存储访问器签名直接复用属性已经解析的类型，不再次解析拷贝的 type syntax 或为同一个 `Ptr` pointee 追加诊断位置。默认值中的访问仍按原属性访问域检查，诊断使用源码属性类别；callee 在共有 HIR 中继续是原 typed accessor。 Scoop 定义的 `@Global`／`@ThreadLocal` 也通过同一隐式存储访问器逻辑生成完整 getter／setter 正文，签名复用已解析的 GC-free 类型并保持 NoGc。当前 Cone 的 raw storage 读写继续直接引用原 storage；依赖读取与赋值选择这些真实访问器。已发布默认正文中的 `GlobalRead` 通过其真实 `PersistentPropertyId` 选择定义方 getter，并沿普通依赖 callable 路径展开；保留原 definition／evaluation origin 与值类型，不复制提供方存储，不在调用点重放已完成的访问域检查。`@Extern` 外部存储继续沿原 native contract 与 pointer／place 路径访问；默认正文中的外部 `GlobalRead` 以同一 typed contract 建立地址和加载，地址保留默认正文的 origin，不生成本地存储访问器。 foundation 的 native contract 声明表只投影当前源码声明。具体 HIR 中外部存储携带的原合同继续服务 native lowering，但不再把该依赖合同投影成当前 Cone 的源码声明；类型与定义位置均沿原 provider 的已解析记录取得。LIR 的 target contract 可以引用当前声明或已解析的依赖声明；每个当前 source contract 仍必须有且仅有一个 target contract，未使用的依赖合同无需复制。共有 native boundary 校验按实际 target 引用从可达 provider 取得完整 source contract，连同当前声明检查类型闭包和 ABI 正规化；不只凭合同 id 重建 payload，也不把这些借用记录写回当前 foundation。外部原生存储的类型使用保留在实际表达式与 native contract 中；只有当前源码声明的存储进入 declaration type sites，不把借用的依赖 storage 再标成当前 Cone 的 backing storage。
-
-M23-6 的外部引用直接使用普通 callable 或 layout descriptor 的 provider/typed target 记录；Strong production 不再保存外部服务表。String 使用共有 descriptor、physical import 与 provider/exact registration 引用，初始化函数使用普通 callable selected 与 Link requirement。外部引用核对真实依赖、目标、符号、ABI、定义与实际 relocation，拒绝 self-import 和合同不一致。两种 strong reference schema 均已删除 CoreExternal：非可选 TD 的旧 tag 2、可选 TD 的旧 tag 3、dispatch callable 的旧 tag 2 退役，使用已有 DependencyExternal tag 3、4、4；immortal type-registration 的旧 tag 2 退役，使用 tag 3 的 provider/exact 三字段 product。local、runtime、absent 的编码保持。含这些引用的 cross-cone-layout-abi 与 cross-cone-layout-link-closure 继续使用 /2；String 迁移时退役的服务表 TD tag 2 随 field 12 一同删除。producer、profile inventory、fingerprint、reader 和固定向量同步更新，实际 runtime ABI 保持。
-
-M23-6 的 native 类型表示保留实际 intrinsic family。共有 NativeBoundaryNominalShape 新增 tag 4 的 Intrinsic，直接复用 NominalIntrinsicRepresentationV1 的完整 family 编码；struct/class producer 与依赖 source-shape 投影均保留同一表示，不能将 intrinsic 写成空 struct 或普通 Reference。构造与 reader 检查 family 的声明 kind、完整 owner/type-parameter arity、成员覆盖与实际 provider 的类型关系；原 reference、declared struct、enum 的 shape tag 不复用。HIR identity-foundation 从 /1 升级至 /2，三十二字段 product 退役原 native witness field 30，新增必需 field 33，保留 field 1～29、31、32；旧字段和旧 major（包括 optional 混入）拒绝并重建产物，所有 foundation/production profile 的 inventory、fingerprint、producer/reader 与固定向量同步。native 与普通 callable 共用的 canonical Scoop ABI 重放根据 exact type 所属声明的共有 intrinsic family 计算 Integer/Boolean/引用布局，不再重建这些类型的固定 CORE id；Unit 继续使用语言内建 typed identity。RawPointer/NativeFunctionPointer 继续由结构化 exact key 表达，不能将对应 intrinsic 冒充 nominal application。runtime C ABI、String 表示与 capability kind 不变。Option、PinnedPtr/GcHandle 随后使用下文的 typed C 投影并将 HIR foundation 继续升级为 /3；普通 callable 的 canonical ABI 重放同时读取实际 provider 已验证的 NominalSourceShapeV1::Intrinsic，临时投影为同一共有类型记录，并与已有 native witness 的交集完全核对；没有 extern 使用的 intrinsic 无需伪造无关 native closure。投影必须核对 typed 声明 origin 与 provider、kind/arity，同一 owner 的冲突表示不能按来源顺序覆盖。本次新增的 native 表示仍只服务既有 extern/callback 与 canonical ABI 重放，不替代通用 layout/scan/dispatch。
-
-M23-6 的 GC handle Scoop ABI 与 C ABI 分别重放。PinnedPtr/GcHandle 的 C 透明表示不能授予 Scoop scalar pass：canonical Scoop ABI 和 ordinary callable 验证都从实际 typed nominal 的完整声明字段重算普通 aggregate size/alignment/GC-free，再按共有 typed ABI 选择 indirect argument/result。缺失 owner、字段类型或 witness 仍经共有查询拒绝；即使 typed identity 恰是旧 core 名义身份，也不能绕过闭包或重建 UInt64。该修正遵循语言规范 14.1、14.2，不改变 native C contract 的现有 bytes、persistent identity 或 runtime C ABI。
-
-M23-6 的 native C 表示使用必需的 typed 投影数据，不重建任何 CoreNativeBoundaryNominal 身份。NativeBoundaryTypeDefinitionRecord 保留 owner、type_parameter_count、完整 shape，并新增 field 4=NativeBoundaryCAbiV1；四字段 product 不接受旧三字段记录。该 sum 为 SourceRepresentation（tag 1，仅按实际 intrinsic/CLayout/结构化 pointer 规则解释）、UInt64Field（tag 2、field 1=PersistentFieldId）、NullablePointer（tag 3、field 1=空 variant 的 PersistentEnumVariantId、field 2=payload 的 PersistentEnumVariantFieldId）。builder/reader 保证 UInt64Field 精确选择普通非 CLayout struct 的唯一字段，NullablePointer 精确选择同一 enum 的两个 variant，其中指定空 variant 无字段、另一个 variant 只有指定 payload 字段；不能将这些规则套到其他 kind。native target 继续从实际字段的 SignatureTypeKey 和 binder substitution 查询表示：UInt64Field 的字段必须具有实际 unsigned-64 intrinsic family，NullablePointer 的 payload 必须为结构化 RawPointer 或 NativeFunctionPointer，C 投影不改变 Scoop aggregate/niche 表示。前端从已有完整 compiler protocol 的实际 typed 声明正规化语言规定的 handle/Option 角色，不在后端按 CORE、名称、FQN 或同布局补语义；依赖声明通过共有 metadata 查询保留已有完整投影，并与实际声明形状和选中的语言角色核对，无第二套外来 core 类型入口。LocalConcrete HIR 与 MIR 的 declared struct 保存 SourceRepresentation 或携带 PersistentFieldId 的 UInt64Field，LIR C storage 和 C type 从该投影构造 uint64_t storage，普通 Scoop layout 不受影响。HIR identity-foundation 升级为 /3，原 native field 33 退役，新 field 34 保存完整四字段记录，三十二字段集合为 1～29、31、32、34；旧 major、旧字段、旧记录与 optional 版本混入拒绝并重建，profile、fingerprint、cache 和固定向量同步。M24 预留的 HIR foundation major 为 /4、MIR 为 /2，LIR 承接 M23-7 的 /2 后使用 /3。native extern/callback canonical key 与 runtime C ABI、String 表示和 capability kind 不变。
-
-M23-6 的 Link strong requirement 按实际 relocation 在共有分类步骤中解析。初始化服务与普通函数使用 callable selected，String 与类型登记使用 layout descriptor import；所有引用按实际 provider、typed target、symbol 与 definition 查询依赖，禁止 self-import、缺失 provider、错误 owner、重复 symbol 和不同用途重复认领。同一完整 import 可以仅供 metadata 使用，不要求产生虚构 relocation；实际 machine use 必须有对应且正确的 requirement，native/runtime/target 的余集保持完整。独立服务 requirement 的旧 CoreStrong tag 2 和 DependencyStrong tag 8 均退役；当前共有 `org.scoop-lang.lir/link-identity-closure` 使用 `/7`。object-definition fingerprint 的旧服务 target tag 2、13 和本地／外来分类 tag 11、12 均退役，普通 callable 与 shape 按 §2.13 使用实际实体与 definition role；该域的 tag 8、9 属于 static-storage，tag 10 属于 associated-atom，均不复用。旧产物和缓存重建，生产 profile、Code fingerprint、固定向量与 reader 同步；ABI、definition、registration、对象范围与实际 relocation 检查保留，runtime C ABI 和 persistent identity 不变。
-
-### 2.12 core 普通库的共有验证
-
-本地 class、struct 和 enum 实现参数自由的依赖接口时，前端直接消费共有接口声明的完整父接口、typed slot、签名、默认实现和访问域。HIR 的 conformance 引用实际接口类型及本地/外来槽声明，目标为本地方法 application 或共有依赖 callable；不得为复用本地检查而复制外来函数声明、正文或生成同名替身。MIR 的 dispatch 表保留本地函数或实际外部 callable 引用，默认实现与抽象槽 trap 沿定义方原有 target 解析，LIR 使用现有 canonical ABI、外部定义与 relocation 路径。override、缺失实现、默认方法冲突、setter 能力和签名/effect 规则在同一前端检查中完成；类型、成员和 dispatch 独立及组合场景须经真实源码产物消费和单 image 普通/移动 GC 运行验收。
-
-本地 interface 可以继承参数自由的依赖接口。父边保留实际 TypeId，override 关系保留实际本地或外来槽声明；继承的成员按父接口声明顺序进入完整槽表，菱形继承按声明身份去重，被覆盖的槽按已解析 override 关系消除。显式成员及当前 this 的隐式成员查找沿本地与依赖声明的同一父图进行，本地和外来候选共同执行语言规定的适用性与最具体选择；不能以声明存储位置决定优先级，也不能将外来成员复制为本地声明。该接口再次发布后，下游按实际父类型、槽与 provider 消费，保持 canonical ABI、默认方法、属性和装箱语义。
-
-抽象 dispatch 目标与具体实现一样保留实际声明：Export HIR 的抽象 conformance 携带真实方法 application 或外来 callable 引用，source selection 携带所选 abstract 声明，完整 slot contract 携带该声明的 owner、signature、effect、modality 与原声明可见性。最近的 class 抽象声明以及更具体 interface 的抽象 override 均压制原默认实现；不把原槽声明伪装成所选目标。MIR、LIR 和 Compile/Link 按该 typed target 取得真实 trap、ABI 与 relocation，不再扫描所有 callable、重建整份继承图或沿继承链反向推测抽象目标。槽身份与所选声明身份可以不同，双方仍须满足实际继承、签名和访问合同。正常路径复用完整记录，不增加来源凭证或第二套证明表。
-
-限定 `super<I>` 通过当前 owner 直接列出的真实接口类型查找成员，本地接口和依赖接口使用同一候选决议、参数默认值与可见性规则。普通 `super` 对 class 成员的候选限制只用于实际基类接收者；限定 `super<I>` 使用 I 的接口成员集合，不能因共用 DirectSuper 调用方式而被该限制排除。调用选中的具体默认方法或 getter/setter 时，HIR 保存实际声明及强制 direct 调用方式；接收者沿共有引用转换或值装箱路径适配，MIR/LIR 按该声明的 canonical ABI 与 provider 定义发射，不再次进入接口表。抽象目标、非直接父接口、错误参数与初始化期间的调用仍在前端诊断。导出的默认参数正文用既有 `DirectSuperMethodCall` 节点保留该语义，下游展开继续调用同一真实目标。正文与引用集合复用同一 callable 引用转换，完整保留实际方法 owner，不分别重建不同的引用记录。同一 provider 的同一 typed callable 被 direct 和 dispatch 多次使用时，MIR 依赖记录与物理定义只选择一次，各调用点仍保留各自的派发方式。此项不新增来源资格、证明表、wire tag 或 runtime ABI；验收覆盖普通与 ZST 接收者、属性读写、命名及默认参数、大值结果和再次发布后的消费。具有隐式接收者的成员正文仍按普通值查找规则消费依赖属性、object 与 enum 变体；这些值与本地值使用同一个解析结果，不能归入函数或类型的非值阻断层。
-
-`InheritanceSourceSlotSelectionV1` 与 `InheritanceSlotImplementationV1` 同步退役无 payload 的 Abstract tag1，新增 tag4、field1 分别保存真实声明和完整 target；Concrete tag2 与 InterfaceDefault tag3 保持编号。HIR `cross-cone-interface/30` 和 `cross-cone-type-semantics/8`、required inventory、profile 与内容 fingerprint 同步更新，旧产物及缓存需重建；不保留旧抽象标记的推测恢复路径。MIR/LIR 沿已有 abstract target、receiver adaptation、ABI 和 symbol 字段消费，不改变 runtime C ABI。
-
-外来 dispatch target 按实际 provider 的普通 callable 或布局 ABI 导出取得定义和 canonical ABI；已完成消费边界检查的物理引用直接复用，不再重复完整验证或要求普通 callable 在布局 ABI 表中再登记一次。装箱和 dispatch adapter 的目标签名在完整本地及依赖 callable 查询中关联；组成记录只检查自身签名与转换形状，不要求外来目标同时登记在本地 foundation，也不重复进行同一目标签名的完整验证。
-
-跨 Cone 的 `throw`、语句及表达式形式的 `catch` 使用前端已解析的实际 `Throwable` 声明，沿共有依赖类型查询取得继承关系并执行同一子类型规则；导入协议不允许跳过检查。同名普通 class 不能替代该实体。异常构造、默认参数、调用、布局、TD 和展开使用共有路径，保留调用求值顺序、catch 顺序与 finally 语义；此能力不增加协议资格、独立证明、wire 字段或 runtime ABI。 公开存储属性的 getter 与可公开调用的 setter 必须按实际 owner 和声明类型生成普通 callable body，即使 provider 的正文没有引用该属性；名义类型、顶层属性与 core 使用同一规则。参数自由且可物化的属性自动导出实际 body。泛型或 source-only owner 仅用于签名和表示查询时，不自动实例化其普通方法或 accessor；实际调用仍通过同一 typed 请求生成完整实例，dispatch 所需的方法继续随其实际类型物化。
-
-跨 Cone 的强制 `as` 沿实际 `ClassCastException` 声明查询完整异常类型，并选择该声明的零参数 constructor 或默认参数适配入口。成功检查保留原对象身份，失败通过普通 class 分配、外部 initializer 调用和 throw 执行；别名、interface 与装箱值沿同一类型与 ABI 路径处理。默认参数中的转换在实际展开时进入相同路径，未求值模板不触发机器物化。异常类的表示仍依赖后续泛型能力时，前端在输出 LocalConcrete HIR 前对实际执行点给出已有 layout-required 诊断；不输出缺少所需表示的成功 IR。MIR 直接消费完整协议中的 typed 声明引用，不再建立丢弃外来声明信息的 Core/Imported 资格投影。所选 constructor 使用共有依赖 callable 集合，保留真实逻辑/物理签名、GC effect、ABI 和 relocation，不增加转换调用的证明记录、wire 字段或 runtime ABI。零参数默认值 adapter 以已有 GeneratedCallable 实体及 ClassInitializer 表示进入共有 callable 导出，不能只发布协议引用而遗漏定义。MIR/LIR selected callable 记录本身是机器依赖引用；reader 按 provider、typed target、定义、签名和传递依赖检查其完整性，不要求隐式调用另附一份 HIR 操作资格记录。
-
-嵌套声明的源码 payload 只保留实际声明身份与完整源码接口，不重复携带可由该身份推导的 inheritance exact、representation owner 或泛型/非泛型资格标志。是否存在机器表示由同一产物的实际 representation、inheritance、MIR 与 LIR 表表达；源码完整但尚未物化的声明仍可正常发布。reader 在这些表的消费边界检查引用与表示一致性，不因解析嵌套源码声明再次完整验证同一表示。原 payload 的 field 3 退役且不得复用；HIR `cross-cone-type-semantics` capability 升至 5，旧产物按版本规则重建，runtime C ABI 不变。producer 的类型事实与表示投影必须覆盖共有声明接口中实际需要的私有存储与嵌套支持类型，不能只依据 public binding 根的局部列表。
-
-共有源码接口保存所有必要声明的参数协议、typed 默认值正文和定义环境，protected、private 与默认值支持声明使用同一记录。type-semantics section 不再复制受限参数协议、默认值或来源并集；原 field 5、6、7 退役，现有 field 1～4、8 保持原编号。前端完成语言与可见性检查，reader 核对已有正文的编码、typed 引用与 owner/binder 关系，不再生成 ParamFree/GenericSourceMetadata 资格、逐正文访问证明或独立完整重放。源码完整但无运行时表示的类型可以参与默认参数声明；实际物化时按 typed 声明处理。此次格式变化纳入 cross-cone-type-semantics/8，旧产物需重建，runtime C ABI 不变。
-
-源码位置由共有接口的 definition_sources、call_sites、type_sites 与已有全局定义记录汇集，不能为收集位置重建独立默认值正文、参数协议或访问证明。删除 NominalDefaultSourceProductionV1、DefaultSourceBodyProductionV1 及旧 DefaultSourceTemplate／References／Access 数据模型、适配器和专用测试；生产路径直接复用共有接口的完整默认值及位置收集。必要的来源位置、typed 引用、可见性、参数与 binder 规则仍保留。旧模型已不属于正常产物字段，此清理不增加格式分支或改变 runtime ABI；内容 fingerprint 依实际产物数据计算。
-
-本节落实语言规范 12.6 和运行时规范的表示、调用及登记契约。实施清单见 [M23-6 清理设计](../milestone23/stage6/CORE-AUTHORITY-CLEANUP.md)，实际功能范围见 [M23-6 设计](../milestone23/stage6/DESIGN.md)。
-
-core 可在任意普通源码目录修改、扩展和重建。manifest、构建图、缓存、依赖类型查询及产物消费使用共有路径。显式 direct/support 输入已有 core 时复用该输入，否则从 sysroot 默认位置查找；错误显式输入不能回退。Unit/Any 保持语言内建 typed identity，其他类型由实际声明及 provider 决定。identity、coordinate 与内容 fingerprint 分别承担实体身份、依赖选择与缓存失效职责，不承担来源认证。
-
-已验证依赖 identity graph 的导入复用 canonical key 对象，只检查与当前图实际发生的实体/键冲突；共享同一键对象的菱形引用直接复用。冲突查询使用当次导入的实体索引，不为每条记录重新扫描全表，也不重新检查该不可变图是否在遍历间丢失记录。
-
-- 前端识别 intrinsic、检查语言声明与默认参数规则，并输出完整 typed operation、实际声明引用、签名、effect、visibility 和依赖关系。IR/meta crate 保存这些数据及格式、引用不变量，不再实现一套语言语义或来源授权体系。
-- canonical ABI 从实际 exact type、签名、target 与 provider 的布局计算。所有 Cone 使用同一规则，空集合自然成功；删除 CORE 验证跳过与专用空表限制。后端直接消费完整 ABI，边界核对实际调用和定义的一致性。
-- native boundary 从当前声明与普通依赖查询取得完整 nominal、字段/variant、表示及 CLayout policy；按 FFI 的 C-safe、GC-free、布局和调用约定检查。删除 TrustedCore 外来类型入口及后端固定 CORE 身份重建。
-- compiler protocol 只保留语言角色实际需要的 typed 声明引用。删除 Core/NotCore、重复 operation 投影、来源资格与凭证外层。可见性和目标身份不能由名称、相同签名或相同布局替代。Lowerer 直接保存已解析的 `ImportedCoreProtocols`，Concretizer 直接借用 Export HIR 的 `CoreProtocols`，不再建立单字段 `ImportedCoreLoweringAuthority` 或重复的 `CoreConcretizationAuthority` 投影。本地 arena 引用与外来持久声明引用保持原有类型区别；不增加 wire 字段或改变 runtime ABI。
-- String、初始化服务及其 descriptor、callable、selected 和 registration 使用共有记录。provider、symbol、ABI 与 definition 来自已解析目标；internal 服务不加入 public lookup。Link 的所有外来 strong 引用使用同一 provider/typed target 查询，不另建 core requirement 或 owner 通道。
-- 每个函数、构造器、成员、dispatch、默认值展开与初始化操作在负责该语义的 stage 完成处理。依赖集合从实际 typed 使用取得；producer 直接输出完整关系，不反复调用来源工厂重造同一对象并证明其来自同次编译。按值或继承循环局部拒绝，经 managed reference 的递归合法。
-
-产物读取按明确边界完成检查并保留结果：envelope 验证长度、目录、版本和内容 hash；共有 HIR/MIR/LIR 解码验证格式、typed 引用与跨层关系；Link 在该结果上追加对象范围、符号、relocation、registration 和 Code/runtime fingerprint 检查。同一字节快照及其依赖不分别执行两轮完整 Compile、Link 语义重放。发布复用同次编译的完整 IR、已检查依赖与最终对象，写入后只核对实际写入内容，再原子替换目标。外部新输入仍须经过对应读取边界；结果改变时重新检查受影响部分。
-
-共有 HIR 类型位置的结构、foreign nominal 分发、真实 provider 与定义/求值位置在 HIR reader 边界检查一次。后续物化查询和 MIR/LIR 消费同一未变化的 typed 记录，不重新完整检查这组 HIR 关系，不建立额外验证状态或凭证；实际类型表示、签名、ABI、对象与传递引用仍由相应边界检查。外部字节重新读入或相关数据发生变化时重新验证受影响部分。这一职责调整不改变 wire、内容 fingerprint 的字段组成或 runtime C ABI。
-
-构建管理与编译器消费是两个明确边界。`scoop` 的发现、完成节点和缓存只保留不可变归档快照及普通 manifest 摘要；检查容器、成员范围与 hash、版本/profile、Cone/target、依赖 fingerprint、缓存键和子进程结果，不解码 HIR/MIR/LIR 或重建 Link 对象。已读 prebuilt 快照复用同一摘要，不能在每完成一个节点时重放该节点及全部依赖。`scoopc` 或实际 Link 消费者在读取外部产物时完成 typed 引用、ABI、对象与 relocation 检查，Compile/Link 共享这份完整结果；同次编译的输出直接发布。摘要不能替代 IR 或对象，也不承担来源或操作资格。此职责调整不改变 wire、runtime C ABI 或 String 表示。
-
-layout reader 按依赖顺序返回实际 section 和 Link 对象结果，外部形状合同保存选中 provider 的完整 typed 数据。临时查询可以借用依赖记录，但返回结果不依赖内部 arena 或高阶回调的生命周期；后续编译直接保留并查询这些结果，不重开产物来恢复同一合同。wire 仍保存相同的 provider、typed subject、definition、symbol 与语义字段，读取边界核对它们与实际依赖相符。
-
-LIR 的依赖选择直接查询实际 provider 的完整 layout/ABI 五表导出记录。构建图提供可达 provider 集合，同次编译与产物 reader 使用同一入口；不要求从读取结果重造 producer section，不保存重复的递归 section 依赖图。选择仍检查 typed 目标、provider、target 和真实引用闭包，manifest 依赖环与语言布局环保留在各自职责边界。
-
-共有 reader 在一个 envelope 上解码语义 section 和 Link 专用 section。身份图、canonical foundation 和 Strong production 经对应语义边界检查后共享保留；Link 直接使用它们验证 materialization、对象、符号和 relocation，不再次解码 HIR/MIR/LIR 或重建外来 bridge。独立输入的产物仍需完成各项检查；Compile 数据不能替代尚未读取和验证的 Link 对象。
-
-Strong V2 的类型、布局、ABI、dispatch 与 registration 在实际组合边界核对一次，完成后直接保留普通完整 production section。后续 codegen、对象处理和发布使用该数据，不再通过 Pending/Replayed/Validated 凭证包装限制编码资格，也不复制五张导出表仅用于防止后续替换。provider 查询从实际 production 和导出记录取得 typed target、definition、symbol 与合同；已检查且未变化的依赖不反复重做整表关联。
-
-删除 BudgetMeter、累计 usage、逻辑 heap/work、节点/边/复制收费及相应参数、错误和专用测试，不保留 unlimited 或空壳接口。 机器协议按实际 frame 长度和字段格式检查，不设置输入产物数、诊断条数或文本字节配额；管道输出的完整读取与展示截断分离。长度与索引先 checked 转换，并核对真实输入范围；分配失败和实际表示溢出有明确错误。递归算法使用针对其图的环检查或迭代遍历，不建立跨阶段资源配额。内容 fingerprint、schema/profile 只覆盖实际格式与语义；成本策略不进入兼容性或 runtime ABI。 容器、manifest、section 与显式依赖输入不设置额外的字节或成员数量配额；保留 ar 固定字段宽度和实际 member ordinal 的表示范围。Wire CBOR 集合声明的元素数须落在实际剩余输入所能容纳的范围内，随后按真实容量分配；不得用配额代替截断与溢出检查。artifact validation policy 的旧成本字段 3 退役，现有四个 SLIB profile 的 major 升为 2；旧 profile 产物需要重建，不保留成本模型兼容路径。
-
-M23-6 的 runtime 消费编译器或 artifact reader 已验证的静态 TypeDescriptor、布局与 scan，正常分配、装箱、数组和 GC 只核对当前对象范围、动态长度及操作所需的 GC 契约。完整静态交叉检查通过 `SCOOP_VERIFY_METADATA=1` 显式启用。装箱根直接加载实际 TD 的 inline scan，复用该只读指针；callable 不再发射一份重复的装箱 scan。M23-8 的多 image 登记边界保持后续范围，不为当前清理新建登记或证明框架。
-
-producer、reader、linker、wire/profile、版本、fingerprint、fixture、golden 和文档同步迁移。退役 tag 不复用；旧产物按版本拒绝并要求重建，不保留长期双轨。保持实际 runtime C ABI 与 String 表示。本阶段不承接 M23-7 ODR、M23-8 multi-image startup 或 M23-9 artifact-only program-link。
-
-验收从真实源码开始，覆盖 core 修改、扩展、重建与下游消费，以及类型、成员、dispatch、ABI、ZST 的独立和组合场景。Compile/Link 所需数据、最终对象及适用的链接运行都须完成；测试专用工厂和证明反例不能替代该闭环。
-
-### 2.13 M23-7：跨 Cone 模板实例化与 ODR 定义
-
-M31 的 ODR 合并与物理实现选择以 2.19 为准。本节保留 M23～M30 的模板、typed identity、物化和格式迁移记录；将 canonical LIR／机器码／EH／stackmap 内容相等作为 ODR 条件的旧算法、字段与版本在 M31 退出，不能以这些历史条款阻止兼容的优化实例互换。
-
-现行 archive 生产由同一个完整 layout writer 消费实际 Strong/ODR 定义、三层 metadata 和对象集合。
-没有实际生产调用的旧 SingleConeStrong 专用 writer、driver 的 Strong-profile 收窄错误及无构造点的 HIR `GenericOdrRequired` 错误项已删除；
-底层格式测试使用原 canonical archive 构造器，不保留另一套生产链或发布条件。
-
-协程的共有 MIR 读取沿既有类型与 callable 边界检查有限 shape-support 根各自的 `CoroutineStart<R>`，其参数必须按序为实际 core 的 `SuspendTask<R>`、`Continuation<R>`；源挂起 callable 的隐藏参数同样引用实际 `Continuation<R>`。普通签名、step、定义归属与 ABI 已在 MIR 表边界验证的结果继续复用。
-
-continuation 的 success/failure 派发复用实际 `Continuation<R>` 成员与已解析槽，不再构造无正文的 `ContinuationShell` 签名副本。旧 generated callable tag 10 退役，不复用；`CoroutineStart<R>` 仍按原 exact owner 产生实际可执行 helper。共有 MIR type bridge 升至 `/6`，lowering role tag 13 表示该启动 helper，semantic/lowered 签名均为真实 `SuspendTask<R>`、`Continuation<R>` 参数并返回 Unit。参数自由 helper 与原 shape roots 一起由定义 Cone 发布，消费方从同一 callable 表选择；application／结构 helper 沿实际 ODR 归属生成。旧 `/5` 产物和缓存需重建。
-
-本节消费已验收的 [M23-6a 设计](../milestone23/stage6a/DESIGN.md) 与 2.2 节的共同 HIR 合同，并与 [M23-7 设计](../milestone23/stage7/DESIGN.md) 规定其后的机器定义、ODR 与委托运行闭环。语言行为沿用语言规范 3.2、8.5、9.1.1、9.2、12.5，runtime 沿用运行时规范 2.2、2.7、2.8。共同类型、查询、正文、参数推断和具体化由 6a 收敛，本节不再安排导入专用语义；ODR 仍比较实际重复 member，同组独立成员允许并集。
-
-函数值的静态和动态型变遵守语言规范 8.1，参数逆变、结果协变共用已有的值装箱与引用转换；`Ptr` 和 `FunPtr` 作为 GC-free 值可以装箱到 `Any`，其内部指针和原生签名仍保持不变。LIR 从实际 closure、动态检查和 bridge 调用收集函数形状描述符及其签名依赖，沿完整 exact function identity 发射 Structural ODR 定义。每个 closure 只生成一个固定的动态 invoke，按运行时规范 2.6 以 Any 参数和结果连接原 typed invoke 与目标 adapter；嵌套函数、异常和 suspend 继续走普通 managed CFG。其 descriptor、vtable 和 bridge 不随外部检查目标集合变化，避免再次发布改变共同 ODR 定义。初始化函数中的适配与普通正文共用该路径。 已物化 closure／adapter 与动态函数检查的实际签名引用进入共有类型表示闭包，包含 tuple 元素或嵌套函数中的私有 source nominal；复用同一次 HIR 类型用途收集，仅补入这些实际描述符所需的声明，不导出无关私有类型。
-
-共有 LIR production 的类型登记记录追加必需 field 29，保存 `Absent | Signature | Interface` 类型关系，函数签名包含挂起性、有序参数及结果的完整 TD 引用，Any 使用既有空引用编码；Interface 保存按 exact ID 排序的直接父接口 TD。MIR 的 concrete interface 保留 HIR 已解析的直接父接口，LIR 与共有 reader 复用这些继承事实，不重建源码子类型判定。canonical TD ABI／定义与 ObjectDefinition 覆盖这份签名和实际尾部参数数据。`cone-production` 从 `/2` 升至 `/3`，共用该字段的历史 `strong-production` 从 `/15` 升至 `/16`，配合 runtime metadata ABI 2 更新 profile 与缓存兼容摘要；旧产物重建，不额外发布一套函数类型目录。
-
-符合语言规范 13.10 的参数自由、ordinary、NoGC 顶层源码函数，其 C 地址可以首次在依赖消费方请求。定义 Cone 为共有 callable 表中签名逐项 C-safe 的这类函数发布实际 storage bridge，私有模板支持与公开函数共用同一选择；不合格的普通函数仍可正常发布，只是不产生该桥。storage bridge 使用既有 `StaticNoGcCallbackStorageBridge` 身份，完整保存原源码签名和实际指针参数／Unit 结果 ABI，并由定义方发射一次。源码及默认值／泛型正文的 FunctionAddress 保存同一个已选 callable target；消费方引用提供方的实际桥并按既有 generated-C unit 生成本次 trampoline，不复制原函数或外来 Strong 桥。名字、可见性、精确签名、NoGC 和 unsafe 规则在共同前端完成，原函数及桥的声明、ABI 与物理引用由共有 MIR/LIR 及对象读取边界检查；不增加地址资格表或 runtime 协议。
-
-参数自由 NoGC callback storage bridge 在共有 MIR callable 表中使用 lowering role tag 12（单字段 map，仅 field 0）。语义签名保留源函数的精确参数和结果；物理签名为可选的非 Unit 结果指针、各参数指针，返回 Unit，两者均为 NoGC。generated callable key 继续使用源函数 materialization 与语义签名，foundation callable signature 保存实际 storage ABI。MIR type bridge 升至 `/5`，旧产物与缓存重建；既有 typed identity、mangler、runtime ABI 不变。
-
-SemanticHir 完成后，从公开声明、默认值与泛型正文确定导出支持闭包，并独立收集实际物化需求；二者通过 6a 的共同查询连接，不用导出可见集合替代机器根。LocalConcrete 的源码工作队列闭合后、生成协程协议之前，从实际已物化的泛型名义 application、实际导出的泛型成员的 receiver、参数和结果类型，以及普通依赖调用的静态 receiver 出发，沿其表示依赖收集属于当前 Cone 的源码名义声明，补入同一支持集合，并沿已有声明、字段、成员与模板引用闭合；普通函数正文中用于泛型 payload、共有成员 ABI 或依赖成员接收者关系的私有类型因而具有完整的共有声明与继承依赖。实际本地或导入的挂起调用、挂起函数、挂起函数值与接口方法的结果类型也属于这些根，包括非泛型函数的结果；支持闭包与协议生成复用同一份实际结果类型收集。实际接收者与其他物化类型在同一次表达式遍历中收集，不从未执行模板或类型 arena 猜测调用需求。只有支持根增加时才扩展源码投影；从最终投影取得有限 shape 根，为每个根生成完整协程协议，再封闭 LocalConcrete HIR 和 shape support plan。嵌套声明、companion 与成员签名引入的参数自由支持类型同样遵守该顺序，即使源码没有显式挂起调用。导出、类型语义与 MIR/LIR 复用这份投影，不能在 HIR 输出构造器内再次扩展根或重新遍历正文。新增支持保留原 typed identity 和声明可见性，不产生 public binding，也不把所有本地私有物理声明、未调用模板、未求值默认值或整个类型 arena 当成共有机器根；生成的协议 application 不反过来触发其整套支持族。该数据投影不新增产物字段或来源资格。
-
-共有 HIR 的 generic callable body、constructor/common initialization、默认值、普通函数和 generic delegate initializer 使用 6a 的同一正文结构。声明、binder、字段和定义位置按原身份查询；正文保留已选 typed target、符号化实参、bound、局部值／capture、control flow 和必要条件。Export HIR 只选择必需记录，不保存 AST、未解析名称、上游 LocalConcrete 实例或另一套语义检查结果。默认值和泛型正文根仍遵守各自访问规则；前端完成定义处语言分析，reader 检查新输入的格式、类型连接、binder/owner 和引用。局部值与捕获保持原正文／词法作用域，消费方直接查询共同正文，不重建 imported template。历史 `/31`–`/40` 编码迁移按 Stage 7 第 10 节保留记录；共同模型实际改变 bytes 时由 6a 升级对应格式，不能依赖旧编号强制保留平行实现。
-
-历史 `hir/cross-cone-interface/36` 增加委托模板与 property application 的存储／ensure／写入记录。6a 之后，这些记录直接编码共同语义节点；模板保持原 property、effective type、initializer 和诊断位置，actual storage type 以 application unit 区分。initializer 进入同一具体化，ensure 从既有初始化协议生成，不发布空正文或新增导入专用模板身份。具体格式沿 Stage 7 第 10 节与 6a 的实际版本迁移，同步 reader、inventory、profile 和缓存。
-
-导入的 lambda/anonymous function 保留原 generated body identity、定义路径和 enclosing materialization；捕获输入按原 ABI 顺序关联定义处的真实 binding，创建表达式保存本次实际捕获来源。捕获读取的定义位置保留原首次引用，求值位置使用闭包创建表达式，不能以函数或属性的声明位置替代创建时的上下文。本地 lambda 和匿名函数也保留这两个位置，不能把内层首次引用的上下文当作外层创建时的求值上下文。嵌套闭包分别读取当前局部值与外层捕获槽，不能以使用点的局部 binding 替换被调正文的槽身份。局部函数的前置捕获参数继续关联原值身份；闭包或内层局部函数再次捕获该参数时，沿此关系取得同一身份，不另造局部值记录。闭包与捕获值可以分属当前及词法外层的 materialization；HIR 完成该引用解析后，MIR 复用原值身份构造环境字段，不再要求两者 context 相等。具体化请求原导入正文并产生既有 concrete lambda/anonymous 实体，随后共用普通闭包布局、invoke、调用和 GC lowering；不复制外来源码声明或增加一套外来闭包运行时。再次发布仍投影为已有共有闭包节点，类型实参保持定义处的有序 binder 替换。
-
-导入的 callable reference 保留定义方的完整 invoke key、词法父模板和有序宿主实参；已选目标区分实际模板 application 与普通依赖 callable use。命名函数、局部函数、绑定成员及绑定扩展复用现有 concrete 函数引用与 MIR invoke，普通依赖目标直接引用提供方代码，不在消费方伪造源码函数。实际引用目标随创建表达式进入既有可执行依赖集合，尚未实例化的模板引用不成为机器根。局部函数的捕获值按原前置参数 ABI 传入；绑定接收者在创建表达式处只求值一次，保留值拷贝或引用拷贝，以及原 virtual/interface 派发。环境字段、局部值身份和 GC 扫描沿既有闭包路径处理。
-
-消费方源码中的 `::name`、`receiver::member` 和绑定／未绑定扩展引用按语言规范 8.1.4 解析。每个普通查找层同时收集本地和依赖声明，使用同一函数签名约束与最具体候选比较；泛型引用须由期望函数类型和实际宿主接收者确定完整实参，没有期望类型时仅唯一非泛型候选可推导。函数引用保留声明的全部参数，不套用默认参数或展开 vararg；函数类型型变仍由独立值适配处理。选中的依赖目标保存原 callable use 或完整 application，创建处的 invoke 使用本地词法 identity，不能复制外来源码函数。invoke 的模板父节点是结构路径所在的最近词法 callable，共有导出与本地具体化使用同一归属，不能把嵌套引用统一挂到最外层函数。绑定 receiver 只在创建处求值一次并按值保存，成员仍保留原 virtual/interface 派发；再次发布使用既有共有引用节点、真实目标与 import/re-export 关系。
-
-引用创建不是普通调用现场：源码查找完成后，模板保存已解析目标及定义位置，invoke 的实际目标沿现有可执行依赖集合发布；不为创建表达式伪造实参或调用记录，也不重放已经完成的名字查找。
-
-原语 intrinsic 成员没有独立机器函数，绑定引用在 HIR 保留已选声明与正规化的 intrinsic kind，MIR 的 invoke 复用普通运算降低，包括整数除法异常；共有模板仍发布原成员引用，消费时从已解析声明恢复该运算，不制造 Strong 函数依赖。
-
-默认参数展开到可执行正文时，函数引用使用实际创建点的词法 root、新的结构路径和调用方完整宿主实参；仅在默认值模板之间代换时，继续保留原定义身份并替换其宿主实参。已选目标、捕获内容以及原定义与求值位置保持不变。局部函数引用的捕获关系按目标函数前置捕获参数所属的 application 解析，invoke 归属创建点不改变目标函数的绑定或捕获值身份。再次发布后的完整正文保留这个 invoke identity，不把原默认参数的非泛型或其他泛型作用域混入当前正文的 application。
-
-导入的 bound member 与直接成员引用使用定义处已经选择的声明。class bound 的目标沿原成员 application 降低；interface bound 保留完整接口 application、原成员与 dispatch slot、接收者参数及替换后的签名，待接收者具体化后从实际 conformance 选取实现。普通调用与绑定函数引用共用该选择：值类型直接调用其实际方法，class 实现保留原 virtual 派发，接口接收者或留给派生类的 abstract obligation 使用原接口槽。选中的实际实现属于接口默认方法时，接收者按该方法的精确接口 owner 进行装箱或引用转换；不得把所有 bound 调用统一改成装箱和接口调用。外来普通类型和 core primitive 的实现同样来自共有声明中的 conformance，不复制为本地源码声明，不在 MIR 重新做成员查找。primitive 的 conformance 实现按已使用的 bound 接口加载，普通算术或成员解析不因此选择全部 primitive 方法。 已经替换为具体 primitive 的导入 bound 调用同样按需保留其实际声明与 conformance，不能依赖消费方再次执行源码候选选择。 模板正文转发到泛型 callable 时，已经具体化的名义 bound 实参也在创建 application 时保留所需声明；不重做已完成的语言约束检查。需要的实际目标进入既有可执行依赖集合，未选中的声明仍只作为模板支持。
-
-源码声明中的名义 bound 使用 M23-6a 的共同 nominal application 与原 typed 声明；class 上界和接口上界不再按本地／外来来源分支保存。允许同一类型参数组合来自不同 Cone 的接口及 class 上界；单一 class 上界、重复接口、kind bound 互斥、完整实参和可访问性由同一约束过程检查。模板消费只替换既有类型及必要条件，不另存来源专用 bound 集合。
-
-bound callable 的 receiver 使用完整 `SignatureTypeKey`，可以是定义处 binder，也可以是默认参数展开后已经替换的 nominal application 或结构类型；bound、原 member/slot 和完整函数签名继续保留。默认值中的 bound 调用按同一目标选择降低，再次发布时不把具体 receiver 伪造成 binder。正文与引用目录使用同一个完整 bound target，并收集 receiver、接口与签名中的实际类型引用。默认值展开生成的临时语句及控制节点使用本次求值位置，内部表达式继续保留提供方定义与实际求值位置；默认值求值的 effect 错误定位到本次调用处，不得把提供方的裸字节偏移绑定到消费方文件。该 payload 的 field 1 从专用 binder 对变更为类型 key，HIR interface 升至 `/37`，reader、required inventory、profile fingerprint 与缓存同步迁移，旧 major 需重建。
-
-派生相等按语言规范 11.11 使用完整静态值类型。外来泛型 struct、enum 与本地 application 共用字段比较和短路正文生成，字段及 variant 使用原 typed identity，字段类型按实际实参替换；显式同类型 `operator equals` 取代派生候选，其他参数类型的重载不屏蔽它。字段比较同时查询本地和依赖的普通成员及已声明 bound，保留选中的 virtual/interface 派发；没有相等成员的引用字段不能退回地址比较。模板中的派生目标与绑定引用保留完整 owner type，消费和再次发布不改成源码函数声明。泛型或结构 owner 的 helper 使用原 `DerivedEquality` generated key 与 exact owner 的 ODR 归属；语言内建 `Unit` 的派生相等同样按 `SpecializationKey::StructuralType { exact_type: Unit }` 归属，因为各 Cone 可独立请求该内建正文。`Unit` 的普通类型、布局和装箱归属保持原规则。其他参数自由外来名义 owner 引用定义 Cone 的实际 helper。为使公开值类型在任意下游保持同一条件派生能力，提供方在导出参数自由 struct／enum 时请求其可用的派生正文；不可比较的类型不产生 helper，私有类型只随实际正文需求递归请求。下游从共有生成 callable 记录取得原 exact owner 与生成身份，HIR 保留独立于源码函数声明的 typed 生成调用；MIR 投影从同一 provider 的实际 callable binding 取得正文与签名，后续链接复用普通外来 callable 路径。公开类型没有本地比较使用点也必须提供该可用能力；不要求下游复制提供方声明或重新生成参数自由 helper。派生正文没有源码词法根，其表达式位置记录派生需求或字段诊断位置；reader 从当前物化产物取得 helper 的 generated key，从位置所属产物检查实际文件、context 和 span，不要求提供方模板已经物化消费方的 exact helper，也不把这些位置要求为生成 helper 的源码声明。完整 exact owner 已包含全部实参，其 materialization 使用 `NoSubstitution`。HIR/MIR 调用根关联据实际 generated identity 查找已发布的 Strong 或 ODR helper 定义，不能从 `NoSubstitution` 推断根一定为 Strong；结构类型与名义 application 的派生正文仍归其 exact owner 的 ODR 组。尚无实际 callable 定义的 generated identity 不能满足调用根，词法／初始化 application 继续匹配自身上下文。诊断沿字段或 variant 路径指出首个不能比较的位置，不增加相等接口、字典、wire 节点或 runtime 槽。
-
-共有名义声明中的参数自由构造函数按实际可物化签名导出对应 MIR 构造 binding，包括泛型正文所需的 private/internal 构造函数。源码可见性由 HIR 候选选择和定义处访问检查决定，不能再用 public/protected 过滤已经生成的构造函数 ABI。消费者引用定义 Cone 的实际 Strong 构造实现，不另发同名定义；producer 和 reader 共用同一构造声明选择。
-
-未装箱值的 TypeDescriptor 不携带接口运行时表；其完整 conformance 仍保留在 HIR 和 MIR 类型关系中。泛型值只有实际产生 box 时才导出 payload 的物理 dispatch schema，并由该 box 的 TD 引用；单纯的 bound 直接调用不请求 box 或 adjust helper。LIR 发布与 reader 对未装箱值使用空运行时分派，对实际 box 要求完整接口表及目标，因此同一 payload 的直接使用与装箱使用可以贡献不同 helper 成员而保持共同值布局和 TD 一致。
-
-导入的局部具名函数声明标记没有运行时语义，与本地声明一样在具体化时消除。直接调用保留 provider 的原 typed callee 和完整类型实参，按现有 ABI 依次传入捕获值与显式实参，复用导入 callable 队列；不生成假的 Unit 语句，也不复制 provider 源码函数为当前 Cone 的声明。
-
-仅继承外层类型参数的局部函数仍以 `PersistentFunctionId` 标识；有自身类型参数时才使用 `PersistentGenericFunctionId`。其 application 的 owner 是外层 callable application 或 initializer 的 initialization application，只有自身实参进入 callable 参数组。initializer 内的闭包和局部函数沿原 generated callable、unit 与 property/type 关系取得声明所属 Cone；不要求 initializer 具有可按名字导入的独立 binding。消费方局部值的源位置可关联依赖中原 generated declaration；reader 从同一已读取的依赖 foundation 查询该声明及源记录，不复制为当前 Cone 的 generated declaration。共有正文目录直接提供词法实现，不把局部声明加入源码名字查找接口。消费端对已经完成定义处检查的词法正文只保留有序替换 binder 和已有条件约束；供源码重载推断使用的声明参数与这组替换参数在 HIR 中明确区分，不补造无约束的声明签名。
-
-构造模板按原名义声明组织：每个泛型 class 保存一次公共初始化序列，各构造器保存自身参数、委托及次构造正文；struct 保留 primary 值构造与 secondary 委托的区别。委托实参、字段初始化和语句正文共用已有 typed expression/statement 与局部值表，分别保存实际结果列表，不用假的 Unit 表达式填充没有结果的语句正文。构造参数按源码参数位置关联原 `LocalValueSelector::Parameter`，初始化接收者使用原 `This` selector；正文中的已解析字段读取和写入保留原字段身份。公共初始化中的 stored/delegate 写入与 `init` 保持源码顺序；class 委托目标仍是对同一已分配对象的 initializer 调用，不能改成再次分配的构造表达式。共有名义与源码调用声明继续唯一保存 shape、参数协议和 bounds，执行模板不复制另一套声明表。
-
-M24 在同一泛型 nominal 执行记录中增加独立的 release policy/body 字段，与 nominal 声明中的 policy 和 binder 条件对应。hook 保存 nominal source context 下的真实 definition origin，正文复用无结果的通用 fragment，没有 `This` 或 constructor 参数输入，不归属任一构造器。现有 fragment visitor 同时收集其来源、字段、helper、native contract 和所需类型；导入方在原 nominal binder 域恢复一次 Export hook，实际 exact type 的正常物化产生独立 concrete hook。参数自由依赖只消费声明 policy，继续引用 provider 的 Strong hook。
-
-release 中直接调用外来 C extern 时，依赖选择携带已验证的原 source native contract，MIR 将该调用投影到既有 extern arena，LIR 使用 native leaf 协议。普通外来调用继续引用 provider 的 Scoop ABI 入口；该入口含 outbound transition，不能作为 release helper 使用，也不为 release 复制入口或新建来源声明身份。
-
-共有 HIR dependency call site 以 `NativeLeaf`（tag 3）明确此实际调用分支；引用检查确认 release root、C 声明以及完整参数/结果。该分支无需选择 provider 的 Scoop wrapper，native ABI 与 symbol 关系沿既有 LIR/native contract 验证；仅有 leaf 使用时删除未使用的 Scoop entry，混合普通使用时保留各自实际入口。
-
-消费方构造候选沿同一名义声明查询入口同时接受普通 owner 与 generic template；宿主实参参加现有推断、参数协议和 bound 检查。选中的泛型构造保留原 `PersistentConstructorId` 和实际名义 application，执行片段接入已有类型替换及具体化队列，输出原 struct constructor 或 class initializer，不转换成泛型函数声明或定义方的普通 external callable。class 的 `this` 委托复用同一接收者，只有 terminal 构造执行公共初始化；泛型基类构造也在已有对象上调用实际 initializer。未调用的构造模板不因出现在接口中而生成机器正文。构造生成的参数读取、字段写入和委托调用保留原定义位置，并复用提供方已有的构造执行上下文；导入目录须保留该上下文，包括没有显式正文的 primary 构造。
-
-HIR foundation 从已有 concrete exact type 表发布每个实际名义类型 application 的 specialization group，与 callable application group 一并去重；MIR/LIR 只引用该上游 group，不复制其身份记录。泛型名义类型的实际 layout、scan、TD 和 dispatch 保留上游 application 的 ODR group，各物理角色使用自己的 member 与 primary symbol。LIR 为这些实际定义保存由完整 metadata 计算的 canonical LIR/ABI 摘要，固定布局包含有序字段偏移，变长与 abstract/boxed 实例使用既有完整表示；reader 复用这些内容摘要。对象摘要继续覆盖真实 bytes、关联 atom 和归一化 typed relocation，类型注册在 TD/layout 上游摘要完成后计算自身 member。该流程复用共有生产、最终摘要目录和 image 路径，不以 identity-only 摘要替代布局内容，也不重复执行语言语义检查。实际 shape 内容由 production 必需 field 14 承载，`cone-production` 升至 `/2`；共用该结构的历史 `strong-production` 由 `/13` 升至 `/15`，其 shape 表为空，仍在原边界拒绝 ODR。
-
-HIR 根据实际调用、构造、成员、类型操作和委托访问建立实例化工作队列，在当前消费 Cone 完成全部类型替换、bound 与已有 GC-free/CLayout 条件检查。模板声明、已解析 application、本地 concrete 实体使用不同 typed ID；实例 key 使用 origin 与完整 exact arguments，不含消费 Cone 或首次调用位置。已选普通外来函数仍引用定义方实现；泛型正文引用的 private/internal 参数自由 helper 由其定义 Cone 提供普通可链接定义，消费方不复制正文，不重做名字查找。泛型递归继续按语言规范 3.2 检查 SCC 中参数替换环，正常递归复用实例；引用字段不递归展开值布局，不以数量、深度或时间预算判定合法性。
-
-消费方名义声明目录统一以 `NominalDeclarationOwner` 查询参数自由声明与泛型模板；它直接保留共有声明及原 canonical identity，不向当前 Cone 的源码名义 arena 分配声明。导入类型保存该原声明与完整有序实参，字段、variant payload、父类型和成员签名按声明 binder 替换；类型相等、签名推断与参数替换均比较原声明和实参，不能仅比较声明 ID。具体化以原声明和替换后的 concrete 实参复用同一个实例，沿现有 exact type builder 产生 `NominalApplication` 与 specialization group。普通外来参数自由类型继续引用 provider 的表示，泛型 application 在当前 Cone 产生所需表示；不能按 provider 曾经物化的实例清单限制后者，也不能把 application 登记成普通外来 Strong 类型。该导入模型消费已有共有声明，不新增重复声明 wire 表。
-
-参数自由外部类型用途表只选择实际由依赖提供的 Strong 表示。泛型名义 application 的模板引用继续由完整 HIR 声明引用与 type-site 关系检查，其本次表示由消费方的 ODR 物化记录覆盖；遍历签名和 type site 时仍递归保留实参中的外来参数自由类型用途，不能把原泛型声明当作一个缺失的 provider Strong 实例。字段与 payload 中的类型参数参与现有 GC-free 条件和 pointee 检查，不能把尚含 binder 的导入值类型预先固定为 GC-free 或非 GC-free。
-
-自身不含 binder 的声明，不因字段、父类型或 callable 签名引用已具体化的泛型 application 而成为 source-only。共有表示闭包与自动物化根按完整实参判断是否具体，原参数自由名义类型及其普通构造器仍由定义 Cone 提供 Strong 定义，其所需泛型表示通过同一队列生成 ODR 定义。已有 exact fact、继承关系和签名检查直接替换原声明 binder，不另建泛型语义验证器；未求值默认值及未调用模板仍不成为发射根。该规则取代 M23-6 对含任意泛型 application 的普通声明所施加的阶段限制。
-
-普通宿主的封闭泛型父类型沿同一声明查询取得父边、槽顺序和已经选定的实现，查询以完整 receiver application 替换原宿主 binder。继承图按完整 exact type 区分节点；同一泛型声明的不同实参不合并，泛型父节点来自已有声明的实际应用，不补造参数自由源码身份。槽根与目标的签名各自保存完整 receiver，直接由该 receiver 取得声明宿主及实参；`InheritanceSlotContractV1` 与 `InheritanceSlotTargetV1` 的重复 owner field 2 退役且不复用，其他字段保持编号。对应 HIR `cross-cone-type-semantics` 升至 `/11`，required inventory、profile 与 fingerprint 同步，旧产物和缓存重建。MIR 的普通宿主与泛型 application 共用实际派发表和 Strong/ODR 目标关联，继承的泛型方法保持原 callable application，不改造成普通 Strong 定义。该调整不改变语言继承规则或 runtime ABI。
-
-成员候选收集复用完整接收者应用已经确定的接口槽实现。当该实现的原 callable 已作为可见成员进入同一候选层时，接口槽的声明入口不再重复成为另一个重载候选；对应关系按完整接口 application 与原 slot 区分，不能通过未替换 binder 的原始参数／返回签名猜测覆盖。接口默认实现仍沿原选择保留，不同 application 和不同声明的真实歧义继续按语言规则诊断。该查询只使用已有声明及派发选择，不再次执行 override 检查。
-
-共有 nominal 的 dispatch selection 同样按 `(table role, source slot)` 保存：class vtable 使用独立角色，interface table 的角色携带完整 `SignatureTypeKey` application，并使用当前 nominal 的 binder。具体继承合同复用 `InheritanceSlotSchemaRoleV1`，按 `(table role, source slot)` 排序、查询和检查闭包；同一原接口槽在 `I<Int>` 与 `I<String>` 中可以有不同签名与实现。同一 table 内的重复路径仍必须选择相同实现。槽声明的 receiver 从该 table 的精确接口 application 沿继承链取得；dispatch selection 另保存前端已经选定的完整 receiver application，接口默认实现沿实际 method application，普通 class/struct 实现沿当前宿主，再由该 receiver 定位原 callable owner。祖先 table 可以选择后代接口的默认实现；不能从宿主所有接口中任取同模板的第一个 application。producer、reader 与导入调用直接复用这些已确定关系。此字段变更将 HIR `cross-cone-interface` 升至 `/44`、`cross-cone-type-semantics` 升至 `/12`，旧产物需重建；原 dispatch slot identity、MIR/LIR 派发表和 runtime ABI 不变。
-
-`hir/cross-cone-interface/34` 为字段 type site 增加必需的所属类型 exact identity。tag 6=FieldStorage 与 tag 7=EnumVariantFieldStorage 使用四字段 product：field 0 为 tag，field 1 为原 typed field ID，field 2 为实际字段 exact type，field 3 为所属名义类型 exact type。位置键为所属 exact type 与原 field ID，同一模板的不同 application 不再互相冲突；同一位置仍只能有一个字段类型。原字段必须属于该 exact nominal 的原声明；object 使用源对象的 exact type，字段则属于由该对象派生的 `ObjectBackingClass`。泛型 application 可引用可达 provider 的原字段定义位置。消费方物化的外来泛型表示同样记录自己的字段用途，普通外来 Strong 表示仍由 provider 记录。reader 检查这些 typed 引用与 owner 关系，不重跑字段类型推断。旧 `/33` 字段位置缺少实例信息，需要重建产物和缓存。
-
-共有 MIR type bridge 的字段与 callable 签名可包含已具体化的泛型 application。原类型表示表同时保存普通名义类型和本次实际物化的 application，不另建泛型布局表。application 的 origin 使用原 `PersistentGenericTypeId`，完整有序实参仅由其 `ExactTypeKey::NominalApplication` 保存；字段与 variant 保留原 typed ID，值类型、GC facts 与父类型来自完成替换的实际 HIR/MIR。普通名义类型仍关联 Strong 定义，application 的布局、ABI 与物理成员沿原 exact layout 和 ODR 路径关联，不能伪装为普通名义 Strong 导出。同一 application 在不同 Cone 的相同表示可以复用，矛盾表示及普通 Strong 的重复定义仍拒绝。`mir/cross-cone-type-bridge` 升至 `/2`，origin 新增 tag 3（field 1 为原泛型声明 ID）；旧 `/1` 产物需重建。reader 检查 exact/origin、字段归属、引用闭包与实际表示的必要关联，复用已有类型事实，不重新执行泛型字段语义检查。callable 的 GC 合同检查只在需要 GC-free 的 `NoGC` 签名上查询已有 exact facts。 数组的实际表示沿同一 representation sum 使用 tag 11，必需 field 1 为元素 exact type；可变性由原 intrinsic 声明决定，不重复保存。`hir/cross-cone-type-semantics/9` 将已有 nominal specialization group 对应的实际 application 及其存储依赖纳入 facts 清单；未实例化的源码签名不因含闭合实参而成为机器发射根。HIR 中已经具体化的类型也不要求全部在 MIR 发射：MIR 表保存实际机器实例，完整性由实际字段、签名、父类型和 LIR 定义的引用闭包检查，不能把 HIR 的全部 specialization group 强制变成额外机器根。
-
-`lir/cross-cone-layout-abi/4` 的原 exact layout 与 descriptor 表接受上述 application 的实际 ODR 定义。registration fingerprint 根据原 definition plan 的 Strong/ODR owner 选择既有摘要节点，不能把 ODR registration 当成普通 Strong registration；同一 ODR 布局的多个物理 provider 可提供相同表示，引用保留各自真实定义位置。旧 `/3` 产物需重建，不新增第二套布局或 descriptor 格式。
-
-共有 callable binding、dispatch target 与 exact callable ABI 使用同一实际定义目标：普通 `StrongCallableDefinitionOwner` 或已有 `CallableOdrMemberId`。该封闭和类型只细化既有 `CallableBodyKey` 的 Strong/ODR 两支，不产生另一种 callable identity；program gateway 不属于名义类型的方法定义。ODR binding 从已经完成的 callable materialization、完整逻辑签名和实际 GC effect 取得来源与 ABI，目标保留原 group/member，不把模板声明改写成消费方 Strong。MIR dispatch 对实际 nominal application 保存完整 vtable/itable、原 typed slot、替换后的 slot contract、实际实现及 receiver adjustment；接口默认实现、抽象 trap 和继承覆写沿用已有 lowering 角色。LocalConcreteHir 保留完成替换的直接接口与完整接口实现集合，接口自身保留直接父接口；MIR 类型记录投影直接继承关系，物理派发表使用完整实现集合，不能把继承所得接口改写为直接声明。LIR 从这些实际目标连接既有 body、canonical ABI、definition plan 和物理派发表。生成与读取复用已经确定的具体化选择和签名，不重新执行源码重载、可见性或覆写检查。泛型 class 只有在其实际表为空时才可导出空表。同一 ODR application 的等值 callable binding 与 dispatch schema 可以在共有语义查询中复用，优先当前产物，其余按 provider identity 稳定选择；矛盾记录和普通 Strong 重复仍拒绝。
-
-上述定义目标编码为两字段 sum：field 0 的 tag 1 表示 Strong、tag 2 表示 ODR；field 1 分别保存原 Strong owner product 或已有 callable member ID。callable origin 新增 tag 5，field 1 为原 `PersistentCallableApplicationId`；该 application 直接关联原模板及完整实参，生成 callable 继续保存原 generated key。`mir/cross-cone-type-bridge` 升至 `/3`，`lir/cross-cone-layout-abi` 升至 `/5`，保存实际 callable 物理引用的 `lir/cross-cone-layout-link-closure` 升至 `/3`；旧版本产物与缓存重建。既有 callable-body identity、ODR group/member identity 和 runtime C ABI 保持。
-
-接口声明与实际派发表分离后，`mir/cross-cone-type-bridge` 升至 `/4`。原 dispatch record 仍为 field 1=owner、field 2=槽种类、field 3=实际 itable 数组；槽种类保留 tag 1=无 class vtable、tag 2=class vtable，增加 tag 3=interface slots，其 field 1 为完整槽契约数组。接口槽契约为三字段 product：field 1=原 slot ID、field 2=位置、field 3=完整签名；实际表项沿用原四字段格式并具有必需的 field 4=实现。接口 record 的实际 itable 数组必须为空，class/value record 的表必须覆盖实际完整接口闭包。接口及继承槽比较使用这些已有签名，语义引用只收集签名类型和实际实现，不增加根声明机器正文依赖。旧 `/3` 产物与缓存重建；LIR 仍投影实际物理表，runtime C ABI 保持。
-
-实际生成的 box、coroutine step/slot 沿同一 MIR 生成类型计划和类型表示表发布。参数自由名义类型的有限 helper 继续归原 Cone；application 或结构类型按实际需求生成 helper，并保留既有 `GeneratedExactTypeOwner` 的 ODR group/member，LIR 直接继承该归属。装箱 adjust binding 和它调用的成员均使用已有完整 `CallableSignatureSubject` 与 Strong/ODR callable 定义；实际签名来自 MIR 记录，不把外来模板成员或消费方生成的 adjust 转成 Strong。reader 将已在 MIR foundation 中完成角色和字段检查的按需 helper 纳入同一表示清单，只补充 payload GC 与父接口的实际跨记录关系。生成 helper 不要求递归生产所有相关类型的支持族。
-
-多个 Cone 物化同一 exact application 或结构类型的 box、step/slot 时，MIR 类型与 dispatch 查询复用完整内容相同的 ODR 记录。记录构造时按实际 origin 与 payload exact type 确定 Strong／ODR 归属，后续索引复用该结果；参数自由名义类型及其有限 helper 的重复 Strong 定义、同一 identity 下内容不同的记录继续拒绝。此修复不新增 wire 字段或改变归属规则。
-
-共有 LIR 语义闭包按 `(provider, target)` 保留实际记录；相同语义 target 只允许对应同一 ODR definition plan 的不同物理 provider，普通 Strong target 和同一 provider 内的重复记录仍拒绝。带 provider 的布局、callable ABI、descriptor、dispatch 与根引用必须解析到指定记录；只有未指定物理位置的语义引用按 Cone identity 的稳定顺序选择已有记录。闭包不提前丢弃物理候选，各产物内容已在各自读取边界核对，跨产物定义兼容性由原 ODR member 合并入口统一检查。
-
-生成 dispatch 导出时，从同次 LIR 槽的 Local/External 引用取得实际物理 provider，再以 `(provider, callable target)` 查询已有 ABI。读取时从产物已保存的 dispatch ABI 引用取得相同位置，并以 MIR 槽的实际 target 查询完整 ABI；查询后仍核对保存的正文引用与签名。本地槽使用当前 Cone 的记录，外部槽保留已经选定的依赖记录；其他 Cone 中存在同一 ODR member 的记录不构成调用歧义。既有槽签名、ABI 和物理引用检查保持，跨产物完整定义比较继续只由原 ODR member 合并入口承担。
-
-descriptor 的父类型或接口已在当前 MIR 表示清单与 LIR instance layout 中定义时，直接使用当前 Cone 的 Local TD 引用。依赖中同时存在该 ODR descriptor 不改变这个已经确定的物理引用；未在当前产物定义的类型继续解析实际依赖记录。
-
-MIR 对实际选中的外部调用登记完整物理签名的类型，包括 receiver、参数和结果；构造初始化器的 `Unit` 结果也必须进入原 exact type 表。类型直接由完整 HIR 的 exact identity 查询并沿既有类型 lowering 转换，不把未选中的 provider 声明变成机器根。装箱 adjust 的外来目标直接使用同次 selected callable 的完整物理签名，不从该 use 的 Direct/Interface 调用方式反推声明或默认方法的 receiver。外来参数自由值类型的已有 box 与 adjust 由原 provider 提供，其 conformance 查询数据本身不增加当前 Cone 的执行根；本地值与实际泛型 application 所需的装箱实现仍正常进入执行根。LIR 据此分类调用 ABI，不从符号名猜测缺失类型。
-
-共有实际调用记录的必需 field 8 区分直接调用与已有 `PersistentCallableApplicationId`，并由 `/32` 的源码接口承载；构造模板迁移到 `/33`，字段实例位置迁移到 `/34`，共享表达式的求值位置迁移到 `/35`，委托模板后续迁移到 `/36`。application 保留原声明以及宿主、callable 两组完整 exact 实参，读取时连接原声明并核对替换后的参数和结果，不另存重复签名或重跑推断。两类调用共用 occurrence 与绑定记录。泛型正文内的求值位置按实例 root 的 provider 模板定义检查，不强制改成消费方源码；普通源码调用和默认值展开仍保留现有求值位置规则。
-
-`hir/cross-cone-interface/35` 的共享可移植表达式是四字段 product：field 1=kind、field 2=result type、field 3=definition origin、field 4=既有 `EvaluationOrigin`。producer 保留同一次 HIR 中的实际定义与求值位置，包含已在泛型正文及构造委托中展开的默认值；消费泛型正文时恢复两者，消费默认参数模板时则按本次使用点替换求值位置。不得从定义位置、模板声明位置或消费方首次实例化位置猜测正文的求值位置。source record、context 与 span 复用既有源码位置通道和读取边界检查；不增加来源资格或重放语言语义。旧 `/34` 缺少求值位置，产物、required inventory、profile fingerprint 与缓存同步重建，runtime C ABI 保持。
-
-MIR 共有机器输入消费依赖输出中唯一的 canonical foundation；callable 物化根保留完整 Strong/ODR signature subject。参数自由 bridge、entry 与 compiler protocol 从同一 foundation 选择对应的 Strong 记录，不排斥其他 ODR 函数。core bootstrap bridge 的 Strong callable 表覆盖该 Strong 子集，原 bytes 合同不变；ODR 的 signature、application 和 member 仍由既有 canonical 表保存。历史 Strong 产物边界继续拒绝 ODR，不在内部的共有机器输入上施加这一旧 profile 限制。
-
-泛型正文与默认值复用同一控制流节点展开。`try`、顺序 `catch`、`finally` 和 `throw` 直接保留原定义处的完整 typed 结构、catch local selector 与求值位置，继续使用现有异常、清理和 GC lowering；消费方不重做名字查找，不另建泛型异常实现。
-
-共有 LIR 输出保存实际 producer 与唯一 canonical foundation，直接生成 Strong/ODR 物理定义图。源 callable 的实际 group/member 沿 MIR 物化记录传入，原 member 不由 LIR 重复发布；callable/safepoint registration 使用同组各自的新 member。kind-specific primary symbol、trap 字符串、runtime scan 和 EH/stackmap atom 均沿实际定义 plan 生成，关联 atom 使用稳定局部路径，边界 symbol 继承 plan linkage。历史 Strong section 在生产与读取边界继续检查其限制，不能为通过旧入口把 ODR 定义改成消费 Cone 的 Strong。 物理依赖选择直接使用 MIR 的实际类型、callable、dispatch 与初始化 unit 引用及已读取的依赖记录，不要求先构造整个参数自由类型导出 section。 普通 callable bridge 只核对其实际导出项的 body、符号、Strong definition plan 与 primary atom；完整物理定义和关联 atom 的验证保留在共有产物边界，不为读取参数自由子集重建整张 Strong symbol 表。 从已完成读取验证的 foundation 构造共有输出时，直接保留已验证的 producer 和 canonical 数据，不再次遍历归属。
-
-`SpecializationKey` 的四个 variant、`OdrGroupId`、`OdrMemberKey`、`OdrMemberId` 与 `PersistentV1` 保持。group 表达语义归属，member 表达实际共享定义；各 artifact 记录本次实际发射成员。M31 按普通依赖定义一致性与重复 member 的 key/ABI 合并，独立 helper 取并集。每个实际操作的 TD、scan、dispatch、body、storage 与初始化引用仍须闭合；实现附属的 site/EH/registration 随正文一同选择。泛型委托 unit 的 storage、cell、failure root、initializer、ensure 和登记每次物化完整，不比较不同 producer 的实现内容。
-
-M23-7 曾将 ABI 与 definition 摘要改为逐 member；M31 仅保留真正跨定义共享的 `OdrAbiFingerprint`，移除 `OdrDefinitionFingerprint`、`DigestKind::OdrDefinition` 及对应 member owner/输入 leaves/补丁。registration 公共 definition 字段及只用于该字段的 StrongRegistration 节点一并删除，普通 body/descriptor/layout/scan/stackmap 字段按其自身消费者保留。退役 tag 不复用，RuntimeImage/Code/Artifact 继续覆盖实际记录内容；不以另一份正文 hash 代替旧 ODR 相等规则。
-
-结构类型的实际托管静态存储同装箱 payload、数组元素一样，需要在 LIR 中具备完整的 inline value layout 和 scan。例如只存放在顶层属性中的函数值，也必须从该属性的实际值类型生成布局；不能只有全局存储的 layout identity 而缺少对应内容。相同 exact type 的静态存储、装箱和数组元素共用原布局生成算法与既有 ODR 身份，内容不依赖属性声明或消费 Cone；外来 Strong 布局继续引用原提供方，不重复发射。此项补齐既有定义的内容，不改变 wire 编码或 runtime ABI。
-
-代码生成继续按实际块、指令与 use/def 顺序确定局部槽，避免依赖无语义的 arena 编号。M31 允许不同优化实例具有不同栈槽、布局、安全点和对象摘要；这些变化由各自 code/stackmap 验证覆盖，不再要求为 ODR 合并固定私有栈偏移。
-
-对象摘要中的 relocation 按已解析目标的实际实体身份与 definition role 编码。Strong callable、layout、scan、类型描述符、派发表、类型登记、静态存储及其登记、初始化 cell 与 descriptor 统一使用既有 runtime target tag 1；ODR callable 和 shape 使用既有 tag 14 及原 member。同一已解析目标在定义 Cone 和消费 Cone 必须得到相同字节，泛型正文对普通 object 静态根的引用不能因再次发布而改变对象摘要。实体、role 和符号的对应关系复用共有 target 查询，provider 与声明目标仍保留在普通依赖记录中，承担既有引用、ABI 和符号检查。原普通依赖 callable tag 11 与 shape tag 12 均退役且不复用，原服务 tag 2、13 保持退役。完整 shape 引用正规化将 link-identity-closure 从 /6 升至 /7，旧产物和缓存重建；runtime C ABI、persistent identity 与 ODR 合并规则不变。
-
-生产定义、符号、registration 和摘要查询使用 foundation 中已有的实际 plan，按其 typed subject 与物理角色关联；不重新假定所有目标属于当前 Cone 的 Strong。源 callable 的 subject 直接取既有完整 callable-body key，其他物理 member 使用其原 ODR key；不再次解码已解析的 key，也不重复发布上游 member。ODR registration 的 ObjectDefinition 先依赖实际写入该记录的上游 body/layout/scan/stackmap 字段，其 ODR node 只汇总该 registration 自身的 LIR、对象和所属 stackmap leaves；对象间的摘要边仅用于这些实际补丁依赖。image 摘要引用六类实际 Strong/ODR registration node。
-
-MIR/LIR 在现有定义与引用上区分定义方拥有的 Strong 和程序内共享的 ODR；物理提供者用于定位 artifact，不是 ODR 语义 owner。codegen 扩展现有对象集合、分区、boundary、关联记录、补丁和六类 image registration 路径，不另建 generic 专用发布器。纯语义的 GeneratedNominal identity/member 留在 IR metadata，不产生空 marker、物理 definition plan 或 manifest 物理定义条目；真正的 TD/layout/callable 各自完整发射。每个 ODR primary 使用既有 kind-specific symbol 和 `OdrWeak`，实际需要存储身份的 global 使用 `weak_odr` 且禁止 `unnamed_addr`、common 或按相同内容合并。读取外部字节时完成一次语义及对象检查并保留结果，当前编译直接发布已完成的输出；跨 artifact 合并只新增重复定义和未解析引用检查。
-
-LLVM 按每个实际对象区分声明与定义：当前对象中的 ODR 定义使用 `weak_odr`，对其它对象中该定义的必需引用使用普通 external declaration，语义 symbol request 保持 `OdrWeak`，不生成可缺失的弱引用。runtime registration 写入真实 group/member，Strong image pointer table 使用对应 registration 的实际符号请求。
-
-共有 Mach-O reader 识别 external section definition 的 Strong/weak 标志，并逐个符号与已有 plan 的 linkage 比较；局部 weak definition、weak undefined reference 和未计划的 external definition 均为格式错误。定义的物理 section/range 与 relocation 仍沿原有对象索引读取，stackmap 的 owner 查询复用已验证的实际 callable 定义。符号计划保留从 foundation 解析的实际 definition owner，ODR relocation 目标使用 `OdrMemberId`，不写入物理 producer Cone。`link-identity-closure/7` 沿用 `/4` 的定义 owner 分支 tag 5 `{0=5, 1=OdrMemberId}`，当前产物内的必需 ODR 引用使用 tag 9 `{0=9, 1=OdrMemberId}`；规范化对象摘要中的 runtime relocation target 使用 tag 14 后跟该 member 的 32 bytes，旧服务专用 tag 13 保持退役。旧 Strong、generated-C、image 和边界分支的字段与编号保持，旧 major 需要重建。对象 verifier 迁移为 `scoop-lir/3`，仍使用同一个对象读取器。 外来 shape 引用分类直接接收实际 consumer identity 与已有的完整 physical imports；生产端和 reader 使用同一入口，不为分类另建导出 section 或重新选择依赖。
-
-函数的 ObjectDefinition 规范化 primary text 及全部实际关联 atom：runtime scan、取址常量、LSDA、EH frame、compact unwind 与 LLVM stackmap。关联条目按 atom ID 排序；内部 label 引用转换为所属 atom 与相对 offset，外部引用使用既有 typed target，不能把 section 起点或物理 member 写入摘要。已有 stackmap record 的规范化结果继续作为函数的直接输入，不重做解析。 Mach-O compact unwind 与关联数据中的本地 UNSIGNED 指针按实际 section ordinal 和对象内目标地址定位所属 atom，编码 atom 相对 offset 后清除物理地址；其余真实符号引用继续保留原 relocation 形式与语义 addend。目标不在该定义的实际 atom 范围内时拒绝。
-
-函数正文摘要先于 callable registration 对象摘要计算。ODR registration 的对象 payload 保留真实 group/member，将 body-definition 字段代入刚计算的正文摘要，只把自身最终 definition 槽归零；对应直接输入为该 body ObjectDefinition。入口使用已验证的真实 relocation，不能根据 body ID 重建 Strong 引用。Strong registration 保留原有置零字段和独立正文依赖合同。此前只接通 ODR 对象读取的 verifier `/2` 退役，完整关联对象摘要使用 `/3`，旧对象和缓存重建；runtime C ABI 及摘要字段宽度保持。
-
-泛型正文实际产生的托管 String 常量沿已有 `ImmortalObjectKey` 保留 callable materialization 与结构化定义位置，并使用该 callable 已确定的 ODR group。常量对象与 immortal registration 各有独立 member；对象保持地址意义，登记保存真实 group/member。对象的 ABI 摘要覆盖 String 类型、对象尺寸和对齐，LIR 摘要还覆盖 UTF-8 内容；共有物理内容表保存这两项摘要，reader 复用已有 immortal object 的对象读取及 ObjectDefinition 结果。ODR 登记的最终 definition 直接依赖该对象摘要，并复用 member 算法；Strong 对象继续使用既有摘要和登记合同。多产物中的相同 member 只有经过普通 ODR 合并后才在 image 中登记一次，不按地址或文本内容去重。物理描述符与 callable 索引允许不同 provider 提供同一 ODR 定义，各条引用继续绑定保存的 provider；同一 provider 的重复条目、重复 Strong 定义或不同 ODR definition identity 仍是错误，共有内容由既有 ODR 合并边界比较。
-
-generic delegated extension 的 binder 只从 receiver 静态类型求得。source template 不预分配参数自由 global；实际 application 使用既有 `InitializationUnitKey::GenericDelegatedExtensionApplication`，创建完整的 `LazyAccess` concrete unit。`by` 与 `provideDelegate` 不接收某次访问的 receiver 值；get/set 才接收该值。普通赋值先求值 receiver 和 RHS，再进入 setter 的 ensure；复合赋值先通过 getter ensure，再求值 RHS，遵守既有调用求值规则。初始化成功发布 effective delegate，失败保存在同一 application 的 failure root；重入、并发等待与 GC 沿用现有 coordinator，不增加 runtime dictionary 或新的状态机。
-
-Export HIR 的 generic delegate template 与具体存储使用不同 typed id。模板中的 ensure、存储读写带有完整符号化 receiver 实参，LocalConcrete 按 property 与实际类型组复用 `GenericDelegateStorageSpecializationId`，该实体关联完整 storage 与 unit，随后读写进入普通 global 操作。声明级 initializer/ensure 只提供各自 generated template identity；实际函数根由 initialization application context 决定，模板不能作为参数自由 startup 根物化。
-
-HIR identity delta 同时导出具体 initialization application unit 和其 delegated-property group；其源码位置复用原 property 声明。MIR identity delta 保留该 context 下实际生成的 callable body 成员。正文的声明类型位置接受 initialization application，生成函数的位置与签名继续由共有 signature join 核对。initializer 对外来属性的直接访问关联其实际 initialization application unit；无替换的普通 initializer 使用声明级 unit。提取依赖时复用已验证的 callable context，不要求泛型 initializer 具有 `NoSubstitution` context。
-
-初始化依赖引用分别记录本次物化的 local unit 与外来参数自由初始化服务。泛型 local unit 的属性声明可属于依赖 Cone，当前 MIR 实际 root 和 reader 已验证的 LIR 登记决定它是否存在于本产物；不能从属性声明 Cone 反推本次物化方。它对外来 object/property 的访问沿原 Strong 服务建立依赖，泛型 unit 自身不加入外部服务目录。引用闭包只沿实际外部服务继续选择，local unit 的完整性复用原物化与登记检查，不新增平行服务记录。
-
-参数自由 callable 指自身没有待替换 binder，其签名可以包含已经闭合的名义 application，例如异常构造器的 `Option<String>` 参数。共有签名分类按实际声明目录递归取得 exact arguments；未知名义来源或未替换 binder 仍不能形成 exact signature。该 callable 保持原 Strong 定义，签名中泛型值的布局与 ABI 走既有 application 路径。
-
-共有 production manifest 先沿原生产与读取入口升至 `single-cone-production/2`，在原十字段后增加必需 field 11 的物理 ODR member 目录；field 5 明确为 Strong registration 子集，field 4 仍覆盖全部注册。目录从已完成的 member 摘要构建，与已有对象索引的全部 ODR primary definition 精确匹配；不能遗漏缺少摘要的实际定义，也不为普通外部引用或纯语义 member 建物理条目。group/member 按 ID bytes 严格排序且无重复，group 不得为空，目录整体可为空。member 保存 role 和32-byte ABI/definition，具体 wire 见阶段设计第 10 节。Code 的 manifest 投影保留 field 1～6 并增加同义 field 11，不包含自身 CodeFingerprint。reader 比较已解析目录与本次读取已经重建的 group/member/role/ABI/definition，不重放对象解析或摘要计算。所有当前 production profile 的 inventory、fingerprint 与缓存随 `/2` 迁移；Strong profile 仍在原语义边界拒绝 ODR，其目录为空。
-
-生产切到 `org.scoop-lang.slib-profile/cross-cone-generic/1`，以共有源码接口、完整类型/ABI、Strong/ODR production 和逐 member ODR 目录组成一个正式路径，替换原完整 layout-strong producer/reader。共有 HIR/MIR 查询和产物装配直接借用 canonical foundation；reader 共享已验证的完整数据，`OdrFree` 只用于历史 Strong 格式边界，不包围泛型输出或依赖。普通参数自由桥从同一 foundation 选择相应 Strong 子集。
-
-泛型实例化局部值保留原模板的 definition origin。HIR foundation reader 按其实际 typed owner 查询来源锚点：本产物中的声明使用本地记录，外来模板使用实际可达依赖中已验证的 canonical foundation。消费方不复制 provider 的声明或改写源码归属；缺失锚点、与模板来源不符、未知 source 及越界位置仍按已有来源规则报错。依赖按原图顺序完成一次验证后供下游借用，不为来源查询重新解码、重放 provider 验证或增加产物字段。
-
-声明类型位置中的泛型函数、带 enclosing application 的局部普通函数，以及泛型名义类型的构造器和属性访问器 root 使用原 `CallableMaterialization` 和真实 application。reader 核对 application 指向同一 typed 声明，再从本地或可达 provider 的原声明检查 receiver、源码参数下标和 result 位置；局部值仍属于当前 materialization，其源码位置保留模板来源。字段位置接受原 concrete 或 generic 名义声明；class 初始化结果位置从原构造声明核对名义 owner 和定义位置，generic owner 不要求退化成 concrete 声明。该位置检查不另建替换后的签名，实际 exact 类型及 MIR/LIR 对接继续使用共有的 application 和签名检查。
-
-HIR 的实际泛型调用通过原 application 关联消费方 MIR foundation 中已经物化的 ODR callable-body 签名，不要求 provider 的 Strong selected/export 表重复提供这份实例。每次调用都核对完整逻辑 receiver、参数和 result，Unit 参数不能被物理 ABI 的消除规则省略；调用所属 root 必须对应当前 MIR 的真实 Strong 或 application 定义。reader 从已验证的 member key 建立本次调用对接需要的 application 索引，不重新构造实例、重放 provider 类型检查或新增 wire 表。
-
-实际调用签名中的 exact type 按其原声明所属 Cone 收集外部类型用途。泛型替换带入的消费方本地类型不属于外部依赖，也不因此要求普通函数体私有类型进入共有声明表；复合签名中的外来类型仍完整收集。当前共有名义类型的表示闭包及本地字段、局部值等实际外部类型位置继续按原有入口处理。
-
-MIR/LIR 的外部 callable 依赖闭包只从实际直接调用或普通取址引用加入 provider 的 Strong 定义；仅含 application 调用的同一 HIR 引用使用前述已检查的消费方实例。模板正文实际引用的外部类型、布局、普通函数和初始化依赖仍按原有完整闭包处理，不因实例在本地产生而省略。
-
-普通 Strong shape 引用目录从依赖的完整注册集合中选择 Strong callable 子集。ODR callable 继续由其实际 member、正文和注册表核对，不加入这个仅服务 Strong 引用的目录，也不能仅因依赖包含 ODR callable 而拒绝整份产物。
-
-profile 的 required inventory 随实际 section 生产分步迁移，具体当前及最终版本见阶段设计第 10 节。第一条泛型函数闭环使用 HIR interface `/32` 等完整 section，启用 `cone-production/1` 和对象 verifier `/3`；已落地的构造初始化模板将 HIR interface 升至 `/33`，实际名义类型 shape 内容将 `cone-production` 升至 `/2`。委托等后续 payload 落地时再升级其 section 和 descriptor fingerprint，不填充假空表或增加临时 profile。LIR identity-foundation `/2` 已退役旧 group digest owner，M24 的 LIR foundation 版本相应顺延为 `/3`。三层 outer schema、callable-body-v1、persistent identity schema、mangler 与实际 runtime C ABI 保持；旧 layout-strong 产物及缓存需重建，旧 profile 不能承载 ODR，也不保留第二条 layout 生产管线。增量格式迁移不缩减本阶段完成门。
-
-完成门包含真实源码生产 `.slib`、移走 provider 源码后的下游编译、重复成员一致性与合法成员并集、现有单 image 测试入口的实际链接运行、地址合并、委托初始化和移动 GC。M23-8 承接生产多 image 登记，M23-9 承接正式 artifact-only program-link，M23-10 承接一般 native provider 解析；本节不提前建立这些入口或来源凭证。
-
-### 2.14 M23-8：多 image runtime 登记与启动
-
-详细设计见 [M23-8](../milestone23/stage8/DESIGN.md)。前置基线是已验收的 M23-6a 共同 HIR 和 M23-7 完整 Strong/ODR 产物。本阶段接通实际 image、root entry、初始化、GC 与线程入口；不承接 M23-9 的 artifact-only linker/runtime-build、M23-10 的一般 native provider 或 M23-11 的 umbrella CLI 总迁移。
-
-启动使用普通私有 C 函数 `int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t image_count, const ScoopRootEntryDescriptorV1 *root_entry)`。集合来自实际 Link 数据中的 image owner 和 executable entry；元素只是原对象中的 descriptor 引用。runtime 在已加载的完整集合上建立一次依赖索引，并按语言规范 12.3 的 canonical Kahn 顺序执行 eager gateway。M23-9 的启动对象只需生成这组静态引用与调用；不新增 program/core descriptor、String capability、Graph fingerprint 或来源凭证。
-
-**初始化描述符统一：**现有编译器同时发射 `InitializationDescriptor` coordinator atom 与 `InitializationRegistration` atom。M23-8 将 generated ensure 对 runtime 的参数统一为实际 `ScoopInitializationUnitDescriptorV1` registration pointer，coordinator、startup 和 GC 使用同一 unit/cell/storage/failure 关系。删除旧 coordinator struct、atom、symbol、definition/digest plan 及外来 descriptor 物理引用；保留原 unit、cell、storage、callable 与 registration 身份。外来调用引用原 provider 的 registration，generic delegate 引用原 ODR registration member，不复制或在 startup 临时构造 coordinator。
-
-`scoop_rt_init_enter/succeed/fail/failure/cycle_message` 的私有参数随之改变，state/result code 与 exactly-once、wait-for cycle、失败缓存语义保持。diagnostic path 使用已有 byte span，不能依赖额外 NUL 终止串。coordinator 热点只检查已登记 record 引用与本次动态状态，不重做静态布局、零初值或整表验证。
-
-**gateway：**复用既有 `RootGateway`／`InitializationStartupGateway` callable identity 和 managed 入口 poll，不另加一个没有独立语义的 entry 身份。LIR 对这两个 body kind 明确检查 C `uint32_t(void)`、第一条可握手操作为本 body 的 poll、完整 invoke/catch 和封闭 `0 | 1` 结果。root gateway 在 `EndCatch` 前通过已有 `MaterializeException` 生成可离开 handler 的 managed 异常并写入已登记 failure root；不能把 `BeginCatch` 返回的 native payload 放入静态根后释放。eager gateway 的失败复用 ensure 已发布的同一 unit failure root，不再次物化或覆盖缓存。全部新增 managed call 保持现有 statepoint/root-plan/异常路径要求。
-
-每次 C coordinator 调用 gateway 单独建立 native→managed boundary。thread attachment 本身只进入 native-safe；新段以 `EntryPending` 表示尚无 managed frame，在既有 registry mutex/epoch 协议下完成进入握手。gateway 入口 poll 发布真实 PC/SP/FP 后进入活动段；返回时由同一协议发布 native-safe 并恢复外层边界。collector 只把明确的 EntryPending 当成空段，活动段缺少 anchor 仍是错误。callback 的嵌套段复用同一线程状态和 LIFO 规则。
-
-**登记与平台：**Darwin/ELF image adapter 提供最终程序的实际映射与 stackmap；通用 runtime 按 prefix/span、权限、typed identity、owner 和实际 storage/cell/TD/entry 建立唯一索引。M31 只登记 program-link 所选实现，不在 runtime 比较不同 producer 的正文摘要。重复的同址 ODR 引用复用已验证记录；同 identity 不同关键地址、Strong 重复与 body/entry 映射冲突仍失败。独立 helper 可取并集，不比较整组表集合。
-
-实际链接后才成立的地址、权限、连续 blob 与 GC 引用在 runtime 边界检查一次；canonical key、类型语言规则、ODR body 内容和 ObjectDefinition 摘要由 compiler/reader/linker 负责。runtime 不重算 RuntimeImage/Graph/ODR 全图，也不从诊断名或 symbol 猜 typed owner。无变化的 scan/shape、同址 ODR record 和最终 PC 索引直接复用。仅有实际溢出、越界、非法环和分配失败处理，不增加遍历预算或计费。
-
-**stackmap：**v3 parser 保留 instruction offset、完整 locations 与 live-outs，按运行时规范 2.8 核对所选 site/body 和 normalized fingerprint。M31 的落选正文及其原始 stackmap blob 不进入最终输入；不能在 runtime 通过忽略额外 raw records 来掩盖错误选择。同一所选 record 的重复引用须具有一致 owner、return PC 与 payload；Strong 重复、64-bit collision、缺失/额外 site、同 PC 不同 site 均拒绝。NoGC body 允许无 safepoint。完整连续 blob 只解析一次，最终唯一 PC 索引供 GC 复用；tail call、不同 body 的 ICF 与 section GC 限制保持。
-
-**格式迁移：**以下为 M23-8 实施目标，M23-7 验收记录中的版本是历史基线。
-
-| 项目 | M23-7 基线 → M23-8 | 原因 |
+| 值 | 参数 | 结果 |
 | --- | --- | --- |
-| runtime metadata `abi_version` | 2 → 3 | 私有 init entry 的 descriptor 参数改变；record 字段/size 与 144-byte TD 固定部分保持 |
-| `cross-cone-generic` profile | /1 → /2 | 原子选择新初始化生产与加载契约 |
-| LIR `cone-production` | /3 → /4 | 删除 coordinator atom/plan 和相应跨 Cone 引用 |
-| LIR `cross-cone-layout-link-closure` | /3 → /4 | 承接 M23-7 函数适配的 /3，实际物理 subject 改为 initialization registration |
-| LIR `link-identity-closure` | /7 → /8 | 相同物理 subject 进入真实 undefined requirement |
-| `scoop-lir` object verifier | /3 → /4 | 对象集合只含统一 unit record，删除旧 coordinator object 合同 |
+| Unit / ZST | ElidedZst，仍求值 | Unit 为 UnitVoid；其他为 ElidedZst。 |
+| scalar、managed/raw/code pointer、niche enum | Direct | Direct |
+| 非 ZST tuple、普通 struct、tagged enum | Indirect | Indirect |
 
-退役 `PersistentSymbolKind::InitializationDescriptor` tag 10（`id`）、`StrongDefinitionRole::InitializationDescriptor` tag 10 和 `OdrMemberRole::InitializationDescriptor` tag 11，不复用。现有 `InitializationRegistration` symbol/role 与 ODR `RegistrationRecord` 保留；external shape subject tag 10 退役，新 tag 11 为 `InitializationRegistration { unit }`，沿原 provider、symbol、definition 和 relocation 路径消费。初始化 registration plan 退役 fields 15、16、17、26，保留其余字段编号；相关 dependency plan 删除同一 coordinator 分量，不保留空字段或兼容副本。canonical LIR 与对象 relocation 使用目标 unit/registration 的 typed identity，不递归内联目标 definition digest，保持原有 digest DAG 无环。
+每个 indirect 实参使用调用方新建的 exact storage，callee 按值接收。物理参数为 indirect result storage（若有），随后按逻辑顺序省略 ZST 并传递其余参数。LLVM 使用对应 exact type/alignment 的 byval/sret；实际寄存器分配由目标 ABI 决定。Darwin sret 使用 x8，amd64 使用 RDI 并在 RAX 返回同一地址。
 
-HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2`、三层 outer schema 1、既有 unit/application/body identity 和 mangling schema 均保持；真正变化的 production/object/profile/runtime ABI fingerprint 同批更新。core/provider/consumer 及 runtime 全部重建；旧 metadata ABI 在读入或启动的固定 prefix 边界拒绝，不保留运行时旧 descriptor 适配。M24 的完整 generic profile 顺延为 /3，prefixed record 在该阶段继承 metadata ABI 3；其 TypeDescriptor/release-hook 与 outer schema 2 变更由 M24 实施，M27 按 2.16 将 prefixed record 升为 ABI 4。
+ZST 的求值、调用、构造、类型及对象身份不能因零 payload 消失。被观察地址的独立 place 有满足 alignment 的存储 token；同时存活的不同 place 不共享地址。Ptr<ZST> 的元素位移为零，仍遵守 operand 求值和 unsafe 有效性条件。
 
-**实施和验收：**实际代码落点为 `runtime/src/initialization.c`、`thread/`、`gc/roots.c`、`gc/stackmap.c`、`platform/image/macho.c`，以及已有 LIR production、codegen metadata 和 slib object reader。新启动协调代码按 registry、records、stackmap、startup 的实际职责拆分；无需新编译器 stage crate。现有 runtime `main` 移出通用 runtime 源集，所有链接 runtime 的实际运行 fixture 使用完整产物及只含 image/root 引用和启动调用的 C `main`。历史 fixture 在 M23-8 仍可由既有 test runner 显式编排同一完整 request 和 fixture-native 输入，纯前端/IR golden harness 在该阶段保留。本阶段迁移运行胶合，不提前要求正式 umbrella CLI；M23-11 再迁移到 scoop build/run，文件 fixture 的运行编排和阶段 golden 统一迁入 2.7 规定的 Python infra，删除原 Rust harness 和历史编排入口。不得复制旧 runtime main/coordinator 作为 fallback。
+call target 同时确定 destination、calling convention、全部参数与 return convention；void/direct/indirect-result 以及 Managed/NoGc/NativeSafe/NativeBorrowed 使用完整互斥分支。Managed call/poll 带 site ID 与逻辑 live set，invoke 带正常／异常 root set；native 带 site ID、caller roots 与按返回形式确定的 result publication。NoGc 不携带虚构 root plan。
 
-完成门必须包含至少三个实际 Cone image、全部六类记录、Strong/ODR 重复、独立 member 并集、eager/lazy 与 canonical 顺序、跨 Cone 失败/cycle、首次及连续 gateway 的 epoch 竞争、ordinary/NoGC main、函数值/协程、ZST/大值/引用、静态初值与移动 GC。损坏 fixture 在实际输入边界断言错误及“尚无 managed 副作用”；runtime 单测可构造损坏数据，但不能另建 program descriptor 工厂。HIR/MIR golden 继续回归语言语义；LIR/object golden 锁定 descriptor relocation、gateway 异常物化及 poll。M23-9 接收同一个 C 入口和完整 Link 输出，完成正式启动对象、runtime 构建及 artifact-only 链接。
+live set 包含 post-site live references 与 managed 实参，以及 aggregate 的完整 managed leaf path。普通 call/poll 的机器 relocation 与显式 invoke/native root frames 遵守运行时规范 3.2；跨 transition 的实参和结果必须使用更新后的存储。
 
-### 2.15 M26：List、字符与 parts 字符串构建
+值类型布局使用原 exact 类型与字段身份。tagged enum 的 tag、payload slot 与 scan 一致；niche 只用于语言允许的引用／pointer Option。整数宽度与 signedness、Float/Double 精度、内部计数和 runtime ID 均保留各自类型，物理位宽相同不等于同一实体或源码类型。
 
-数组的真实 size getter 调用私有 `array_length` / `mutable_array_length` member intrinsic。两者只接受对应数组 receiver、无值参数并返回 Long；普通属性与接口解析完成后，getter 正文中的调用正规化为既有 ArrayLen。移除按 `.size` 拼写返回 ArrayLen 的旁路。公开 get 由普通 core 方法实现，并调用私有数组读取 intrinsic；接口槽直接选择该普通方法，读取正文继续正规化为既有 Index。读取 intrinsic 不要求 operator 修饰，若声明为 operator 则仍须满足 get 规则。List、MutableList、ArrayList 与其 iterator/快照均使用普通源码声明和泛型实例。
+wrapping 整数运算不携带 nsw/nuw；除零和 signed MIN/-1 已有安全控制流，shift count 已按位宽正规化，compareTo 的结果为 Long。浮点运算遵守 2.18。
 
-实际扩展调用的静态接收者参与既有共有声明闭包；导入泛型扩展的 callable 实例化为本地 ODR 目标后仍保留该依赖。这样，私有 List 实现与接口之间的已有继承关系可以由产物中的普通声明消费，不因调用目标从 Imported 变为 Local 而遗漏接收者声明，也不改变该类型的源码可见性。
+C ABI storage 为封闭类型结构：integer、Boolean、Float/Double、带完整 pointee 的 data pointer、带完整 signature 的 function pointer、完整 C-layout struct。只有结果可为 void，只有 Ptr<Unit> 的 pointee 可为 opaque void。by-value struct 关系无环，pointer 可引用 forward-declared struct。
 
-M26 的完整设计见 [M26 设计](../milestone26/DESIGN.md)，源码行为以 language spec 6、10.6、11.2.1、11.4、11.6、11.10 为准。本节能力已完成实现与正式总验收，实施和验收记录见设计第 11 节。M26 采用普通 GC 集合，不依赖 M24 release hook；ByteBuffer 与外部内存反馈留待后续。
+nullable data/code pointer 保留对应 exact enum 与 pointer 类型，不得把同一 enum 绑定到不同 pointee/signature。CLayout 的 aligned/packed 各为 Natural、A1、A2、A4、A8 或 A16。C ABI storage 与 Scoop 值表示分别准确保存；系统 C compiler 负责目标寄存器分类，不能用 Scoop aggregate ABI 代替。
 
-**core 与普通调用。** `List<T> : Iterable<T>`、`MutableList<T> : List<T>` 和 `ArrayList<T> : MutableList<T>` 全部使用已有 nominal/generic/interface 机制。数组只实现 List；Array/MutableArray 的 size 必须由真实的 `public override val size: Long` getter 满足接口。getter 调用 private 数组长度 intrinsic，候选/属性/override 选择完成后才正规化为 ArrayLength；该操作读取 managed receiver，源码 getter/member 不标注 NoGC，不能继续以接收者类型和成员拼写绕过声明检查。两个数组保留既有 get/set/clone 表示级操作。List、MutableList、ArrayList 没有新的 intrinsic type、compiler-known 短名分派或 runtime 容器身份；它们的 generic body、getter、itable 与 ODR 由普通跨 Cone 路径消费。
+compiler-owned static storage 带完整 scan 和封闭初值 ZeroedForRuntimeUnit 或 EncodedStaticValue；后者具有 canonical bytes 与排序的 immortal relocations。raw global/TLS 另存完整常量，不进入 managed static-root registration。ZST token、全零初值与 relocation 规则见运行时规范 2.8。
 
-**按长度数组构造。** 既有 compiler exception protocol 增加实际 core `IllegalArgumentException` 及其零实参调用目标；带默认实参的源码构造沿既有 wrapper 规则处理。 统一候选选择提交后，Export HIR 用封闭 `ArrayGenerate` 操作保存 exact 目标 application/元素类型、Long count 值和 ordinary `(Long) -> T` initializer，先按 8.5.3 物化实参，不保留待解析名称或可缺失的类型。LocalConcrete 替换真实 binder；MIR lowering 展开为负长度检查、分配、按索引调用 initializer 的 managed loop、完整值初始化 store 与唯一成功结果。Array 的初始化 store 只在该生成 CFG 内使用，不通过不存在的公开 set。initializer 的分配/异常沿普通 callable CFG，不能移到 C allocator callback；ZST 仅省略物理 store，不省略循环与调用。LIR 使用既有 exact array layout、count checked conversion、allocation size 与 statepoint/root 协议，不新增一套容器分配器。
+LIR metadata 保存完整 value/instance/element layout、Scoop/C ABI、scan、TD、dispatch、initialization、runtime registration 与 required definitions。ordinary nominal 定义使用原 provider 的布局；实际泛型或 structural application 使用其 ODR 布局。结构字段可按 canonical exact key 组成，不要求为没有实际物理定义的 constituent 另造 layout 实体。
 
-**Char 与常量。** core 以独立 Char intrinsic nominal struct 提供 32-bit Unicode scalar 表示。各 IR crate 使用自己拥有的非可选 Char literal/constant 与表示分支，相邻 stage 穷尽转换；不能使用裸 UInt 常量加可选标志代替 Char 身份。parser 验证字符数量及 Unicode 转义；HIR 将文字、递归 pattern、const/default metadata 和跨 Cone 常量绑定到实际 Char。getter code、相等、比较与内部 unchecked code-point 构造是封闭 NoGC scalar intrinsic；公开 Int.toChar 在普通 core body 检查域并抛 IllegalArgumentException，随后调用 unsafe 内部构造。布局/ABI 按 GC-free u32 处理，同时保留 Char 的 exact nominal identity；数组、Option、aggregate、boxing、native ABI 与 release-value 分类复用共有表示规则。pattern coverage 用标量值域的 singleton/remaining partition，不枚举整个 Unicode 域；不为 Char 增加 range 或一般整数算术。
+每条 native contract 按 target 正规化 symbol，并保存完整 kind/library/signature/storage/GC effect；它进入 LIR 语义内容，host 搜索路径不进入。String 关联实际声明的 TD 与 provider，不由名字或相同 InlineBytes 布局代替。
 
-intrinsic struct 的计算属性使用普通 accessor 声明与效果检查，不能因表示由编译器提供而丢弃；它仍不允许存储属性或用户构造器。Char 的名义应用沿普通 Struct 类型通道传递，由 Char intrinsic representation 指定物理标量；不另建平行的名义类型系统。core fundamental protocol 追加实际 Char 声明角色，字面量据此绑定，用户同名声明不替代隐式目标。code 与内部构造在 MIR 保留明确的 Char/Int 转换，LIR 在确认两者均为 i32 后复用相同位值；相等和比较复用既有整数标量运算。
+### 2.5 Codegen 与对象合同
 
-String 的普通计算属性查询将固定 String 类型映射回实际 intrinsic class application，再复用共有 property/accessor 路径；隐式 this 与显式 receiver 使用相同查询，不按 `length`/`byteLength` 拼写生成专用节点。
+codegen 的语义输入只有当前 Cone 的完整 LIR；Scoop producer 消费 LIR target/backend，generated-C producer 消费 LIR target/C toolchain。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
-**字符串与 native 边界。** String 的 byteLength 从既有物理计数取得；length、get、slice 与 iterator 使用 UTF-8 标量定位。native leaf 返回普通 Option 结果，core 负责源码越界异常，slice 在一次定位后把已确定的字节区间交给复制 helper。String iterator 持有 String ref 与 byte cursor，逐次解码，不能以反复 `get(characterIndex)` 产生二次方遍历。List 到 String 的公开 companion 方法在 managed core 中先取得元素快照；native helper 只消费具体数组，不调用可能抛出的 interface getter。根、目标 String/数组 TD 与 native 返回值布局均由既有实际 provider/typed call 关系确定，不能按类型名或宿主 C layout 猜测。
+每个实际物理定义都有 typed owner、role、linkage、symbol 和精确 section range。引用使用 typed target 与真实 relocation；跨对象 external 声明不能变成可缺失的 weak reference。Strong 属于原定义 Cone，ODR 使用其稳定 member identity。
 
-String 的数组快照由普通 MutableArray(size, init) 生成，Char initializer 消费按 byte cursor 前进的 String iterator，字节 initializer 读取受检 byte index。fromChars/fromUtf8Unchecked 先调用普通 List 快照扩展，再进入具体数组的 native helper；无需额外数组分配 intrinsic 或按名字查找数组 TD。平台 shim 只适配已确定的 Scoop aggregate 返回存储，定位结果布局由真实 core Option/tuple/Char 和现有 ABI 规则确定。
+对象边界验证目标格式、section/symbol extent、alignment、权限、relocation 写入宽度/addend、定义与引用闭合。Mach-O 使用其真实 relocation 与 weak 属性；ELF 使用 ET_REL、实际 section/symbol/RELA/COMDAT 数据，TLS 必须保持 STT_TLS/SHF_TLS，不能伪装成普通 data。
 
-**parts。** StringBuilder 以私有 ArrayList<String> 持有 parts。generic add 先执行一次已选 ToString 调用，再普通追加；build 从同一个私有实例取得 backing/有效 size，通过 internal core getter/方法把本次值传给 `coreStringJoinParts`。这一个实际内部使用不产生公开 storage API、独立 buffer wrapper 或借用协议。native helper 只做 runtime spec 第 6 章的前缀范围检查、checked 字节求和、最终分配与复制，不编码 ArrayList/StringBuilder 字段布局。build 无用户 callback、无需额外 parts 快照或 off-heap 临时存储；backing 及其包含的 String 必须经过 moving GC 后重新读取。
+relocation 的 section、atom、offset 和 target 均属于本次实际对象。raw source-native symbol 按 Darwin 添加一个前导下划线、ELF 保持 bytes 的规则正规化。Scoop-owned symbol 从 persistent identity 产生，不用 FQN 或 source 短名回退。
 
-**插值。** AST 新增有序 Text/Expression part，嵌套表达式保留原 source span；字符、普通/raw 字符串及 f-string 共用明确的 lexer 状态与转义规则。HIR 绑定实际 core StringBuilder 构造、add overload、build 身份，按源码顺序展开为普通 typed local/call，不按用户作用域重新搜索脱糖名称。表达式与对应 toString 交错执行，保留异常、泛型与挂起控制流；source-only generic body 与 default body 同样在导出前完成该展开。Export HIR、MIR、LIR 不保留待脱糖 f-string 或后端专用 StringBuilder 指令。
+所有 Scoop body、NoGc body、managed adapter、root/init gateway 与 release hook 都有 callable registration。生成 C bridge/trampoline、runtime C 和 ordinary native producer 使用各自实际对象合同。实际保留的 safepoint 与其 owner、role、machine root count、stackmap 完整对应；无 safepoint 的 body 也可合法登记。
 
-词法分析使用一个 token 流和嵌套的文本/插值表达式状态，插值中的 callable 与其他表达式共享 parser 的身份序列。定义 core 时直接查询本 Cone 根包的实际 StringBuilder 类型，消费 core 时只使用既有 core prelude 的类型绑定；随后复用普通构造与成员候选，不进入用户扩展层。数组和 tuple 的元素若产生语句展开，HIR 按元素顺序交错放置各自的 setup 与结果临时值，不能先执行所有 setup 再求值前面的元素。
+body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属于该 body 的同一次物理选择。TD、scan、dispatch、static storage、初始化和六类 registration 满足运行时规范；release hook 为 raw C、nounwind、NoGC，无 managed transition 或 EH/safepoint。
 
-**产物。** Char 表示/常量、ArrayGenerate 与实际新增 scalar intrinsic 必须进入各自现有 codec、canonical fingerprint、布局/native ABI 分类及 golden dump；新增 wire variant 的所属 section 版本和依赖 fingerprint 在实现批次同步更新，旧产物/缓存按已有版本边界重建。AST 插值 part 保留源位置并进入 AST dump；它在 HIR 导出前完全脱糖，不新增持久化格式。普通 List/ArrayList 方法不新增专用 section，String/Array 对象头与 TD release-hook ABI 不因本里程碑扩展。各边界验证新增字段自身的类型、格式、引用与 ABI，成功读取后复用，不增加来源资格、证明链、通用预算或下游语义重放。
+generated-C bridge 保留实际声明的 C 类型、签名、目标工具链与编译选项。调用不得按 extern 名称被 builtin 替换；bridge 具有精确 primary/signature/context 定义范围，不能由邻近符号猜测。普通 C ABI 与 Scoop NativeBorrowed 调用不混用 storage bridge。
 
-### 2.16 M27：Task-local Context
+对象内容 fingerprints 使用实际定义 bytes 和 canonical relocation target；物理地址、archive member 分组或 section ordinal 不得冒充语义身份。每个需要回填的 digest slot 为无 relocation 的 32 bytes，初始为零且有唯一写入者；同一 digest 的镜像必须逐 byte 相等。
 
-行为以 language spec 8.3、11.7、11.9、14.3 为准；runtime 契约见 runtime spec 第 9 章，实施次序与验收见 [M27 设计](../milestone27/DESIGN.md)。本节规定 Context 的实际 pipeline 职责，承接 M24/M26 的 core、产物及工具链基线。
+摘要依赖必须无环，节点仅依赖实际内容所需的上游摘要。规范化对象时，自身与不属于传递依赖的 digest slots 归零，上游 slots 使用已确定值；不能用执行顺序决定哪些 bytes 入 hash。Code、RuntimeImage 与 Artifact 分别覆盖自己的内容，不能建立自引用。
 
-**共有 HIR。** 函数及 property 声明增加有序 `ContextContract`；空 list 明确表示没有 requirement。每项保存 `Named(identifier) | Unnamed(ordinal)`、完整 ref 类型表达式及原 source span。requirement 的引用由原声明 typed identity 与独立 `ContextParameterIndex` 构成，不能借名称或 body local 标识；body local 仅在具体实现的入口绑定中出现。
+对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。完整 immutable 对象的检查结果由后续打包和链接复用；最终链接只增加本次物理选择、地址与装载事实的验证。
 
-泛型直接使用已有类型表达式与 substitution，不另建 ContextKeyRecipe 或平行泛型求解器。类型表达式在定义处须已确定为 ref 类别，完整 callable/owner application 按已有具体化入口代换一次，形成 concrete exact key，并检查代换后重复及 override/继承 contract；无正文的 application 也执行这些语义检查。key 是 `ContextKey(PersistentExactTypeId)` 独立 newtype，非裸 alias，不再散列出一份 key 身份。类型、key、进程 slot、scope mark 使用不同 typed domain。
+### 2.6 `.slib` 格式与指纹
 
-公开与继承声明的 requirement 使用共有导出图、签名可见性和实际 provider 查询；不是另建一份来源协议。context list 不进入 callable signature identity、overload、MSC 或普通函数类型；原声明内容 fingerprint 必须包含有序 list。调用点不产生隐式 Context 实参。property 的 getter/setter 从同一 property contract 各自得到入口绑定；声明与 abstract slot 不持有 body local。
+`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。
 
-LocalConcrete 的每个实现具有完整 `ContextLookup prologue`，为 `NoneRequired | Requirements(NonEmpty<ContextLookup prologueBinding>)`；binding 由 concrete requirement 引用、exact key 和 `BindLocal(ImmutableLocalId) | CheckPresence` 组成。context 参数名称只进入正文词法作用域，普通 default 继续在 caller 侧展开。`ContextScope` 保存 value、已确定的 ref 类型/key、typed block result/ControlOutcome；value 独立定型，外部 expected type 只传给 body。MIR 不再推断这些事实。
+归档 magic 为 `!<arch>\n`，首项固定为 `manifest.cbor`。其余 payload 按 manifest 中的 SlibMemberId bytes 严格排序，物理短名为从 0 开始的 ordinal：`m` 加 8 位零填充十进制。header 使用 SysV/GNU short-name encoding：名称后为 `/` 与空格填充，mtime/uid/gid 为十进制 0，mode 为八进制 `100644`，size 为无多余前导零的十进制，trailer 为 `` `\n``，奇数 payload 后补 `0x0A`。
 
-**core 与内部类型。** 在已有 CompilerExceptionCore 中绑定实际 `MissingContextException` 类及 constructor，普通共享选择提前收集其 String、Option 和调用依赖。不得在 MIR/LIR 通过 FQN 找回异常构造器。另在既有 core 协议/类型输出中增加两个封闭的 Context 支持角色：TaskContext 与 ContextNode，由实际 core provider 单次生成，并以 `(core provider identity, role)` 扩展现有 generated nominal identity。它们的 exact type、布局、TD、scan 经正常 Strong 类型导出供消费者引用，不创建新 ProgramDescriptor、core 授权表或平行 type registry。
+reader 拒绝其他 header spelling、重复或未声明 payload、path-like 成员及 `/`、`//`、`__.SYMDEF*` 等特殊成员。payload 不因自身 magic 而递归作为归档解释。
 
-两个角色的字段采用 runtime spec 9.1 的内部 managed carrier；它们不能成为用户可命名类型，不把异构 node 槽解释成源码 Any。MIR/LIR 的 TaskContext ref、nullable node/snapshot root 与 mark/guard 聚合都有完整的内部类型和扫描表示。C helper 的 task/node TD 从同一 typed core 支持引用降低为 metadata 参数；字段 offset 的共享 C/LLVM 布局在生产及必要的 ABI 测试处核对，runtime 热点不重复验证整套布局。
+每个非 manifest 成员为五字段 record：`1=id, 2=stable_key, 3=role, 4=byte_length, 5=sha256`。SlibMemberId 来自 ConeIdentity 与稳定非路径 member key，物理名、扩展名和生成顺序不参与身份。
 
-mark/guard 的逻辑角色是不同封闭 variant，物理存储复用现有 exact tuple/nullable-ref 表示及 scan；跨挂起的 mark 以这份完整 storage type 进入 CoroutineSlot，不保存 opaque bytes，也不增加第三种 Context 堆对象。
+| member role / stable-key tag | 值 | 用途 |
+| --- | --- | --- |
+| HirMetadata | 1 | Compile |
+| MirMetadata | 2 | Compile |
+| LirMetadata | 3 | Compile、Link |
+| LinkObject | 4 | Link |
+| DiagnosticAttachment | 5 | Diagnostics |
+| ExtensionBlob | 6 | 显式声明的 purpose |
 
-**MIR。** contextual body 的 initial entry 在原用户 CFG 之前按顺序产生 try-get 与 hit/miss 分支：hit 初始化 named local 或完成 anonymous presence check；miss 沿已选择的普通 constructor/throw CFG 抛异常。没有 body 的声明不生成入口，adapter/bridge 转入唯一实现，suspend resume state 不重跑 prologue。成功 lookup 的 managed ref 由 key 对应静态类型 refine，不经 raw pointer、动态 cast 或二次 TD 检查。
+三种 metadata 各恰有一个成员；完整生产产物具有非空 LinkObject 集合。role 与 stable-key tag 必须匹配，成员由目录身份识别，不由物理名、ordinal 或数量推断 producer。
 
-ContextScope 在 coroutine transform 前纳入已有结构化 cleanup：先求值 value，再 push，成功后登记 `RestoreContext(mark)` cleanup item。normal 非 Unit 结果先写 exact hidden result place，真实的 return/break/continue/exception 出口按既有 CleanupCursor/PendingTransfer/EH 路径恢复后继续；Unit 不建立虚构结果存储。finally、EndCatch 与 ContextRestore 按词法层次排序，内部 catch 不退出外部 Context。仅挂起不消费 mark；跨挂起 mark 和其 payload 使用 exact CoroutineSlot。coroutine transform 完成挂起点改写后，在每个消费 mark 的既有 ContextRestore 后将该 mark 对应的 frame slot 写回 Empty；未进入 frame 的 mark 只结束局部 liveness。相同 cleanup 同时覆盖正常恢复、失败恢复、direct suspend 立即完成或抛出，已完成 continuation 仍可达也不得继续保活旧 root。此过程复用现有 cleanup 构造与结构验证，不增加 Context 专用控制流证明或运行期 undo/mark registry。
+所有 wire metadata 使用 RFC 8949 deterministic CBOR 的明确 schema：最短整数与长度编码、定长容器、严格有序且无重复的整数 field tags、声明的封闭 variant、完整 typed 引用。不能序列化 Rust discriminant、arena index 或 hash-map 遍历顺序；未知必需字段、variant、重复 key、indefinite container 与非 canonical 输入均拒绝。
 
-每个 resumable frame 增加非可选 TaskContext field，source callable 的 initial entry 从 current task 初始化它。start helper fork/enter child，resume adapter 在现有 atomic claim 成功并将实际驱动时 enter frame task，所有 driver 出口 leave。REGISTERING/latched payload 路径不驱动 frame，也不切换 Context。execution guard 不跨一个已退出的 driver 保留；source scope mark 则可以跨挂起。普通 closure conversion 只捕获实际词法 local；callback registration 的固定 snapshot 语义属于该操作，不给所有 closure 增加 Context field。
+```text
+ByteSpan(bytes) = little_endian_u64(length(bytes)) || bytes
+H(domain, value) = SHA-256(ByteSpan(ASCII(domain)) || WireCborV1(value))
+```
 
-frame 的固定字段顺序为 state、completion、task，然后是按持久 local identity 排序的 saved slots，最后是 failure slot。task 字段使用 generated field tag 15，拥有独立 typed field identity；读取当前 task 使用无分配 ContextCurrent leaf。跨挂起的 ContextMark 是 MIR 生成的精确值类型，不写入 source-exact 类型表；其 CoroutineSlot 按已有 StructuralType exact specialization group 生成和 ODR 合并。frame 字段和这项生成值支持在协程批次纳入 MIR identity-foundation /4、type-bridge /10，取代同步批次的 /3、/9；callback 批次继续将 foundation 升为 /5，type-bridge 保持 /10。
+domain 无结尾 NUL；可变长度 raw 片段使用 ByteSpan，只有公式明确声明的定长 ID/digest 可以 raw 拼接。运行时 metadata 的 RuntimeEncode 是独立编码，不能用 WireCborV1 替代；callable body identity 使用运行时规范 2.8 的 v2 domain。
 
-启动 helper 与实际 resume 驱动分别保存完整 ContextSwitchGuard。body 失败先沿原 Throwable materialization 路径通知 completion；completion 自身抛出只执行 leave 后继续 unwind，不再次通知失败。MaterializeException 的 unwind 同时结束已有 catch 并恢复 guard。fork 发生在 enter 之前，尚未进入 child 时的分配失败不读取未初始化的 guard。
+`ConeIdentity = H("scoop-cone-id-v1", ConeCoordinate)`。ConeCoordinate 使用语言规范 12.2 的 canonical group、name 与 version；manifest 同时保存 coordinate record 和 identity，二者必须一致。长度转换 checked 到 u64；WireCborV1 item 不隐式再套 ByteSpan，只有明确写出的外层 framing 才参与指纹。
 
-**LIR/codegen 与入口。** try-get、restore、enter/leave 是独立 runtime target 的 managed-ref leaf，不冒充源码 NoGC callable。push/fork/空 task allocation 携带真实 SafepointId、完整 caller/statepoint/native root plan；所有 internal null 保留 nullable managed provenance。codegen 机械发射这些操作、实际 TD 引用和已生成的 cleanup，不读取 TLS 私有 offset 来补语义。
+CapabilityId 为 map `{1=namespace, 2=name, 3=nonzero u32 major}`；purpose bits 为 Graph=1、Compile=2、Link=4、Diagnostics=8。capability 表达格式和消费能力，不授予来源资格。LinkObject 明确指定 target、object format 和 verifier capability。内建对象格式为 `org.scoop-lang.object-format/mach-o-relocatable/1` 与 `org.scoop-lang.object-format/elf-relocatable/1`；Scoop verifier 为 `org.scoop-lang.link-object/scoop-lir/5`，generated C 为 `org.scoop-lang.link-object/generated-c-bridge/1`。
 
-无分配 leaf 仍访问 ThreadState/tree。codegen 保留保守 memory effect，只声明实际保证的 nounwind/GC-leaf 属性；不得按“没有 safepoint”推成 readnone/argmemonly，或让 LLVM 把查找跨 binding/task 切换错误 hoist/CSE。不为此增加新的 effect 推断框架。
+Scoop LinkObject logical key 为 `{1=nonzero unit_count, 2=unit_set_digest}`；digest 为 `H("scoop-lir-object-unit-set-v1", sorted unique nonempty ObjectDefinitionPlanId array)`。generated-C 使用同一 map，domain 为 `scoop-generated-bridge-object-unit-set-v1`，元素为 GeneratedBridgeUnitId。物理分组只改变 Code/Artifact 层。
 
-root/eager gateway 继续先执行原 mandatory poll，再在 current task 为空时建立 root task，之后调用源码 initializer/main；root 在 ThreadState 跨 gateway 保持。callback 的现有 C gateway 同时 root closure/snapshot/exception，typed adapter 在自身 poll 后 fork/enter snapshot，正常和 catch/status 出口 leave。私有 adapter 增加 nullable snapshot 输入，并同批更新 MIR signature、LIR ABI、generated C typedef、root plan 和 runtime；C trampoline 的用户签名及 hidden continuation 参数不变。所有分配仍使用既有 ManagedEntry/NativeBorrowedEntry，不增加 native-safe Context 分配通道。
+GeneratedBridgeUnitId 的 domain 为 `scoop-generated-bridge-unit-v1`。key 为 OutboundFunction=1、GlobalRead=2、GlobalWrite=3、GlobalAddress=4（各含 native contract fingerprint）、CallbackTrampoline=5（C signature fingerprint 与 context parameter index）、StaticCallbackTrampoline=6（storage-bridge generated callable ID 与 C signature fingerprint）。
 
-callback 的实际 storage 参数顺序为 closure、ContextNode snapshot、result pointer、argument-storage pointer、exception-output pointer。源 closure 的 ordinary signature 和 callback application identity 保持；MIR callback application record 的 storage ABI 改用 tag 2，旧 tag 1 拒绝，MIR identity-foundation 随之从 /4 升为 /5。LIR 保存实际五参数 physical signature，其编码及 type-bridge /10 格式不变；runtime ABI contract 从 5 升为 6，使旧私有 adapter 与新 runtime 不能混用。source callable 不因此增加参数，token 也不保存未扫描的裸 managed 指针。
+bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 producer ConeIdentity 与 PrimaryEntry、SignatureDescriptor、ContextDescriptor 或 StaticAssertSupport role，domain 为 `scoop-generated-bridge-atom-v1`。前三者可具有实际 bytes/range；StaticAssertSupport 不产生物理定义。unit、实际 atom 和 member 的关系必须完整，不能把 producer-specific symbol 写入 unit identity。
 
-导入的共享正文直接消费已有 ForeignCallbackRegister/Operation 节点。registration 的原声明 identity、签名与 source origin 从已验证的依赖目录取得；Export HIR 以 source definition 或 imported definition 的封闭分支区分归属，导入分支保留完整词法类型实参。默认表达式替换与具体化沿原类型替换路径更新这些实参，再用原 parent 的 callable materialization 产生 callback application。不得为导入 body 伪造消费方 source site、改写 registration identity 或重新检查已验证的注册签名。
+未知 optional capability 在长度与 hash 验证后可跳过，不进入语义 view。ExtensionBlob.required_for 只允许 0 或 Link bit；未知 Link-required capability 或 LinkObject verifier 阻止 Link 消费。blob 不成为第二种对象入口，已知 Link contribution 只能表示规范化 native library requirements，不能注入 raw linker argv、脚本或未检查对象。
 
-读取 `ForeignCallback<F>` 的共享字段表示时，待替换的 `FunPtr<F>` 沿可达依赖中已有的 nominal intrinsic 声明归一化：具体 ordinary 函数类型实参产生 canonical C NativeFunctionPointer exact key。它不产生另一份同义 nominal application，也不要求产物保存不存在的名义函数指针实例；原函数签名、类型引用和 ABI 检查继续使用同一 exact key。
+完整生产 profile 为 `org.scoop-lang.slib-profile/cross-cone-generic/5`。descriptor 是五字段 map：`1=id, 2=required_manifest, 3=required_hir, 4=required_mir, 5=required_lir`；各列表按 capability 排序。其必需 section 为：
 
-**产物与链接。** Context contract/scope 进入已有 HIR 声明与共享正文 codec；具体操作、frame 和 callback adapter 进入已有 MIR/LIR 输出。每个实际 machine body 对每个 exact key 只有一个 ContextSlotCell associated atom，用 `(PersistentCallableBodyId, ContextKey)` 作 typed key。同 body 的 lookup/push 引用它，不为只存在于 abstract contract 的 key 发射 cell。
+| 位置 / namespace | section 与 major |
+| --- | --- |
+| Manifest / `org.scoop-lang.manifest` | `single-cone-production/5` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/11`、`cross-cone-interface/60`、`cross-cone-type-semantics/22` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/15` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/6`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/10`、`cross-cone-layout-link-closure/5`、`cone-production/10`、`link-identity-closure/15`、`link-support/1` |
 
-在现有 callable registration 增加 cell-use 列表，空表表示该 body 无 lookup/push；每项保存 exact key 和 cell relocation。每个 body、现有 callable/safepoint registration、Context 表及 cell 的 canonical zero bytes 随同一 LinkObject 生产；无 key 的 registration 同样随正文，不放在公共 metadata 对象。表和 cell 使用 body 原有的 Strong/ODR associated atoms 和 object fingerprint；不同 body 的同 key cell 可并存，同一 ODR body 的 associated atoms 必须一起合并。沿既有 registration → RuntimeImage 依赖关系计算摘要，不新增 key-use registration member、第二个 ODR group 或摘要回填链。reader 检查新增字段、对应 atom 与实际 relocation，之后直接复用完整记录。
+各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
-M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启动保留原 image 集合/root entry 参数和六类 table。三层 outer schema 2、container schema、既有 callable-body-v2 和 persistent-v1 mangler 保持；新增 generated nominal/atom variant 与实际改动的 section major、profile required inventory、object verifier 和 runtime-build fingerprint 同批升级。当前 cross-cone-generic/3、两个 Strong /4 profile 分别迁到 /4、/5；不保留混用旧 frame/adapter/record 的路径。具体字段号随其 codec 批次在既有格式定义处分配，不为设计中的未发射字段创建占位 schema。core、依赖与 runtime 必须重建，进程 slot、加载地址与树高不参与缓存身份。
+manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 exact direct dependencies 与三层语义指纹、language/runtime/identity/mangling ABI、target/backend 配置及其兼容摘要、全部成员目录、三层/Code/RuntimeImage/Artifact fingerprints 和 required sections。
 
-入口使用按 requirement 顺序排列的专用 ContextLookup 表达式，分别作为普通 immutable local initializer 或独立 presence check；完整表达式类型提供 exact key。MIR scope 先生成 push，再以含 restore 的 generated finally 包裹 body，直接复用既有 cleanup 链。内部 Task、Node、binding-ref、mark、switch-guard 的 compiler-owned storage role 保留不同类型；只有 Task/Node 是新增可分配堆对象，其余复用普通 exact value layout、abstract-reference 或 boxed-value descriptor 与扫描，不生成额外 Context 堆对象。role 的持久身份从实际 core Cone 派生，不能降格为源码 Any 或 raw pointer。
+production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
-**职责与验收。** HIR 完成一次源码/实例化语义检查；MIR 负责实际 CFG、cleanup 与 frame；LIR 负责表示、ABI 与 root；reader 负责外部字节的格式、引用和对象内容；runtime 负责加载后的范围、地址、cell 发布及动态执行状态。没有新 stage 依赖、访问凭证、预算、状态证明或无变化数据的整套语义重放。每批提供能经正式 CLI 编译/链接/运行的真实 fixture，最终覆盖同步 scope、全部退出、具体化/跨 Cone/ODR、真实挂起与跨线程 resume、callback 快照及 moving GC；完整完成门见设计第 9 节。
+`single-cone-production/5` 的 field 4 为完整 typed registration projection，field 6 为 RuntimeImage fingerprint，field 11 为物理 ODR member 目录，field 12 为 OptimizationMode；field 5 保留不用。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。
 
-### 2.17 静态类型描述与编码方法合成（M29）
+`link-support/1` 为单字段 map `{1=runtime_data_aliases}`，把必要的 runtime 数据符号关联到实际定义；String alias 不创建额外 TD 或存储。
 
-本节规定2026-10-06修订后的M29实现分层，迁移见[M29设计](../milestone29/DESIGN.md)第9.3节，实际覆盖与测试方式见[M29验收记录](../milestone29/ACCEPTANCE.md)；旧实例编码的实施记录作为历史保留。语言合同见9.1.3、9.4～9.6、11.13，runtime边界见运行时规范2.2、2.7。对M21 companion作用域和M23物化假设的修订只记入当前规范与M29，历史milestone文件不改写。
+persistent identity 只由首次引入的层声明一次，并同时保存 typed ID 与 canonical key；其他层引用它。相同 kind/ID 的冲突 payload 或跨层重复声明拒绝。LIR foundation 的 exact-type 集合引用已有 HIR/MIR exact records，不复制声明。源码文件、binder、字段、variant、body application 和调用位置的引用必须指向真实定义。
 
-**AST与parser。** 增加annotation class及字段/variant/property注解的完整源码结构，保留参数来源及位置/命名形式，HIR负责常量化。companion声明继续使用普通语法，限定类型/值/成员路径须完整保留`Box<T>.Companion`及其成员路径中的宿主类型实参。HIR区分声明命名空间与实际companion application，后者要求完整实参，不从方法参数反推宿主。`Encodable<T>`、`Decodable<T>`、generic helper和override使用普通interface/方法机制，不增加static方法、特殊Self结果或类型级factory declaration。
+共有 HIR expression 为 `{1=kind, 2=result_type, 3=definition_origin, 4=evaluation_origin}`。Call 的 tag 为 57，payload 保存 callee、arguments、SourceCallReceiver；receiver 为 NoReceiver=1 或 Receiver=2（完整静态类型）。实际 call-site 保留完整逻辑实参与结果、定义／求值位置及原 receiver，Unit/ZST 参数不能按物理省略规则消失。
 
-**共有HIR事实。** 静态描述复用类型、名义shape、PersistentFieldId、variant、logical property与constructor/default记录；只补缺失的annotation及关联，不复制类型或布局图。annotation使用独立typed声明身份，应用保存实际引用和按参数序补齐的typed常量。泛型字段保留binder引用，实例化后完整；tuple保留位置，class字段保留owner，computed/delegated property与intrinsic表示保持区别。不得使用FQN fallback、裸annotation名称identity或opaque default指针。
-
-共有查询为每种类型提供完整shape，dump能展示名称/类型/annotation，必要内容进入Export HIR。未使用类型不因此成为LIR物化根；没有运行期TypeInfo对象或通用CTFE。外来类型沿同一查询，字段及构造信息不扩大源码可见性。
-
-查询视图借用当前 HIR 的原声明及已载入依赖声明，字段和 variant 保留原 typed identity；
-泛型字段类型用同一声明参数到 application 实参的替换关系，沿已有签名类型映射取得
-完整类型表达式。递归类型只返回该表达式，不继续展开其字段。导入字段的显示资料
-保留原字段键的普通字段、property backing、property delegate 或生成字段类别，
-不能把缺少普通 backing property 的 delegate 字段误当成独立业务字段。注解和
-constructor/default 仍从其所属原表借用；查询不触发物化、可见性扩张或初始化。
-尚未载入本地类型 arena 的核心父接口直接借用依赖产物中的共有签名类型，
-不为了 shape 查询或 dump 额外载入类型声明。
-
-annotation 声明复用已有 `SourceDeclarationKind::AnnotationClass` 源码键，并使用独立的
-`PersistentAnnotationId`；它与可出现在运行期签名中的 nominal type 分开。注解名称参与
-普通类型名称域的冲突、限定路径、import alias 和访问检查，绑定的 target/role 明确为
-annotation。声明保存参数的实际标量类型、名称和可选缺省常量，应用复用已有
-`CanonicalConstValueV1`，按参数序保存补齐后的值。target 使用原 nominal、variant、
-field 或 logical property 的 typed 引用；不为读取注解复制字段或生成运行期类型。
-
-此批在 HIR identity foundation 的 field 35 保存 annotation 声明键，在共有源码接口的
-field 14 保存注解声明及其有序应用。两者分别将 `identity-foundation` 升至 `/5`、
-`cross-cone-interface` 升至 `/52`；旧产物和缓存重建，其他阶段的 wire 与 runtime ABI
-不因静态注解数据改变。读取边界复用普通绑定和实体查询，检查参数常量种类及 target
-引用；外部标量类型和注解声明复用原外部引用表，以 `AnnotationDependency`（tag 11）
-记录实际依赖。后续阶段直接使用已解析事实，不重新执行注解源码或常量求值。
-
-class 的主构造关系复用原 `NominalDeclarationDetailsV1`，在 field 11 保存可选的
-主构造记录：实际 `PersistentConstructorId`，以及按该构造参数顺序排列的可选
-`PersistentPropertyId`。普通参数对应空项，`val`/`var` 参数对应其原 logical property；
-无主构造的 class 没有该记录。名称、参数类型和 default 继续从原 callable/source
-parameter 记录读取，不复制表达式或另造构造器。class 的普通存储、委托存储及 accessor
-形式仍由原字段键和 property 数据区分。reader 在名义声明边界核对构造归属、参数数量、
-property 的类型及存储关联，后续查询直接借用已解析关系。该字段将共有 HIR
-`cross-cone-interface` 升至 `/53`，其余 section 和 runtime ABI 不变。
-
-M29 的外部字段派生需要区分用户自定义 accessor 与为普通存储生成的 callable。
-`PropertyAccessorImplementation` 增加携带原 FunctionId 的 `StorageBody`；共有 property
-accessor 的实现形式新增 unsigned tag 5=`StorageBody`，原 tag 1～4 含义保持。
-它与 `Body` 一样引用实际 accessor callable，但说明正文来自普通存储语义；无正文的
-`Storage`、常量与抽象槽继续独立表示。producer 在创建 implicit accessor 时记录该
-形式，消费方不读取或识别正文来推断源码形状。共有 HIR `cross-cone-interface` 升至
-`/57`，旧产物与缓存重建；identity、MIR/LIR 格式及 runtime ABI 不因该区分变化。
-
-**companion作用域与物化。** companion继承直接宿主的类型参数环境和bound，不继承宿主实例或primary参数值；普通static nested声明仍隔断外层参数环境。成员字段、base/interface、default、initializer和body使用同一组宿主binder，方法自有参数另用typed身份，完整调用实参按宿主在前、方法在后保存。裸generic宿主只可作声明命名空间限定；类型别名、命名companion别名、转发和跨Cone查询必须保留同一完整宿主application。
-
-宿主的完整约束解析后，同一阶段将已解析参数补齐到 companion backing type 及其
-initializer/ensure 签名与正文参数环境，保留原 binder 和 generic callable identity。
-字段、父接口、方法与初始化随后共享这些约束；companion 不另行声明或再次验证
-宿主的上界，普通名义约束验证只检查实际参数声明。
-
-companion声明、带宿主实参的application与concrete实体沿名义类型模型分别表示。object declaration的value记录表示原声明，不能用它代替已应用singleton的身份；具体对象同时保留其完整exact类型。隐藏backing class的模板键引用实际generic companion声明，语言类型及签名仍使用companion自身的名义application；MIR中该application使用普通final class表示及原backing字段身份，不为模板另造一个参数自由的物理类型。初始化模板和具体application分别保存键，具体cell、failure root及published root按原声明与完整实参派生，复用既有nominal ODR组。初始化依赖保留被访问application的实参，具体化后复用已解析的依赖unit，不能只按声明id折叠不同application。
-
-application身份包含实际companion声明和完整宿主application，包括不影响布局的phantom实参；不能按显示名、布局、首次使用Cone或省略实参的object id合并。共有静态描述读取自身字段并替换宿主参数，不能把数据类型字段与companion存储混为一体。形参环境可保留在Export HIR模板，只有实际机器需求进入LocalConcrete物化闭包；单纯宿主构造、类型查询或const读取不执行companion初始化。
-
-每个实际companion application具有替换完成的object/backing exact、singleton value、initializer/ensure、initialization unit、cell、published root与failure root。声明级模板保留原unit身份，application unit与生成callable context携带完整宿主实参；initializer中的局部泛型函数、闭包和default沿同一词法application替换，不按访问点创建新模板。参数自由companion仍由定义方Strong提供；generic companion的初始化支持复用既有ODR组机制，将cell、两种root、initializer/ensure及registration作为同一application的完整组物化和合并，类型/itable与普通方法沿现有type/callable ODR关系关联。多个consumer最终使用同一组状态，不同宿主实参各自一组。结构环及参数变化递归沿已有初始化/单态化检查，运行期重入沿既有gate；不增加通用预算或运行期泛型注册表。
-
-**普通接口与receiver。** `Encodable<R>`.encode与`Decodable<R>`.decode的receiver都是实际companion/codec；encode另接收普通R数据参数，decode返回R。两者均有完整方法签名、override关系和普通itable slot。目标类型的继承不传递codec关系，不能由value的运行时类型重新选择companion。没有FactoryRequirementId、Implementor结果或工厂专用绑定；companion forwarding使用完整application的真实receiver及其ensure/root，不生成static副本。
-
-普通signature exposure按声明的direct lookup domain检查。override coverage仍检查完整slot contract；经base/interface调用的签名来自该静态声明，不因实现者的方法为public就将internal/private实现者及其类型实参变为public API。手写与合成的codec使用同一规则，非public数据类型可以拥有自己的companion codec；公开签名仍不得泄漏不可见类型。
-
-**前端合成。** HIR按以下顺序处理，后端不重新解释annotation或寻找codec：
+nominal declaration 保留原 binder 条件、GC-free pointee requirements 与 NoGC 标记。property/accessor、constructor safety/effect、InteriorMutable、CLayout、泛型 companion、release、annotation 和编码合成所需的声明事实均不可由缺字段的默认值替代。读取只检查格式、kind、引用与合同连接，不重新进行定义处的重载或可见性选择。
 
-1. 登记普通数据类型、核心接口、companion/codec及合法用户方法，完成annotation、字段和构造关联。
-2. 沿现有继承/default/override规则选择实现，只为仍缺失的核心方法登记完整合成签名。签名先于body建立，支持递归引用，不以合成是否碰巧成功决定conformance。
-3. 两个方向都从相应interface application读取目标R，检查其shape及codec的正常访问域，decode另检查构造映射。按语言规范11.13.4在定义处为字段选定primary val依赖、递归this、可见companion application或核心组合helper，保留实际typed引用和宿主实参；不向数据基类companion回退，不在实例化时重新匹配参数或按名字扫描工厂。宿主T可见不等于已有相应字段codec，缺失能力仍在定义处报错。
-4. 展开普通字段访问、接口/直接调用、分支、循环、临时local、String常量及正常构造。encode按序从value读取字段、取得child后求值codec并调用；decode先取得存在的child再求值codec。缺失的可选字段、Transient字段及未选中variant不构造字段codec。default复用8.5的既有绑定/替换，读完已提供值后按参数序补齐。
-5. tuple的两个方向可生成普通typed闭包并调用核心`EncodeFunction<T>`/`DecodeFunction<T>`，捕获、函数值和调用沿现有closure路径。core容器使用普通companion方法及持有显式元素codec的generic class，不增加数据类型的条件接口、MIR序列化指令或运行期反射数据。
-6. Export HIR保存完整body/template及已选声明关系；具体化只做普通替换/单态化。LocalConcrete不残留缺失实现、无类型字段或待解释的Serialize/Deserialize计划。
+native-boundary record 保存 owner、type-parameter count、source shape 与 C ABI projection。projection 为 SourceRepresentation=1、UInt64Field=2（唯一 field ID）或 NullablePointer=3（empty variant 与 pointer payload field ID）；必须匹配真实声明的字段、variant 与类型，不改变普通 Scoop aggregate/niche 表示。
 
-缺失方法在现有 interface 实现选择器的 obligation 分支登记；用户方法、继承方法和
-合法 default 已经选择成功时不进入合成。编译器从 core 的普通绑定取得实际名义声明
-identity，再以该接口的已解析签名匹配 requirement；同名用户声明不参与此识别。
-合成的具名成员以请求它的源码类型为 owner，使用普通成员声明、参数接口及方法
-application 身份。所有签名登记后，字段/variant/property 和注解取自共有 HIR 声明，
-生成的块沿普通 body lowering 绑定字段访问、方法调用和模式分支。中间待办只在
-HIR lowering 内存在，不为派生增加独立 callable 类别或跨阶段的序列化执行计划。
+三层语义指纹是 Merkle 指纹：各自 canonical own-layer projection 加真实 direct/support/re-export 依赖的同层指纹。其 domains 为 `scoop-hir-semantic-v1`、`scoop-mir-semantic-v1`、`scoop-lir-semantic-v2`。LIR context 包含 identity ABI、target profile 与 target fingerprint，不含 backend optimization、member assignment、range 或 patch offset；backend 兼容性仍单独检查。
 
-源码与合成方法共用函数体的 receiver、参数、词法来源和 Context 建立流程。两方向
-直接使用已选的 typed 字段、codec 与 companion application；decode 另使用 constructor 引用，复用原调用
-及 default 模板实例化入口；不得把这些引用转回 FQN 后重新查找。生成的临时值、
-条件分支和最终构造均进入普通 HIR，缺失字段的 default 只放在实际缺失分支中执行。
+HIR 语义包括名称候选、签名、默认值、const、模板和完整依赖；无法完整表达细粒度 lookup observations 时，保守计入全部相关直接依赖。普通私有非泛型正文、机器码、优化模式与对象分组进入 Code/构建缓存，不能反向改变声明或 shared ABI 身份。
 
-tuple 的组合编码/解码闭包共用源码 lambda 的参数、词法来源、捕获和正文登记流程。
-生成器只提供普通 typed 语句和值；捕获的 codec receiver 仍由原 binding identity
-关联，不为合成闭包另建名义类型、执行指令或跨阶段计划。
+`MemberFingerprint = H("scoop-slib-member-content-v1", member_record)`；`LinkMemberFingerprint = H("scoop-slib-link-member-v1", member_record)`，后者只用于 LinkObject 或 Link-required blob。
 
-两个方法都归实际companion/codec，数据参数R与receiver分别保存完整类型。生成方法沿既有typed声明/参数已替换application/concrete callable身份，不以首次Json调用为定义来源。不同codec即使处理同一个R也保持不同声明；同一provider application才沿原ODR合并。字段访问及构造调用的来源锚定请求合成的实现者声明，default保留原定义来源，不增加运行期调用者位置传播。
+`CodeFingerprint` 使用 `scoop-code-v1`，覆盖按 member ID 排序的 Link fingerprints、已知 Link contributions、generated-C production、native library requirements、defined/undefined symbol 集合、去除诊断位置的 native contracts，以及 section registry 声明的 Code projections。只改变实际合同或符号需求也必须使 Code 改变；diagnostic/unknown optional payload 不进入 Code。
 
-**核心类型与格式库。** scalar 的普通 companion 同时实现具体
-`Encodable<Scalar>` / `Decodable<Scalar>`，方法分别接收数据值或返回目标值。
-数据类型不因拥有 codec 获得接口；编译器不为标量、Unit、容器或 tuple 增加
-编码 bound、条件成员或编码专用装箱接口。
+`ArtifactFingerprint = SHA-256(ByteSpan("scoop-artifact-v1") || ByteSpan(canonical_manifest_without_artifact_fingerprint) || ByteSpan(MemberFingerprint_0) || ... )`，成员顺序为目录顺序。它覆盖全部附件与 blob；manifest 不包含自身 member hash。RuntimeImage 编码及 body/stackmap domains 见运行时规范 2.8。
 
-Unit 保留实际 `core_unit` 声明、固定身份、零大小值布局及 Unit 返回 ABI；
-移除的只是数据实例的编码接口。普通 object UnitEncoder 接收 Unit 并调用
-`singleValue().writeNull()`，UnitDecoder 读取 null 并返回 Unit，不伪造 companion。
-其他普通成员、装箱和跨 Cone 类型关系仍沿 intrinsic struct 的正常路径。
+产物消费失败不返回部分闭包。Graph、Compile、Link 的结果按实际已完成的检查区分，不能用只读过目录的对象替代完整 Link 输入。同一次成功编译的归档发布直接使用已完成的 IR/对象与摘要，不重新解析自身语言语义；外部 bytes 在相应消费边界验证后供后续复用。
 
-普通 `is`/`!is` 的操作数在 Export HIR 中归一化为引用，值操作数使用既有装箱
-适配。若智能转换已经把同一引用表示为 `Unbox`，类型测试直接复用其原引用；
-不把拆箱后的值传给 runtime 的引用参数，也不把右侧条件的拆箱提前到短路判断
-之前。操作数仍只求值一次，后续阶段消费已明确的引用表示。该修复独立于编码协议。
+### 2.7 `scoop` 与 single-Cone `scoopc`
 
-Unit 引入时使用共有 intrinsic tag 9 与 LIR 布局内容 tag 7，相关版本为 HIR
-identity-foundation `/6`、core-bootstrap-interface `/9`、cross-cone-interface
-`/54`、cross-cone-type-semantics `/18` 及 MIR cross-cone-type-bridge `/12`。
-这些是保留普通 Unit 声明的格式演进记录，不要求 Unit 继续实现编码接口。
+`scoop` 负责 root input、locator、完整依赖图、构建顺序、全局缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
 
-Option/Array/MutableArray/ArrayList 的 companion 随完整宿主具体化，普通 encoder
-方法接收 `Encodable<T>`，decoder 方法接收 `Decodable<T>`，分别构造持有依赖的
-普通 helper。两个方法使用宿主 T，不改变数据容器的泛型约束，不把实参写入
-singleton 状态。编译器按已有 core 关系引用实际方法声明，不扫描同名用户工厂。
+```text
+scoop build [root-input]
+scoop run [root-input] [-- program-arg...]
+scoop link --root-slib root.slib --runtime-objects index [--dependency-slib dep.slib]... [-o output]
+scoopc build <Cone-root-or-Cone.toml-or-file.scoop> [--direct-slib direct.slib]... [--support-slib support.slib]... --out-slib current.slib
+```
 
-`encodeList(values: List<T>, element: Encodable<T>, encoder: Encoder)` 是普通
-core 泛型函数，沿现有 for、接口调用和 unkeyed 协议处理逻辑元素。数组类的编码
-helper 调用它，Option helper 保留 None/Some 的 enum 形状；所有代码均有普通
-callable identity、模板及异常/GC 路径，不增加编译器专用序列编码操作。
+低层 `scoop-link` 使用相同的 artifact-only 链接合同。build/run 省略 root 时使用调用者 cwd 的 Cone.toml，不向父目录搜索；`run -- args` 也使用该默认 root。低层 scoopc 的输入必需。
 
-tuple codec 的自动组合生成普通 lambda，经 EncodeFunction/DecodeFunction 持有
-函数值；前者正文投影显式数据参数并依次调用元素 codec，后者解码元素后构造 tuple。
-捕获的依赖是普通 typed 值，闭包身份、装箱、分派和 ODR 沿现有路径；tuple 数据
-自身没有编码接口，不需要按 arity 生成的成员模板或 TupleEncoding callable。
+输入为两种封闭形式：
 
-**撤销旧条件编码。** 迁移删除只服务实例编码的名义 details 条件编码 field 12、
-条件接口查询/选择及 tuple 编码模板、TupleEncoding 生成键与专用分派记录。
-本批将 HIR identity-foundation 升至 `/8`、cross-cone-interface 升至 `/56`、
-cross-cone-type-semantics 升至 `/21`，MIR cross-cone-type-bridge 升至 `/14`；
-名义 details 使用剩余 11 个字段，生成 callable 的旧 tag 17 退役，tuple 的普通
-装箱类型不再携带编码接口。core-bootstrap-interface `/9`、LIR 与 runtime ABI 保持。
-退役字段/tag 不复用；按实际受影响的 section 升级并拒绝旧版本，不保留平行的
-兼容派生或分派路径。旧条件编码的 `/55`、`/19` 及 tuple 的 `/7`、`/20`、MIR
-`/13` 只是修订前格式，实施记录保留其历史结果。普通值装箱、类型测试、接口分派、
-实际依赖闭包及 shape support 的独立职责继续保留，不因移除编码关系而退化。
+- ManifestCone：目录下必须有 Cone.toml，或显式 regular file 恰名为 Cone.toml。源码为 src 下扩展名精确为 `.scoop` 的 regular files，按标准化相对 UTF-8 路径排序；空集合、重复标准化路径、非 UTF-8、symlink 逃逸或循环均在 parse 前失败。
+- SingleFile：operand 扩展名精确为 `.scoop`，解析 symlink 后为存在的 regular file。只编译该文件，logical path 固定 main.scoop；不读取相邻 manifest、Scoop/C/C++ source 或 blob。
 
-Json 是普通库的 Encoder/Decoder 实现；Json.encode 与 Json.decode 都接收源码
-可见的 codec，分别调用 `codec.encode(value, encoder)` 与 `codec.decode(decoder)`。
-core 登记不依赖 JSON 库；String/Char/List、格式数据树、异常、codec helper 与
-函数值适配类都使用普通语言能力，没有 compiler JSON builtin 或 runtime JSON C 入口。
+SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Executable，只依赖 core；用户 manifest 不能声明该 coordinate。build/run 此时拒绝 cone-path，scoopc 拒绝 direct/support slib 参数。其 `.slib` 可作为本次构建、缓存或显式 link 的 executable root，不能作为依赖或 manifest locator 指向的可分发 Cone。
 
-**产物与后端。** Export HIR/source shape保存annotation、字段关联及普通合成body，companion沿既有typed owner关系保留宿主binder、成员/初始化模板以及实际application引用，两个方向的codec沿普通interface/callable记录导出。必要constructor/default及非public实现依赖沿原support闭包；consumer不重跑源码派生或重新解释private访问。源码声明身份仍只有一份，不能为每种实参重新导出同名声明，也不能让旧的无宿主实参object记录冒充完整application。
+依赖使用 exact version，全部为 library，同一 group:name 只允许一个版本。启动 compiler 前必须验证完整图的 identity/content 唯一性、target/ABI/schema、语义 fingerprint、无环和 locator 无歧义。canonical 顺序逐次从“全部依赖已完成”的 ready set 中取 coordinate bytes 最小者；不按输入顺序或并发完成顺序决定。
 
-共有继承图覆盖当前及可达依赖的声明；其中的exact application按typed identity查询对应的已验证产物图。某个依赖自身的继承关系可以包含消费方未直接引用的application，例如另一个库的`Decodable<User>`；不能要求这些key全部重复写入最后一个消费产物，也不能仅因查询依赖继承关系就新增消费方机器物化根。
+非 core Cone 未显式声明 core 时，注入 `scoop:scoop.core:0.1.0` direct edge；core 不依赖自身。core 是普通库，显式 locator 遵守同一发现规则。缺省 sysroot 来源先取 `lib/scoop.core`；只有目录不存在时才取 `artifacts/<canonical-target-id>/scoop.core.slib`。已选来源损坏或不兼容时直接报错，不回退到另一来源。
 
-新增语义进入实际受影响section及cache profile；实现批次在既有产物编码处分配字段号，旧产物明确拒绝并重建。annotation、字段/default/构造、两个方向的显式codec绑定或body变化进入相应内容fingerprint。没有工厂专用wire family、反射sidecar或来源凭证；reader边界只检查正常格式、typed引用和契约，未变化结果由后续stage复用。
+配套 scoopc 默认来自 scoop executable 同目录，允许显式指定；必须匹配 machine capability 和实际编译输入。每个 source cache miss 启动一次 single-Cone 编译，传入完整 direct/support artifact。direct 与 manifest edge 一一对应，support 恰为其余传递闭包，两组互斥。缺失、不可达额外输入、identity/content 冲突、stale edge、错分或 executable dependency 均在 parse 当前源码前失败。
 
-泛型 companion 批次将 HIR `cross-cone-interface` 升至 `/51`、`cross-cone-type-semantics` 升至 `/17`，MIR `cross-cone-type-bridge` 升至 `/11`，LIR `cross-cone-layout-abi` 升至 `/8`、`cone-production` 升至 `/7`、`link-identity-closure` 升至 `/12`；正式 `cross-cone-generic` profile 升至 `/5`。这些版本覆盖宿主 binder、隐藏构造模板、应用表示及 ODR 初始化支持；各 profile fingerprint 随 required section 更新，旧产物和缓存重建。三层 outer schema、mangler 和 runtime ABI 保持不变。消费方从原构造模板的直接 singleton 引用保留泛型初始化依赖；默认值和嵌套 callable 的独立源上下文不计为构造器自身的直接依赖，普通外部属性/object 则沿既有 materialized initialization-use 表连接。
+library 不要求 main；executable 必须有本 Cone 顶层 ordinary、非泛型、非 suspend `main(): Unit`，依赖的同名函数不参与入口选择。scoopc 的正式输出始终是当前 `.slib`，不构建 runtime、不解析 native library 搜索目录、不调用最终 linker。
 
-MIR降级普通方法/companion调用、构造、控制流、closure与异常；每个companion使用其完整application对应的ensure及singleton read。LIR按普通签名区分codec receiver、encode的数据参数与decode的结果，处理既有ABI和精确根。两个接口的itable调用保留真实codec receiver，优化可按已有规则去虚拟化，不能假定codec无状态或总可direct call。编码数据、codec、依赖、闭包及解码临时值由moving GC跟踪，companion按application独立遵守原exactly-once初始化，class解码目标遵守M19/M24构造与release-ready。本里程碑不增加runtime TypeDescriptor字段、C函数或runtime metadata ABI版本；编译产物语义变化按实际section升级兼容版本和fingerprint，旧产物与缓存重建，不预占wire编号。
+build/run 接受 `--profile debug|release`，默认 debug；`--release` 为 release 简写，与显式 profile 同时出现为参数错误。实际优化合同见 2.19。
 
-**验收。** 真实源码覆盖两个codec接口、手写/派生选择、类型化annotation、scalar/record/sequence/enum、双向显式依赖、default副作用及正常构造；增加父子数据codec独立、Base视图显式选择、不变性与无基类companion回退。generic companion覆盖不同宿主实参的type/状态独立、同一application的别名/转发与跨Cone合并、宿主bound/方法参数替换、各自exactly-once及失败缓存、无字段/phantom参数、ordinary nested作用域；negative检查缺少宿主实参、非法实例捕获、参数重名、字段/构造访问和依赖歧义。golden区分codec receiver与数据参数，不保留旧条件编码与TupleEncoding记录。跨Cone覆盖generic encoder/decoder provider、独立产物link/run和ODR；组合接口分派、闭包、Context、异常与moving GC。迁移后重新完成workspace与正式fixture验收，再记录实际结果。
+默认 target root 为 manifest Cone root 下的 target，SingleFile 为调用者 cwd 下的 target。`--target-dir` 相对调用者 cwd 解析并替换该根；输出目录追加 `<canonical-target-triple>/<profile>`。library 文件名为 `<cone-name>.slib`，manifest executable 为 `<cone-name>`，single-file 为 `<sanitized-input-stem>`。build 的 `-o` 覆盖最终 root 文件的完整路径，不追加 triple/profile。
 
-### 2.18 Float / Double（M30）
+发布为原子替换，失败保留旧输出，不能留下部分 artifact 或 binary。用户输出与缓存内容相互独立；输出不能覆盖本次输入或破坏缓存。并发发布到同一位置时，最后一次成功发布生效。
 
-语言行为见语言规范11.2.2与9.3.2，runtime契约见运行时规范6.1，分批实现及验收见[M30设计](../milestone30/DESIGN.md)。M30只实例化F32/F64两种表示；Float32/Float64沿透明alias展开，不增加第二套nominal identity。
+run 执行本次成功构建的 bytes，不能执行旧 binary 或被另一构建替换的程序。argv[0] 使用稳定输出路径，其余参数原样传递；继承调用者 cwd、environment 和 stdio，保留程序的真实 exit/signal。工具输出在程序启动前完成，程序 stderr 不包装为诊断 JSON。
 
-**parser与HIR。** lexer识别小数、指数和f/F后缀，保留十进制原值而非宿主浮点近似；与整数、range和member access消歧。HIR沿8.6的candidate-local约束选定实际Float/Double owner和目标精度；无上下文默认Double，f/F固定Float，不把一般整数token加入浮点候选域。literal与const从目标精度直接求值，完成时以封闭sum保存`F32(u32)`或`F64(u64)`原始位型及非可选的实际类型。采用独立于LLVM的`rustc_apfloat 0.2.3`进行目标浮点求值；不使HIR依赖codegen或LLVM，也不自建任意精度计算框架。
+`scoop link` 接受显式 root/dependency artifacts、cone-path、必需 runtime object index、target、library search roots 与输出路径。它按 artifact exact dependencies 查找，core 也只从已有 artifact 取得；不启动 scoopc、不读取 runtime/Scoop 源码或补建缺失依赖。
 
-算术/equals/分类/totalOrder/转换在入口验证实际typed intrinsic声明及完整签名，保存所属表示和source/target kind。四种浮点关系由已解析representation正规化为专用typed comparison，不生成`compareTo(): Long`调用，不借操作名称或FQN猜测行为。const使用同一封闭操作集合、目标舍入和语言规定的NaN结果；用户同名call不获得const能力。annotation、默认值、literal pattern、Export HIR和下游具体化都复用这些类型与bits。
+`--sysroot` 定位 Scoop core；Linux 的 `--cc`、`--native-sysroot` 选择 C 工具链。`--unwind-prefix` 和 `--link-mode static|dynamic` 属于 runtime/executable 链接输入，library `.slib` 构建不要求 unwind archive。Linux 缺省 unwind prefix 为 `<Scoop sysroot>/native/<canonical triple>/unwind`。Darwin 使用所选 Xcode 开发环境。
 
-**MIR与LIR。** MIR传播完整浮点type、常量与operation，保留求值次序；浮点div/rem不走整数除零异常CFG。派生相等调用真实字段equals，浮点字段不允许用identity或bitwise捷径代替。LIR增加F32/F64标量，按各target产生4/4与8/8的size/alignment；ABI scalar参数/结果使用浮点carrier，aggregate仍用原有间接协议。参数、local、phi、return、global/static template、数组、boxing、closure、协程frame和raw pointer指令必须穷尽处理两种表示。扫描只描述managed reference，不用NaN niche或整数carrier掩盖未知kind。
+全局构建缓存由 scoop 管理。compile key 覆盖 manifest/single-file semantic projection、全部源码内容、compiler/toolchain/protocol、language/schema/runtime ABI、target/backend、实际使用的 C bridge 配置、OptimizationMode 与依赖三层语义指纹。locator、输出路径、dump 请求和程序 argv 不改变语义 identity。源码变化可重建；无源码的 stale prebuilt 必须报错。
 
-**codegen。** 常量从同宽integer bits生成精确LLVM浮点常量或bitcast，不经接受宿主f64的便利API改变精度。`fadd/fsub/fmul/fdiv/frem`、`fneg`分别实现对应操作，一元plus为identity；不使用fast、nnan、ninf、nsz、reassoc或contract等放宽语义的flag。`== != < <= > >=`分别为`fcmp oeq/une/olt/ole/ogt/oge`；不能用`!(a < b)`实现`a >= b`。
+machine transport 为一次 request/response 的 length-prefixed canonical CBOR，protocol version 为 4，stdout 只含协议 frame。build request field 9 为 OptimizationMode（Debug=1、Release=2）；target request 保存 canonical triple、可选 C driver 与 native sysroot，host locator 不进入 artifact identity。旧或不匹配协议拒绝。
 
-totalOrder把W位表示解释为unsigned整数，负数映射为W位`~bits`，非负数映射为`bits ^ signMask`，比较转换后key的unsigned `<=`。该映射覆盖正负零与完整NaN sign/quiet/payload，不执行浮点算术，也不依赖公开bit-conversion API。分类同样可从exponent/fraction位实现。
+显式观察使用 `--emit ast|hir|mir|lir|all --dump-dir dir [--dump-scope root|sources]`，默认 root；sources 覆盖源码节点，不从 prebuilt 反造 AST 或 LocalConcreteHir。每个被观察节点在同次完整编译中生成 dump；HIR 同时包含 Export、LocalConcrete 与共有跨 Cone 接口。观察不改变 artifact，失败不返回成功产物；命中缓存也须为请求的源码观察产生本次 dump。
 
-integer→float按source signedness使用`sitofp/uitofp`并直接产生目标精度；float→integer使用`llvm.fptosi.sat`/`llvm.fptoui.sat`或严格等价的局部展开，直接饱和到目标位宽，不使用越界可产生poison的裸转换，也不经64位整数二次截断。跨浮点格式用`fpext/fptrunc`；同格式转换保留bits。LLVM默认浮点环境及native代码责任见运行时规范6.1。
+诊断具有明确 Error/Warning severity，primary 与 notes 保存实际 Cone、logical source 和 byte span。产物错误保存 container/manifest/member/section 与 wire field path，I/O 错误不伪装成源码位置。human 与逐行 JSON 使用同一结构化记录，写 stderr；stdout 留给被执行程序。缓存中的 warning 在本次显示时附加 locator，不丢失原位置。
 
-**C ABI与最终链接。** canonical C storage新增`float`/`double`，生成C source后继续由现有bridge toolchain处理scalar、混合aggregate、global/TLS、Ptr/FunPtr与callback签名；不复制C寄存器分类算法。`frem`可能导入的`fmodf/fmod`进入现有native-support记录及链接闭包；Darwin使用实际SDK/libSystem，Linux使用所选glibc/musl的libm，覆盖musl静态与动态配置。不能因为llc成功产出object就视为链接/运行通过，也不无条件增加compiler-rt或libquadmath。
+工具中断停止后续构建，向当前 child 传递信号并回收进程，保留真实 signal。某节点失败后不启动 dependent 或 program-link。
 
-**core与JSON。** Float/Double显式adopt ToString，Hash registry/conformance不因primitive kind自动扩充。各自companion实现普通Encodable/Decodable；single-value协议增加两个精度的read/write方法，JSON从原始数字文本直接解析目标精度，有限值按规定格式输出，非有限值按JSON规则报错。普通合成codec继续按实际字段类型选定companion，泛型使用显式codec组合；编译器不增加JSON builtin。native字符串后备与解析Option的Scoop ABI沿运行时规范6.1。
+### 2.8 Artifact-only program-link
 
-**产物。** HIR/MIR/LIR的type、constant、intrinsic、C storage及实际ABI记录按kind完整编码；metadata的Eq/Hash、去重及fingerprint按raw bits工作，这是编译器数据比较，不是Scoop浮点`==`或Hash conformance。已知负零和NaN位型不得在跨Cone传递、缓存或ODR时消失。更新实际受影响的section/profile兼容版本并重建旧产物，新增single-value接口方法后相关实现与itable一并重编；实际wire字段/tag与格式版本见下文。reader只验证必要的格式、typed引用、kind/位宽与ABI，后续stage复用已经验证的数据。不为仅调研的128位类型加入成功IR节点、runtime字段或占位实现。
+program-link 消费完整 `.slib` Link 闭包、普通 runtime 对象、已有 native 文件、LIR target 与 final-link 配置。它不展开模板、重新编译 Scoop 或编译用户 C/C++；只可用明确选择的 C compiler 生成本次固定启动代码与最终 image tables。
 
-M30 当前格式为 HIR `core-bootstrap-interface/11`、`cross-cone-interface/60`、`cross-cone-type-semantics/22`，MIR `cross-cone-type-bridge/15`，LIR `identity-foundation/5`、`cross-cone-layout-abi/9`、`strong-production/19`、`cone-production/8` 与 `link-identity-closure/14`。required inventory 和 profile fingerprint 随实际 section 版本更新，旧产物与缓存重建；runtime metadata ABI 4 保持。
+root 必须是唯一 executable，依赖全为 library。闭包核对完整 identity、exact edges、三层 semantic fingerprints、单版本与兼容合同。多个 locator 指向同一完整 artifact 可合并，同 identity 不同内容或不可达额外 artifact 是错误。
 
-`FloatKind` 编码为 unsigned 32 或 64；常量为两字段 map，field 1 保存 kind，field 2 保存同宽 raw bits，F32 超出 32 bits 拒绝。新增 HIR literal tag 67、nominal representation tag 10、canonical const tag 5，MIR intrinsic representation tag 6，LIR scalar representation tag 4、canonical type tag 13/14、canonical value tag 14、canonical shape representation tag 8；canonical C storage 与 LIR C type 使用 tag 6。上述 tag 均追加到各自封闭域，原有编号保持，core fundamental 表在 Char 后追加 Float 与 Double。
+每个 LinkObject 按 canonical Cone/member 顺序消费一次，保留原 bytes 与检查结果。diagnostic、opaque、unknown optional 成员不是链接对象；无法处理的 Link-required capability 失败。后续不重新打开 locator 取得另一份输入。
 
-Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8` 与 `__literal16` 常量池作为普通只读数据，分别要求 `S_4BYTE_LITERALS`、`S_8BYTE_LITERALS` 与 `S_16BYTE_LITERALS`。现有对象范围、重定位与内容摘要规则继续适用；16-byte 池可保存后端合并的标量常量，不表示支持 Float128。
+Strong 由原 provider 提供。ODR 在普通依赖语义一致后按完整 group/member key 与 shared ABI 合并，物理选择见 2.13、2.19。全部 typed imports 和实际 relocation 必须闭合；metadata-only 查询可以没有机器引用。
 
-后端局部常量池没有源码实体，不要求事前创建 Strong symbol 或 definition atom。对象读取边界保存已验证的池内容，实际引用按重定位目标读取对应常量字节；canonical object relocation target 使用新增的 tag 15 保存 byte span，池地址和局部标签不进入语义摘要。ELF 的 `.rodata.cst4/8/16` 同样使用现有只读数据通道及 `SHF_MERGE`。旧对象摘要与缓存按上述版本重建，不新增来源认证、独立凭证或第二套产物消费路径。
+SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、mutability、ABI、calling convention、GC effect 与 signature/storage。任一字段冲突均报错并指出来源；随后从实际 native 对象或 provider export 解析定义。core 与普通 Cone 使用同一规则。
 
-浮点运算使用新增的 HIR intrinsic tag 22，以及共享表达式 tag 68/69/70，分别保存完整 unary、binary 与 conversion 操作。操作只实例化两种浮点表示及现有八种整数；关系比较直接由浮点表示产生 typed binary 节点，不要求源码 `compareTo`。LIR canonical instruction 的 tag 71/72/73 分别编码浮点 unary/binary/conversion。现有 target support 表包含 `fmodf`/`fmod`（新增 tag 4/5），机器契约分别为 `(F32,F32)->F32` 与 `(F64,F64)->F64`、NoGC；它们使用现有平台 native 链接闭包。其他未改变的记录沿用原版本。
+普通 native 对象不含完整函数类型时，只核对实际符号、kind、范围、可写性和 relocation 等可观察事实，FFI 实现履行声明的责任不被伪造的类型证明替代。显式 library 的 symbol 必须由该库按平台规则提供，默认 namespace 的多 provider 歧义不能按搜索目录先后静默解决。
 
-浮点 pattern 为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。
+参数自由 source extern 的普通 managed 调用经原 provider 的 Scoop 薄入口，包含 native transition 与 caller-root publication，入口的 Scoop GC effect 为 Managed；native callee 自身的 effect 仍是其声明合同。泛型正文在定义方与消费方使用同一入口；NoGc 和 release 的直接 native 调用遵守各自规则。
 
-### 2.19 M31：首批优化、ODR 合并与 nursery（已完成）
+runtime object index 是普通对象及定义／引用摘要，必须匹配 target、runtime ABI 和实际内容。runtime-build 的源码、头文件、compiler、SDK、flags 与规则变化使其缓存失效；该索引不要求 program-link 读取这些源码。
 
-本节与 [M31 设计](../milestone31/DESIGN.md)、语言规范 12.3/12.5/14.3、运行时规范 2.8/3.6/3.9 同步；各实现批次与验证结果见 [实施记录](../milestone31/PROGRESS.md)。M23～M30 的历史 wire、摘要与行为记录在本节明确替代的范围内不再作为后续要求。
+逻辑 native library requirement 沿完整依赖闭包传递。只从明确 library roots 与平台 provider 解析，不自动发现相邻 native source/object/archive。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、脚本或任意 linker 参数。
 
-**构建配置与首批优化。** 保留公开 debug/release，使用实际生效的 typed optimization 配置贯通 umbrella、single-Cone child 协议、scoopc、MIR/LIR 优化和各 producer。debug 保留当前 Scoop 机器 O0 与必要 SSA/GC lowering；release 使用 LLVM machine O2 与经过精确 GC/EH 验证的函数内 IR pass 组合。IR 优化和 machine O2 分别验收，不将裸 `default<O2>` 作为既有 statepoint 合同下自动安全的开关。generated-C 的 O0/O2 与必要 ABI、`-fno-builtin` 等约束一并进入实际 producer 配置；runtime 当前默认已经 O2，首版两个 build profile 沿用相同 runtime 优化设置，独立记录其实际构建键。
+普通 archive 保留真实 member index、offset、length 与 digest，允许 BSD/GNU 命名；拒绝 thin、外部或嵌套 archive 和损坏边界。必要格式与定义索引覆盖候选，完整 relocation/EH/TLS/初始化检查只作用于实际选入的 member。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
 
-首批复用 LLVM 的 SROA/mem2reg、常量与指令简化、公共表达式/死代码/死存储消除；Scoop 侧只补当前表示必要的常量/复制传播、已知 enum/Option 分支和死路径清理。可能改变调用与 CFG 的 Scoop 变换位于 root plan、poll 与 site identity 定稿之前。当前每 callable 一个 LLVM module/object 的生产方式不提供普通跨函数内联；自动内联、通用去虚拟化、循环边界检查优化、LTO/PGO、逃逸分析和协程 frame elision 均不作为 M31 的完成门。
+选入的 native 对象不能包含未声明的 constructor/destructor、动态 TLS initializer、bitcode/LTO、embedded linker actions、可执行栈或禁止的 C++ EH 依赖。允许普通 C unwind 与静态／零初始化 TLS。普通 native 重复定义不使用 Scoop ODR 判等。
 
-局部常量清理沿基本块及唯一前驱的直线链传播已经求值的标量与已知 enum variant；合流和回边重新从未知事实开始，不增加跨过程分析。整数按声明宽度执行 wrapping、位运算、转换和已归一化的 shift；除法与余数只折叠 MIR 已拆分异常/溢出后的合法 primitive，不能吞掉除零、MIN/-1 分支或操作数副作用。enum/Option 只按完整 typed variant 判断 tag/匹配结果，payload 求值及复制仍正常执行。删除已知真分支后，LIR 的 payload projection 可直接由同一未改写值的构造及普通复制支配；现有 variant 检查复用完整 typed ref 和值定义/使用事实，取址存储在未知写入和调用后不再提供该事实。取址局部在未知写入、调用或 GC 边界失效；已知精确指针写入按实际目标更新事实。普通 LLVM pass 继续负责后续冗余运算与存取清理，严格浮点不改用宿主整数式规则。
+非空 `@Extern(lib=L)` 在 Darwin 的每个显式 library root R 下，对 TargetDefault 检查 `R/L.o`、`R/libL.a`、`R/libL.dylib`、`R/libL.tbd` 与 `R/L.framework/L`；不去掉已有 lib 前缀或扩展名，不递归扫描。显式 kind 只收窄对应格式；相同内容及加载合同的重复候选可合并，不同候选为歧义。空 lib 只查询已引入的 runtime/native 对象和动态 exports，不扫描目录搜索任意库。
 
-**优化与精确 GC。** LIR 输出仍完整表达 typed 值、调用 effect、控制流及 GC 根需求。codegen 复用这些事实和现有 ExpectedSafepoints，在最后一次允许的普通 IR 变换后形成该实现的最终发射计划，再执行 RS4GC。已删除的不可达站点不能继续留在实际站点清单；现存站点必须具有明确 owner/role 和完整 managed leaf，不能根据输出 stackmap 的数量反推根语义。首批 pass 不复制/合并 GC 站点，不凭优化等级改变外部 callable GC effect；poll 在实际入口与循环路径的覆盖、normal/unwind、native transition 与 frozen segment 的协议继续检查。RS4GC 后保留现有 relocation/use 和对象 stackmap/EH 检查，不再运行任意会改写 site、call 或 GC liveness 的通用 IR pipeline。单纯用来钉住旧 root identity 的临时 volatile/alloca 可以在实际 SSA 与最终计划能保证正确时消除；已发布、可由 collector 回写的 compiler/native/caller root storage 继续保持内存可见性与 reload。
+Darwin 支持 `.o`、`.a`、dylib/framework 与所选 SDK 的系统 providers。普通 load/re-export、真实 install name、target/deployment、symbol kind 和绑定关系参与解析；显式库不能被另一库的同名 export 替代。`@rpath` 从明确目录解析，实际 LC_RPATH 进入输出和 link plan；依赖中的 `@loader_path` 相对 provider。需要部署布局才能解释的直接 `@loader_path`、`@executable_path` 或未知形式拒绝。
 
-根的最终物理数量来自普通优化后的 managed SSA 值：相等的 SSA leaf 共用一个 root pair，已知 null 或不可移动的常量不需要 relocation。每次实际的调用后，在 canonical-storage volatile 回写之前紧邻插入一个 LLVM `fake.use` 保活标记，标记同一 SSA 值及其 typed source/leaf；该 intrinsic 不产生机器指令，并使 SROA 重建 store 时仍能保留关联，不再为身份比较另建 alloca 和 volatile load。标记位于真实回写之前，避免 LLVM 在 `unreachable` 前清理尾部 intrinsic 时单独删除它。回写继续维持调用参数保活及后续读取所需的真实 use。RS4GC 前核对每个保留站点的 typed leaf 覆盖，保存 SSA 等值分组与常量分组；RS4GC 后按标记值的 relocate token/index 检查同一分组，再检查旧值使用、base/derived 与 stack-only 约束，不跨 LLVM 改写保存可能失效的裸值指针。旧值使用与 derived 地址检查复用同一 CFG 路径规则：跨回边再次执行 SSA 定义得到的是新动态值；只有从站点到 use 的路径未重新执行该定义时，才属于旧值跨站点使用，PHI 按实际 incoming edge 判断。production、runtime registration 和对象 stackmap 检查统一使用这一最终 root-pair count，LIR 的逻辑 live-set 保持完整，不把优化后的物理槽数回写成语言语义。
+Darwin 使用所选系统 linker、C compiler、SDK/deployment 与 libSystem，Level I unwind 经系统正常导出解析。final-link 不使用 dead_strip、不同 body 的 function ICF、LTO、未声明 autolink 或 raw 用户 linker options。stackmap relocation 后位于只读 `__DATA_CONST`，采用传统 rebase/bind（no_fixup_chains）格式；实际需要的 ad-hoc signing 属于平台装载格式。
 
-首批 release 普通 pass 顺序为 SROA、mem2reg、InstCombine、EarlyCSE、DSE、ADCE、末次 EarlyCSE、SCCP 和 UnreachableBlockElim；debug 使用 SROA、mem2reg、SCCP 与同一不可达块清理。SCCP 先折叠常量分支，避免 RS4GC 自身再次清理这些边时删除已经定稿的站点；不可达块清理不合并或复制 GC call，末次 EarlyCSE 合并死存储删除后暴露的相同加载，避免将指令选择必然共用的值计为多个根。codegen 在此后保留实际 site、invoke 与 landing pad 关系，生成该实现的 GC/EH 计划；落选 site 的登记、ODR 私有 member、stackmap 摘要输入及物理符号退出本次产物，无需 EH/stackmap 的 body 同步去除相关附属 atom。独立 metadata 与候选 image 在这一步之后发射，引用最终集合。其余未变化的类型、布局、根扫描与初始化记录直接复用。
+Linux 接受 `.o`、`.a`，动态模式另接受 ELF `.so`；framework 与静态程序的动态库需求为错误。用户 `.so` 必须是 DSO，不是 PIE executable 或 linker script。未版本化的源码 extern 只匹配默认导出版本，DT_NEEDED 不等于显式库 re-export；TLS、IFUNC、版本化导入按实际 kind/version 检查。
 
-保留 site 沿用原 owner、role 和 ordinal 构成的 typed identity，不因前面的站点被删除而重新编号。优化后的 foundation 可以只含同一 role 的稀疏 ordinal；reader 检查真实 owner、唯一的 owner/role/ordinal 及 site 与 runtime mapping 的一一对应，不再要求最终集合从零连续。优化前完整 LIR 的编号规则与实际对象的缺失/额外 stackmap、return PC 和根检查保持。
+Linux gnu 默认 dynamic PIE，musl 默认 static ET_EXEC；musl 可显式 dynamic PIE，不支持 glibc static。最终输入明确选择 CRT、LLVM unwind、libc、libm/线程及算术 builtins，不引入第二套 EH provider。动态 metadata/stackmap 满足实际 RELRO，静态 musl 的不可变记录位于只读 PT_LOAD；最终文件不得有 text relocation。
 
-首批后端为具有 unwind 边的 NoGC invoke 添加 LLVM 标准 `nomerge` call-site 属性，保留最终 EH 清单与实际受保护调用的一一关系。该局部约束防止 machine O2 将多个异常抛出路径的调用尾部合并；不可达调用仍可由前述普通 pass 删除，NoGC 不因此被视作 nounwind，普通无 unwind 边的调用不受此约束。
+DSO 依赖查找使用显式 roots、provider 目录、实际 RPATH/RUNPATH 与所选系统目录。真实 SONAME、DT_NEEDED、加载顺序和 RUNPATH 进入 link plan，临时快照路径不写入 executable 的依赖名；同名导出使实际 ELF 顺序无法满足显式库绑定时报告冲突。
 
-InstCombine 使用 LLVM 默认的一轮处理及标准 `no-verify-fixpoint` 选项：本批不要求单轮已消除所有后续优化机会，不能因 LLVM 的固定点自检拒绝合法程序。此选项不关闭 LLVM IR verifier；普通 pass 之后的类型/CFG、最终 GC/EH 计划及对象检查仍按原边界执行。
+链接生成 C main、最终 image descriptors、六张 producer pointer tables、image pointer array 与唯一 root entry 引用，调用 `scoop_rt_run_program`。它们只引用所选记录，不复制 TD、storage、cell 或 gateway body。`scoop_td_String` 是实际 String TD 的同地址 alias。
 
-实际 code/stackmap plan 随所选实现进入 code/object 元数据；它不进入跨 Cone ABI 或 ODR 内容判等，也不反向污染 dependency semantic fingerprint。保持 frame pointer、stack-only writable root、精确 return PC、AS1 provenance、无 exceptional relocate、禁止 managed tail call/ICF 等已经验证的后端合同。
+ResolvedLinkPlan 使用 `scoop-resolved-link-plan-v3`，覆盖 root/依赖、Code 与对象内容、runtime/native/startup 输入、ODR 选择、最终 image 内容、系统 providers、库绑定、archive members、加载路径、工具配置和有序操作。物化与输出 locator 不进入内容身份，实际 install name/runpath 必须进入。
 
-LLVM 为大值 `byval` 参数生成的标准 `memcpy` 不展开异常，也不新增 LIR invoke。EH 对象检查依据真实的直接调用指令及 `memcpy` 符号重定位识别这类后端复制；它可以位于已有 LSDA 保护区间内，但不计入需要与 LIR 对应的可展开调用数。未知外部调用、实际 managed site、landing pad 与保护区间仍按原合同检查，不能把普通 NoGC effect 当作不展开异常的保证。
+最终检查核对本次链接产生的 target/entry、实际输入、symbol/binding、Strong/ODR 地址、String alias、startup/image 引用、stackmap/EH 保留与装载权限。native linker 不能重新选择另一份 ODR 实现；落选 bytes 不能用于解释最终文件。已在对象边界确认的语言、ABI 和不变内容不重复完整重放，也不运行用户程序证明链接成功。
 
-**ODR 与依赖。** 普通依赖图确认模板 origin、完整 application 与 exact arguments 对应同一定义后，重复 ODR member 只比较完整 typed key 与共享 ABI。ABI 包括调用约定、参数/返回表示、GC 调用契约、共享 layout/alignment/scan/dispatch；不包含优化后的 LIR、机器码、私有帧、EH 或 stackmap。删除 `OdrDefinitionFingerprint` 及只服务正文相等的计算、leaf、补丁和测试，不另建“优化前语义正文摘要”。导出的模板、默认值、const、类型和调用合同仍由普通 HIR/MIR/LIR semantic projection 覆盖；优化设置与私有实现变化进入编译、Code/Artifact 及链接缓存。后端的兼容契约与 producer 优化设置分开，不能因 profile 或 pass 改变而错误报告 stale edge。
+全部检查通过后原子发布 executable，失败保留旧文件。
 
-LIR 依赖摘要使用已有 `cross-cone-layout-abi` 和 `cross-cone-param-free-bridge` 导出及所选引用：前者保存完整 layout、descriptor/scan、dispatch、callable ABI 与 storage/init shape support，后者保存普通 callable 的物理签名与对外 GC root 协议。完整 `identity-foundation` 中的本地 body/site/atom 和 `strong-production`／`cone-production` 属于 Code、image 与链接验证输入，不再作为依赖语义贡献；不另建正文投影或重复的 ABI 导出。LIR semantic 域升为 `scoop-lir-semantic-v2`，上下文保留 composite identity/runtime ABI 与 target/profile fingerprint，退役 backend profile/fingerprint fields 4、5。后端兼容性仍由普通 artifact reader 检查，生产配置与对象完整性仍进入 Code/Artifact。HIR/MIR 导出的模板、默认值、const 与类型语义贡献不变，真实依赖变化继续按既有 stale 规则处理。
+### 2.9 虚方法与接口分派
 
-program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。候选 image descriptor 及其六类表具有独立物理成员，供 program-link 整体替换；非 callable 的独立 ODR definition 与自身 associated atoms 各成一个可选择成员。
+每个 slot 有原根声明、完整签名、访问域和 Abstract/Concrete/InterfaceDefault 的明确选择。class vtable 保留 base prefix，override 不改变 family 位置；Any 不预留 equals/hash/toString 槽。
 
-对象中的全零只读填充可以包含静态存储空数组的 typed sentinel；ELF 可以把这些不含重定位的常量单独放入只读节。此类全零节不需要额外 definition atom，空 span 的引用仍按既有元素大小、alignment、范围与不重叠规则检查。sentinel 地址不表示语言实体：不同记录或物理成员可以分别携带，也可在满足各自 typed span 要求时共用零数据，不要求跨记录地址相同或不同。未归属的非零数据、可写数据和代码仍拒绝，不因物理分区放宽实际定义与引用规则。
+interface 槽序按直接父接口声明序继承，再追加当前声明；相同 exact application 的菱形路径去重，移除被原 typed override 覆盖的成员，保留其余相对顺序。getter/setter 独立，private helper 不占槽。实际类／值类型表项匹配原 slot 的参数、结果、execution 与 GC effect。
 
-Mach-O 的局部常量池也包括 LLVM AArch64 在 `__TEXT,__const` 生成的相对跳转表。该池位于没有显式 definition atom 的独立只读节，由同一对象的代码通过局部符号和 page 重定位引用，池内没有地址重定位；完整池字节通过已有 literal byte-span 通道保存，与所属对象一同选择和链接。它是机器实现附属数据，没有新的源码身份、ODR 身份或登记。固定宽度浮点池的表示与编码保持，普通未引用非零数据、可写节、显式 atom 范围与重定位边界继续检查。
+itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。generic receiver 始终是完整 exact application，只沿声明中的 exact base/interface 关系分派。
 
-最终 image 沿用 startup C/native-object 输出：按所选 definition 过滤已验证的六类登记，保留每个逻辑 Cone 的 coordinate 与直接依赖，使用同一 RuntimeImage 编码计算实际表的内容摘要。startup 对象同时定义这些 image、pointer 表及正文引用的既有 trap-message 符号；原候选 image 对象不参加 native link。定义、未定义引用和最终 relocation 检查均使用实际保留的 member，最终 link map 必须符合显式选择。`scoop-resolved-link-plan-v3` 保留原输入产物摘要，并覆盖所选对象及实际 startup 源码/对象，不增加另一套选择摘要或链接缓存框架。
+引用 receiver 适配为 Identity 或 ReferenceDispatch，并满足实际继承／接口关系；物理 pointer 形状相同不足以接受不兼容签名。装箱值的方法 receiver 按值取得 payload 副本，可观察的 this 存储不能指向 box；interface default 可以使用同一 box 的合法 interface 视图。
 
-Darwin 将实际有序对象路径写入系统 linker 的标准 response file，避免物理成员较多时超过进程参数长度限制。按 response-file 语法保留路径中的空格、引号和反斜杠；这只是参数传递方式，所选对象、顺序、实际链接计划和 map/trace 检查不变，不引入新的产物协议。
+qualified super 保存实际 direct target。dispatch 数据不重新进行 overload、default 或 override 选择，也不因 provider 为 core 使用另一套规则。
 
-`.slib` 保留候选 image/registration 数据与物理 owner，program-link 在选择后通过现有 native-object 输出路径生成最终 image descriptor 和六类 pointer 表，不启动 LLVM/Scoop codegen、不读取源码或 runtime header，也不修改已发布 artifact。落选正文及其站点/EH/Context 数据不进入最终对象集合；所有引用指向唯一 TD、storage/cell、callable 和登记。最终 image fingerprint 根据实际表计算并进入既有 link plan，普通 eager 初始化顺序和 lazy unit 的 exactly-once 语义保持。Mach-O 不能依赖独立 weak coalesce 模拟这项关联选择；ELF 采用相同显式规则，不把平台 COMDAT 能力变为另一套语义。
+### 2.10 Intrinsic 合同
 
-**nursery。** runtime 在现有 arena 中按 block 区分 nursery/旧代，TLAB 从 nursery 分配；minor 只追踪完整根、旧代脏区和年轻存活图。首轮存活即晋升到 Immix 旧代，不增加 survivor 区或年龄字段。无法放入普通 block 的大对象及带 release hook 的对象直接进入旧代；pin 不得移动已暴露的地址，含 pinned 对象的 block 在 STW 中原地转旧代。普通中小对象及其晋升须支持跨 line 分配：调整旧 64-byte small 上限和仅 `uint8_t` size-units 表示，精确 size、占用 line 和 forwarding 在原 side metadata 中表达。
+intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，普通候选和效果规则先确定其合法使用。成功 HIR 保存封闭 typed kind，后续不得按 symbol、FQN 或 annotation 文本重新识别。
 
-编译器只对可能含 managed ref 的 heap 写入发射范围正确的 card barrier；runtime Context、array/box copy 与 Scoop ABI native 使用同一协议，多 mutator 标记为 atomic monotonic。构造过程中可能晋升，不能按“新对象”永久省略屏障。minor 在同一 STW 中先标记与规划晋升空间、再回写，空间不足从完整原图执行 full；正常 minor 不扫描全旧代来验证屏障。全存活年轻对象晋升后才重置年轻区和卡。显式 `gc.collect()` 保持 full；minor/full stress 分别执行真实路径，release hook、native root、pin/handle、frozen segment 的合同保持。
+| 合同 | 必须确定的内容 |
+| --- | --- |
+| intrinsic type | 原 nominal identity、完整 application 与表示 kind；LIR 给出目标布局。 |
+| current_source_location | 当前表达式的 evaluation origin，结果为普通 SourceLocation 值。 |
+| Ptr/FunPtr/addressOf | 实际 pointee/signature/place、unsafe 与非零条件，不取普通按值实参的临时副本。 |
+| sizeOf/alignOf | 完整被查询类型，结果由目标布局产生。 |
+| integer/float operation | 完整 operand/result kind 与语言操作，不保留待决议源码调用。 |
+| managed callback | native/managed 签名、context index、mode、原 registration 与实际 application。 |
 
-**版本与验收。** M31 metadata ABI 4→5 删除 registration 公共 identity 的 definition fingerprint；删除 OdrDefinition 和仅回填该字段的 StrongRegistration 节点，普通 RuntimeImage/Code/Artifact 内容保护保持。调整实际发生变化的 child protocol、producer 配置、manifest/production、code GC plan、image/registration wire、runtime ABI 与 cache 版本；不为未改变的实体 id、对象头、TD、managed ref 或 stackmap v3 增加新格式。ABI 5 的具体字段顺序、section 版本和普通编码向量随各实现批次记录，旧不完整屏障与旧 ODR 产物必须拒绝或重建，不能靠优化 profile 名辨别。
+每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
 
-ABI 5 中 `ScoopRegistrationIdentityV1` 保留 linkage/reserved、semantic、group、member，大小为 104 bytes；六类登记大小各减少 32 bytes，callable 为 176 bytes，其他字段相对顺序保持。RuntimeImage 编码域升为 `scoop-runtime-image-v2`，runtime ABI contract 升为 9。专用于内容判等的 LirDefinition、OdrDefinition、StrongRegistration digest kinds（tags 4、8、9）、对应 owner tags 4、11、9 与 RegistrationDefinition patch role 1 退役，不复用。ODR member directory 退役 definition field 4；callable/shape canonical 表只保存 typed owner 和共享 ABI，退役正文内容 fingerprint 字段及其 CFG 编码。登记 identity 和 shape-support 引用不再携带 registration digest node；实际记录仍经普通 typed definition、symbol 和 relocation 关联。LIR identity-foundation、production、layout/ABI 与 link closure 的受影响版本随这些字段删除同步迁移；HIR/MIR 源语义格式保持。
+共有 CallableSourceEffects 的 implementation 为 Scoop=1、Intrinsic=2、SourceExternScoop=3 或 SourceExternC=4；仅 Intrinsic 带完整 kind payload。ordinary/suspend、GC effect、release callability 与 implementation 的组合必须一致，不能用缺失字段或另一个表补出。
 
-manifest `single-cone-production/5` 同时退役 field 5 的 Strong registration fingerprint 表。六类登记身份继续由 field 4 的 typed registration projection 表达，实际最终表内容由 field 6 的 RuntimeImage fingerprint 覆盖；不保留重复的身份表或空摘要包装。仅用于旧公共字段的 registration-object、immortal-object、static-storage 和 initialization-cell digest leaves 一并删除，保留 callable body、descriptor、layout、scan、stackmap 和实际 gateway 字段使用的结果。
+### 2.11 输出完备性与 typed identity
 
-ABI 5 字段迁移对应 LIR `identity-foundation/6`、`strong-production/20`、`cone-production/9`、`cross-cone-layout-abi/10`、`link-identity-closure/15` 和 manifest `single-cone-production/5`。随后最终 GC/EH 发射计划将 `strong-production` 升为 21、`cone-production` 升为 10：safepoint 数量及 root-pair count 表示实际保留站点和优化后的物理根，候选 image、私有 ODR member、definition/atom 与 stackmap 输入同步投影。两个 LLVM backend contract 均追加必需 field 28=1，标识本节限定的普通 pass、SSA 根分组与最终站点投影；其编码与 fingerprint 改变，旧产物/缓存必须重建。`cross-cone-layout-link-closure/5` 的普通物理引用编码未变，保持原版本。ABI 5 的 safepoint、callable、type、immortal、static-storage、initialization-unit record 大小依次为 200、176、208、152、264、320 bytes；公共 prefix 和 identity 共占 120 bytes，后续字段整体前移 32 bytes。此次 GC 计划调整不改变 runtime ABI 9、registration ABI 5 或 stackmap v3。
+所有下游转换必需的数据都必须在上游成功输出中完整且类型化。合法的缺省、空集合或无实例分支使用明确 sum；缺失的类型、签名、root、结果存储、构造目标、字段或 layout 不能由 Option、默认数值或名称回退掩盖。
 
-LIR 根计划之前的既有局部常量清理同时处理 typed integer 常量与复制后的整数比较；比较严格按声明的 signedness/width 解释，不经过浮点或宿主有符号溢出运算。常量确定的条件边在分配 site identity 前删除，使例如已知正数的数组长度检查不会将不可能执行的异常分配留给机器优化删除。该正确性清理对两个 profile 都适用；取址与调用仍按既有局部失效规则处理，不跨未知内存写入传播。
+type、function type、generic declaration、完整 application、concrete function、runtime/extern target、dispatch slot、layout、TD、property/accessor/storage、initialization、callback 与 safepoint 使用不同 ID 类型。stage-local ID 不持久化，跨 stage 关系显式映射；同形结构与相同整数值不建立身份。
 
-M31-1 的配置格式先独立落地：child protocol 为 4，build request 新增必需 field 9 `OptimizationMode`（Debug=1、Release=2）。manifest `single-cone-production/4` 新增必需 field 12，同一模式同时选择本次 Scoop machine O0/O2 与 generated-C O0/O2；该字段进入 Code/Artifact，不进入 HIR/MIR/LIR 依赖语义或 ABI。该批普通 IR 使用 SROA/mem2reg；随后落地的首批 pass、SSA 根分组与最终发射计划使用本节前述 field 28=1 合同。generated-C 通用 flag 合同的原 Unoptimized tag 6 退役，SelectedOptimization 使用 tag 15，实际 flag 由 field 12 决定。编译缓存域为 `scoop-cone-compile-cache-v2`，新增必需 mode field 13；runtime 和 final-link 继续使用各自已有配置。旧请求、manifest 和缓存不再作为本批输入。
+persistent keys 保留原 ConeIdentity、typed owner chain、kind 和该声明种类所需的规范化签名；不含正文、arena ordinal、host 路径或 link symbol。透明 alias 不建立新的 exact type，完整 generic arguments 和 structural type constituents 参与 exact identity。
 
-Darwin 的 O2 对象可包含标准 `LC_LINKER_OPTIMIZATION_HINT`。对象 reader 按 linkedit-data command 的固定大小检查其数据范围，并与现有 section、重定位、符号和字符串表统一检查非重叠；该数据随所在对象进入普通 Code 内容，交由 native linker 消费，不作为 ABI 或独立定义判等数据。
+CallableApplicationKey 区分原声明、NoOwner/ExactNominalOwner/EnclosingCallableApplication/EnclosingInitializationApplication，以及无 callable arguments 或完整非空 arguments。lexical body、local value、capture、initializer 与默认值的原定义路径在替换后保持；物理 producer 不替代定义 owner。
 
-完成门包括三 target 的 debug/release 功能与正式 CLI fixture、混合优化 ODR 和 artifact-only link、真实 minor/full moving/多 mutator/FFI/Context/release 组合，以及可复跑的性能基线。性能重点评估生成代码的运行时间、代码/产物大小、分配/晋升/扫描量及 GC 停顿；编译耗时只保留原始观测，编译速度优化留待后续，不因构建变慢延后本阶段交付。不设置噪声毫秒门槛，也不把完整代码摘要 golden 当成优化正确性测试。详细批次、非目标和验收矩阵见 M31 设计。
+persistent mangling schema 为 `persistent-v1`，语义 symbol 为 `scoop$1$<kind>$<lowercase-hex-owner-id>`，再按目标加平台前缀。kind tags 为：
 
-## 3. 待明确事项
+| 实体 | tag | 实体 | tag |
+| --- | --- | --- | --- |
+| CallableBody | cb | StaticStorage | ss |
+| ImmortalObject | io | TypeDescriptor | td |
+| Layout | ly | ScanProgram | sp |
+| DispatchTable | dt | DispatchSlot | ds |
+| InitializationCell | ic | RootRegistration | rr |
+| ImmortalRegistration | ir | InitializationRegistration | nr |
+| TypeRegistration | tr | SafepointRegistration | sr |
+| CallableRegistration | cr | ImageDescriptor | im |
+| GeneratedBridge | br | OdrMember | od |
+| DefinitionBoundaryStart | bs | DefinitionBoundaryEnd | be |
+| RootEntryDescriptor | re | | |
 
-1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。
-2. **后续 GC 演进**：M31 已实现 nursery、晋升与 remembered set，见 2.19 和 runtime spec 3.6/3.9。survivor、arena 扩容及 parallel/concurrent collector 留待后续，不作为 M31 完成门。
-3. **off-heap ByteBuffer 与外部内存反馈**：已移出 M26，后续单独设计增长、borrow/view、close、失败原子性、external-memory pressure accounting 与 managed 侧 GC 反馈；它不改变 M24 release hook 的 best-effort 时机。
-4. **Windows 异常**（catchpad）与调试信息（line table 等）留待后续。
+symbol 只表示已存在的 typed entity，不能反向补声明或决定 ABI。完整 identity 的短 runtime type/site ID 必须验证全程序无碰撞。
+
+诊断来源使用实际 Cone、logical source、definition/evaluation context 与 byte span。synthetic entity 使用其真实 generated role，不伪造源码位置；显示名称和 mangled symbol 不代替实体身份。
+
+边界责任分别为源码语义、当前转换生成的 IR、外部字节格式/引用、实际链接绑定及加载后的 GC/地址契约。同一不可变事实在明确边界验证后复用，不以重复完整重放作为发布条件。
+
+### 2.12 Core 与普通依赖
+
+core 是普通 library Cone，可修改和重建，使用相同声明、可见性、泛型、产物、ABI 与链接规则。sysroot 只提供默认 locator，不改变实体归属或来源资格。
+
+只有编译器主动构造或调用的语言角色需要独立的 typed protocol 引用，例如 Unit/Any、整数/Char/Float/Double 表示、Option/Iterator、编译器异常、初始化循环、协程和 callback。引用必须解析到实际声明及完整签名，缺失、重复或形状错误在相应边界报告。
+
+Option protocol 保存同一个实际 owner、Some payload 与 None variant；Integer protocol 完整覆盖八种整数 kind。compiler exception protocol 包含实际 Throwable、UnwrapException、ClassCastException、ArithmeticException、IndexOutOfBoundsException、IllegalStateException 与 IllegalArgumentException 及所需调用目标。
+
+ToString、Hash、普通 operator、print/println、容器和 codec 通过普通声明与接口分派使用。新增普通 core 成员不要求新增编译器角色表；intrinsic 表示不自动赋予未声明的 conformance。
+
+core prelude 从普通 public bindings 提供最低优先级名称，direct/support 依赖与 re-export 保留原身份。普通调用、默认值、模板与 native 引用使用同一 Export/MIR/LIR 合同；String 的 layout、TD、registration 与 alias 也来自实际声明。
+
+### 2.13 跨 Cone 模板与 ODR
+
+Export HIR 保存模板的已解析正文、原 binder、默认值、局部 callable/capture、字段/variant 和完整定义位置。实例化只按 actual application 替换类型，不重新执行 provider 的名称、重载、接口或 codec 选择。
+
+普通参数自由定义由原 Cone 提供，即使签名含已闭合 generic application 也仍是该 Strong 定义。泛型和 structural application 的机器实体由实际需要它的 Cone 物化，并保持程序内共享身份。
+
+SpecializationKey 是四分支 CBOR sum：Nominal=1 `{origin generic type, nonempty exact arguments}`、Callable=2 `{application}`、DelegatedProperty=3 `{origin extension property, nonempty receiver arguments}`、StructuralType=4 `{exact type}`。`OdrGroupId = H("scoop-odr-v1", key)`。
+
+OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("scoop-odr-member-v1", key)`。role tags 为 CallableBody=1、GeneratedNominal=2、Layout=3、ScanProgram=4、TypeDescriptor=5、DispatchTable=6、DispatchAdapter=7、StaticStorage=8、ImmortalObject=9、InitializationCell=10、RegistrationRecord=12、DiagnosticBytes=13、AddressTakenConstant=14、ObjectSupport=15、ReleaseHook=16；11 保留不用。
+
+每个物理 member 保存与角色匹配的 shared ABI，OdrAbiFingerprint 使用 `scoop-odr-member-abi-v1`。callable ABI payload 为 `{1=GC effect, 2=ScoopAbiSignature}`；包含实际调用约定、参数/结果、物理类型、布局与 scan，不包含正文或 CFG。registration ABI 包含 kind/version/size，site/root 数量属于所选实现。
+
+普通依赖定义一致后，同一 group/member 的完整 key 与 ABI 必须一致；不比较不同 producer 的 LIR、机器码、EH 或 stackmap 内容。不同优化实例可以具有不同内部实现，但同一 body 与其关联数据必须一起选择。
+
+同组独立 helper 可以取合法并集，不要求整个 group 来自同一 producer。TD、static storage、cell、published/failure root 与初始化状态具有唯一实际地址，不能因多个 consumer 各自物化而重复。
+
+泛型 companion 按原 companion 声明和完整宿主 application 区分，包括 phantom arguments；generic delegated extension 按原 property 与完整 receiver arguments 区分。每次实际物化都完整提供所需 storage、unit、initializer/ensure 和 registration，同一 application 最终只初始化一次。
+
+源码模板可以合法引用其支持声明；support closure 不使这些声明成为普通 public lookup。普通外来 constructor/accessor/helper 仍引用原 Strong 定义，不复制成消费者的新声明。
+
+类型描述符、装箱、closure、协程与其他实际 helper 的依赖必须闭合。ordinary nominal 的有限跨 Cone shape support 由定义方提供，generic/structural helper 按原 application ODR 归属；未用模板、纯语义 identity 或查询本身不产生空机器定义。
+
+### 2.14 Runtime image 与初始化
+
+runtime metadata ABI 5、runtime ABI contract 9 的字段与启动协议由运行时规范 2.7、2.8 定义。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
+
+image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
+
+全部 image 和 roots 在首个 managed initializer 前登记。每次 eager/root gateway 有独立 native→managed boundary 和入口 poll，所有异常在回到 C 前处理完成。构造、static initial state、failure root 与 Context cells 遵守运行时规范，不由最终 linker 补造缺失语义。
+
+初始化顺序遵守语言规范 12.3；普通 lazy ensure 可以因实际访问执行。最终链接保证同一 ODR unit 共享唯一状态，runtime 按实际加载地址和当前状态协调。
+
+### 2.15 集合、Char 与字符串
+
+List、MutableList、ArrayList、StringBuilder 及迭代器是普通 core 类型；数组和 String 的属性/成员也从真实声明选择，不能按 `.size`、`.length` 等拼写跳过访问与类型检查。
+
+ArrayGenerate 保存完整目标 application、元素类型、Long count 与 ordinary `(Long) -> T` initializer。负长度、求值顺序、逐索引初始化和异常遵守语言规范 10.6；ZST 只省略 payload，不省略 initializer 调用。生成控制流在任意 GC/异常点保持数组可扫描。
+
+Char 为独立 nominal identity，常量和各层表示保存合法 Unicode scalar，物理布局为 GC-free u32。它不与 UInt 合并，Option、数组、装箱与 ABI 使用实际 Char 类型；不因表示相同增加整数算术或 CharRange。
+
+String 的源码索引和 length 按 Unicode scalar，byteLength 使用物理 UTF-8 byte count。定位后备的 Option 结果、间接 ABI 与异常边界见运行时规范第 6 章；List getter 仍为可抛出的普通 managed 调用。
+
+f-string 按源码顺序保存 text/expression part 与原位置，绑定实际 core StringBuilder 的构造、add 与 build。表达式与对应 toString 交错执行，保持异常和挂起行为；成功 HIR 正文不留待后端解释的字符串插值或 StringBuilder 指令。
+
+普通容器布局和内部存储策略不属于编译器协议。其模板、接口调用、快照和字符串构建使用普通类型/ABI/GC 合同。
+
+### 2.16 Task-local Context
+
+Context 的语言行为见语言规范 8.3.5，运行时 key、scope、task 与 callback ABI 见运行时规范第 9 章。HIR 保存 exact key、完整绑定值类型及已选 Context 操作；泛型条件在实际 application 中替换，不按运行期对象类型猜 key。
+
+Context scope 在完整 value 求值与成功 push 后才生效。真实离开 scope 的正常结果、return、break、continue 和异常都恢复 mark；挂起不退出 scope，已消费的 mark 不继续保活旧绑定。
+
+协程 frame 保存完整 TaskContext 与跨挂起 mark。只有取得实际恢复权的入口切换到 frame context，所有 driver 出口恢复 previous context。普通 closure 只捕获实际词法值，callback 注册另按语言规定捕获 binding snapshot。
+
+每个 body 的 Context key uses 与 slot cells 属于该 body 的物理选择，callable registration 保存完整关联。最终登记在首个 gateway 前填充 cells，同一 exact key 在程序中映射到同一 slot。
+
+### 2.17 静态类型描述与编码方法
+
+静态描述使用原声明、字段、variant、logical property、constructor/default 和 annotation 事实，不构造运行期 TypeInfo 或任意 CTFE。描述查询本身不触发物化、初始化或可见性扩张。
+
+annotation 声明使用独立 PersistentAnnotationId，应用保存实际 typed target 和按参数顺序补齐的常量。名义类型字段保持原身份，generic 字段保留 binder；tuple 保留位置，class 保存真实 field/property/constructor 关联。
+
+HIR foundation field 35 保存 annotation declaration keys，共有源码接口 field 14 保存 annotation declarations 与有序 applications；实际 annotation 依赖使用 AnnotationDependency tag 11。NominalDeclarationDetails field 11 保存可选 primary constructor 及声明序参数到 property 的映射，普通参数为空，val/var 参数引用原 logical property。
+
+property accessor 的 Storage、Constant、Body、AbstractSlot、StorageBody tags 分别为 1..5。StorageBody 表示普通存储语义产生的实际 accessor body，不能通过识别机器正文推断。NominalDeclarationDetails field 12 与 generated callable tag 17 保留不用。
+
+companion 继承直接宿主的 binder 与 bound，不捕获宿主实例或 primary 参数值；ordinary static nested declaration 隔断该 binder。companion declaration、完整 application 和 concrete singleton 分别有身份，泛型状态共享规则见 2.13。
+
+Encodable<R>.encode 与 Decodable<R>.decode 是实际 companion/codec 的普通方法，receiver 与数据参数/结果独立。手写、继承与 default 先按语言规则选定，仅为缺失的 requirement 合成方法；字段 codec、variant、constructor 和默认值在定义处完成选择。
+
+合成结果为普通 typed 字段访问、调用、控制流、闭包与构造；encode/decode 分别保留语言规范 11.13 的求值顺序、缺失字段处理和可见性。Export HIR 保存完整正文及支持声明，下游只实例化，不重新解释 annotation 或搜索 codec。
+
+codec 不因数据继承关系自动传递，不能按 value 的动态类型改选 companion。不同 codec 声明即使处理同一 R 也保持独立身份；数据类型本身不因此获得编码接口。tuple、Unit 和容器组合使用普通 helper，JSON 是普通库，不增加专用 MIR、runtime type table 或 C 入口。
+
+### 2.18 Float / Double
+
+语言语义见语言规范 11.2.2，运行边界见运行时规范 6.1。Float/Double 分别为 F32/F64，alias 不建立新 nominal identity。literal 与 const 按目标精度直接求值，成功输出保存原始同宽 bits，不经宿主浮点近似。
+
+算术、关系、分类、totalOrder 与转换使用明确 typed operation。浮点除零不使用整数异常规则；相等不能替换为 identity 或位型相等。所有 storage、aggregate、数组、closure、frame、boxing 和 C ABI 保留完整精度及 exact type。
+
+浮点操作不得使用 fast、nnan、ninf、nsz、reassoc 或 contract 等改变语言语义的假设。关系分别满足 IEEE ordered/unordered 规则，不能以 `!(a < b)` 替代 `a >= b`。float→integer 按目标位宽饱和，不生成越界 poison 或先转 64-bit 再截断；同格式转换保持 bits。
+
+C storage 使用真实 float/double；fmodf/fmod 的 NoGC 签名分别为 `(F32,F32)->F32`、`(F64,F64)->F64`，作为 target support tags 4/5 进入普通 native 链接闭包。内部常量池与机器局部 label 不获得源码实体身份。
+
+metadata 的相等、去重与 hash 比较 raw bits，包括 signed zero 与 NaN；这不赋予语言 Float/Double Hash conformance。各 wire 域为：
+
+| wire 域 | tag / payload |
+| --- | --- |
+| FloatKind | unsigned 32 或 64 |
+| 浮点常量 | `{1=kind, 2=同宽 raw bits}`，F32 不接受超出 32 bits 的值。 |
+| HIR literal / nominal representation / canonical const | 67 / 10 / 5 |
+| MIR intrinsic representation | 6 |
+| LIR scalar / canonical type / canonical value / shape representation | 4 / 13 或 14 / 14 / 8 |
+| canonical C storage 与 LIR C type | 6 |
+| HIR intrinsic | 22 |
+| HIR expression unary / binary / conversion | 68 / 69 / 70 |
+| LIR instruction unary / binary / conversion | 71 / 72 / 73 |
+| literal equality pattern | 4，payload 为 FloatKind。 |
+| object relocation constant-pool target | 15，payload 为实际常量 ByteSpan。 |
+
+浮点 literal 不匹配 NaN，有限 literal 集合不能覆盖完整浮点域，剩余域需要 wildcard。JSON 使用显式 codec 和目标精度直接解析，有限／非有限值遵守语言格式规则。
+
+### 2.19 优化与物理定义选择
+
+debug 使用 Scoop machine O0 与 generated-C O0，release 使用 O2；两者均完成正确代码生成所需的 SSA/GC 转换。runtime build 配置独立，默认 O2。优化模式不改变源码语义、persistent entity identity、shared state 或对外 ABI，兼容的不同优化产物可以共同链接。
+
+普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
+
+最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
+
+GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
+
+ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
+
+最终 image descriptors 和六张表由 program-link 从所选 records 生成，不改写输入 `.slib`。选择与实际内容进入 RuntimeImage、Code、Artifact 和 ResolvedLinkPlan 的对应摘要。
+
+OptimizationMode 在 machine request field 9、production manifest field 12 中编码 Debug=1、Release=2；compile cache domain 为 `scoop-cone-compile-cache-v2`，mode 位于 field 13。generated-C flag 的 SelectedOptimization tag 为 15，tag 6 保留不用。
+
+digest kinds 4、8、9，digest owner tags 4、11、9，以及 RegistrationDefinition patch role 1 保留不用。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。
