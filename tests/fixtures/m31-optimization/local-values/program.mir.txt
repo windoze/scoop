@@ -1,0 +1,377 @@
+Module
+  enum Choice
+    Value(_1: Int)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun integerChoice @fn0() -> Int
+    bb0 entry
+      val signed: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $dependency.receiver: Int8
+        Type Int8
+        Local signed
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val wrapped: Int8
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int8
+        Type Int8
+        Local wrapped
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerUnary negate kind=Int8
+          Type Int8
+          Local $dependency.receiver
+      val restored: Int8
+        Type Int8
+        IntegerUnary bit-not kind=Int8
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerLiteral UInt value=255 bits=0x000000ff
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=31 bits=0x000000000000001f
+      val $dependency.parameter.count: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: UInt
+        Type UInt
+        IntegerShift right value=UInt count=UInt
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          IntegerConversion Long -> UInt
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val shifted: UInt
+        Type UInt
+        IntegerBinary add kind=UInt
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      val widened: ULong
+        Type ULong
+        IntegerConversion Int -> ULong
+          Type Int
+          Local $dependency.receiver
+      val $dependency.receiver: Int8
+        Type Int8
+        Local wrapped
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int8 result=Long
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.receiver: Int8
+        Type Int8
+        Local restored
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+    bb2 if.merge.2
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb3 if.then.3
+      val $dependency.receiver: UInt
+        Type UInt
+        Local shifted
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+    bb4 if.merge.4
+      goto bb2
+    bb5 if.then.5
+      val $dependency.receiver: ULong
+        Type ULong
+        Local widened
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+    bb6 if.merge.6
+      goto bb4
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+    bb8 if.merge.8
+      goto bb6
+  fun enumChoice @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val value: Choice
+        Type Choice
+        VariantConstruct Choice v0
+          Type Int
+          Local $parameter._1
+      val copied: Choice
+        Type Choice
+        Local value
+      val $when.1: Choice
+        Type Choice
+        Local copied
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val number: Int
+        Type Int
+        VariantPayloadProject Choice v0 f0
+          Type Choice
+          Local $pattern.subject.2
+      assign $result.0
+        Type Int
+        Local number
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Choice
+        Type Choice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      call @scoop_rt_gc_collect direct
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun optionChoice @fn2() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val value: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val copied: Option<Int>
+        Type Option<Int>
+        Local value
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local copied
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val number: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      assign $result.1
+        Type Int
+        Local number
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      call @scoop_rt_gc_collect direct
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun main @fn3() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Int = @fn0 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.argument.0: Int = @fn2 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn4 <- println
+  str @str0 "illegal state"
+  str @str1 "\n"
+  output executable @fn3

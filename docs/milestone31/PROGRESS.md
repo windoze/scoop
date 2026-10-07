@@ -105,3 +105,12 @@
 - Rust fmt、workspace clippy 通过；identity 340 项、LIR production/canonical 189 项及 runtime ABI 定向检查、slib 全部 563 项、C/LLVM metadata 与 image 40 项、GNU/musl ELF 交叉对象检查、真实泛型对象回填与关联 EH/stackmap 内容检查均通过。修正了正文登记同放一个对象后旧测试取第一个 definition 的错误假设，按 typed role 查找实际正文。
 - Darwin 正式混合优化、nursery/native/Context/跨卡复制、两种真实模板冲突共 7 个变体、57 个进程、54 份 stage golden 通过。冲突用例继续检查独立链接结果一致性、真实运行和 stale 拒绝，移除与冲突规则无关的整份 core startup 源码快照。混合优化本轮冷缓存用时 108.09s，未与前一轮热缓存耗时直接比较。
 - Linux 原生运行仍待补：本批 SSH 再次连接超时。交叉发射只证明 ELF 对象生成及读取，不替代 GNU/musl 上的 nursery、启动、链接和运行验收。
+
+## M31-3 局部清理：整数运算与已知 variant
+
+- 沿基本块和唯一前驱直线链传播已经求值的整数、Boolean 与完整 typed variant；在合流、回边和相关未知内存写入处失效。整数按实际宽度 wrapping，转换保留源符号性，shift 只消费归一化计数；除零和 MIN/-1 不折成合法 primitive。
+- 已知 enum/Option 构造与普通复制可以消除匹配失败路径，payload 求值、复制和 GC 保活保留。现有 codegen variant 支配检查支持未改写的构造及复制，覆盖写入和逃逸存储的未知指针写入仍拒绝无依据的投影。
+- 常量分析拆分为主模块、整数和已知值模块，分别约 183、179、110 行；variant 结构检查与支配分析分别约 247、315 行。未增加跨过程分析或通用优化框架。
+- Rust fmt、workspace clippy 通过；LIR lowering 154 项、enum codegen 21 项通过，包含整数边界、精确/未知指针写入、构造复制支配及失效负例。同步修正一个 ABI 5 遗留测试，以真实 metadata 字段检查 RuntimeImage 输入集合。
+- Darwin 正式 local-values 与 local-effects 用例通过 debug/release、full-moving/minor stress，共 5 个变体、10 个进程、15 份 HIR/MIR/LIR 快照；无快照更新复测用时 22.92s。快照确认整数和已知 variant 的死边已删除，运行覆盖 payload 副作用、取址别名、循环合流、除零、MIN/-1 和 finally。
+- Linux SSH 仍超时，本批 GNU/musl 原生用例及快照待补。LLVM 函数内优化与最终 GC 发射计划继续实施。

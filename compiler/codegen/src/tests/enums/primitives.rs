@@ -1,5 +1,7 @@
 use super::*;
 
+mod construction;
+
 fn append_variant_projection_function(
     module: &mut Module,
     symbol: &str,
