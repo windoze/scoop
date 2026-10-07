@@ -1,0 +1,26 @@
+import m33.cstrings.*
+
+struct Result(val text: String, val count: Long)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val text = String.fromUtf8([231u, 149u, 140u])
+    @Unsafe {
+        val result = useCString(text, fun(pointer: Ptr<Int8>): Result {
+            @Unsafe {
+                gcCollect()
+                return Result(String.fromCString(pointer), 3L)
+            }
+        })
+        gcCollect()
+        expect(result.text == "界" && result.count == 3L)
+    }
+    expect(roundTrip("A界B") == "A界B" && roundTrip("") == "")
+    var rejected = false
+    try {
+        val unexpected = roundTrip("\u0000")
+        expect(unexpected.length < 0L)
+    } catch (error: IllegalArgumentException) { rejected = true }
+    expect(rejected)
+    println("cstrings-artifacts-ok")
+}

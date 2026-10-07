@@ -36,7 +36,7 @@ impl Lowerer {
             );
             return None;
         }
-        let constructors = self.classes[class_id].constructors.clone();
+        let constructors = self.source_class_constructors(class_id).collect::<Vec<_>>();
         if constructors.is_empty() {
             self.error(span, format!("class `{name}` has no source constructor"));
             return None;

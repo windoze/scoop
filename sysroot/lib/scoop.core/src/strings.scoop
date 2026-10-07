@@ -64,6 +64,10 @@ public class String : ToString, Hash, Iterable<Char> {
             if (length < 0L) { throw IllegalArgumentException() }
             return requireValidUtf8(coreStringDecodeUtf8(pointer, length))
         }
+
+        @Unsafe
+        public fun fromCString(pointer: Ptr<Int8>): String =
+            fromUtf8(pointer.cast<UInt8>(), coreCStringLength(pointer).toInt64())
     }
 }
 

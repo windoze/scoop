@@ -1,0 +1,15 @@
+package m33.cstrings
+
+@Unsafe public fun <R> useCString(text: String, block: (Ptr<Int8>) -> R): R =
+    text.withCString(block)
+
+public fun roundTrip(text: String): String {
+    @Unsafe {
+        return text.withCString(fun(pointer: Ptr<Int8>): String {
+            @Unsafe {
+                gcCollect()
+                return String.fromCString(pointer)
+            }
+        })
+    }
+}

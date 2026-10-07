@@ -91,6 +91,20 @@ impl CallableView {
 }
 
 impl Lowerer {
+    pub(crate) fn source_class_constructors(
+        &self,
+        owner: hir::ClassId,
+    ) -> impl Iterator<Item = hir::ClassConstructorId> + '_ {
+        self.classes[owner]
+            .constructors
+            .iter()
+            .copied()
+            .filter(|id| {
+                self.class_constructors[*id].identity_kind
+                    == hir::ClassConstructorIdentityKind::Source
+            })
+    }
+
     pub(crate) fn callable_view(
         &self,
         candidate: &CallableCandidate,

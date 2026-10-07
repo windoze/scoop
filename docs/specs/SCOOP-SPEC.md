@@ -1452,6 +1452,8 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 | `String.fromUtf8OrNone(bytes: Array<UInt8>): String?` | 严格解码；非法 UTF-8 返回 `None`，成功返回 `Some(String)` |
 | `String.fromUtf8Lossy(bytes: Array<UInt8>): String` | 将每个非法 UTF-8 子序列替换为 U+FFFD，保留合法内容 |
 | `String.fromUtf8(pointer: Ptr<UInt8>, length: Long): String` | `@Unsafe` 的严格解码重载；读取指定长度的 native 字节 |
+| `String.withCString<R>(block: (Ptr<Int8>) -> R): R` | `@Unsafe` 的作用域 C 字符串副本，补结尾 NUL；原内容含 U+0000 时抛出 IllegalArgumentException |
+| `String.fromCString(pointer: Ptr<Int8>): String` | `@Unsafe`；读取到首个 NUL，按相同严格 UTF-8 规则复制为 String |
 
 `get` 要求 `0 <= index < length`，`slice` 要求 `0 <= start <= endExclusive <= length`，否则抛 `IndexOutOfBoundsException`。`slice(length, length)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".length == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且长度不同。
 
@@ -1472,6 +1474,8 @@ byteLength 为 O(1)；length 与索引定位为 O(byteLength)，完整顺序迭�
 | `ED A0 80` | 三个 U+FFFD | 代理项编码不构成合法 Unicode 标量 |
 
 pointer 重载要求 `length >= 0`；负长度抛出 `IllegalArgumentException`。非空区间必须在整个调用期间可读、内容稳定且未释放，managed 内存须按第 14 章保活并固定；零长度不解引用 pointer，但裸 `Ptr` 仍须满足自身的非零规则。受检和 lossy 只规定字节内容的处理，不修复无效地址、数据竞争或生命周期违例；结果大小与分配失败遵守现有 String/runtime 边界。转换返回的 String 不借用输入存储。
+
+`withCString` 在执行 block 前检查源内容，含任意 U+0000 时不执行 block 并抛出 IllegalArgumentException；否则复制 byteLength 个 UTF-8 字节并补一个 NUL。临时副本不修改原 String，空字符串也提供可读的终止符。指针仅在普通非 suspend block 内有效，保活、地址稳定和正常／异常 cleanup 沿用 13.11；保存指针供作用域外使用属于 unsafe 契约违例。`fromCString` 要求输入从 pointer 到首个 NUL 的完整区间可读、稳定且有效，managed 区间必须固定；终止符不进入结果，编码错误仍以该前缀内的 byteOffset 抛出 CharacterCodingException。它不读取首个 NUL 后的内容，不把非法 UTF-8 替换为 U+FFFD。
 
 实现 `Equality<String>` 的成员 `public override operator fun equals(other: String): Boolean` 和 Hash 基于 UTF-8 内容；compareTo 按标量字典序（合法 UTF-8 的字节字典序给出相同结果）；`toString()` 返回自身。这些能力不来自 Any 或 TypeDescriptor 缺省槽。结果内容与源容器独立，但不要求空串、完整 slice 或其他相同不可变 String 具有不同引用身份。
 

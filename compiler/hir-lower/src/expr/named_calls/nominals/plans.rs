@@ -205,10 +205,7 @@ impl Lowerer {
                     );
                     return Err(());
                 }
-                self.classes[id]
-                    .constructors
-                    .iter()
-                    .copied()
+                self.source_class_constructors(id)
                     .map(NominalConstructorSource::Class)
                     .collect::<Vec<_>>()
             }

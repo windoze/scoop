@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
-| M33-3 | 严格／可空／lossy UTF-8、C 字符串 | UTF-8 完成；C 字符串待实现 |
+| M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
 | M33-5 | errno 捕获 | 待实现 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
@@ -117,3 +117,16 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin/GNU/musl 各 6 项正式 CLI、9 个变体、35 个进程、24 份 golden 在非更新模式下通过。覆盖边界标量、全部错误类别、精确 byteOffset/maximal subpart、NUL、空输入、原生静态内存、借用的可写数组和存储独立性；debug/release 均运行 normal/moving/minor。
 - 跨 Cone 泛型回调返回含 String 的 aggregate，provider/consumer 源码删除后独立链接并运行。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。三个 negative fixture 固定 unsafe、数组元素／容器类型与长度类型诊断。
 - Darwin 的两项旧 String／unchecked 转换回归通过，2 个变体、6 个进程、8 份 golden。旧 HIR 只同步导入 arena 索引与扩充 String companion 后的源码范围，MIR/LIR 未变化。复用上一批缓存，新增 core 每个 target/profile 只构建一次；没有重复全量语言测试。
+
+## M33-3b：C 字符串
+
+- String.withCString 在回调前拒绝嵌入 NUL，将 UTF-8 内容和终止符复制到普通 MutableArray，再通过已有作用域借用提供 Ptr<Int8>。空串、嵌套、异常 cleanup、泛型和 aggregate 返回沿用普通规则；原 String 保持不变。
+- String.fromCString 用 GCLeaf strlen 取得首个 NUL 前的长度，再调用受检 UTF-8 指针入口，保留 CharacterCodingException 的精确 byteOffset。没有引入 CString 类型、编译器 intrinsic 或第二套 runtime 解码器；新 core 模块 21 行。
+- 泛型 core 正文的真实产物消费暴露了既有构造器候选问题：编译器异常零参适配器遮蔽了带默认参数的源码构造器。所有源码构造、this/super delegation 候选现在只包含 Source constructor；编译器异常边仍使用其专用适配器。导出的泛型正文因此保存可消费的源码调用和已物化默认实参。
+
+已完成的验证：
+
+- Rust fmt、受影响 crate clippy、C fixture 格式化和严格警告检查通过。7 项构造器身份／候选测试和 12 项 core contract 测试通过。
+- Darwin/GNU/musl 各 5 项正式 CLI、7 个变体、27 个进程、18 份 golden 在非更新模式下通过；debug/release 均运行 normal/moving/minor。覆盖字节内容与 NUL、严格错误偏移、嵌套与异常 cleanup、NativeSafe/GCLeaf 调用，以及删除 provider/consumer 源码后的泛型产物消费和独立链接。
+- 三项 negative fixture 固定 unsafe、Int8/UInt8 指针类型与 suspend callback 的诊断和源码位置。6 份公共 HIR/MIR 在三平台一致，12 份 Linux LIR 单独保存；复用热缓存，没有运行无关全量测试。
+- 清理 16 个已链接的 Rust 中间对象，共 0.36 GiB；保留库、CLI 和当前 fixture 缓存。
