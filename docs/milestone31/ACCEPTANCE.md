@@ -32,8 +32,9 @@ ODR 在普通依赖语义一致时按 typed key 与 ABI 选择实现，正文与
 | aarch64-apple-darwin | Apple M3 Ultra，Mac15,14，32 核、512 GiB；外部 LLVM 22.1.8 |
 | x86_64-unknown-linux-gnu | OrbStack 的独立 Debian 13/amd64 容器，amd64 模拟执行；GCC 14、LLVM 22.1.8 |
 | x86_64-unknown-linux-musl | 同一独立容器的 musl-gcc，覆盖 static 与 PIE |
+| GNU / musl 的后续原生复验与性能 | `nuc12` 的 Core i7-12700H、Linux 7.0.0-38；LLVM 22.1.2、GCC 15.2.0、glibc 2.43 / musl 1.2.5 |
 
-容器为 `scoop-m31-linux`，CPU 配额为 8 核、内存限制为 16 GiB；仓库只通过独立 `/build` 保存 Linux 构建与报告。用户的 `nuc12:~/repos/scoop` 保持原状；SSH 后续持续超时，因此本批 Linux 收尾使用上述容器，不称作 NUC 原生运行。此前可连通时完成的 Linux 批次仍在实施记录中保留。
+容器为 `scoop-m31-linux`，CPU 配额为 8 核、内存限制为 16 GiB；独立 `/build` 映射到仓库的 `target/m31-linux`，保存该批构建与报告。当时 SSH 持续超时，因此 127 项选择及 codegen 收尾使用上述容器，不称作 NUC 原生运行。NUC 恢复后，后续 Linux 工作统一使用 `ssh nuc12`；固定源码快照、工具副本、工作目录与 `TMPDIR` 放在 `~/repos/scoop/tmp/m31-final/`，保留原工作区的已有修改。
 
 三个配套命令为 `scoop`、`scoopc`、`scoop-link`，最后的生产提交为 `c3ea0d7d2`。收尾工具包含优化后稀疏 safepoint ordinal、NoGC invoke 的 `nomerge`、InstCombine 的 `no-verify-fixpoint` 和 AArch64 局部跳转表修正；runtime 同时记录实际复制字节数。每轮在启动前构建配套工具，不在活跃 fixture 中替换它们；生产代码未变化时复用已通过结果。
 
@@ -46,6 +47,7 @@ ODR 在普通依赖语义一致时按 typed key 与 ABI 选择实现，正文与
 - Darwin/Linux 公共 fixture runner 各 44 项通过。每批 Rust 先 fmt 和 workspace clippy，Python 按 Ruff 0.16.10 格式化与 lint，C 使用严格告警。
 - 优化边界的定向验证另有 foundation 关系 12 项、EH 19 项、普通优化与实际根计划 6 项；实际复制统计通过 5 项 nursery 回归。Context/协程的 debug/release 与 moving 组合已在三个 target 普通模式通过。
 - AArch64 局部常量池新增 3 项测试，另有 9 项符号/重定位编码回归通过；Darwin 真实 release 迭代与 moving fixture 通过，浮点两种 profile 也再次通过。
+- NUC 的 LLVM 22.1.2 原生补充验收分别通过 profile/native GC、混合优化 ODR、nursery/Context/FFI 三个组合，GNU/musl 各 3 项、7 个变体、41 个正式进程、6 次阶段快照。两种 profile、minor/full moving、无源码与 LLVM 的 artifact-only 链接和真实 stale 反例均通过；见 [NUC GNU](M31-NUC-GNU-ACCEPTANCE.json) 与 [NUC musl](M31-NUC-MUSL-ACCEPTANCE.json)。这是不同工具链的定向复验，不重复累计为额外 fixture 覆盖，也没有重跑 Linux 全量。
 
 Darwin 正式 suite 完整发现为 2559 项，其中 7 项按平台不适用。完整轮先保存结果；发现旧计划/符号/LIR 快照后，仅续跑未通过项。普通语言 fixture 保留 actual build/artifact-only link 一致性、Cone/image/root、符号、阶段结构和运行，不重复冻结整个 core 的物理对象数量与 startup C。专门的 native 选择测试保留完整计划与动态绑定断言。
 
@@ -60,12 +62,14 @@ Linux 保留此前 71 项功能组合的有效通过结果，再补受影响的�
 ## 4. 复现
 
 ```sh
+mkdir -p tmp
+export TMPDIR="$PWD/tmp"
 export LLVM_SYS_221_PREFIX=/opt/homebrew/opt/llvm@22
 cargo fmt --all
 cargo clippy --workspace --all-targets
 cargo build --release -p scoop -p scoopc -p scoop-linker --bins
 python3 -m unittest discover -s tests/fixture_runner/tests
-python3 tests/run_fixtures.py --all --work-dir target/m31-verify \
+python3 tests/run_fixtures.py --all --work-dir tmp/m31-verify \
   --scoop target/release/scoop --scoopc target/release/scoopc \
   --scoop-link target/release/scoop-link --llc "$LLVM_SYS_221_PREFIX/bin/llc" --jobs 12
 ```

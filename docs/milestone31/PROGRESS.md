@@ -17,7 +17,7 @@
 
 - 已读取设计与对应规范；工作区原有 M31 文档作为实施基准保存。
 - Linux `nuc12:~/repos/scoop` 留有 M30 测试变更；Linux 验证将使用独立目录，保留原目录内容。
-- M31-1～M31-5 的主要功能已实现；正在完成三 target 总验收与性能报告。Darwin 的独立链接组合及 GNU 混合优化 ODR 已通过，musl 收尾验收进行中。各批实际改动、版本与验证结果记录如下。
+- M31-1～M31-5 已实现，三 target 功能验收已闭合；NUC 的不同 LLVM 版本也已通过定向原生复验。正在整理运行效率、代码大小与 GC 的同机性能对照；编译速度优化留待后续。各批实际改动、版本与验证结果记录如下。
 
 ## 性能基线与构建清理
 
@@ -208,3 +208,10 @@
 - 快照生成不计作普通通过。生成过程暴露完整源码图 dump 超过原 120 秒构建限制，相关步骤改为 300 秒，保留所有阶段、真实链接和 moving 运行断言。只在确认快照文件不共享后提前复验已生成项，并复用已完成的 compile/runtime 缓存目录；没有再跑全部 Linux fixture。
 - 按名称合并后，GNU 共 127 项选择、112 项普通通过、15 项不适用，覆盖 153 个变体、630 个进程和 641 次快照检查；musl 同为 127 项选择、115 项普通通过、12 项不适用，覆盖 156 个变体、646 个进程和 645 次快照检查。报告只计每项最终采用的普通通过轮次，见 [GNU](M31-LINUX-GNU-ACCEPTANCE.json) 与 [musl](M31-LINUX-MUSL-ACCEPTANCE.json)。
 - Linux 符号基线的共同 core/runtime 变化取自真实程序；局部 typed atom 迁移保留实际 Linux 程序仍存在的目标专属 stackmap。受影响的目标 IR、native 和泛型 reader 另外生成目标快照并普通复验。完整迁移和未执行的 Linux 全量范围见 [验收记录](ACCEPTANCE.md)。
+
+## NUC 原生复验与临时目录收尾
+
+- NUC 恢复连接后，Linux 后续工作使用 `ssh nuc12`，在 `~/repos/scoop/tmp/m31-final/` 保存固定源码快照、配套工具、日志和工作目录，`TMPDIR` 同样指向仓库内。M30 使用 `6e62514da`，M31 使用 `c4714125c`，生产代码与 `c3ea0d7d2` 相同；两者分别使用独立 Cargo 产物目录，保留远端工作区原有修改。
+- NUC 的 LLVM 22.1.2、GCC 15.2.0 与此前容器不同，因此只补 profile/native GC、混合优化 ODR、nursery/Context/FFI 三项。GNU/musl 均以普通模式全部通过，各 7 个变体、41 个正式进程和 6 次阶段快照；报告见 [NUC GNU](M31-NUC-GNU-ACCEPTANCE.json) 与 [NUC musl](M31-NUC-MUSL-ACCEPTANCE.json)。随后才串行执行性能测量，不重复全量功能测试。
+- 本机系统临时目录中本任务文件已经清理，检查无残留文件或仍占用已删除文件的进程。先前 `/tmp/scoop-m31-baseline/` 等路径只作为历史执行记录保留，后续临时文件全部放仓库 `tmp/`；该目录已被 Git 忽略。
+- 先前闲置 Darwin dev 产物已用 `cargo clean --profile dev` 清理 30749 个文件、9.3 GiB；容器停用后又通过 Cargo 清理两套闲置 release 产物，分别为 1649 个文件/915.3 MiB 和 949 个文件/723.1 MiB。原始验收、性能报告及仍使用的配套工具保留；Cargo 报告的是逻辑文件大小。
