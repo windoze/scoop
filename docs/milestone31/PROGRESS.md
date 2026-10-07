@@ -180,3 +180,9 @@
 - release 的 InstCombine 使用默认一轮及 `no-verify-fixpoint`。LLVM 22.1 的默认单轮可能仍留有后续优化机会，固定点自检不能作为合法程序的资格条件；LLVM IR、GC/EH 与对象 verifier 继续运行。GNU/musl 的整数矩阵和 release 迭代程序已实际编译运行成功，快照生成轮与后续普通复验分别记录。
 - 三批 Rust 均先 fmt 与 workspace release clippy，再定向验证 foundation 12 项、EH 19 项、普通优化与最终根计划 6 项，全部通过。新增代码位于既有模块，相关实现文件为 72、165、451 行；删除了 50 多行不再适用的最终连续性检查。
 - 复验使用固定的配套工具。第二套临时工具完成任务后，按其实际 Cargo 生成目录清理 2257 个文件、1.9 GiB；当前工具与 fixture 缓存继续保留。
+
+## 最终 image 的委托初始化回归
+
+- sibling consumer 的 native probe 按最终选择后的两个 image 检查 2+3 个初始化单元，逐个核对 ODR linkage，并要求五个语义身份及实际 cell/storage/failure root 地址互异。旧的 2+5 断言重复登记了已经选入另一 image 的两个单元，已按最终 image 合同迁移。
+- 源码继续验证两个 sibling 访问同一委托的值、单次初始化、失败缓存和 moving GC。Darwin、GNU、musl 的完整正式 fixture 均以普通模式通过；符号期望与各自保留的实际程序一致，没有用 Darwin 的 stackmap 集合替代 Linux 集合。
+- probe 保持 38 行，没有新增抽象或资格状态。实际 native 编译继续使用 `-Wall -Wextra -Werror`。
