@@ -69,7 +69,7 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             RelocationTargetSlotV1::Minuend => 2,
             RelocationTargetSlotV1::Subtrahend => 3,
         })?;
-        match self.target {
+        match &self.target {
             CanonicalRelocationTargetKindV1::Literal(literal) => {
                 encoder.u32(15)?;
                 encoder.byte_span(literal.bytes())
@@ -84,8 +84,8 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             } => {
                 encoder.u32(10)?;
                 encoder.fixed(atom.as_array())?;
-                encoder.u32(definition_atom_role_tag(role))?;
-                encoder.u64(offset_within_atom)
+                encoder.u32(definition_atom_role_tag(*role))?;
+                encoder.u64(*offset_within_atom)
             }
         }
     }

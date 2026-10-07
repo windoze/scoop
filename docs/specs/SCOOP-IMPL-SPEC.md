@@ -1940,6 +1940,8 @@ program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼
 
 对象中的全零只读填充可以包含静态存储空数组的 typed sentinel；ELF 可以把这些不含重定位的常量单独放入只读节。此类全零节不需要额外 definition atom，空 span 的引用仍按既有元素大小、alignment、范围与不重叠规则检查。sentinel 地址不表示语言实体：不同记录或物理成员可以分别携带，也可在满足各自 typed span 要求时共用零数据，不要求跨记录地址相同或不同。未归属的非零数据、可写数据和代码仍拒绝，不因物理分区放宽实际定义与引用规则。
 
+Mach-O 的局部常量池也包括 LLVM AArch64 在 `__TEXT,__const` 生成的相对跳转表。该池位于没有显式 definition atom 的独立只读节，由同一对象的代码通过局部符号和 page 重定位引用，池内没有地址重定位；完整池字节通过已有 literal byte-span 通道保存，与所属对象一同选择和链接。它是机器实现附属数据，没有新的源码身份、ODR 身份或登记。固定宽度浮点池的表示与编码保持，普通未引用非零数据、可写节、显式 atom 范围与重定位边界继续检查。
+
 最终 image 沿用 startup C/native-object 输出：按所选 definition 过滤已验证的六类登记，保留每个逻辑 Cone 的 coordinate 与直接依赖，使用同一 RuntimeImage 编码计算实际表的内容摘要。startup 对象同时定义这些 image、pointer 表及正文引用的既有 trap-message 符号；原候选 image 对象不参加 native link。定义、未定义引用和最终 relocation 检查均使用实际保留的 member，最终 link map 必须符合显式选择。`scoop-resolved-link-plan-v3` 保留原输入产物摘要，并覆盖所选对象及实际 startup 源码/对象，不增加另一套选择摘要或链接缓存框架。
 
 Darwin 将实际有序对象路径写入系统 linker 的标准 response file，避免物理成员较多时超过进程参数长度限制。按 response-file 语法保留路径中的空格、引号和反斜杠；这只是参数传递方式，所选对象、顺序、实际链接计划和 map/trace 检查不变，不引入新的产物协议。

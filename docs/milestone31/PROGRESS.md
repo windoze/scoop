@@ -186,3 +186,10 @@
 - sibling consumer 的 native probe 按最终选择后的两个 image 检查 2+3 个初始化单元，逐个核对 ODR linkage，并要求五个语义身份及实际 cell/storage/failure root 地址互异。旧的 2+5 断言重复登记了已经选入另一 image 的两个单元，已按最终 image 合同迁移。
 - 源码继续验证两个 sibling 访问同一委托的值、单次初始化、失败缓存和 moving GC。Darwin、GNU、musl 的完整正式 fixture 均以普通模式通过；符号期望与各自保留的实际程序一致，没有用 Darwin 的 stackmap 集合替代 Linux 集合。
 - probe 保持 38 行，没有新增抽象或资格状态。实际 native 编译继续使用 `-Wall -Wextra -Werror`。
+
+## AArch64 局部跳转表
+
+- release 迭代程序在通过 InstCombine 后，进一步暴露了 Mach-O reader 对 LLVM 局部 `__TEXT,__const` 跳转表的误拒绝。以 LLVM 22.1 的 32 路分派对象确认该表只有局部 page 引用，表内为相对偏移字节，没有地址重定位。
+- 独立的局部只读池复用现有 literal byte-span 通道，完整字节随物理对象选择与链接，不分配语言身份、ODR 身份或登记。显式 atom、不受引用的非零数据、可写数据及重定位边界检查保持；浮点池仍按 4/8/16 字节元素读取，已有编码不变。局部目标只查询一次，避免重复复制较长的池数据。
+- fmt 与 workspace release clippy 通过；新增 3 项常量池测试及 9 项符号/重定位编码回归通过。Darwin 的真实 debug/release 迭代与 moving fixture 普通模式通过，64.12 秒；GNU/musl 同一源码此前也已实际编译运行通过。
+- 常量池实现 159 行，独立测试文件 116 行。两个宿主的配套命令都已重建；后续只复验受影响产物和剩余快照。

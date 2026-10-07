@@ -189,6 +189,8 @@ codegen 保持每 callable 一个对象，并把需要同选的数据移入其�
 
 产物保留完整候选 image/registration 的 typed 数据及物理归属；最终 image 表由 linker 的现有 native-object 输出路径产生，不重新编译 Scoop/LLVM、不读取源码或 runtime header。落选 site 不以 unresolved weak reference、空登记或 runtime 忽略额外 stackmap 的方式残留。落选正文独占的关联数据可以删除；有独立共享 identity 且仍被所选定义引用的数据必须保留。
 
+LLVM AArch64 的局部相对跳转表随同一 Mach-O 对象保留。独立 `__TEXT,__const` 池没有显式 definition atom 或池内地址重定位，并由本对象代码的局部 page 引用使用；完整字节复用既有 literal byte-span 通道，不为后端常量创建语言实体或额外资格机制。
+
 每个 Cone 仍有逻辑 image，即使所选 producer 表为空也保留其依赖与初始化归属。共享登记在所选 provider 的 image 列一次，其他 image 通过普通引用使用同一地址。产物中的 RuntimeImageFingerprint 覆盖完整候选登记内容；最终 image 按实际所选表计算自己的内容摘要。输入产物摘要、最终 image 内容和选择结果进入已有 ResolvedLinkPlan/链接缓存，输入 `.slib` 不被改写；普通 eager 顺序与 lazy exactly-once 不随 provider 选择而改变。
 
 GC 的最终 site/body/PC 唯一性在实际选择后检查。某个 ODR body 在 debug 有三个 site、release 有两个 site是合法输入；最终只能保留一份正文及其对应清单，不能让 A 的 body 配 B 的 roots。

@@ -235,7 +235,7 @@ struct CanonicalRelocationTargetV1 {
     target: CanonicalRelocationTargetKindV1,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum CanonicalRelocationTargetKindV1 {
     Literal(crate::link_object::literal_pools::ObjectLiteral),
     Requirement(CanonicalObjectDefinitionRequirementV1),
