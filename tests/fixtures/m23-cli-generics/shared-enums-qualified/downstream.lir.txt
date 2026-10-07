@@ -179,7 +179,7 @@ Module
     store local4 -> local19
     store local19 -> local20
     t3 = variant_test e1 v0 local20 : i1
-    cbr t3 then @pattern.pass.13 else @pattern.else.14
+    br @pattern.pass.13
   block pattern.pass.4
     t4 = variant_payload_project e2 v1 f0 local16 : ptr<managed>
     store t4 -> local0
@@ -219,8 +219,6 @@ Module
     store t11 -> local21
     store local21 -> local13
     br @pattern.merge.15
-  block pattern.else.14
-    unreachable
   block pattern.merge.15
     ret local13
   fun @scoop$1$cb$863d4d79926f3d91a4824e4b395426f7c1fc97f42985303825bf2dd16efc1e6a(ptr<managed>, i32) -> i32
@@ -280,7 +278,7 @@ Module
     store local4 -> local19
     store local19 -> local20
     t3 = variant_test e3 v0 local20 : i1
-    cbr t3 then @pattern.pass.13 else @pattern.else.14
+    br @pattern.pass.13
   block pattern.pass.4
     t4 = variant_payload_project e4 v1 f0 local16 : i32
     store t4 -> local0
@@ -320,8 +318,6 @@ Module
     store t11 -> local21
     store local21 -> local13
     br @pattern.merge.15
-  block pattern.else.14
-    unreachable
   block pattern.merge.15
     ret local13
   fun @scoop$1$cb$d84ef2ab0647af867877925571a3748ceac75c8e4dcaf9589573ed823b40a19f(ptr<managed>, elided-zst<{} size=0 align=1>) -> i32
@@ -380,7 +376,7 @@ Module
     store local4 -> local19
     store local19 -> local20
     t4 = variant_test e5 v0 local20 : i1
-    cbr t4 then @pattern.pass.13 else @pattern.else.14
+    br @pattern.pass.13
   block pattern.pass.4
     t5 = variant_payload_project e6 v1 f0 local16 : {}
     store t5 -> local0
@@ -420,8 +416,6 @@ Module
     store t12 -> local21
     store local21 -> local13
     br @pattern.merge.15
-  block pattern.else.14
-    unreachable
   block pattern.merge.15
     ret local13
   fun @scoop$1$cb$7a34ef5a9e8e226c374bf2e3bc5216e22a49874e3951856313bde78147f91d8b(ptr<managed>) -> sret<enum2 size=48 align=8 scan=refs[8, 16, 32]>

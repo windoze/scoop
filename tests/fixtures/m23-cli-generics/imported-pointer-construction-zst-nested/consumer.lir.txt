@@ -121,14 +121,12 @@ Module
     store local28 -> local29
     t19 = integer_compare_Equal<ULong> local27, local29 : i1
     t20 = Not t19 : i1
-    cbr t20 then @if.then.6 else @if.merge.7
-  block if.then.6
-    ret integer<Int>(0x00000002)
+    br @if.merge.7
   block if.merge.7
     store local25 -> local39
     store local39 -> local40
     t21 = variant_test e0 v0 local40 : i1
-    cbr t21 then @pattern.pass.8 else @pattern.else.9
+    br @pattern.pass.8
   block pattern.pass.8
     t22 = variant_payload_project e0 v0 f0 local40 : ptr<raw>
     store t22 -> local30
@@ -144,31 +142,17 @@ Module
     raw_store local35 local37 align 4
     t25 = aggregate () : {}
     br @pattern.merge.10
-  block pattern.else.9
-    store local39 -> local41
-    t26 = variant_test e0 v1 local41 : i1
-    cbr t26 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
     store local26 -> local42
     store local42 -> local43
     t27 = variant_test e0 v0 local43 : i1
-    cbr t27 then @pattern.pass.14 else @pattern.else.15
-  block pattern.pass.11
-    ret integer<Int>(0x00000003)
-  block pattern.else.12
-    unreachable
-  block pattern.pass.14
-    t28 = variant_payload_project e0 v0 f0 local43 : ptr<raw>
-    store t28 -> local38
-    ret integer<Int>(0x00000004)
+    br @pattern.else.15
   block pattern.else.15
     store local42 -> local44
     t29 = variant_test e0 v1 local44 : i1
-    cbr t29 then @pattern.pass.17 else @pattern.else.18
+    br @pattern.pass.17
   block pattern.pass.17
     ret local1
-  block pattern.else.18
-    unreachable
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=none
   output library

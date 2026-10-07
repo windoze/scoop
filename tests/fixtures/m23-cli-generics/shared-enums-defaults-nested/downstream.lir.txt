@@ -236,14 +236,11 @@ Module
     store local16 -> local52
     store local52 -> local53
     t3 = variant_test e2 v0 local53 : i1
-    cbr t3 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store local17 -> local39
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local52 -> local54
     t4 = variant_test e2 v1 local54 : i1
-    cbr t4 then @pattern.pass.4 else @pattern.else.6
+    br @pattern.pass.4
   block pattern.merge.3
     store local39 -> local40
     store local16 -> local79
@@ -580,14 +577,11 @@ Module
     store local16 -> local52
     store local52 -> local53
     t3 = variant_test e5 v0 local53 : i1
-    cbr t3 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store local17 -> local39
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local52 -> local54
     t4 = variant_test e5 v1 local54 : i1
-    cbr t4 then @pattern.pass.4 else @pattern.else.6
+    br @pattern.pass.4
   block pattern.merge.3
     store local39 -> local40
     store local16 -> local79
@@ -921,14 +915,11 @@ Module
     store local16 -> local52
     store local52 -> local53
     t3 = variant_test e8 v0 local53 : i1
-    cbr t3 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store local17 -> local39
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local52 -> local54
     t4 = variant_test e8 v1 local54 : i1
-    cbr t4 then @pattern.pass.4 else @pattern.else.6
+    br @pattern.pass.4
   block pattern.merge.3
     store local39 -> local40
     store local16 -> local76

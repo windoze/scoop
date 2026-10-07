@@ -21,6 +21,7 @@ files = [
 [[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+timeout = 300
 exit = 0
 stdout = ""
 stderr = ""

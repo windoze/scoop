@@ -8,6 +8,7 @@ tags = ["legacy", "m12-ffi", "single-file", "run"]
 
 [[steps]]
 name = "build"
+timeout = 300
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""

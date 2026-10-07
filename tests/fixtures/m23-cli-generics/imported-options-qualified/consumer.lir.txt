@@ -99,7 +99,7 @@ Module
     store local24 -> local38
     store local38 -> local39
     t9 = variant_test e2 v0 local39 : i1
-    cbr t9 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t10 = variant_payload_project e2 v0 f0 local39 : i32
     store t10 -> local25
@@ -110,8 +110,6 @@ Module
     t12 = Not t11 : i1
     store t12 -> local29
     br @pattern.merge.3
-  block pattern.else.2
-    unreachable
   block pattern.merge.3
     cbr local29 then @if.then.4 else @if.merge.5
   block if.then.4

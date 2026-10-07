@@ -36,58 +36,34 @@ Module
     store local2 -> local14
     store local14 -> local15
     t1 = variant_test e1 v0 local15 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e1 v0 f0 local15 : i32
     store t2 -> local3
     store local3 -> local4
     store local4 -> local5
-    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn1(local5)
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn1(local5)
     t3 = aggregate () : {}
     br @pattern.merge.3
-  block pattern.else.2
-    store local14 -> local16
-    t4 = variant_test e1 v1 local16 : i1
-    cbr t4 then @pattern.pass.4 else @pattern.else.5
   block pattern.merge.3
     t5 = enum_wrap e1 v1 () : enum1
     store t5 -> local8
     store local8 -> local17
     store local17 -> local18
     t6 = variant_test e1 v0 local18 : i1
-    cbr t6 then @pattern.pass.7 else @pattern.else.8
-  block pattern.pass.4
-    store global0 -> local6
-    store local6 -> local7
-    call managed-void-target1 sp<managed-call:0> live=[local7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local7)
-    t7 = aggregate () : {}
-    br @pattern.merge.6
-  block pattern.else.5
-    unreachable
-  block pattern.merge.6
-    br @pattern.merge.3
-  block pattern.pass.7
-    t8 = variant_payload_project e1 v0 f0 local18 : i32
-    store t8 -> local9
-    store local9 -> local10
-    store local10 -> local11
-    call managed-void-target2 sp<managed-call:3> live=[] sig=void2 (i32) local-fn1(local11)
-    t9 = aggregate () : {}
-    br @pattern.merge.9
+    br @pattern.else.8
   block pattern.else.8
     store local17 -> local19
     t10 = variant_test e1 v1 local19 : i1
-    cbr t10 then @pattern.pass.10 else @pattern.else.11
+    br @pattern.pass.10
   block pattern.merge.9
     ret
   block pattern.pass.10
     store global1 -> local12
     store local12 -> local13
-    call managed-void-target3 sp<managed-call:2> live=[local13:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn2(local13)
+    call managed-void-target3 sp<managed-call:1> live=[local13:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn2(local13)
     t11 = aggregate () : {}
     br @pattern.merge.12
-  block pattern.else.11
-    unreachable
   block pattern.merge.12
     br @pattern.merge.9
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void

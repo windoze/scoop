@@ -148,7 +148,7 @@ Module
     store local0 -> local9
     store local9 -> local10
     t1 = variant_test e1 v1 local10 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e1 v1 f0 local10 : ptr<managed>
     store t2 -> local1
@@ -158,10 +158,6 @@ Module
     store local5 -> local6
     t4 = integer_compare_Equal<Int> local4, local6 : i1
     cbr t4 then @if.then.4 else @if.else.5
-  block pattern.else.2
-    store local9 -> local11
-    t5 = variant_test e1 v0 local11 : i1
-    cbr t5 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.3
     ret local8
   block if.then.4
@@ -172,13 +168,6 @@ Module
     br @if.merge.6
   block if.merge.6
     store local7 -> local8
-    br @pattern.merge.3
-  block pattern.pass.7
-    store integer<Int>(0x00000000) -> local8
-    br @pattern.merge.9
-  block pattern.else.8
-    unreachable
-  block pattern.merge.9
     br @pattern.merge.3
   fun @scoop$1$cb$ff2875bbc0323d3bb1744fa8fd9c4f2bdd542d732569d02524b2f7947051ef7b(i32, ptr<managed>) -> i32
     local %0 $dependency.local.2: enum2
@@ -202,7 +191,7 @@ Module
     store local0 -> local9
     store local9 -> local10
     t1 = variant_test e2 v1 local10 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e2 v1 f0 local10 : i32
     store t2 -> local1
@@ -212,10 +201,6 @@ Module
     store local5 -> local6
     t4 = integer_compare_Equal<Int> local4, local6 : i1
     cbr t4 then @if.then.4 else @if.else.5
-  block pattern.else.2
-    store local9 -> local11
-    t5 = variant_test e2 v0 local11 : i1
-    cbr t5 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.3
     ret local8
   block if.then.4
@@ -226,13 +211,6 @@ Module
     br @if.merge.6
   block if.merge.6
     store local7 -> local8
-    br @pattern.merge.3
-  block pattern.pass.7
-    store integer<Int>(0x00000000) -> local8
-    br @pattern.merge.9
-  block pattern.else.8
-    unreachable
-  block pattern.merge.9
     br @pattern.merge.3
   fun @scoop$1$cb$f5267868332f5ea5ba82efb0de1b5fd769a1d340aae7af809b121abeb36f3a58(elided-zst<{} size=0 align=1>, ptr<managed>) -> i32
     local %0 $dependency.local.2: enum3
@@ -256,7 +234,7 @@ Module
     store local0 -> local9
     store local9 -> local10
     t1 = variant_test e3 v1 local10 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e3 v1 f0 local10 : {}
     store t2 -> local1
@@ -266,10 +244,6 @@ Module
     store local5 -> local6
     t4 = integer_compare_Equal<Int> local4, local6 : i1
     cbr t4 then @if.then.4 else @if.else.5
-  block pattern.else.2
-    store local9 -> local11
-    t5 = variant_test e3 v0 local11 : i1
-    cbr t5 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.3
     ret local8
   block if.then.4
@@ -280,13 +254,6 @@ Module
     br @if.merge.6
   block if.merge.6
     store local7 -> local8
-    br @pattern.merge.3
-  block pattern.pass.7
-    store integer<Int>(0x00000000) -> local8
-    br @pattern.merge.9
-  block pattern.else.8
-    unreachable
-  block pattern.merge.9
     br @pattern.merge.3
   fun @scoop$1$cb$b7d1c337ec3d119aaf2f85df057b44dafa54c273afc7acb240feb078b0820e9e(ptr<managed>, ptr<managed>) -> void
   block entry

@@ -244,14 +244,7 @@ Module
     store local2 -> local110
     store local3 -> local111
     t2 = integer_compare_Less<Long> local110, integer<Long>(0x0000000000000000) : i1
-    cbr t2 then @if.then.1 else @if.merge.2
-  block if.then.1
-    call managed-direct-target1 sp<managed-call:34> live=[] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
-    store t3 -> local120
-    call managed-void-target0 sp<managed-call:35> live=[local120:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn11(local120)
-    t4 = aggregate () : {}
-    throw local120
-    unreachable
+    br @if.merge.2
   block if.merge.2
     t5 = array_alloc_dynamic array0 count local110 overflow global12 sp<managed-call:1> live local111:ptr<managed>@0 : ptr<managed>
     store t5 -> local112
@@ -466,14 +459,11 @@ Module
     store local78 -> local118
     store local79 -> local119
     t53 = integer_compare_Less<Long> local118, integer<Long>(0x0000000000000000) : i1
-    cbr t53 then @logic.short.28 else @logic.rhs.27
+    br @logic.rhs.27
   block logic.rhs.27
     t54 = array_len array0 local117 : i64
     t55 = integer_compare_GreaterOrEqual<Long> local118, t54 : i1
     store t55 -> local125
-    br @logic.merge.29
-  block logic.short.28
-    store true -> local125
     br @logic.merge.29
   block logic.merge.29
     cbr local125 then @if.then.30 else @if.merge.31

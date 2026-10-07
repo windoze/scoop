@@ -263,7 +263,7 @@ Module
     store local36 -> local85
     store local85 -> local86
     t23 = variant_test e0 v0 local86 : i1
-    cbr t23 then @pattern.pass.25 else @pattern.else.26
+    br @pattern.pass.25
   block pattern.pass.25
     t24 = variant_payload_project e0 v0 f0 local86 : i32
     store t24 -> local37
@@ -273,10 +273,6 @@ Module
     t25 = integer_compare_to<Int> local38, local40 : i64
     t26 = integer_compare_Greater<Long> t25, integer<Long>(0x0000000000000000) : i1
     cbr t26 then @if.then.28 else @if.else.29
-  block pattern.else.26
-    store local85 -> local87
-    t27 = variant_test e0 v1 local87 : i1
-    cbr t27 then @pattern.pass.31 else @pattern.else.32
   block pattern.merge.27
     store local42 -> local43
     store local43 -> local44
@@ -295,13 +291,6 @@ Module
     br @if.merge.30
   block if.merge.30
     store local41 -> local42
-    br @pattern.merge.27
-  block pattern.pass.31
-    store global5 -> local42
-    br @pattern.merge.33
-  block pattern.else.32
-    unreachable
-  block pattern.merge.33
     br @pattern.merge.27
   block pattern.pass.34
     t30 = enum_wrap e3 v1 () : enum3

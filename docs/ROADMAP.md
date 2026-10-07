@@ -478,7 +478,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - Int128/UInt128与Float128仅调研：记录i128所需compiler-rt/libgcc helper、binary128与long double的差异，以及compiler-rt、libquadmath、SoftFloat的职责和可行路线。不添加128位类型、IR占位或runtime依赖，也不把它们的实现纳入M30完成门。
 - 2026-10-07实现与验收完成：5355项Rust测试覆盖通过，44项公共runner测试在Darwin与Linux通过；Darwin全部2543项适用fixture通过，另7项不适用。Linux完成M30专项、受影响组合与GNU/musl各11项收尾普通复验，范围与原始报告见验收记录。按功能分批提交，清理无关固定摘要，保留实际类型、IR、ABI、GC、符号与运行验证。
 
-### M31 首批优化、ODR 合并与 nursery（设计已制定，待实现，[设计](milestone31/DESIGN.md)）
+### M31 首批优化、ODR 合并与 nursery（主要功能已实现，总验收中，[设计](milestone31/DESIGN.md)）
 
 - 将 debug/release 的实际优化配置贯通 umbrella、child 协议、scoopc、producer 与缓存。release 使用 LLVM machine O2 及经过精确 GC/EH 验证的函数内 IR pass；generated-C 独立切换 O0/O2，runtime 沿用当前默认 O2。首批覆盖常量/复制传播、已知 enum/Option 分支、死路径与冗余存取清理、无效标量写屏障及可安全消除的 root 临时存储。
 - ODR 在普通依赖确认同一定义后，只比较完整 typed key 与共享 ABI；删除 LIR/机器码/EH/stackmap 的专用 definition 判等，不增加优化前正文指纹。优化差异进入生产/代码/链接缓存，真实模板、const、类型和 ABI 变化仍按普通 semantic fingerprint/stale 规则失效。
@@ -486,7 +486,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 在现有 arena 中增加按 block 划分的 nursery，复用 per-thread TLAB、STW、精确 roots 与 moving Immix。minor 只扫描完整根、旧代脏区及年轻存活图，第一次存活即晋升旧代，不引入 survivor 区。补齐中小对象跨 line 分配、精确 size 与旧代晋升，不能继续将所有超过 64 bytes 的对象送入独占 large span。
 - remembered set 消费卡表；编译器与 runtime/native 的所有引用写入遵守范围屏障，多 mutator 使用原子标卡，GC-free/scalar 写入省略。pin 地址稳定、带 release hook 对象首版直接旧代分配；晋升空间不足在完整原图上转 full，显式 `gc.collect()` 保持 full。
 - 分六批实施：配置/基线、ODR/物理选择、首批优化、分配/屏障、nursery 闭环、总验收/性能。完成门为三 target 的 debug/release、正式 CLI 与 artifact-only 混合优化、minor/full moving、FFI/多 mutator/Context/release 组合，以及可复跑的运行/编译/代码大小/GC 性能报告。
-- 自动跨函数内联、通用去虚拟化、循环边界检查优化、LTO/PGO、逃逸分析、协程 frame elision、survivor、并行/并发 collector 和 arena 扩容留待后续。2026-10-07 本次仅写入设计与规范，未修改实现，未进行实现验收。
+- 自动跨函数内联、通用去虚拟化、循环边界检查优化、LTO/PGO、逃逸分析、协程 frame elision、survivor、并行/并发 collector 和 arena 扩容留待后续。2026-10-07 主要功能已实现，三 target 总验收与性能测量进行中，分批提交和实际验证见[实施记录](milestone31/PROGRESS.md)。
 
 ## 3. 备注
 

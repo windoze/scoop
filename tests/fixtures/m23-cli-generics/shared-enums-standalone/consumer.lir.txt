@@ -86,14 +86,11 @@ Module
     store local2 -> local37
     store local37 -> local38
     t1 = variant_test e0 v0 local38 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store integer<Int>(0x00000001) -> local6
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local37 -> local39
     t2 = variant_test e0 v1 local39 : i1
-    cbr t2 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.merge.3
     store local6 -> local7
     store local7 -> local8
@@ -105,40 +102,12 @@ Module
   block pattern.pass.4
     t5 = variant_payload_project e0 v1 f0 local39 : i32
     store t5 -> local3
-    call managed-direct-target0 sp<managed-call:2> live=[param1:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local3)
+    call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local3)
     store t6 -> local49
     store local49 -> local6
     br @pattern.merge.6
-  block pattern.else.5
-    store local37 -> local40
-    t7 = variant_test e0 v2 local40 : i1
-    cbr t7 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.6
     br @pattern.merge.3
-  block pattern.pass.7
-    t8 = variant_payload_project e0 v2 f0 local40 : i32
-    store t8 -> local4
-    call managed-direct-target1 sp<managed-call:1> live=[param1:ptr<managed>@0] t9 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local4)
-    store t9 -> local50
-    store local50 -> local6
-    br @pattern.merge.9
-  block pattern.else.8
-    store local37 -> local41
-    t10 = variant_test e0 v3 local41 : i1
-    cbr t10 then @pattern.pass.10 else @pattern.else.11
-  block pattern.merge.9
-    br @pattern.merge.6
-  block pattern.pass.10
-    t11 = variant_payload_project e0 v3 f0 local41 : i32
-    store t11 -> local5
-    call managed-direct-target2 sp<managed-call:0> live=[param1:ptr<managed>@0] t12 = sig=direct2 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local5)
-    store t12 -> local51
-    store local51 -> local6
-    br @pattern.merge.12
-  block pattern.else.11
-    unreachable
-  block pattern.merge.12
-    br @pattern.merge.9
   block if.then.13
     ret integer<Int>(0x00000001)
   block if.merge.14
@@ -161,9 +130,9 @@ Module
   block pattern.merge.17
     store local18 -> local19
     store local13 -> local53
-    call managed-direct-target3 sp<managed-call:3> live=[param1:ptr<managed>@0, local20:ptr<managed>@0] t15 = sig=direct3 (indirect<enum0 size=16 align=8 scan=none>, i32, i32) -> i32 local-fn3(indirect local53, local14, local19)
+    call managed-direct-target3 sp<managed-call:1> live=[param1:ptr<managed>@0, local20:ptr<managed>@0] t15 = sig=direct3 (indirect<enum0 size=16 align=8 scan=none>, i32, i32) -> i32 local-fn3(indirect local53, local14, local19)
     store t15 -> local52
-    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0, local20:ptr<managed>@0] t16 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local20(local20, local52)
+    call managed-direct-target4 sp<managed-call:2> live=[param1:ptr<managed>@0, local20:ptr<managed>@0] t16 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local20(local20, local52)
     store t16 -> local21
     store integer<Int>(0x0000002a) -> local22
     store local22 -> local23
@@ -212,13 +181,13 @@ Module
     store local27 -> local47
     store local47 -> local48
     t25 = variant_test e0 v3 local48 : i1
-    cbr t25 then @pattern.pass.29 else @pattern.else.30
+    br @pattern.pass.29
   block pattern.pass.29
     t26 = variant_payload_project e0 v3 f0 local48 : i32
     store t26 -> local28
     t27 = variant_payload_project e0 v3 f1 local48 : i32
     store t27 -> local29
-    call managed-direct-target5 sp<managed-call:5> live=[param1:ptr<managed>@0] t28 = sig=direct5 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local28)
+    call managed-direct-target5 sp<managed-call:3> live=[param1:ptr<managed>@0] t28 = sig=direct5 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local28)
     store t28 -> local30
     store local29 -> local31
     store local31 -> local32
@@ -228,9 +197,6 @@ Module
     store local34 -> local35
     t30 = integer_Subtract<Int> local33, local35 : i32
     store t30 -> local36
-    br @pattern.merge.31
-  block pattern.else.30
-    store integer<Int>(0x00000003) -> local36
     br @pattern.merge.31
   block pattern.merge.31
     ret local36

@@ -44,7 +44,7 @@ Module
     store local2 -> local9
     store local9 -> local10
     t1 = variant_test e0 v1 local10 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e0 v1 f0 local10 : i32
     store t2 -> local3
@@ -54,10 +54,6 @@ Module
     store local5 -> local6
     t4 = integer_compare_Equal<Int> local4, local6 : i1
     cbr t4 then @if.then.4 else @if.else.5
-  block pattern.else.2
-    store local9 -> local11
-    t5 = variant_test e0 v0 local11 : i1
-    cbr t5 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.3
     ret local8
   block if.then.4
@@ -68,13 +64,6 @@ Module
     br @if.merge.6
   block if.merge.6
     store local7 -> local8
-    br @pattern.merge.3
-  block pattern.pass.7
-    store integer<Int>(0x00000000) -> local8
-    br @pattern.merge.9
-  block pattern.else.8
-    unreachable
-  block pattern.merge.9
     br @pattern.merge.3
   fun @scoop$1$cb$409687e2b84e2301ea8c0ddd36c0ad795a06342a7efb7b2593fae5d439a07fd8(ptr<managed>, i32) -> i32
     local %0 $call.1: i32

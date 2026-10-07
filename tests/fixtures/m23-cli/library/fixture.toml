@@ -38,9 +38,22 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${explicit_root.result.observations.child_invocations}", equals = []},
   {actual = "${explicit_root.result.output}", equals = "${work}/published.slib"},
-  {actual = "${explicit_root.result.root.artifact_fingerprint}", equals = "${default_root.result.root.artifact_fingerprint}"},
+  {actual = "${explicit_root.result.root.artifact_fingerprint}", not_equals = "${default_root.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "release_warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, ".", {each = "${options}"}, "-o", "../warm.slib", "--profile", "release"]
+cwd = "${work}/cone"
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${release_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${release_warm.result.root.artifact_fingerprint}", equals = "${explicit_root.result.root.artifact_fingerprint}"},
 ]
 
 [[steps]]
@@ -88,9 +101,9 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = [{severity = "error", code = "SCOOP_OUTPUT_WRITE", phase = "Publication", message = "output would overwrite a cache file", origin = {kind = "none"}, notes = []}]
-checks = [{file = "${explicit_root.result.output}", same_as = "${default_root.result.root.path}"}]
+checks = [{file = "${explicit_root.result.output}", same_as = "${explicit_root.result.root.path}"}]
 
 [[steps]]
 name = "published_copy"
 files = [{patch = {path = "${explicit_root.result.output}", offset = 0, hex = "00"}}]
-checks = [{file = "${explicit_root.result.output}", different_from = "${default_root.result.root.path}"}]
+checks = [{file = "${explicit_root.result.output}", different_from = "${explicit_root.result.root.path}"}]

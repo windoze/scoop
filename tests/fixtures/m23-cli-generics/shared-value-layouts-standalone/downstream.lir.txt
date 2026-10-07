@@ -205,7 +205,7 @@ Module
     store local2 -> local27
     store local27 -> local28
     t9 = variant_test e0 v1 local28 : i1
-    cbr t9 then @pattern.pass.3 else @pattern.else.4
+    br @pattern.pass.3
   block pattern.pass.3
     t10 = variant_payload_project e0 v1 f0 local28 : struct2
     store t10 -> local3
@@ -215,10 +215,6 @@ Module
     store local29 -> local30
     t12 = variant_test e0 v0 local30 : i1
     cbr t12 then @pattern.pass.6 else @pattern.else.7
-  block pattern.else.4
-    store local27 -> local32
-    t13 = variant_test e0 v0 local32 : i1
-    cbr t13 then @pattern.pass.12 else @pattern.else.13
   block pattern.merge.5
     store local21 -> local5
     store local5 -> local22
@@ -243,13 +239,6 @@ Module
     unreachable
   block pattern.merge.11
     br @pattern.merge.8
-  block pattern.pass.12
-    store false -> local21
-    br @pattern.merge.14
-  block pattern.else.13
-    unreachable
-  block pattern.merge.14
-    br @pattern.merge.5
   block if.then.15
     ret integer<Int>(0x00000002)
   block if.merge.16
@@ -354,7 +343,7 @@ Module
     store local2 -> local27
     store local27 -> local28
     t9 = variant_test e0 v1 local28 : i1
-    cbr t9 then @pattern.pass.3 else @pattern.else.4
+    br @pattern.pass.3
   block pattern.pass.3
     t10 = variant_payload_project e0 v1 f0 local28 : struct2
     store t10 -> local3
@@ -364,10 +353,6 @@ Module
     store local29 -> local30
     t12 = variant_test e0 v0 local30 : i1
     cbr t12 then @pattern.pass.6 else @pattern.else.7
-  block pattern.else.4
-    store local27 -> local32
-    t13 = variant_test e0 v0 local32 : i1
-    cbr t13 then @pattern.pass.12 else @pattern.else.13
   block pattern.merge.5
     store local21 -> local5
     store local5 -> local22
@@ -392,13 +377,6 @@ Module
     unreachable
   block pattern.merge.11
     br @pattern.merge.8
-  block pattern.pass.12
-    store false -> local21
-    br @pattern.merge.14
-  block pattern.else.13
-    unreachable
-  block pattern.merge.14
-    br @pattern.merge.5
   block if.then.15
     ret integer<Int>(0x00000002)
   block if.merge.16
@@ -500,7 +478,7 @@ Module
     store local2 -> local27
     store local27 -> local28
     t9 = variant_test e0 v1 local28 : i1
-    cbr t9 then @pattern.pass.3 else @pattern.else.4
+    br @pattern.pass.3
   block pattern.pass.3
     t10 = variant_payload_project e0 v1 f0 local28 : struct2
     store t10 -> local3
@@ -510,10 +488,6 @@ Module
     store local29 -> local30
     t12 = variant_test e0 v0 local30 : i1
     cbr t12 then @pattern.pass.6 else @pattern.else.7
-  block pattern.else.4
-    store local27 -> local32
-    t13 = variant_test e0 v0 local32 : i1
-    cbr t13 then @pattern.pass.12 else @pattern.else.13
   block pattern.merge.5
     store local21 -> local5
     store local5 -> local22
@@ -538,13 +512,6 @@ Module
     unreachable
   block pattern.merge.11
     br @pattern.merge.8
-  block pattern.pass.12
-    store false -> local21
-    br @pattern.merge.14
-  block pattern.else.13
-    unreachable
-  block pattern.merge.14
-    br @pattern.merge.5
   block if.then.15
     ret integer<Int>(0x00000002)
   block if.merge.16

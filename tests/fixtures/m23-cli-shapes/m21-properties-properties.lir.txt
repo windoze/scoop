@@ -272,17 +272,13 @@ Module
     store t12 -> local22
     store local22 -> local23
     t13 = variant_test e4 v0 local23 : i1
-    cbr t13 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     t14 = variant_payload_project e4 v0 f0 local23 : ptr<managed>
     call managed-direct-target5 sp<managed-call:11> live=[local0:ptr<managed>@0, t14:ptr<managed>@0] t15 = sig=direct5 (ptr<managed>) -> i32 local-fn7(t14)
     store t15 -> local65
     t16 = enum_wrap e1 v0 (local65) : enum1
     store t16 -> local24
-    br @if.merge.3
-  block if.else.2
-    t17 = enum_wrap e1 v1 () : enum1
-    store t17 -> local24
     br @if.merge.3
   block if.merge.3
     store local24 -> local60

@@ -686,14 +686,11 @@ Module
     store local132 -> local277
     store local133 -> local278
     t94 = integer_compare_Less<Long> local277, integer<Long>(0x0000000000000000) : i1
-    cbr t94 then @logic.short.39 else @logic.rhs.38
+    br @logic.rhs.38
   block logic.rhs.38
     t95 = array_len array1 local276 : i64
     t96 = integer_compare_GreaterOrEqual<Long> local277, t95 : i1
     store t96 -> local282
-    br @logic.merge.40
-  block logic.short.39
-    store true -> local282
     br @logic.merge.40
   block logic.merge.40
     cbr local282 then @if.then.41 else @if.merge.42

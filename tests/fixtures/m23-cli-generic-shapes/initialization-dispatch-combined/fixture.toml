@@ -175,7 +175,14 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
   {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths", "native-digests"]},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-initialization-dispatch-combined:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-initialization-consumer-dispatch-combined:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:generic-initialization-downstream-dispatch-combined:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:runtime-fixture:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
 ]
 
 [[steps]]

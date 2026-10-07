@@ -20,21 +20,10 @@ Module
     store local0 -> local6
     store local2 -> local7
     t0 = integer_compare_Equal<Long> local7, integer<Long>(0x0000000000000000) : i1
-    cbr t0 then @if.then.1 else @if.merge.2
-  block if.then.1
-    call managed-direct-target0 sp<managed-call:3> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(16)))
-    store t1 -> local9
-    call managed-void-target0 sp<managed-call:4> live=[local9:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn2(local9)
-    t2 = aggregate () : {}
-    throw local9
-    unreachable
+    br @if.merge.2
   block if.merge.2
     t3 = integer_compare_Equal<Long> local6, integer<Long>(0x8000000000000000) : i1
-    cbr t3 then @logic.rhs.3 else @logic.short.4
-  block logic.rhs.3
-    t4 = integer_compare_Equal<Long> local7, integer<Long>(0xffffffffffffffff) : i1
-    store t4 -> local10
-    br @logic.merge.5
+    br @logic.short.4
   block logic.short.4
     store false -> local10
     br @logic.merge.5

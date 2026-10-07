@@ -314,7 +314,7 @@ Module
     store local73 -> local81
     store local81 -> local82
     t40 = variant_test e1 v0 local82 : i1
-    cbr t40 then @pattern.pass.25 else @pattern.else.26
+    br @pattern.pass.25
   block pattern.pass.25
     t41 = variant_payload_project e1 v0 f0 local82 : struct2
     store t41 -> local74
@@ -324,10 +324,6 @@ Module
     store t42 -> local90
     store local90 -> local75
     br @pattern.merge.27
-  block pattern.else.26
-    store local81 -> local83
-    t43 = variant_test e1 v1 local83 : i1
-    cbr t43 then @pattern.pass.28 else @pattern.else.29
   block pattern.merge.27
     store local75 -> local76
     store local76 -> local77
@@ -341,13 +337,6 @@ Module
     call managed-void-target5 sp<managed-call:11> live=[] sig=void5 (i1) local-fn0(local80)
     t47 = aggregate () : {}
     ret
-  block pattern.pass.28
-    store false -> local75
-    br @pattern.merge.30
-  block pattern.else.29
-    unreachable
-  block pattern.merge.30
-    br @pattern.merge.27
   fun @scoop$1$cb$3ae9c66d0f6cacd39c72f6c97f7ea0dfdd8e0d0bc680263baf65853356b8638c() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]

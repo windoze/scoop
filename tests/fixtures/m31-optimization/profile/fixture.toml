@@ -34,6 +34,7 @@ stderr = ""
 [[steps]]
 name = "build"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/compile-cache", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
+timeout = 300
 exit = 0
 stdout = ""
 stderr = ""

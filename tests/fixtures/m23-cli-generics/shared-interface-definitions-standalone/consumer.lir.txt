@@ -318,14 +318,11 @@ Module
     store local31 -> local38
     store local32 -> local39
     t33 = integer_compare_Less<Long> local38, integer<Long>(0x0000000000000000) : i1
-    cbr t33 then @logic.short.6 else @logic.rhs.5
+    br @logic.rhs.5
   block logic.rhs.5
     t34 = array_len array1 local37 : i64
     t35 = integer_compare_GreaterOrEqual<Long> local38, t34 : i1
     store t35 -> local44
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local44
     br @logic.merge.7
   block logic.merge.7
     cbr local44 then @if.then.8 else @if.merge.9
@@ -487,14 +484,11 @@ Module
     store local31 -> local38
     store local32 -> local39
     t39 = integer_compare_Less<Long> local38, integer<Long>(0x0000000000000000) : i1
-    cbr t39 then @logic.short.6 else @logic.rhs.5
+    br @logic.rhs.5
   block logic.rhs.5
     t40 = array_len array3 local37 : i64
     t41 = integer_compare_GreaterOrEqual<Long> local38, t40 : i1
     store t41 -> local40
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local40
     br @logic.merge.7
   block logic.merge.7
     cbr local40 then @if.then.8 else @if.merge.9
@@ -673,14 +667,11 @@ Module
     store local31 -> local38
     store local32 -> local39
     t27 = integer_compare_Less<Long> local38, integer<Long>(0x0000000000000000) : i1
-    cbr t27 then @logic.short.6 else @logic.rhs.5
+    br @logic.rhs.5
   block logic.rhs.5
     t28 = array_len array5 local37 : i64
     t29 = integer_compare_GreaterOrEqual<Long> local38, t28 : i1
     store t29 -> local44
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local44
     br @logic.merge.7
   block logic.merge.7
     cbr local44 then @if.then.8 else @if.merge.9
@@ -840,14 +831,11 @@ Module
     store local31 -> local38
     store local32 -> local39
     t33 = integer_compare_Less<Long> local38, integer<Long>(0x0000000000000000) : i1
-    cbr t33 then @logic.short.6 else @logic.rhs.5
+    br @logic.rhs.5
   block logic.rhs.5
     t34 = array_len array7 local37 : i64
     t35 = integer_compare_GreaterOrEqual<Long> local38, t34 : i1
     store t35 -> local44
-    br @logic.merge.7
-  block logic.short.6
-    store true -> local44
     br @logic.merge.7
   block logic.merge.7
     cbr local44 then @if.then.8 else @if.merge.9

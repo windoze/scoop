@@ -408,30 +408,23 @@ Module
     store t25 -> local66
     store local65 -> local71
     t26 = variant_test e4 v0 local71 : i1
-    cbr t26 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     t27 = variant_payload_project e4 v0 f0 local71 : i32
     store t27 -> local72
     br @if.merge.3
-  block if.else.2
-    call managed-direct-target9 sp<managed-call:20> live=[] t28 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t28 -> local73
-    call managed-void-target7 sp<managed-call:21> live=[local73:ptr<managed>@0] sig=void7 (ptr<managed>) external-fn4(local73)
-    t29 = aggregate () : {}
-    throw local73
-    unreachable
   block if.merge.3
     store local72 -> local67
     store local67 -> local68
-    call managed-void-target8 sp<managed-call:22> live=[] sig=void8 (i32) local-fn10(local68)
+    call managed-void-target8 sp<managed-call:20> live=[] sig=void8 (i32) local-fn10(local68)
     t30 = aggregate () : {}
     t31 = enum_wrap e4 v1 () : enum4
     store local66 -> local90
     store t31 -> local91
-    call managed-direct-target10 sp<managed-call:23> live=[] t32 = sig=direct10 (indirect<enum4 size=16 align=8 scan=none>, indirect<enum4 size=16 align=8 scan=none>) -> i1 local-fn12(indirect local90, indirect local91)
+    call managed-direct-target10 sp<managed-call:21> live=[] t32 = sig=direct10 (indirect<enum4 size=16 align=8 scan=none>, indirect<enum4 size=16 align=8 scan=none>) -> i1 local-fn12(indirect local90, indirect local91)
     store t32 -> local69
     store local69 -> local70
-    call managed-void-target9 sp<managed-call:24> live=[] sig=void9 (i1) local-fn11(local70)
+    call managed-void-target9 sp<managed-call:22> live=[] sig=void9 (i1) local-fn11(local70)
     t33 = aggregate () : {}
     ret
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void

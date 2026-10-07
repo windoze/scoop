@@ -83,7 +83,7 @@ diagnostics = []
 checks = [
   {actual = "${link.result.kind}", equals = "link"},
   {actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"},
-  {actual = "${link.result.link_plan}", contains = "program-link v2\n"},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
 ]
 
 [[steps]]
