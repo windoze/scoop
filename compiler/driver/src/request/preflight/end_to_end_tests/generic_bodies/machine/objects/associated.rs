@@ -11,10 +11,14 @@ pub(in super::super) fn change_associated_atom(
         else {
             continue;
         };
-        let definition = emitted
-            .production()
-            .canonical_definitions()
-            .plan(member.units().definition_plans()[0])
+        let definition = member
+            .units()
+            .definition_plans()
+            .iter()
+            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .find(|plan| {
+                plan.definition_role() == scoop_identity::StrongDefinitionRole::CallableBody
+            })
             .unwrap();
         if definition.primary_symbol().linkage() != LinkageClass::OdrWeak {
             continue;

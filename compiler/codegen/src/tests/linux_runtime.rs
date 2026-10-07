@@ -170,14 +170,18 @@ fn linux_thread_publications_refresh_growing_main_stack_bounds() {
                     "-pthread",
                     "-fno-omit-frame-pointer",
                     "-fno-optimize-sibling-calls",
+                    "-ffunction-sections",
                     optimization,
                 ])
                 .args(flags)
                 .arg("-I")
-                .arg(workspace.join("runtime/include"));
+                .arg(workspace.join("runtime/include"))
+                .arg("-I")
+                .arg(workspace.join("runtime/third_party/ryu"));
             for source in [
                 "runtime/tests/linux_stack_growth_test.c",
                 "runtime/src/platform/os/linux.c",
+                "runtime/src/floating.c",
                 "runtime/src/thread.c",
                 "runtime/src/thread/collection.c",
                 "runtime/src/thread/transitions.c",
@@ -185,7 +189,11 @@ fn linux_thread_publications_refresh_growing_main_stack_bounds() {
             ] {
                 command.arg(workspace.join(source));
             }
-            checked(command.arg("-o").arg(&binary));
+            checked(
+                command
+                    .args(["-Wl,--gc-sections", "-lm", "-o"])
+                    .arg(&binary),
+            );
             let output = checked(&mut Command::new(binary));
             assert_eq!(
                 output.stdout,

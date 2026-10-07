@@ -1,0 +1,59 @@
+schema = 1
+name = "m31-ssa-roots"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "optimization", "gc", "exceptions", "closure", "context", "generic", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "minor", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${root}", to = "${work}/source/program.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/program.scoop", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n42\n21\n22\n"
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [
+  {remove = {path = "${work}/source"}},
+  {copy = {from = "${scoop-link}", to = "${work}/standalone/scoop-link"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop-link", {each = "${link_args}"}, "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run_linked"
+argv = ["${work}/relinked"]
+exit = 0
+stdout = "42\n42\n21\n22\n"
+stderr = ""

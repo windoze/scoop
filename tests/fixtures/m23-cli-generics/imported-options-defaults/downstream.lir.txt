@@ -207,17 +207,13 @@ Module
     store local20 -> local22
     store local22 -> local23
     t8 = variant_test e3 v0 local23 : i1
-    cbr t8 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     t9 = variant_payload_project e3 v0 f0 local23 : ptr<managed>
     call managed-direct-target3 sp<managed-call:4> live=[local21:ptr<managed>@0, local22:enum3@0, t9:ptr<managed>@0] t10 = sig=direct3 (ptr<managed>) -> ptr<managed> local-fn5(t9)
     store t10 -> local62
     t11 = enum_wrap e1 v0 (local62) : enum1
     store t11 -> local24
-    br @if.merge.3
-  block if.else.2
-    t12 = enum_wrap e1 v1 () : enum1
-    store t12 -> local24
     br @if.merge.3
   block if.merge.3
     store local24 -> local25
@@ -238,17 +234,13 @@ Module
     store local31 -> local33
     store local33 -> local34
     t17 = variant_test e4 v0 local34 : i1
-    cbr t17 then @if.then.4 else @if.else.5
+    br @if.then.4
   block if.then.4
     t18 = variant_payload_project e4 v0 f0 local34 : ptr<managed>
     call managed-direct-target6 sp<managed-call:8> live=[local33:enum4@0, t18:ptr<managed>@0] t19 = sig=direct6 (ptr<managed>) -> i32 local-fn7(t18)
     store t19 -> local64
     t20 = enum_wrap e5 v0 (local64) : enum5
     store t20 -> local35
-    br @if.merge.6
-  block if.else.5
-    t21 = enum_wrap e5 v1 () : enum5
-    store t21 -> local35
     br @if.merge.6
   block if.merge.6
     store local35 -> local36
@@ -270,14 +262,7 @@ Module
     store local41 -> local43
     store local43 -> local44
     t26 = variant_test e4 v0 local44 : i1
-    cbr t26 then @if.then.9 else @if.else.10
-  block if.then.9
-    t27 = variant_payload_project e4 v0 f0 local44 : ptr<managed>
-    call managed-direct-target8 sp<managed-call:10> live=[local43:enum4@0, t27:ptr<managed>@0] t28 = sig=direct8 (ptr<managed>) -> i32 local-fn7(t27)
-    store t28 -> local65
-    t29 = enum_wrap e5 v0 (local65) : enum5
-    store t29 -> local45
-    br @if.merge.11
+    br @if.else.10
   block if.else.10
     t30 = enum_wrap e5 v1 () : enum5
     store t30 -> local45
@@ -285,7 +270,7 @@ Module
   block if.merge.11
     store local45 -> local46
     store local46 -> local68
-    call managed-direct-target9 sp<managed-call:11> live=[local43:enum4@0] t31 = sig=direct9 (i32, enum4, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn8(local42, local43, indirect local68)
+    call managed-direct-target9 sp<managed-call:10> live=[local43:enum4@0] t31 = sig=direct9 (i32, enum4, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn8(local42, local43, indirect local68)
     store t31 -> local47
     store integer<Int>(0x00000016) -> local48
     store local48 -> local49
@@ -302,14 +287,14 @@ Module
     t34 = enum_wrap e5 v0 (local53) : enum5
     store t34 -> local54
     store local54 -> local69
-    call managed-direct-target10 sp<managed-call:12> live=[] t35 = sig=direct10 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn9(local51, indirect local69)
+    call managed-direct-target10 sp<managed-call:11> live=[] t35 = sig=direct10 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn9(local51, indirect local69)
     store t35 -> local58
     store integer<Int>(0x00000016) -> local55
     store local55 -> local56
     t36 = enum_wrap e5 v1 () : enum5
     store t36 -> local57
     store local57 -> local70
-    call managed-direct-target11 sp<managed-call:13> live=[] t37 = sig=direct11 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn10(local56, indirect local70)
+    call managed-direct-target11 sp<managed-call:12> live=[] t37 = sig=direct11 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn10(local56, indirect local70)
     store t37 -> local59
     store local59 -> local60
     t38 = integer_Add<Int> local58, local60 : i32
@@ -426,17 +411,13 @@ Module
     store local20 -> local22
     store local22 -> local23
     t8 = variant_test e4 v0 local23 : i1
-    cbr t8 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     t9 = variant_payload_project e4 v0 f0 local23 : ptr<managed>
     call managed-direct-target3 sp<managed-call:4> live=[local22:enum4@0, t9:ptr<managed>@0] t10 = sig=direct3 (ptr<managed>) -> i32 local-fn7(t9)
     store t10 -> local62
     t11 = enum_wrap e5 v0 (local62) : enum5
     store t11 -> local24
-    br @if.merge.3
-  block if.else.2
-    t12 = enum_wrap e5 v1 () : enum5
-    store t12 -> local24
     br @if.merge.3
   block if.merge.3
     store local24 -> local25
@@ -458,17 +439,13 @@ Module
     store local31 -> local33
     store local33 -> local34
     t17 = variant_test e4 v0 local34 : i1
-    cbr t17 then @if.then.4 else @if.else.5
+    br @if.then.4
   block if.then.4
     t18 = variant_payload_project e4 v0 f0 local34 : ptr<managed>
     call managed-direct-target6 sp<managed-call:8> live=[local33:enum4@0, t18:ptr<managed>@0] t19 = sig=direct6 (ptr<managed>) -> i32 local-fn7(t18)
     store t19 -> local64
     t20 = enum_wrap e5 v0 (local64) : enum5
     store t20 -> local35
-    br @if.merge.6
-  block if.else.5
-    t21 = enum_wrap e5 v1 () : enum5
-    store t21 -> local35
     br @if.merge.6
   block if.merge.6
     store local35 -> local36
@@ -490,14 +467,7 @@ Module
     store local41 -> local43
     store local43 -> local44
     t26 = variant_test e4 v0 local44 : i1
-    cbr t26 then @if.then.9 else @if.else.10
-  block if.then.9
-    t27 = variant_payload_project e4 v0 f0 local44 : ptr<managed>
-    call managed-direct-target8 sp<managed-call:10> live=[local43:enum4@0, t27:ptr<managed>@0] t28 = sig=direct8 (ptr<managed>) -> i32 local-fn7(t27)
-    store t28 -> local65
-    t29 = enum_wrap e5 v0 (local65) : enum5
-    store t29 -> local45
-    br @if.merge.11
+    br @if.else.10
   block if.else.10
     t30 = enum_wrap e5 v1 () : enum5
     store t30 -> local45
@@ -505,7 +475,7 @@ Module
   block if.merge.11
     store local45 -> local46
     store local46 -> local70
-    call managed-direct-target9 sp<managed-call:11> live=[local43:enum4@0] t31 = sig=direct9 (i32, enum4, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn8(local42, local43, indirect local70)
+    call managed-direct-target9 sp<managed-call:10> live=[local43:enum4@0] t31 = sig=direct9 (i32, enum4, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn8(local42, local43, indirect local70)
     store t31 -> local47
     store integer<Int>(0x00000016) -> local48
     store local48 -> local49
@@ -522,14 +492,14 @@ Module
     t34 = enum_wrap e5 v0 (local53) : enum5
     store t34 -> local54
     store local54 -> local71
-    call managed-direct-target10 sp<managed-call:12> live=[] t35 = sig=direct10 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn9(local51, indirect local71)
+    call managed-direct-target10 sp<managed-call:11> live=[] t35 = sig=direct10 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn9(local51, indirect local71)
     store t35 -> local58
     store integer<Int>(0x00000016) -> local55
     store local55 -> local56
     t36 = enum_wrap e5 v1 () : enum5
     store t36 -> local57
     store local57 -> local72
-    call managed-direct-target11 sp<managed-call:13> live=[] t37 = sig=direct11 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn10(local56, indirect local72)
+    call managed-direct-target11 sp<managed-call:12> live=[] t37 = sig=direct11 (i32, indirect<enum5 size=16 align=8 scan=none>) -> i32 local-fn10(local56, indirect local72)
     store t37 -> local59
     store local59 -> local60
     t38 = integer_Add<Int> local58, local60 : i32

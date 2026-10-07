@@ -3,6 +3,9 @@ use std::process::{Command, Output};
 
 use crate::tests::platform_support::native_os_source;
 
+#[path = "runtime_collector_tests/nursery.rs"]
+mod nursery;
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -64,6 +67,11 @@ fn compile_and_run(
         "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/collector_roots.c",
+        "runtime/src/gc/scan.c",
+        "runtime/src/gc/remembered.c",
+        "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
         "runtime/src/gc/heap.c",
@@ -103,6 +111,9 @@ fn compile_and_run(
 
     let output = Command::new(&binary)
         .env_remove("SCOOP_GC_STRESS_MOVE")
+        .env_remove("SCOOP_GC_STRESS_MINOR")
+        .env_remove("SCOOP_GC_STATS")
+        .env_remove("SCOOP_GC_FULL_ONLY")
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();
@@ -165,6 +176,25 @@ fn fake_platform_drives_the_real_moving_collector() {
     assert_eq!(
         output.stdout,
         b"moving collector fake-platform tests passed\n"
+    );
+}
+
+#[test]
+fn regular_allocations_and_range_barriers_cover_line_and_card_boundaries() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "allocation_barrier_test",
+        "runtime/tests/allocation_barrier_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"regular allocation and range barrier tests passed\n"
     );
 }
 
@@ -283,6 +313,11 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
     let generic_sources = [
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
+        "runtime/src/gc/collector_roots.c",
+        "runtime/src/gc/scan.c",
+        "runtime/src/gc/remembered.c",
+        "runtime/src/gc/evacuation_plan.c",
+        "runtime/src/gc/statistics.c",
         "runtime/src/gc/evacuation.c",
         "runtime/src/gc/reclamation.c",
         "runtime/src/gc/heap.c",

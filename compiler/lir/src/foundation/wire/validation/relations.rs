@@ -4,7 +4,7 @@ use scoop_identity::{
     CallbackApplicationKey, CallbackRegistrationKey, GeneratedBridgeAtomRoleKey,
     GeneratedBridgeUnitKey, IdentityLayer, ObjectDefinitionPlanOwner,
     PersistentCallbackApplicationId, PersistentCallbackRegistrationId,
-    PersistentSourceNativeExternalContractId, SafepointSiteRole, SourceNativeExternalContractKey,
+    PersistentSourceNativeExternalContractId, SourceNativeExternalContractKey,
     ValidatedIdentityGraph,
 };
 use scoop_wire::WirePath;
@@ -24,10 +24,6 @@ pub(super) fn validate_safepoints(
 
     let mut ordinal_values = HashSet::new();
     scoop_wire::allocation::try_reserve_set(&mut ordinal_values, sites.len(), &path)
-        .map_err(LirFoundationValidationError::Resource)?;
-    let mut ordinal_groups =
-        HashMap::<(PersistentCallableBodyId, SafepointSiteRole), (u64, u32)>::new();
-    scoop_wire::allocation::try_reserve_map(&mut ordinal_groups, sites.len(), &path)
         .map_err(LirFoundationValidationError::Resource)?;
     let mut site_ids = HashSet::new();
     scoop_wire::allocation::try_reserve_set(&mut site_ids, sites.len(), &path)
@@ -51,45 +47,6 @@ pub(super) fn validate_safepoints(
             }
             .into());
         }
-        let (count, maximum) = ordinal_groups.entry(group).or_insert((0, 0));
-        *count = count.checked_add(1).ok_or_else(|| {
-            LirFoundationValidationError::Resource(scoop_wire::WireError::new(
-                scoop_wire::WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-        *maximum = (*maximum).max(key.ordinal());
-    }
-
-    let mut first_gap = None;
-    for (&group, &(count, maximum)) in &ordinal_groups {
-        if count == u64::from(maximum) + 1 {
-            continue;
-        }
-        let mut expected = 0;
-        while ordinal_values.contains(&(group, expected)) {
-            expected += 1;
-        }
-        let mut actual = expected + 1;
-        while !ordinal_values.contains(&(group, actual)) {
-            actual += 1;
-        }
-        if first_gap
-            .as_ref()
-            .is_none_or(|&(previous, _, _)| group < previous)
-        {
-            first_gap = Some((group, expected, actual));
-        }
-    }
-    if let Some(((owner, role), expected, actual)) = first_gap {
-        return Err(SafepointRelationError::NonContiguousOrdinal {
-            owner,
-            role,
-            expected,
-            actual,
-        }
-        .into());
     }
 
     let mapping_path = WirePath::root().field(12);

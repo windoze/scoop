@@ -42,7 +42,7 @@ impl StrongRegistrationProductionSurfaceV1 {
         foundation: &ConeLirFoundation,
         digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
-        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let type_semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
             foundation.producer(),
@@ -100,11 +100,10 @@ impl StrongRegistrationProductionSurfaceV1 {
             entry_source,
             &safepoint_semantics,
             &type_semantics,
-            &immortal_semantics,
             &initialization_semantics,
         )
         .map_err(StrongRegistrationProductionBuildError::Digests)?;
-        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let registrations = Self::from_semantics(
             module.meta.target_profile,

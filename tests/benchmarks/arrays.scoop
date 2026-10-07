@@ -1,0 +1,16 @@
+class Item(val value: Long)
+
+fun main() {
+    val scalars = MutableArray<Long>(4096L) { i -> i }
+    val references = MutableArray<Item>(4096L) { i -> Item(i) }
+    gcCollect()
+    var index = 0L
+    while (index < 200000L) {
+        val slot = index % 4096L
+        scalars[slot] = index
+        references[slot] = Item(index)
+        index = index + 1L
+    }
+    gcCollect()
+    println(scalars[0L] + references[0L].value)
+}

@@ -1,3 +1,4 @@
+use scoop_identity::PersistentStaticStorageId;
 use scoop_identity::{
     CanonicalIdentifier, ConeCoordinate, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
     NonEmptyVec, OdrGroupId, OdrMemberDiscriminator, OdrMemberId, OdrMemberKey, OdrMemberRole,

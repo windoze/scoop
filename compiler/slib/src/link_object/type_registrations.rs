@@ -3,16 +3,13 @@
 mod error;
 pub use error::*;
 
-mod digest;
 mod physical;
 pub(in crate::link_object) mod record;
+mod targets;
 mod versioned;
 pub(in crate::link_object) use versioned::{
     LinkDescriptorReference, LinkDispatchCallableReference,
 };
-
-mod fingerprints;
-pub use fingerprints::*;
 
 mod dependency_fingerprints;
 pub use dependency_fingerprints::*;

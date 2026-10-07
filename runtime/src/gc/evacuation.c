@@ -6,104 +6,6 @@
 #include "gc_internal.h"
 #include "heap_internal.h"
 
-static size_t usable_bytes(const ScoopGcBlockMeta *block) {
-    return block->kind == SCOOP_BLOCK_KIND_SMALL
-               ? GC_BLOCK_SIZE - GC_LINE_SIZE
-               : (size_t)block->span_blocks * GC_BLOCK_SIZE - GC_LINE_SIZE;
-}
-
-static void select_source(uint32_t index) {
-    ScoopGcBlockMeta *source = &blocks[index];
-    source->state = SCOOP_BLOCK_EVACUATION_SOURCE;
-    if (source->kind == SCOOP_BLOCK_KIND_SMALL) {
-        source->forwarding = calloc(GC_WORDS_PER_BLOCK, sizeof(void *));
-        if (source->forwarding == NULL) {
-            heap_fatal("out of memory allocating forwarding metadata");
-        }
-    }
-}
-
-void scoop_gc_heap_plan_moving_locked(void) {
-    if (!collection_active) {
-        heap_fatal("evacuation planned outside collection");
-    }
-    if (stress_move) {
-        for (uint32_t index = 0; index < arena_next_block; index++) {
-            ScoopGcBlockMeta *block = &blocks[index];
-            if (active_head(block) && block->state != SCOOP_BLOCK_EVACUATION_TARGET &&
-                block->movable_live_bytes != 0) {
-                select_source(index);
-            }
-        }
-        return;
-    }
-
-    uint32_t selected = UINT32_MAX;
-    for (uint32_t index = 0; index < arena_next_block; index++) {
-        ScoopGcBlockMeta *block = &blocks[index];
-        if (!active_head(block) || block->state == SCOOP_BLOCK_EVACUATION_TARGET ||
-            block->movable_live_bytes == 0) {
-            continue;
-        }
-        if (selected == UINT32_MAX) {
-            selected = index;
-            continue;
-        }
-        ScoopGcBlockMeta *best = &blocks[selected];
-        if (block->live_bytes * usable_bytes(best) <
-            best->live_bytes * usable_bytes(block)) {
-            selected = index;
-        }
-    }
-    if (selected == UINT32_MAX) {
-        return;
-    }
-    select_source(selected);
-}
-
-static void *evacuate_allocate_small(size_t size, size_t alignment,
-                                     uint32_t *block_index) {
-    for (;;) {
-        if (evacuation_cursor != NULL) {
-            evacuation_cursor =
-                (char *)scoop_shape_align((uintptr_t)evacuation_cursor, alignment);
-            char *line_end = (char *)(((uintptr_t)evacuation_cursor &
-                                       ~(uintptr_t)(GC_LINE_SIZE - 1)) +
-                                      GC_LINE_SIZE);
-            char *candidate =
-                evacuation_cursor + size <= line_end ? evacuation_cursor : line_end;
-            if (candidate + size <= evacuation_limit) {
-                evacuation_cursor = candidate + size;
-                *block_index = evacuation_block;
-                return candidate;
-            }
-        }
-        evacuation_block = activate_small_block(SCOOP_BLOCK_EVACUATION_TARGET);
-        if (evacuation_block == UINT32_MAX) {
-            heap_fatal(stress_move
-                           ? "stress arena exhausted by permanently quarantined blocks "
-                             "during small-object evacuation"
-                           : "to-space exhausted while evacuating small objects");
-        }
-        evacuation_cursor = (char *)block_base(evacuation_block) + GC_LINE_SIZE;
-        evacuation_limit = (char *)block_base(evacuation_block) + GC_BLOCK_SIZE;
-    }
-}
-
-static void *evacuate_allocate(size_t size, size_t alignment, uint32_t *block_index) {
-    if (size <= GC_SMALL_MAX) {
-        return evacuate_allocate_small(size, alignment, block_index);
-    }
-    uint32_t index = activate_large_block(size, SCOOP_BLOCK_EVACUATION_TARGET);
-    if (index == UINT32_MAX) {
-        heap_fatal(stress_move ? "stress arena exhausted by permanently quarantined "
-                                 "blocks during large-object evacuation"
-                               : "to-space exhausted while evacuating a large object");
-    }
-    *block_index = index;
-    return (char *)block_base(index) + GC_LINE_SIZE;
-}
-
 void *scoop_gc_forward_object_locked(void *object) {
     if (!collection_active) {
         heap_fatal("object forwarded outside collection");
@@ -127,24 +29,7 @@ void *scoop_gc_forward_object_locked(void *object) {
     if (forwarded != NULL) {
         return forwarded;
     }
-    size_t size = scoop_gc_object_size_locked(object);
-    uint32_t target_index;
-    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    forwarded = evacuate_allocate(size, (size_t)td->instance_shape.instance_alignment,
-                                  &target_index);
-    memcpy(forwarded, object, size);
-    if (size <= GC_SMALL_MAX) {
-        record_small_object(target_index, forwarded, size, true);
-    } else {
-        publish_large_object(target_index, true);
-    }
-    if (source->kind == SCOOP_BLOCK_KIND_LARGE) {
-        source->large_forwarding = forwarded;
-    } else {
-        source->forwarding[word_index] = forwarded;
-    }
-    moved_objects++;
-    return forwarded;
+    heap_fatal("marked evacuation source has no planned forwarding address");
 }
 
 bool scoop_gc_claim_object_scan_locked(void *object) {

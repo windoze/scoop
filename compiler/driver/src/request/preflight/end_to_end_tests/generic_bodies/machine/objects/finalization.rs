@@ -1,57 +1,57 @@
 use super::*;
-use scoop_identity::{DigestKind, PersistentSafepointSiteId};
+use scoop_identity::PersistentSafepointSiteId;
 use scoop_slib::{
-    CallableDefinitionFingerprintV1, ObjectDefinitionFingerprintV1, OdrMemberFingerprintV1,
-    RegistrationFingerprintV1, VerifiedEntryPatchSetV2, VerifiedMaterializedPatchSiteV1,
+    CallableDefinitionAbiV1, ObjectDefinitionFingerprintV1, OdrMemberAbiV1, RegistrationAbiV1,
+    VerifiedEntryPatchSetV2, VerifiedMaterializedPatchSiteV1,
 };
 
 #[derive(Debug, Eq, PartialEq)]
 pub(in super::super) struct CallableFingerprints {
-    pub(in super::super) objects: [ObjectDefinitionFingerprintV1; 2],
-    pub(in super::super) definition: CallableDefinitionFingerprintV1,
-    pub(in super::super) registration: RegistrationFingerprintV1,
-    pub(in super::super) safepoints: Vec<(PersistentSafepointSiteId, RegistrationFingerprintV1)>,
+    pub(in super::super) object: ObjectDefinitionFingerprintV1,
+    pub(in super::super) definition: CallableDefinitionAbiV1,
+    pub(in super::super) registration: RegistrationAbiV1,
+    pub(in super::super) safepoints: Vec<(
+        PersistentSafepointSiteId,
+        RegistrationAbiV1,
+        scoop_slib::StackmapRecordFingerprintV1,
+    )>,
 }
 
 impl CallableFingerprints {
     pub(in super::super) fn append_contents(&self, records: &mut Vec<Vec<u8>>) {
-        records.extend(self.objects.iter().map(|value| value.as_array().to_vec()));
-        let CallableDefinitionFingerprintV1::Odr(definition) = self.definition else {
+        records.push(self.object.as_array().to_vec());
+        let CallableDefinitionAbiV1::Odr(definition) = self.definition else {
             panic!("the shared generic body must retain ODR ownership");
         };
         append_member(definition, records);
         append_registration(self.registration, records);
-        for (site, fingerprint) in &self.safepoints {
+        for (site, fingerprint, stackmap) in &self.safepoints {
+            records.push(stackmap.as_array().to_vec());
             records.push(site.as_array().to_vec());
             append_registration(*fingerprint, records);
         }
     }
 }
 
-fn append_registration(fingerprint: RegistrationFingerprintV1, records: &mut Vec<Vec<u8>>) {
-    let RegistrationFingerprintV1::Odr(fingerprint) = fingerprint else {
+fn append_registration(fingerprint: RegistrationAbiV1, records: &mut Vec<Vec<u8>>) {
+    let RegistrationAbiV1::Odr(fingerprint) = fingerprint else {
         panic!("the shared generic body must retain ODR registrations");
     };
     append_member(fingerprint, records);
 }
 
-fn append_member(fingerprint: OdrMemberFingerprintV1, records: &mut Vec<Vec<u8>>) {
+fn append_member(fingerprint: OdrMemberAbiV1, records: &mut Vec<Vec<u8>>) {
     records.push(fingerprint.abi().as_array().to_vec());
-    records.push(fingerprint.lir().as_array().to_vec());
-    records.push(fingerprint.definition().as_array().to_vec());
 }
 
 pub(super) fn check(
     finalized: &VerifiedEntryPatchSetV2,
-    canonical: &scoop_lir::CanonicalCallableLirDefinitionsV1,
+    canonical: &scoop_lir::CanonicalCallableAbisV1,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let image = finalized.runtime_images().fingerprint();
     let registrations = image.registrations();
     let callables = registrations.callables();
-    let plans = callables
-        .body_objects()
-        .registration_objects()
-        .registrations();
+    let plans = callables.body_objects().registrations();
     let mut fingerprints = BTreeMap::new();
     for ((computed, verified), plan) in callables
         .fingerprints()
@@ -65,13 +65,10 @@ pub(super) fn check(
             computed.definition(),
             canonical.get(computed.body()).unwrap().owner(),
         ) {
+            (CallableDefinitionAbiV1::Strong, scoop_lir::CanonicalCallableAbiOwnerV1::Strong) => {}
             (
-                CallableDefinitionFingerprintV1::Strong(value),
-                scoop_lir::CanonicalCallableDefinitionOwnerV1::Strong,
-            ) => assert_eq!(value, computed.body_definition()),
-            (
-                CallableDefinitionFingerprintV1::Odr(value),
-                scoop_lir::CanonicalCallableDefinitionOwnerV1::Odr {
+                CallableDefinitionAbiV1::Odr(value),
+                scoop_lir::CanonicalCallableAbiOwnerV1::Odr {
                     group,
                     member,
                     role,
@@ -83,23 +80,9 @@ pub(super) fn check(
                     (group, member, role)
                 );
                 assert_eq!(value.abi().as_array(), abi.as_array());
-                assert_eq!(
-                    value.lir(),
-                    canonical.get(computed.body()).unwrap().fingerprint()
-                );
-                assert_ne!(value.definition().as_array(), &[0; 32]);
             }
             _ => panic!("the body fingerprint must use its actual owner"),
         }
-        assert_eq!(
-            verified.registration_definition_patch().source(),
-            computed.registration_node()
-        );
-        check_patch(
-            finalized,
-            verified.registration_definition_patch(),
-            fingerprint.as_array(),
-        );
         check_patch(
             finalized,
             verified.body_definition_patch(),
@@ -110,7 +93,7 @@ pub(super) fn check(
                 .insert(
                     computed.body(),
                     CallableFingerprints {
-                        objects: [computed.body_definition(), computed.registration_object()],
+                        object: computed.body_definition(),
                         definition: computed.definition(),
                         registration: fingerprint,
                         safepoints: Vec::new(),
@@ -128,15 +111,6 @@ pub(super) fn check(
     {
         let fingerprint = computed.registration();
         check_identity(plan.definition_owner(), fingerprint);
-        assert_eq!(
-            verified.registration_definition_patch().source(),
-            computed.registration_node()
-        );
-        check_patch(
-            finalized,
-            verified.registration_definition_patch(),
-            fingerprint.as_array(),
-        );
         check_patch(
             finalized,
             verified.normalized_stackmap_patch(),
@@ -146,7 +120,7 @@ pub(super) fn check(
             .get_mut(&plan.owner())
             .unwrap()
             .safepoints
-            .push((plan.site(), fingerprint));
+            .push((plan.site(), fingerprint, computed.stackmap()));
     }
     assert_ne!(image.fingerprint().as_array(), &[0; 32]);
     check_patch(
@@ -157,17 +131,10 @@ pub(super) fn check(
     fingerprints
 }
 
-fn check_identity(owner: RegistrationDefinitionOwner, fingerprint: RegistrationFingerprintV1) {
+fn check_identity(owner: RegistrationDefinitionOwner, fingerprint: RegistrationAbiV1) {
     match (owner, fingerprint) {
-        (RegistrationDefinitionOwner::Strong, RegistrationFingerprintV1::Strong(value)) => {
-            assert_eq!(fingerprint.kind(), DigestKind::StrongRegistration);
-            assert_ne!(value.as_array(), &[0; 32]);
-        }
-        (
-            RegistrationDefinitionOwner::Odr { group, member },
-            RegistrationFingerprintV1::Odr(value),
-        ) => {
-            assert_eq!(fingerprint.kind(), DigestKind::OdrDefinition);
+        (RegistrationDefinitionOwner::Strong, RegistrationAbiV1::Strong) => {}
+        (RegistrationDefinitionOwner::Odr { group, member }, RegistrationAbiV1::Odr(value)) => {
             assert_eq!(value.group(), group);
             assert_eq!(value.member(), member);
             assert_eq!(
@@ -175,8 +142,6 @@ fn check_identity(owner: RegistrationDefinitionOwner, fingerprint: RegistrationF
                 scoop_identity::OdrMemberRole::RegistrationRecord
             );
             assert_ne!(value.abi().as_array(), &[0; 32]);
-            assert_ne!(value.lir().as_array(), &[0; 32]);
-            assert_ne!(value.definition().as_array(), &[0; 32]);
         }
         _ => panic!("the definition fingerprint must use the registration's actual owner"),
     }

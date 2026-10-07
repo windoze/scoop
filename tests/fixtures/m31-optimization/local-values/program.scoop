@@ -1,0 +1,40 @@
+enum Choice { Value(Int), Empty }
+
+fun integerChoice(): Int {
+    val signed: Byte = 127
+    val wrapped = signed + 1
+    val restored = (-wrapped).inv()
+    val shifted = (255u shr 31L) + 1u
+    val widened = (-1).toUInt64()
+    if (wrapped < 0) {
+        if (restored == 127) {
+            if (shifted == 1u) {
+                if (widened == 18446744073709551615uL) { return 42 }
+            }
+        }
+    }
+    throw IllegalStateException()
+}
+
+fun enumChoice(): Int {
+    val value: Choice = Choice.Value(23)
+    val copied = value
+    return when (copied) {
+        Value(number) -> number
+        Empty -> { gcCollect(); -1 }
+    }
+}
+
+fun optionChoice(): Int {
+    val value: Int? = Some(19)
+    val copied = value
+    return when (copied) {
+        Some(number) -> number
+        None -> { gcCollect(); -1 }
+    }
+}
+
+fun main() {
+    println(integerChoice())
+    println(enumChoice() + optionChoice())
+}

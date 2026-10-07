@@ -78,6 +78,11 @@ typedef struct ScoopArray {
  * above. The native caller must already have published caller/native roots. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
+/* After writing references into managed heap storage, mark the complete
+ * destination range before parking or publishing it. This is a GC leaf:
+ * no allocation, lock or handshake. Empty ranges never access destination. */
+void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
+
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
@@ -245,6 +250,25 @@ void scoop_runtime_gc_collect(void);
  * the precise live count. Test/diagnostic hook (milestone9 DESIGN 1:
  * gcStats). */
 uint64_t scoop_rt_gc_stats(void);
+
+typedef struct ScoopGcMetrics {
+    uint64_t minor_collections;
+    uint64_t full_collections;
+    uint64_t promotion_fallbacks;
+    uint64_t allocated_bytes;
+    uint64_t nursery_allocated_bytes;
+    uint64_t promoted_bytes;
+    uint64_t dirty_cards;
+    uint64_t old_reference_slots;
+    uint64_t root_slots;
+    uint64_t traced_objects;
+    uint64_t pause_ns;
+    uint64_t maximum_pause_ns;
+    uint64_t heap_committed_bytes;
+} ScoopGcMetrics;
+
+/* Diagnostic snapshot; counters never control program validity. */
+void scoop_rt_gc_debug_metrics(ScoopGcMetrics *result);
 
 /* Test hook: number of heap blocks currently live in the arena. */
 uint64_t scoop_rt_gc_debug_block_count(void);

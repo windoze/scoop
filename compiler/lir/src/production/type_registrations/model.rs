@@ -78,11 +78,10 @@ pub struct StrongTypeRegistrationPlan<D, C> {
     pub(super) layout_definition_plan: ObjectDefinitionPlanId,
     pub(super) layout_primary_atom: ObjectDefinitionAtomId,
     pub(super) inline_scan: StrongTypeDescriptorInlineScanPlanV1,
-    pub(super) registration_object_node: DigestNodeId,
+
     pub(super) descriptor_definition_node: DigestNodeId,
     pub(super) layout_fingerprint_node: DigestNodeId,
-    pub(super) registration_fingerprint_node: DigestNodeId,
-    pub(super) registration_definition_patch: DigestPatchIntentId,
+
     pub(super) descriptor_definition_patch: DigestPatchIntentId,
     pub(super) layout_fingerprint_patch: DigestPatchIntentId,
 }
@@ -156,24 +155,12 @@ impl<D: Copy, C> StrongTypeRegistrationPlan<D, C> {
         self.inline_scan
     }
 
-    pub const fn registration_object_node(&self) -> DigestNodeId {
-        self.registration_object_node
-    }
-
     pub const fn descriptor_definition_node(&self) -> DigestNodeId {
         self.descriptor_definition_node
     }
 
     pub const fn layout_fingerprint_node(&self) -> DigestNodeId {
         self.layout_fingerprint_node
-    }
-
-    pub const fn registration_fingerprint_node(&self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(&self) -> DigestPatchIntentId {
-        self.registration_definition_patch
     }
 
     pub const fn descriptor_definition_patch(&self) -> DigestPatchIntentId {

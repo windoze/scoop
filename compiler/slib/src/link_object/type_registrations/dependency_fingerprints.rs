@@ -48,7 +48,6 @@ impl VerifiedStrongTypeDependencyFingerprintV1 {
 pub(super) fn compute<D, C>(
     registrations: &super::VerifiedStrongTypeRegistrationSetV1<D, C>,
     objects: &std::collections::BTreeMap<SlibMemberId, &[u8]>,
-    shapes: &[crate::link_object::OdrShapeFingerprintV1],
 ) -> Result<Vec<VerifiedStrongTypeDependencyFingerprintV1>, StrongTypeDependencyFingerprintError>
 where
     D: super::LinkDescriptorReference,
@@ -142,22 +141,14 @@ where
                 );
             }
         };
-        let descriptor_definition = match plan.definition_owner() {
-            scoop_lir::RegistrationDefinitionOwner::Strong => {
-                descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, itable_directory, plan)
-                    .map_err(
+        let descriptor_definition =
+            descriptor_fingerprint(descriptor_bytes, diagnostic_bytes, itable_directory, plan)
+                .map_err(
                     |source| StrongTypeDependencyFingerprintError::DescriptorHash {
                         exact_type,
                         source,
                     },
-                )?
-            }
-            scoop_lir::RegistrationDefinitionOwner::Odr { .. } => shapes
-                .iter()
-                .find(|shape| shape.canonical().definition() == plan.descriptor_definition_plan())
-                .ok_or(StrongTypeDependencyFingerprintError::MissingDescriptorContent(exact_type))?
-                .object(),
-        };
+                )?;
         let layout = layout_fingerprint(plan).map_err(|source| {
             StrongTypeDependencyFingerprintError::LayoutHash { exact_type, source }
         })?;
@@ -182,7 +173,6 @@ pub enum TypeDependencyArtifactV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeDependencyFingerprintError {
-    MissingDescriptorContent(PersistentExactTypeId),
     ITableDirectoryProofMismatch {
         exact_type: PersistentExactTypeId,
     },

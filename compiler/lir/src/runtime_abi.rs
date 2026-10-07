@@ -17,6 +17,9 @@ const RUNTIME_SYMBOL_CONTRACT_DOMAIN: &str = "scoop-runtime-symbol-contract-v1";
 const TARGET_EH_REQUIREMENT_DOMAIN: &str = "scoop-target-eh-requirement-v1";
 const INITIAL_SCHEMA: u64 = 1;
 
+/// One Immix block minus its reserved first line; shared by generated TLAB code.
+pub const REGULAR_MANAGED_OBJECT_MAX_SIZE: u64 = 32768 - 128;
+
 mod machine;
 pub use machine::{CompilerNativeContractV1, CompilerNativeValueV1};
 
@@ -60,7 +63,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 6,
+                1 => 9,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -81,6 +84,7 @@ pub enum RuntimeAbiSymbolV1 {
     ArrayClone,
     AllocationContext,
     CardTable,
+    WriteBarrier,
     FinishTlabAllocation,
     AllocateSlow,
     BeginCatch,
@@ -103,7 +107,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 59] = [
+    pub const ALL: [Self; 60] = [
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::ContextPush,
         )),
@@ -168,6 +172,7 @@ impl RuntimeAbiSymbolV1 {
         Self::ArrayClone,
         Self::AllocationContext,
         Self::CardTable,
+        Self::WriteBarrier,
         Self::FinishTlabAllocation,
         Self::AllocateSlow,
         Self::BeginCatch,
@@ -295,6 +300,7 @@ impl RuntimeAbiSymbolV1 {
             Self::ArrayClone => "scoop_rt_array_clone",
             Self::AllocationContext => "scoop_rt_allocation_context",
             Self::CardTable => "scoop_gc_card_table",
+            Self::WriteBarrier => "scoop_rt_gc_write_barrier",
             Self::FinishTlabAllocation => "scoop_runtime_finish_tlab_alloc",
             Self::AllocateSlow => "scoop_runtime_alloc_slow",
             Self::BeginCatch => "scoop_rt_begin_catch",
@@ -344,6 +350,7 @@ impl RuntimeAbiSymbolV1 {
             Self::CallbackFailure => 23,
             Self::CallbackState => 24,
             Self::CallbackInvoke => 25,
+            Self::WriteBarrier => 26,
         }
     }
 }
@@ -747,11 +754,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_abi_contract_versions_callback_context_snapshot() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010602010302");
+    fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010902010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "8ef69d47b0138b13b8124ef1f155ceb989969d27f9c553c8105d8f4fab7416cc"
+            "84066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f24"
         );
     }
 
@@ -825,7 +832,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "bffe9a6938b7c6e884854bd407c7c24d0a5bafa807250686fd0cee97c69238f9"
+            "610af0dd634a8c26a48c0c9981d9ccbf72ba48c108edd71b68be422c4ac50dcc"
         );
         assert!(
             registry
@@ -881,7 +888,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "5756b6b4e21d8778626354083c40f3e4b2995f03121abbeb75cbe566a161a374"
+            "b5343ee3abf5acfaedf33265bc510f9c4d68615f9ed1b690ce4b0d970dab9ca0"
         );
     }
 

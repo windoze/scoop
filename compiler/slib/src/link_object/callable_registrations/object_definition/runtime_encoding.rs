@@ -69,16 +69,13 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             RelocationTargetSlotV1::Minuend => 2,
             RelocationTargetSlotV1::Subtrahend => 3,
         })?;
-        match self.target {
+        match &self.target {
             CanonicalRelocationTargetKindV1::Literal(literal) => {
                 encoder.u32(15)?;
                 encoder.byte_span(literal.bytes())
             }
             CanonicalRelocationTargetKindV1::Requirement(requirement) => {
                 requirement.runtime_encode(encoder)
-            }
-            CanonicalRelocationTargetKindV1::StaticStorage(target) => {
-                encode_static_storage_target(encoder, target)
             }
             CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
                 atom,
@@ -87,8 +84,8 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             } => {
                 encoder.u32(10)?;
                 encoder.fixed(atom.as_array())?;
-                encoder.u32(definition_atom_role_tag(role))?;
-                encoder.u64(offset_within_atom)
+                encoder.u32(definition_atom_role_tag(*role))?;
+                encoder.u64(*offset_within_atom)
             }
         }
     }
@@ -229,32 +226,6 @@ fn encode_optional_addend(
         Some(value) => {
             encoder.u32(2)?;
             encoder.u32(value as u32)
-        }
-    }
-}
-
-fn encode_static_storage_target(
-    encoder: &mut RuntimeEncoder,
-    target: CanonicalStaticStorageTargetV1,
-) -> Result<(), RuntimeEncodeError> {
-    match target {
-        CanonicalStaticStorageTargetV1::InitialTemplate(storage) => {
-            encoder.u32(8)?;
-            encoder.u32(1)?;
-            encoder.fixed(storage.as_array())
-        }
-        CanonicalStaticStorageTargetV1::InitialRelocationTable(storage) => {
-            encoder.u32(8)?;
-            encoder.u32(2)?;
-            encoder.fixed(storage.as_array())
-        }
-        CanonicalStaticStorageTargetV1::EmptyTemplateSentinel => {
-            encoder.u32(9)?;
-            encoder.u32(1)
-        }
-        CanonicalStaticStorageTargetV1::EmptyRelocationTableSentinel => {
-            encoder.u32(9)?;
-            encoder.u32(2)
         }
     }
 }

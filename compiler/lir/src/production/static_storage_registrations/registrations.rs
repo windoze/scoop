@@ -38,12 +38,9 @@ pub struct StrongStaticStorageRegistrationPlanV1 {
     scan_symbol: PersistentSymbolRequest,
     scan_definition_plan: ObjectDefinitionPlanId,
     scan_primary_atom: ObjectDefinitionAtomId,
-    registration_object_node: DigestNodeId,
-    storage_definition_node: DigestNodeId,
+
     layout_fingerprint_node: DigestNodeId,
     scan_fingerprint_node: DigestNodeId,
-    registration_fingerprint_node: DigestNodeId,
-    registration_definition_patch: DigestPatchIntentId,
     layout_fingerprint_patch: DigestPatchIntentId,
     scan_fingerprint_patch: DigestPatchIntentId,
 }
@@ -109,28 +106,12 @@ impl StrongStaticStorageRegistrationPlanV1 {
         self.scan_primary_atom
     }
 
-    pub const fn registration_object_node(&self) -> DigestNodeId {
-        self.registration_object_node
-    }
-
-    pub const fn storage_definition_node(&self) -> DigestNodeId {
-        self.storage_definition_node
-    }
-
     pub const fn layout_fingerprint_node(&self) -> DigestNodeId {
         self.layout_fingerprint_node
     }
 
     pub const fn scan_fingerprint_node(&self) -> DigestNodeId {
         self.scan_fingerprint_node
-    }
-
-    pub const fn registration_fingerprint_node(&self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(&self) -> DigestPatchIntentId {
-        self.registration_definition_patch
     }
 
     pub const fn layout_fingerprint_patch(&self) -> DigestPatchIntentId {
@@ -351,68 +332,9 @@ fn build_registration(
         }
     };
 
-    let registration_object = require_leaf_object_node(
-        digests,
-        registration_primary_atom,
-        StaticStorageObjectLeafV1::Registration,
-    )?;
-    let storage_object = require_leaf_object_node(
-        digests,
-        storage_primary_atom,
-        StaticStorageObjectLeafV1::Storage,
-    )?;
     let layout_fingerprint =
         require_digest_node(digests, DigestNodeKey::layout(semantic.layout()))?;
     let scan_fingerprint = require_digest_node(digests, DigestNodeKey::scan(semantic.scan()))?;
-    let registration_fingerprint = require_digest_node(
-        digests,
-        identity.owner().digest_key(registration_definition.id()),
-    )?;
-    if registration_fingerprint.id() != identity.fingerprint_node() {
-        return Err(
-            StrongStaticStorageRegistrationPlanBuildError::RegistrationDigestMismatch {
-                storage,
-                expected: registration_fingerprint.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
-
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(storage_object),
-        DigestInputRefV1::from_node(layout_fingerprint),
-        DigestInputRefV1::from_node(scan_fingerprint),
-    ];
-    if matches!(
-        identity.owner(),
-        crate::RegistrationDefinitionOwner::Odr { .. }
-    ) {
-        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
-            digests,
-            DigestNodeKey::lir_definition(registration_primary_atom),
-        )?));
-    }
-    expected_inputs.sort_unstable();
-    if registration_fingerprint.direct_inputs() != expected_inputs {
-        return Err(
-            StrongStaticStorageRegistrationPlanBuildError::DirectInputs {
-                node: registration_fingerprint.id(),
-                expected: expected_inputs,
-                actual: registration_fingerprint.direct_inputs().to_vec(),
-            },
-        );
-    }
-
-    let registration_definition_patch = require_only_patch(
-        registration_fingerprint,
-        DigestPatchIntentKey::new(
-            registration_fingerprint.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        ),
-    )?;
     let layout_fingerprint_patch = require_patch(
         layout_fingerprint,
         DigestPatchIntentKey::new(
@@ -448,12 +370,9 @@ fn build_registration(
         scan_symbol,
         scan_definition_plan,
         scan_primary_atom,
-        registration_object_node: registration_object.id(),
-        storage_definition_node: storage_object.id(),
+
         layout_fingerprint_node: layout_fingerprint.id(),
         scan_fingerprint_node: scan_fingerprint.id(),
-        registration_fingerprint_node: registration_fingerprint.id(),
-        registration_definition_patch,
         layout_fingerprint_patch,
         scan_fingerprint_patch,
     })
@@ -613,51 +532,6 @@ fn require_digest_node(
         .iter()
         .find(|node| node.key() == &key)
         .ok_or(StrongStaticStorageRegistrationPlanBuildError::MissingDigestNode(key))
-}
-
-fn require_leaf_object_node(
-    digests: &DigestFinalizationPlanV1,
-    atom: ObjectDefinitionAtomId,
-    leaf: StaticStorageObjectLeafV1,
-) -> Result<&DigestNodeV1, StrongStaticStorageRegistrationPlanBuildError> {
-    let node = require_digest_node(digests, DigestNodeKey::object_definition(atom))?;
-    if !node.direct_inputs().is_empty() {
-        return Err(
-            StrongStaticStorageRegistrationPlanBuildError::ObjectLeafInputs {
-                leaf,
-                node: node.id(),
-                actual: node.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !node.patch_intents().is_empty() {
-        return Err(
-            StrongStaticStorageRegistrationPlanBuildError::ObjectLeafPatches {
-                leaf,
-                node: node.id(),
-                actual: node
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
-    Ok(node)
-}
-
-fn require_only_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongStaticStorageRegistrationPlanBuildError> {
-    match node.patch_intents() {
-        [patch] if patch.key() == &expected => Ok(patch.id()),
-        actual => Err(StrongStaticStorageRegistrationPlanBuildError::PatchSet {
-            node: node.id(),
-            expected: Box::new(expected),
-            actual: actual.iter().map(|patch| *patch.key()).collect(),
-        }),
-    }
 }
 
 fn require_patch(

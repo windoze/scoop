@@ -83,65 +83,51 @@ Module
     store local4 -> local29
     store local29 -> local30
     t9 = variant_test e1 v0 local30 : i1
-    cbr t9 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t10 = variant_payload_project e1 v0 f0 local30 : ptr<managed>
     store t10 -> local10
-    call managed-direct-target3 sp<managed-call:6> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local10:ptr<managed>@0] t11 = sig=direct3 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local10(local10, integer<Int>(0x00000028))
+    call managed-direct-target3 sp<managed-call:5> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local10:ptr<managed>@0] t11 = sig=direct3 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local10(local10, integer<Int>(0x00000028))
     store t11 -> local11
     store local11 -> local12
-    call managed-void-target1 sp<managed-call:7> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0] sig=void1 (i32) local-fn7(local12)
+    call managed-void-target1 sp<managed-call:6> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0] sig=void1 (i32) local-fn7(local12)
     t12 = aggregate () : {}
     br @pattern.merge.3
-  block pattern.else.2
-    store local29 -> local31
-    t13 = variant_test e1 v1 local31 : i1
-    cbr t13 then @pattern.pass.4 else @pattern.else.5
   block pattern.merge.3
     store local5 -> local15
     store integer<Long>(0x0000000000000000) -> local16
     store local16 -> local17
-    call managed-direct-target4 sp<managed-call:8> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local15:ptr<managed>@0] t14 = sig=direct4 (ptr<managed>, i64) -> ptr<managed> local-fn3(local15, local17)
+    call managed-direct-target4 sp<managed-call:7> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local15:ptr<managed>@0] t14 = sig=direct4 (ptr<managed>, i64) -> ptr<managed> local-fn3(local15, local17)
     store t14 -> local32
-    call managed-direct-target5 sp<managed-call:9> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local32:ptr<managed>@0] t15 = sig=direct5 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local32(local32, integer<Int>(0x00000028))
+    call managed-direct-target5 sp<managed-call:8> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0, local32:ptr<managed>@0] t15 = sig=direct5 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local32(local32, integer<Int>(0x00000028))
     store t15 -> local18
     store local18 -> local19
-    call managed-void-target2 sp<managed-call:10> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0] sig=void2 (i32) local-fn7(local19)
+    call managed-void-target2 sp<managed-call:9> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0] sig=void2 (i32) local-fn7(local19)
     t16 = aggregate () : {}
     store local5 -> local20
     store integer<Long>(0x0000000000000001) -> local21
     store local21 -> local22
-    call managed-direct-target6 sp<managed-call:11> live=[local8:struct0@0, local9:ptr<managed>@0, local20:ptr<managed>@0] t17 = sig=direct6 (ptr<managed>, i64) -> ptr<managed> local-fn3(local20, local22)
+    call managed-direct-target6 sp<managed-call:10> live=[local8:struct0@0, local9:ptr<managed>@0, local20:ptr<managed>@0] t17 = sig=direct6 (ptr<managed>, i64) -> ptr<managed> local-fn3(local20, local22)
     store t17 -> local33
-    call managed-direct-target7 sp<managed-call:12> live=[local8:struct0@0, local9:ptr<managed>@0, local33:ptr<managed>@0] t18 = sig=direct7 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local33(local33, integer<Int>(0x00000028))
+    call managed-direct-target7 sp<managed-call:11> live=[local8:struct0@0, local9:ptr<managed>@0, local33:ptr<managed>@0] t18 = sig=direct7 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local33(local33, integer<Int>(0x00000028))
     store t18 -> local23
     store local23 -> local24
-    call managed-void-target3 sp<managed-call:13> live=[local8:struct0@0, local9:ptr<managed>@0] sig=void3 (i32) local-fn7(local24)
+    call managed-void-target3 sp<managed-call:12> live=[local8:struct0@0, local9:ptr<managed>@0] sig=void3 (i32) local-fn7(local24)
     t19 = aggregate () : {}
     t20 = extract local8, 0 : ptr<managed>
-    call managed-direct-target8 sp<managed-call:14> live=[local9:ptr<managed>@0, t20:ptr<managed>@0] t21 = sig=direct8 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t20(t20, integer<Int>(0x00000028))
+    call managed-direct-target8 sp<managed-call:13> live=[local9:ptr<managed>@0, t20:ptr<managed>@0] t21 = sig=direct8 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t20(t20, integer<Int>(0x00000028))
     store t21 -> local25
     store local25 -> local26
-    call managed-void-target4 sp<managed-call:15> live=[local9:ptr<managed>@0] sig=void4 (i32) local-fn7(local26)
+    call managed-void-target4 sp<managed-call:14> live=[local9:ptr<managed>@0] sig=void4 (i32) local-fn7(local26)
     t22 = aggregate () : {}
     t23 = aggregate (integer<Int>(0x00000014), integer<Int>(0x00000016)) : {i32, i32}
     store t23 -> local35
-    call managed-direct-target9 sp<managed-call:16> live=[local9:ptr<managed>@0] t24 = sig=direct9 (ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 dispatch[Closure:2] local9(local9, indirect local35)
+    call managed-direct-target9 sp<managed-call:15> live=[local9:ptr<managed>@0] t24 = sig=direct9 (ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 dispatch[Closure:2] local9(local9, indirect local35)
     store t24 -> local27
     store local27 -> local28
-    call managed-void-target5 sp<managed-call:17> live=[] sig=void5 (i32) local-fn7(local28)
+    call managed-void-target5 sp<managed-call:16> live=[] sig=void5 (i32) local-fn7(local28)
     t25 = aggregate () : {}
     ret
-  block pattern.pass.4
-    store integer<Int>(0x00000000) -> local13
-    store local13 -> local14
-    call managed-void-target6 sp<managed-call:5> live=[local5:ptr<managed>@0, local8:struct0@0, local9:ptr<managed>@0] sig=void6 (i32) local-fn7(local14)
-    t26 = aggregate () : {}
-    br @pattern.merge.6
-  block pattern.else.5
-    unreachable
-  block pattern.merge.6
-    br @pattern.merge.3
   fun @scoop$1$cb$561e0c3f1df1b4b2884cf95d113773871ca4bb7fd65b270e66d2eb6b73925cf6(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i64

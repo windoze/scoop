@@ -4,17 +4,13 @@ use std::fmt;
 
 pub use scoop_identity::PersistentImmortalObjectId;
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
+    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
-use crate::{
-    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, DigestNodeV1,
-    RegistrationIdentitySurfaceV1,
-};
+use crate::{ConeLirFoundation, DigestInputRefV1, RegistrationIdentitySurfaceV1};
 
 mod semantics;
 pub use semantics::*;
@@ -31,10 +27,6 @@ pub struct StrongImmortalObjectRegistrationPlanV1 {
     object_definition_owner: scoop_identity::ObjectDefinitionPlanOwner,
     object_primary_atom: ObjectDefinitionAtomId,
     type_registration_symbol: PersistentSymbolRequest,
-    registration_object_node: DigestNodeId,
-    object_definition_node: DigestNodeId,
-    registration_fingerprint_node: DigestNodeId,
-    registration_definition_patch: DigestPatchIntentId,
 }
 
 impl StrongImmortalObjectRegistrationPlanV1 {
@@ -93,22 +85,6 @@ impl StrongImmortalObjectRegistrationPlanV1 {
     pub const fn type_registration_symbol(self) -> PersistentSymbolRequest {
         self.type_registration_symbol
     }
-
-    pub const fn registration_object_node(self) -> DigestNodeId {
-        self.registration_object_node
-    }
-
-    pub const fn object_definition_node(self) -> DigestNodeId {
-        self.object_definition_node
-    }
-
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(self) -> DigestPatchIntentId {
-        self.registration_definition_patch
-    }
 }
 
 /// Proof that every final LIR immortal object has one complete strong registration plan.
@@ -123,7 +99,6 @@ impl StrongImmortalObjectRegistrationPlanSetV1 {
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
         semantics: &StrongImmortalObjectSemanticPlanSetV1,
-        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongImmortalObjectRegistrationPlanBuildError> {
         if semantics.producer() != foundation.producer() {
             return Err(
@@ -194,7 +169,7 @@ impl StrongImmortalObjectRegistrationPlanSetV1 {
             .objects()
             .iter()
             .zip(identities.immortal_objects())
-            .map(|(semantic, identity)| build_registration(foundation, semantic, identity, digests))
+            .map(|(semantic, identity)| build_registration(foundation, semantic, identity))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             producer: foundation.producer(),
@@ -215,7 +190,6 @@ fn build_registration(
     foundation: &ConeLirFoundation,
     semantic: &StrongImmortalObjectSemanticPlanV1,
     identity: &crate::RegistrationIdentityV1<PersistentImmortalObjectId>,
-    digests: &DigestFinalizationPlanV1,
 ) -> Result<StrongImmortalObjectRegistrationPlanV1, StrongImmortalObjectRegistrationPlanBuildError>
 {
     let object = semantic.object();
@@ -258,100 +232,6 @@ fn build_registration(
     )
     .map_err(StrongImmortalObjectRegistrationPlanBuildError::Symbol)?;
 
-    let registration_object = require_digest_node(
-        digests,
-        DigestNodeKey::object_definition(registration_primary_atom),
-    )?;
-    let object_node = require_digest_node(
-        digests,
-        DigestNodeKey::object_definition(object_primary_atom),
-    )?;
-    if !registration_object.direct_inputs().is_empty() {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::RegistrationObjectInputs {
-                node: registration_object.id(),
-                actual: registration_object.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !registration_object.patch_intents().is_empty() {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::RegistrationObjectPatches {
-                node: registration_object.id(),
-                actual: registration_object
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
-    if !object_node.direct_inputs().is_empty() {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectInputs {
-                node: object_node.id(),
-                actual: object_node.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !object_node.patch_intents().is_empty() {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectPatches {
-                node: object_node.id(),
-                actual: object_node
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
-    let registration = require_digest_node(
-        digests,
-        definition_owner.digest_key(registration_definition.id()),
-    )?;
-    if registration.id() != identity.fingerprint_node() {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::RegistrationDigestMismatch {
-                object,
-                expected: registration.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(object_node),
-    ];
-    if matches!(
-        definition_owner,
-        crate::RegistrationDefinitionOwner::Odr { .. }
-    ) {
-        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
-            digests,
-            DigestNodeKey::lir_definition(registration_primary_atom),
-        )?));
-    }
-    expected_inputs.sort_unstable();
-    if registration.direct_inputs() != expected_inputs {
-        return Err(
-            StrongImmortalObjectRegistrationPlanBuildError::DirectInputs {
-                node: registration.id(),
-                expected: expected_inputs,
-                actual: registration.direct_inputs().to_vec(),
-            },
-        );
-    }
-    let registration_definition_patch = require_only_patch(
-        registration,
-        DigestPatchIntentKey::new(
-            registration.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        ),
-    )?;
-
     Ok(StrongImmortalObjectRegistrationPlanV1 {
         semantic: *semantic,
         definition_owner,
@@ -362,10 +242,6 @@ fn build_registration(
         object_definition_owner: object_definition.key().owner(),
         object_primary_atom,
         type_registration_symbol,
-        registration_object_node: registration_object.id(),
-        object_definition_node: object_node.id(),
-        registration_fingerprint_node: registration.id(),
-        registration_definition_patch,
     })
 }
 
@@ -423,31 +299,6 @@ fn require_symbol(
         Ok(())
     } else {
         Err(StrongImmortalObjectRegistrationPlanBuildError::MissingSymbol(symbol))
-    }
-}
-
-fn require_digest_node(
-    digests: &DigestFinalizationPlanV1,
-    key: DigestNodeKey,
-) -> Result<&DigestNodeV1, StrongImmortalObjectRegistrationPlanBuildError> {
-    digests
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &key)
-        .ok_or(StrongImmortalObjectRegistrationPlanBuildError::MissingDigestNode(key))
-}
-
-fn require_only_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongImmortalObjectRegistrationPlanBuildError> {
-    match node.patch_intents() {
-        [patch] if patch.key() == &expected => Ok(patch.id()),
-        actual => Err(StrongImmortalObjectRegistrationPlanBuildError::PatchSet {
-            node: node.id(),
-            expected: Box::new(expected),
-            actual: actual.iter().map(|patch| *patch.key()).collect(),
-        }),
     }
 }
 

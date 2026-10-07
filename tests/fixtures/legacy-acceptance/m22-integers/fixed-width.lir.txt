@@ -498,23 +498,13 @@ Module
     store local91 -> local276
     store local93 -> local277
     t32 = integer_compare_Equal<Int8> local277, integer<Int8>(0x00) : i1
-    cbr t32 then @if.then.1 else @if.merge.2
-  block if.then.1
-    call managed-direct-target0 sp<managed-call:67> live=[] t33 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t33 -> local293
-    call managed-void-target18 sp<managed-call:68> live=[local293:ptr<managed>@0] sig=void18 (ptr<managed>) external-fn11(local293)
-    t34 = aggregate () : {}
-    throw local293
-    unreachable
+    br @if.merge.2
   block if.merge.2
     t35 = integer_compare_Equal<Int8> local276, integer<Int8>(0x80) : i1
-    cbr t35 then @logic.rhs.3 else @logic.short.4
+    br @logic.rhs.3
   block logic.rhs.3
     t36 = integer_compare_Equal<Int8> local277, integer<Int8>(0xff) : i1
     store t36 -> local294
-    br @logic.merge.5
-  block logic.short.4
-    store false -> local294
     br @logic.merge.5
   block logic.merge.5
     cbr local294 then @if.then.6 else @if.else.7
@@ -536,14 +526,7 @@ Module
     store local96 -> local279
     store local98 -> local280
     t39 = integer_compare_Equal<Int16> local280, integer<Int16>(0x0000) : i1
-    cbr t39 then @if.then.9 else @if.merge.10
-  block if.then.9
-    call managed-direct-target1 sp<managed-call:65> live=[] t40 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t40 -> local295
-    call managed-void-target20 sp<managed-call:66> live=[local295:ptr<managed>@0] sig=void20 (ptr<managed>) external-fn11(local295)
-    t41 = aggregate () : {}
-    throw local295
-    unreachable
+    br @if.merge.10
   block if.merge.10
     t42 = integer_compare_Equal<Int16> local279, integer<Int16>(0x8000) : i1
     cbr t42 then @logic.rhs.11 else @logic.short.12
@@ -574,14 +557,7 @@ Module
     store local101 -> local282
     store local103 -> local283
     t46 = integer_compare_Equal<Int> local283, integer<Int>(0x00000000) : i1
-    cbr t46 then @if.then.17 else @if.merge.18
-  block if.then.17
-    call managed-direct-target2 sp<managed-call:63> live=[] t47 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t47 -> local297
-    call managed-void-target22 sp<managed-call:64> live=[local297:ptr<managed>@0] sig=void22 (ptr<managed>) external-fn11(local297)
-    t48 = aggregate () : {}
-    throw local297
-    unreachable
+    br @if.merge.18
   block if.merge.18
     t49 = integer_compare_Equal<Int> local282, integer<Int>(0x80000000) : i1
     cbr t49 then @logic.rhs.19 else @logic.short.20
@@ -612,14 +588,7 @@ Module
     store local106 -> local285
     store local108 -> local286
     t53 = integer_compare_Equal<Long> local286, integer<Long>(0x0000000000000000) : i1
-    cbr t53 then @if.then.25 else @if.merge.26
-  block if.then.25
-    call managed-direct-target3 sp<managed-call:61> live=[] t54 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
-    store t54 -> local299
-    call managed-void-target24 sp<managed-call:62> live=[local299:ptr<managed>@0] sig=void24 (ptr<managed>) external-fn11(local299)
-    t55 = aggregate () : {}
-    throw local299
-    unreachable
+    br @if.merge.26
   block if.merge.26
     t56 = integer_compare_Equal<Long> local285, integer<Long>(0x8000000000000000) : i1
     cbr t56 then @logic.rhs.27 else @logic.short.28
@@ -727,7 +696,7 @@ Module
     store t82 -> local150
     store local150 -> local291
     t83 = integer_compare_Equal<UInt8> local291, integer<UInt8>(0xff) : i1
-    cbr t83 then @pattern.pass.53 else @pattern.else.54
+    br @pattern.pass.53
   block try.body.40
     store local0 -> local111
     store integer<Int8>(0x00) -> local112
@@ -735,36 +704,12 @@ Module
     store local111 -> local288
     store local113 -> local289
     t84 = integer_compare_Equal<Int8> local289, integer<Int8>(0x00) : i1
-    cbr t84 then @if.then.41 else @if.merge.42
+    br @if.then.41
   block if.then.41
     call managed-direct-target4 sp<managed-call:22> live=[] t85 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t85 -> local301
-    invoke managed-void-target32 sp<managed-invoke:1> roots=[local301:normal] sig=void32 (ptr<managed>) external-fn11(local301) normal @invoke.normal.1 unwind @try.unwind.33
+    invoke managed-void-target32 sp<managed-invoke:0> roots=[local301:normal] sig=void32 (ptr<managed>) external-fn11(local301) normal @invoke.normal.1 unwind @try.unwind.33
     br @invoke.normal.1
-  block if.merge.42
-    t87 = integer_compare_Equal<Int8> local288, integer<Int8>(0x80) : i1
-    cbr t87 then @logic.rhs.43 else @logic.short.44
-  block logic.rhs.43
-    t88 = integer_compare_Equal<Int8> local289, integer<Int8>(0xff) : i1
-    store t88 -> local302
-    br @logic.merge.45
-  block logic.short.44
-    store false -> local302
-    br @logic.merge.45
-  block logic.merge.45
-    cbr local302 then @if.then.46 else @if.else.47
-  block if.then.46
-    store integer<Int8>(0x80) -> local290
-    br @if.merge.48
-  block if.else.47
-    t89 = safe_integer_Divide<Int8> local288, local289 : i8
-    store t89 -> local290
-    br @if.merge.48
-  block if.merge.48
-    store local290 -> local114
-    store local114 -> local115
-    invoke managed-void-target33 sp<managed-invoke:0> roots=[] sig=void34 (i8) local-fn8(local115) normal @invoke.normal.3 unwind @try.unwind.33
-    br @invoke.normal.3
   block try.catch.49
     call managed-direct-target5 sp<managed-call:23> live=[local307:ptr<managed>@0] t91 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local307)
     store t91 -> local303
@@ -776,21 +721,15 @@ Module
   block scope.51
     store global4 -> local117
     store local117 -> local118
-    invoke managed-void-target34 sp<managed-invoke:2> roots=[local118:argument] sig=void36 (ptr<managed>) local-fn16(local118) normal @invoke.normal.5 unwind @try.handler_pad.35
+    invoke managed-void-target34 sp<managed-invoke:1> roots=[local118:argument] sig=void36 (ptr<managed>) local-fn16(local118) normal @invoke.normal.5 unwind @try.handler_pad.35
     br @invoke.normal.5
   block scope.52
     br @try.end.39
   block pattern.pass.53
     store global5 -> local151
     store local151 -> local152
-    call managed-void-target35 sp<managed-call:31> live=[local152:ptr<managed>@0] sig=void37 (ptr<managed>) local-fn16(local152)
+    call managed-void-target35 sp<managed-call:30> live=[local152:ptr<managed>@0] sig=void37 (ptr<managed>) local-fn16(local152)
     t93 = aggregate () : {}
-    br @pattern.merge.55
-  block pattern.else.54
-    store global6 -> local153
-    store local153 -> local154
-    call managed-void-target36 sp<managed-call:30> live=[local154:ptr<managed>@0] sig=void38 (ptr<managed>) local-fn16(local154)
-    t94 = aggregate () : {}
     br @pattern.merge.55
   block pattern.merge.55
     store integer<Int>(0x00000001) -> local155
@@ -801,7 +740,7 @@ Module
     t97 = integer_shift_Left<Int> local155, normalized=t96 : i32
     store t97 -> local158
     store local158 -> local159
-    call managed-void-target37 sp<managed-call:32> live=[] sig=void39 (i32) local-fn10(local159)
+    call managed-void-target37 sp<managed-call:31> live=[] sig=void39 (i32) local-fn10(local159)
     t98 = aggregate () : {}
     store integer<Int>(0xffffffff) -> local160
     store integer<Long>(0x0000000000000001) -> local161
@@ -811,7 +750,7 @@ Module
     t101 = integer_shift_LogicalRight<Int> local160, normalized=t100 : i32
     store t101 -> local163
     store local163 -> local164
-    call managed-void-target38 sp<managed-call:33> live=[] sig=void40 (i32) local-fn10(local164)
+    call managed-void-target38 sp<managed-call:32> live=[] sig=void40 (i32) local-fn10(local164)
     t102 = aggregate () : {}
     store local4 -> local165
     store integer<Long>(0x0000000000000007) -> local166
@@ -821,7 +760,7 @@ Module
     t105 = integer_shift_LogicalRight<UInt8> local165, normalized=t104 : i8
     store t105 -> local168
     store local168 -> local169
-    call managed-void-target39 sp<managed-call:34> live=[] sig=void41 (i8) local-fn12(local169)
+    call managed-void-target39 sp<managed-call:33> live=[] sig=void41 (i8) local-fn12(local169)
     t106 = aggregate () : {}
     store local10 -> local170
     store integer<Long>(0x0000000000000007) -> local171
@@ -831,95 +770,95 @@ Module
     t109 = integer_shift_ArithmeticRight<Int8> local170, normalized=t108 : i8
     store t109 -> local173
     store local173 -> local174
-    call managed-void-target40 sp<managed-call:35> live=[] sig=void42 (i8) local-fn8(local174)
+    call managed-void-target40 sp<managed-call:34> live=[] sig=void42 (i8) local-fn8(local174)
     t110 = aggregate () : {}
     store local10 -> local175
     t111 = integer_convert<Int8->ULong> local175 : i64
     store t111 -> local176
     store local176 -> local177
-    call managed-void-target41 sp<managed-call:36> live=[] sig=void43 (i64) local-fn15(local177)
+    call managed-void-target41 sp<managed-call:35> live=[] sig=void43 (i64) local-fn15(local177)
     t112 = aggregate () : {}
     store integer<Int>(0x00000101) -> local178
     t113 = integer_convert<Int->UInt8> local178 : i8
     store t113 -> local179
     store local179 -> local180
-    call managed-void-target42 sp<managed-call:37> live=[] sig=void44 (i8) local-fn12(local180)
+    call managed-void-target42 sp<managed-call:36> live=[] sig=void44 (i8) local-fn12(local180)
     t114 = aggregate () : {}
     store local7 -> local181
     t115 = integer_convert<ULong->Int8> local181 : i8
     store t115 -> local182
     store local182 -> local183
-    call managed-void-target43 sp<managed-call:38> live=[] sig=void45 (i8) local-fn8(local183)
+    call managed-void-target43 sp<managed-call:37> live=[] sig=void45 (i8) local-fn8(local183)
     t116 = aggregate () : {}
     store local6 -> local184
     t117 = integer_convert<UInt->Long> local184 : i64
     store t117 -> local185
     store local185 -> local186
-    call managed-void-target44 sp<managed-call:39> live=[] sig=void46 (i64) local-fn11(local186)
+    call managed-void-target44 sp<managed-call:38> live=[] sig=void46 (i64) local-fn11(local186)
     t118 = aggregate () : {}
     store integer<Int>(0x00000001) -> local187
     store local187 -> local188
-    call managed-direct-target6 sp<managed-call:40> live=[] t119 = sig=direct7 (i32) -> ptr<managed> local-fn0(local188)
+    call managed-direct-target6 sp<managed-call:39> live=[] t119 = sig=direct7 (i32) -> ptr<managed> local-fn0(local188)
     store t119 -> local189
     store local189 -> local190
-    call managed-void-target45 sp<managed-call:41> live=[local190:ptr<managed>@0] sig=void47 (ptr<managed>) local-fn16(local190)
+    call managed-void-target45 sp<managed-call:40> live=[local190:ptr<managed>@0] sig=void47 (ptr<managed>) local-fn16(local190)
     t120 = aggregate () : {}
     store integer<Long>(0x0000000080000000) -> local191
     store local191 -> local192
-    call managed-direct-target7 sp<managed-call:42> live=[] t121 = sig=direct8 (i64) -> ptr<managed> local-fn1(local192)
+    call managed-direct-target7 sp<managed-call:41> live=[] t121 = sig=direct8 (i64) -> ptr<managed> local-fn1(local192)
     store t121 -> local193
     store local193 -> local194
-    call managed-void-target46 sp<managed-call:43> live=[local194:ptr<managed>@0] sig=void48 (ptr<managed>) local-fn16(local194)
+    call managed-void-target46 sp<managed-call:42> live=[local194:ptr<managed>@0] sig=void48 (ptr<managed>) local-fn16(local194)
     t122 = aggregate () : {}
     store integer<UInt>(0x00000001) -> local195
     store local195 -> local196
-    call managed-direct-target8 sp<managed-call:44> live=[] t123 = sig=direct9 (i32) -> ptr<managed> local-fn2(local196)
+    call managed-direct-target8 sp<managed-call:43> live=[] t123 = sig=direct9 (i32) -> ptr<managed> local-fn2(local196)
     store t123 -> local197
     store local197 -> local198
-    call managed-void-target47 sp<managed-call:45> live=[local198:ptr<managed>@0] sig=void49 (ptr<managed>) local-fn16(local198)
+    call managed-void-target47 sp<managed-call:44> live=[local198:ptr<managed>@0] sig=void49 (ptr<managed>) local-fn16(local198)
     t124 = aggregate () : {}
     store integer<ULong>(0x0000000100000000) -> local199
     store local199 -> local200
-    call managed-direct-target9 sp<managed-call:46> live=[] t125 = sig=direct10 (i64) -> ptr<managed> local-fn3(local200)
+    call managed-direct-target9 sp<managed-call:45> live=[] t125 = sig=direct10 (i64) -> ptr<managed> local-fn3(local200)
     store t125 -> local201
     store local201 -> local202
-    call managed-void-target48 sp<managed-call:47> live=[local202:ptr<managed>@0] sig=void50 (ptr<managed>) local-fn16(local202)
+    call managed-void-target48 sp<managed-call:46> live=[local202:ptr<managed>@0] sig=void50 (ptr<managed>) local-fn16(local202)
     t126 = aggregate () : {}
     store integer<Long>(0x0000000000000001) -> local203
     store integer<Long>(0x0000000080000000) -> local204
     store local203 -> local205
     store local204 -> local206
-    call managed-direct-target10 sp<managed-call:48> live=[] t127 = sig=direct11 (i64, i64) -> i64 local-fn18(local205, local206)
+    call managed-direct-target10 sp<managed-call:47> live=[] t127 = sig=direct11 (i64, i64) -> i64 local-fn18(local205, local206)
     store t127 -> local207
     store local207 -> local208
-    call managed-void-target49 sp<managed-call:49> live=[] sig=void51 (i64) local-fn11(local208)
+    call managed-void-target49 sp<managed-call:48> live=[] sig=void51 (i64) local-fn11(local208)
     t128 = aggregate () : {}
     store integer<Long>(0x0000000080000000) -> local209
     store integer<Long>(0x0000000000000001) -> local210
     store local209 -> local211
     store local210 -> local212
-    call managed-direct-target11 sp<managed-call:50> live=[] t129 = sig=direct12 (i64, i64) -> i64 local-fn18(local211, local212)
+    call managed-direct-target11 sp<managed-call:49> live=[] t129 = sig=direct12 (i64, i64) -> i64 local-fn18(local211, local212)
     store t129 -> local213
     store local213 -> local214
-    call managed-void-target50 sp<managed-call:51> live=[] sig=void52 (i64) local-fn11(local214)
+    call managed-void-target50 sp<managed-call:50> live=[] sig=void52 (i64) local-fn11(local214)
     t130 = aggregate () : {}
-    t131 = array_alloc array0 (integer<Long>(0x0000000000000001), integer<Long>(0x0000000080000000)) sp<managed-call:52> live  : ptr<managed>
+    t131 = array_alloc array0 (integer<Long>(0x0000000000000001), integer<Long>(0x0000000080000000)) sp<managed-call:51> live  : ptr<managed>
     store t131 -> local215
     store local215 -> local216
     store integer<Long>(0x0000000000000000) -> local217
     store local217 -> local218
-    call managed-direct-target12 sp<managed-call:53> live=[local215:ptr<managed>@0, local216:ptr<managed>@0] t132 = sig=direct13 (ptr<managed>, i64) -> i64 local-fn6(local216, local218)
+    call managed-direct-target12 sp<managed-call:52> live=[local215:ptr<managed>@0, local216:ptr<managed>@0] t132 = sig=direct13 (ptr<managed>, i64) -> i64 local-fn6(local216, local218)
     store t132 -> local222
     store local215 -> local219
     store integer<Long>(0x0000000000000001) -> local220
     store local220 -> local221
-    call managed-direct-target13 sp<managed-call:54> live=[local219:ptr<managed>@0] t133 = sig=direct14 (ptr<managed>, i64) -> i64 local-fn6(local219, local221)
+    call managed-direct-target13 sp<managed-call:53> live=[local219:ptr<managed>@0] t133 = sig=direct14 (ptr<managed>, i64) -> i64 local-fn6(local219, local221)
     store t133 -> local223
     store local223 -> local224
     t134 = integer_Add<Long> local222, local224 : i64
     store t134 -> local225
     store local225 -> local226
-    call managed-void-target51 sp<managed-call:55> live=[] sig=void53 (i64) local-fn11(local226)
+    call managed-void-target51 sp<managed-call:54> live=[] sig=void53 (i64) local-fn11(local226)
     t135 = aggregate () : {}
     br @if.else.57
   block if.else.57
@@ -929,7 +868,7 @@ Module
     store local227 -> local228
     store local228 -> local229
     store local229 -> local230
-    call managed-void-target52 sp<managed-call:56> live=[] sig=void54 (i64) local-fn11(local230)
+    call managed-void-target52 sp<managed-call:55> live=[] sig=void54 (i64) local-fn11(local230)
     t136 = aggregate () : {}
     store local0 -> local292
     t137 = integer_compare_Equal<Int8> local292, integer<Int8>(0x7f) : i1
@@ -944,14 +883,14 @@ Module
     store local231 -> local232
     store local232 -> local233
     store local233 -> local234
-    call managed-void-target53 sp<managed-call:57> live=[] sig=void55 (i64) local-fn11(local234)
+    call managed-void-target53 sp<managed-call:56> live=[] sig=void55 (i64) local-fn11(local234)
     t138 = aggregate () : {}
     br @try.body.69
   block try.end.68
     store local236 -> local237
     store local237 -> local238
     store local238 -> local239
-    call managed-void-target54 sp<managed-call:58> live=[] sig=void56 (i64) local-fn11(local239)
+    call managed-void-target54 sp<managed-call:57> live=[] sig=void56 (i64) local-fn11(local239)
     t147 = aggregate () : {}
     store integer<Int8>(0x2a) -> local240
     store integer<Int16>(0x002a) -> local241
@@ -981,7 +920,7 @@ Module
     t153 = integer_Add<Long> local257, local259 : i64
     store t153 -> local260
     store local260 -> local261
-    call managed-void-target55 sp<managed-call:59> live=[] sig=void57 (i64) local-fn11(local261)
+    call managed-void-target55 sp<managed-call:58> live=[] sig=void57 (i64) local-fn11(local261)
     t154 = aggregate () : {}
     store local244 -> local262
     t155 = integer_convert<UInt8->ULong> local262 : i64
@@ -1003,7 +942,7 @@ Module
     t160 = integer_Add<ULong> local271, local273 : i64
     store t160 -> local274
     store local274 -> local275
-    call managed-void-target56 sp<managed-call:60> live=[] sig=void58 (i64) local-fn15(local275)
+    call managed-void-target56 sp<managed-call:59> live=[] sig=void58 (i64) local-fn15(local275)
     t161 = aggregate () : {}
     ret
   block try.body.69
@@ -1015,9 +954,6 @@ Module
     br @throw.normal.2
   block throw.normal.2
     unreachable
-  block invoke.normal.3
-    t90 = aggregate () : {}
-    br @try.end.39
   block rethrow.normal.4
     unreachable
   block invoke.normal.5

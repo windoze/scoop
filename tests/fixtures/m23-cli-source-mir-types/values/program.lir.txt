@@ -209,7 +209,7 @@ Module
     store local48 -> local60
     store local60 -> local61
     t27 = variant_test e1 v3 local61 : i1
-    cbr t27 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t28 = variant_payload_project e1 v3 f0 local61 : i32
     store t28 -> local49
@@ -220,9 +220,6 @@ Module
     store local52 -> local53
     t30 = integer_compare_Equal<Int> local51, local53 : i1
     cbr t30 then @logic.rhs.4 else @logic.short.5
-  block pattern.else.2
-    store false -> local54
-    br @pattern.merge.3
   block pattern.merge.3
     store local54 -> local55
     store local55 -> local56

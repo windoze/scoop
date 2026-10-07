@@ -4,7 +4,7 @@ use super::DefinitionAtomRole;
 use crate::ids::derive_persistent_id;
 use crate::{
     ConeIdentity, DigestNodeId, DigestPatchIntentId, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, OdrMemberId, PersistentCallableBodyId, PersistentLayoutId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentLayoutId,
     PersistentSafepointSiteId, PersistentScanId,
 };
 
@@ -21,12 +21,9 @@ pub enum DigestKind {
     SourceSignature,
     Layout,
     Scan,
-    LirDefinition,
     ObjectSupport,
     ObjectDefinition,
     StackmapRecord,
-    OdrDefinition,
-    StrongRegistration,
     RuntimeImage,
 }
 
@@ -36,12 +33,9 @@ impl DigestKind {
             Self::SourceSignature => 1,
             Self::Layout => 2,
             Self::Scan => 3,
-            Self::LirDefinition => 4,
             Self::ObjectSupport => 5,
             Self::ObjectDefinition => 6,
             Self::StackmapRecord => 7,
-            Self::OdrDefinition => 8,
-            Self::StrongRegistration => 9,
             Self::RuntimeImage => 10,
         }
     }
@@ -58,14 +52,10 @@ pub enum DigestOwnerAndRoleKey {
     SourceSignature(PersistentCallableBodyId),
     Layout(PersistentLayoutId),
     Scan(PersistentScanId),
-    LirDefinition(ObjectDefinitionAtomId),
     ObjectSupport(ObjectDefinitionAtomId),
     ObjectDefinition(ObjectDefinitionAtomId),
     StackmapRecord(PersistentSafepointSiteId),
-    StrongRegistration(ObjectDefinitionPlanId),
     RuntimeImage(ConeIdentity),
-    /// A single physical ODR definition. The former group owner tag 8 is retired.
-    OdrMemberDefinition(OdrMemberId),
 }
 
 impl DigestOwnerAndRoleKey {
@@ -74,12 +64,9 @@ impl DigestOwnerAndRoleKey {
             Self::SourceSignature(_) => DigestKind::SourceSignature,
             Self::Layout(_) => DigestKind::Layout,
             Self::Scan(_) => DigestKind::Scan,
-            Self::LirDefinition(_) => DigestKind::LirDefinition,
             Self::ObjectSupport(_) => DigestKind::ObjectSupport,
             Self::ObjectDefinition(_) => DigestKind::ObjectDefinition,
             Self::StackmapRecord(_) => DigestKind::StackmapRecord,
-            Self::OdrMemberDefinition(_) => DigestKind::OdrDefinition,
-            Self::StrongRegistration(_) => DigestKind::StrongRegistration,
             Self::RuntimeImage(_) => DigestKind::RuntimeImage,
         }
     }
@@ -91,12 +78,9 @@ impl WireEncode for DigestOwnerAndRoleKey {
             Self::SourceSignature(id) => encode_value_sum(encoder, 1, id),
             Self::Layout(id) => encode_value_sum(encoder, 2, id),
             Self::Scan(id) => encode_value_sum(encoder, 3, id),
-            Self::LirDefinition(id) => encode_value_sum(encoder, 4, id),
             Self::ObjectSupport(id) => encode_value_sum(encoder, 5, id),
             Self::ObjectDefinition(id) => encode_value_sum(encoder, 6, id),
             Self::StackmapRecord(id) => encode_value_sum(encoder, 7, id),
-            Self::OdrMemberDefinition(id) => encode_value_sum(encoder, 11, id),
-            Self::StrongRegistration(id) => encode_value_sum(encoder, 9, id),
             Self::RuntimeImage(id) => encode_value_sum(encoder, 10, id),
         }
     }
@@ -121,10 +105,6 @@ impl DigestNodeKey {
         Self::from_owner(DigestOwnerAndRoleKey::Scan(owner))
     }
 
-    pub const fn lir_definition(owner: ObjectDefinitionAtomId) -> Self {
-        Self::from_owner(DigestOwnerAndRoleKey::LirDefinition(owner))
-    }
-
     pub const fn object_support(owner: ObjectDefinitionAtomId) -> Self {
         Self::from_owner(DigestOwnerAndRoleKey::ObjectSupport(owner))
     }
@@ -135,14 +115,6 @@ impl DigestNodeKey {
 
     pub const fn stackmap_record(owner: PersistentSafepointSiteId) -> Self {
         Self::from_owner(DigestOwnerAndRoleKey::StackmapRecord(owner))
-    }
-
-    pub const fn odr_member_definition(owner: OdrMemberId) -> Self {
-        Self::from_owner(DigestOwnerAndRoleKey::OdrMemberDefinition(owner))
-    }
-
-    pub const fn strong_registration(owner: ObjectDefinitionPlanId) -> Self {
-        Self::from_owner(DigestOwnerAndRoleKey::StrongRegistration(owner))
     }
 
     pub const fn runtime_image(owner: ConeIdentity) -> Self {
@@ -215,7 +187,6 @@ impl std::error::Error for DigestNodeKeyError {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DigestSemanticFieldRole {
-    RegistrationDefinition,
     SourceSignature,
     Layout,
     Scan,
@@ -229,7 +200,6 @@ pub enum DigestSemanticFieldRole {
 impl DigestSemanticFieldRole {
     pub const fn tag(self) -> u32 {
         match self {
-            Self::RegistrationDefinition => 1,
             Self::SourceSignature => 2,
             Self::Layout => 3,
             Self::Scan => 4,
@@ -243,10 +213,6 @@ impl DigestSemanticFieldRole {
 
     pub const fn accepts_source(self, kind: DigestKind) -> bool {
         match self {
-            Self::RegistrationDefinition => matches!(
-                kind,
-                DigestKind::StrongRegistration | DigestKind::OdrDefinition
-            ),
             Self::SourceSignature => matches!(kind, DigestKind::SourceSignature),
             Self::Layout => matches!(kind, DigestKind::Layout),
             Self::Scan => matches!(kind, DigestKind::Scan),
@@ -361,19 +327,16 @@ mod tests {
             DigestNodeKey::source_signature(PersistentCallableBodyId(raw)),
             DigestNodeKey::layout(crate::PersistentLayoutId(raw)),
             DigestNodeKey::scan(crate::PersistentScanId(raw)),
-            DigestNodeKey::lir_definition(crate::ObjectDefinitionAtomId(raw)),
             DigestNodeKey::object_support(crate::ObjectDefinitionAtomId(raw)),
             DigestNodeKey::object_definition(crate::ObjectDefinitionAtomId(raw)),
             DigestNodeKey::stackmap_record(crate::PersistentSafepointSiteId(raw)),
-            DigestNodeKey::odr_member_definition(crate::OdrMemberId(raw)),
-            DigestNodeKey::strong_registration(crate::ObjectDefinitionPlanId(raw)),
             DigestNodeKey::runtime_image(ConeIdentity::CORE),
         ];
 
         for ((key, tag), owner_tag) in keys
             .into_iter()
-            .zip(1_u8..=10)
-            .zip([1, 2, 3, 4, 5, 6, 7, 11, 9, 10])
+            .zip([1_u8, 2, 3, 5, 6, 7, 10])
+            .zip([1, 2, 3, 5, 6, 7, 10])
         {
             assert_eq!(key.kind().tag(), u32::from(tag));
             assert_eq!(key.owner_and_role().kind(), key.kind());
@@ -384,39 +347,24 @@ mod tests {
     }
 
     #[test]
-    fn independent_members_in_one_group_have_independent_definition_nodes() {
-        use crate::{
-            CoreBuiltinNominal, ExactTypeKey, OdrGroupId, OdrMemberDiscriminator, OdrMemberId,
-            OdrMemberKey, OdrMemberRole, PersistentExactTypeId, SpecializationKey,
-        };
-
-        let exact_type = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-            CoreBuiltinNominal::Unit.identity_record().id(),
-        ))
-        .unwrap();
-        let group =
-            OdrGroupId::from_key(&SpecializationKey::StructuralType { exact_type }).unwrap();
-        let member = |role| {
-            OdrMemberId::from_key(
-                &OdrMemberKey::new(group, role, OdrMemberDiscriminator::ExactType(exact_type))
-                    .unwrap(),
-            )
-            .unwrap()
-        };
-        let descriptor = member(OdrMemberRole::TypeDescriptor);
-        let registration = member(OdrMemberRole::RegistrationRecord);
-        let descriptor_node = DigestNodeKey::odr_member_definition(descriptor);
-        let registration_node = DigestNodeKey::odr_member_definition(registration);
-
-        assert_ne!(descriptor, registration);
-        assert_ne!(
-            DigestNodeId::from_key(&descriptor_node).unwrap(),
-            DigestNodeId::from_key(&registration_node).unwrap(),
-        );
-        assert_eq!(
-            descriptor_node.owner_and_role(),
-            DigestOwnerAndRoleKey::OdrMemberDefinition(descriptor),
-        );
+    fn retired_content_digest_tags_are_rejected() {
+        use scoop_wire::decode_canonical;
+        for tag in [4, 8, 9] {
+            assert!(decode_canonical::<DigestKind>(&[tag]).is_err());
+        }
+        for tag in [4, 9, 11] {
+            let mut bytes = vec![0xa2, 0, tag, 1, 0x58, 32];
+            bytes.extend_from_slice(ConeIdentity::CORE.as_array());
+            let error =
+                decode_canonical::<super::DecodedDigestOwnerAndRoleKey>(&bytes).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                &scoop_wire::WireErrorKind::UnknownTag {
+                    tag: u64::from(tag)
+                }
+            );
+        }
+        assert!(decode_canonical::<DigestSemanticFieldRole>(&[1]).is_err());
     }
 
     #[test]
@@ -425,8 +373,6 @@ mod tests {
         use DigestSemanticFieldRole as R;
 
         let cases = [
-            (R::RegistrationDefinition, K::StrongRegistration),
-            (R::RegistrationDefinition, K::OdrDefinition),
             (R::SourceSignature, K::SourceSignature),
             (R::Layout, K::Layout),
             (R::Scan, K::Scan),
@@ -440,17 +386,13 @@ mod tests {
             K::SourceSignature,
             K::Layout,
             K::Scan,
-            K::LirDefinition,
             K::ObjectSupport,
             K::ObjectDefinition,
             K::StackmapRecord,
-            K::OdrDefinition,
-            K::StrongRegistration,
             K::RuntimeImage,
         ];
 
         for role in [
-            R::RegistrationDefinition,
             R::SourceSignature,
             R::Layout,
             R::Scan,

@@ -80,6 +80,10 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         self.request.diagnostics
     }
 
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.request.optimization
+    }
+
     pub const fn emit(&self) -> StageDumpPolicy {
         self.request.emit
     }

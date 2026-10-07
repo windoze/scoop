@@ -13,6 +13,8 @@ use crate::{CodegenError, ValidatedBackendProfile};
 
 #[path = "statepoint_tests/no_gc.rs"]
 mod no_gc;
+#[path = "statepoint_tests/optimized.rs"]
+mod optimized;
 
 fn verify_rewritten(
     module: &Module<'_>,
@@ -51,28 +53,34 @@ fn manifest(site: Option<(u64, ExpectedStatepoint)>) -> ExpectedSafepoints {
 }
 
 fn one_root() -> ExpectedStatepoint {
-    ExpectedStatepoint::Relocating(vec![ExpectedRoot {
-        source: CallerRootSource::Param(0),
-        byte_offset: 0,
-    }])
+    ExpectedStatepoint::Relocating(
+        vec![ExpectedRoot {
+            source: CallerRootSource::Param(0),
+            byte_offset: 0,
+        }]
+        .into(),
+    )
 }
 
 fn statepoint_ir(id: u64, before: &str, after: &str) -> String {
     format!(
         r#"
 declare void @callee()
+declare void @llvm.fake.use(...)
 declare void @consume(ptr addrspace(1))
 declare token @llvm.experimental.gc.statepoint.p0(i64 immarg, i32 immarg, ptr, i32 immarg, i32 immarg, ...)
 declare ptr addrspace(1) @llvm.experimental.gc.relocate.p1(token, i32 immarg, i32 immarg)
 
 define void @f(ptr addrspace(1) %root) #0 gc "statepoint-example" {{
 entry:
-  %slot = alloca ptr addrspace(1), align 8, !scoop.statepoint-root-identity !0
+  %slot = alloca ptr addrspace(1), align 8
   store ptr addrspace(1) %root, ptr %slot
   %live = load volatile ptr addrspace(1), ptr %slot
   {before}
   %token = call token (i64, i32, ptr, i32, i32, ...) @llvm.experimental.gc.statepoint.p0(i64 {id}, i32 0, ptr elementtype(void ()) @callee, i32 0, i32 0, i32 0, i32 0) [ "gc-live"(ptr addrspace(1) %live) ]
   %relocated = call coldcc ptr addrspace(1) @llvm.experimental.gc.relocate.p1(token %token, i32 0, i32 0)
+  store volatile ptr addrspace(1) %relocated, ptr %slot
+  call void (...) @llvm.fake.use(ptr addrspace(1) %relocated), !scoop.statepoint-root-identity !0
   {after}
   ret void
 }}
@@ -132,16 +140,19 @@ entry:
 fn verifier_rejects_a_gc_live_count_mismatch() {
     let context = Context::create();
     let module = parse(&context, &statepoint_ir(7, "", ""));
-    let expected = ExpectedStatepoint::Relocating(vec![
-        ExpectedRoot {
-            source: CallerRootSource::Param(0),
-            byte_offset: 0,
-        },
-        ExpectedRoot {
-            source: CallerRootSource::Param(0),
-            byte_offset: 8,
-        },
-    ]);
+    let expected = ExpectedStatepoint::Relocating(
+        vec![
+            ExpectedRoot {
+                source: CallerRootSource::Param(0),
+                byte_offset: 0,
+            },
+            ExpectedRoot {
+                source: CallerRootSource::Param(0),
+                byte_offset: 8,
+            },
+        ]
+        .into(),
+    );
     let error = verify_rewritten(&module, &manifest(Some((7, expected))))
         .expect_err("root count must come from the complete LIR manifest");
     assert!(error.0.contains("expected 2 from"), "{error}");
@@ -184,7 +195,9 @@ fn verifier_rejects_a_gc_live_root_without_typed_identity() {
     let error = verify_rewritten(&module, &manifest(Some((7, one_root()))))
         .expect_err("every relocating root must retain its complete LIR identity");
     assert!(
-        error.0.contains("lacks typed LIR identity metadata"),
+        error
+            .0
+            .contains("gc-live identities that disagree with the final GC plan"),
         "{error}"
     );
 }
@@ -202,7 +215,7 @@ fn verifier_rejects_a_gc_live_root_with_the_wrong_typed_identity() {
     assert!(
         error
             .0
-            .contains("gc-live identities that disagree with complete LIR"),
+            .contains("gc-live identities that disagree with the final GC plan"),
         "{error}"
     );
 }
@@ -240,12 +253,13 @@ fn verifier_accepts_a_derived_pointer_recreated_after_each_loop_poll() {
     let context = Context::create();
     let ir = r#"
 declare void @callee()
+declare void @llvm.fake.use(...)
 declare token @llvm.experimental.gc.statepoint.p0(i64 immarg, i32 immarg, ptr, i32 immarg, i32 immarg, ...)
 declare ptr addrspace(1) @llvm.experimental.gc.relocate.p1(token, i32 immarg, i32 immarg)
 
 define void @f(ptr addrspace(1) %root, i1 %again) #0 gc "statepoint-example" {
 entry:
-  %slot = alloca ptr addrspace(1), align 8, !scoop.statepoint-root-identity !0
+  %slot = alloca ptr addrspace(1), align 8
   store ptr addrspace(1) %root, ptr %slot
   br label %loop
 loop:
@@ -253,6 +267,7 @@ loop:
   %token = call token (i64, i32, ptr, i32, i32, ...) @llvm.experimental.gc.statepoint.p0(i64 7, i32 0, ptr elementtype(void ()) @callee, i32 0, i32 0, i32 0, i32 0) [ "gc-live"(ptr addrspace(1) %current) ]
   %relocated = call coldcc ptr addrspace(1) @llvm.experimental.gc.relocate.p1(token %token, i32 0, i32 0)
   store volatile ptr addrspace(1) %relocated, ptr %slot
+  call void (...) @llvm.fake.use(ptr addrspace(1) %relocated), !scoop.statepoint-root-identity !0
   %derived = getelementptr i8, ptr addrspace(1) %relocated, i64 8
   %byte = load i8, ptr addrspace(1) %derived
   br i1 %again, label %loop, label %exit

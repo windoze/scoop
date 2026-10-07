@@ -3,9 +3,7 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, compute_strong_static_storage_definition_fingerprints_v1,
-    compute_strong_static_storage_registration_object_fingerprints_v1,
-    verify_strong_static_storage_registrations_v1,
+    ScoopLirObjectCandidateV1, verify_strong_static_storage_registrations_v1,
 };
 
 #[test]
@@ -62,15 +60,11 @@ fn scan_leaf_commits_the_canonical_reference_offsets() {
 fn storage_definitions(
     fixture: &Fixture,
     objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> VerifiedStrongStaticStorageDefinitionFingerprintSetV1 {
-    let registrations = verify_strong_static_storage_registrations_v1(
+) -> VerifiedStrongStaticStorageRegistrationSetV1 {
+    verify_strong_static_storage_registrations_v1(
         fixture.verified_patch_sites(),
         fixture.static_storage_registration_plan.clone(),
         objects,
     )
-    .unwrap();
-    let registration_objects =
-        compute_strong_static_storage_registration_object_fingerprints_v1(registrations, objects)
-            .unwrap();
-    compute_strong_static_storage_definition_fingerprints_v1(registration_objects, objects).unwrap()
+    .unwrap()
 }

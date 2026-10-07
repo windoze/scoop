@@ -115,10 +115,6 @@ fn descriptor(
         exact,
         registration.definition(),
         registration.symbol(),
-        DigestNodeId::from_key(&DigestNodeKey::strong_registration(
-            registration.definition(),
-        ))
-        .unwrap(),
     );
     let diagnostic = CanonicalExactTypeDiagnosticName::from_validated_graph(exact, graph).unwrap();
     let vtable = PersistentDispatchTableId::from_key(&DispatchTableKey::vtable(exact)).unwrap();

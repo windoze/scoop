@@ -628,6 +628,7 @@ name = "scoop-protocol"
 version = "0.0.0"
 dependencies = [
  "scoop-identity",
+ "scoop-lir",
  "scoop-manifest",
  "scoop-wire",
 ]

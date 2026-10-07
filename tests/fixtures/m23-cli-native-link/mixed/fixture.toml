@@ -71,6 +71,7 @@ files = [{"remove" = {"path" = "${work}/objects/archive.o"}}, {"remove" = {"path
 
 [[steps]]
 name = "build"
+timeout = 300
 argv = ["${scoop}", "build", "${work}/sources/mixed-root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""

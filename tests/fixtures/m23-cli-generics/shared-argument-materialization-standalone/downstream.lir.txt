@@ -740,7 +740,7 @@ Module
     store local3 -> local235
     store local235 -> local236
     t92 = variant_test e2 v0 local236 : i1
-    cbr t92 then @pattern.pass.39 else @pattern.else.40
+    br @pattern.pass.39
   block pattern.pass.39
     t93 = variant_payload_project e2 v0 f1 local236 : i32
     store t93 -> local4
@@ -754,8 +754,6 @@ Module
     store local200 -> local201
     t97 = integer_compare_Equal<Long> local199, local201 : i1
     cbr t97 then @if.then.42 else @if.else.43
-  block pattern.else.40
-    unreachable
   block pattern.merge.41
     store local206 -> local7
     store local7 -> local207
@@ -1493,7 +1491,7 @@ Module
     store local3 -> local235
     store local235 -> local236
     t92 = variant_test e2 v0 local236 : i1
-    cbr t92 then @pattern.pass.39 else @pattern.else.40
+    br @pattern.pass.39
   block pattern.pass.39
     t93 = variant_payload_project e2 v0 f1 local236 : i32
     store t93 -> local4
@@ -1507,8 +1505,6 @@ Module
     store local200 -> local201
     t97 = integer_compare_Equal<Long> local199, local201 : i1
     cbr t97 then @if.then.42 else @if.else.43
-  block pattern.else.40
-    unreachable
   block pattern.merge.41
     store local206 -> local7
     store local7 -> local207
@@ -2246,7 +2242,7 @@ Module
     store local3 -> local235
     store local235 -> local236
     t93 = variant_test e2 v0 local236 : i1
-    cbr t93 then @pattern.pass.39 else @pattern.else.40
+    br @pattern.pass.39
   block pattern.pass.39
     t94 = variant_payload_project e2 v0 f1 local236 : i32
     store t94 -> local4
@@ -2260,8 +2256,6 @@ Module
     store local200 -> local201
     t98 = integer_compare_Equal<Long> local199, local201 : i1
     cbr t98 then @if.then.42 else @if.else.43
-  block pattern.else.40
-    unreachable
   block pattern.merge.41
     store local206 -> local7
     store local7 -> local207

@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::{
-    SafepointRegistrationDigestPlanFailureV1, SafepointRegistrationPatchFailureV1,
-    SafepointRegistrationSemanticFieldV1, StrongSafepointRegistrationValidationError,
+    SafepointRegistrationPatchFailureV1, SafepointRegistrationSemanticFieldV1,
+    StrongSafepointRegistrationValidationError,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -13,16 +13,12 @@ use crate::link_object::{
     VerifiedScoopLirStackmapSetV1,
 };
 use scoop_identity::{
-    DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId, DigestSemanticFieldRole,
+    DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
     PersistentSafepointSiteId,
 };
-use scoop_lir::{
-    DigestFinalizationPlanV1, DigestInputRefV1, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointRegistrationPlanV1,
-};
+use scoop_lir::{StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1};
 
-const DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 200;
+const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 168;
 const DIGEST_WIDTH: u8 = 32;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -31,7 +27,7 @@ pub struct VerifiedStrongSafepointRegistrationV1 {
     member: SlibMemberId,
     primary_symbol_table_index: u32,
     checked_offset: u64,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     normalized_stackmap_patch: VerifiedMaterializedPatchSiteV1,
 }
 
@@ -50,10 +46,6 @@ impl VerifiedStrongSafepointRegistrationV1 {
 
     pub const fn checked_offset(self) -> u64 {
         self.checked_offset
-    }
-
-    pub const fn registration_definition_patch(self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
     }
 
     pub const fn normalized_stackmap_patch(self) -> VerifiedMaterializedPatchSiteV1 {
@@ -114,7 +106,7 @@ pub fn verify_strong_safepoint_registrations_v1(
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for (planned, stackmap) in plan.registrations().iter().zip(stackmaps.records()) {
         validate_stackmap_semantics(*planned, stackmap)?;
-        validate_digest_graph(patch_sites.digest_plan(), *planned)?;
+
         registrations.push(verify_registration(
             stackmaps.builtins(),
             &patch_sites,
@@ -129,137 +121,6 @@ pub fn verify_strong_safepoint_registrations_v1(
         plan,
         registrations,
     })
-}
-
-fn validate_digest_graph(
-    digest_plan: &DigestFinalizationPlanV1,
-    plan: StrongSafepointRegistrationPlanV1,
-) -> Result<(), StrongSafepointRegistrationValidationError> {
-    use SafepointRegistrationDigestPlanFailureV1 as Failure;
-
-    let object_key = DigestNodeKey::object_definition(plan.primary_atom());
-    let object = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &object_key)
-        .ok_or(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::MissingObjectDefinitionNode,
-            },
-        )?;
-    let odr = matches!(
-        plan.definition_owner(),
-        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
-    );
-    let expected_object_inputs = if odr {
-        vec![DigestInputRefV1::StackmapRecord(
-            plan.normalized_stackmap_fingerprint_node(),
-        )]
-    } else {
-        Vec::new()
-    };
-    if object.direct_inputs() != expected_object_inputs {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::ObjectDefinitionDirectInputs,
-            },
-        );
-    }
-    if !object.patch_intents().is_empty() {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::ObjectDefinitionPatchSet,
-            },
-        );
-    }
-    let stackmap_key = DigestNodeKey::stackmap_record(plan.site());
-    let stackmap = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &stackmap_key)
-        .ok_or(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::MissingStackmapNode,
-            },
-        )?;
-    if stackmap.id() != plan.normalized_stackmap_fingerprint_node() {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::StackmapNodeIdentity,
-            },
-        );
-    }
-    let registration_key = plan.definition_owner().digest_key(plan.definition_plan());
-    let registration = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &registration_key)
-        .ok_or(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::MissingRegistrationNode,
-            },
-        )?;
-    if registration.id() != plan.registration_fingerprint_node() {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::RegistrationNodeIdentity,
-            },
-        );
-    }
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(object),
-        DigestInputRefV1::from_node(stackmap),
-    ];
-    if odr {
-        let lir = digest_plan
-            .nodes()
-            .iter()
-            .find(|node| node.key() == &DigestNodeKey::lir_definition(plan.primary_atom()))
-            .ok_or(
-                StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                    site: plan.site(),
-                    kind: Failure::RegistrationDirectInputs,
-                },
-            )?;
-        expected_inputs.push(DigestInputRefV1::from_node(lir));
-    }
-    expected_inputs.sort_unstable();
-    if registration.direct_inputs() != expected_inputs {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::RegistrationDirectInputs,
-            },
-        );
-    }
-    if registration.patch_intents().len() != 1
-        || registration.patch_intents()[0].id() != plan.registration_definition_patch()
-    {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::RegistrationPatchSet,
-            },
-        );
-    }
-    if stackmap.patch_intents().len() != 1
-        || stackmap.patch_intents()[0].id() != plan.normalized_stackmap_patch()
-    {
-        return Err(
-            StrongSafepointRegistrationValidationError::DigestPlanMismatch {
-                site: plan.site(),
-                kind: Failure::StackmapPatchSet,
-            },
-        );
-    }
-    Ok(())
 }
 
 fn validate_site_coverage(
@@ -408,16 +269,6 @@ fn verify_registration(
         );
     }
 
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        plan.registration_definition_patch(),
-        plan.registration_fingerprint_node(),
-        DigestSemanticFieldRole::RegistrationDefinition,
-        member,
-        file_start,
-        DEFINITION_FINGERPRINT_OFFSET,
-    )?;
     let normalized_stackmap_patch = require_patch(
         patch_sites,
         plan,
@@ -436,7 +287,7 @@ fn verify_registration(
         member,
         primary_symbol_table_index: definition.primary_symbol_table_index(),
         checked_offset: file_start,
-        registration_definition_patch,
+
         normalized_stackmap_patch,
     })
 }
@@ -502,10 +353,7 @@ fn validate_exact_atom_patch_set(
     plan: StrongSafepointRegistrationPlanV1,
     member: SlibMemberId,
 ) -> Result<(), StrongSafepointRegistrationValidationError> {
-    let expected = [
-        plan.registration_definition_patch(),
-        plan.normalized_stackmap_patch(),
-    ];
+    let expected = [plan.normalized_stackmap_patch()];
     if let Some(site) = patch_sites.sites().iter().find(|site| {
         site.member() == member
             && site.atom() == plan.primary_atom()

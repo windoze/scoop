@@ -6,8 +6,8 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::StrongImmortalObjectRegistrationPlanV1;
 
 use super::{
-    DIGEST_SIZE, IMMORTAL_OBJECT_DESCRIPTOR_MAGIC, IMMORTAL_OBJECT_DESCRIPTOR_SIZE,
-    REGISTRATION_DEFINITION_FINGERPRINT_OFFSET, emit_strong_immortal_object_registrations_v1,
+    IMMORTAL_OBJECT_DESCRIPTOR_MAGIC, IMMORTAL_OBJECT_DESCRIPTOR_SIZE,
+    emit_strong_immortal_object_registrations_v1,
 };
 use crate::ManagedAddressSpace;
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
@@ -16,7 +16,7 @@ mod support;
 use support::immortal_plan;
 
 #[test]
-fn emits_closed_strong_descriptor_and_zero_patch_site() {
+fn emits_closed_strong_descriptor_without_digest_patch_sites() {
     let plan = immortal_plan(1);
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -33,25 +33,13 @@ fn emits_closed_strong_descriptor_and_zero_patch_site() {
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
-
-    let patch = registration.registration_definition_patch();
-    assert_eq!(patch.intent(), expected.registration_definition_patch());
-    assert_eq!(patch.definition(), expected.registration_definition_plan());
-    assert_eq!(patch.atom(), expected.registration_primary_atom());
-    assert_eq!(patch.owner().get_name(), descriptor.get_name());
-    assert_eq!(
-        patch.byte_offset(),
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET
-    );
-    assert_eq!(patch.byte_size(), DIGEST_SIZE);
-
     let initializer = descriptor.get_initializer().unwrap().into_struct_value();
     let prefix = initializer
         .get_field_at_index(0)
         .unwrap()
         .into_struct_value();
     assert_eq!(constant_u64(prefix, 0), IMMORTAL_OBJECT_DESCRIPTOR_MAGIC);
-    assert_eq!(constant_u64(prefix, 1), 4);
+    assert_eq!(constant_u64(prefix, 1), 5);
     assert_eq!(constant_u64(prefix, 2), IMMORTAL_OBJECT_DESCRIPTOR_SIZE);
     let identity = initializer
         .get_field_at_index(1)
@@ -67,7 +55,7 @@ fn emits_closed_strong_descriptor_and_zero_patch_site() {
             expected.object().as_array(),
         )
     );
-    for index in 3..=5 {
+    for index in 3..=4 {
         assert!(
             identity
                 .get_field_at_index(index)

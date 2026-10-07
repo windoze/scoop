@@ -10,72 +10,132 @@
 
 _Static_assert(GC_LINE_SIZE % SCOOP_MAXIMUM_MANAGED_ALIGNMENT == 0,
                "GC line starts must satisfy every managed alignment");
+_Static_assert(GC_REGULAR_MAX / sizeof(uint64_t) <= UINT16_MAX,
+               "regular object sizes must fit exact side metadata");
 
-static void *tlab_allocate(ScoopThreadState *thread, size_t size, size_t alignment) {
-    char *cursor = thread->allocation.cursor;
-    if (cursor == NULL) {
+void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment) {
+    if (*cursor == NULL) {
         return NULL;
     }
-    cursor = (char *)scoop_shape_align((uintptr_t)cursor, alignment);
-    char *line_end =
-        (char *)(((uintptr_t)cursor & ~(uintptr_t)(GC_LINE_SIZE - 1)) + GC_LINE_SIZE);
-    char *candidate = cursor + size <= line_end ? cursor : line_end;
-    if (candidate + size > thread->allocation.limit) {
+    char *object = (char *)scoop_shape_align((uintptr_t)*cursor, alignment);
+    if (object > limit || size > (size_t)(limit - object)) {
         return NULL;
     }
-    thread->allocation.cursor = candidate + size;
-    return candidate;
+    *cursor = object + size;
+    return object;
 }
 
-static bool refill_tlab(ScoopThreadState *thread) {
-    lock_heap();
-    ScoopGcFreeRun *run = free_runs;
-    if (run != NULL) {
-        free_runs = run->next;
-        thread->allocation.cursor = (char *)block_base(run->block_index) +
-                                    (size_t)run->first_line * GC_LINE_SIZE;
-        thread->allocation.limit =
-            thread->allocation.cursor + (size_t)run->line_count * GC_LINE_SIZE;
-        free(run);
-        unlock_heap();
-        return true;
+bool scoop_heap_take_free_run(size_t size, char **cursor, char **limit) {
+    ScoopGcFreeRun **available = &free_runs;
+    while (*available != NULL && (size_t)(*available)->line_count * GC_LINE_SIZE < size) {
+        available = &(*available)->next;
     }
-    if (committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
-        unlock_heap();
+    ScoopGcFreeRun *run = *available;
+    if (run == NULL) {
         return false;
     }
-    uint32_t index = activate_small_block(SCOOP_BLOCK_MUTATOR);
-    if (index != UINT32_MAX) {
-        thread->allocation.cursor = (char *)block_base(index) + GC_LINE_SIZE;
-        thread->allocation.limit = (char *)block_base(index) + GC_BLOCK_SIZE;
+    *available = run->next;
+    *cursor = (char *)block_base(run->block_index) + (size_t)run->first_line * GC_LINE_SIZE;
+    *limit = *cursor + (size_t)run->line_count * GC_LINE_SIZE;
+    free(run);
+    return true;
+}
+
+typedef enum RefillResult {
+    REFILL_READY,
+    REFILL_MINOR,
+    REFILL_FULL,
+} RefillResult;
+
+static RefillResult refill_nursery(ScoopThreadState *thread) {
+    lock_heap();
+    size_t capacity = scoop_gc_heap_state.stress_minor ? GC_BLOCK_SIZE : GC_NURSERY_CAPACITY;
+    if (committed_bytes + GC_BLOCK_SIZE > collection_threshold) {
+        unlock_heap();
+        return REFILL_FULL;
     }
+    if (scoop_gc_heap_state.nursery_bytes >= capacity) {
+        unlock_heap();
+        return REFILL_MINOR;
+    }
+    uint32_t index = activate_small_block(SCOOP_BLOCK_MUTATOR);
+    if (index == UINT32_MAX) {
+        unlock_heap();
+        return REFILL_FULL;
+    }
+    blocks[index].generation = SCOOP_GC_YOUNG;
+    scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
+    thread->allocation.cursor = (char *)block_base(index) + GC_LINE_SIZE;
+    thread->allocation.limit = (char *)block_base(index) + GC_BLOCK_SIZE;
     unlock_heap();
-    return index != UINT32_MAX;
+    return REFILL_READY;
 }
 
 static void *allocate_small(ScoopThreadState *thread, size_t size, size_t alignment) {
-    bool collected = false;
+    bool minor_attempted = false;
+    bool full_attempted = false;
     for (;;) {
-        void *object = tlab_allocate(thread, size, alignment);
+        void *object =
+            scoop_heap_bump(&thread->allocation.cursor, thread->allocation.limit, size, alignment);
         if (object != NULL) {
             return object;
         }
         thread->allocation.cursor = NULL;
         thread->allocation.limit = NULL;
-        if (refill_tlab(thread)) {
+        RefillResult refill = refill_nursery(thread);
+        if (refill == REFILL_READY) {
             continue;
         }
+        if (refill == REFILL_MINOR && !minor_attempted) {
+            scoop_gc_collect_minor_internal();
+            minor_attempted = true;
+        } else if (!full_attempted) {
+            scoop_gc_collect_internal();
+            full_attempted = true;
+        } else {
+            heap_fatal("GC arena exhausted allocating a regular object");
+        }
+    }
+}
+
+static void *allocate_old(size_t size, size_t alignment) {
+    bool collected = false;
+    for (;;) {
+        lock_heap();
+        char **cursor = &scoop_gc_heap_state.old_cursor;
+        char **limit = &scoop_gc_heap_state.old_limit;
+        void *object = scoop_heap_bump(cursor, *limit, size, alignment);
+        if (object == NULL && scoop_heap_take_free_run(size, cursor, limit)) {
+            object = scoop_heap_bump(cursor, *limit, size, alignment);
+        }
+        if (object == NULL &&
+            (collected || committed_bytes + GC_BLOCK_SIZE <= collection_threshold)) {
+            uint32_t index = activate_small_block(SCOOP_BLOCK_MUTATOR);
+            if (index != UINT32_MAX) {
+                *cursor = (char *)block_base(index) + GC_LINE_SIZE;
+                *limit = (char *)block_base(index) + GC_BLOCK_SIZE;
+                object = scoop_heap_bump(cursor, *limit, size, alignment);
+            }
+        }
+        unlock_heap();
+        if (object != NULL) {
+            return object;
+        }
         if (collected) {
-            heap_fatal("GC arena exhausted allocating a small object");
+            heap_fatal("GC arena exhausted allocating a pretenured object");
         }
         scoop_gc_collect_internal();
         collected = true;
     }
 }
 
-static void *allocate_small_stress(size_t size) {
+static void *allocate_small_stress(size_t size, bool pretenured) {
     lock_heap();
     uint32_t index = activate_small_block(SCOOP_BLOCK_MUTATOR);
+    if (index != UINT32_MAX && !pretenured) {
+        blocks[index].generation = SCOOP_GC_YOUNG;
+        scoop_gc_heap_state.nursery_bytes += GC_BLOCK_SIZE;
+    }
     unlock_heap();
     if (index == UINT32_MAX) {
         heap_fatal("stress arena exhausted by permanently quarantined blocks");
@@ -95,11 +155,9 @@ static void *allocate_large(size_t size, uint32_t *block_index) {
     for (;;) {
         lock_heap();
         size_t span = (GC_LINE_SIZE + size + GC_BLOCK_SIZE - 1) & ~(GC_BLOCK_SIZE - 1);
-        bool threshold_exceeded =
-            !collected && committed_bytes + span > collection_threshold;
-        uint32_t index = threshold_exceeded
-                             ? UINT32_MAX
-                             : activate_large_block(size, SCOOP_BLOCK_MUTATOR);
+        bool threshold_exceeded = !collected && committed_bytes + span > collection_threshold;
+        uint32_t index =
+            threshold_exceeded ? UINT32_MAX : activate_large_block(size, SCOOP_BLOCK_MUTATOR);
         unlock_heap();
         if (index != UINT32_MAX) {
             *block_index = index;
@@ -124,10 +182,9 @@ static void *allocate_large_stress(size_t size, uint32_t *block_index) {
     return (char *)block_base(index) + GC_LINE_SIZE;
 }
 
-static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td,
-                                    size_t size) {
+static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td, size_t size) {
     uint32_t block_index;
-    if (object == NULL || td == NULL || size > GC_SMALL_MAX ||
+    if (object == NULL || td == NULL || size > GC_REGULAR_MAX ||
         (uintptr_t)object % td->instance_shape.instance_alignment != 0 ||
         !pointer_block_index(object, &block_index)) {
         heap_fatal("invalid inline TLAB allocation");
@@ -138,12 +195,17 @@ static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td,
     header->gc_word = 0;
     record_small_object(block_index, object, size, false);
     atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&scoop_gc_heap_state.allocated_bytes, size, memory_order_relaxed);
+    if (blocks[block_index].generation == SCOOP_GC_YOUNG) {
+        atomic_fetch_add_explicit(&scoop_gc_heap_state.nursery_objects, 1, memory_order_relaxed);
+        atomic_fetch_add_explicit(&scoop_gc_heap_state.nursery_allocated_bytes, size,
+                                  memory_order_relaxed);
+    }
 }
 
-void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td,
-                                     size_t size) {
-    if (scoop_gc_stress_move_enabled()) {
-        heap_fatal("inline TLAB allocation remained enabled in stress mode");
+void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size) {
+    if (scoop_gc_stress_move_enabled() || td->release_hook != NULL) {
+        heap_fatal("inline TLAB allocation violates its nursery contract");
     }
     finish_small_allocation(object, td, scoop_shape_normalize_allocation(td, size));
 }
@@ -163,22 +225,24 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             heap_fatal("stress collection published a mutator TLAB");
         }
     }
-    if (size <= GC_SMALL_MAX) {
+    if (size <= GC_REGULAR_MAX) {
         void *object =
-            stress ? allocate_small_stress(size)
-                   : allocate_small(thread, size,
-                                    (size_t)td->instance_shape.instance_alignment);
+            stress ? allocate_small_stress(size, td->release_hook != NULL)
+            : td->release_hook != NULL
+                ? allocate_old(size, (size_t)td->instance_shape.instance_alignment)
+                : allocate_small(thread, size, (size_t)td->instance_shape.instance_alignment);
         finish_small_allocation(object, td, size);
         return object;
     }
     uint32_t block_index;
-    void *object = stress ? allocate_large_stress(size, &block_index)
-                          : allocate_large(size, &block_index);
+    void *object =
+        stress ? allocate_large_stress(size, &block_index) : allocate_large(size, &block_index);
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
     header->td = td;
     header->gc_word = 0;
     publish_large_object(block_index, false);
     atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&scoop_gc_heap_state.allocated_bytes, size, memory_order_relaxed);
     return object;
 }

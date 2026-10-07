@@ -33,6 +33,9 @@ enum Command {
         /// Target triple; defaults to the supported host.
         #[arg(long)]
         target: Option<String>,
+        /// Compiler optimization profile.
+        #[arg(long, value_enum, default_value_t = Profile::Debug)]
+        profile: Profile,
         /// Core sysroot; defaults to SCOOP_SYSROOT and the development layout.
         #[arg(long)]
         sysroot: Option<PathBuf>,
@@ -52,6 +55,21 @@ enum Command {
     /// Compile exactly one request from the versioned machine transport.
     #[command(name = "__child-protocol", hide = true)]
     ChildProtocol { version: u32 },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum Profile {
+    Debug,
+    Release,
+}
+
+impl Profile {
+    fn optimization(self) -> scoop_lir::OptimizationMode {
+        match self {
+            Self::Debug => scoop_lir::OptimizationMode::Debug,
+            Self::Release => scoop_lir::OptimizationMode::Release,
+        }
+    }
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -80,6 +98,7 @@ fn main() -> ExitCode {
             sysroot,
             cc,
             native_sysroot,
+            profile,
         } => build(
             input,
             direct_slibs,
@@ -87,6 +106,7 @@ fn main() -> ExitCode {
             out_slib,
             emit,
             scoopc::DirectBuildOptions {
+                optimization: profile.optimization(),
                 target,
                 sysroot,
                 c_toolchain: scoop_toolchain::CToolchainOptions {

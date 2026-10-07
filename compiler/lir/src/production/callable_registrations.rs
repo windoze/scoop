@@ -30,11 +30,9 @@ pub struct StrongCallableRegistrationPlanV1 {
     entry_symbol: PersistentSymbolRequest,
     body_definition_plan: ObjectDefinitionPlanId,
     body_primary_atom: ObjectDefinitionAtomId,
-    registration_object_node: DigestNodeId,
+
     body_definition_node: DigestNodeId,
-    registration_fingerprint_node: DigestNodeId,
     definition_owner: crate::RegistrationDefinitionOwner,
-    registration_definition_patch: DigestPatchIntentId,
     body_definition_patch: DigestPatchIntentId,
 }
 
@@ -74,20 +72,8 @@ impl StrongCallableRegistrationPlanV1 {
         self.body_primary_atom
     }
 
-    pub const fn registration_object_node(self) -> DigestNodeId {
-        self.registration_object_node
-    }
-
     pub const fn body_definition_node(self) -> DigestNodeId {
         self.body_definition_node
-    }
-
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(self) -> DigestPatchIntentId {
-        self.registration_definition_patch
     }
 
     pub const fn body_definition_patch(self) -> DigestPatchIntentId {
@@ -185,7 +171,6 @@ impl StrongCallableRegistrationPlanSetV1 {
                 digests,
                 body,
                 identity.definition_plan(),
-                identity.fingerprint_node(),
                 identity.owner(),
                 context_key_count,
             )?;
@@ -216,7 +201,6 @@ fn build_registration(
     digests: &DigestFinalizationPlanV1,
     body: PersistentCallableBodyId,
     identity_definition: ObjectDefinitionPlanId,
-    identity_fingerprint: DigestNodeId,
     definition_owner: crate::RegistrationDefinitionOwner,
     context_key_count: u64,
 ) -> Result<StrongCallableRegistrationPlanV1, StrongCallableRegistrationPlanBuildError> {
@@ -253,78 +237,8 @@ fn build_registration(
         definition_owner.linkage(),
     )?;
 
-    let registration_object =
-        require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
-    let expected_object_inputs = match definition_owner {
-        crate::RegistrationDefinitionOwner::Strong => Vec::new(),
-        crate::RegistrationDefinitionOwner::Odr { .. } => vec![DigestInputRefV1::ObjectDefinition(
-            DigestNodeId::from_key(&DigestNodeKey::object_definition(body_primary_atom))
-                .map_err(StrongCallableRegistrationPlanBuildError::Hash)?,
-        )],
-    };
-    if registration_object.direct_inputs() != expected_object_inputs {
-        return Err(
-            StrongCallableRegistrationPlanBuildError::RegistrationObjectInputs {
-                node: registration_object.id(),
-                actual: registration_object.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !registration_object.patch_intents().is_empty() {
-        return Err(
-            StrongCallableRegistrationPlanBuildError::RegistrationObjectPatches {
-                node: registration_object.id(),
-                actual: registration_object
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
     let body_definition_node =
         require_digest_node(digests, DigestNodeKey::object_definition(body_primary_atom))?;
-    let registration_fingerprint = require_digest_node(
-        digests,
-        definition_owner.digest_key(registration_definition.id()),
-    )?;
-    if registration_fingerprint.id() != identity_fingerprint {
-        return Err(
-            StrongCallableRegistrationPlanBuildError::RegistrationDigestMismatch {
-                body,
-                expected: registration_fingerprint.id(),
-                actual: identity_fingerprint,
-            },
-        );
-    }
-
-    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
-    expected_inputs.push(match definition_owner {
-        crate::RegistrationDefinitionOwner::Strong => {
-            DigestInputRefV1::from_node(body_definition_node)
-        }
-        crate::RegistrationDefinitionOwner::Odr { .. } => DigestInputRefV1::from_node(
-            require_digest_node(digests, DigestNodeKey::lir_definition(primary_atom))?,
-        ),
-    });
-    expected_inputs.sort_unstable();
-    if registration_fingerprint.direct_inputs() != expected_inputs {
-        return Err(StrongCallableRegistrationPlanBuildError::DirectInputs {
-            node: registration_fingerprint.id(),
-            expected: expected_inputs,
-            actual: registration_fingerprint.direct_inputs().to_vec(),
-        });
-    }
-
-    let registration_definition_patch = require_only_patch(
-        registration_fingerprint,
-        DigestPatchIntentKey::new(
-            registration_fingerprint.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        ),
-    )?;
     let body_definition_patch = require_patch(
         body_definition_node,
         DigestPatchIntentKey::new(
@@ -344,11 +258,9 @@ fn build_registration(
         entry_symbol,
         body_definition_plan: body_definition.id(),
         body_primary_atom,
-        registration_object_node: registration_object.id(),
+
         body_definition_node: body_definition_node.id(),
-        registration_fingerprint_node: registration_fingerprint.id(),
         definition_owner,
-        registration_definition_patch,
         body_definition_patch,
     })
 }
@@ -410,20 +322,6 @@ fn require_digest_node(
         .ok_or(StrongCallableRegistrationPlanBuildError::MissingDigestNode(
             key,
         ))
-}
-
-fn require_only_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongCallableRegistrationPlanBuildError> {
-    match node.patch_intents() {
-        [patch] if patch.key() == &expected => Ok(patch.id()),
-        actual => Err(StrongCallableRegistrationPlanBuildError::PatchSet {
-            node: node.id(),
-            expected: Box::new(expected),
-            actual: actual.iter().map(|patch| *patch.key()).collect(),
-        }),
-    }
 }
 
 fn require_patch(

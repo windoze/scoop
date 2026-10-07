@@ -118,7 +118,13 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
     let context = Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(
+        &llvm,
+        &machine,
+        &statepoint::expectations(&module).unwrap(),
+        host_profile(),
+    )
+    .expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
     assert!(
         rewritten

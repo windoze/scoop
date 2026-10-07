@@ -5,13 +5,7 @@ mod local_catalog;
 mod surface;
 
 fn definition(fixture: &Fixture) -> Definition {
-    Definition::from_foundation(
-        fixture.unit,
-        &fixture.foundation,
-        &fixture.identities,
-        &fixture.digests,
-    )
-    .unwrap()
+    Definition::from_foundation(fixture.unit, &fixture.foundation, &fixture.identities).unwrap()
 }
 
 fn decoded(plans: &Plans) -> Vec<DecodedStrongInitializationUnitRegistrationPlanV1> {

@@ -6,12 +6,11 @@ pub use scoop_identity::{
 };
 use scoop_identity::{
     ConeCoordinateError, ConeIdentity, DecodedConeCoordinate, DecodedPersistentId,
-    DecodedPersistentSymbolRequest, DefinitionAtomRole, DigestKind, DigestNodeId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    PersistentCallableBodyId, PersistentExactTypeId, PersistentIdMismatch,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
-    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DecodedPersistentSymbolRequest, DefinitionAtomRole, DigestNodeId, DigestPatchIntentKey,
+    DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentIdMismatch, PersistentImmortalObjectId,
+    PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
+    PersistentSymbolError, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{
     Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
@@ -244,55 +243,27 @@ impl std::error::Error for ConeImagePlanValidationError {}
 
 fn validate_registration_inputs(
     inputs: &[DigestInputRefV1],
-    registrations: &RegistrationIdentitySurfaceV1,
+    digests: &DigestFinalizationPlanV1,
 ) -> Result<(), ConeImagePlanBuildError> {
-    let mut expected = registrations
-        .static_storages()
+    let mut expected = digests
+        .nodes()
         .iter()
-        .map(|entry| entry.fingerprint_node())
-        .chain(
-            registrations
-                .immortal_objects()
-                .iter()
-                .map(|entry| entry.fingerprint_node()),
-        )
-        .chain(
-            registrations
-                .initialization_units()
-                .iter()
-                .map(|entry| entry.fingerprint_node()),
-        )
-        .chain(
-            registrations
-                .type_registrations()
-                .iter()
-                .map(|entry| entry.fingerprint_node()),
-        )
-        .chain(
-            registrations
-                .safepoints()
-                .iter()
-                .map(|entry| entry.fingerprint_node()),
-        )
-        .chain(
-            registrations
-                .callables()
-                .iter()
-                .map(|entry| entry.fingerprint_node()),
-        )
+        .filter(|node| {
+            node.patch_intents().iter().any(|patch| {
+                matches!(
+                    patch.key().semantic_field_role(),
+                    DigestSemanticFieldRole::CallableBodyDefinition
+                        | DigestSemanticFieldRole::NormalizedStackmap
+                        | DigestSemanticFieldRole::DescriptorDefinition
+                        | DigestSemanticFieldRole::Layout
+                        | DigestSemanticFieldRole::Scan
+                        | DigestSemanticFieldRole::GatewayDefinition
+                )
+            })
+        })
+        .map(|node| node.id())
         .collect::<Vec<_>>();
     expected.sort_unstable();
-    if inputs.iter().any(|input| {
-        !matches!(
-            input.kind(),
-            DigestKind::StrongRegistration | DigestKind::OdrDefinition
-        )
-    }) {
-        return Err(ConeImagePlanBuildError::RegistrationInputs {
-            expected,
-            actual: inputs.iter().map(|input| input.node()).collect(),
-        });
-    }
     let mut actual = inputs.iter().map(|input| input.node()).collect::<Vec<_>>();
     actual.sort_unstable();
     if actual == expected {

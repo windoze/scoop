@@ -7,36 +7,6 @@ use scoop_identity::{
 use crate::SlibMemberId;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ImmortalObjectRegistrationPatchFailureV1 {
-    Source,
-    SemanticFieldRole,
-    Member,
-    Definition,
-    Atom,
-    AtomRole,
-    SectionRole,
-    OffsetWithinAtom,
-    CheckedOffset,
-    Width,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ImmortalObjectRegistrationDigestPlanFailureV1 {
-    MissingRegistrationObjectDefinitionNode,
-    RegistrationObjectDefinitionNodeIdentity,
-    RegistrationObjectDefinitionDirectInputs,
-    RegistrationObjectDefinitionPatchSet,
-    MissingImmortalObjectDefinitionNode,
-    ImmortalObjectDefinitionNodeIdentity,
-    ImmortalObjectDefinitionDirectInputs,
-    ImmortalObjectDefinitionPatchSet,
-    MissingRegistrationNode,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImmortalObjectRegistrationAtomFileRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -63,6 +33,10 @@ pub enum ImmortalObjectRegistrationRelocationFailureV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectRegistrationValidationError {
     DigestPatchProducerMismatch,
+    InvalidObjectBody {
+        object: PersistentImmortalObjectId,
+        kind: ImmortalObjectBodyFailureV1,
+    },
     DuplicateObjectMember(SlibMemberId),
     NonCanonicalObjectOrder {
         index: usize,
@@ -71,10 +45,6 @@ pub enum StrongImmortalObjectRegistrationValidationError {
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
     ObjectBytesMismatch(SlibMemberId),
-    DigestPlanMismatch {
-        object: PersistentImmortalObjectId,
-        kind: ImmortalObjectRegistrationDigestPlanFailureV1,
-    },
     MissingDefinitionAssignment {
         object: PersistentImmortalObjectId,
         definition: ObjectDefinitionPlanId,
@@ -126,15 +96,6 @@ pub enum StrongImmortalObjectRegistrationValidationError {
         object: PersistentImmortalObjectId,
         kind: ImmortalObjectRegistrationRelocationFailureV1,
     },
-    MissingPatch {
-        object: PersistentImmortalObjectId,
-        intent: DigestPatchIntentId,
-    },
-    PatchMismatch {
-        object: PersistentImmortalObjectId,
-        intent: DigestPatchIntentId,
-        kind: ImmortalObjectRegistrationPatchFailureV1,
-    },
     UnexpectedPatchInPrimaryAtom {
         object: PersistentImmortalObjectId,
         intent: DigestPatchIntentId,
@@ -158,3 +119,13 @@ impl fmt::Display for StrongImmortalObjectRegistrationValidationError {
 }
 
 impl std::error::Error for StrongImmortalObjectRegistrationValidationError {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImmortalObjectBodyFailureV1 {
+    Extent,
+    Header,
+    Length,
+    Utf8,
+    Padding,
+    DescriptorRelocation,
+}

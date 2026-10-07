@@ -186,6 +186,7 @@ pub struct BuildGraphRequest {
     target: ResolvedTargetProfile,
     compiler: PairedScoopcLocator,
     diagnostics: DiagnosticsPolicy,
+    optimization: scoop_lir::OptimizationMode,
 }
 
 pub(crate) struct BuildGraphRequestParts {
@@ -196,6 +197,7 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) target: ResolvedTargetProfile,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
+    pub(crate) optimization: scoop_lir::OptimizationMode,
 }
 
 impl BuildGraphRequest {
@@ -222,7 +224,13 @@ impl BuildGraphRequest {
             target,
             compiler,
             diagnostics,
+            optimization: scoop_lir::OptimizationMode::Debug,
         })
+    }
+
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.optimization = mode;
+        self
     }
 
     pub const fn root(&self) -> &BuildRootInput {
@@ -262,6 +270,7 @@ impl BuildGraphRequest {
             target: self.target,
             compiler: self.compiler,
             diagnostics: self.diagnostics,
+            optimization: self.optimization,
         }
     }
 }

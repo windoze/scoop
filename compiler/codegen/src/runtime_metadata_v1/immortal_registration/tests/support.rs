@@ -1,22 +1,22 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LinkageClass,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
-    PersistentImmortalObjectId, PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionAtomSubkey, DefinitionOwnerChain, ExactTypeKey, ImmortalObjectKey,
+    ImmortalObjectOwner, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
+    PackagePath, PersistentExactTypeId, PersistentImmortalObjectId, PersistentPropertyId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+    PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
-    DigestInputRefV1, DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Global,
-    GlobalInit, ImmortalObjectIdentity, IntrinsicTypeRepresentation, Layout, LayoutIdentity,
-    LayoutKind, LirMeta, LirTargetProfile, LocalFunctionIdentities, LocalFunctionRef,
-    MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges, PointerKind, RefScan,
-    RegistrationIdentitySurfaceV1, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongImmortalObjectSemanticPlanSetV1, StructDefs, TypeDescriptorRef, WellKnownTypeDescriptors,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, EnumDefs, ExternFunctions,
+    ExternalTypeDescriptor, Global, GlobalInit, ImmortalObjectIdentity,
+    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
+    LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, PointerKind, RefScan, RegistrationIdentitySurfaceV1,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectSemanticPlanSetV1, StructDefs,
+    TypeDescriptorRef, WellKnownTypeDescriptors,
 };
 
 pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrationPlanSetV1 {
@@ -73,10 +73,8 @@ pub(super) fn immortal_plan(object_count: u32) -> StrongImmortalObjectRegistrati
         .unwrap(),
     );
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
-    let digests = digest_plan(&foundation, &artifacts);
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    StrongImmortalObjectRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
-        .unwrap()
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
+    StrongImmortalObjectRegistrationPlanSetV1::new(&foundation, &identities, &semantics).unwrap()
 }
 
 struct ObjectArtifacts {
@@ -178,56 +176,6 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
             external_callables: Arena::new(),
         },
     }
-}
-
-fn digest_plan(
-    foundation: &ConeLirFoundation,
-    artifacts: &[ObjectArtifacts],
-) -> DigestFinalizationPlanV1 {
-    let mut nodes = Vec::new();
-    let mut image_inputs = Vec::new();
-    for item in artifacts {
-        let object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(item.object_primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let registration_object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(item.registration_primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let registration_key =
-            DigestNodeKey::strong_registration(item.registration_definition.id());
-        let registration_id = DigestNodeId::from_key(&registration_key).unwrap();
-        let registration = DigestNodeV1::new(
-            registration_key,
-            vec![
-                DigestInputRefV1::from_node(&registration_object),
-                DigestInputRefV1::from_node(&object),
-            ],
-            vec![DigestPatchIntentKey::new(
-                registration_id,
-                item.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::RegistrationDefinition,
-            )],
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&registration));
-        nodes.extend([object, registration_object, registration]);
-    }
-    nodes.push(
-        DigestNodeV1::new(
-            DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
-            image_inputs,
-            Vec::new(),
-        )
-        .unwrap(),
-    );
-    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition(

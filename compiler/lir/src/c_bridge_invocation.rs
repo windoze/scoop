@@ -19,6 +19,7 @@ pub struct ValidatedCBridgeToolchainInvocation {
     profile: CBridgeToolchainProfileV1,
     compiler_driver: PathBuf,
     parameters: CBridgeCommandParameters,
+    optimization: crate::OptimizationMode,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -55,6 +56,7 @@ impl ValidatedCBridgeToolchainInvocation {
         let value = Self {
             profile,
             compiler_driver,
+            optimization: crate::OptimizationMode::Debug,
             parameters: CBridgeCommandParameters::Darwin {
                 sdk_root,
                 minimum_os,
@@ -62,6 +64,15 @@ impl ValidatedCBridgeToolchainInvocation {
         };
         value.validate_target(target)?;
         Ok(value)
+    }
+
+    pub fn with_optimization(mut self, mode: crate::OptimizationMode) -> Self {
+        self.optimization = mode;
+        self
+    }
+
+    pub const fn optimization(&self) -> crate::OptimizationMode {
+        self.optimization
     }
 
     pub const fn profile(&self) -> &CBridgeToolchainProfileV1 {
@@ -109,6 +120,7 @@ impl ValidatedCBridgeToolchainInvocation {
         let value = Self {
             profile,
             compiler_driver,
+            optimization: crate::OptimizationMode::Debug,
             parameters: CBridgeCommandParameters::Linux {
                 native_sysroot,
                 real_gcc,
@@ -204,6 +216,7 @@ impl ValidatedCBridgeToolchainInvocation {
                 self.profile.contract().canonical_triple(),
                 minimum_os.to_string(),
                 self.environment(),
+                self.optimization,
                 source,
                 object,
             ),
@@ -216,7 +229,7 @@ impl ValidatedCBridgeToolchainInvocation {
                     .arg("-o")
                     .arg(object)
                     .args([
-                        "-O0",
+                        self.optimization.c_flag(),
                         "-g0",
                         "-fno-common",
                         "-fno-ident",
@@ -240,12 +253,14 @@ impl ValidatedCBridgeToolchainInvocation {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn canonical_object_compilation_command(
     compiler: &Path,
     sdk_root: &Path,
     canonical_triple: &str,
     minimum_os: String,
     environment: CBridgeEnvironmentProjectionV1,
+    optimization: crate::OptimizationMode,
     source: &Path,
     object: &Path,
 ) -> Command {
@@ -272,8 +287,8 @@ fn canonical_object_compilation_command(
             CanonicalCBridgeFlagV1::RelocatableObject => {
                 command.arg("-c").arg(source).arg("-o").arg(object);
             }
-            CanonicalCBridgeFlagV1::Unoptimized => {
-                command.arg("-O0");
+            CanonicalCBridgeFlagV1::SelectedOptimization => {
+                command.arg(optimization.c_flag());
             }
             CanonicalCBridgeFlagV1::NoDebugInformation => {
                 command.arg("-g0");
@@ -392,6 +407,18 @@ mod tests {
                 "-fno-builtin",
             ]
         );
+        let release = invocation
+            .clone()
+            .with_optimization(crate::OptimizationMode::Release);
+        assert_eq!(release.profile(), invocation.profile());
+        let command = release.object_compilation_command(
+            Path::new("/temporary/input.c"),
+            Path::new("/temporary/output.o"),
+        );
+        let args = command.get_args().collect::<Vec<_>>();
+        assert!(args.contains(&OsStr::new("-O2")));
+        assert!(!args.contains(&OsStr::new("-O0")));
+        assert!(args.contains(&OsStr::new("-fno-builtin")));
     }
 
     #[test]

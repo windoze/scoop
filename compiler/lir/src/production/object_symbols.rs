@@ -121,6 +121,19 @@ pub struct ObjectSymbolSurfaceV1 {
 }
 
 impl ObjectSymbolSurfaceV1 {
+    pub(crate) fn remove_codegen_records(
+        &mut self,
+        definitions: &std::collections::BTreeSet<ObjectDefinitionPlanId>,
+        atoms: &std::collections::BTreeSet<ObjectDefinitionAtomId>,
+    ) {
+        self.plans
+            .retain(|plan| !definitions.contains(&plan.definition_plan));
+        for plan in &mut self.plans {
+            plan.atom_boundaries
+                .retain(|boundary| !atoms.contains(&boundary.atom));
+        }
+    }
+
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ObjectSymbolSurfaceBuildError> {

@@ -23,29 +23,21 @@ fn row(object: ObjectKey, address: u64) -> ConeMapSymbol {
 }
 
 #[test]
-fn retained_candidate_comes_from_the_actual_map_not_input_order() {
-    let objects = [
-        object(ConeIdentity::CORE),
-        object(ConeIdentity::SINGLE_FILE),
-    ];
-    let candidates = BTreeSet::from(objects);
-    for winner in objects {
-        let map = LinkMap {
-            cones: BTreeMap::from([("_shared".into(), vec![row(winner, 0x1000)])]),
-            ..LinkMap::default()
-        };
-        assert_eq!(
-            retained(&map, "_shared", &candidates, 0x1000).unwrap(),
-            winner
-        );
-    }
+fn native_map_must_retain_the_explicitly_selected_implementation() {
+    let selected = object(ConeIdentity::CORE);
+    let other = object(ConeIdentity::SINGLE_FILE);
+    let map = LinkMap {
+        cones: BTreeMap::from([("_shared".into(), vec![row(selected, 0x1000)])]),
+        ..LinkMap::default()
+    };
+    retained(&map, "_shared", selected, 0x1000).unwrap();
+    assert!(retained(&map, "_shared", other, 0x1000).is_err());
 }
 
 #[test]
-fn missing_duplicate_foreign_and_displaced_winners_are_rejected() {
+fn missing_duplicate_foreign_and_displaced_definitions_are_rejected() {
     let first = object(ConeIdentity::CORE);
     let second = object(ConeIdentity::SINGLE_FILE);
-    let candidates = BTreeSet::from([first, second]);
     for (rows, expected) in [
         (vec![], "no unique retained object"),
         (
@@ -53,12 +45,12 @@ fn missing_duplicate_foreign_and_displaced_winners_are_rejected() {
             "no unique retained object",
         ),
         (
-            vec![row((first.0, second.1), 0x1000)],
-            "outside its candidates",
+            vec![row(second, 0x1000)],
+            "different from its selected implementation",
         ),
         (
-            vec![row((second.0, first.1), 0x1000)],
-            "outside its candidates",
+            vec![row((first.0, second.1), 0x1000)],
+            "different from its selected implementation",
         ),
         (
             vec![row(first, 0x1004)],
@@ -69,10 +61,10 @@ fn missing_duplicate_foreign_and_displaced_winners_are_rejected() {
             cones: BTreeMap::from([("_shared".into(), rows)]),
             ..LinkMap::default()
         };
-        let message = retained(&map, "_shared", &candidates, 0x1000)
+        let message = retained(&map, "_shared", first, 0x1000)
             .unwrap_err()
             .to_string();
         assert!(message.contains(expected), "{message}");
     }
-    assert!(retained(&LinkMap::default(), "_shared", &candidates, 0x1000).is_err());
+    assert!(retained(&LinkMap::default(), "_shared", first, 0x1000).is_err());
 }

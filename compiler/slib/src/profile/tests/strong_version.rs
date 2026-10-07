@@ -1,9 +1,9 @@
 use super::*;
 
 #[test]
-fn production_manifest_v3_requires_the_physical_odr_directory_in_every_profile() {
+fn production_manifest_v5_requires_the_physical_odr_directory_in_every_profile() {
     let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 3);
+    assert_eq!(current.major_version(), 5);
     let old = CapabilityId::new(current.namespace(), current.name(), 1).unwrap();
     assert!(CapabilityContractRegistry::contract(&old).is_none());
     for profile in [
@@ -45,7 +45,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
-            &[1, 2][..],
+            &[1, 2, 3, 4, 5][..],
         ),
         (
             lir_link_identity_closure_capability(),
@@ -54,7 +54,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14][..],
         ),
         (
             lir_strong_production_capability(),
@@ -62,17 +62,19 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ][..],
-            &[1, 2, 3, 4, 6, 11, 12, 13, 14, 15, 16][..],
+            &[
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+            ][..],
         ),
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9][..],
         ),
         (
             lir_cross_cone_layout_link_closure_capability(),
@@ -82,9 +84,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
     ] {
         for &version in rejected {
             let old = CapabilityId::new(current.namespace(), current.name(), version).unwrap();
-            if version <= 4 {
-                assert!(CapabilityContractRegistry::contract(&old).is_none());
-            }
+            assert!(CapabilityContractRegistry::contract(&old).is_none());
             for profile in profiles {
                 let descriptor = profile.descriptor();
                 for view in [ArtifactProfileView::Compile, ArtifactProfileView::Link] {

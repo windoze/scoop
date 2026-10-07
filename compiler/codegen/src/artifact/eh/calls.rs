@@ -88,7 +88,9 @@ fn validate_protected_calls(
         let call_count = calls.len();
         for call_pc in calls {
             let Some((safepoint, site)) = safepoints_by_pc.get(&call_pc).copied() else {
-                *observed_no_gc.entry(protected.action).or_default() += 1;
+                if !text.non_unwinding_calls.contains(&call_pc) {
+                    *observed_no_gc.entry(protected.action).or_default() += 1;
+                }
                 continue;
             };
             let invoke = expected_managed.get(&safepoint).ok_or_else(|| {
@@ -147,4 +149,69 @@ fn validate_protected_calls(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::artifact::ObservedSafepoint;
+
+    #[test]
+    fn backend_copy_in_protected_range_keeps_managed_invoke_checks() {
+        let fde = Fde {
+            function_symbol: "copy_and_invoke".into(),
+            function_start: 0,
+            function_size: 16,
+            lsda_address: 0,
+        };
+        let observed = ObservedLsda {
+            actions: BTreeSet::from([EhActionKind::Cleanup]),
+            protected_ranges: vec![ObservedProtectedRange {
+                range: 0..8,
+                action: EhActionKind::Cleanup,
+                landing_pad: 12,
+            }],
+        };
+        let mut expected = ExpectedEhFunction::default();
+        expected.insert(EhActionKind::Cleanup, Some(7), "managed invoke".into());
+        let mut sites = ObservedSafepoints {
+            sites: BTreeMap::from([(
+                7,
+                ObservedSafepoint {
+                    function_symbol: fde.function_symbol.clone(),
+                    call_pc: 4,
+                },
+            )]),
+        };
+        let mut text = TextSection {
+            address: 0,
+            bytes: [0x9400_0000u32, 0x9400_0000, 0, 0]
+                .into_iter()
+                .flat_map(u32::to_le_bytes)
+                .collect(),
+            non_unwinding_calls: BTreeSet::from([0]),
+        };
+        let verify = |text: &TextSection, sites: &ObservedSafepoints| {
+            validate_protected_calls(
+                &observed,
+                &fde,
+                text,
+                &expected,
+                sites,
+                CodeArchitecture::Aarch64,
+            )
+        };
+        verify(&text, &sites).expect("memcpy does not add an unwind edge");
+        text.non_unwinding_calls.clear();
+        assert!(
+            verify(&text, &sites).is_err(),
+            "unknown extra call rejected"
+        );
+        text.non_unwinding_calls.extend([0, 4]);
+        sites.sites.clear();
+        assert!(
+            verify(&text, &sites).is_err(),
+            "managed invoke still required"
+        );
+    }
 }

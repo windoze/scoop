@@ -13,6 +13,22 @@
 #include "../platform/platform.h"
 
 unsigned char *scoop_gc_card_table;
+
+void scoop_rt_gc_write_barrier(const void *destination, size_t bytes) {
+    if (bytes == 0) {
+        return;
+    }
+    uintptr_t address = (uintptr_t)destination;
+    if (!arena_ready || address < arena_base || address >= (uintptr_t)arena_end ||
+        bytes > (uintptr_t)arena_end - address) {
+        heap_fatal("write barrier range lies outside the GC arena");
+    }
+    size_t first = (address - arena_base) >> GC_CARD_SHIFT;
+    size_t last = (address - arena_base + bytes - 1) >> GC_CARD_SHIFT;
+    for (size_t card = first; card <= last; card++) {
+        (void)__atomic_fetch_or(&card_table_storage[card], 1, __ATOMIC_RELAXED);
+    }
+}
 #undef collection_threshold
 #undef evacuation_block
 ScoopGcHeapState scoop_gc_heap_state = {
@@ -95,6 +111,12 @@ void scoop_gc_heap_init(void) {
     }
     const char *stress = getenv("SCOOP_GC_STRESS_MOVE");
     stress_move = stress != NULL && strcmp(stress, "1") == 0;
+    const char *minor = getenv("SCOOP_GC_STRESS_MINOR");
+    scoop_gc_heap_state.stress_minor = minor != NULL && strcmp(minor, "1") == 0;
+    const char *full = getenv("SCOOP_GC_FULL_ONLY");
+    scoop_gc_heap_state.full_only = full != NULL && strcmp(full, "1") == 0;
+    const char *metrics = getenv("SCOOP_GC_STATS");
+    scoop_gc_heap_state.print_metrics = metrics != NULL && strcmp(metrics, "1") == 0;
     arena_init();
 }
 
@@ -141,7 +163,7 @@ static void ensure_small_metadata(ScoopGcBlockMeta *block) {
             calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
         block->line_live =
             calloc(GC_LINE_BITMAP_WORDS, sizeof(uint64_t));
-        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint8_t));
+        block->size_units = calloc(GC_WORDS_PER_BLOCK, sizeof(uint16_t));
         if (block->starts == NULL || block->marks == NULL ||
             block->pins == NULL || block->scanned == NULL ||
             block->line_occupied == NULL || block->line_live == NULL ||
@@ -161,7 +183,7 @@ static void reset_small_metadata(ScoopGcBlockMeta *block) {
            GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
     memset(block->line_live, 0,
            GC_LINE_BITMAP_WORDS * sizeof(uint64_t));
-    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint8_t));
+    memset(block->size_units, 0, GC_WORDS_PER_BLOCK * sizeof(uint16_t));
     free(block->forwarding);
     block->forwarding = NULL;
 }
@@ -255,6 +277,7 @@ uint32_t activate_small_block(ScoopGcBlockState state) {
     reset_small_metadata(block);
     block->state = state;
     block->kind = SCOOP_BLOCK_KIND_SMALL;
+    block->generation = SCOOP_GC_OLD;
     block->span_blocks = 1;
     block->owner_block = index;
     block->exact_size = 0;
@@ -292,6 +315,7 @@ uint32_t activate_large_block(size_t exact_size,
     head->forwarding = NULL;
     head->state = state;
     head->kind = SCOOP_BLOCK_KIND_LARGE;
+    head->generation = SCOOP_GC_OLD;
     head->span_blocks = span_blocks;
     head->owner_block = index;
     head->exact_size = exact_size;
@@ -318,38 +342,4 @@ uint32_t activate_large_block(size_t exact_size,
     committed_bytes += rounded;
     active_block_heads++;
     return index;
-}
-
-uint64_t scoop_rt_gc_stats(void) {
-    return atomic_load_explicit(&live_objects, memory_order_acquire);
-}
-
-uint64_t scoop_rt_gc_debug_last_moved_count(void) {
-    return atomic_load_explicit(&last_moved_objects,
-                                memory_order_acquire);
-}
-
-uint64_t scoop_rt_gc_debug_block_count(void) {
-    lock_heap();
-    uint64_t count = active_block_heads;
-    unlock_heap();
-    return count;
-}
-
-uintptr_t scoop_rt_gc_debug_arena_base(void) {
-    return arena_base;
-}
-
-bool scoop_rt_gc_debug_is_allocated(const void *object) {
-    lock_heap();
-    bool allocated = scoop_gc_is_object_start_locked(object);
-    unlock_heap();
-    return allocated;
-}
-
-uint64_t scoop_rt_gc_debug_allocation_size(const void *object) {
-    lock_heap();
-    uint64_t size = (uint64_t)scoop_gc_object_size_locked(object);
-    unlock_heap();
-    return size;
 }

@@ -8,9 +8,6 @@ pub use object_definition::ObjectDefinitionRelocationFailureV1;
 mod physical;
 pub(in crate::link_object) mod record;
 
-mod fingerprints;
-pub use fingerprints::*;
-
 mod body_fingerprints;
 pub use body_fingerprints::*;
 

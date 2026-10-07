@@ -50,8 +50,7 @@ static ScoopRegistrationIdentityV1 identity(uint8_t id, bool odr) {
     ScoopRegistrationIdentityV1 result = {
         .linkage_kind = odr ? SCOOP_REGISTRATION_LINKAGE_ODR_V1
                             : SCOOP_REGISTRATION_LINKAGE_STRONG_V1,
-        .semantic_id = {{id}},
-        .definition_fingerprint = {{id}}};
+        .semantic_id = {{id}}};
     if (odr) {
         result.odr_group_id.bytes[0] = 42;
         result.odr_member_id.bytes[0] = id;

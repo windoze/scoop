@@ -6,6 +6,8 @@ tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m30", "floating", "gc", "stage-golden"]
 
+variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
+
 [[steps]]
 name = "prepare_native"
 files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "${work}/native/lib"}}]
@@ -26,7 +28,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+argv = ["${scoop}", "build", "--profile", "${profile}", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--library-path", "${work}/native/lib", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

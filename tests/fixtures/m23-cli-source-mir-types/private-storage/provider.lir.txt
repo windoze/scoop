@@ -34,14 +34,11 @@ Module
     store local4 -> local7
     store local7 -> local8
     t3 = variant_test e1 v0 local8 : i1
-    cbr t3 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store integer<Int>(0x00000000) -> local6
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local7 -> local9
     t4 = variant_test e1 v1 local9 : i1
-    cbr t4 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.merge.3
     ret local6
   block pattern.pass.4
@@ -50,8 +47,6 @@ Module
     t6 = heap_load local5 +16 : i32
     store t6 -> local6
     br @pattern.merge.6
-  block pattern.else.5
-    unreachable
   block pattern.merge.6
     br @pattern.merge.3
   fun @scoop$1$cb$b333bfb8bc99945b5b78a6b5184d83c5689231093188c0c8a768478b214e16be(ptr<managed>, ptr<managed>) -> void

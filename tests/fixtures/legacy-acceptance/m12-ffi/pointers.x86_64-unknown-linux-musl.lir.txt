@@ -285,7 +285,7 @@ Module
     store local71 -> local78
     store local78 -> local79
     t30 = variant_test e1 v0 local79 : i1
-    cbr t30 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t31 = variant_payload_project e1 v0 f0 local79 : ptr<raw>
     store t31 -> local72
@@ -293,25 +293,11 @@ Module
     t32 = raw_load local73 align 4 : i32
     store t32 -> local74
     store local74 -> local75
-    call managed-void-target8 sp<managed-call:9> live=[] sig=void9 (i32) local-fn6(local75)
+    call managed-void-target8 sp<managed-call:8> live=[] sig=void9 (i32) local-fn6(local75)
     t33 = aggregate () : {}
     br @pattern.merge.3
-  block pattern.else.2
-    store local78 -> local80
-    t34 = variant_test e1 v1 local80 : i1
-    cbr t34 then @pattern.pass.4 else @pattern.else.5
   block pattern.merge.3
     ret
-  block pattern.pass.4
-    store integer<Int>(0x00000000) -> local76
-    store local76 -> local77
-    call managed-void-target9 sp<managed-call:8> live=[] sig=void10 (i32) local-fn6(local77)
-    t35 = aggregate () : {}
-    br @pattern.merge.6
-  block pattern.else.5
-    unreachable
-  block pattern.merge.6
-    br @pattern.merge.3
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>

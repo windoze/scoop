@@ -34,10 +34,10 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${warm.result.observations.child_invocations}", equals = []},
-  {actual = "${warm.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${warm.result.root.artifact_fingerprint}", not_equals = "${build.result.root.artifact_fingerprint}"},
   {actual = "${warm.result.output}", equals = "${work}/target/${target}/release/hello"},
-  {file = "${warm.result.root.path}", same_as = "${build.result.root.path}"},
+  {file = "${warm.result.root.path}", different_from = "${build.result.root.path}"},
 ]
 
 [[steps]]
@@ -83,7 +83,7 @@ diagnostics = []
 checks = [
   {actual = "${link.result.kind}", equals = "link"},
   {actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"},
-  {actual = "${link.result.link_plan}", contains = "program-link v2\n"},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
 ]
 
 [[steps]]

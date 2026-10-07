@@ -165,14 +165,11 @@ Module
     store local31 -> local39
     store local39 -> local40
     t18 = variant_test e1 v0 local40 : i1
-    cbr t18 then @pattern.pass.7 else @pattern.else.8
-  block pattern.pass.7
-    store false -> local33
-    br @pattern.merge.9
+    br @pattern.else.8
   block pattern.else.8
     store local39 -> local41
     t19 = variant_test e1 v1 local41 : i1
-    cbr t19 then @pattern.pass.10 else @pattern.else.11
+    br @pattern.pass.10
   block pattern.merge.9
     store local33 -> local34
     store local34 -> local35
@@ -194,8 +191,6 @@ Module
     store t25 -> local45
     store local45 -> local33
     br @pattern.merge.12
-  block pattern.else.11
-    unreachable
   block pattern.merge.12
     br @pattern.merge.9
   block if.then.13

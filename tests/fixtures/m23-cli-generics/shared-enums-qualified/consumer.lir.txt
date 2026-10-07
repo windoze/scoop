@@ -41,14 +41,11 @@ Module
     store local4 -> local22
     store local22 -> local23
     t1 = variant_test e0 v0 local23 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store integer<Int>(0x00000000) -> local16
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local22 -> local24
     t2 = variant_test e0 v1 local24 : i1
-    cbr t2 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.else.5
   block pattern.merge.3
     store local16 -> local17
     store local17 -> local18
@@ -61,15 +58,10 @@ Module
     call managed-direct-target1 sp<managed-call:1> live=[local21:ptr<managed>@0] t5 = sig=direct1 (i32, ptr<managed>) -> i32 local-fn2(local20, local21)
     store t5 -> local27
     ret local27
-  block pattern.pass.4
-    t6 = variant_payload_project e0 v1 f0 local24 : i32
-    store t6 -> local5
-    store local5 -> local16
-    br @pattern.merge.6
   block pattern.else.5
     store local22 -> local25
     t7 = variant_test e0 v2 local25 : i1
-    cbr t7 then @pattern.pass.7 else @pattern.else.8
+    br @pattern.pass.7
   block pattern.merge.6
     br @pattern.merge.3
   block pattern.pass.7
@@ -83,27 +75,8 @@ Module
     t10 = integer_Add<Int> local8, local10 : i32
     store t10 -> local16
     br @pattern.merge.9
-  block pattern.else.8
-    store local22 -> local26
-    t11 = variant_test e0 v3 local26 : i1
-    cbr t11 then @pattern.pass.10 else @pattern.else.11
   block pattern.merge.9
     br @pattern.merge.6
-  block pattern.pass.10
-    t12 = variant_payload_project e0 v3 f0 local26 : i32
-    store t12 -> local11
-    t13 = variant_payload_project e0 v3 f1 local26 : i32
-    store t13 -> local12
-    store local11 -> local13
-    store local12 -> local14
-    store local14 -> local15
-    t14 = integer_Add<Int> local13, local15 : i32
-    store t14 -> local16
-    br @pattern.merge.12
-  block pattern.else.11
-    unreachable
-  block pattern.merge.12
-    br @pattern.merge.9
   fun @scoop$1$cb$5ea0ea7d4816102304a0e3871706e33b2f278270f2a8ccbeb0a5922be10f4090(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -161,7 +134,7 @@ Module
     store local11 -> local19
     store local19 -> local20
     t3 = variant_test e1 v0 local20 : i1
-    cbr t3 then @pattern.pass.13 else @pattern.else.14
+    br @pattern.pass.13
   block pattern.pass.4
     t4 = variant_payload_project e0 v1 f0 local16 : i32
     store t4 -> local2
@@ -201,8 +174,6 @@ Module
     store t11 -> local21
     store local21 -> local13
     br @pattern.merge.15
-  block pattern.else.14
-    unreachable
   block pattern.merge.15
     ret local13
   fun @scoop$1$cb$34035ce56fb6a12a9b9419e1e2d352a911d127e96d60ed4b5d5dfd3a08367271(i32) -> sret<enum0 size=16 align=8 scan=none>

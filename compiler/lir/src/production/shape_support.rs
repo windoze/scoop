@@ -1,5 +1,5 @@
 use scoop_identity::{
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, ObjectDefinitionPlanId,
+    DecodedPersistentId, DecodedPersistentSymbolRequest, ObjectDefinitionPlanId,
     PersistentExactTypeId, PersistentId, PersistentKeyResolver, PersistentLayoutId,
     PersistentScanId, PersistentSymbolRequest, PersistentTypeId, SourceDeclarationKey,
     ValidatedIdentityGraph,
@@ -110,7 +110,6 @@ pub struct StrongShapeRegistrationV1<I: PersistentId> {
     semantic_id: I,
     definition_plan: ObjectDefinitionPlanId,
     symbol: PersistentSymbolRequest,
-    fingerprint_node: DigestNodeId,
 }
 
 impl<I: PersistentId> StrongShapeRegistrationV1<I> {
@@ -118,13 +117,11 @@ impl<I: PersistentId> StrongShapeRegistrationV1<I> {
         semantic_id: I,
         definition_plan: ObjectDefinitionPlanId,
         symbol: PersistentSymbolRequest,
-        fingerprint_node: DigestNodeId,
     ) -> Self {
         Self {
             semantic_id,
             definition_plan,
             symbol,
-            fingerprint_node,
         }
     }
 
@@ -139,23 +136,17 @@ impl<I: PersistentId> StrongShapeRegistrationV1<I> {
     pub const fn symbol(&self) -> PersistentSymbolRequest {
         self.symbol
     }
-
-    pub const fn fingerprint_node(&self) -> DigestNodeId {
-        self.fingerprint_node
-    }
 }
 
 impl<I: PersistentId + WireEncode> WireEncode for StrongShapeRegistrationV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.semantic_id.encode(encoder)?;
         encoder.field(2)?;
         self.definition_plan.encode(encoder)?;
         encoder.field(3)?;
-        self.symbol.encode(encoder)?;
-        encoder.field(4)?;
-        self.fingerprint_node.encode(encoder)
+        self.symbol.encode(encoder)
     }
 }
 
@@ -438,31 +429,27 @@ pub(crate) struct DecodedStrongShapeRegistrationV1<I: PersistentId> {
     semantic_id: DecodedPersistentId<I>,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     symbol: DecodedPersistentSymbolRequest,
-    fingerprint_node: DecodedPersistentId<DigestNodeId>,
 }
 
 impl<I: PersistentId> WireEncode for DecodedStrongShapeRegistrationV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.semantic_id.encode(encoder)?;
         encoder.field(2)?;
         self.definition_plan.encode(encoder)?;
         encoder.field(3)?;
-        self.symbol.encode(encoder)?;
-        encoder.field(4)?;
-        self.fingerprint_node.encode(encoder)
+        self.symbol.encode(encoder)
     }
 }
 
 impl<I: PersistentId> WireDecode for DecodedStrongShapeRegistrationV1<I> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(3)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
             definition_plan: decoder.field(2, DecodedPersistentId::decode)?,
             symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
-            fingerprint_node: decoder.field(4, DecodedPersistentId::decode)?,
         })
     }
 }

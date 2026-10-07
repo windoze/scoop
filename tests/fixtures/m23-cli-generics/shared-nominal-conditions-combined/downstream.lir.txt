@@ -171,15 +171,11 @@ Module
     store local2 -> local27
     store local27 -> local28
     t4 = variant_test e1 v0 local28 : i1
-    cbr t4 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    t5 = enum_wrap e2 v1 () : enum2
-    store t5 -> local20
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local27 -> local29
     t6 = variant_test e1 v1 local29 : i1
-    cbr t6 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.merge.3
     store local20 -> local4
     call no-gc-elided-zst-target0 t7 = sig=elided-zst0 () -> elided-zst<struct4 size=0 align=1> local-fn21()
@@ -201,8 +197,6 @@ Module
     t12 = enum_wrap e2 v0 (local19) : enum2
     store t12 -> local20
     br @pattern.merge.6
-  block pattern.else.5
-    unreachable
   block pattern.merge.6
     br @pattern.merge.3
   block if.then.7
@@ -305,15 +299,11 @@ Module
     store local2 -> local27
     store local27 -> local28
     t8 = variant_test e3 v0 local28 : i1
-    cbr t8 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    t9 = enum_wrap e4 v1 () : enum4
-    store t9 -> local20
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local27 -> local29
     t10 = variant_test e3 v1 local29 : i1
-    cbr t10 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.merge.3
     store local20 -> local4
     call no-gc-elided-zst-target1 t11 = sig=elided-zst4 () -> elided-zst<struct4 size=0 align=1> local-fn21()
@@ -335,8 +325,6 @@ Module
     t16 = enum_wrap e4 v0 (local19) : enum4
     store t16 -> local20
     br @pattern.merge.6
-  block pattern.else.5
-    unreachable
   block pattern.merge.6
     br @pattern.merge.3
   block if.then.7

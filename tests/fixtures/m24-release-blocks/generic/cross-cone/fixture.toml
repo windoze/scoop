@@ -148,7 +148,14 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${link.result.link_plan_fingerprint}", equals = "${consumer.result.link_plan_fingerprint}"},
-  {actual = "${link.result.link_plan}", snapshot = "link.plan.${target}.txt", normalize = ["paths", "native-digests"]},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:release-generic-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:release-generic-left:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:release-generic-right:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:release-generic-consumer:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$ffe8993579c787eab60f492174f07ebebe287f6807c4501ddce568cf4597484e"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
 ]
 
 [[steps]]

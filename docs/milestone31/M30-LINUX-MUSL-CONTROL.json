@@ -1,0 +1,818 @@
+{
+  "revision": "6e62514da",
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--cc",
+    "/usr/bin/musl-gcc",
+    "--unwind-prefix",
+    "/home/chenxu/repos/scoop/sysroot/native/x86_64-unknown-linux-musl/unwind"
+  ],
+  "gc_stats": false,
+  "compare_full": false,
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 29.484174106999944,
+      "warm_build_seconds": 3.1976384530000814,
+      "run_seconds": [
+        0.0460466429999542,
+        0.04376603899982001,
+        0.044279641999992236,
+        0.04378994400008196,
+        0.04444657199996982
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.044279641999992236,
+      "min_seconds": 0.04376603899982001,
+      "max_seconds": 0.0460466429999542,
+      "stdout": "2000000\n",
+      "executable_bytes": 3989312,
+      "slib_bytes": 202166,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "ea615ebbc2beaa5c0d1053fb816b28b0c64efe840d4b9e7a5e4712c6d2130e8c",
+          "observations": {
+            "child_invocations": [
+              "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "compiled"
+              },
+              {
+                "cache_key": "040c1bccebf35f74e48a5dc8c5167d68b8fb34e86ec291b45f4792b6a5b8fbbc",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/aggregate",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "2ff863c1231ae0e76fab2ce76f410849e1225ef6397b4f2ba24e720aa5bf6242",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/040c1bccebf35f74e48a5dc8c5167d68b8fb34e86ec291b45f4792b6a5b8fbbc/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.045163342000023476,
+          0.04499547399996118,
+          0.04539160399986031,
+          0.045029247000002215,
+          0.045216474999961065
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.045163342000023476,
+        "min_seconds": 0.04499547399996118,
+        "max_seconds": 0.04539160399986031,
+        "stdout": "2000000\n"
+      }
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 6.210848711999915,
+      "warm_build_seconds": 3.2536390109999047,
+      "run_seconds": [
+        0.03002005400003327,
+        0.02876262599988877,
+        0.029092527000102564,
+        0.03133834900017973,
+        0.028937579000057667
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.029092527000102564,
+      "min_seconds": 0.02876262599988877,
+      "max_seconds": 0.03133834900017973,
+      "stdout": "1599960000\n",
+      "executable_bytes": 3992384,
+      "slib_bytes": 256006,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "6dcea78d462b1136d529a66be6f3cd01edcc3d82e579721eb7eaa218f1c1df95",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "dc0e2d32a37c306d48113560e423a23a8f2fb206f5df32847667078fe8539b68",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/allocation",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "f58efc8feb2ba033d855fbf00d8f2508eb4da3adc3e5024e312ee7abdd7d3349",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/dc0e2d32a37c306d48113560e423a23a8f2fb206f5df32847667078fe8539b68/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.029170970999985002,
+          0.02883894199999304,
+          0.02882401200008644,
+          0.02872699299996384,
+          0.028798884000025282
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.02882401200008644,
+        "min_seconds": 0.02872699299996384,
+        "max_seconds": 0.029170970999985002,
+        "stdout": "1599960000\n"
+      }
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 6.313571260000117,
+      "warm_build_seconds": 3.2817273400000886,
+      "run_seconds": [
+        0.034975200999951994,
+        0.03321952000010242,
+        0.03158407399996577,
+        0.03504038300002321,
+        0.033848385000055714
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.033848385000055714,
+      "min_seconds": 0.03158407399996577,
+      "max_seconds": 0.03504038300002321,
+      "stdout": "393216\n",
+      "executable_bytes": 4128920,
+      "slib_bytes": 1397870,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "1db77d64ca6ff11720f83251f9bc41541d23617a274fd5b2c4b97abbb6a2d6b8",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "4be8817d237de212a37592009e023a797f3fb71b884d6e1fb9b43dbeabc39861",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/arrays",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "4dc8935d20a2d669ae06ad16f5ad58d83ffb999c37432e5d2e1d40ee3753632c",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/4be8817d237de212a37592009e023a797f3fb71b884d6e1fb9b43dbeabc39861/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.03181165800015151,
+          0.032139943999936804,
+          0.03149596200000815,
+          0.031403167999997095,
+          0.031542359000013676
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.031542359000013676,
+        "min_seconds": 0.031403167999997095,
+        "max_seconds": 0.032139943999936804,
+        "stdout": "393216\n"
+      }
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 6.334846105999986,
+      "warm_build_seconds": 3.288233357000081,
+      "run_seconds": [
+        0.0458981889998995,
+        0.04521496000006664,
+        0.04416054200009967,
+        0.04416183000012097,
+        0.04562909500009482
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.04521496000006664,
+      "min_seconds": 0.04416054200009967,
+      "max_seconds": 0.0458981889998995,
+      "stdout": "312600\n",
+      "executable_bytes": 3995408,
+      "slib_bytes": 1730768,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "09d2e41b6df3accf910ff38022571596ca9b08f43cd59cd1f2fd847aaa8d6964",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "c03d39c59c287bc4e0f302a2217c17fb7e0cc36d9e967e805551067a9a2b101f",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/collections",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "93e43dadea4a8c858360a8494427f22ead36dbfd590ffd5253b1497c607e56fb",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/c03d39c59c287bc4e0f302a2217c17fb7e0cc36d9e967e805551067a9a2b101f/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.04463145799991253,
+          0.044695740999941336,
+          0.044233656999949744,
+          0.04432790400005615,
+          0.04437850900012563
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.04437850900012563,
+        "min_seconds": 0.044233656999949744,
+        "max_seconds": 0.044695740999941336,
+        "stdout": "312600\n"
+      }
+    },
+    {
+      "name": "old-graph-large",
+      "cold_build_seconds": 6.207258984999953,
+      "warm_build_seconds": 3.22383459699995,
+      "run_seconds": [
+        0.06153673900007561,
+        0.059309700000085286,
+        0.05900279899992711,
+        0.058821567999984836,
+        0.058869344999948225
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.05900279899992711,
+      "min_seconds": 0.058821567999984836,
+      "max_seconds": 0.06153673900007561,
+      "stdout": "199680\n",
+      "executable_bytes": 4078608,
+      "slib_bytes": 952090,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "bd5ac992f182f89850333ce20c12b576c2b6833316c7440d0d2a85aba94289b6",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "953e1b9f2f41479b23ceaa0e8529432e865b315d019e34d2eff3eae28bf35a0e",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/old-graph-large",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "6154855bf0bba2b503529695784610139a7e19adedbd67addbb8fc731fdc01c9",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/953e1b9f2f41479b23ceaa0e8529432e865b315d019e34d2eff3eae28bf35a0e/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.059602114999961486,
+          0.059129826000116736,
+          0.05840003599996635,
+          0.05865018000008604,
+          0.0586447529999532
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.05865018000008604,
+        "min_seconds": 0.05840003599996635,
+        "max_seconds": 0.059602114999961486,
+        "stdout": "199680\n"
+      }
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 6.238757785999951,
+      "warm_build_seconds": 3.241630879000013,
+      "run_seconds": [
+        0.03425553900001432,
+        0.03291765399990254,
+        0.03254607200005921,
+        0.03884106400005294,
+        0.03353432299991255
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.03353432299991255,
+      "min_seconds": 0.03254607200005921,
+      "max_seconds": 0.03884106400005294,
+      "stdout": "199680\n",
+      "executable_bytes": 4078608,
+      "slib_bytes": 952090,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "326e1b4e52eba1f13ca2cb8cfbaf66fcf43ca71cb005823f4ccc588abeaf3f6f",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "f51da63f448b211b49f7acc94977f1fd732b069391d292c70ff3ff04e00359f4",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/old-graph",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "c51b3d7073ba5d7b3c6427bfd42bfcbcc83ed580ea29768359e34373c9afd69a",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/f51da63f448b211b49f7acc94977f1fd732b069391d292c70ff3ff04e00359f4/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.03243438399999832,
+          0.032271108999793796,
+          0.03218212299998413,
+          0.032076536999966265,
+          0.03208971900016877
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.03218212299998413,
+        "min_seconds": 0.032076536999966265,
+        "max_seconds": 0.03243438399999832,
+        "stdout": "199680\n"
+      }
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 6.154459351000014,
+      "warm_build_seconds": 3.245545459000141,
+      "run_seconds": [
+        0.13050992200010114,
+        0.13278064999985872,
+        0.141232059999993,
+        0.1269571119999,
+        0.1399617289998787
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.13278064999985872,
+      "min_seconds": 0.1269571119999,
+      "max_seconds": 0.141232059999993,
+      "stdout": "79999971\n",
+      "executable_bytes": 3980392,
+      "slib_bytes": 195482,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "8635fe424bbb54fda63284878c336c30cf023ae40cc8fddca9b424fe5bea01b5",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "f6acdcb00202fb813b959d9bee0d243210f841cdec934cc6ff4a04e701463f72",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/primitive",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "79119d19eac10fa360715ee2a9a7f7c30faf0c5e7963cad285dece1d96a642a9",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/f6acdcb00202fb813b959d9bee0d243210f841cdec934cc6ff4a04e701463f72/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.13000743799989323,
+          0.1305520969999634,
+          0.1301282839999658,
+          0.1299868510000124,
+          0.12991994699996212
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.13000743799989323,
+        "min_seconds": 0.12991994699996212,
+        "max_seconds": 0.1305520969999634,
+        "stdout": "79999971\n"
+      }
+    },
+    {
+      "name": "survivors",
+      "cold_build_seconds": 6.167905731000019,
+      "warm_build_seconds": 3.2803337410000495,
+      "run_seconds": [
+        0.0741700259998197,
+        0.07126721199983876,
+        0.07182652300002701,
+        0.07289791399989554,
+        0.07135221599992292
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.07182652300002701,
+      "min_seconds": 0.07126721199983876,
+      "max_seconds": 0.0741700259998197,
+      "stdout": "196614\n",
+      "executable_bytes": 4089720,
+      "slib_bytes": 1053670,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "2bc65be11337c76fdb09ca5aa814c25732d8563f6746d06e79fe31e421292679",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "ed7692e5fb1fc375289281db5d459cec22e40d321df60e2f4f952847b02dad68",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "5dd26bbe2ddc0692ccc704f0688f44980873ea7b9ea7164fb7985b3479441f57",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "07f02544b2e4b5e010373952d82d436c12673c246bd99af7a239319e61915654",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/survivors",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "94c077002e4fae4c6b909d38a601b4d37d9c2112efe96b0498982329eb748c83",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/compile-v1/07f02544b2e4b5e010373952d82d436c12673c246bd99af7a239319e61915654/artifact.slib"
+          },
+          "runtime_index": "/home/chenxu/repos/scoop/tmp/m31-final/performance/m30-linux-musl-control/cache/runtime-v1/00b00078d6e2bce630ca9b3be2e605180dbe6d8201c82e647bbc32f5f8cdb0e3/index.cbor",
+          "schema": 1
+        }
+      ],
+      "affinity_control": {
+        "run_seconds": [
+          0.07172178099995108,
+          0.07096277599998757,
+          0.07064971999989211,
+          0.07075469599999451,
+          0.07036777999996957
+        ],
+        "gc": [],
+        "stderr": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "median_seconds": 0.07075469599999451,
+        "min_seconds": 0.07036777999996957,
+        "max_seconds": 0.07172178099995108,
+        "stdout": "196614\n"
+      }
+    }
+  ],
+  "source_revision": "6e62514da",
+  "environment": "NUC12 native Linux; see M31-PERFORMANCE-ENVIRONMENT.json",
+  "affinity_control": {
+    "cpu": 0,
+    "original_allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "runs": 5,
+    "method": "The measurement process and its executable children share one CPU; existing binaries are reused.",
+    "order": "GNU then musl; per case, M30 then M31 debug then M31 release; nursery/full-only alternate within each M31 measurement.",
+    "scaling_governor": "powersave"
+  }
+}

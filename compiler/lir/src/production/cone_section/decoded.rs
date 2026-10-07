@@ -17,8 +17,8 @@ pub struct DecodedConeProductionSection<R> {
     pub(super) entry_plan: DecodedEntryProductionPlanV1,
     pub(super) shape_support_plan: DecodedParamFreeShapeSupportPlanSetV1,
     pub(super) generated_bridge_plan: DecodedGeneratedBridgePlanSetV1,
-    pub(super) canonical_callables: crate::DecodedCanonicalCallableLirDefinitionsV1,
-    pub(super) canonical_shapes: crate::DecodedCanonicalShapeLirDefinitionsV1,
+    pub(super) canonical_callables: crate::DecodedCanonicalCallableAbisV1,
+    pub(super) canonical_shapes: crate::DecodedCanonicalShapeAbisV1,
 }
 
 impl<R: WireEncode> WireEncode for DecodedConeProductionSection<R> {
@@ -61,9 +61,8 @@ impl<R: WireDecode> WireDecode for DecodedConeProductionSection<R> {
             shape_support_plan: decoder.field(8, DecodedParamFreeShapeSupportPlanSetV1::decode)?,
             generated_bridge_plan: decoder.field(9, DecodedGeneratedBridgePlanSetV1::decode)?,
             canonical_callables: decoder
-                .field(13, crate::DecodedCanonicalCallableLirDefinitionsV1::decode)?,
-            canonical_shapes: decoder
-                .field(14, crate::DecodedCanonicalShapeLirDefinitionsV1::decode)?,
+                .field(13, crate::DecodedCanonicalCallableAbisV1::decode)?,
+            canonical_shapes: decoder.field(14, crate::DecodedCanonicalShapeAbisV1::decode)?,
         })
     }
 }

@@ -4,55 +4,16 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, UnnamedAddress};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentImmortalObjectId, StrongImmortalObjectRegistrationPlanSetV1,
-    StrongImmortalObjectRegistrationPlanV1,
+    ConeIdentity, LinkageClass, PersistentImmortalObjectId,
+    StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanV1,
 };
 
 use super::RuntimeMetadataV1Types;
 use crate::{CodegenError, ManagedAddressSpace};
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const IMMORTAL_OBJECT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
-const IMMORTAL_OBJECT_DESCRIPTOR_SIZE: u64 = 184;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const DIGEST_SIZE: u64 = 32;
-
-/// The graph-managed definition slot in an emitted immortal-object registration.
-#[derive(Clone, Copy, Debug)]
-pub struct ImmortalObjectRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> ImmortalObjectRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
+const IMMORTAL_OBJECT_DESCRIPTOR_SIZE: u64 = 152;
 
 /// One fully emitted provisional immortal-object registration.
 #[derive(Clone, Copy, Debug)]
@@ -61,7 +22,6 @@ pub struct EmittedStrongImmortalObjectRegistrationV1<'ctx> {
     descriptor: GlobalValue<'ctx>,
     object_value: GlobalValue<'ctx>,
     type_registration: GlobalValue<'ctx>,
-    registration_definition_patch: ImmortalObjectRegistrationPatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedStrongImmortalObjectRegistrationV1<'ctx> {
@@ -79,12 +39,6 @@ impl<'ctx> EmittedStrongImmortalObjectRegistrationV1<'ctx> {
 
     pub const fn type_registration(self) -> GlobalValue<'ctx> {
         self.type_registration
-    }
-
-    pub const fn registration_definition_patch(
-        self,
-    ) -> ImmortalObjectRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 }
 
@@ -106,7 +60,6 @@ impl<'ctx> EmittedStrongImmortalObjectRegistrationSetV1<'ctx> {
 }
 
 /// Emit every strong immortal-object registration from the closed LIR plan.
-/// The graph-managed definition fingerprint remains zero until finalization.
 pub(crate) fn emit_strong_immortal_object_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -326,13 +279,6 @@ fn emit_registration<'ctx>(
         descriptor,
         object_value: prepared.object_value,
         type_registration,
-        registration_definition_patch: ImmortalObjectRegistrationPatchSiteV1 {
-            intent: plan.registration_definition_patch(),
-            definition: plan.registration_definition_plan(),
-            atom: plan.registration_primary_atom(),
-            owner: descriptor,
-            byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-        },
     }
 }
 

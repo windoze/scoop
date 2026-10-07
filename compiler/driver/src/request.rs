@@ -98,6 +98,7 @@ pub struct SingleConeBuildRequest {
     output: SlibOutputDestination,
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
+    optimization: scoop_lir::OptimizationMode,
 }
 
 impl SingleConeBuildRequest {
@@ -120,7 +121,13 @@ impl SingleConeBuildRequest {
             output,
             diagnostics,
             emit,
+            optimization: scoop_lir::OptimizationMode::Debug,
         })
+    }
+
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.optimization = mode;
+        self
     }
 }
 

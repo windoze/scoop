@@ -26,6 +26,7 @@ env = {"PATH" = "/usr/bin:/bin"}
 
 [[steps]]
 name = "build"
+timeout = 300
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/callback-exception", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump", "--dump-scope", "sources", "--library-path", "${work}/native"]
 exit = 0
 stdout = ""

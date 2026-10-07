@@ -10,7 +10,6 @@ use scoop_lir::{
     StrongInitializationUnitRegistrationPlanSetV1,
 };
 
-use super::digest::validate_digest_graph;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{CELL_SIZE, DESCRIPTOR_SIZE, validate_cell_bytes, validate_record_bytes};
 use super::relocations::{VerifiedInitializationRelocationsV1, verify_relocations};
@@ -26,8 +25,7 @@ use crate::link_object::{
     VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 312;
+const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 280;
 const DIGEST_WIDTH: u8 = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -47,7 +45,7 @@ pub struct VerifiedStrongInitializationRegistrationV1 {
     registration_initializer_relocation: StrongRelocationBindingV1,
     registration_ensure_relocation: StrongRelocationBindingV1,
     registration_gateway_relocation: Option<StrongRelocationBindingV1>,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     gateway_definition_patch: Option<VerifiedMaterializedPatchSiteV1>,
 }
 
@@ -110,10 +108,6 @@ impl VerifiedStrongInitializationRegistrationV1 {
 
     pub const fn registration_gateway_relocation(&self) -> Option<&StrongRelocationBindingV1> {
         self.registration_gateway_relocation.as_ref()
-    }
-
-    pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
     }
 
     pub const fn gateway_definition_patch(&self) -> Option<VerifiedMaterializedPatchSiteV1> {
@@ -190,7 +184,6 @@ where
     let objects = validate_objects(patch_sites.builtins(), scoop_objects)?;
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), registration)?;
         registrations.push(verify_registration(&patch_sites, &objects, registration)?);
     }
     Ok(VerifiedStrongInitializationRegistrationSetV1 {
@@ -255,16 +248,7 @@ where
     debug_assert_eq!(registration_end - checked_offset, DESCRIPTOR_SIZE as u64);
 
     let relocations = verify_relocations(patch_sites, objects, registration_index, plan)?;
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        plan.registration_definition_patch(),
-        plan.registration_fingerprint_node(),
-        DigestSemanticFieldRole::RegistrationDefinition,
-        member,
-        checked_offset,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    )?;
+
     let gateway_definition_patch = match plan.schedule() {
         StrongInitializationRegistrationSchedulePlanV1::EagerStartup {
             gateway,
@@ -293,7 +277,6 @@ where
         cell_start,
         diagnostic_checked_offset,
         relocations,
-        registration_definition_patch,
         gateway_definition_patch,
     ))
 }
@@ -361,7 +344,7 @@ fn build_verified<D>(
     cell_checked_offset: u64,
     diagnostic_checked_offset: u64,
     relocations: VerifiedInitializationRelocationsV1,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     gateway_definition_patch: Option<VerifiedMaterializedPatchSiteV1>,
 ) -> VerifiedStrongInitializationRegistrationV1 {
     VerifiedStrongInitializationRegistrationV1 {
@@ -380,7 +363,7 @@ fn build_verified<D>(
         registration_initializer_relocation: relocations.registration_initializer,
         registration_ensure_relocation: relocations.registration_ensure,
         registration_gateway_relocation: relocations.registration_gateway,
-        registration_definition_patch,
+
         gateway_definition_patch,
     }
 }
@@ -571,7 +554,7 @@ fn validate_exact_atom_patch_set<D>(
     plan: &StrongInitializationUnitRegistrationPlan<D>,
     member: SlibMemberId,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
-    let mut expected = vec![plan.registration_definition_patch()];
+    let mut expected = Vec::new();
     if let Some(gateway) = plan.schedule().gateway_definition_patch() {
         expected.push(gateway);
     }

@@ -60,7 +60,6 @@ pub fn validate_initialization_registration_constituents_v2(
                         definition.unit(),
                         foundation,
                         identities,
-                        digests,
                     )?;
                     if current != *definition {
                         return Err(semantic_error(

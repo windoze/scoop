@@ -166,12 +166,10 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
     let digests = digest_plan(
         &foundation,
         semantic.schedule().gateway(),
-        &cell,
         &registration,
-        &storage_registrations,
         &callables,
     );
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     StrongInitializationUnitRegistrationPlanSetV1::new(
         &foundation,
         &identities,
@@ -217,13 +215,9 @@ fn definition_artifacts(
 fn digest_plan(
     foundation: &ConeLirFoundation,
     gateway: Option<scoop_lir::PersistentCallableBodyId>,
-    cell: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,
-    storages: &[DefinitionArtifacts; 2],
     callables: &[CallableArtifacts],
 ) -> DigestFinalizationPlanV1 {
-    let cell_object = object_leaf(cell);
-    let registration_object = object_leaf(registration);
     let callable_objects = callables
         .iter()
         .map(|callable| {
@@ -243,57 +237,13 @@ fn digest_plan(
         })
         .collect::<Vec<_>>();
 
-    let mut nodes = vec![cell_object.clone(), registration_object.clone()];
-    nodes.extend(callable_objects.iter().cloned());
     let mut image_inputs = Vec::new();
-    for storage in storages {
-        let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(storage.definition.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
+    for (callable, object) in callables.iter().zip(&callable_objects) {
+        if Some(callable.body) == gateway {
+            image_inputs.push(DigestInputRefV1::from_node(object));
+        }
     }
-    for callable in callables {
-        let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(callable.registration.definition.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-
-    let registration_key = DigestNodeKey::strong_registration(registration.definition.id());
-    let registration_id = DigestNodeId::from_key(&registration_key).unwrap();
-    let mut registration_inputs = vec![
-        DigestInputRefV1::from_node(&registration_object),
-        DigestInputRefV1::from_node(&cell_object),
-    ];
-    if let Some(gateway) = gateway {
-        let gateway_object = callables
-            .iter()
-            .zip(&callable_objects)
-            .find_map(|(callable, object)| (callable.body == gateway).then_some(object))
-            .unwrap();
-        registration_inputs.push(DigestInputRefV1::from_node(gateway_object));
-    }
-    let unit_registration = DigestNodeV1::new(
-        registration_key,
-        registration_inputs,
-        vec![DigestPatchIntentKey::new(
-            registration_id,
-            registration.definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        )],
-    )
-    .unwrap();
-    image_inputs.push(DigestInputRefV1::from_node(&unit_registration));
-    nodes.push(unit_registration);
+    let mut nodes = callable_objects;
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(scoop_lir::ConeIdentity::SINGLE_FILE),
@@ -303,15 +253,6 @@ fn digest_plan(
         .unwrap(),
     );
     DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
-}
-
-fn object_leaf(artifacts: &DefinitionArtifacts) -> DigestNodeV1 {
-    DigestNodeV1::new(
-        DigestNodeKey::object_definition(artifacts.primary.id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap()
 }
 
 fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {

@@ -306,25 +306,10 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
         DefinitionAtomRole::Primary,
         DigestSemanticFieldRole::RuntimeImage,
     );
-    let registration_node = type_registration.map(|(definition, _)| {
-        scoop_lir::DigestNodeV1::new(
-            DigestNodeKey::strong_registration(definition),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap()
-    });
-    let image_inputs = registration_node
-        .iter()
-        .map(scoop_lir::DigestInputRefV1::from_node)
-        .collect();
     let image_node =
-        scoop_lir::DigestNodeV1::new(image_key, image_inputs, vec![image_patch]).unwrap();
-    let mut nodes = vec![image_node];
-    nodes.extend(registration_node);
-    let digest_plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+        scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
+    let digest_plan = DigestFinalizationPlanV1::new(vec![image_node], &foundation).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate,
         &[scoop_identity::ConeIdentity::CORE],

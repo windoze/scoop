@@ -458,8 +458,9 @@ pub enum Instruction {
         variant: LirVariantRef,
     },
     /// Project one payload field after a matching [`Instruction::VariantTest`]
-    /// true edge.  Module validation proves that edge dominates this use and
-    /// derives the exact result type from `variant` plus `field`.
+    /// true edge, or from a known construction after local CFG cleanup.
+    /// Module validation checks the unchanged value and derives the exact
+    /// result type from `variant` plus `field`.
     VariantPayloadProject {
         out: TempId,
         operand: Value,

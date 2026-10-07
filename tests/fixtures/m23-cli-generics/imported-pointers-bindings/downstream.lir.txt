@@ -89,9 +89,7 @@ Module
     store local8 -> local9
     t3 = integer_compare_Equal<ULong> local7, local9 : i1
     t4 = Not t3 : i1
-    cbr t4 then @if.then.1 else @if.merge.2
-  block if.then.1
-    ret integer<Int>(0x00000001)
+    br @if.merge.2
   block if.merge.2
     ret local0
   fun @scoop$1$cb$a867b90faebda97a3929484c51af5c4a9adeae25f4c34846dc8ce9cffb7de0c5(i32) -> i32
@@ -123,9 +121,7 @@ Module
     store local8 -> local9
     t3 = integer_compare_Equal<ULong> local7, local9 : i1
     t4 = Not t3 : i1
-    cbr t4 then @if.then.1 else @if.merge.2
-  block if.then.1
-    ret integer<Int>(0x00000001)
+    br @if.merge.2
   block if.merge.2
     ret local0
   fun @scoop$1$cb$d6d48a2c345a4a5a8575cec2438a53c08e0c8dc1a8e601862cd79416e54b9715(ptr<managed>, i32) -> void

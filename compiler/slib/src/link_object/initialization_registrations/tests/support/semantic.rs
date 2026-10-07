@@ -179,13 +179,10 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
     let digest_plan = digest_plan(
         &foundation,
         semantic.schedule().gateway(),
-        &cell,
         &registration,
-        &storages,
         &callables,
     );
-    let identities =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let callable_plan = StrongCallableRegistrationPlanSetV1::new(
         &foundation,
         &identities,
@@ -269,13 +266,9 @@ fn definition_artifacts(
 fn digest_plan(
     foundation: &ConeLirFoundation,
     gateway: Option<scoop_lir::PersistentCallableBodyId>,
-    cell: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,
-    storages: &[StorageArtifacts; 2],
     callables: &[CallableArtifacts],
 ) -> DigestFinalizationPlanV1 {
-    let cell_object = object_leaf(cell);
-    let registration_object = object_leaf(registration);
     let callable_objects = callables
         .iter()
         .map(|callable| {
@@ -298,76 +291,11 @@ fn digest_plan(
             DigestNodeV1::new(key, Vec::new(), patches).unwrap()
         })
         .collect::<Vec<_>>();
-    let callable_registration_objects = callables
+    let image_inputs = callable_objects
         .iter()
-        .map(|callable| object_leaf(&callable.registration))
-        .collect::<Vec<_>>();
-    let mut nodes = vec![cell_object.clone(), registration_object.clone()];
-    nodes.extend(callable_objects.iter().cloned());
-    nodes.extend(callable_registration_objects.iter().cloned());
-    let mut image_inputs = Vec::new();
-    for storage in storages {
-        let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(storage.registration.definition.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-    for ((callable, body_object), registration_object) in callables
-        .iter()
-        .zip(&callable_objects)
-        .zip(&callable_registration_objects)
-    {
-        let key = DigestNodeKey::strong_registration(callable.registration.definition.id());
-        let id = DigestNodeId::from_key(&key).unwrap();
-        let strong = DigestNodeV1::new(
-            key,
-            vec![
-                DigestInputRefV1::from_node(registration_object),
-                DigestInputRefV1::from_node(body_object),
-            ],
-            vec![DigestPatchIntentKey::new(
-                id,
-                callable.registration.definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::RegistrationDefinition,
-            )],
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-
-    let registration_key = DigestNodeKey::strong_registration(registration.definition.id());
-    let registration_id = DigestNodeId::from_key(&registration_key).unwrap();
-    let mut registration_inputs = vec![
-        DigestInputRefV1::from_node(&registration_object),
-        DigestInputRefV1::from_node(&cell_object),
-    ];
-    if let Some(gateway) = gateway {
-        let gateway_object = callables
-            .iter()
-            .zip(&callable_objects)
-            .find_map(|(callable, object)| (callable.body == gateway).then_some(object))
-            .unwrap();
-        registration_inputs.push(DigestInputRefV1::from_node(gateway_object));
-    }
-    let unit_registration = DigestNodeV1::new(
-        registration_key,
-        registration_inputs,
-        vec![DigestPatchIntentKey::new(
-            registration_id,
-            registration.definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        )],
-    )
-    .unwrap();
-    image_inputs.push(DigestInputRefV1::from_node(&unit_registration));
-    nodes.push(unit_registration);
+        .map(DigestInputRefV1::from_node)
+        .collect();
+    let mut nodes = callable_objects;
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(scoop_lir::ConeIdentity::SINGLE_FILE),
@@ -377,15 +305,6 @@ fn digest_plan(
         .unwrap(),
     );
     DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
-}
-
-fn object_leaf(artifacts: &DefinitionArtifacts) -> DigestNodeV1 {
-    DigestNodeV1::new(
-        DigestNodeKey::object_definition(artifacts.primary.id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap()
 }
 
 fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {

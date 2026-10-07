@@ -19,6 +19,15 @@ pub struct ConeImagePlanV1 {
 }
 
 impl ConeImagePlanV1 {
+    pub(crate) fn retain_safepoints(
+        &mut self,
+        retained: &std::collections::BTreeSet<PersistentSafepointSiteId>,
+    ) {
+        self.tables
+            .safepoints
+            .retain(|site| retained.contains(site));
+    }
+
     pub fn new(
         coordinate: ConeCoordinate,
         direct_dependencies: &[ConeIdentity],
@@ -68,7 +77,7 @@ impl ConeImagePlanV1 {
                     == scoop_identity::DigestOwnerAndRoleKey::RuntimeImage(cone.identity())
             })
             .ok_or(ConeImagePlanBuildError::MissingDigestNode)?;
-        validate_registration_inputs(image_node.direct_inputs(), registrations)?;
+        validate_registration_inputs(image_node.direct_inputs(), digest_plan)?;
         let patch_key = DigestPatchIntentKey::new(
             image_node.id(),
             definition_plan,

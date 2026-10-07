@@ -28,10 +28,8 @@ pub struct StrongSafepointRegistrationPlanV1 {
     symbol: PersistentSymbolRequest,
     definition_plan: ObjectDefinitionPlanId,
     primary_atom: ObjectDefinitionAtomId,
-    registration_fingerprint_node: DigestNodeId,
     definition_owner: crate::RegistrationDefinitionOwner,
     normalized_stackmap_fingerprint_node: DigestNodeId,
-    registration_definition_patch: DigestPatchIntentId,
     normalized_stackmap_patch: DigestPatchIntentId,
 }
 
@@ -72,16 +70,8 @@ impl StrongSafepointRegistrationPlanV1 {
         self.primary_atom
     }
 
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
     pub const fn normalized_stackmap_fingerprint_node(self) -> DigestNodeId {
         self.normalized_stackmap_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(self) -> DigestPatchIntentId {
-        self.registration_definition_patch
     }
 
     pub const fn normalized_stackmap_patch(self) -> DigestPatchIntentId {
@@ -89,8 +79,8 @@ impl StrongSafepointRegistrationPlanV1 {
     }
 }
 
-/// Proof that the current Cone has exactly one complete strong registration
-/// production plan for every final LIR safepoint site.
+/// Complete registration plans for the current Cone's retained safepoints.
+/// Codegen finalization projects logical LIR leaves into physical root counts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongSafepointRegistrationPlanSetV1 {
     producer: ConeIdentity,
@@ -98,6 +88,26 @@ pub struct StrongSafepointRegistrationPlanSetV1 {
 }
 
 impl StrongSafepointRegistrationPlanSetV1 {
+    pub(crate) fn set_emitted_root_counts(
+        &mut self,
+        counts: &std::collections::BTreeMap<SafepointId, u32>,
+    ) -> Result<(), StrongSafepointRegistrationPlanBuildError> {
+        let known = self
+            .registrations
+            .iter()
+            .map(|plan| plan.safepoint)
+            .collect::<std::collections::BTreeSet<_>>();
+        if counts.keys().any(|site| !known.contains(site)) {
+            return Err(StrongSafepointRegistrationPlanBuildError::EmittedSiteSet);
+        }
+        self.registrations
+            .retain(|plan| counts.contains_key(&plan.safepoint));
+        for plan in &mut self.registrations {
+            plan.root_pair_count = counts[&plan.safepoint];
+        }
+        Ok(())
+    }
+
     pub fn new(
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
@@ -223,76 +233,7 @@ fn build_registration(
         ));
     }
 
-    let object = require_digest_node(digests, DigestNodeKey::object_definition(primary_atom))?;
     let stackmap = require_digest_node(digests, DigestNodeKey::stackmap_record(site))?;
-    let expected_object_inputs = match definition_owner {
-        crate::RegistrationDefinitionOwner::Strong => Vec::new(),
-        crate::RegistrationDefinitionOwner::Odr { .. } => {
-            vec![DigestInputRefV1::from_node(stackmap)]
-        }
-    };
-    if object.direct_inputs() != expected_object_inputs {
-        return Err(
-            StrongSafepointRegistrationPlanBuildError::ObjectDefinitionInputs {
-                node: object.id(),
-                actual: object.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !object.patch_intents().is_empty() {
-        return Err(
-            StrongSafepointRegistrationPlanBuildError::ObjectDefinitionPatches {
-                node: object.id(),
-                actual: object
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
-    let registration = require_digest_node(digests, definition_owner.digest_key(definition.id()))?;
-    if registration.id() != identity.fingerprint_node() {
-        return Err(
-            StrongSafepointRegistrationPlanBuildError::RegistrationDigestMismatch {
-                site,
-                expected: registration.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
-
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(object),
-        DigestInputRefV1::from_node(stackmap),
-    ];
-    if matches!(
-        definition_owner,
-        crate::RegistrationDefinitionOwner::Odr { .. }
-    ) {
-        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
-            digests,
-            DigestNodeKey::lir_definition(primary_atom),
-        )?));
-    }
-    expected_inputs.sort_unstable();
-    if registration.direct_inputs() != expected_inputs {
-        return Err(StrongSafepointRegistrationPlanBuildError::DirectInputs {
-            node: registration.id(),
-            expected: expected_inputs,
-            actual: registration.direct_inputs().to_vec(),
-        });
-    }
-
-    let registration_definition_patch = require_only_patch(
-        registration,
-        DigestPatchIntentKey::new(
-            registration.id(),
-            definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        ),
-    )?;
     let normalized_stackmap_patch = require_only_patch(
         stackmap,
         DigestPatchIntentKey::new(
@@ -312,10 +253,8 @@ fn build_registration(
         symbol,
         definition_plan: definition.id(),
         primary_atom,
-        registration_fingerprint_node: registration.id(),
         definition_owner,
         normalized_stackmap_fingerprint_node: stackmap.id(),
-        registration_definition_patch,
         normalized_stackmap_patch,
     })
 }
@@ -347,6 +286,7 @@ fn require_only_patch(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongSafepointRegistrationPlanBuildError {
+    EmittedSiteSet,
     Symbol(PersistentSymbolError),
     ProducerMismatch {
         foundation: ConeIdentity,

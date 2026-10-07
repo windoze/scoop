@@ -7,23 +7,13 @@ use crate::link_object::{
     VerifiedStrongImmortalObjectFingerprintSetV1, VerifiedStrongInitializationFingerprintSetV1,
     VerifiedStrongStaticStorageFingerprintSetV1, VerifiedStrongTypeFingerprintSetV1,
     compute_strong_callable_body_object_fingerprints_v1, compute_strong_callable_fingerprints_v1,
-    compute_strong_immortal_object_definition_fingerprints_v1,
-    compute_strong_immortal_object_fingerprints_v1,
-    compute_strong_immortal_object_registration_object_fingerprints_v1,
-    compute_strong_initialization_definition_fingerprints_v1,
-    compute_strong_initialization_fingerprints_v1,
-    compute_strong_initialization_registration_object_fingerprints_v1,
-    compute_strong_safepoint_fingerprints_v1,
-    compute_strong_static_storage_definition_fingerprints_v1,
-    compute_strong_static_storage_fingerprints_v1,
-    compute_strong_static_storage_registration_object_fingerprints_v1,
+    compute_strong_immortal_object_fingerprints_v1, compute_strong_initialization_fingerprints_v1,
+    compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, compute_strong_type_fingerprints_v1,
-    verify_scoop_lir_digest_patch_sites_v1, verify_strong_callable_registrations_v1,
-    verify_strong_immortal_object_registrations_v1, verify_strong_initialization_registrations_v1,
-    verify_strong_safepoint_registrations_v1, verify_strong_static_storage_registrations_v1,
-    verify_strong_type_registrations_v1,
+    verify_strong_callable_registrations_v1, verify_strong_immortal_object_registrations_v1,
+    verify_strong_initialization_registrations_v1, verify_strong_safepoint_registrations_v1,
+    verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
-use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
@@ -76,15 +66,6 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         assert_eq!(
             digest_at(
                 final_object.bytes(),
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-            ),
-            fingerprint.registration().as_array()
-        );
-        assert_eq!(
-            digest_at(
-                final_object.bytes(),
                 registration.normalized_stackmap_patch().checked_offset(),
             ),
             fingerprint.stackmap().as_array()
@@ -94,20 +75,10 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
     let callable_registrations = patched
         .callables()
         .body_objects()
-        .registration_objects()
         .registrations()
         .registrations();
     let callable_fingerprints = patched.callables().fingerprints();
     for (registration, fingerprint) in callable_registrations.iter().zip(callable_fingerprints) {
-        assert_eq!(
-            digest_at(
-                final_object.bytes(),
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-            ),
-            fingerprint.registration().as_array()
-        );
         assert_eq!(
             digest_at(
                 final_object.bytes(),
@@ -120,15 +91,6 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
     let type_registrations = patched.types().registrations().registrations();
     let type_fingerprints = patched.types().fingerprints();
     for (registration, fingerprint) in type_registrations.iter().zip(type_fingerprints) {
-        assert_eq!(
-            digest_at(
-                final_object.bytes(),
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-            ),
-            fingerprint.registration().as_array()
-        );
         assert_eq!(
             digest_at(
                 final_object.bytes(),
@@ -145,30 +107,9 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         );
     }
 
-    let immortal_registrations = patched
-        .immortal_objects()
-        .object_definitions()
-        .registration_objects()
-        .registrations()
-        .registrations();
-    let immortal_fingerprints = patched.immortal_objects().fingerprints();
-    for (registration, fingerprint) in immortal_registrations.iter().zip(immortal_fingerprints) {
-        assert_eq!(
-            digest_at(
-                final_object.bytes(),
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-            ),
-            fingerprint.registration().as_array()
-        );
-    }
-
     let static_storage_registrations = patched
         .static_storages()
         .shapes()
-        .storage_definitions()
-        .registration_objects()
         .registrations()
         .registrations();
     let static_storage_fingerprints = patched.static_storages().fingerprints();
@@ -176,15 +117,6 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
         .iter()
         .zip(static_storage_fingerprints)
     {
-        assert_eq!(
-            digest_at(
-                final_object.bytes(),
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-            ),
-            fingerprint.registration().as_array()
-        );
         assert_eq!(
             digest_at(
                 final_object.bytes(),
@@ -209,59 +141,32 @@ fn writes_every_verified_registration_slot_and_revalidates_the_final_object() {
     {
         let offset = u64::try_from(offset).unwrap();
         let is_safepoint_patch = safepoint_registrations.iter().any(|registration| {
-            [
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-                registration.normalized_stackmap_patch().checked_offset(),
-            ]
-            .into_iter()
-            .any(|start| start <= offset && offset < start + 32)
+            [registration.normalized_stackmap_patch().checked_offset()]
+                .into_iter()
+                .any(|start| start <= offset && offset < start + 32)
         });
         let is_callable_patch = callable_registrations.iter().any(|registration| {
-            [
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
-                registration.body_definition_patch().checked_offset(),
-            ]
-            .into_iter()
-            .any(|start| start <= offset && offset < start + 32)
+            [registration.body_definition_patch().checked_offset()]
+                .into_iter()
+                .any(|start| start <= offset && offset < start + 32)
         });
         let is_type_patch = type_registrations.iter().any(|registration| {
             [
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
                 registration.descriptor_definition_patch().checked_offset(),
                 registration.layout_fingerprint_patch().checked_offset(),
             ]
             .into_iter()
             .any(|start| start <= offset && offset < start + 32)
         });
-        let is_immortal_patch = immortal_registrations.iter().any(|registration| {
-            let start = registration
-                .registration_definition_patch()
-                .checked_offset();
-            start <= offset && offset < start + 32
-        });
         let is_static_storage_patch = static_storage_registrations.iter().any(|registration| {
             [
-                registration
-                    .registration_definition_patch()
-                    .checked_offset(),
                 registration.scan_fingerprint_patch().checked_offset(),
                 registration.layout_fingerprint_patch().checked_offset(),
             ]
             .into_iter()
             .any(|start| start <= offset && offset < start + 32)
         });
-        if !is_safepoint_patch
-            && !is_callable_patch
-            && !is_type_patch
-            && !is_immortal_patch
-            && !is_static_storage_patch
-        {
+        if !is_safepoint_patch && !is_callable_patch && !is_type_patch && !is_static_storage_patch {
             assert_eq!(before, after);
         }
     }
@@ -299,94 +204,6 @@ fn rejects_provisional_bytes_changed_after_fingerprint_computation() {
     ));
 }
 
-#[test]
-fn rejects_fingerprint_proofs_from_different_digest_graphs() {
-    let fixture = Fixture::new(Corruption::None);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let stackmaps = fixture.verified_stackmaps();
-    let safepoint_registrations = verify_strong_safepoint_registrations_v1(
-        stackmaps.clone(),
-        fixture.verified_patch_sites(),
-        fixture.registration_plan.clone(),
-        &objects,
-    )
-    .unwrap();
-    let safepoints =
-        compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &objects).unwrap();
-    let types = verified_type_fingerprints(&fixture, &objects);
-
-    let changed_node = fixture.registration_plan.registrations()[0].registration_fingerprint_node();
-    let nodes = fixture
-        .digest_plan
-        .nodes()
-        .iter()
-        .map(|node| {
-            if node.id() != changed_node {
-                return node.clone();
-            }
-            DigestNodeV1::new(
-                *node.key(),
-                node.direct_inputs()[1..].to_vec(),
-                node.patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            )
-            .unwrap()
-        })
-        .collect();
-    let changed_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
-    let changed_patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        fixture.builtins.clone(),
-        &fixture.foundation,
-        changed_digest_plan,
-        &objects,
-        &fixture.provisional_patch_sites,
-    )
-    .unwrap();
-    let callable_registrations = verify_strong_callable_registrations_v1(
-        changed_patch_sites.clone(),
-        fixture.callable_registration_plan.clone(),
-        &objects,
-    )
-    .unwrap();
-    let registration_objects = callable_registrations;
-    let body_objects = compute_strong_callable_body_object_fingerprints_v1(
-        registration_objects,
-        stackmaps,
-        fixture.undefined_requirements(),
-        &objects,
-    )
-    .unwrap();
-    let initializations = verified_initialization_fingerprints(
-        &fixture,
-        &objects,
-        changed_patch_sites,
-        &body_objects,
-    );
-    let callables =
-        compute_strong_callable_fingerprints_v1(body_objects, &fixture.canonical_callables)
-            .unwrap();
-    let immortal_objects = verified_immortal_object_fingerprints(&fixture, &objects);
-    let static_storages = verified_static_storage_fingerprints(&fixture, &objects);
-
-    assert_eq!(
-        patch_strong_registration_fingerprints_v1(
-            safepoints,
-            callables,
-            types,
-            immortal_objects,
-            static_storages,
-            initializations,
-            &objects,
-        ),
-        Err(StrongRegistrationPatchError::ProofMismatch)
-    );
-}
-
 fn verified_fingerprints(
     fixture: &Fixture,
     objects: &[ScoopLirObjectCandidateV1<'_>],
@@ -407,8 +224,7 @@ fn verified_fingerprints(
         objects,
     )
     .unwrap();
-    let safepoints =
-        compute_strong_safepoint_fingerprints_v1(safepoint_registrations, objects).unwrap();
+    let safepoints = compute_strong_safepoint_fingerprints_v1(safepoint_registrations).unwrap();
     let callable_registrations = verify_strong_callable_registrations_v1(
         patch_sites,
         fixture.callable_registration_plan.clone(),
@@ -457,12 +273,8 @@ fn verified_initialization_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_initialization_registration_object_fingerprints_v1(registrations, objects)
-            .unwrap();
-    let definitions =
-        compute_strong_initialization_definition_fingerprints_v1(registration_objects, objects)
-            .unwrap();
+    let registration_objects = registrations;
+    let definitions = registration_objects;
     compute_strong_initialization_fingerprints_v1(
         definitions,
         callable_bodies,
@@ -481,12 +293,8 @@ fn verified_static_storage_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_static_storage_registration_object_fingerprints_v1(registrations, objects)
-            .unwrap();
-    let storage_definitions =
-        compute_strong_static_storage_definition_fingerprints_v1(registration_objects, objects)
-            .unwrap();
+    let registration_objects = registrations;
+    let storage_definitions = registration_objects;
     let shapes = compute_strong_static_storage_shape_fingerprints_v1(storage_definitions).unwrap();
     compute_strong_static_storage_fingerprints_v1(shapes, &fixture.canonical_shapes).unwrap()
 }
@@ -501,15 +309,8 @@ fn verified_immortal_object_fingerprints(
         objects,
     )
     .unwrap();
-    let registration_objects =
-        compute_strong_immortal_object_registration_object_fingerprints_v1(registrations, objects)
-            .unwrap();
-    let object_definitions = compute_strong_immortal_object_definition_fingerprints_v1(
-        registration_objects,
-        fixture.undefined_requirements(),
-        objects,
-    )
-    .unwrap();
+    let registration_objects = registrations;
+    let object_definitions = registration_objects;
     compute_strong_immortal_object_fingerprints_v1(object_definitions, &fixture.canonical_shapes)
         .unwrap()
 }

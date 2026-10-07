@@ -81,35 +81,12 @@ impl RegistrationObjectVerifiedObjectProductionV1 {
             static_storage_registration_objects,
             initialization_registration_objects,
         ) = {
-            let candidates = production.scoop_lir_candidates();
-            let safepoints =
-                compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &candidates)
-                    .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
+            let safepoints = compute_strong_safepoint_fingerprints_v1(safepoint_registrations)
+                .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
-            let immortal_object_registration_objects =
-                compute_strong_immortal_object_registration_object_fingerprints_v1(
-                    immortal_object_registrations,
-                    &candidates,
-                )
-                .map_err(
-                    BuiltinObjectProductionError::ImmortalObjectRegistrationObjectFingerprints,
-                )?;
-            let static_storage_registration_objects =
-                compute_strong_static_storage_registration_object_fingerprints_v1(
-                    static_storage_registrations,
-                    &candidates,
-                )
-                .map_err(
-                    BuiltinObjectProductionError::StaticStorageRegistrationObjectFingerprints,
-                )?;
-            let initialization_registration_objects =
-                compute_strong_initialization_registration_object_fingerprints_v1(
-                    initialization_registrations,
-                    &candidates,
-                )
-                .map_err(
-                    BuiltinObjectProductionError::InitializationRegistrationObjectFingerprints,
-                )?;
+            let immortal_object_registration_objects = immortal_object_registrations;
+            let static_storage_registration_objects = static_storage_registrations;
+            let initialization_registration_objects = initialization_registrations;
             (
                 safepoints,
                 callable_registrations,

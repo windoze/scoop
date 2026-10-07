@@ -36,7 +36,7 @@ fn strong_section_has_ten_closed_fields_and_round_trips() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&foundation),
-        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        crate::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     let encoded = encode(&section).unwrap();

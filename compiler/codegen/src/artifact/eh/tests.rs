@@ -149,7 +149,11 @@ fn text_with_protected_calls() -> TextSection {
     for offset in [0x24 + 0x34, 0x24 + 0x5c, 0x24 + 0xac] {
         bytes[offset..offset + 4].copy_from_slice(&0x9400_0000u32.to_le_bytes());
     }
-    TextSection { address: 0, bytes }
+    TextSection {
+        address: 0,
+        bytes,
+        non_unwinding_calls: BTreeSet::new(),
+    }
 }
 
 #[test]
@@ -349,6 +353,7 @@ fn protected_lsda_ranges_must_contain_aarch64_calls() {
     let text = TextSection {
         address: 0,
         bytes: vec![0; 0x134],
+        non_unwinding_calls: BTreeSet::new(),
     };
     assert!(
         verify_sections(
@@ -477,6 +482,7 @@ fn no_eh_functions_allow_qualified_unwind_only_fdes() {
         Some(&TextSection {
             address: 0,
             bytes: vec![0; 0x34ec],
+            non_unwinding_calls: BTreeSet::new(),
         }),
         &ExpectedEh::default(),
         &ObservedSafepoints::default(),
@@ -532,6 +538,7 @@ fn unwind_only_cfi_still_rejects_unqualified_metadata() {
             Some(&TextSection {
                 address: 0,
                 bytes: vec![0; 0x34ec],
+                non_unwinding_calls: BTreeSet::new(),
             }),
             &ExpectedEh::default(),
             &ObservedSafepoints::default(),

@@ -48,7 +48,6 @@ mod immortal_registration;
 pub(crate) use immortal_registration::emit_strong_immortal_object_registrations_v1;
 pub use immortal_registration::{
     EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
-    ImmortalObjectRegistrationPatchSiteV1,
 };
 
 mod initialization;
@@ -69,7 +68,8 @@ pub use static_storage::{
 mod production;
 pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
 pub(crate) use production::{
-    emit_context_callable_metadata_v1, emit_strong_runtime_metadata_v1, validate_patch_coverage,
+    emit_callable_metadata_v1, emit_callable_safepoints, emit_strong_runtime_metadata_v1,
+    validate_patch_coverage,
 };
 
 mod registration_identity;
@@ -168,7 +168,7 @@ const TYPE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
 };
 const REGISTRATION_IDENTITY: ExpectedStruct = ExpectedStruct {
     name: "ScoopRegistrationIdentityV1",
-    size: 136,
+    size: 104,
     alignment: 4,
     fields: expected_fields!(
         "linkage_kind" => 0,
@@ -176,7 +176,6 @@ const REGISTRATION_IDENTITY: ExpectedStruct = ExpectedStruct {
         "semantic_id" => 8,
         "odr_group_id" => 40,
         "odr_member_id" => 72,
-        "definition_fingerprint" => 104,
     ),
 };
 const STATIC_IMMORTAL_RELOCATION: ExpectedStruct = ExpectedStruct {
@@ -187,99 +186,99 @@ const STATIC_IMMORTAL_RELOCATION: ExpectedStruct = ExpectedStruct {
 };
 const STATIC_STORAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopStaticStorageDescriptorV1",
-    size: 296,
+    size: 264,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "scan_kind" => 152,
-        "initial_state_kind" => 156,
-        "writable_base" => 160,
-        "byte_size" => 168,
-        "allocation_extent" => 176,
-        "required_alignment" => 184,
-        "scan_program" => 192,
-        "scan_fingerprint" => 200,
-        "layout_fingerprint" => 232,
-        "initial_template" => 264,
-        "initial_relocations" => 280,
-        "initial_relocation_count" => 288,
+        "scan_kind" => 120,
+        "initial_state_kind" => 124,
+        "writable_base" => 128,
+        "byte_size" => 136,
+        "allocation_extent" => 144,
+        "required_alignment" => 152,
+        "scan_program" => 160,
+        "scan_fingerprint" => 168,
+        "layout_fingerprint" => 200,
+        "initial_template" => 232,
+        "initial_relocations" => 248,
+        "initial_relocation_count" => 256,
     ),
 };
 const TYPE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopTypeRegistrationDescriptorV1",
-    size: 240,
-    alignment: 8,
-    fields: expected_fields!(
-        "prefix" => 0,
-        "registration" => 16,
-        "runtime_type_id" => 152,
-        "reserved_zero" => 160,
-        "descriptor" => 168,
-        "descriptor_fingerprint" => 176,
-        "layout_fingerprint" => 208,
-    ),
-};
-const CALLABLE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
-    name: "ScoopCallableRegistrationDescriptorV1",
     size: 208,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "body_definition_fingerprint" => 152,
-        "entry" => 184,
-        "context_keys" => 192,
-        "context_key_count" => 200,
+        "runtime_type_id" => 120,
+        "reserved_zero" => 128,
+        "descriptor" => 136,
+        "descriptor_fingerprint" => 144,
+        "layout_fingerprint" => 176,
+    ),
+};
+const CALLABLE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
+    name: "ScoopCallableRegistrationDescriptorV1",
+    size: 176,
+    alignment: 8,
+    fields: expected_fields!(
+        "prefix" => 0,
+        "registration" => 16,
+        "body_definition_fingerprint" => 120,
+        "entry" => 152,
+        "context_keys" => 160,
+        "context_key_count" => 168,
     ),
 };
 const IMMORTAL_OBJECT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopImmortalObjectDescriptorV1",
-    size: 184,
+    size: 152,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "object_start" => 152,
-        "object_size" => 160,
-        "required_alignment" => 168,
-        "type_registration" => 176,
+        "object_start" => 120,
+        "object_size" => 128,
+        "required_alignment" => 136,
+        "type_registration" => 144,
     ),
 };
 const INITIALIZATION_UNIT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopInitializationUnitDescriptorV1",
-    size: 352,
+    size: 320,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "schedule_kind" => 152,
-        "reserved_zero" => 156,
-        "diagnostic_path" => 160,
-        "cell" => 176,
-        "storage" => 184,
-        "failure_root" => 192,
-        "initializer_callable_id" => 200,
-        "ensure_callable_id" => 232,
-        "initializer_entry" => 264,
-        "ensure_entry" => 272,
-        "startup_gateway_callable_id" => 280,
-        "startup_gateway_definition_fingerprint" => 312,
-        "startup_gateway" => 344,
+        "schedule_kind" => 120,
+        "reserved_zero" => 124,
+        "diagnostic_path" => 128,
+        "cell" => 144,
+        "storage" => 152,
+        "failure_root" => 160,
+        "initializer_callable_id" => 168,
+        "ensure_callable_id" => 200,
+        "initializer_entry" => 232,
+        "ensure_entry" => 240,
+        "startup_gateway_callable_id" => 248,
+        "startup_gateway_definition_fingerprint" => 280,
+        "startup_gateway" => 312,
     ),
 };
 const SAFEPOINT_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopSafepointRegistrationDescriptorV1",
-    size: 232,
+    size: 200,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "safepoint_id" => 152,
-        "site_role" => 160,
-        "root_pair_count" => 164,
-        "owner_callable_id" => 168,
-        "normalized_stackmap_fingerprint" => 200,
+        "safepoint_id" => 120,
+        "site_role" => 128,
+        "root_pair_count" => 132,
+        "owner_callable_id" => 136,
+        "normalized_stackmap_fingerprint" => 168,
     ),
 };
 const ROOT_ENTRY_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
@@ -398,7 +397,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             &[
                 i32.into(),
                 i32.into(),
-                digest.into(),
                 digest.into(),
                 digest.into(),
                 digest.into(),

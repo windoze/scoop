@@ -1,5 +1,11 @@
 use super::*;
 
+mod emit;
+mod finalization;
+mod render;
+use emit::emit_object_set_with_production;
+pub use render::render_llvm_ir_members;
+
 /// One verified provisional Scoop object and its exact producer units.
 #[derive(Debug)]
 pub struct EmittedConeObjectMemberV1 {
@@ -78,6 +84,7 @@ impl EmittedConeObjectMemberV1 {
 /// alive for exactly as long as this result.
 #[derive(Debug)]
 pub struct EmittedConeObjectSet<P> {
+    optimization: scoop_lir::OptimizationMode,
     target_selection: scoop_lir::ValidatedLirTargetSelection,
     foundation: scoop_lir::ConeLirFoundation,
     production: P,
@@ -90,6 +97,10 @@ pub type EmittedConeObjectSetV1 = EmittedConeObjectSet<scoop_lir::ConeProduction
 pub type EmittedConeObjectSetV2 = EmittedConeObjectSet<scoop_lir::ConeProductionSectionV2>;
 
 impl<P> EmittedConeObjectSet<P> {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.optimization
+    }
+
     pub const fn target(&self) -> scoop_lir::LirTargetProfile {
         self.target_selection.target()
     }
@@ -177,168 +188,6 @@ pub fn emit_object_set_v2(
     emit_object_set_with_production(input, production, temporary_parent, profile)
 }
 
-fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: Clone, I: Clone>(
-    input: &scoop_lir::ConeLirOutput,
-    production: scoop_lir::ConeProductionSection<D, C, I>,
-    temporary_parent: &Path,
-    profile: ValidatedBackendProfile,
-) -> Result<EmittedConeObjectSet<scoop_lir::ConeProductionSection<D, C, I>>, CodegenError> {
-    let module = input.module();
-    let partition =
-        ScoopLirObjectPartitionV1::from_input(input, production.canonical_definitions())
-            .map_err(|error| CodegenError(error.to_string()))?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let expected_eh = artifact::eh_expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    std::fs::create_dir_all(temporary_parent).map_err(|error| {
-        CodegenError(format!(
-            "cannot create object temporary parent {}: {error}",
-            temporary_parent.display()
-        ))
-    })?;
-    let backing = tempfile::Builder::new()
-        .prefix("scoop-lir-")
-        .tempdir_in(temporary_parent)
-        .map_err(|error| {
-            CodegenError(format!(
-                "cannot create immutable object backing under {}: {error}",
-                temporary_parent.display()
-            ))
-        })?;
-    let mut members = Vec::with_capacity(partition.objects().len());
-    for units in partition.objects() {
-        let path = backing
-            .path()
-            .join(format!("{}.o", units.definition_plans()[0]));
-        let context = Context::create();
-        let member = match units.kind() {
-            ScoopLirObjectKindV1::NonCallable => {
-                let selected_safepoints = expected_safepoints.without_body_sites();
-                let selected_eh = expected_eh.without_body_metadata();
-                let (llvm, runtime_metadata) = prepare_non_callable_strong_llvm_module(
-                    &context,
-                    module,
-                    &production,
-                    &machine,
-                    profile,
-                    &selected_safepoints,
-                )?;
-                write_object(&machine, &llvm, &path)?;
-                atom_boundaries::materialize_global_linkages_v1(
-                    &path,
-                    module.meta.target_profile,
-                    production.canonical_definitions(),
-                    units.definition_plans(),
-                )?;
-                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
-                let digest_patches =
-                    object_materialization::resolve_digest_patch_materializations_v1(
-                        &path,
-                        module.meta.target_profile,
-                        production.canonical_definitions(),
-                        &runtime_metadata,
-                    )?;
-                EmittedConeObjectMemberV1 {
-                    units: units.clone(),
-                    path,
-                    kind: EmittedConeObjectMemberKind::NonCallable {
-                        runtime_metadata,
-                        digest_patches,
-                    },
-                }
-            }
-            ScoopLirObjectKindV1::CallableBody(body) => {
-                let function = module
-                    .callable_bodies()
-                    .find(|function| function.callable_body.id() == body)
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "strong object partition selected missing callable body {body}"
-                        ))
-                    })?;
-                let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
-                let selected_eh = expected_eh.for_function(function.symbol());
-                let (llvm, runtime_metadata) = prepare_callable_strong_llvm_module(
-                    &context,
-                    module,
-                    &production,
-                    &machine,
-                    profile,
-                    &selected_safepoints,
-                    body,
-                )?;
-                write_object(&machine, &llvm, &path)?;
-                let definition = units
-                    .definition_plans()
-                    .iter()
-                    .filter_map(|id| production.canonical_definitions().plan(*id))
-                    .find(|plan| {
-                        plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
-                    })
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "callable object unit {} has no canonical symbol plan",
-                            units.definition_plans()[0]
-                        ))
-                    })?;
-                if let Err(error) = crate::callable_atom_boundaries::materialize_v1(
-                    &path,
-                    module.meta.target_profile,
-                    definition,
-                    body,
-                ) {
-                    return Err(discard_invalid_object(&path, error));
-                }
-                let registrations = units
-                    .definition_plans()
-                    .iter()
-                    .copied()
-                    .filter(|id| *id != definition.definition_plan())
-                    .collect::<Vec<_>>();
-                atom_boundaries::materialize_global_linkages_v1(
-                    &path,
-                    module.meta.target_profile,
-                    production.canonical_definitions(),
-                    &registrations,
-                )?;
-                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
-                let digest_patches =
-                    object_materialization::resolve_digest_patch_materializations_v1(
-                        &path,
-                        module.meta.target_profile,
-                        production.canonical_definitions(),
-                        &runtime_metadata,
-                    )?;
-                EmittedConeObjectMemberV1 {
-                    units: units.clone(),
-                    path,
-                    kind: EmittedConeObjectMemberKind::CallableBody {
-                        body,
-                        runtime_metadata,
-                        digest_patches,
-                    },
-                }
-            }
-        };
-        members.push(member);
-    }
-    let mut patches = members
-        .iter()
-        .flat_map(|member| member.digest_patches())
-        .map(|patch| patch.location())
-        .collect::<Vec<_>>();
-    patches.sort_unstable_by_key(|patch| patch.intent());
-    runtime_metadata_v1::validate_patch_coverage(&production, &patches)?;
-    Ok(EmittedConeObjectSet {
-        target_selection: profile.lir_target_selection(),
-        foundation: input.foundation().clone(),
-        production,
-        partition,
-        members,
-        backing,
-    })
-}
-
 fn validate_object_set_input(
     input: &scoop_lir::ConeLirOutput,
     profile: ValidatedBackendProfile,
@@ -349,72 +198,4 @@ fn validate_object_set_input(
         validation::validate_executable_entry(input.module(), entry)?;
     }
     Ok(())
-}
-
-/// Render every physical strong object module without writing artifacts.
-pub fn render_llvm_ir_members(
-    input: &scoop_lir::ConeLirOutput,
-    coordinate: &scoop_lir::ConeCoordinate,
-    direct_dependencies: &[scoop_lir::ConeIdentity],
-    entry_source: scoop_lir::EntryProductionSourceV1,
-    profile: ValidatedBackendProfile,
-) -> Result<Vec<RenderedConeObjectModuleV1>, CodegenError> {
-    validate_object_set_input(input, profile)?;
-    let module = input.module();
-    let production = input
-        .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
-        .map_err(|error| {
-            CodegenError(format!("cannot build strong production section: {error}"))
-        })?;
-    let partition =
-        ScoopLirObjectPartitionV1::from_input(input, production.canonical_definitions())
-            .map_err(|error| CodegenError(error.to_string()))?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    partition
-        .objects()
-        .iter()
-        .map(|units| {
-            let context = Context::create();
-            let llvm = match units.kind() {
-                ScoopLirObjectKindV1::NonCallable => {
-                    let selected = expected_safepoints.without_body_sites();
-                    prepare_non_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                    )?
-                    .0
-                }
-                ScoopLirObjectKindV1::CallableBody(body) => {
-                    let function = module
-                        .callable_bodies()
-                        .find(|function| function.callable_body.id() == body)
-                        .ok_or_else(|| {
-                            CodegenError(format!(
-                                "strong object partition selected missing callable body {body}"
-                            ))
-                        })?;
-                    let selected = expected_safepoints.for_function(function.symbol())?;
-                    prepare_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                        body,
-                    )?
-                    .0
-                }
-            };
-            Ok(RenderedConeObjectModuleV1 {
-                units: units.clone(),
-                llvm_ir: llvm.print_to_string().to_string(),
-            })
-        })
-        .collect()
 }

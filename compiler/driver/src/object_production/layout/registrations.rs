@@ -51,7 +51,7 @@ pub(super) fn finalize(
     let production = &input.production;
     let patches = &input.patch_sites;
     let (callables, safepoints) = input.verify_callable_metadata()?;
-    let safepoints = compute_strong_safepoint_fingerprints_v1(safepoints, &candidates)
+    let safepoints = compute_strong_safepoint_fingerprints_v1(safepoints)
         .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
     let callables = input.fingerprint_callable_objects(callables, undefined)?;
@@ -81,15 +81,6 @@ pub(super) fn finalize(
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::ImmortalObjectRegistrations)?;
-    let immortals =
-        compute_strong_immortal_object_registration_object_fingerprints_v1(immortals, &candidates)
-            .map_err(BuiltinObjectProductionError::ImmortalObjectRegistrationObjectFingerprints)?;
-    let immortals = slib::compute_layout_strong_immortal_object_definition_fingerprints_v1(
-        immortals,
-        undefined.clone(),
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::ImmortalObjectDefinitionFingerprints)?;
     let immortals = compute_strong_immortal_object_fingerprints_v1(
         immortals,
         production.canonical_shape_definitions(),
@@ -102,11 +93,6 @@ pub(super) fn finalize(
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::StaticStorageRegistrations)?;
-    let storages =
-        compute_strong_static_storage_registration_object_fingerprints_v1(storages, &candidates)
-            .map_err(BuiltinObjectProductionError::StaticStorageRegistrationObjectFingerprints)?;
-    let storages = compute_strong_static_storage_definition_fingerprints_v1(storages, &candidates)
-        .map_err(BuiltinObjectProductionError::StaticStorageDefinitionFingerprints)?;
     let storages = compute_strong_static_storage_shape_fingerprints_v1(storages)
         .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
     let storages = compute_strong_static_storage_fingerprints_v1(
@@ -121,16 +107,6 @@ pub(super) fn finalize(
         &candidates,
     )
     .map_err(BuiltinObjectProductionError::InitializationRegistrations)?;
-    let initializations = slib::compute_strong_initialization_registration_object_fingerprints_v2(
-        initializations,
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::InitializationRegistrationObjectFingerprints)?;
-    let initializations = slib::compute_strong_initialization_definition_fingerprints_v2(
-        initializations,
-        &candidates,
-    )
-    .map_err(BuiltinObjectProductionError::InitializationDefinitionFingerprints)?;
     let initializations = slib::compute_strong_initialization_fingerprints_v2(
         initializations,
         callables.body_objects(),

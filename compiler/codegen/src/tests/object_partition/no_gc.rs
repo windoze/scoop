@@ -79,13 +79,12 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
         assert!(object.section_by_name("__eh_frame").is_none());
         assert!(object.section_by_name("__llvm_stackmaps").is_none());
         assert!(object.section_by_name("__compact_unwind").unwrap().size() > 0);
-        let [definition] = member.units().definition_plans() else {
-            panic!("one callable owns each object")
-        };
-        let plan = emitted
-            .production()
-            .canonical_definitions()
-            .plan(*definition)
+        let plan = member
+            .units()
+            .definition_plans()
+            .iter()
+            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .find(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
             .unwrap();
         let roles = plan
             .atom_boundaries()

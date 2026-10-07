@@ -1,0 +1,37 @@
+class Node(val value: Long)
+struct Chunk(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+struct Wide(val first: Node, val a: Chunk, val b: Chunk, val c: Chunk,
+            val d: Chunk, val e: Chunk, val f: Chunk, val g: Chunk,
+            val h: Chunk, val last: Node)
+enum Envelope { Present(Wide), Empty }
+class Holder(var value: Wide, var envelope: Envelope)
+
+fun wide(value: Long): Wide {
+    val padding = Chunk(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+    return Wide(Node(value), padding, padding, padding, padding,
+                padding, padding, padding, padding, Node(value + 1L))
+}
+
+fun main() {
+    val initial = wide(10L)
+    val holder = Holder(initial, Envelope.Present(initial))
+    val values = MutableArray<Wide>(8L) { i -> wide(i) }
+    gcCollect()
+    holder.value = wide(100L)
+    holder.envelope = Envelope.Present(wide(200L))
+    values[1L] = wide(300L)
+    val snapshot = values.toArray()
+    val copied = snapshot.toMutableArray()
+    val boxed: Any = holder.value
+    gcCollect()
+    val unboxed = boxed as Wide
+    println(holder.value.first.value + holder.value.last.value)
+    when (holder.envelope) {
+        Present(value) -> println(value.first.value + value.last.value)
+        Empty -> println(0L)
+    }
+    println(copied[1L].first.value + copied[1L].last.value)
+    println(unboxed.first.value + unboxed.last.value)
+    println(copied[7L].h.h)
+}

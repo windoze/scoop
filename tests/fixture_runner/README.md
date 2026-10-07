@@ -83,6 +83,9 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 `equals`／`not_equals` 或 `same_as`／`different_from` 比较本次实际产生的值。
 固定摘要仅用于输入严格受控、需要锁定编码或指纹规则的专门测试；结构、诊断、
 ABI、GC、相关符号及链接运行断言继续保留，不能用摘要归一化隐藏这些差异。
+普通语言组合用例的链接检查保留实际构建与独立链接的一致性、Cone/image/root
+关系、相关符号及运行结果，不逐份冻结整个 core 的物理对象数量和生成的 startup C。
+专门测试 native 输入选择、归档成员与动态绑定的用例仍保留对应完整计划。
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。

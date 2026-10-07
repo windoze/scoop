@@ -176,7 +176,7 @@ Module
     store integer<Int>(0x00000009) -> local35
     store local35 -> local36
     t32 = integer_compare_Equal<Int> local34, local36 : i1
-    cbr t32 then @if.then.7 else @if.else.8
+    br @if.then.7
   block if.then.7
     call managed-direct-target9 sp<managed-call:21> live=[local0:ptr<managed>@0] t33 = sig=direct9 (ptr<managed>) -> i32 external-fn2(local0)
     store t33 -> local37
@@ -184,9 +184,6 @@ Module
     store local38 -> local39
     t34 = integer_compare_Equal<Int> local37, local39 : i1
     store t34 -> local40
-    br @if.merge.9
-  block if.else.8
-    store false -> local40
     br @if.merge.9
   block if.merge.9
     store local40 -> local41

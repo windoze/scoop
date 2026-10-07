@@ -5,7 +5,6 @@ use crate::link_object::stackmap_normalization::verification::tests::support::{
 use crate::link_object::{
     ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1, verify_scoop_lir_digest_patch_sites_v1,
 };
-use scoop_lir::{DigestFinalizationPlanV1, DigestNodeV1};
 
 #[test]
 fn verifies_exact_callable_record_and_entry_relocation() {
@@ -31,17 +30,11 @@ fn verifies_exact_callable_record_and_entry_relocation() {
     let plan = fixture.callable_registration_plan.registrations()[0];
     assert_eq!(registration.body(), plan.body());
     assert_eq!(registration.member(), fixture.member);
-    assert_eq!(registration.entry_relocation().offset_within_atom(), 184);
+    assert_eq!(registration.entry_relocation().offset_within_atom(), 152);
     assert_eq!(registration.entry_relocation().width_bytes(), 8);
     assert_eq!(
-        registration
-            .registration_definition_patch()
-            .checked_offset(),
-        registration.checked_offset() + 120
-    );
-    assert_eq!(
         registration.body_definition_patch().checked_offset(),
-        registration.checked_offset() + 152
+        registration.checked_offset() + 120
     );
 }
 
@@ -106,58 +99,6 @@ fn rejects_entry_relocation_to_the_registration_itself() {
             StrongCallableRegistrationValidationError::EntryRelocationMismatch {
                 body,
                 kind: CallableRegistrationRelocationFailureV1::TargetDefinition,
-            }
-        )
-    );
-}
-
-#[test]
-fn rejects_a_registration_node_with_the_wrong_direct_inputs() {
-    let fixture = Fixture::new(Corruption::None);
-    let plan = fixture.callable_registration_plan.registrations()[0];
-    let nodes = fixture
-        .digest_plan
-        .nodes()
-        .iter()
-        .map(|node| {
-            if node.id() != plan.registration_fingerprint_node() {
-                return node.clone();
-            }
-            DigestNodeV1::new(
-                *node.key(),
-                node.direct_inputs()[1..].to_vec(),
-                node.patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            )
-            .unwrap()
-        })
-        .collect();
-    let wrong_digest_plan = DigestFinalizationPlanV1::new(nodes, &fixture.foundation).unwrap();
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        fixture.builtins.clone(),
-        &fixture.foundation,
-        wrong_digest_plan,
-        &objects,
-        &fixture.provisional_patch_sites,
-    )
-    .unwrap();
-
-    assert_eq!(
-        verify_strong_callable_registrations_v1(
-            patch_sites,
-            fixture.callable_registration_plan.clone(),
-            &objects,
-        ),
-        Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: CallableRegistrationDigestPlanFailureV1::RegistrationDirectInputs,
             }
         )
     );

@@ -1,7 +1,7 @@
 //! Resolve unit definitions before constructing their dependency edges.
 
 use super::*;
-use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
+use crate::{ConeLirFoundation, RegistrationIdentitySurfaceV1};
 use scoop_identity::{
     DefinitionAtomRole, DefinitionAtomSubkey, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanOwner, PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
@@ -20,7 +20,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
         unit: PersistentInitializationUnitId,
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
-        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, Error> {
         let identity = identities
             .initialization_units()
@@ -35,25 +34,11 @@ impl StrongInitializationUnitDefinitionRefV2 {
                 actual: identity.definition_plan(),
             });
         }
-        let expected = identity.owner().digest_key(registration.plan());
-
-        let fingerprint = digests
-            .nodes()
-            .iter()
-            .find(|node| node.key() == &expected)
-            .ok_or(Error::MissingFingerprint(expected))?;
-        if identity.fingerprint_node() != fingerprint.id() {
-            return Err(Error::RegistrationFingerprint {
-                expected: fingerprint.id(),
-                actual: identity.fingerprint_node(),
-            });
-        }
         Ok(Self {
             provider: foundation.producer(),
             unit,
             cell,
             registration,
-            registration_fingerprint: fingerprint.id(),
         })
     }
 }

@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod aarch64;
 mod architecture;
+mod copy_calls;
 mod eh;
 mod elf;
 mod macho;
@@ -48,6 +49,7 @@ struct ObservedSafepoints {
 struct TextSection {
     address: u64,
     bytes: Vec<u8>,
+    non_unwinding_calls: BTreeSet<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

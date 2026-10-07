@@ -2,16 +2,11 @@ use super::*;
 use scoop_identity::DecodedPersistentId;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-impl WireEncode for CanonicalShapeLirDefinitionsV1 {
+impl WireEncode for CanonicalShapeAbisV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         e.array(self.definitions.len() as u64)?;
         for definition in &self.definitions {
-            encode_record(
-                e,
-                &definition.member(),
-                definition.fingerprint,
-                definition.abi,
-            )?;
+            encode_record(e, &definition.member(), definition.abi)?;
         }
         Ok(())
     }
@@ -20,30 +15,26 @@ impl WireEncode for CanonicalShapeLirDefinitionsV1 {
 fn encode_record(
     e: &mut Encoder,
     member: &impl WireEncode,
-    fingerprint: Digest256,
     abi: Digest256,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    e.map(3)?;
+    e.map(2)?;
     e.field(1)?;
     member.encode(e)?;
-    e.field(2)?;
-    fingerprint.encode(e)?;
     e.field(3)?;
     abi.encode(e)
 }
 
 #[derive(Debug)]
-pub struct DecodedCanonicalShapeLirDefinitionsV1 {
-    definitions: Vec<(DecodedPersistentId<OdrMemberId>, Digest256, Digest256)>,
+pub struct DecodedCanonicalShapeAbisV1 {
+    definitions: Vec<(DecodedPersistentId<OdrMemberId>, Digest256)>,
 }
 
-impl WireDecode for DecodedCanonicalShapeLirDefinitionsV1 {
+impl WireDecode for DecodedCanonicalShapeAbisV1 {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
         let definitions = d.decode_array(|d, _| {
-            d.expect_map(3)?;
+            d.expect_map(2)?;
             Ok((
                 d.field(1, DecodedPersistentId::decode)?,
-                d.field(2, Digest256::decode)?,
                 d.field(3, Digest256::decode)?,
             ))
         })?;
@@ -51,21 +42,21 @@ impl WireDecode for DecodedCanonicalShapeLirDefinitionsV1 {
     }
 }
 
-impl WireEncode for DecodedCanonicalShapeLirDefinitionsV1 {
+impl WireEncode for DecodedCanonicalShapeAbisV1 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         e.array(self.definitions.len() as u64)?;
-        for (member, fingerprint, abi) in &self.definitions {
-            encode_record(e, member, *fingerprint, *abi)?;
+        for (member, abi) in &self.definitions {
+            encode_record(e, member, *abi)?;
         }
         Ok(())
     }
 }
 
-impl DecodedCanonicalShapeLirDefinitionsV1 {
+impl DecodedCanonicalShapeAbisV1 {
     pub fn validate(
         self,
         foundation: &ConeLirFoundation,
-    ) -> Result<CanonicalShapeLirDefinitionsV1, CanonicalShapeLirError> {
+    ) -> Result<CanonicalShapeAbisV1, CanonicalShapeAbiError> {
         let known = identities(foundation)?;
         let ids = known
             .keys()
@@ -74,14 +65,14 @@ impl DecodedCanonicalShapeLirDefinitionsV1 {
         let records = self
             .definitions
             .into_iter()
-            .map(|(member, lir, abi)| {
+            .map(|(member, abi)| {
                 let id = ids
                     .get(member.as_array())
                     .copied()
-                    .ok_or(CanonicalShapeLirError::UnknownMember(*member.as_array()))?;
-                Ok((id, lir, abi))
+                    .ok_or(CanonicalShapeAbiError::UnknownMember(*member.as_array()))?;
+                Ok((id, abi))
             })
-            .collect::<Result<_, CanonicalShapeLirError>>()?;
-        CanonicalShapeLirDefinitionsV1::from_canonical(records, known)
+            .collect::<Result<_, CanonicalShapeAbiError>>()?;
+        CanonicalShapeAbisV1::from_canonical(records, known)
     }
 }

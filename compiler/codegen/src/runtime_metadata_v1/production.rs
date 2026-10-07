@@ -19,8 +19,8 @@ use crate::CodegenError;
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
 use crate::target::ValidatedBackendProfile;
 
-mod context_callable;
-pub(crate) use context_callable::emit_context_callable_metadata_v1;
+mod callable;
+pub(crate) use callable::{emit_callable_metadata_v1, emit_callable_safepoints};
 mod digest;
 pub(crate) use digest::validate_patch_coverage;
 use digest::{PatchParts, PatchSiteParts, record_patch};
@@ -111,6 +111,18 @@ impl EmittedStrongRuntimeMetadataV1 {
     pub fn patch_locations(&self) -> &[ProvisionalStrongDigestPatchLocationV1] {
         &self.patch_locations
     }
+
+    pub(crate) fn select_definitions(&self, definitions: &[ObjectDefinitionPlanId]) -> Self {
+        Self {
+            producer: self.producer,
+            patch_locations: self
+                .patch_locations
+                .iter()
+                .copied()
+                .filter(|patch| definitions.binary_search(&patch.definition).is_ok())
+                .collect(),
+        }
+    }
 }
 
 /// Emit the complete runtime-metadata surface described by one closed strong
@@ -132,19 +144,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
-    let safepoints = emit_strong_safepoint_registrations_v1(
-        context,
-        llvm,
-        production.registration_production().safepoints(),
-    )?;
-    let callables = emit_strong_callable_registrations_v1(
-        context,
-        llvm,
-        production.registration_production().callables(),
-        production.canonical_definitions(),
-        profile,
-        super::callable::CallableRegistrationSelection::NonContext,
-    )?;
     let types = emit_strong_type_registrations_v1(
         context,
         llvm,
@@ -179,8 +178,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
 
     let producer = production.image_plan().cone().identity();
     for actual in [
-        safepoints.producer(),
-        callables.producer(),
         types.producer(),
         immortal_objects.producer(),
         static_storages.producer(),
@@ -195,53 +192,18 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     }
 
     let mut patches = Vec::new();
-    for registration in safepoints.registrations() {
-        let registration = *registration;
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
-        record_patch(
-            production,
-            &mut patches,
-            registration.normalized_stackmap_patch().into_parts(),
-        )?;
-    }
-    for registration in callables.registrations() {
-        let registration = *registration;
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
-        record_patch(
-            production,
-            &mut patches,
-            registration.body_definition_patch().into_parts(),
-        )?;
-    }
     for registration in types.registrations() {
         let registration = *registration;
         for patch in [
-            registration.registration_definition_patch(),
             registration.descriptor_definition_patch(),
             registration.layout_fingerprint_patch(),
         ] {
             record_patch(production, &mut patches, patch.into_parts())?;
         }
     }
-    for registration in immortal_objects.registrations() {
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
-    }
     for registration in static_storages.registrations() {
         let registration = *registration;
         for patch in [
-            registration.registration_definition_patch(),
             registration.scan_fingerprint_patch(),
             registration.layout_fingerprint_patch(),
         ] {
@@ -250,11 +212,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     }
     for registration in initialization_units.registrations() {
         let registration = *registration;
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
         if let Some(patch) = registration.gateway_definition_patch() {
             record_patch(production, &mut patches, patch.into_parts())?;
         }
@@ -280,8 +237,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         production.canonical_definitions(),
         runtime_global_atoms(
             production,
-            &safepoints,
-            &callables,
             &types,
             &immortal_objects,
             &static_storages,
@@ -302,8 +257,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
 #[allow(clippy::too_many_arguments)]
 fn runtime_global_atoms<'ctx, D, C, I>(
     production: &scoop_lir::ConeProductionSection<D, C, I>,
-    safepoints: &super::EmittedStrongSafepointRegistrationSetV1<'ctx>,
-    callables: &super::EmittedStrongCallableRegistrationSetV1<'ctx>,
     types: &super::EmittedStrongTypeRegistrationSetV1<'ctx>,
     immortal_objects: &super::EmittedStrongImmortalObjectRegistrationSetV1<'ctx>,
     static_storages: &super::EmittedStrongStaticStorageRegistrationSetV1<'ctx>,
@@ -312,22 +265,9 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     image: super::EmittedConeImageV1<'ctx>,
 ) -> Result<Vec<GlobalAtomMaterializationV1<'ctx>>, CodegenError> {
     let mut atoms = Vec::new();
-    atoms.extend(callables.context_atoms.iter().copied());
-    atoms.extend(safepoints.registrations().iter().map(|registration| {
-        GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
-            registration.descriptor(),
-        )
-    }));
-    atoms.extend(callables.registrations().iter().map(|registration| {
-        GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
-            registration.descriptor(),
-        )
-    }));
     atoms.extend(types.registrations().iter().map(|registration| {
         GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
+            registration.descriptor_definition_patch().atom(),
             registration.descriptor(),
         )
     }));

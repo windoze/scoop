@@ -579,14 +579,7 @@ Module
     store local136 -> local207
     store local137 -> local208
     t68 = integer_compare_Less<Long> local207, integer<Long>(0x0000000000000000) : i1
-    cbr t68 then @if.then.1 else @if.merge.2
-  block if.then.1
-    call managed-direct-target49 sp<managed-call:93> live=[] t69 = sig=direct49 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
-    store t69 -> local246
-    call managed-void-target14 sp<managed-call:94> live=[local246:ptr<managed>@0] sig=void14 (ptr<managed>) external-fn22(local246)
-    t70 = aggregate () : {}
-    throw local246
-    unreachable
+    br @if.merge.2
   block if.merge.2
     t71 = array_alloc_dynamic array1 count local207 overflow global28 sp<managed-call:63> live local208:ptr<managed>@0 : ptr<managed>
     store t71 -> local209

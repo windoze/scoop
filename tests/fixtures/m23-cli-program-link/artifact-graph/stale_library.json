@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "StaleDependency: Cone 13c670f095b65798fb4c12f209f74b3a5411e4d02db950bfdfb3d4dec4ad7df2 requires dev.programlink:library:0.1.0 (164c9bccccad6e96ec261f10d5fdca35668152e226750c0416c64e6f904575c6); recorded HIR/MIR/LIR $DEPENDENCY_DIGEST_0/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_2, actual $DEPENDENCY_DIGEST_3/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_4",
+    "message": "StaleDependency: Cone 13c670f095b65798fb4c12f209f74b3a5411e4d02db950bfdfb3d4dec4ad7df2 requires dev.programlink:library:0.1.0 (164c9bccccad6e96ec261f10d5fdca35668152e226750c0416c64e6f904575c6); recorded HIR/MIR/LIR $DEPENDENCY_DIGEST_0/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_2, actual $DEPENDENCY_DIGEST_3/$DEPENDENCY_DIGEST_1/$DEPENDENCY_DIGEST_2",
     "notes": [],
     "origin": {
       "kind": "artifact",

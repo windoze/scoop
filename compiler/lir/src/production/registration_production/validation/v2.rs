@@ -30,10 +30,10 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
         let actual = encode_canonical_temporary(&self, &path)?;
         let identities = self
             .identities
-            .validate(foundation, digests)
+            .validate(foundation)
             .map_err(StrongRegistrationProductionValidationError::Identities)?;
         let initialization_definitions =
-            initialization_definitions.with_local_foundation(foundation, &identities, digests)?;
+            initialization_definitions.with_local_foundation(foundation, &identities)?;
         let safepoints = validate_safepoints(self.safepoints, foundation, &identities)?;
         let callable_runtime_scans =
             validate_callable_runtime_scans(self.callable_runtime_scans, foundation)?;

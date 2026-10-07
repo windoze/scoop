@@ -598,31 +598,12 @@ impl<'input> RegistrationObjectCheckedSingleConeLinkSections<'input> {
             initialization_registrations,
             production_manifest,
         } = self;
-        let scoop_candidates = scoop_objects.candidates();
-        let safepoints = crate::compute_strong_safepoint_fingerprints_v1(
-            safepoint_registrations,
-            &scoop_candidates,
-        )
-        .map_err(StrongLinkRegistrationLeafFingerprintError::Safepoints)?;
+        let safepoints = crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations)
+            .map_err(StrongLinkRegistrationLeafFingerprintError::Safepoints)?;
 
-        let immortal_object_registration_objects =
-            crate::compute_strong_immortal_object_registration_object_fingerprints_v1(
-                immortal_object_registrations,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationLeafFingerprintError::ImmortalObjects)?;
-        let static_storage_registration_objects =
-            crate::compute_strong_static_storage_registration_object_fingerprints_v1(
-                static_storage_registrations,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationLeafFingerprintError::StaticStorages)?;
-        let initialization_registration_objects =
-            crate::compute_strong_initialization_registration_object_fingerprints_v1(
-                initialization_registrations,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationLeafFingerprintError::InitializationUnits)?;
+        let immortal_object_registration_objects = immortal_object_registrations;
+        let static_storage_registration_objects = static_storage_registrations;
+        let initialization_registration_objects = initialization_registrations;
 
         Ok(RegistrationLeafFingerprintedSingleConeLinkSections {
             graph,

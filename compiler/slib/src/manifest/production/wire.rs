@@ -20,8 +20,8 @@ use super::SingleConeProductionManifestV1;
 use crate::CrossConeLayoutProductionManifestV1;
 use crate::link_object::{
     DecodedCanonicalNativeExternalContractCodeSetV1, DecodedCanonicalOdrMemberDirectoryV1,
-    DecodedCanonicalStrongRegistrationFingerprintSetV1, DecodedFixedBytesV1,
-    ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
+    DecodedFixedBytesV1, ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1,
+    VerifiedCodeFingerprintV2,
 };
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
 
@@ -156,13 +156,14 @@ pub struct DecodedSingleConeProductionManifestV1 {
     output: DecodedSingleConeProductionOutputV1,
     image_owner_member: DecodedFixedBytesV1<SlibMemberId>,
     runtime_registration_projection: DecodedRegistrationIdentitySurfaceV1,
-    strong_registration_set: DecodedCanonicalStrongRegistrationFingerprintSetV1,
+
     runtime_image_fingerprint: DecodedFixedBytesV1<RuntimeImageFingerprint>,
     code_fingerprint: DecodedFixedBytesV1<CodeFingerprint>,
     native_contracts: DecodedCanonicalNativeExternalContractCodeSetV1,
     native_library_requirements: Vec<DecodedNativeLibraryRequirementV1>,
     c_bridge_production: DecodedCBridgeProductionSetV1,
     odr_members: DecodedCanonicalOdrMemberDirectoryV1,
+    optimization: scoop_lir::OptimizationMode,
 }
 
 /// A decoded production manifest whose generated-C production branch was
@@ -175,6 +176,10 @@ pub struct CBridgeCheckedSingleConeProductionManifestV1 {
 }
 
 impl CBridgeCheckedSingleConeProductionManifestV1 {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.decoded.optimization()
+    }
+
     pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
         &self.c_bridge_production
     }
@@ -196,6 +201,10 @@ impl CBridgeCheckedSingleConeProductionManifestV1 {
 }
 
 impl DecodedSingleConeProductionManifestV1 {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.optimization
+    }
+
     pub fn validate_c_bridge_production(
         self,
         bridge_plan: &GeneratedBridgePlanSetV1,
@@ -249,8 +258,6 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         self.image_owner_member.encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection.encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set.encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint.encode(encoder)?;
         encoder.field(7)?;
@@ -262,7 +269,9 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         encoder.field(10)?;
         self.c_bridge_production.encode(encoder)?;
         encoder.field(11)?;
-        self.odr_members.encode(encoder)
+        self.odr_members.encode(encoder)?;
+        encoder.field(12)?;
+        self.optimization.encode(encoder)
     }
 }
 
@@ -275,10 +284,6 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
             image_owner_member: decoder.field(3, DecodedFixedBytesV1::decode)?,
             runtime_registration_projection: decoder
                 .field(4, DecodedRegistrationIdentitySurfaceV1::decode)?,
-            strong_registration_set: decoder.field(
-                5,
-                DecodedCanonicalStrongRegistrationFingerprintSetV1::decode,
-            )?,
             runtime_image_fingerprint: decoder.field(6, DecodedFixedBytesV1::decode)?,
             code_fingerprint: decoder.field(7, DecodedFixedBytesV1::decode)?,
             native_contracts: decoder
@@ -288,6 +293,7 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
             })?,
             c_bridge_production: decoder.field(10, DecodedCBridgeProductionSetV1::decode)?,
             odr_members: decoder.field(11, DecodedCanonicalOdrMemberDirectoryV1::decode)?,
+            optimization: decoder.field(12, scoop_lir::OptimizationMode::decode)?,
         })
     }
 }

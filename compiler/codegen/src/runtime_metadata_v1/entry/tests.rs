@@ -285,30 +285,6 @@ fn executable_plan() -> EntryProductionPlanV1 {
     )
     .unwrap();
     let mut nodes = vec![source_node, gateway_definition_node];
-    for (entity, role) in [
-        (
-            StrongDefinitionEntity::callable_body(main.body()),
-            StrongDefinitionRole::CallableRegistration,
-        ),
-        (
-            StrongDefinitionEntity::callable_body(gateway),
-            StrongDefinitionRole::CallableRegistration,
-        ),
-        (
-            StrongDefinitionEntity::static_storage(failure_root),
-            StrongDefinitionRole::RootRegistration,
-        ),
-    ] {
-        let registration = definition_plan(producer, entity, role);
-        nodes.push(
-            DigestNodeV1::new(
-                DigestNodeKey::strong_registration(registration),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        );
-    }
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(producer),
@@ -318,8 +294,7 @@ fn executable_plan() -> EntryProductionPlanV1 {
         .unwrap(),
     );
     let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     EntryProductionPlanV1::new(
         EntryProductionSourceV1::executable(source),
         &foundation,

@@ -76,37 +76,11 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         )],
     )?;
 
-    let storage = require_static_storage(foundation, identities, semantic.storage(), digests)?;
-    let failure_root =
-        require_static_storage(foundation, identities, semantic.failure_root(), digests)?;
+    let storage = require_static_storage(foundation, identities, semantic.storage())?;
+    let failure_root = require_static_storage(foundation, identities, semantic.failure_root())?;
     let initializer = require_callable(foundation, identities, semantic.initializer(), digests)?;
     let ensure = require_callable(foundation, identities, semantic.ensure(), digests)?;
 
-    let registration_object = require_leaf_object_node(
-        digests,
-        registration_primary_atom,
-        InitializationObjectLeafV1::Registration,
-    )?;
-    let cell_object =
-        require_leaf_object_node(digests, cell_primary_atom, InitializationObjectLeafV1::Cell)?;
-    let registration_fingerprint = require_digest_node(
-        digests,
-        identity.owner().digest_key(registration_definition.id()),
-    )?;
-    if registration_fingerprint.id() != identity.fingerprint_node() {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::RegistrationDigestMismatch {
-                unit,
-                expected: registration_fingerprint.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
-
-    let mut expected_inputs = vec![
-        DigestInputRefV1::from_node(registration_object),
-        DigestInputRefV1::from_node(cell_object),
-    ];
     let schedule = match semantic.schedule() {
         StrongInitializationSchedulePlanV1::EagerStartup { gateway } => {
             let gateway = require_callable(foundation, identities, gateway, digests)?;
@@ -114,7 +88,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
                 digests,
                 DigestNodeKey::object_definition(gateway.body_primary_atom()),
             )?;
-            expected_inputs.push(DigestInputRefV1::from_node(gateway_node));
             let expected_patch = DigestPatchIntentKey::new(
                 gateway_node.id(),
                 registration_definition.id(),
@@ -133,35 +106,6 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
             StrongInitializationRegistrationSchedulePlanV1::LazyAccess
         }
     };
-    if matches!(
-        identity.owner(),
-        crate::RegistrationDefinitionOwner::Odr { .. }
-    ) {
-        expected_inputs.push(DigestInputRefV1::from_node(require_digest_node(
-            digests,
-            DigestNodeKey::lir_definition(registration_primary_atom),
-        )?));
-    }
-    expected_inputs.sort_unstable();
-    if registration_fingerprint.direct_inputs() != expected_inputs {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::DirectInputs {
-                node: registration_fingerprint.id(),
-                expected: expected_inputs,
-                actual: registration_fingerprint.direct_inputs().to_vec(),
-            },
-        );
-    }
-    let registration_definition_patch = require_only_patch(
-        registration_fingerprint,
-        DigestPatchIntentKey::new(
-            registration_fingerprint.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        ),
-    )?;
-
     Ok(StrongInitializationUnitRegistrationPlan {
         definition_owner: identity.owner(),
         semantic: semantic.clone(),
@@ -177,9 +121,5 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
         initializer,
         ensure,
         schedule,
-        registration_object_node: registration_object.id(),
-        cell_definition_node: cell_object.id(),
-        registration_fingerprint_node: registration_fingerprint.id(),
-        registration_definition_patch,
     })
 }

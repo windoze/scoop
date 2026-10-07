@@ -172,7 +172,7 @@ Module
     store local19 -> local73
     store local73 -> local74
     t25 = variant_test e3 v0 local74 : i1
-    cbr t25 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t26 = variant_payload_project e3 v0 f0 local74 : ptr<managed>
     store t26 -> local35
@@ -182,14 +182,12 @@ Module
     store t28 -> local78
     store local78 -> local37
     br @pattern.merge.3
-  block pattern.else.2
-    unreachable
   block pattern.merge.3
     store local37 -> local38
     store local24 -> local75
     store local75 -> local76
     t29 = variant_test e4 v0 local76 : i1
-    cbr t29 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.pass.4
     t30 = variant_payload_project e4 v0 f0 local76 : ptr<managed>
     store t30 -> local39
@@ -199,10 +197,6 @@ Module
     store t32 -> local79
     store local79 -> local41
     br @pattern.merge.6
-  block pattern.else.5
-    store local75 -> local77
-    t33 = variant_test e4 v1 local77 : i1
-    cbr t33 then @pattern.pass.7 else @pattern.else.8
   block pattern.merge.6
     store local41 -> local42
     t34 = extract local4, 1 : ptr<managed>
@@ -213,13 +207,6 @@ Module
     t36 = integer_compare_Equal<Int> local43, local45 : i1
     t37 = Not t36 : i1
     cbr t37 then @if.then.10 else @if.else.11
-  block pattern.pass.7
-    store integer<Int>(0x00000000) -> local41
-    br @pattern.merge.9
-  block pattern.else.8
-    unreachable
-  block pattern.merge.9
-    br @pattern.merge.6
   block if.then.10
     store true -> local49
     br @if.merge.12

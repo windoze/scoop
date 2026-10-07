@@ -84,7 +84,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             crate::EntryProductionSourceV1::Library,
             &[],
             crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
-            crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &fixture.foundation).unwrap(),
+            crate::CanonicalShapeAbisV1::new(Vec::new(), &fixture.foundation).unwrap(),
         )
         .unwrap();
         let decoded: crate::DecodedConeProductionSectionV2 =

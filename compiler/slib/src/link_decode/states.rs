@@ -146,12 +146,9 @@ pub struct RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
     pub(super) type_registrations: VerifiedStrongTypeRegistrationSetV1,
-    pub(super) immortal_object_registration_objects:
-        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-    pub(super) static_storage_registration_objects:
-        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-    pub(super) initialization_registration_objects:
-        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+    pub(super) immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationSetV1,
+    pub(super) static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationSetV1,
+    pub(super) initialization_registration_objects: VerifiedStrongInitializationRegistrationSetV1,
     pub(super) production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 
@@ -171,12 +168,9 @@ pub struct LinkSymbolCheckedSingleConeLinkSections<'input> {
     pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
     pub(super) callable_registrations: VerifiedStrongCallableRegistrationSetV1,
     pub(super) type_registrations: VerifiedStrongTypeRegistrationSetV1,
-    pub(super) immortal_object_registration_objects:
-        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-    pub(super) static_storage_registration_objects:
-        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-    pub(super) initialization_registration_objects:
-        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+    pub(super) immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationSetV1,
+    pub(super) static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationSetV1,
+    pub(super) initialization_registration_objects: VerifiedStrongInitializationRegistrationSetV1,
     pub(super) production_manifest: CBridgeCheckedSingleConeProductionManifestV1,
 }
 

@@ -8,7 +8,10 @@ use scoop_toolchain::ValidatedFinalLinkProfile;
 use crate::native_input::{NativeInputs, NativeObjectId};
 use crate::{LinkError, RuntimeObjectId, RuntimeObjectSet, error};
 
+pub(crate) mod image;
 pub(crate) mod native;
+mod selection;
+use selection::SelectedMembers;
 mod object;
 pub(crate) use object::{InputObject, ObjectBytes};
 
@@ -46,6 +49,8 @@ pub(crate) struct ProgramInputs<'a> {
     pub namespace: crate::namespace::NativeNamespace,
     pub target: scoop_lir::LirTargetProfile,
     pub images: Vec<String>,
+    pub final_images: Vec<image::SelectedImage>,
+    pub selected: SelectedMembers,
     pub root: String,
     pub string_target: String,
     pub strong_relocations: Vec<&'a scoop_slib::VerifiedCurrentConeStrongRelocationClosureV1>,
@@ -62,6 +67,8 @@ impl<'a> ProgramInputs<'a> {
         if runtime.target() != profile.target() {
             return Err(error("runtime target differs from final-link target"));
         }
+        let selected = SelectedMembers::new(closure)?;
+        let mut final_images = Vec::new();
         let mut objects = Vec::new();
         let mut definitions = BTreeMap::new();
         let mut requirements = BTreeSet::new();
@@ -79,10 +86,20 @@ impl<'a> ProgramInputs<'a> {
                     .builtins()
                     .strong_relocations(),
             );
-            images.push(object_symbol(
-                artifact.production().image_plan().symbol(),
-                profile,
-            ));
+            let image =
+                image::SelectedImage::new(artifact, symbols, selected.definitions(cone), profile)?;
+            images.push(image.name.clone());
+            requirements.extend(image.references().cloned());
+            for name in image.defined_names() {
+                let owner = symbols
+                    .defined_symbols()
+                    .owners()
+                    .iter()
+                    .find(|record| record.symbol() == name.as_bytes())
+                    .expect("verified image symbol owner");
+                definitions.insert(name.to_owned(), DefinitionOwner::Scoop(owner.owner()));
+            }
+            final_images.push(image);
             if let scoop_lir::EntryProductionPlanV1::Executable(entry) =
                 artifact.production().entry_plan()
             {
@@ -93,7 +110,9 @@ impl<'a> ProgramInputs<'a> {
             }
             let mut members = BTreeMap::new();
             for object in symbols.final_objects().objects() {
-                members.insert(object.member(), object.bytes());
+                if selected.contains(cone, object.member()) {
+                    members.insert(object.member(), object.bytes());
+                }
             }
             for object in symbols.object_contents().generated_objects() {
                 members.insert(object.member(), object.bytes());
@@ -102,30 +121,15 @@ impl<'a> ProgramInputs<'a> {
                 origin: ObjectOrigin::Cone { cone, member },
                 bytes: ObjectBytes::Borrowed(bytes),
             }));
-            let odr_symbols: BTreeSet<_> = symbols
-                .object_contents()
-                .patch_sites()
-                .builtins()
-                .strong_relocations()
-                .members()
-                .iter()
-                .flat_map(|member| member.definitions().symbols())
-                .filter(|symbol| {
-                    matches!(
-                        symbol.definition_owner(),
-                        scoop_identity::ObjectDefinitionPlanOwner::Odr { .. }
-                    )
-                })
-                .map(|symbol| symbol.macho_name())
-                .collect();
             for definition in symbols.defined_symbols().owners() {
+                if !selected.contains(cone, definition.member()) {
+                    continue;
+                }
                 let name = String::from_utf8(definition.symbol().to_vec()).map_err(error)?;
                 let owner = DefinitionOwner::Scoop(definition.owner());
-                if let Some(previous) = definitions.insert(name.clone(), owner)
-                    && (previous != owner || !odr_symbols.contains(name.as_bytes()))
-                {
+                if let Some(previous) = definitions.insert(name.clone(), owner) {
                     return Err(error(format!(
-                        "multiple or conflicting Strong owners for {name}: {previous:?}, {owner:?}; Cone {cone}"
+                        "multiple or conflicting selected owners for {name}: {previous:?}, {owner:?}; Cone {cone}"
                     )));
                 }
             }
@@ -148,6 +152,9 @@ impl<'a> ProgramInputs<'a> {
                 }
             }
             for requirement in symbols.undefined_partitions().legacy().requirements() {
+                if !selected.contains(cone, requirement.member()) {
+                    continue;
+                }
                 let symbol =
                     String::from_utf8(requirement.use_site().symbol().to_vec()).map_err(error)?;
                 requirement_origins
@@ -187,7 +194,6 @@ impl<'a> ProgramInputs<'a> {
         let root = root.ok_or_else(|| error("executable closure has no root entry"))?;
         let string_target = string_target
             .ok_or_else(|| error("executable closure has no typed runtime String alias"))?;
-        requirements.extend(images.iter().cloned());
         requirements.extend([
             root.clone(),
             profile
@@ -214,6 +220,8 @@ impl<'a> ProgramInputs<'a> {
             namespace,
             target: profile.target(),
             images,
+            final_images,
+            selected,
             root,
             string_target,
             strong_relocations,

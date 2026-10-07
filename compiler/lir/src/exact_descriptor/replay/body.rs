@@ -111,12 +111,6 @@ pub(crate) fn replay_parts(
     if registration.symbol() != registration_physical.symbol() {
         return Err(ExactDescriptorError::RegistrationSymbol(exact));
     }
-    let expected_fingerprint =
-        registration_fingerprint(exact, registration.definition_plan(), foundation)?;
-    if registration.fingerprint_node() != expected_fingerprint {
-        return Err(ExactDescriptorError::RegistrationFingerprint(exact));
-    }
-
     Ok(ExactDescriptorExportV1::from_parts(DescriptorBodyPartsV1 {
         exact: value_layout.identity().exact_record().clone(),
         value_layout,

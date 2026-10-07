@@ -159,7 +159,7 @@ Module
     store local28 -> local42
     store local29 -> local43
     t18 = integer_compare_Less<Long> local42, integer<Long>(0x0000000000000000) : i1
-    cbr t18 then @if.then.16 else @if.merge.17
+    br @if.merge.17
   block try.body.6
     store integer<Int>(0x00000013) -> local5
     store local5 -> local6
@@ -215,13 +215,6 @@ Module
     t56 = aggregate () : {}
     invoke no-gc-void-target5 sig=void15 () runtime @scoop_rt_rethrow() normal @rethrow.normal.14 unwind @try.exit_pad.3
     br @rethrow.normal.14
-  block if.then.16
-    call managed-direct-target12 sp<managed-call:18> live=[] t57 = sig=direct15 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td12, machine<byte-size>(ByteSize(24)))
-    store t57 -> local56
-    call managed-void-target10 sp<managed-call:19> live=[local56:ptr<managed>@0] sig=void16 (ptr<managed>) external-fn4(local56)
-    t58 = aggregate () : {}
-    throw local56
-    unreachable
   block if.merge.17
     t59 = array_alloc_dynamic array0 count local42 overflow global16 sp<managed-call:11> live local43:ptr<managed>@0 : ptr<managed>
     store t59 -> local44

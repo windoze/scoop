@@ -17,8 +17,7 @@ use crate::{
 fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -65,8 +64,7 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
 fn core_image_preserves_an_explicit_empty_dependency_set() {
     let coordinate = ConeCoordinate::reserved_core();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan =
         ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digest_plan).unwrap();
 
@@ -87,12 +85,11 @@ fn cone_record_runtime_encoding_uses_declared_field_order() {
 }
 
 #[test]
-fn image_requires_every_registration_fingerprint_as_a_direct_input() {
+fn image_requires_every_record_digest_field_as_a_direct_input() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let exact = unit_exact_type();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), Some(exact), false, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -110,8 +107,7 @@ fn image_requires_every_registration_fingerprint_as_a_direct_input() {
 fn reader_rejects_a_coordinate_from_another_cone() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
         &[scoop_identity::ConeIdentity::CORE],
@@ -139,8 +135,7 @@ fn reader_rejects_a_coordinate_from_another_cone() {
 fn image_rejects_the_obsolete_primary_only_atom_shape() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, false);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -187,8 +182,7 @@ fn image_rejects_non_registration_direct_inputs() {
     )
     .unwrap();
     let digest_plan = DigestFinalizationPlanV1::new(vec![extra, image], &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
 
     assert!(matches!(
         ConeImagePlanV1::new(
@@ -239,14 +233,45 @@ pub(super) fn image_fixture(
             .unwrap(),
         )
         .unwrap();
-        let registration_node = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(registration_plan.id()),
-            Vec::new(),
-            Vec::new(),
+        let descriptor = CborIdentityRecord::from_key(
+            ObjectDefinitionPlanKey::strong(
+                producer,
+                StrongDefinitionEntity::exact_type(exact),
+                StrongDefinitionRole::TypeDescriptor,
+            )
+            .unwrap(),
         )
         .unwrap();
+        let primary = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            descriptor.id(),
+            DefinitionAtomRole::Primary,
+            DefinitionAtomSubkey::Singleton,
+        ))
+        .unwrap();
+        let registration_primary = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
+            registration_plan.id(),
+            DefinitionAtomRole::Primary,
+            DefinitionAtomSubkey::Singleton,
+        ))
+        .unwrap();
+        let key = DigestNodeKey::object_definition(primary.id());
+        let node = DigestNodeId::from_key(&key).unwrap();
+        nodes.push(
+            DigestNodeV1::new(
+                key,
+                Vec::new(),
+                vec![DigestPatchIntentKey::new(
+                    node,
+                    registration_plan.id(),
+                    DefinitionAtomRole::Primary,
+                    DigestSemanticFieldRole::DescriptorDefinition,
+                )],
+            )
+            .unwrap(),
+        );
+        image_atoms.extend([primary, registration_primary]);
+        plans.push(descriptor);
         plans.push(registration_plan);
-        nodes.push(registration_node);
     }
 
     let mut canonical = CanonicalLirFoundation::empty();

@@ -95,6 +95,8 @@ struct CompilerRootFrame<'ctx> {
 struct StatepointLiveLeaf<'ctx> {
     storage: PointerValue<'ctx>,
     value: PointerValue<'ctx>,
+    source: scoop_lir::CallerRootSource,
+    byte_offset: u64,
 }
 
 struct MaterializedStatepointLive<'ctx> {

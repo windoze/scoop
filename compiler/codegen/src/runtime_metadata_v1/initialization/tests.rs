@@ -7,7 +7,7 @@ use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
 use super::{
     DIGEST_SIZE, GATEWAY_DEFINITION_FINGERPRINT_OFFSET, INITIALIZATION_UNIT_DESCRIPTOR_MAGIC,
     INITIALIZATION_UNIT_DESCRIPTOR_SIZE, METADATA_ABI_VERSION,
-    REGISTRATION_DEFINITION_FINGERPRINT_OFFSET, emit_strong_initialization_unit_registrations_v1,
+    emit_strong_initialization_unit_registrations_v1,
 };
 use support::initialization_plan;
 
@@ -131,29 +131,6 @@ fn emits_one_registration_with_its_cell_and_diagnostic() {
         .as_global_value()
         .as_pointer_value()
     );
-
-    let definition_patch = registration.registration_definition_patch();
-    assert_eq!(
-        definition_patch.intent(),
-        expected.registration_definition_patch()
-    );
-    assert_eq!(
-        definition_patch.definition(),
-        expected.registration_definition_plan()
-    );
-    assert_eq!(
-        definition_patch.atom(),
-        expected.registration_primary_atom()
-    );
-    assert_eq!(
-        name(definition_patch.owner()),
-        name(registration.registration_descriptor())
-    );
-    assert_eq!(
-        definition_patch.byte_offset(),
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET
-    );
-    assert_eq!(definition_patch.byte_size(), DIGEST_SIZE);
     let gateway_patch = registration.gateway_definition_patch().unwrap();
     assert_eq!(
         gateway_patch.intent(),

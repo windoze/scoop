@@ -2,8 +2,7 @@
 
 use super::*;
 use crate::{
-    ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1,
-    StrongRegistrationProductionValidationError,
+    ConeLirFoundation, RegistrationIdentitySurfaceV1, StrongRegistrationProductionValidationError,
 };
 
 impl StrongInitializationDefinitionCatalogV2 {
@@ -13,7 +12,6 @@ impl StrongInitializationDefinitionCatalogV2 {
         &self,
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
-        digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionValidationError> {
         if self.producer != foundation.producer() {
             return Err(StrongRegistrationProductionValidationError::ProducerMismatch);
@@ -43,7 +41,6 @@ impl StrongInitializationDefinitionCatalogV2 {
                 identity.semantic_id(),
                 foundation,
                 identities,
-                digests,
             )?);
         }
         Ok(Self::new(self.producer, &definitions)?)

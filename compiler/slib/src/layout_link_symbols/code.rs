@@ -35,7 +35,8 @@ pub(super) fn replay(
         &dependencies,
         ProductionPlanInputs::from(input.strong),
         objects,
-    )?;
+    )?
+    .with_optimization(input.link.production_manifest_wire().optimization());
 
     let contracts = CanonicalNativeExternalContractCodeSetV1::from_requirement_surface(native)
         .map_err(LayoutCodeFingerprintError::NativeContracts)?;

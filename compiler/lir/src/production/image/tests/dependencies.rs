@@ -17,8 +17,7 @@ fn explicit_dependencies_are_preserved_for_every_producer() {
         ConeCoordinate::new("test", "consumer", "1.0.0").unwrap(),
     ] {
         let (foundation, digests) = image_fixture(coordinate.clone(), None, true, true);
-        let registrations =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         for dependencies in [vec![], vec![provider("first"), provider("second")]] {
             let mut expected = dependencies.clone();
             expected.sort_unstable();
@@ -56,8 +55,7 @@ fn explicit_dependencies_are_preserved_for_every_producer() {
 fn image_builder_rejects_self_and_duplicate_dependencies() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digests) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     for (dependencies, error) in [
         (
             vec![ConeIdentity::SINGLE_FILE],
@@ -86,8 +84,7 @@ fn reader_rejects_missing_extra_reordered_and_duplicate_image_dependencies() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let dependencies = [provider("first"), provider("second")];
     let (foundation, digests) = image_fixture(coordinate.clone(), None, true, true);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
         &dependencies,

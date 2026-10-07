@@ -8,8 +8,8 @@ use super::{
 };
 use crate::{
     ConeIdentity, DecodedPersistentId, DefinitionAtomRole, DigestNodeId, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, OdrMemberId, PersistentCallableBodyId, PersistentId,
-    PersistentIdResolver, PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentId, PersistentIdResolver,
+    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
 };
 
 impl WireDecode for DigestKind {
@@ -18,12 +18,9 @@ impl WireDecode for DigestKind {
             1 => Ok(Self::SourceSignature),
             2 => Ok(Self::Layout),
             3 => Ok(Self::Scan),
-            4 => Ok(Self::LirDefinition),
             5 => Ok(Self::ObjectSupport),
             6 => Ok(Self::ObjectDefinition),
             7 => Ok(Self::StackmapRecord),
-            8 => Ok(Self::OdrDefinition),
-            9 => Ok(Self::StrongRegistration),
             10 => Ok(Self::RuntimeImage),
             tag => Err(unknown_tag(decoder, tag)),
         }
@@ -33,7 +30,6 @@ impl WireDecode for DigestKind {
 impl WireDecode for DigestSemanticFieldRole {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
-            1 => Ok(Self::RegistrationDefinition),
             2 => Ok(Self::SourceSignature),
             3 => Ok(Self::Layout),
             4 => Ok(Self::Scan),
@@ -52,13 +48,10 @@ pub enum DecodedDigestOwnerAndRoleKey {
     SourceSignature(DecodedPersistentId<PersistentCallableBodyId>),
     Layout(DecodedPersistentId<PersistentLayoutId>),
     Scan(DecodedPersistentId<PersistentScanId>),
-    LirDefinition(DecodedPersistentId<ObjectDefinitionAtomId>),
     ObjectSupport(DecodedPersistentId<ObjectDefinitionAtomId>),
     ObjectDefinition(DecodedPersistentId<ObjectDefinitionAtomId>),
     StackmapRecord(DecodedPersistentId<PersistentSafepointSiteId>),
-    StrongRegistration(DecodedPersistentId<ObjectDefinitionPlanId>),
     RuntimeImage(DecodedPersistentId<ConeIdentity>),
-    OdrMemberDefinition(DecodedPersistentId<OdrMemberId>),
 }
 
 impl DecodedDigestOwnerAndRoleKey {
@@ -72,9 +65,6 @@ impl DecodedDigestOwnerAndRoleKey {
                 .map(DigestOwnerAndRoleKey::SourceSignature),
             Self::Layout(id) => resolver.resolve(id).map(DigestOwnerAndRoleKey::Layout),
             Self::Scan(id) => resolver.resolve(id).map(DigestOwnerAndRoleKey::Scan),
-            Self::LirDefinition(id) => resolver
-                .resolve(id)
-                .map(DigestOwnerAndRoleKey::LirDefinition),
             Self::ObjectSupport(id) => resolver
                 .resolve(id)
                 .map(DigestOwnerAndRoleKey::ObjectSupport),
@@ -84,12 +74,6 @@ impl DecodedDigestOwnerAndRoleKey {
             Self::StackmapRecord(id) => resolver
                 .resolve(id)
                 .map(DigestOwnerAndRoleKey::StackmapRecord),
-            Self::OdrMemberDefinition(id) => resolver
-                .resolve(id)
-                .map(DigestOwnerAndRoleKey::OdrMemberDefinition),
-            Self::StrongRegistration(id) => resolver
-                .resolve(id)
-                .map(DigestOwnerAndRoleKey::StrongRegistration),
             Self::RuntimeImage(id) => resolver
                 .resolve(id)
                 .map(DigestOwnerAndRoleKey::RuntimeImage),
@@ -103,12 +87,9 @@ impl WireEncode for DecodedDigestOwnerAndRoleKey {
             Self::SourceSignature(id) => encode_value_sum(encoder, 1, id),
             Self::Layout(id) => encode_value_sum(encoder, 2, id),
             Self::Scan(id) => encode_value_sum(encoder, 3, id),
-            Self::LirDefinition(id) => encode_value_sum(encoder, 4, id),
             Self::ObjectSupport(id) => encode_value_sum(encoder, 5, id),
             Self::ObjectDefinition(id) => encode_value_sum(encoder, 6, id),
             Self::StackmapRecord(id) => encode_value_sum(encoder, 7, id),
-            Self::OdrMemberDefinition(id) => encode_value_sum(encoder, 11, id),
-            Self::StrongRegistration(id) => encode_value_sum(encoder, 9, id),
             Self::RuntimeImage(id) => encode_value_sum(encoder, 10, id),
         }
     }
@@ -121,13 +102,10 @@ impl WireDecode for DecodedDigestOwnerAndRoleKey {
             1 => decode_id_variant(decoder, fields, Self::SourceSignature),
             2 => decode_id_variant(decoder, fields, Self::Layout),
             3 => decode_id_variant(decoder, fields, Self::Scan),
-            4 => decode_id_variant(decoder, fields, Self::LirDefinition),
             5 => decode_id_variant(decoder, fields, Self::ObjectSupport),
             6 => decode_id_variant(decoder, fields, Self::ObjectDefinition),
             7 => decode_id_variant(decoder, fields, Self::StackmapRecord),
-            9 => decode_id_variant(decoder, fields, Self::StrongRegistration),
             10 => decode_id_variant(decoder, fields, Self::RuntimeImage),
-            11 => decode_id_variant(decoder, fields, Self::OdrMemberDefinition),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -139,7 +117,6 @@ pub trait DigestOwnerResolver<E>:
     + PersistentIdResolver<PersistentScanId, Error = E>
     + PersistentIdResolver<ObjectDefinitionAtomId, Error = E>
     + PersistentIdResolver<PersistentSafepointSiteId, Error = E>
-    + PersistentIdResolver<OdrMemberId, Error = E>
     + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
     + PersistentIdResolver<ConeIdentity, Error = E>
 {
@@ -151,7 +128,6 @@ impl<T, E> DigestOwnerResolver<E> for T where
         + PersistentIdResolver<PersistentScanId, Error = E>
         + PersistentIdResolver<ObjectDefinitionAtomId, Error = E>
         + PersistentIdResolver<PersistentSafepointSiteId, Error = E>
-        + PersistentIdResolver<OdrMemberId, Error = E>
         + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
         + PersistentIdResolver<ConeIdentity, Error = E>
 {
@@ -171,12 +147,9 @@ impl DecodedDigestNodeKey {
             DecodedDigestOwnerAndRoleKey::SourceSignature(_) => DigestKind::SourceSignature,
             DecodedDigestOwnerAndRoleKey::Layout(_) => DigestKind::Layout,
             DecodedDigestOwnerAndRoleKey::Scan(_) => DigestKind::Scan,
-            DecodedDigestOwnerAndRoleKey::LirDefinition(_) => DigestKind::LirDefinition,
             DecodedDigestOwnerAndRoleKey::ObjectSupport(_) => DigestKind::ObjectSupport,
             DecodedDigestOwnerAndRoleKey::ObjectDefinition(_) => DigestKind::ObjectDefinition,
             DecodedDigestOwnerAndRoleKey::StackmapRecord(_) => DigestKind::StackmapRecord,
-            DecodedDigestOwnerAndRoleKey::OdrMemberDefinition(_) => DigestKind::OdrDefinition,
-            DecodedDigestOwnerAndRoleKey::StrongRegistration(_) => DigestKind::StrongRegistration,
             DecodedDigestOwnerAndRoleKey::RuntimeImage(_) => DigestKind::RuntimeImage,
         }
     }
@@ -445,44 +418,6 @@ mod tests {
         assert!(matches!(
             decoded.resolve(&mut identities),
             Err(DigestNodeKeyResolutionError::Key(_))
-        ));
-    }
-
-    #[test]
-    fn odr_node_resolves_a_member_and_rejects_the_retired_group_owner() {
-        let member = crate::OdrMemberId(ConeIdentity::SINGLE_FILE.0);
-        let key = DigestNodeKey::odr_member_definition(member);
-        let bytes = encode(&key).unwrap();
-        let decoded: DecodedDigestNodeKey = decode_canonical(&bytes).unwrap();
-        assert_eq!(decoded.owner_kind(), super::DigestKind::OdrDefinition);
-        assert_eq!(encode(&decoded).unwrap(), bytes);
-
-        let mut pending = PendingIdentityValidation::new();
-        pending.register_authority(member).unwrap();
-        assert_eq!(
-            decoded.resolve(&mut pending.finish().unwrap()).unwrap(),
-            key
-        );
-
-        let mut retired = bytes;
-        assert_eq!(retired[6], 11);
-        retired[6] = 8;
-        let error = decode_canonical::<DecodedDigestNodeKey>(&retired).unwrap_err();
-        assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 8 });
-    }
-
-    #[test]
-    fn odr_group_identity_cannot_satisfy_a_member_reference() {
-        let key =
-            DigestNodeKey::odr_member_definition(crate::OdrMemberId(ConeIdentity::SINGLE_FILE.0));
-        let decoded: DecodedDigestNodeKey = decode_canonical(&encode(&key).unwrap()).unwrap();
-        let mut pending = PendingIdentityValidation::new();
-        pending
-            .register_authority(crate::OdrGroupId(ConeIdentity::SINGLE_FILE.0))
-            .unwrap();
-        assert!(matches!(
-            decoded.resolve(&mut pending.finish().unwrap()),
-            Err(DigestNodeKeyResolutionError::Reference(_))
         ));
     }
 

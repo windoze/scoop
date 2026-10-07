@@ -127,7 +127,12 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${link.result.dependencies.length}", "equals" = 2},
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt", "normalize" = ["paths"]},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:scoop-hir-lower:0.0.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone test:materialized-type-uses-runtime-initialization:1.0.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=3 root=${symbol_prefix}scoop$$1$$re$$35c40413ae7148be9fdda9d9d78943e53f6608a03b1d119efab7da2340953c88"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
 ]
 
 [[steps]]

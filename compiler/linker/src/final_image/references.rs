@@ -18,18 +18,19 @@ pub(super) fn check(
     inputs: &ProgramInputs<'_>,
     map: &crate::link::map::LinkMap,
 ) -> Result<(), LinkError> {
-    let winners = odr::winners(image, inputs, map)?;
+    odr::check(image, inputs, map)?;
     for closure in &inputs.strong_relocations {
         for member in closure.members() {
-            Member::new(member)
-                .check(image, inputs, &winners)
-                .map_err(|err| {
-                    error(format!(
-                        "Cone {} member {}: {err}",
-                        member.producer(),
-                        member.member()
-                    ))
-                })?;
+            if !inputs.selected.contains(member.producer(), member.member()) {
+                continue;
+            }
+            Member::new(member).check(image, inputs).map_err(|err| {
+                error(format!(
+                    "Cone {} member {}: {err}",
+                    member.producer(),
+                    member.member()
+                ))
+            })?;
         }
     }
     native::check(image, inputs, map)
@@ -126,12 +127,7 @@ impl<'a> Member<'a> {
         }
     }
 
-    fn check(
-        &self,
-        image: &FinalImage<'_>,
-        inputs: &ProgramInputs<'_>,
-        winners: &odr::Winners,
-    ) -> Result<(), LinkError> {
+    fn check(&self, image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<(), LinkError> {
         let mut pages: BTreeMap<ObjectDefinitionAtomId, BTreeMap<u32, u64>> = BTreeMap::new();
         let mut uses: Vec<_> = self.source.relocations().iter().collect();
         uses.sort_by_key(|use_| (use_.containing_atom(), use_.offset_within_atom()));
@@ -147,12 +143,6 @@ impl<'a> Member<'a> {
                 continue;
             }
             if !controlled(use_.shape()) {
-                continue;
-            }
-            if winners
-                .get(&use_.containing_atom())
-                .is_some_and(|winner| *winner != (self.source.producer(), self.source.member()))
-            {
                 continue;
             }
             let place = self

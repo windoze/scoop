@@ -41,14 +41,14 @@ pub(super) fn validate_sentinel_target(
     plan: &StrongStaticStorageRegistrationPlanV1,
     role: StaticStorageRelocationRoleV1,
 ) -> Result<(), StrongStaticStorageRegistrationValidationError> {
-    let (_, section, target) = sentinel_target_key(member, relocation).ok_or_else(|| {
+    let (section, target) = sentinel_target_address(member, relocation).ok_or_else(|| {
         relocation_error_value(
             plan,
             role,
             StaticStorageRegistrationRelocationFailureV1::TargetKind,
         )
     })?;
-    let section_index = section as usize - 1;
+    let section_index = section.get() as usize - 1;
     let sections = member.definitions().sections();
     if sections.roles().get(section_index) != Some(&BuiltinObjectSectionRoleV1::ReadOnlyData) {
         return relocation_error(
@@ -97,10 +97,10 @@ pub(super) fn validate_sentinel_target(
     Ok(())
 }
 
-pub(in crate::link_object::static_storage_registrations) fn sentinel_target_key(
+fn sentinel_target_address(
     member: &VerifiedMemberObjectRelocationIndexV1,
     relocation: &VerifiedRelocationUseV1,
-) -> Option<(crate::SlibMemberId, u32, u64)> {
+) -> Option<(std::num::NonZeroU32, u64)> {
     let (section, base) = match relocation.shape().absolute64_target()? {
         VerifiedRelocationTargetV1::SectionBase {
             section_ordinal, ..
@@ -122,8 +122,7 @@ pub(in crate::link_object::static_storage_registrations) fn sentinel_target_key(
         _ => return None,
     };
     Some((
-        member.member(),
-        section.get(),
+        section,
         relocation
             .shape()
             .form()

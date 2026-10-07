@@ -253,20 +253,20 @@ mod tests {
             LanguageAbiContract.fingerprint().unwrap().to_string(),
             "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010602010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010902010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "8ef69d47b0138b13b8124ef1f155ceb989969d27f9c553c8105d8f4fab7416cc"
+            "84066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f24"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258208ef69d47b0138b13b8124ef1f155ceb989969d27f9c553c8105d8f4fab7416cc0301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc900539102582084066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f240301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "cc0b3226db1e1e0c97173454f27d562196eab43be5a5b8dccaab30f52c959d8a"
+            "4aabba581b4ca4fcffb4e3e020923e507a1e75b4aca4ed3bdd1bc88a89cb3509"
         );
     }
 
@@ -286,11 +286,11 @@ mod tests {
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),
-            "03ab3ae611e31f2ac7dde6486deea185c981f5313b939f5cf93641b7e5e9aff7"
+            "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "b759821131d7bd4d1e7b2b4e3fcd0d38f8c1b9789092d8913014590dae3bb5f3"
+            "1c6baf9e67e8adbf2a4dddc713eaf98db45a0960566f4113ded5bf9f5eac1ccd"
         );
     }
 

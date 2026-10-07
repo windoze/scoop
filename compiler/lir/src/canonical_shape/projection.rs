@@ -9,7 +9,7 @@ pub(super) enum ShapeContent<'a> {
     Scan(&'a RefScan),
     Descriptor(&'a TypeDescriptor),
     Dispatch(PersistentDispatchTableId, &'a [DispatchEntry]),
-    Immortal(StrongImmortalObjectSemanticPlanV1, &'a str),
+    Immortal(StrongImmortalObjectSemanticPlanV1),
     Storage(&'a StrongStaticStorageSemanticPlanV1),
     InitializationCell(scoop_identity::PersistentInitializationUnitId),
 }
@@ -80,11 +80,11 @@ impl<'a> ShapeContents<'a> {
             }
         }
         for (_, global) in module.globals.iter() {
-            if let GlobalInit::StringConst { identity, value } = &global.init {
+            if let GlobalInit::StringConst { identity, .. } = &global.init {
                 let object = identity.identity_record().id();
                 values.insert(
                     StrongDefinitionEntity::immortal_object(object),
-                    ShapeContent::Immortal(immortals[&object], value),
+                    ShapeContent::Immortal(immortals[&object]),
                 );
             }
             if let GlobalInit::Storage {

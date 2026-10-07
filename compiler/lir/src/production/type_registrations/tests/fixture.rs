@@ -10,10 +10,6 @@ pub(super) struct Options {
     pub(super) omit_registration_symbol: bool,
     pub(super) omit_descriptor_symbol: bool,
     pub(super) omit_layout_symbol: bool,
-    pub(super) registration_object_input: bool,
-    pub(super) registration_object_patch: bool,
-    pub(super) omit_descriptor_input: bool,
-    pub(super) omit_registration_patch: bool,
     pub(super) omit_descriptor_patch: bool,
     pub(super) omit_layout_patch: bool,
     pub(super) omit_descriptor_diagnostic: bool,
@@ -196,8 +192,7 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &types, options);
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
             ConeIdentity::SINGLE_FILE,
             crate::LirTargetProfile::DARWIN_AARCH64.wire_id(),

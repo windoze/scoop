@@ -12,6 +12,18 @@ use scoop_wire::{encode, sha256};
 
 use super::*;
 
+#[test]
+fn optimization_changes_only_the_current_compile_key() {
+    let debug = input("source", "compiler");
+    let release = debug
+        .clone()
+        .with_optimization(scoop_lir::OptimizationMode::Release);
+    assert_ne!(debug.key().unwrap(), release.key().unwrap());
+    assert_eq!(debug.dependencies(), release.dependencies());
+    assert_eq!(debug.current_semantic(), release.current_semantic());
+    assert_eq!(debug.backend, release.backend);
+}
+
 fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV1 {
     let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
     let c_bridge = CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
@@ -178,9 +190,9 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "5a6969f0728ccde6f8b6971e7663d1c962f66618cf5f4c36e98600fd1bca7cb6"
+        "7a5e0bc7a1f99815cff14f63c14cf5db9775e1fead6a61c8d27f66ee459613aa"
     );
-    assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
+    assert_eq!(encode(&input).unwrap().first(), Some(&0xad));
 }
 
 #[test]

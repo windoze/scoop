@@ -1,0 +1,33 @@
+schema = 1
+name = "m31-integer-conditions"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "optimization", "constant-branches", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "43\nsigned\nunsigned\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}

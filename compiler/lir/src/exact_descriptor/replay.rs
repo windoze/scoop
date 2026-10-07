@@ -19,7 +19,7 @@ mod inline;
 mod registration;
 pub(crate) use body::replay_parts;
 pub(crate) use inline::{expected_inline_scan, validate_inline_scan};
-pub(crate) use registration::{registration_fingerprint, validate_registration_plan};
+pub(crate) use registration::validate_registration_plan;
 
 impl ExactDescriptorExportV1 {
     pub fn replay(
@@ -34,7 +34,6 @@ impl ExactDescriptorExportV1 {
             registration.exact_type(),
             registration.definition_plan(),
             registration.symbol(),
-            registration.registration_fingerprint_node(),
         );
         replay_parts(
             target,

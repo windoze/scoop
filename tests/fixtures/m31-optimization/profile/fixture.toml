@@ -1,0 +1,81 @@
+schema = 1
+name = "m31-optimization-profile-native-gc"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "optimization", "cli", "cache", "gc", "ffi"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+]
+
+[[steps]]
+name = "cold_cache"
+files = [
+  {mkdir = {path = "${work}/compile-cache"}},
+  {remove = {path = "${work}/compile-cache"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libfixture_native.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/compile-cache", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.result.profile}", equals = "${profile}"},
+  {actual = "${build.result.observations.child_invocations.length}", equals = 2},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/compile-cache", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "direct_core"
+files = [
+  {mkdir = {path = "${work}/direct-sysroot/artifacts/${target_profile}"}},
+  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/direct-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${root}", "--sysroot", "${work}/direct-sysroot", "--profile", "${profile}", "--out-slib", "${work}/direct.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [{file = "${work}/direct.slib", same_as = "${build.result.root.path}"}]
+
+[[steps]]
+name = "run"
+argv = ["${warm.result.output}"]
+exit = 0
+stdout = "52\n"
+stderr = ""

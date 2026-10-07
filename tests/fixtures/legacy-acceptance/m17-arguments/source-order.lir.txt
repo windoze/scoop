@@ -374,7 +374,7 @@ Module
     store local102 -> local119
     store local119 -> local120
     t32 = variant_test e0 v0 local120 : i1
-    cbr t32 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t33 = variant_payload_project e0 v0 f0 local120 : i32
     store t33 -> local103
@@ -386,14 +386,8 @@ Module
     t35 = integer_Add<Int> local105, local107 : i32
     store t35 -> local108
     store local108 -> local109
-    call managed-void-target6 sp<managed-call:26> live=[] sig=void6 (i32) local-fn6(local109)
+    call managed-void-target6 sp<managed-call:25> live=[] sig=void6 (i32) local-fn6(local109)
     t36 = aggregate () : {}
-    br @pattern.merge.3
-  block pattern.else.2
-    store integer<Int>(0x00000000) -> local110
-    store local110 -> local111
-    call managed-void-target7 sp<managed-call:25> live=[] sig=void7 (i32) local-fn6(local111)
-    t37 = aggregate () : {}
     br @pattern.merge.3
   block pattern.merge.3
     store global15 -> local112
@@ -401,10 +395,10 @@ Module
     store global17 -> local114
     store local114 -> local115
     store local113 -> local116
-    call managed-direct-target19 sp<managed-call:27> live=[local112:ptr<managed>@0, local115:ptr<managed>@0, local116:ptr<managed>@0] t38 = sig=direct19 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn7(local112, local115, local116)
+    call managed-direct-target19 sp<managed-call:26> live=[local112:ptr<managed>@0, local115:ptr<managed>@0, local116:ptr<managed>@0] t38 = sig=direct19 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn7(local112, local115, local116)
     store t38 -> local117
     store local117 -> local118
-    call managed-void-target8 sp<managed-call:28> live=[local118:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn5(local118)
+    call managed-void-target8 sp<managed-call:27> live=[local118:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn5(local118)
     t39 = aggregate () : {}
     ret
   fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void

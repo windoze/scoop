@@ -2,6 +2,7 @@ use super::*;
 
 mod allocation;
 mod arrays;
+mod barrier;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Get or declare a runtime function with the given signature.
@@ -117,13 +118,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })
     }
 
-    /// M9 write-barrier instrumentation point (milestone9 DESIGN 3.1,
-    /// runtime spec 3.6): after a heap store, mark the card covering the
-    /// stored-to address with a monotonic atomic OR. Equal plain byte stores
-    /// from multiple mutators would still be a data race.
-    /// Emitted unconditionally (also for scalar stores); the v1
-    /// collector ignores the table, and the generational remembered
-    /// set consumes it once generations land.
+    /// Mark one managed reference slot after its store. Concurrent mutators
+    /// may touch different fields on the same card, so this must be atomic.
     pub(super) fn card_mark(&self, addr: PointerValue<'ctx>) -> Result<(), CodegenError> {
         let context = self.context;
         let builder = self.builder;

@@ -28,6 +28,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         .map(|source| sanitized_stem(source.display_path()));
     let graph = request
         .graph
+        .with_optimization(request.profile.optimization())
         .load_root()
         .map_err(BuildFailure::root)?
         .discover()

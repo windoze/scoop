@@ -1,0 +1,17 @@
+struct Pair(val left: Long, val right: Long)
+enum Choice { Value(Pair), Empty }
+
+fun main() {
+    var sum = 0L
+    var index = 0L
+    while (index < 2000000L) {
+        val pair = Pair(index, index + 1L)
+        val choice = Choice.Value(pair)
+        sum = sum + when (choice) {
+            Value(value) -> value.right - value.left
+            Empty -> 0L
+        }
+        index = index + 1L
+    }
+    println(sum)
+}

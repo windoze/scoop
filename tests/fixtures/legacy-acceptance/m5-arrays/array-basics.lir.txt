@@ -84,14 +84,11 @@ Module
     store local14 -> local38
     store local15 -> local39
     t7 = integer_compare_Less<Long> local38, integer<Long>(0x0000000000000000) : i1
-    cbr t7 then @logic.short.2 else @logic.rhs.1
+    br @logic.rhs.1
   block logic.rhs.1
     t8 = array_len array1 local37 : i64
     t9 = integer_compare_GreaterOrEqual<Long> local38, t8 : i1
     store t9 -> local43
-    br @logic.merge.3
-  block logic.short.2
-    store true -> local43
     br @logic.merge.3
   block logic.merge.3
     cbr local43 then @if.then.4 else @if.merge.5
@@ -125,14 +122,11 @@ Module
     store local27 -> local41
     store local28 -> local42
     t15 = integer_compare_Less<Long> local41, integer<Long>(0x0000000000000000) : i1
-    cbr t15 then @logic.short.7 else @logic.rhs.6
+    br @logic.rhs.6
   block logic.rhs.6
     t16 = array_len array1 local40 : i64
     t17 = integer_compare_GreaterOrEqual<Long> local41, t16 : i1
     store t17 -> local45
-    br @logic.merge.8
-  block logic.short.7
-    store true -> local45
     br @logic.merge.8
   block logic.merge.8
     cbr local45 then @if.then.9 else @if.merge.10

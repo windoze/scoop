@@ -10,7 +10,7 @@ impl StrongRegistrationProductionSurfaceV2 {
         digests: &DigestFinalizationPlanV1,
     ) -> Result<Self, StrongRegistrationProductionBuildError> {
         let producer = foundation.producer();
-        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let callable_runtime_scans =
             StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(foundation)
@@ -62,18 +62,16 @@ impl StrongRegistrationProductionSurfaceV2 {
             entry_source,
             &safepoint_semantics,
             &type_semantics,
-            &immortal_semantics,
             &local_initialization,
         )
         .map_err(StrongRegistrationProductionBuildError::Digests)?;
-        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation, &digests)
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(foundation)
             .map_err(StrongRegistrationProductionBuildError::Identities)?;
         let initialization_semantics =
             crate::StrongInitializationUnitSemanticPlanSetV2::from_local_semantics(
                 local_initialization,
                 foundation,
                 &identities,
-                &digests,
                 external_initialization_uses,
             )
             .map_err(StrongRegistrationProductionBuildError::InitializationSemanticsV2)?;

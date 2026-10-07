@@ -1,5 +1,4 @@
 mod local;
-pub(super) use local::sentinel_target_key;
 use local::{validate_local_atom_target, validate_sentinel_target};
 
 use scoop_identity::{
@@ -24,10 +23,10 @@ use crate::link_object::{
     VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
-const STORAGE_POINTER_OFFSET: u64 = 160;
-const SCAN_POINTER_OFFSET: u64 = 192;
-const TEMPLATE_POINTER_OFFSET: u64 = 264;
-const RELOCATION_TABLE_POINTER_OFFSET: u64 = 280;
+const STORAGE_POINTER_OFFSET: u64 = 128;
+const SCAN_POINTER_OFFSET: u64 = 160;
+const TEMPLATE_POINTER_OFFSET: u64 = 232;
+const RELOCATION_TABLE_POINTER_OFFSET: u64 = 248;
 
 pub(super) struct VerifiedStaticStorageRelocations {
     pub(super) storage: StrongRelocationBindingV1,
