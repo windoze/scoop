@@ -11,6 +11,13 @@ variants = [
 ]
 
 [[steps]]
+name = "cold_cache"
+files = [
+  {mkdir = {path = "${work}/compile-cache"}},
+  {remove = {path = "${work}/compile-cache"}},
+]
+
+[[steps]]
 name = "native"
 argv = ["${cc}", {each = "${cc_args}"}, "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
 exit = 0
@@ -26,7 +33,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/compile-cache", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -39,7 +46,7 @@ checks = [
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/compile-cache", "--library-path", "${work}", "--profile", "${profile}", "-o", "${work}/program", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

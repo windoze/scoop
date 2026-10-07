@@ -2,13 +2,14 @@ use super::*;
 
 mod llvm;
 mod policies;
+mod restorations;
 mod roots;
 
 use llvm::{call_constant, llvm_value_name};
 use policies::verify_function_policies;
-use roots::{gc_live_root_identities, gc_live_roots, verify_statepoint_shape};
+use roots::{gc_live_roots, verify_statepoint_shape};
 
-/// Verify RS4GC output against the exact LIR manifest. This is a defensive
+/// Verify RS4GC output against the final SSA root plan. This is a defensive
 /// compiler/toolchain check, never a source-language fallback.
 pub(crate) fn verify_rewritten(
     module: &LlvmModule<'_>,
@@ -27,6 +28,7 @@ pub(crate) fn verify_rewritten(
     let mut observed = BTreeMap::<u64, ObservedStatepoint<'_>>::new();
     let mut token_ids = BTreeMap::<usize, u64>::new();
     let mut relocations = Vec::<(InstructionValue<'_>, usize, u64, u64)>::new();
+    let mut restorations = Vec::new();
 
     for function in module.get_functions() {
         let function_name = llvm_value_name(function.as_value_ref())?;
@@ -38,6 +40,10 @@ pub(crate) fn verify_rewritten(
                     managed_address_space,
                     &function_name,
                 )?;
+                if let Some((id, root)) = root_identity::read(instruction, root_identity_metadata)?
+                {
+                    restorations.push((instruction, id, root));
+                }
                 if !matches!(
                     instruction.get_opcode(),
                     InstructionOpcode::Call | InstructionOpcode::Invoke | InstructionOpcode::CallBr
@@ -117,13 +123,11 @@ pub(crate) fn verify_rewritten(
                         )));
                     }
                     let roots = gc_live_roots(raw, id, managed_address_space)?;
-                    let identities = gc_live_root_identities(&roots, root_identity_metadata, id)?;
                     verify_statepoint_shape(
                         id,
                         &expected_site.statepoint,
                         instruction,
                         &roots,
-                        &identities,
                         &function_name,
                     )?;
                     if observed
@@ -133,7 +137,6 @@ pub(crate) fn verify_rewritten(
                                 instruction,
                                 function,
                                 roots,
-                                identities,
                                 relocations: BTreeMap::new(),
                             },
                         )
@@ -200,9 +203,10 @@ pub(crate) fn verify_rewritten(
             .copied()
             .collect::<Vec<_>>();
         return Err(CodegenError(format!(
-            "post-RS4GC statepoint ids disagree with complete LIR: missing {missing:?}, unexpected {unexpected:?}"
+            "post-RS4GC statepoint ids disagree with the final GC plan: missing {missing:?}, unexpected {unexpected:?}"
         )));
     }
+    restorations::verify(&restorations, &observed, expected, managed_address_space)?;
     provenance::verify_no_derived_live_through(&observed, managed_address_space)?;
     for (id, site) in &observed {
         match &expected.sites[id].statepoint {
@@ -216,13 +220,12 @@ pub(crate) fn verify_rewritten(
                 continue;
             }
         }
-        for (index, identity) in site.identities.iter().enumerate() {
+        for index in 0..site.roots.len() {
             let index = u64::try_from(index)
                 .map_err(|_| CodegenError(format!("statepoint {id} root index overflow")))?;
             if !site.relocations.contains_key(&index) {
                 return Err(CodegenError(format!(
-                    "statepoint {id} root {index} ({:?}+{}) has no gc.relocate",
-                    identity.source, identity.byte_offset
+                    "statepoint {id} root {index} has no gc.relocate"
                 )));
             }
         }
@@ -235,6 +238,5 @@ pub(super) struct ObservedStatepoint<'ctx> {
     pub(super) instruction: InstructionValue<'ctx>,
     pub(super) function: FunctionValue<'ctx>,
     pub(super) roots: Vec<BasicValueEnum<'ctx>>,
-    pub(super) identities: Vec<ExpectedRoot>,
     pub(super) relocations: BTreeMap<u64, InstructionValue<'ctx>>,
 }

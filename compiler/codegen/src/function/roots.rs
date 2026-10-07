@@ -75,7 +75,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
     }
 
-    /// Turn the complete LIR live set into one independent AS1 SSA value per
+    /// Turn the complete LIR live set into an AS1 SSA value for each
     /// managed leaf. The post-call stores in `restore_statepoint_live` are
     /// deliberate uses: SROA exposes them to RS4GC, which rewrites each use to
     /// the corresponding `gc.relocate` result.
@@ -158,43 +158,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )
                     .map_err(|error| CodegenError(format!("load statepoint leaf: {error}")))?
                     .into_pointer_value();
-                let identity_storage = self.entry_alloca(
-                    managed_ptr_ty(self.context, self.managed_address_space).into(),
-                    "statepoint_root",
-                )?;
-                statepoint::mark_root_identity(
-                    self.context,
-                    identity_storage
-                        .as_instruction_value()
-                        .expect("entry_alloca returns an alloca instruction"),
-                    safepoint,
-                    item.source,
-                    leaf.byte_offset,
-                )?;
-                self.builder
-                    .build_store(identity_storage, source_value)
-                    .map_err(|error| {
-                        CodegenError(format!("initialize statepoint root: {error}"))
-                    })?;
-                let value = self
-                    .builder
-                    .build_load(
-                        managed_ptr_ty(self.context, self.managed_address_space),
-                        identity_storage,
-                        &format!("statepoint_{}_live", safepoint.get()),
-                    )
-                    .map_err(|error| CodegenError(format!("load statepoint root: {error}")))?
-                    .into_pointer_value();
-                value
-                    .as_instruction_value()
-                    .expect("a statepoint leaf load is an instruction")
-                    .set_volatile(true)
-                    .map_err(|error| {
-                        CodegenError(format!("make statepoint leaf load volatile: {error}"))
-                    })?;
                 leaves.push(StatepointLiveLeaf {
                     storage: leaf_storage,
-                    value,
+                    value: source_value,
+                    source: item.source,
+                    byte_offset: leaf.byte_offset,
                 });
             }
             let value = match llvm_ty {
@@ -231,6 +199,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         safepoint: scoop_lir::SafepointId,
     ) -> Result<(), CodegenError> {
         for leaf in live.leaves {
+            statepoint::mark_root_identity(
+                self.context,
+                self.llvm,
+                self.builder,
+                leaf.value,
+                safepoint,
+                leaf.source,
+                leaf.byte_offset,
+            )?;
             let store = self
                 .builder
                 .build_store(leaf.storage, leaf.value)

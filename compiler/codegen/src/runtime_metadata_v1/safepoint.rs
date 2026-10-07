@@ -100,13 +100,21 @@ pub(crate) fn emit_strong_safepoint_registrations_v1<'ctx>(
     llvm: &LlvmModule<'ctx>,
     plan: &StrongSafepointRegistrationPlanSetV1,
     body: scoop_lir::PersistentCallableBodyId,
+    root_count: impl Fn(scoop_lir::SafepointId) -> Option<usize>,
 ) -> Result<EmittedStrongSafepointRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let registrations = plan
         .registrations()
         .iter()
         .filter(|registration| registration.owner() == body)
-        .map(|registration| emit_registration(context, llvm, &types, *registration))
+        .filter_map(|registration| {
+            root_count(registration.safepoint()).map(|count| (*registration, count))
+        })
+        .map(|(registration, count)| {
+            let count = u32::try_from(count)
+                .map_err(|_| CodegenError("physical root count exceeds u32::MAX".into()))?;
+            emit_registration(context, llvm, &types, registration, count)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongSafepointRegistrationSetV1 {
         producer: plan.producer(),
@@ -119,6 +127,7 @@ fn emit_registration<'ctx>(
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
     plan: StrongSafepointRegistrationPlanV1,
+    root_count: u32,
 ) -> Result<EmittedStrongSafepointRegistrationV1<'ctx>, CodegenError> {
     let request = plan.symbol();
     let symbol = request.symbol();
@@ -174,8 +183,7 @@ fn emit_registration<'ctx>(
             identity.into(),
             i64.const_int(plan.safepoint().get(), false).into(),
             i32.const_int(u64::from(plan.role().tag()), false).into(),
-            i32.const_int(u64::from(plan.root_pair_count()), false)
-                .into(),
+            i32.const_int(u64::from(root_count), false).into(),
             digest_value(context, types.digest, plan.owner().as_array()).into(),
             zero_digest.into(),
         ]);

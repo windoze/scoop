@@ -37,7 +37,7 @@ pub struct BackendProfileContract(BackendProfile);
 impl WireEncode for BackendProfileContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let linux_x86_64 = self.0 == BackendProfile::LLVM_22_1_LINUX_X86_64;
-        encoder.map(if linux_x86_64 { 27 } else { 25 })?;
+        encoder.map(if linux_x86_64 { 28 } else { 26 })?;
         encode_pair(encoder, 1, 22, 1)?;
         encoder.field(2)?;
         encoder.map(3)?;
@@ -77,6 +77,8 @@ impl WireEncode for BackendProfileContract {
                 encode_unsigned_field(encoder, field, value)?;
             }
         }
+        // Qualified ordinary passes and final physical GC/EH emission plans.
+        encode_unsigned_field(encoder, 28, 1)?;
         Ok(())
     }
 }
@@ -160,11 +162,11 @@ mod tests {
     fn backend_contract_and_fingerprint_match_the_fixed_vectors() {
         assert_eq!(
             hex(&encode(&BackendProfile::LLVM_22_1.contract()).unwrap()),
-            "b81901a20116020102a30100020a0301036767656e657269630460050106010701080109010a010b030c010d010e010f01100111011201130114011501160217a30118ff02189b0301181801181901"
+            "b81a01a20116020102a30100020a0301036767656e657269630460050106010701080109010a010b030c010d010e010f01100111011201130114011501160217a30118ff02189b0301181801181901181c01"
         );
         assert_eq!(
             BackendProfile::LLVM_22_1.fingerprint().unwrap().to_string(),
-            "03ab3ae611e31f2ac7dde6486deea185c981f5313b939f5cf93641b7e5e9aff7"
+            "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
         );
     }
 

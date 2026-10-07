@@ -98,6 +98,14 @@ pub struct RegistrationIdentitySurfaceV1 {
 }
 
 impl RegistrationIdentitySurfaceV1 {
+    pub(crate) fn retain_safepoints(
+        &mut self,
+        retained: &std::collections::BTreeSet<PersistentSafepointSiteId>,
+    ) {
+        self.safepoints
+            .retain(|record| retained.contains(&record.semantic_id()));
+    }
+
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
     ) -> Result<Self, RegistrationIdentityBuildError> {

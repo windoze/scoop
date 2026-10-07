@@ -18,12 +18,6 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
         profile,
         body,
     )?;
-    let safepoints = emit_strong_safepoint_registrations_v1(
-        context,
-        llvm,
-        production.registration_production().safepoints(),
-        body,
-    )?;
     let mut patches = Vec::new();
     let mut atoms = callables.context_atoms.clone();
     for registration in callables.registrations() {
@@ -36,6 +30,32 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
             registration.descriptor(),
         ));
     }
+    emit_global_atom_boundaries_v1(llvm, target_data, production.canonical_definitions(), atoms)?;
+    patches.sort_unstable_by_key(|patch| patch.intent);
+    Ok(EmittedStrongRuntimeMetadataV1 {
+        producer: callables.producer(),
+        patch_locations: patches,
+    })
+}
+
+pub(crate) fn emit_callable_safepoints<'ctx, D, C, I>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    target_data: &TargetData,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
+    body: scoop_lir::PersistentCallableBodyId,
+    expected: &crate::statepoint::ExpectedSafepoints,
+    metadata: &mut EmittedStrongRuntimeMetadataV1,
+) -> Result<(), CodegenError> {
+    let safepoints = emit_strong_safepoint_registrations_v1(
+        context,
+        llvm,
+        production.registration_production().safepoints(),
+        body,
+        |id| expected.root_count(id.get()),
+    )?;
+    let mut patches = Vec::new();
+    let mut atoms = Vec::new();
     for registration in safepoints.registrations() {
         {
             let patch = registration.normalized_stackmap_patch();
@@ -47,9 +67,9 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
         ));
     }
     emit_global_atom_boundaries_v1(llvm, target_data, production.canonical_definitions(), atoms)?;
-    patches.sort_unstable_by_key(|patch| patch.intent);
-    Ok(EmittedStrongRuntimeMetadataV1 {
-        producer: callables.producer(),
-        patch_locations: patches,
-    })
+    metadata.patch_locations.extend(patches);
+    metadata
+        .patch_locations
+        .sort_unstable_by_key(|patch| patch.intent);
+    Ok(())
 }

@@ -131,13 +131,19 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
         ("o0", OptimizationLevel::None),
         ("o2", OptimizationLevel::Default),
     ] {
+        let profile = profile.with_optimization(if optimization == OptimizationLevel::None {
+            scoop_lir::OptimizationMode::Debug
+        } else {
+            scoop_lir::OptimizationMode::Release
+        });
         let machine = profile
             .create_qualification_target_machine(optimization)
             .expect("qualified target machine");
         let context = Context::create();
         let llvm = emit_llvm_module(&context, &module, &machine, profile).expect("emit module");
         llvm.verify().expect("valid LLVM module");
-        statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+        let expected = statepoint::rewrite(&llvm, &machine, &expected, profile)
+            .expect("rewrite-statepoints-for-gc pass");
         llvm.verify().expect("valid post-RS4GC module");
         statepoint::verify_rewritten(&llvm, &expected, profile)
             .expect("statepoint manifest matches");

@@ -30,16 +30,43 @@ pub(crate) fn configure_function(
     }
 }
 
-/// Scalarize aggregate root storage, build SSA values, then run RS4GC.
-pub(crate) fn rewrite(
+/// Run the qualified ordinary passes and finalize their physical root groups.
+pub(crate) fn optimize(
     module: &LlvmModule<'_>,
     machine: &TargetMachine,
-) -> Result<(), CodegenError> {
+    expected: &ExpectedSafepoints,
+    profile: ValidatedBackendProfile,
+) -> Result<ExpectedSafepoints, CodegenError> {
+    let passes = match profile.optimization() {
+        scoop_lir::OptimizationMode::Debug => "function(sroa,mem2reg,sccp,unreachableblockelim)",
+        scoop_lir::OptimizationMode::Release => {
+            "function(sroa,mem2reg,instcombine,early-cse,dse,adce,early-cse,sccp,unreachableblockelim)"
+        }
+    };
+    module
+        .run_passes(passes, machine, PassBuilderOptions::create())
+        .map_err(|error| CodegenError(format!("ordinary LLVM lowering failed: {error}")))?;
+    finalization::finalize(module, expected, profile)
+}
+
+pub(crate) fn lower(module: &LlvmModule<'_>, machine: &TargetMachine) -> Result<(), CodegenError> {
     module
         .run_passes(
-            "function(sroa,mem2reg),rewrite-statepoints-for-gc",
+            "rewrite-statepoints-for-gc",
             machine,
             PassBuilderOptions::create(),
         )
         .map_err(|error| CodegenError(format!("rewrite-statepoints-for-gc failed: {error}")))
+}
+
+#[cfg(test)]
+pub(crate) fn rewrite(
+    module: &LlvmModule<'_>,
+    machine: &TargetMachine,
+    expected: &ExpectedSafepoints,
+    profile: ValidatedBackendProfile,
+) -> Result<ExpectedSafepoints, CodegenError> {
+    let plan = optimize(module, machine, expected, profile)?;
+    lower(module, machine)?;
+    Ok(plan)
 }

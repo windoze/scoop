@@ -48,7 +48,15 @@ impl ScoopLirObjectPartitionV1 {
         input: &scoop_lir::ConeLirOutput,
         surface: &ObjectSymbolSurfaceV1,
     ) -> Result<Self, ScoopLirObjectPartitionError> {
-        let producer_units = ProducerUnitPartitionV1::from_foundation(input.foundation())
+        Self::from_foundation(input, input.foundation(), surface)
+    }
+
+    pub(crate) fn from_foundation(
+        input: &scoop_lir::ConeLirOutput,
+        foundation: &scoop_lir::ConeLirFoundation,
+        surface: &ObjectSymbolSurfaceV1,
+    ) -> Result<Self, ScoopLirObjectPartitionError> {
+        let producer_units = ProducerUnitPartitionV1::from_foundation(foundation)
             .map_err(ScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
         let mut independent = Vec::new();

@@ -68,7 +68,8 @@ pub use static_storage::{
 mod production;
 pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
 pub(crate) use production::{
-    emit_callable_metadata_v1, emit_strong_runtime_metadata_v1, validate_patch_coverage,
+    emit_callable_metadata_v1, emit_callable_safepoints, emit_strong_runtime_metadata_v1,
+    validate_patch_coverage,
 };
 
 mod registration_identity;

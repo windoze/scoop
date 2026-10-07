@@ -79,8 +79,8 @@ impl StrongSafepointRegistrationPlanV1 {
     }
 }
 
-/// Proof that the current Cone has exactly one complete strong registration
-/// production plan for every final LIR safepoint site.
+/// Complete registration plans for the current Cone's retained safepoints.
+/// Codegen finalization projects logical LIR leaves into physical root counts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongSafepointRegistrationPlanSetV1 {
     producer: ConeIdentity,
@@ -88,6 +88,26 @@ pub struct StrongSafepointRegistrationPlanSetV1 {
 }
 
 impl StrongSafepointRegistrationPlanSetV1 {
+    pub(crate) fn set_emitted_root_counts(
+        &mut self,
+        counts: &std::collections::BTreeMap<SafepointId, u32>,
+    ) -> Result<(), StrongSafepointRegistrationPlanBuildError> {
+        let known = self
+            .registrations
+            .iter()
+            .map(|plan| plan.safepoint)
+            .collect::<std::collections::BTreeSet<_>>();
+        if counts.keys().any(|site| !known.contains(site)) {
+            return Err(StrongSafepointRegistrationPlanBuildError::EmittedSiteSet);
+        }
+        self.registrations
+            .retain(|plan| counts.contains_key(&plan.safepoint));
+        for plan in &mut self.registrations {
+            plan.root_pair_count = counts[&plan.safepoint];
+        }
+        Ok(())
+    }
+
     pub fn new(
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
@@ -266,6 +286,7 @@ fn require_only_patch(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongSafepointRegistrationPlanBuildError {
+    EmittedSiteSet,
     Symbol(PersistentSymbolError),
     ProducerMismatch {
         foundation: ConeIdentity,

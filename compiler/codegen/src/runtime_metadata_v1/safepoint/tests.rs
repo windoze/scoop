@@ -23,6 +23,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
         &llvm,
         &plan,
         plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
     )
     .unwrap();
 
@@ -134,6 +135,7 @@ fn completes_one_matching_image_declaration_then_rejects_redefinition() {
         &llvm,
         &plan,
         plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
     )
     .unwrap();
     assert_eq!(
@@ -147,6 +149,7 @@ fn completes_one_matching_image_declaration_then_rejects_redefinition() {
         &llvm,
         &plan,
         plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
     )
     .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
@@ -166,6 +169,7 @@ fn rejects_an_incompatible_prior_global_declaration() {
         &llvm,
         &plan,
         plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
     )
     .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");

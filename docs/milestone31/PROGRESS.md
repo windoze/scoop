@@ -114,3 +114,14 @@
 - Rust fmt、workspace clippy 通过；LIR lowering 154 项、enum codegen 21 项通过，包含整数边界、精确/未知指针写入、构造复制支配及失效负例。同步修正一个 ABI 5 遗留测试，以真实 metadata 字段检查 RuntimeImage 输入集合。
 - Darwin 正式 local-values 与 local-effects 用例通过 debug/release、full-moving/minor stress，共 5 个变体、10 个进程、15 份 HIR/MIR/LIR 快照；无快照更新复测用时 22.92s。快照确认整数和已知 variant 的死边已删除，运行覆盖 payload 副作用、取址别名、循环合流、除零、MIN/-1 和 finally。
 - Linux SSH 仍超时，本批 GNU/musl 原生用例及快照待补。LLVM 函数内优化与最终 GC 发射计划继续实施。
+
+## M31-3：LLVM 优化与最终 GC/EH 发射计划
+
+- release 使用 SROA、mem2reg、InstCombine、EarlyCSE、DSE、ADCE、末次 EarlyCSE、SCCP 和 UnreachableBlockElim，再执行 RS4GC；debug 使用 SROA、mem2reg、SCCP 和不可达块清理。末次 CSE 合并死存储删除后暴露的相同加载，SCCP 在计划定稿前清除常量分支；没有启用跨函数内联、调用复制或完整 `default<O2>`。
+- 删除仅用于钉住旧 leaf 身份的专用 alloca 和 volatile load。真实 canonical root 回写保持 volatile，其前方的零机器码 `llvm.fake.use` 携带 typed source/offset；普通优化后按 SSA 等值分组，常量不占 relocation pair。RS4GC 后按 relocate token/index 核对这些组，并保留旧值使用、derived 地址及实际 stack-only 检查。
+- 循环旧值检查复用已有 CFG 路径规则，区分跨回边重新定义的 SSA 动态值与实际旧值跨 safepoint 使用。终止调用的保活标记放在真实回写之前，避免 LLVM 清理 `unreachable` 前的尾部 intrinsic；两种情况都有正反或实际对象回归。
+- 先准备 callable，形成实际 GC/EH 计划，再投影 production 和发射候选 image。删除不可达 site 的登记、私有 ODR member、definition/atom 和摘要输入；无剩余 invoke 的 body 删除 personality 及相关 EH atom。其余类型、扫描和初始化数据复用原结果。
+- backend contract 新增 field 28=1；strong production 20→21、cone production 9→10。runtime ABI 9、registration ABI 5 和 stackmap v3 保持；普通编码向量和不兼容旧版本检查同步更新。发射、EH 投影、SSA 分组及 CFG 路径代码按职责拆分，新模块均约 300 行以内。
+- Rust fmt、workspace clippy 通过；codegen 定向 62 项、LIR backend/foundation/production 227 项、slib profile/compatibility 23 项通过。真实交叉对象覆盖 Darwin、GNU、musl 的别名根 2→1、常量根 1→0、release 删除死 invoke/登记及 image/COMDAT 关联。
+- Darwin 新增 SSA roots 正式用例通过 debug/release/full-moving/minor、源码移除后的独立链接与运行，共 3 个变体、12 个进程、9 份阶段快照（56.86s）。组合回归的浮点、Context、协程、nursery、跨卡复制及混合优化 ODR 已通过；另修正冷缓存用例与共享 core 缓存的冲突，以及协程用例遗留的完整 startup 快照，保留真实链接计划一致性和运行检查。两个修正用例单独复测通过，共 4 个变体、20 个进程和 8 份阶段快照。
+- 使用 Cargo 按包清理闲置 debug 产物 2.4 GiB，保留 release 工具。NUC SSH 继续超时；已建立独立 Debian 13/amd64 容器，LLVM 22.1.8，实际执行 GNU PIE、musl static/PIE cleanup/catch/delete 探针均通过。GNU 的七个 M31 用例通过，包含 SSA roots、局部值、nursery/native 和跨卡复制；首次混合 ODR 运行发现 ELF 匿名只读数据缺少 atom 归属，继续修正，冷缓存用例亦需在新声明下复测。容器结果不作为 NUC 原生性能数据。

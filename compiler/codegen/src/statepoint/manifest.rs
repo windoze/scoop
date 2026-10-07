@@ -17,9 +17,44 @@ impl ExpectedRoot {
     }
 }
 
+/// Each group shares one actual SSA root; constants need no relocation.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct ExpectedRoots {
+    pub(super) groups: Vec<Vec<ExpectedRoot>>,
+    pub(super) constants: Vec<ExpectedRoot>,
+}
+
+impl From<Vec<ExpectedRoot>> for ExpectedRoots {
+    fn from(roots: Vec<ExpectedRoot>) -> Self {
+        Self {
+            groups: roots.into_iter().map(|root| vec![root]).collect(),
+            constants: Vec::new(),
+        }
+    }
+}
+
+impl ExpectedRoots {
+    pub(super) fn identities(&self) -> BTreeSet<(u8, u32, u64)> {
+        self.groups
+            .iter()
+            .flatten()
+            .chain(&self.constants)
+            .copied()
+            .map(ExpectedRoot::key)
+            .collect()
+    }
+
+    pub(super) fn group_keys(&self) -> BTreeSet<BTreeSet<(u8, u32, u64)>> {
+        self.groups
+            .iter()
+            .map(|group| group.iter().copied().map(ExpectedRoot::key).collect())
+            .collect()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum ExpectedStatepoint {
-    Relocating(Vec<ExpectedRoot>),
+    Relocating(ExpectedRoots),
     NativeTransition(scoop_lir::RuntimeAbiSymbolV1),
     ZeroLiveInvoke,
 }
@@ -31,7 +66,7 @@ pub(super) struct ExpectedSite {
     pub(super) statepoint: ExpectedStatepoint,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct ExpectedSafepoints {
     pub(super) sites: BTreeMap<u64, ExpectedSite>,
     pub(super) functions: BTreeMap<String, GcEffect>,
@@ -46,7 +81,7 @@ impl ExpectedSafepoints {
         self.sites
             .get(&safepoint)
             .map(|site| match &site.statepoint {
-                ExpectedStatepoint::Relocating(roots) => roots.len(),
+                ExpectedStatepoint::Relocating(roots) => roots.groups.len(),
                 ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
             })
     }
@@ -194,7 +229,8 @@ fn relocating_roots(live: &scoop_lir::StatepointLiveSet) -> ExpectedStatepoint {
                     byte_offset: leaf.byte_offset,
                 })
             })
-            .collect(),
+            .collect::<Vec<_>>()
+            .into(),
     )
 }
 

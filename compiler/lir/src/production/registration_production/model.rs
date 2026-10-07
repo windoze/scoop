@@ -28,6 +28,21 @@ pub struct StrongRegistrationProductionSurface<D, C, I> {
 }
 
 impl<D, C, I> StrongRegistrationProductionSurface<D, C, I> {
+    pub(crate) fn set_emitted_root_counts(
+        &mut self,
+        counts: &std::collections::BTreeMap<crate::SafepointId, u32>,
+    ) -> Result<(), StrongSafepointRegistrationPlanBuildError> {
+        self.safepoints.set_emitted_root_counts(counts)?;
+        let retained = self
+            .safepoints
+            .registrations()
+            .iter()
+            .map(|plan| plan.site())
+            .collect();
+        self.identities.retain_safepoints(&retained);
+        Ok(())
+    }
+
     pub const fn identities(&self) -> &RegistrationIdentitySurfaceV1 {
         &self.identities
     }

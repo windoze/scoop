@@ -276,6 +276,20 @@ pub struct DigestFinalizationPlanV1 {
 }
 
 impl DigestFinalizationPlanV1 {
+    pub(crate) fn remove_safepoint_records(
+        &mut self,
+        removed: &std::collections::BTreeSet<DigestNodeId>,
+    ) {
+        if removed.is_empty() {
+            return;
+        }
+        self.nodes.retain(|node| !removed.contains(&node.id()));
+        for node in &mut self.nodes {
+            node.direct_inputs
+                .retain(|input| !removed.contains(&input.node()));
+        }
+    }
+
     pub fn new(
         mut nodes: Vec<DigestNodeV1>,
         foundation: &crate::ConeLirFoundation,

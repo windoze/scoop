@@ -286,11 +286,11 @@ mod tests {
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),
-            "03ab3ae611e31f2ac7dde6486deea185c981f5313b939f5cf93641b7e5e9aff7"
+            "08e6c47f288f6522a8987a366d12b110d75ad0090c17b56b184ff70101e95ab8"
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "97adff024fd1bac2b70e7293eccc178a6e064e4be672f4dd23859bf1ce3eeeff"
+            "1c6baf9e67e8adbf2a4dddc713eaf98db45a0960566f4113ded5bf9f5eac1ccd"
         );
     }
 

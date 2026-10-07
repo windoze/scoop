@@ -63,13 +63,13 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ][..],
             &[
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
             ][..],
         ),
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),

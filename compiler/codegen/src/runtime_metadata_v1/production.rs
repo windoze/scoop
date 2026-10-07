@@ -20,7 +20,7 @@ use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_bound
 use crate::target::ValidatedBackendProfile;
 
 mod callable;
-pub(crate) use callable::emit_callable_metadata_v1;
+pub(crate) use callable::{emit_callable_metadata_v1, emit_callable_safepoints};
 mod digest;
 pub(crate) use digest::validate_patch_coverage;
 use digest::{PatchParts, PatchSiteParts, record_patch};
