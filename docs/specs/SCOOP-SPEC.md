@@ -2659,25 +2659,13 @@ fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
 - callback抛出时，trampoline按C签名返回全零值，token保存首个managed异常。完成同步后，observer用`foreignCallbackState` / `foreignCallbackFailure`读取并可在Scoop侧重新抛出；最终release通常置于`finally`。stale token、signature不匹配、one-shot重复调用或runtime终止后调用均为runtime ABI错误；
 - `foreignCallback`只接受普通closure，不接受`suspend`函数值。普通callback可以捕获并调用`Continuation<T>.resume`；这仍不是suspend callback或suspend FFI。
 
-### 14.4 示例：直接输出 managed `String`
+### 14.4 标准输出与错误输出
 
-Scoop 侧直接声明 managed-ref 签名；不需要 wrapper、pin 或 unsafe block：
+core 提供普通安全函数 `write(message: String)`、`writeError(message: String)` 和 `flushOutput()`，分别向 stdout 写入全部 UTF-8 字节、向 stderr 写入全部 UTF-8 字节、刷新 stdout 的 stdio 缓冲。写入保留 U+0000，不追加换行。`print<T : ToString>` / `eprint<T : ToString>` 恰好调用一次 `toString()` 后写入相应流；`println<T : ToString>` / `eprintln<T : ToString>` 随后追加一个 LF。转换抛异常时不写入本次内容或换行。
 
-```
-@Extern(name = "scoop_rt_write", abi = "scoop")
-fun write(message: String)
-```
+`write` / `writeError` 在普通 Scoop 正文中通过 13.11 的 `String.withUtf8Bytes` 借用，再调用 C ABI 的字节输出后备。实际 stdio 写入与刷新处于 NativeSafe，等待 stdio 锁或管道消费者时不阻止其他线程推进 GC；借用保证 String 在整个写入期间保活且地址稳定。安全调用者无需手动 pin 或 unsafe block。
 
-runtime 侧按 Scoop 的 `String` 对象布局直接接收引用：
-
-```c
-void scoop_rt_write(const ScoopString *message)
-{
-    fwrite(message->data, 1, message->len, stdout);
-}
-```
-
-该函数只在调用期间读取 `message`，不分配、不调用可能触发 Scoop GC 的 runtime入口、不回调 Scoop代码，也不保存引用，因此无需 native root frame。若以后在写入前后增加任一可能触发 GC 的操作，必须先按 14.3 把 `message` 放入 native root slot，并在操作后重新读取更新后的值。
+输出沿用 stdio 缓冲，不承诺每次写入或每行对应一次系统调用，也不承诺并发 `println` 的行级原子性。与 fd 1 的直接写入交错前可调用 `flushOutput()`；这些函数不暴露 I/O 错误结果或增加异常转换。进程退出时的刷新规则见运行时规范第 7 章。
 
 ---
 

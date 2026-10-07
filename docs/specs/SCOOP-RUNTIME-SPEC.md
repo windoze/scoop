@@ -519,6 +519,8 @@ native exception record 不能跨线程共享或跨挂起保存；可以保存�
 
 后备遵守语言规范的普通 core 声明与实际 exact type，涉及分配时登记 native roots，GC 后重新取得地址。
 
+标准输出后备为普通 C ABI `scoop_rt_stdout_write(const uint8_t *bytes, int64_t length)`、`scoop_rt_stderr_write(const uint8_t *bytes, int64_t length)` 和 `scoop_rt_flush_stdout(void)`，均返回 void。调用方提供非负长度和本次调用期间有效、稳定的字节区间；core 的 String 包装使用作用域借用。实际操作使用 stdout/stderr 的 stdio 缓冲；caller 按普通 C FFI 进入 NativeSafe，后备不访问可移动的 managed 引用，也不回调 Scoop。语言接口及缓冲、并发和错误结果规则见语言规范 14.4。
+
 String 后备提供创建、拼接、内容比较/hash、UTF-8 长度、标量定位与切片等表示操作。定位 leaf 不抛源码异常：get 返回 Option<Char>，slice 定位返回 Option<(Long, Long)>，core 对 None 抛出 IndexOutOfBoundsException。内容与已验证边界未变化时可复用。
 
 字节解码后备为语言规范 11.4 的 `fromUtf8`、`fromUtf8OrNone` 和 `fromUtf8Lossy` 提供同一套 UTF-8 规则。严格路径的结果明确区分成功 String 与首个非法子序列的零基字节偏移，并通过普通 Scoop ABI 返回；core 分别将失败转换为 CharacterCodingException 或 None，不对相同内容再做一遍独立校验。lossy 路径按 maximal subpart 消费非法输入，每段写入一个 U+FFFD，继续处理失配处的后续字节，不能遗漏合法后缀；空输入、U+0000 与合法 U+FFFD 按原内容保留。两种路径均不依赖 locale。

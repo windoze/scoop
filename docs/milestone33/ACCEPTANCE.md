@@ -9,7 +9,7 @@
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
-| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
+| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 输出完成；入口、argv 与退出待实现 |
 | M33-5 | errno 捕获 | 待实现 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
@@ -130,3 +130,16 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin/GNU/musl 各 5 项正式 CLI、7 个变体、27 个进程、18 份 golden 在非更新模式下通过；debug/release 均运行 normal/moving/minor。覆盖字节内容与 NUL、严格错误偏移、嵌套与异常 cleanup、NativeSafe/GCLeaf 调用，以及删除 provider/consumer 源码后的泛型产物消费和独立链接。
 - 三项 negative fixture 固定 unsafe、Int8/UInt8 指针类型与 suspend callback 的诊断和源码位置。6 份公共 HIR/MIR 在三平台一致，12 份 Linux LIR 单独保存；复用热缓存，没有运行无关全量测试。
 - 清理 16 个已链接的 Rust 中间对象，共 0.36 GiB；保留库、CLI 和当前 fixture 缓存。
+
+## M33-4a：NativeSafe 标准输出
+
+- core 的 write 改为普通 String 作用域借用与 C ABI 调用；新增 writeError、eprint、eprintln 和 flushOutput。ToString 恰好求值一次，正文或换行不会先于失败的转换输出；UTF-8 与嵌入 NUL 原样写出。
+- runtime 的字节输出／stdout 刷新后备集中在 13 行 io.c，继续使用 stdio 缓冲。普通 C FFI 负责 NativeSafe，作用域 pin 负责 String 地址稳定；没有新增编译器 intrinsic 或输出专用 GC 协议。
+- 规范移除旧的直接 borrowed String 输出示例，明确可能阻塞的写入和刷新、缓冲、并发行边界与安全调用接口。
+
+已完成的验证：
+
+- Rust fmt、受影响 toolchain clippy、C 格式化和严格警告检查通过。
+- Darwin/GNU/musl 各 2 项正式 CLI、4 个变体、22 个进程、12 份 golden 在非更新模式下通过；debug/release 均运行 normal/moving/minor。
+- 输出用例覆盖两个流、空串、NUL、Unicode、ToString 次数与异常，并删除源码后独立链接、执行。并发用例先填满真实 pipe，确认 writer 持有 stdio 锁后，在另一线程完成 GC，再开始排空；分别验证 stdout 写入、stderr 写入与 stdout 刷新不会阻止 GC，并核对全部输出字节。
+- 4 份公共 HIR/MIR 在三平台一致，8 份 Linux LIR 单独保存。复用前一批依赖缓存，没有进行无关全量回归。

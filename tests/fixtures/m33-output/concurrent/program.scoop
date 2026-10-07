@@ -1,0 +1,31 @@
+@Extern(lib = "fixture_native", name = "blocked_output")
+fun blockedOutput(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, mode: Int, length: Long): Int
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    var growing = "x"
+    var round = 0
+    while (round < 18) { growing = growing + growing; round += 1 }
+    val message = growing
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(fun(mode: Int): Int {
+            when (mode) {
+                -1 -> {
+                    gcCollect()
+                    expect(message.byteLength == 262144L)
+                }
+                0 -> { write(message); flushOutput() }
+                1 -> { writeError(message) }
+                else -> { write("pending"); flushOutput() }
+            }
+            return 37
+        }, 1, ForeignCallbackMode.Reusable)
+        expect(blockedOutput(callback.function, callback.context, 0, message.byteLength) == 1)
+        expect(blockedOutput(callback.function, callback.context, 1, message.byteLength) == 1)
+        expect(blockedOutput(callback.function, callback.context, 2, 7L) == 1)
+        expect(when (foreignCallbackFailure(callback)) { Some(_) -> false; None -> true })
+        releaseForeignCallback(callback)
+    }
+    println("output-concurrent-ok")
+}
