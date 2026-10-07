@@ -76,7 +76,7 @@ primitive 与 String 的接口默认方法使用前端识别的实际声明及�
 
 本设计落实最新版 AGENTS.md，并明确修正旧目标和设计中保留通用预算、来源证明、任意成本模型及重复完整验证的条款。清理覆盖 compiler、slib、runtime 和所有相关规范、格式、测试，不限于 core；将 core 专用机制改成所有 Cone 共用的机制不等于删除过度设计。
 
-配套：[语言规范 12.6](../../specs/SCOOP-SPEC.md#126-核心库)、[实现规范 2.12](../../specs/SCOOP-IMPL-SPEC.md#212-core-普通库的共有验证)、[运行时规范](../../specs/SCOOP-RUNTIME-SPEC.md)、[M23 总设计](../DESIGN.md) 和 [M23-6 设计](DESIGN.md)。
+配套：[语言规范 12.6](../../specs/SCOOP-SPEC.md#126-核心库)、[编译器与产物规范 2.12](../../specs/SCOOP-IMPL-SPEC.md#212-core-与普通依赖)、[运行时规范](../../specs/SCOOP-RUNTIME-SPEC.md)、[M23 总设计](../DESIGN.md) 和 [M23-6 设计](DESIGN.md)。
 
 ## 1. 边界与完成条件
 
