@@ -1,6 +1,6 @@
 # Scoop Runtime 规范
 
-2026-10-07，M31 实施中，见 [M31 设计](../milestone31/DESIGN.md)和[实施记录](../milestone31/PROGRESS.md)。M31 的 nursery／minor GC 见 3.9，写屏障见 3.6，ODR 与最终 image 选择见 2.8；历史版本记录不代表待完成项目已经实现。
+2026-10-07，M31 已完成实现及本阶段验收，见 [M31 设计](../milestone31/DESIGN.md)、[验收记录](../milestone31/ACCEPTANCE.md)和[性能报告](../milestone31/PERFORMANCE.md)。M31 的 nursery／minor GC 见 3.9，写屏障见 3.6，ODR 与最终 image 选择见 2.8；历史版本记录在这些明确替代的范围内保留为历史。
 
 2026-10-07，M30 已实现并通过验收：binary32/binary64 标量、线程浮点环境、字符串转换和必要的数学后备复用既有 GC、Scoop/C ABI 与链接边界；Float/Double 不提供 Hash 后备，128 位类型仅作调研。契约见 6.1 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。
 
@@ -331,7 +331,7 @@ String 由前端解析为实际 typed class，MIR/LIR 与 Link 使用同一 prov
 
 ## 3. GC 契约
 
-参考实现由 M9 的单代非移动 Immix 和 M13 的多 mutator STW 演进而来；M15～M30 的已实现基线为单代、STW、单线程 collector 的 moving Immix。M31 设计在相同 arena 中增加 nursery，并以 minor GC 晋升到 Immix 旧代，见 3.9；仍采用 STW、单线程 collector 和多个 mutator。root、safepoint、native 借用、pin、handle 与 release hook 的语义同时约束 minor/full GC。现有 Darwin/AArch64、Linux/amd64 glibc 和 musl 使用精确 frame/location adapter，不允许保守扫描回退。
+参考实现由 M9 的单代非移动 Immix 和 M13 的多 mutator STW 演进而来；M15～M30 的已实现基线为单代、STW、单线程 collector 的 moving Immix。M31 在相同 arena 中实现 nursery，并以 minor GC 晋升到 Immix 旧代，见 3.9；仍采用 STW、单线程 collector 和多个 mutator。root、safepoint、native 借用、pin、handle 与 release hook 的语义同时约束 minor/full GC。现有 Darwin/AArch64、Linux/amd64 glibc 和 musl 使用精确 frame/location adapter，不允许保守扫描回退。
 
 ### 3.1 分配入口
 
@@ -709,7 +709,7 @@ callback token 以 `Empty | RootHandle` 保存快照，handle 的空分支不尝
 
 仍待后续里程碑补充：
 
-- nursery／minor GC 与晋升已在 M31 设计中排期，见 3.9；其后的 survivor 策略、parallel/concurrent collector、arena 扩容与更多 target adapter 另行设计；
+- survivor 策略、parallel/concurrent collector、arena 扩容与更多 target adapter；nursery／minor GC 与晋升已由 M31 实现，见 3.9；
 - off-heap ByteBuffer 的增长、borrow/view、close、失败原子性、external-memory pressure accounting、managed 侧 GC 反馈与 hook 路径只扣减的 release-safe 入口，整体留待 M26 之后另行排期；
 - runtime functions 的完整签名表与错误处理矩阵；
 - 异常穿越 Scoop ABI frame 的最终规则。

@@ -5,8 +5,10 @@
 `measure.py` 只调用正式 `scoop build` 与所生成的程序；每次报告保存冷/热构建、各次运行时间、产物大小和实际输出。使用独立工作目录，默认重复运行五次。传入配套工具、sysroot 和 runtime 路径可复跑 M30 保存的基线；Linux 通过重复的 `--build-arg` 指定现有 target、C compiler 与 unwind 参数。
 
 ```sh
+mkdir -p tmp
+export TMPDIR="$PWD/tmp"
 python3 tests/benchmarks/measure.py --tools target/release \
-  --sysroot sysroot --runtime runtime --work /tmp/scoop-m31-benchmark \
+  --sysroot sysroot --runtime runtime --work tmp/m31-benchmark \
   --revision "$(git rev-parse HEAD)" --profile debug
 ```
 
@@ -16,8 +18,10 @@ M31 使用 `--gc-stats --compare-full`：每个 profile 只构建一次，每轮
 
 ```sh
 python3 tests/benchmarks/measure.py --tools target/release \
-  --sysroot sysroot --runtime runtime --work target/m31-benchmark-debug \
+  --sysroot sysroot --runtime runtime --work tmp/m31-benchmark-debug \
   --revision "$(git rev-parse HEAD)" --profile debug --gc-stats --compare-full
 ```
 
 Linux 例如追加 `--build-arg=--target --build-arg=x86_64-unknown-linux-gnu`，以及 `--build-arg=--unwind-prefix --build-arg=/absolute/sysroot/native/x86_64-unknown-linux-gnu/unwind`。M30 runtime 不提供这些 GC 统计，复跑旧基线时省略 `--gc-stats --compare-full`。容器和原生宿主分别记录环境，各自比较，不跨环境计算加速比。
+
+当前 Linux 复现使用 `ssh nuc12`，仓库为 `~/repos/scoop`；工作目录和 `TMPDIR` 都放在该仓库的 `tmp/` 下。先完成工具构建与功能验证，再串行计时，避免并行编译或清理目录干扰测量。

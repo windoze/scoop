@@ -1,0 +1,619 @@
+{
+  "revision": "6e62514da",
+  "host": "Linux-7.0.14-orbstack-00380-ga7e0a2dc9535-x86_64-with-glibc2.41",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [
+    "--target",
+    "x86_64-unknown-linux-musl",
+    "--cc",
+    "/usr/bin/musl-gcc",
+    "--unwind-prefix",
+    "/workspace/sysroot/native/x86_64-unknown-linux-musl/unwind"
+  ],
+  "gc_stats": false,
+  "compare_full": false,
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 68.66349391601398,
+      "warm_build_seconds": 6.687704419018701,
+      "run_seconds": [
+        0.09568156799650751,
+        0.09445414697984233,
+        0.09266738899168558,
+        0.09345597599167377,
+        0.09473031500237994
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.09445414697984233,
+      "min_seconds": 0.09266738899168558,
+      "max_seconds": 0.09568156799650751,
+      "stdout": "2000000\n",
+      "executable_bytes": 3980976,
+      "slib_bytes": 202166,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "60a1f797bab634cb9e9c67016ab4e372295e115b429d0a5b65daaceb99fd90ae",
+          "observations": {
+            "child_invocations": [
+              "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "compiled"
+              },
+              {
+                "cache_key": "eae35c33b4932c2b946f3bbd23c57ad34ff83ef08313a212be54cb880fe36a42",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/aggregate",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "2ff863c1231ae0e76fab2ce76f410849e1225ef6397b4f2ba24e720aa5bf6242",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/eae35c33b4932c2b946f3bbd23c57ad34ff83ef08313a212be54cb880fe36a42/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 12.341502739000134,
+      "warm_build_seconds": 6.599401895015035,
+      "run_seconds": [
+        0.05008258001180366,
+        0.049173367995535955,
+        0.05023916400386952,
+        0.04855865699937567,
+        0.048118405014974996
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.049173367995535955,
+      "min_seconds": 0.048118405014974996,
+      "max_seconds": 0.05023916400386952,
+      "stdout": "1599960000\n",
+      "executable_bytes": 3984048,
+      "slib_bytes": 256006,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "648d7f496be7f20a50b7b077aedf9d022509dc4be10f972ff4e452c5f3b1383a",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "86c94ce56386b3f25fef76530eb3e7def9f428615b8bca4e180a50c79954c979",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/allocation",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "510e2ee7d62a238f2b6efe248ec85b82b86bf5ff49a4fd7975f163158f9c7a00",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/86c94ce56386b3f25fef76530eb3e7def9f428615b8bca4e180a50c79954c979/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 12.68039858402335,
+      "warm_build_seconds": 6.718237423017854,
+      "run_seconds": [
+        0.05130320999887772,
+        0.04996337101329118,
+        0.05007524701068178,
+        0.04906482598744333,
+        0.04881936599849723
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.04996337101329118,
+      "min_seconds": 0.04881936599849723,
+      "max_seconds": 0.05130320999887772,
+      "stdout": "393216\n",
+      "executable_bytes": 4120576,
+      "slib_bytes": 1397870,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "0c622fde9b41d5d15d7789577e1487061f3485cafab2affccc3ac0f25b915670",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "97b8d2c4fae65ee1b0277ddfc769fd8127f546d93153165f4ba6323cd513ffa5",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/arrays",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "6747c1aa96ef8e1d4fc6f65160bdfd2b5fbf9dd158276b31d9c72dc0fc594e93",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/97b8d2c4fae65ee1b0277ddfc769fd8127f546d93153165f4ba6323cd513ffa5/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 12.790491367020877,
+      "warm_build_seconds": 6.749057381995954,
+      "run_seconds": [
+        0.06660798098891973,
+        0.06547593398136087,
+        0.064397554990137,
+        0.063927846000297,
+        0.0640302200044971
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.064397554990137,
+      "min_seconds": 0.063927846000297,
+      "max_seconds": 0.06660798098891973,
+      "stdout": "312600\n",
+      "executable_bytes": 3987064,
+      "slib_bytes": 1730768,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "46a56305f5d85b9585bb3cf35fe05c35b0d7f74ced86c38a9041822409348dc5",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "170997095bdf338247e04017eb637ff7c14159da6d803dc5cda338dedb887a01",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/collections",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "ddd603ce0d0b6e3c9d262ecdbca4b3a0c583d29bfe43a1bdc598cf48f99cb0f7",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/170997095bdf338247e04017eb637ff7c14159da6d803dc5cda338dedb887a01/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "old-graph-large",
+      "cold_build_seconds": 12.510372971009929,
+      "warm_build_seconds": 6.794407573004719,
+      "run_seconds": [
+        0.0936577579996083,
+        0.09038570401025936,
+        0.09149812499526888,
+        0.09089433099143207,
+        0.09073162198183127
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.09089433099143207,
+      "min_seconds": 0.09038570401025936,
+      "max_seconds": 0.0936577579996083,
+      "stdout": "199680\n",
+      "executable_bytes": 4070264,
+      "slib_bytes": 952090,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "f4daafd2964b39230bfc4b20d36f819a617ebb456a8ffede738b66a20769daa3",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "ad6bd9f8e825ded35a5ab4719c085aefde36c3df5ada4bc4a6ebf8fa268eb1b3",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/old-graph-large",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "94d48228b9cd098e02d3b7172f5e720614154b723d8a240553660c68c35776b2",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/ad6bd9f8e825ded35a5ab4719c085aefde36c3df5ada4bc4a6ebf8fa268eb1b3/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 12.63068782602204,
+      "warm_build_seconds": 6.668990195001243,
+      "run_seconds": [
+        0.053798970009665936,
+        0.05203787898062728,
+        0.05249809002270922,
+        0.05161542000132613,
+        0.0512731269991491
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.05203787898062728,
+      "min_seconds": 0.0512731269991491,
+      "max_seconds": 0.053798970009665936,
+      "stdout": "199680\n",
+      "executable_bytes": 4070264,
+      "slib_bytes": 952090,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "8c0ddef2f91c10487740ee04ed88162b025fdad6b3d1f99c5d09e7193374dc84",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "b912a5b260e6912af2099a0e3c51c7841b221ef5c605edbb0c3c1573b0151d13",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/old-graph",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "3c9c6532cd87bdeaa24efd58eccd415939533cffbb3335733181729b2bf154b1",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/b912a5b260e6912af2099a0e3c51c7841b221ef5c605edbb0c3c1573b0151d13/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 12.325610617990606,
+      "warm_build_seconds": 6.586787232983625,
+      "run_seconds": [
+        0.26609771500807256,
+        0.26417549900361337,
+        0.26463566700113006,
+        0.26726222000434063,
+        0.2679058469948359
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.26609771500807256,
+      "min_seconds": 0.26417549900361337,
+      "max_seconds": 0.2679058469948359,
+      "stdout": "79999971\n",
+      "executable_bytes": 3972056,
+      "slib_bytes": 195482,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "2b2db8b944c4c3b3aab163359f53cc04018687288d4cc8099c458012e955f93a",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "2a2c62dae8256c266db64dfd48284b87ea054f59c4c3963f9a7992caf5dee7ef",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/primitive",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "cab5c44e9b4cb87ecd0c532b920e1cb16da701b7c89284a0bb2c9034eb26076b",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/2a2c62dae8256c266db64dfd48284b87ea054f59c4c3963f9a7992caf5dee7ef/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "survivors",
+      "cold_build_seconds": 12.701596075989073,
+      "warm_build_seconds": 6.793189203977818,
+      "run_seconds": [
+        0.11175837498740293,
+        0.1102529939962551,
+        0.11006720102159306,
+        0.110417077987222,
+        0.11246591902454384
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.110417077987222,
+      "min_seconds": 0.11006720102159306,
+      "max_seconds": 0.11246591902454384,
+      "stdout": "196614\n",
+      "executable_bytes": 4081384,
+      "slib_bytes": 1053670,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "be46b96869debd5c9bccd7241c8df636a9eaa9eff3f42dbfb3ba350001a8d9d9",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "4d121a62c63d274d15fcd1e54fb606ad8035304556b37ac8abc2387f52ac8510",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "80fdf6a87991d5d20ea0cdc84bb0d68b81f3b5226f9e05f93cef24467b5fc8f2",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "a0d1c8fab8f5d72ec364278df6d806244aff17fe5c4666ef81e12c8ad58a2bfc",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/build/performance/m30-linux-musl-control/survivors",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "c0762219777585ac761dc3c02e863e459d710c09894f437d1aa33abda6d35e00",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/build/performance/m30-linux-musl-control/cache/compile-v1/a0d1c8fab8f5d72ec364278df6d806244aff17fe5c4666ef81e12c8ad58a2bfc/artifact.slib"
+          },
+          "runtime_index": "/build/performance/m30-linux-musl-control/cache/runtime-v1/884c70f7e688a3d8f5766d2e02409b705cd8f165c86424fd646a292a21c0260d/index.cbor",
+          "schema": 1
+        }
+      ]
+    }
+  ]
+}

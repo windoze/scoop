@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-2026-10-07，M31 的首批优化、按实体身份与 ABI 合并 ODR、nursery 与 minor GC 已落地，正在完成总验收和性能测量，见 [M31 设计](../milestone31/DESIGN.md)和[实施记录](../milestone31/PROGRESS.md)。以下标注 M31 的条款约束当前实现；M23～M30 的历史格式和实施记录不再作为 ODR 正文判等或单代 GC 的后续约束。
+2026-10-07，M31 的首批优化、按实体身份与 ABI 合并 ODR、nursery 与 minor GC 已完成实现及本阶段验收，见 [M31 设计](../milestone31/DESIGN.md)、[验收记录](../milestone31/ACCEPTANCE.md)和[性能报告](../milestone31/PERFORMANCE.md)。以下标注 M31 的条款约束当前实现；M23～M30 的历史格式和实施记录不再作为 ODR 正文判等或单代 GC 的后续约束。
 
 2026-10-07，M30 已实现并通过验收：`Float` / `Float32` 与 `Double` / `Float64` 的普通比较遵守 IEEE 754，另以 `isTotallyOrdered(belowOrEqualTo = ...)` 提供包含 NaN 的全序比较；两种浮点类型不实现 `Hash`。语言规则见 11.2.2 与 [M30 设计](../milestone30/DESIGN.md)，实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)。Int128 / UInt128、Float128 仅作调研，不属于本次实现范围。
 

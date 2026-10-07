@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "recorded_utc": "2026-10-07T04:53:36.480443+00:00",
+  "production_revision": "c3ea0d7d2",
+  "baseline_revision": "6e62514da",
+  "darwin": {
+    "kernel": "Darwin 27.0.0 arm64",
+    "macos": "27.0.1",
+    "hardware": "Mac15,14\n32\n32\n549755813888\nApple M3 Ultra",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "llvm": "22.1.8",
+    "cc": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "python": "3.14.8"
+  },
+  "linux_gnu_and_musl": {
+    "kernel": "Linux 7.0.14-orbstack-00380-ga7e0a2dc9535 x86_64",
+    "packages": "libc6:amd64\t2.41-12+deb13u4\nllvm-22\t1:22.1.8-1~deb13u4\nmusl:amd64\t1.2.5-3.1~deb13u1\nmusl-tools\t1.2.5-3.1~deb13u1",
+    "llvm": "22.1.8",
+    "cc": "cc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "musl_cc": "x86_64-linux-gnu-gcc (Debian 14.2.0-19) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "python": "3.13.5",
+    "logical_cpus": 32,
+    "memory_total": "MemTotal:       16420868 kB",
+    "container_cpu_quota_cores": 8,
+    "container_memory_limit_bytes": 17179869184,
+    "execution": "OrbStack amd64 emulation on the Darwin host",
+    "container": "scoop-m31-linux"
+  }
+}

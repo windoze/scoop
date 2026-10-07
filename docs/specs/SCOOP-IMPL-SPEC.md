@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-2026-10-07，M31 的首批优化、按身份与 ABI 合并 ODR、nursery/minor GC 已落地，正在完成总验收和性能测量，详见 2.19、[M31 设计](../milestone31/DESIGN.md)和[实施记录](../milestone31/PROGRESS.md)。历史阶段的正文摘要判等和单代 GC 约束已按 M31 条款迁移。
+2026-10-07，M31 的首批优化、按身份与 ABI 合并 ODR、nursery/minor GC 已完成实现及本阶段验收，详见 2.19、[M31 设计](../milestone31/DESIGN.md)、[验收记录](../milestone31/ACCEPTANCE.md)和[性能报告](../milestone31/PERFORMANCE.md)。历史阶段的正文摘要判等和单代 GC 约束已按 M31 条款迁移。
 
 2026-10-07，M30 已实现并通过验收：Float/Double 的 typed representation、常量、运算、codec 与完整产物消费贯通，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
 
@@ -1906,7 +1906,7 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 浮点 pattern 为 literal equality 的封闭 wire sum 增加 tag 4，payload 为 FloatKind；默认模板通过 `cross-cone-interface/60` 保存该选择。MIR 降为既有 FloatBinary/Equal，不增加新的 MIR/LIR wire。递归穷尽性中任何浮点 literal 都不匹配 NaN，因此仅 wildcard 头部行能覆盖该列的剩余域；对子列继续使用既有矩阵，不枚举浮点位型。
 
-### 2.19 M31：首批优化、ODR 合并与 nursery（实施中）
+### 2.19 M31：首批优化、ODR 合并与 nursery（已完成）
 
 本节与 [M31 设计](../milestone31/DESIGN.md)、语言规范 12.3/12.5/14.3、运行时规范 2.8/3.6/3.9 同步；各实现批次与验证结果见 [实施记录](../milestone31/PROGRESS.md)。M23～M30 的历史 wire、摘要与行为记录在本节明确替代的范围内不再作为后续要求。
 
@@ -1966,7 +1966,7 @@ M31-1 的配置格式先独立落地：child protocol 为 4，build request 新�
 
 Darwin 的 O2 对象可包含标准 `LC_LINKER_OPTIMIZATION_HINT`。对象 reader 按 linkedit-data command 的固定大小检查其数据范围，并与现有 section、重定位、符号和字符串表统一检查非重叠；该数据随所在对象进入普通 Code 内容，交由 native linker 消费，不作为 ABI 或独立定义判等数据。
 
-完成门包括三 target 的 debug/release 功能与正式 CLI fixture、混合优化 ODR 和 artifact-only link、真实 minor/full moving/多 mutator/FFI/Context/release 组合，以及可复跑的性能基线。性能记录运行与编译时间、代码/产物大小、分配/晋升/扫描量及 GC 停顿，不设置噪声毫秒门槛，也不把完整代码摘要 golden 当成优化正确性测试。详细批次、非目标和验收矩阵见 M31 设计。
+完成门包括三 target 的 debug/release 功能与正式 CLI fixture、混合优化 ODR 和 artifact-only link、真实 minor/full moving/多 mutator/FFI/Context/release 组合，以及可复跑的性能基线。性能重点评估生成代码的运行时间、代码/产物大小、分配/晋升/扫描量及 GC 停顿；编译耗时只保留原始观测，编译速度优化留待后续，不因构建变慢延后本阶段交付。不设置噪声毫秒门槛，也不把完整代码摘要 golden 当成优化正确性测试。详细批次、非目标和验收矩阵见 M31 设计。
 
 ## 3. 待明确事项
 

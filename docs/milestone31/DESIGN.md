@@ -1,6 +1,6 @@
 # M31 设计：首批优化、ODR 合并与 nursery
 
-状态：实施中。已完成的功能、提交批次与实际验证见 [PROGRESS.md](PROGRESS.md)；本设计列出的待完成项目不视为已经通过。
+状态：2026-10-07 已完成 M31-1～M31-6。功能与版本见 [ACCEPTANCE.md](ACCEPTANCE.md)，运行效率、代码大小、GC 收益与回退见 [PERFORMANCE.md](PERFORMANCE.md)，分批提交和实际验证见 [PROGRESS.md](PROGRESS.md)。
 
 日期：2026-10-07。
 
@@ -345,12 +345,18 @@ M31-1 的配置通路可先验证 machine O0/O2，不能因此宣布完整 relea
 
 记录编译器 revision、target/toolchain、实际 mode/pass、nursery 参数、输入规模、运行次数与环境。至少输出运行时间/吞吐、编译时间、exe/`.slib` 大小、分配量、minor/full 次数、复制/晋升量、扫描脏区与 GC 停顿分布；区分 committed accounting 与实际 RSS。
 
-先保存 M30 基线，再分别比较“仅编译器优化”“仅分代”“两者组合”，避免把 runtime 本来就有的 O2 或测试环境变化记成收益。使用足够运行次数的中位数和波动范围；correctness CI 不以任意毫秒阈值决定程序是否合法。关键用例的明显回退需要解释或修正，指标不改善时先定位原因，不靠扩大工作量或删除正确性检查制造结果。
+先保存 M30 基线，再分别比较“仅编译器优化”“仅分代”“两者组合”，避免把 runtime 本来就有的 O2 或测试环境变化记成收益。使用足够运行次数的中位数和波动范围；correctness CI 不以任意毫秒阈值决定程序是否合法。关键用例的运行效率明显回退需要解释或修正，指标不改善时先定位原因，不靠扩大工作量或删除正确性检查制造结果。按本阶段范围，重点评估生成代码的执行效率、产物大小与 GC 工作量；编译耗时只保留原始观测，编译速度优化留待后续，不因构建变慢延后 M31 交付。
 
 实施时采用同一 M31 revision 的四组控制：debug/full-only、release/full-only、debug/nursery、release/nursery。full-only 使用 runtime spec 3.9 的诊断开关，在相同 refill 容量请求普通 full；每个 profile 只编译一次，同一个 executable 分别运行两种收集方式。四组共同包含 ABI 5、跨 line 分配、Scoop 局部清理与必要 GC lowering，因此 compiler 因子只表示 debug→release 的额外优化，nursery 因子只表示 minor 与 full 的差异；整个 M31 与保留 M30 的比较另列。新增大旧图和高存活率/pin 用例检验退化行为。不同宿主或模拟环境各自建立基线，不把容器数据与 NUC 原生时间相除。
 
 ## 9. 明确留待后续
 
-以下不纳入 M31 完成门：跨 callable LLVM module 重组与自动内联、全程序去虚拟化、通用逃逸分析、managed allocation 消除、协程 frame elision、循环 bounds-check elimination、激进 unroll/vectorization、LTO/ThinLTO、PGO、survivor/多级代龄、自适应晋升、parallel/concurrent GC、arena 扩容/多 arena，以及调试信息体系。
+以下不纳入 M31 完成门：编译速度优化、跨 callable LLVM module 重组与自动内联、全程序去虚拟化、通用逃逸分析、managed allocation 消除、协程 frame elision、循环 bounds-check elimination、激进 unroll/vectorization、LTO/ThinLTO、PGO、survivor/多级代龄、自适应晋升、parallel/concurrent GC、arena 扩容/多 arena，以及调试信息体系。
 
 这些工作以后按实际瓶颈单独设计。M31 以可用的优化构建、可互换且正确配对的 ODR 实现、真实 nursery/minor 闭环和可核对的性能数据完成，不以额外授权、指纹证明或假想通用框架扩充验收门槛。
+
+## 10. 实施与验收闭合
+
+M31-1～M31-6 均已实现并按功能分批提交。Darwin 的 2552 项适用 fixture 全部通过，7 项不适用；GNU/musl 的 127 项定向选择分别为 112/115 项普通通过，其余按平台不适用。NUC 原生 LLVM 22.1.2 另完成三个重点组合的双 target 复验。Rust workspace 与 Linux codegen 的完整运行及后续定向修复已闭合，具体计数与未执行的 Linux 全量范围见验收记录。
+
+三个 target 均保留八个固定工作负载的 M30 与 M31 四组对照。主表每组使用五次实际运行，NUC 另保留未绑核原样本；记录实际机器代码节、产物大小及 GC 计数/停顿。高存活图与 musl 整数循环的回退、PMU 诊断及其限制均如实列入性能报告。编译速度按本阶段范围留待后续。

@@ -1,6 +1,6 @@
 # M31 验收记录
 
-日期：2026-10-07。状态：主要功能与三个 target 的功能验收已完成，性能测量进行中。分批实现见 [PROGRESS.md](PROGRESS.md)，范围见 [DESIGN.md](DESIGN.md)。本记录只把普通模式的实际通过结果计入最终验收；快照生成与迁移另行记录。
+日期：2026-10-07。状态：M31 功能、三个 target 的本阶段验收及性能记录已完成。分批实现见 [PROGRESS.md](PROGRESS.md)，范围见 [DESIGN.md](DESIGN.md)，运行效率与回退见 [PERFORMANCE.md](PERFORMANCE.md)。本记录只把普通模式的实际通过结果计入最终验收；快照生成与迁移另行记录。
 
 ## 1. 交付与版本
 
@@ -75,3 +75,7 @@ python3 tests/run_fixtures.py --all --work-dir tmp/m31-verify \
 ```
 
 定向验收用 `--filter` 选择实际受影响名称或 tag；Linux 指定 target 与实际 LLVM 22.1 工具。每次使用新工作目录，可复制普通 cache 目录复用产物，不能用符号链接替换 cache 根。debug/test 构建使用 `opt-level=1`、关闭增量以控制时间和 target 空间，保留 debug assertions 与溢出检查。性能工作负载及四组对照入口见 [benchmarks](../../tests/benchmarks/README.md)。
+
+## 5. 性能完成记录
+
+三 target 的八项固定输入、M30 基线及 M31 四组对照已完成，实际机器代码节、产物大小、运行样本和 GC 数据见 [PERFORMANCE.md](PERFORMANCE.md)。主表使用 600 次实际执行，NUC 最初的 400 个未绑核样本另行保留；不同宿主的时间不相除。报告如实保留高存活与 musl 整数循环的回退，后者另有 PMU 诊断，不能据较小代码体积推断所有程序更快。编译速度优化不作为本阶段收尾工作。
