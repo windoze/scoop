@@ -10,25 +10,20 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Owner> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Owner> niche(kind=managed,payload_variant=1)
-  extern ef0 record @m24_release_owner(i32) -> void <c exact=(Int)->void bridge=@scoop$1$br$1c2762b856d3dac0d009be4cee0baaeb29adc8df8129c08fb9a66c63b6c7d13c gc-leaf nounwind lib=m24_release>
-  extern ef1 count @m24_release_owner_count(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$dad8b8d630a0a7154889f7a38ca0bcea18a663e13448bb3e43c80d6b1a0aee34 gc-leaf nounwind lib=m24_release>
+  extern ef0 record @m24_release_owner(i32) -> void <c exact=(Int)->void direct-c=(i32)->void gc-leaf nounwind lib=m24_release>
+  extern ef1 count @m24_release_owner_count(i32) -> i32 <c exact=(Int)->Int direct-c=(i32)->i32 gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$95079d2b07c805d872d14cbb39f999cb7bcba270ebd589d10c612efdabe0bf51(i32) -> void
-    local %0 $sc.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i32) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$49146d47e084ea6d5afca461c47f41cf4a5aaadc87aee13704427bf9dbf04afa(i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32) -> i32 extern1(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$8230609bbf403392a9500daf985afe320f520cdc59131c015a7d00a4f5f9201f(i32) -> void
     local %0 $argument.0: i32
@@ -38,8 +33,6 @@ Module
     local %4 $dependency.parameter.other: i32
     local %5 $dependency.argument.0: i1
     local %6 $dependency.parameter.value: i1
-    local %7 $sc.1: i32
-    local %8 $sc.2: i32
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
@@ -48,16 +41,15 @@ Module
     t1 = aggregate () : {}
     store param0 -> local0
     store local0 -> local1
-    store local1 -> local7
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local8 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local7))
-    store local8 -> local2
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t2 = sig=direct0 (i32) -> i32 extern1(local1)
+    store t2 -> local2
     store integer<Int>(0x00000000) -> local3
     store local3 -> local4
-    t2 = integer_compare_Equal<Int> local2, local4 : i1
-    store t2 -> local5
+    t3 = integer_compare_Equal<Int> local2, local4 : i1
+    store t3 -> local5
     store local5 -> local6
     call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i1) local-fn13(local6)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     ret
   fun @scoop$1$cb$69f0d6c5d9839a514fbb04ac41e56ef09bd371277d07b8fd9acb1fbcb98f557c(i32) -> void
     local %0 $argument.0: i32
@@ -67,8 +59,6 @@ Module
     local %4 $dependency.parameter.other: i32
     local %5 $dependency.argument.0: i1
     local %6 $dependency.parameter.value: i1
-    local %7 $sc.1: i32
-    local %8 $sc.2: i32
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
@@ -77,16 +67,15 @@ Module
     t1 = aggregate () : {}
     store param0 -> local0
     store local0 -> local1
-    store local1 -> local7
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local8 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local7))
-    store local8 -> local2
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t2 = sig=direct0 (i32) -> i32 extern1(local1)
+    store t2 -> local2
     store integer<Int>(0x00000001) -> local3
     store local3 -> local4
-    t2 = integer_compare_Equal<Int> local2, local4 : i1
-    store t2 -> local5
+    t3 = integer_compare_Equal<Int> local2, local4 : i1
+    store t3 -> local5
     store local5 -> local6
     call managed-void-target2 sp<managed-call:2> live=[] sig=void2 (i1) local-fn13(local6)
-    t3 = aggregate () : {}
+    t4 = aggregate () : {}
     ret
   fun @scoop$1$cb$25c3530a9d5e42376d7cfe4590b39eb722b1dfd6f6f0fa8bdf8f7e35c9b3f54c() -> void
     local %0 $argument.0: i32
@@ -560,13 +549,11 @@ Module
   fun @scoop$1$cb$2ffd99181349d539f9ba91f1bdcc18a38d5ed948b498e66f75dd37b46b58a83a(ptr<raw>) -> void <no-gc>
     local %0 $argument.0: i32
     local %1 $parameter.id: i32
-    local %2 $sc.1: i32
   block entry
     t0 = release_field_load +16 : i32
     store t0 -> local0
     store local0 -> local1
-    store local1 -> local2
-    call release-native-leaf-void-target0 sig=void0 (ptr<raw>) extern0(c-arg-address(local2))
+    call release-native-leaf-void-target0 sig=void0 (i32) extern0(local1)
     t1 = aggregate () : {}
     ret
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Owner)]) @scoop$1$td$32026be6184aad634a75dd587dd0b75b58f91006ed013fdeff93e374bd704c43 type-id=4159453523744625568 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]

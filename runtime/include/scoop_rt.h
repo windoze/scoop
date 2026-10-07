@@ -9,10 +9,10 @@
 #ifndef SCOOP_RT_H
 #define SCOOP_RT_H
 
+#include "scoop_runtime_metadata_v1.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "scoop_runtime_metadata_v1.h"
 
 /* GC scan-program contract (runtime spec 2.2).
  *
@@ -44,9 +44,9 @@
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
 /* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
- * carries the pin and release-ready bits; mark, exact size and forwarding
- * state live in the arena-external side table. The remaining bits are reserved (hash cache
- * etc.). Only compiler-generated constructor publication may set release-ready.
+ * carries the pin and release-ready flags plus the explicit pin registry index.
+ * Mark, exact size and forwarding state live in the arena-external side table.
+ * Only compiler-generated constructor publication may set release-ready.
  * Source code must not touch it. TypeDescriptor shape determines each
  * aligned payload offset. */
 typedef struct ScoopObjectHeader {
@@ -86,7 +86,6 @@ void scoop_rt_gc_write_barrier(const void *destination, size_t bytes);
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
-
 /* Fixed-width primitive conversions used by ordinary core methods. */
 const ScoopString *scoop_rt_long_to_string(int64_t v);
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
@@ -98,8 +97,8 @@ int64_t scoop_rt_string_byte_length(const ScoopString *value);
 int64_t scoop_rt_string_length(const ScoopString *value);
 uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
 int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
-const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value,
-                                               int64_t start, int64_t end);
+const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value, int64_t start,
+                                               int64_t end);
 const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
 const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
 const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
@@ -176,17 +175,15 @@ typedef struct ScoopNativeRegionRootFrame {
     uint64_t count;
 } ScoopNativeRegionRootFrame;
 
-void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
-                                uint64_t count);
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots, uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
 void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
-                                       ScoopNativeRegionRootEntry *entries,
-                                       uint64_t count);
+                                       ScoopNativeRegionRootEntry *entries, uint64_t count);
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
 
-/* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side
- * metadata, with no handle-table indirection. Returns the stable object
- * address. Pinning is not ref-counted: one unpin clears any number of pins. */
+/* pin / unpin (runtime spec 3.4): amortized O(1) pin and O(1) unpin, with
+ * one counted registration per object. Each pin needs a matching unpin.
+ * Both return the object address; copying a pointer adds no ownership. */
 const void *scoop_rt_pin(const void *obj);
 const void *scoop_rt_unpin(const void *obj);
 
@@ -202,9 +199,10 @@ const void *scoop_rt_resolve_handle(uint64_t handle);
 /* Managed foreign-callback gateway (runtime spec 4.3 and 9.4). The generated
  * adapter receives the closure and registration snapshot plus C storage,
  * catches Scoop exceptions, and reports them through exception_out. */
-typedef uint64_t (*ScoopForeignCallbackAdapter)(
-    const void *closure, const void *snapshot, void *result_storage,
-    const void *const *argument_storage, void **exception_out);
+typedef uint64_t (*ScoopForeignCallbackAdapter)(const void *closure, const void *snapshot,
+                                                void *result_storage,
+                                                const void *const *argument_storage,
+                                                void **exception_out);
 
 enum {
     SCOOP_FOREIGN_CALLBACK_REUSABLE = 0,
@@ -225,17 +223,14 @@ enum {
 
 void scoop_callback_runtime_init(void);
 void scoop_callback_prepare_shutdown(void);
-void *scoop_runtime_callback_register(const void *closure,
-                                      ScoopForeignCallbackAdapter adapter,
-                                      const void *signature_descriptor,
-                                      uint32_t mode);
+void *scoop_runtime_callback_register(const void *closure, ScoopForeignCallbackAdapter adapter,
+                                      const void *signature_descriptor, uint32_t mode);
 void *scoop_runtime_callback_retain(void *context);
 void scoop_runtime_callback_release(void *context);
 uint32_t scoop_runtime_callback_state(void *context);
 const void *scoop_runtime_callback_failure(void *context);
-uint32_t scoop_runtime_callback_invoke(
-    void *context, const void *signature_descriptor, void *result_storage,
-    const void *const *argument_storage);
+uint32_t scoop_runtime_callback_invoke(void *context, const void *signature_descriptor,
+                                       void *result_storage, const void *const *argument_storage);
 uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);

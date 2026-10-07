@@ -7,7 +7,7 @@
 | 批次 | 能力 | 状态 |
 | --- | --- | --- |
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
-| M33-2 | 作用域数据借用、计数 pin | 待实现 |
+| M33-2 | 作用域数据借用、计数 pin | 计数 pin 完成；作用域数据借用待实现 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 待实现 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
 | M33-5 | errno 捕获 | 待实现 |
@@ -73,3 +73,16 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin 另有 6 项旧 FFI／callback／release 回归、7 个变体、33 个进程、30 份 golden 通过。已有不变的 negative 诊断测试与 runtime TSan 结果继续复用；未重复执行全量语言 fixture。
 - 检查三个 target 的优化后机器码：小整数参数直接进入 C ABI 寄存器，调用真实 native symbol；GCLeaf 不含该调用专用的 transition/root/safepoint，NativeSafe 仍发布根并协调返回。实际 Scoop benchmark 的 scalar 循环不含 storage bridge 或 bridge 缓冲区，正常循环 poll 仍在。
 - Darwin/GNU 各记录 72 个无 GC 样本和 8 个真实 Scoop collector 压力样本；直接 C、NativeSafe DirectC、GCLeaf DirectC、aggregate bridge 分开报告，见 [PERFORMANCE.md](PERFORMANCE.md)。清理 4,674 个已链接的 Rust 中间对象，共 6.52 GiB，保留编译库与配套 CLI。
+
+## M33-2a：计数 pin
+
+- 对同一对象的每次显式 pin 独立计数，最后一次 unpin 才解除保活和地址固定。PinnedPtr 的值复制不改变计数。普通对象头大小和公共 runtime ABI 不变，GC word 的私有高位保存 pin registry 的索引。
+- pin registry 每个对象只占一项；unpin 直接按索引访问，删除时交换末项并修正被交换对象的索引。pin 为摊还 O(1)，unpin 为 O(1)。heap lock 串行化计数、索引与 bitmap 更新，移除额外的 roots lock；pin 不提供 payload 的线程同步。
+- 新增独立 C collector 测试和两个真实 Scoop fixture，覆盖重复 pin、GC 后可达性、内部项交换、小对象／large object、泛型、数组、handle、release，以及多线程对同一对象嵌套 pin。
+
+已完成的验证：
+
+- C 格式化与严格警告检查、Rust fmt 与 codegen clippy 通过。原 19 项 runtime collector 测试通过；新增测试在 O0/O2 × full/minor 四个配置通过，并检查实际 GC 计数以区分两种收集路径。
+- GNU / clang 22.1 TSan 的 full/minor 两个进程通过，四个 mutator 与 collector 并发操作同一对象，未使用 suppression。
+- Darwin/GNU/musl 各 4 项 CLI fixture、7 个变体、43 个进程、22 份 golden 通过。新增两项在非更新模式下各复验 4 个变体、26 个进程、12 份 golden；debug/release 均运行 normal/moving/minor。
+- 4 份公共 HIR/MIR 在三平台一致，8 份 Linux LIR 单独保存。旧 roots/handles fixture 的 LIR 同步已有 DirectC 调用表示。复用已构建的 core 与 CLI，只运行 pin、handle、release 和相关 FFI 回归。

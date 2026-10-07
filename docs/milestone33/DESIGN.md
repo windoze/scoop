@@ -477,7 +477,7 @@ core 提供以下借用 API，由编译器 intrinsic 实现，元素区偏移由
 现有的 `pin`/`unpin`（用于跨越调用、无法按栈嵌套的场景）同时修正：
 
 - 改为计数：同一对象 pin 两次需要 unpin 两次，计数归零才解除。
-- `unpin` 改为 O(1)，例如在 pinned 表中保存索引。
+- `unpin` 改为 O(1)：pinned 表保存对象和显式计数，对象头的 GC 私有状态字保存登记索引；删除时交换末项并更新索引。登记与扫描共用已有 heap lock，不再为 pinned 表重复取得 roots lock。对象头大小与 `PinnedPtr.raw` 的含义不变。
 
 ### 6.3 严格与 lossy UTF-8 解码
 

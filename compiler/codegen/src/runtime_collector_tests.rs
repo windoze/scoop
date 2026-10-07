@@ -6,6 +6,9 @@ use crate::tests::platform_support::native_os_source;
 #[path = "runtime_collector_tests/nursery.rs"]
 mod nursery;
 
+#[path = "runtime_collector_tests/pins.rs"]
+mod pins;
+
 #[path = "runtime_collector_tests/thread_handshake.rs"]
 mod thread_handshake;
 

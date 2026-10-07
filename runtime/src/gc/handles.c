@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "scoop_rt.h"
 #include "gc_internal.h"
+#include "scoop_rt.h"
 
 typedef struct ScoopGcHandleSlot {
     void *object;
@@ -17,7 +17,14 @@ static ScoopGcHandleSlot *handles;
 static size_t handles_len;
 static size_t handles_cap;
 static int64_t handles_free = -1;
-static void **pinned;
+typedef struct ScoopPinnedObject {
+    void *object;
+    uint64_t count;
+} ScoopPinnedObject;
+
+/* The low three bits remain available for ordinary GC flags. */
+enum { PIN_INDEX_SHIFT = 3 };
+static ScoopPinnedObject *pinned;
 static size_t pinned_len;
 static size_t pinned_cap;
 
@@ -63,8 +70,7 @@ uint64_t scoop_rt_get_handle(const void *object) {
     } else {
         if (handles_len == handles_cap) {
             size_t new_cap = handles_cap == 0 ? 16 : handles_cap * 2;
-            ScoopGcHandleSlot *grown =
-                realloc(handles, new_cap * sizeof *grown);
+            ScoopGcHandleSlot *grown = realloc(handles, new_cap * sizeof *grown);
             if (grown == NULL) {
                 scoop_gc_roots_unlock();
                 scoop_gc_roots_fatal("out of memory growing the handle table");
@@ -126,32 +132,65 @@ const void *scoop_rt_resolve_handle(uint64_t handle) {
     return object;
 }
 
+static size_t pin_index(const void *object) {
+    const ScoopObjectHeader *header = object;
+    return (size_t)(__atomic_load_n(&header->gc_word, __ATOMIC_ACQUIRE) >> PIN_INDEX_SHIFT);
+}
+
+static void set_pin_index(void *object, size_t index) {
+    ScoopObjectHeader *header = object;
+    const uint64_t flags = (UINT64_C(1) << PIN_INDEX_SHIFT) - 1;
+    uint64_t previous = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
+    uint64_t next;
+    do {
+        next = (previous & flags) | ((uint64_t)index << PIN_INDEX_SHIFT);
+    } while (!__atomic_compare_exchange_n(&header->gc_word, &previous, next, false,
+                                          __ATOMIC_RELEASE, __ATOMIC_RELAXED));
+}
+
+static void require_pin_object(const void *object) {
+    if (!scoop_gc_is_object_start_locked(object)) {
+        scoop_gc_roots_fatal("pin operation: not a GC heap object");
+    }
+}
+
+static ScoopPinnedObject *resolve_pin(const void *object, size_t index) {
+    if (index == 0 || index > pinned_len || pinned[index - 1].object != object) {
+        scoop_gc_roots_fatal("scoop_rt_unpin: object is not pinned");
+    }
+    return &pinned[index - 1];
+}
+
 const void *scoop_rt_pin(const void *object) {
     if (object == NULL) {
         return NULL;
     }
     scoop_gc_heap_lock();
-    if (!scoop_gc_is_object_start_locked(object)) {
-        scoop_gc_heap_unlock();
-        scoop_gc_roots_fatal("scoop_rt_pin: not a GC heap object");
-    }
-    scoop_gc_roots_lock();
-    bool was_pinned = scoop_gc_update_pin_locked(object, true);
-    if (!was_pinned) {
+    require_pin_object(object);
+    size_t index = pin_index(object);
+    if (index != 0) {
+        ScoopPinnedObject *entry = resolve_pin(object, index);
+        if (entry->count == UINT64_MAX) {
+            scoop_gc_roots_fatal("pin count overflow");
+        }
+        entry->count++;
+    } else {
         if (pinned_len == pinned_cap) {
+            if (pinned_cap > SIZE_MAX / (2 * sizeof *pinned)) {
+                scoop_gc_roots_fatal("pinned registry size overflow");
+            }
             size_t new_cap = pinned_cap == 0 ? 8 : pinned_cap * 2;
-            void **grown = realloc(pinned, new_cap * sizeof *grown);
+            ScoopPinnedObject *grown = realloc(pinned, new_cap * sizeof *grown);
             if (grown == NULL) {
-                scoop_gc_roots_unlock();
-                scoop_gc_heap_unlock();
-                scoop_gc_roots_fatal("out of memory growing the pinned list");
+                scoop_gc_roots_fatal("out of memory growing the pinned registry");
             }
             pinned = grown;
             pinned_cap = new_cap;
         }
-        pinned[pinned_len++] = (void *)object;
+        pinned[pinned_len++] = (ScoopPinnedObject){(void *)object, 1};
+        set_pin_index((void *)object, pinned_len);
+        (void)scoop_gc_update_pin_locked(object, true);
     }
-    scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
     return object;
 }
@@ -161,31 +200,18 @@ const void *scoop_rt_unpin(const void *object) {
         return NULL;
     }
     scoop_gc_heap_lock();
-    if (!scoop_gc_is_object_start_locked(object)) {
-        scoop_gc_heap_unlock();
-        scoop_gc_roots_fatal("scoop_rt_unpin: not a GC heap object");
-    }
-    scoop_gc_roots_lock();
-    bool was_pinned = scoop_gc_update_pin_locked(object, false);
-    if (!was_pinned) {
-        scoop_gc_roots_unlock();
-        scoop_gc_heap_unlock();
-        scoop_gc_roots_fatal("scoop_rt_unpin: object is not pinned");
-    }
-    bool found = false;
-    for (size_t index = 0; index < pinned_len; index++) {
-        if (pinned[index] == object) {
-            pinned[index] = pinned[--pinned_len];
-            found = true;
-            break;
+    require_pin_object(object);
+    size_t index = pin_index(object);
+    ScoopPinnedObject *entry = resolve_pin(object, index);
+    if (--entry->count == 0) {
+        pinned_len--;
+        if (index - 1 != pinned_len) {
+            pinned[index - 1] = pinned[pinned_len];
+            set_pin_index(pinned[index - 1].object, index);
         }
+        set_pin_index((void *)object, 0);
+        (void)scoop_gc_update_pin_locked(object, false);
     }
-    if (!found) {
-        scoop_gc_roots_unlock();
-        scoop_gc_heap_unlock();
-        scoop_gc_roots_fatal("pinned registry is inconsistent");
-    }
-    scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
     return object;
 }
@@ -197,6 +223,6 @@ void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor) {
         }
     }
     for (size_t index = 0; index < pinned_len; index++) {
-        visitor.visit_slot(&pinned[index], visitor.context);
+        visitor.visit_slot(&pinned[index].object, visitor.context);
     }
 }
