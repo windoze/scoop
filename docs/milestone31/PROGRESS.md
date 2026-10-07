@@ -125,3 +125,10 @@
 - Rust fmt、workspace clippy 通过；codegen 定向 62 项、LIR backend/foundation/production 227 项、slib profile/compatibility 23 项通过。真实交叉对象覆盖 Darwin、GNU、musl 的别名根 2→1、常量根 1→0、release 删除死 invoke/登记及 image/COMDAT 关联。
 - Darwin 新增 SSA roots 正式用例通过 debug/release/full-moving/minor、源码移除后的独立链接与运行，共 3 个变体、12 个进程、9 份阶段快照（56.86s）。组合回归的浮点、Context、协程、nursery、跨卡复制及混合优化 ODR 已通过；另修正冷缓存用例与共享 core 缓存的冲突，以及协程用例遗留的完整 startup 快照，保留真实链接计划一致性和运行检查。两个修正用例单独复测通过，共 4 个变体、20 个进程和 8 份阶段快照。
 - 使用 Cargo 按包清理闲置 debug 产物 2.4 GiB，保留 release 工具。NUC SSH 继续超时；已建立独立 Debian 13/amd64 容器，LLVM 22.1.8，实际执行 GNU PIE、musl static/PIE cleanup/catch/delete 探针均通过。GNU 的七个 M31 用例通过，包含 SSA roots、局部值、nursery/native 和跨卡复制；首次混合 ODR 运行发现 ELF 匿名只读数据缺少 atom 归属，继续修正，冷缓存用例亦需在新声明下复测。容器结果不作为 NUC 原生性能数据。
+
+## M31-6：可重复的 GC 性能对照
+
+- 增加默认关闭的 `SCOOP_GC_FULL_ONLY=1`，在原 nursery refill 压力点请求普通 full；分配容量、布局与屏障不变，不使用 full-moving stress 充当单代性能。内部统计增加 minor/full 暂停总量与八档分布，不改变公开 `ScoopGcMetrics` 或 runtime ABI。
+- 测量脚本每个 profile 只构建一次，同一 executable 交替运行 nursery/full-only，检查输出、实际收集种类与暂停计数。新增八倍旧图和高存活率/pin 两个程序，原六个基线工作负载不变。
+- Rust fmt、workspace clippy、C 严格告警与 Ruff 0.16.10 通过。五项 nursery 定向测试通过，包含 refill/full 对照、脏区与 pin、晋升失败、多 mutator 和 callback/frozen roots；两个新程序在 Darwin debug 的两种收集模式实际编译运行通过，输出分别为 `199680`、`196614`。该轮与构建并行，仅用于功能验证，不计入性能结果。
+- 最终报告分别比较同 revision 的 debug/release × nursery/full-only，以及整个 M31 与同环境 M30；实际性能测量与 Linux 验收继续进行。

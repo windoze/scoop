@@ -113,6 +113,7 @@ fn compile_and_run(
         .env_remove("SCOOP_GC_STRESS_MOVE")
         .env_remove("SCOOP_GC_STRESS_MINOR")
         .env_remove("SCOOP_GC_STATS")
+        .env_remove("SCOOP_GC_FULL_ONLY")
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();

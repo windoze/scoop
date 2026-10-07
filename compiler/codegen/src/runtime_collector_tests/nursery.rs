@@ -1,6 +1,25 @@
 use super::{compile_and_run, workspace_root};
 
 #[test]
+fn full_only_diagnostic_keeps_the_same_nursery_allocation_path() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "full_only_test",
+        "runtime/tests/full_only_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"full-only collection preserves nursery allocation and roots\n"
+    );
+}
+
+#[test]
 fn minor_rewrites_callback_native_and_frozen_segment_roots() {
     let output = compile_and_run(
         &workspace_root(),

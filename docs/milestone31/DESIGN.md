@@ -339,6 +339,8 @@ M31-1 的配置通路可先验证 machine O0/O2，不能因此宣布完整 relea
 
 先保存 M30 基线，再分别比较“仅编译器优化”“仅分代”“两者组合”，避免把 runtime 本来就有的 O2 或测试环境变化记成收益。使用足够运行次数的中位数和波动范围；correctness CI 不以任意毫秒阈值决定程序是否合法。关键用例的明显回退需要解释或修正，指标不改善时先定位原因，不靠扩大工作量或删除正确性检查制造结果。
 
+实施时采用同一 M31 revision 的四组控制：debug/full-only、release/full-only、debug/nursery、release/nursery。full-only 使用 runtime spec 3.9 的诊断开关，在相同 refill 容量请求普通 full；每个 profile 只编译一次，同一个 executable 分别运行两种收集方式。四组共同包含 ABI 5、跨 line 分配、Scoop 局部清理与必要 GC lowering，因此 compiler 因子只表示 debug→release 的额外优化，nursery 因子只表示 minor 与 full 的差异；整个 M31 与保留 M30 的比较另列。新增大旧图和高存活率/pin 用例检验退化行为。不同宿主或模拟环境各自建立基线，不把容器数据与 NUC 原生时间相除。
+
 ## 9. 明确留待后续
 
 以下不纳入 M31 完成门：跨 callable LLVM module 重组与自动内联、全程序去虚拟化、通用逃逸分析、managed allocation 消除、协程 frame elision、循环 bounds-check elimination、激进 unroll/vectorization、LTO/ThinLTO、PGO、survivor/多级代龄、自适应晋升、parallel/concurrent GC、arena 扩容/多 arena，以及调试信息体系。

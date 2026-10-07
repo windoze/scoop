@@ -103,6 +103,7 @@ typedef struct ScoopGcHeapState {
     bool arena_ready;
     bool stress_move;
     bool stress_minor;
+    bool full_only;
     bool print_metrics;
     bool collection_active;
     size_t nursery_bytes;
@@ -110,6 +111,9 @@ typedef struct ScoopGcHeapState {
     _Atomic(uint64_t) allocated_bytes;
     _Atomic(uint64_t) nursery_allocated_bytes;
     ScoopGcMetrics metrics;
+    uint64_t minor_pause_ns;
+    uint64_t full_pause_ns;
+    uint64_t pause_buckets[8];
     char *old_cursor;
     char *old_limit;
     uint32_t evacuation_block;

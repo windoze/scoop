@@ -250,6 +250,18 @@ static void collect(bool minor) {
     if (elapsed > scoop_gc_heap_state.metrics.maximum_pause_ns) {
         scoop_gc_heap_state.metrics.maximum_pause_ns = elapsed;
     }
+    if (minor) {
+        scoop_gc_heap_state.minor_pause_ns += elapsed;
+    } else {
+        scoop_gc_heap_state.full_pause_ns += elapsed;
+    }
+    static const uint64_t bounds[] = {10000, 50000, 100000, 500000,
+                                      1000000, 5000000, 10000000};
+    size_t bucket = 0;
+    while (bucket < 7 && elapsed > bounds[bucket]) {
+        bucket++;
+    }
+    scoop_gc_heap_state.pause_buckets[bucket]++;
     scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
     scoop_thread_end_collection();
@@ -257,7 +269,9 @@ static void collect(bool minor) {
 
 void scoop_gc_collect_internal(void) { collect(false); }
 
-void scoop_gc_collect_minor_internal(void) { collect(!scoop_gc_stress_move_enabled()); }
+void scoop_gc_collect_minor_internal(void) {
+    collect(!scoop_gc_stress_move_enabled() && !scoop_gc_heap_state.full_only);
+}
 
 void scoop_rt_gc_collect_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                               uintptr_t frame_pointer) {

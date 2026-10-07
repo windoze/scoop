@@ -113,6 +113,8 @@ void scoop_gc_heap_init(void) {
     stress_move = stress != NULL && strcmp(stress, "1") == 0;
     const char *minor = getenv("SCOOP_GC_STRESS_MINOR");
     scoop_gc_heap_state.stress_minor = minor != NULL && strcmp(minor, "1") == 0;
+    const char *full = getenv("SCOOP_GC_FULL_ONLY");
+    scoop_gc_heap_state.full_only = full != NULL && strcmp(full, "1") == 0;
     const char *metrics = getenv("SCOOP_GC_STATS");
     scoop_gc_heap_state.print_metrics = metrics != NULL && strcmp(metrics, "1") == 0;
     arena_init();
