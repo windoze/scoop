@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-2026-10-07，M31 设计已制定、待实现：首批优化、按身份与 ABI 合并 ODR、nursery/minor GC，详见 2.19 和 [M31 设计](../milestone31/DESIGN.md)。本次只更新文档，M30 为当前已实现基线；历史阶段的正文摘要判等和单代 GC 约束按 M31 条款迁移。
+2026-10-07，M31 的首批优化、按身份与 ABI 合并 ODR、nursery/minor GC 已落地，正在完成总验收和性能测量，详见 2.19、[M31 设计](../milestone31/DESIGN.md)和[实施记录](../milestone31/PROGRESS.md)。历史阶段的正文摘要判等和单代 GC 约束已按 M31 条款迁移。
 
 2026-10-07，M30 已实现并通过验收：Float/Double 的 typed representation、常量、运算、codec 与完整产物消费贯通，普通 IEEE 比较与显式 totalOrder 分离，不提供浮点 Hash，见 2.18、语言规范11.2.2及运行时规范6.1。实际平台范围和测试结果见[验收记录](../milestone30/ACCEPTANCE.md)；Int128/UInt128、Float128 的调研见 [M30 调研记录](../milestone30/INVESTIGATION.md)。
 
@@ -1922,6 +1922,12 @@ Mach-O 对象读取器将 LLVM/Clang 产生的 `__TEXT,__literal4`、`__literal8
 
 首批 release 普通 pass 顺序为 SROA、mem2reg、InstCombine、EarlyCSE、DSE、ADCE、末次 EarlyCSE、SCCP 和 UnreachableBlockElim；debug 使用 SROA、mem2reg、SCCP 与同一不可达块清理。SCCP 先折叠常量分支，避免 RS4GC 自身再次清理这些边时删除已经定稿的站点；不可达块清理不合并或复制 GC call，末次 EarlyCSE 合并死存储删除后暴露的相同加载，避免将指令选择必然共用的值计为多个根。codegen 在此后保留实际 site、invoke 与 landing pad 关系，生成该实现的 GC/EH 计划；落选 site 的登记、ODR 私有 member、stackmap 摘要输入及物理符号退出本次产物，无需 EH/stackmap 的 body 同步去除相关附属 atom。独立 metadata 与候选 image 在这一步之后发射，引用最终集合。其余未变化的类型、布局、根扫描与初始化记录直接复用。
 
+保留 site 沿用原 owner、role 和 ordinal 构成的 typed identity，不因前面的站点被删除而重新编号。优化后的 foundation 可以只含同一 role 的稀疏 ordinal；reader 检查真实 owner、唯一的 owner/role/ordinal 及 site 与 runtime mapping 的一一对应，不再要求最终集合从零连续。优化前完整 LIR 的编号规则与实际对象的缺失/额外 stackmap、return PC 和根检查保持。
+
+首批后端为具有 unwind 边的 NoGC invoke 添加 LLVM 标准 `nomerge` call-site 属性，保留最终 EH 清单与实际受保护调用的一一关系。该局部约束防止 machine O2 将多个异常抛出路径的调用尾部合并；不可达调用仍可由前述普通 pass 删除，NoGC 不因此被视作 nounwind，普通无 unwind 边的调用不受此约束。
+
+InstCombine 使用 LLVM 默认的一轮处理及标准 `no-verify-fixpoint` 选项：本批不要求单轮已消除所有后续优化机会，不能因 LLVM 的固定点自检拒绝合法程序。此选项不关闭 LLVM IR verifier；普通 pass 之后的类型/CFG、最终 GC/EH 计划及对象检查仍按原边界执行。
+
 实际 code/stackmap plan 随所选实现进入 code/object 元数据；它不进入跨 Cone ABI 或 ODR 内容判等，也不反向污染 dependency semantic fingerprint。保持 frame pointer、stack-only writable root、精确 return PC、AS1 provenance、无 exceptional relocate、禁止 managed tail call/ICF 等已经验证的后端合同。
 
 LLVM 为大值 `byval` 参数生成的标准 `memcpy` 不展开异常，也不新增 LIR invoke。EH 对象检查依据真实的直接调用指令及 `memcpy` 符号重定位识别这类后端复制；它可以位于已有 LSDA 保护区间内，但不计入需要与 LIR 对应的可展开调用数。未知外部调用、实际 managed site、landing pad 与保护区间仍按原合同检查，不能把普通 NoGC effect 当作不展开异常的保证。
@@ -1954,7 +1960,7 @@ ABI 5 字段迁移对应 LIR `identity-foundation/6`、`strong-production/20`、
 
 LIR 根计划之前的既有局部常量清理同时处理 typed integer 常量与复制后的整数比较；比较严格按声明的 signedness/width 解释，不经过浮点或宿主有符号溢出运算。常量确定的条件边在分配 site identity 前删除，使例如已知正数的数组长度检查不会将不可能执行的异常分配留给机器优化删除。该正确性清理对两个 profile 都适用；取址与调用仍按既有局部失效规则处理，不跨未知内存写入传播。
 
-M31-1 的配置格式先独立落地：child protocol 为 4，build request 新增必需 field 9 `OptimizationMode`（Debug=1、Release=2）。manifest `single-cone-production/4` 新增必需 field 12，同一模式同时选择本次 Scoop machine O0/O2 与 generated-C O0/O2；该字段进入 Code/Artifact，不进入 HIR/MIR/LIR 依赖语义或 ABI。当前普通 IR 仍使用 SROA/mem2reg，后续首批 pass 的配置与版本另按实际落地更新。generated-C 通用 flag 合同的原 Unoptimized tag 6 退役，SelectedOptimization 使用 tag 15，实际 flag 由 field 12 决定。编译缓存域为 `scoop-cone-compile-cache-v2`，新增必需 mode field 13；runtime 和 final-link 继续使用各自已有配置。旧请求、manifest 和缓存不再作为本批输入。
+M31-1 的配置格式先独立落地：child protocol 为 4，build request 新增必需 field 9 `OptimizationMode`（Debug=1、Release=2）。manifest `single-cone-production/4` 新增必需 field 12，同一模式同时选择本次 Scoop machine O0/O2 与 generated-C O0/O2；该字段进入 Code/Artifact，不进入 HIR/MIR/LIR 依赖语义或 ABI。该批普通 IR 使用 SROA/mem2reg；随后落地的首批 pass、SSA 根分组与最终发射计划使用本节前述 field 28=1 合同。generated-C 通用 flag 合同的原 Unoptimized tag 6 退役，SelectedOptimization 使用 tag 15，实际 flag 由 field 12 决定。编译缓存域为 `scoop-cone-compile-cache-v2`，新增必需 mode field 13；runtime 和 final-link 继续使用各自已有配置。旧请求、manifest 和缓存不再作为本批输入。
 
 Darwin 的 O2 对象可包含标准 `LC_LINKER_OPTIMIZATION_HINT`。对象 reader 按 linkedit-data command 的固定大小检查其数据范围，并与现有 section、重定位、符号和字符串表统一检查非重叠；该数据随所在对象进入普通 Code 内容，交由 native linker 消费，不作为 ABI 或独立定义判等数据。
 
@@ -1963,6 +1969,6 @@ Darwin 的 O2 对象可包含标准 `LC_LINKER_OPTIMIZATION_HINT`。对象 reade
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。
-2. **后续 GC 演进**：M31 已设计 nursery、晋升与 remembered set，见 2.19 和 runtime spec 3.6/3.9；M30 的三 target 单代基线仍为当前实现。survivor、arena 扩容及 parallel/concurrent collector 留待后续，不作为 M31 完成门。
+2. **后续 GC 演进**：M31 已实现 nursery、晋升与 remembered set，见 2.19 和 runtime spec 3.6/3.9。survivor、arena 扩容及 parallel/concurrent collector 留待后续，不作为 M31 完成门。
 3. **off-heap ByteBuffer 与外部内存反馈**：已移出 M26，后续单独设计增长、borrow/view、close、失败原子性、external-memory pressure accounting 与 managed 侧 GC 反馈；它不改变 M24 release hook 的 best-effort 时机。
 4. **Windows 异常**（catchpad）与调试信息（line table 等）留待后续。

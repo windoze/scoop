@@ -117,6 +117,12 @@ Scoop 局部变换安排在 MIR 或 LIR root-plan 定稿前的已有入口。仅
 
 最终计划是实际代码的 metadata，不是跨 Cone ABI 或 ODR 判等信息。LIR 自身仍须完整且正确；普通优化已证明不可达的 site 不再出现在发射清单，活跃站点必须具有准确 owner/role 与完整根。不能先让 LLVM 随意删除/复制调用，再以旧 LIR 清单不匹配为由拒绝一切优化，也不能从生成出的 stackmap 倒推“应该有几个根”。
 
+最终保留的 site 不重新编号，继续使用原 owner/role/ordinal 的 typed identity；删除首个或中间站点后，序号可以不连续。foundation reader 保留 owner、唯一性和 runtime mapping 完整性检查；连续编号仅约束优化前的完整 LIR。
+
+NoGC invoke 使用标准 `nomerge` call-site 属性防止 machine O2 合并多个受保护调用，维持最终 EH 清单的对应关系；不可达删除继续按实际 LLVM 结果投影，不把 NoGC 当作 nounwind。
+
+InstCombine 沿用默认的一轮处理，以 `no-verify-fixpoint` 关闭仅检查是否仍有优化机会的内部断言；不要求首批优化达到全局固定点，LLVM IR、GC/EH 和对象 verifier 继续运行。
+
 首批不启用会复制/合并 GC site 的 inlining、loop unroll、vectorization 或 tail duplication。具体 pass 名称、顺序和 CFG 选项由 LLVM 22.1 的三 target qualification 冻结；这是一项有限的实现选择，不改变上述完成范围。未经验证不直接接入完整 `default<O2>`；如果某个 pass 无法满足 site 约束，使用能完成同类局部优化的受限组合，并在实施记录解释实际配置。
 
 运行期保留每个 managed 入口及实际循环路径的 poll 覆盖；优化不能造成无握手机会的无限循环。外部可见 callable 的 GC effect 与调用边界不按某次优化结果变更。RS4GC 之后不再运行任意改写 site/call/GC liveness 的普通 IR pipeline。

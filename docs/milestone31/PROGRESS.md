@@ -172,3 +172,11 @@
 - 性能 JSON 增加内部 `copied_bytes`，在已有 evacuation 执行真实 `memcpy` 时累加；公开 `ScoopGcMetrics` 和 runtime ABI 保持。晋升量继续包含 pin block 原地转代，复制量只记录实际搬迁，能够分别观察高存活率的两种成本。
 - C 严格告警与五项 nursery 回归通过。Darwin 高存活率/pin 程序在 nursery/full-only 下均输出 `196614`，两组实际复制量为 6,365,264 / 917,672 bytes，晋升量均为 6,815,768 bytes，收集次数分别为 minor/full 6/1 与 0/7。
 - 上述运行与其他编译并行，仅确认统计字段和行为；正式耗时仍由后续串行测量记录。
+
+## 优化后的站点与异常边界
+
+- foundation reader 接受删除不可达站点后留下的稀疏 ordinal，保留原 typed identity、owner/role/ordinal 唯一性及 runtime mapping 的一一关系，不重新编号。优化前完整 LIR 的连续编号约束与实际 stackmap/return PC/根检查保持。对应关系测试覆盖 `[1, 3, u32::MAX]` 的读取及原样编码。
+- NoGC invoke 添加标准 `nomerge` call-site 属性，避免 machine O2 合并多个异常抛出调用而破坏最终 EH 清单。只约束有 unwind 边的调用，不把 NoGC 改为 nounwind；Context/协程、debug/release 与 moving 组合在 Darwin、GNU、musl 普通模式均通过。
+- release 的 InstCombine 使用默认一轮及 `no-verify-fixpoint`。LLVM 22.1 的默认单轮可能仍留有后续优化机会，固定点自检不能作为合法程序的资格条件；LLVM IR、GC/EH 与对象 verifier 继续运行。GNU/musl 的整数矩阵和 release 迭代程序已实际编译运行成功，快照生成轮与后续普通复验分别记录。
+- 三批 Rust 均先 fmt 与 workspace release clippy，再定向验证 foundation 12 项、EH 19 项、普通优化与最终根计划 6 项，全部通过。新增代码位于既有模块，相关实现文件为 72、165、451 行；删除了 50 多行不再适用的最终连续性检查。
+- 复验使用固定的配套工具。第二套临时工具完成任务后，按其实际 Cargo 生成目录清理 2257 个文件、1.9 GiB；当前工具与 fixture 缓存继续保留。

@@ -25,12 +25,6 @@ pub enum SafepointRelationError {
         role: SafepointSiteRole,
         ordinal: u32,
     },
-    NonContiguousOrdinal {
-        owner: PersistentCallableBodyId,
-        role: SafepointSiteRole,
-        expected: u32,
-        actual: u32,
-    },
     UnexpectedMapping {
         site: PersistentSafepointSiteId,
     },
@@ -58,15 +52,6 @@ impl fmt::Display for SafepointRelationError {
             } => write!(
                 formatter,
                 "LIR callable body {owner} repeats {role:?} safepoint ordinal {ordinal}"
-            ),
-            Self::NonContiguousOrdinal {
-                owner,
-                role,
-                expected,
-                actual,
-            } => write!(
-                formatter,
-                "LIR callable body {owner} has non-contiguous {role:?} safepoint ordinals: expected {expected}, found {actual}"
             ),
             Self::UnexpectedMapping { site } => {
                 write!(

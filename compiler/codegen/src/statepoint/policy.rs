@@ -40,7 +40,7 @@ pub(crate) fn optimize(
     let passes = match profile.optimization() {
         scoop_lir::OptimizationMode::Debug => "function(sroa,mem2reg,sccp,unreachableblockelim)",
         scoop_lir::OptimizationMode::Release => {
-            "function(sroa,mem2reg,instcombine,early-cse,dse,adce,early-cse,sccp,unreachableblockelim)"
+            "function(sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,dse,adce,early-cse,sccp,unreachableblockelim)"
         }
     };
     module
