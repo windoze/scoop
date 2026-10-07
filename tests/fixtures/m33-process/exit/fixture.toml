@@ -1,0 +1,135 @@
+schema = 1
+name = "m33-process-exit"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "ffi", "gc", "process", "stage-golden"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-pthread", "-O2", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libfixture_native.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${root}", to = "${work}/source/program.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/source/program.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${work}", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+timeout = 300
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "program.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "program.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "program.${profile}.${target}.lir.txt"},
+]
+
+[[steps]]
+name = "remove_source"
+files = [{remove = {path = "${work}/source"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop-link}", {each = "${link_args}"}, "--library-path", "${work}", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib"}, "--runtime-objects", "${build.result.runtime_index}", "-o", "${work}/relinked"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${work}/relinked"]
+exit = 37
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "moving"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 37
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "minor"
+argv = ["${work}/relinked"]
+env = {SCOOP_GC_STRESS_MINOR = "1"}
+exit = 37
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_0"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "-2147483648"}
+exit = 0
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_1"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "-1"}
+exit = 255
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_2"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "0"}
+exit = 0
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_3"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "1"}
+exit = 1
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_4"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "255"}
+exit = 255
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_5"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "256"}
+exit = 0
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"
+
+[[steps]]
+name = "code_6"
+argv = ["${work}/relinked"]
+env = {M33_EXIT_CODE = "2147483647"}
+exit = 255
+stdout = "stdout-buffer"
+stderr = "stderr-buffer"

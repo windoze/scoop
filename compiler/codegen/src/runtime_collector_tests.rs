@@ -76,6 +76,7 @@ fn compile_and_run_with_flags(
         "runtime/tests/platform/image_fixture.c",
         "runtime/tests/platform/stackmap_fixture.c",
         "runtime/src/startup/failure.c",
+        "runtime/src/process.c",
         "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
         "runtime/src/arrays.c",

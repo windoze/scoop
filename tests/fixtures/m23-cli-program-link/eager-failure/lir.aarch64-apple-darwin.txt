@@ -7,16 +7,13 @@ Module
   init0 top-level:first storage=@scoop$1$ss$3d12c28ed43e460d64ac3195e0b6d711d93ae5a356ef1ade4f646391b6b6b48a failure=@scoop$1$ss$d2efe1dc97f994e7bd71164eeff4cb58b23fe7d554a86f514fd8724453459ab6 initializer=@scoop$1$cb$6e8ea197a39c42a1aeaae050a7a0644bfcf377033cffc562d3da0d09b32718ee ensure=@scoop$1$cb$f6b7ed5a826d9a2c4e204dfe4453dae6e4b4fdf01f8a065bf865d27973c0a549 deps=[]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option niche(kind=raw,payload_variant=0)
-  extern ef0 flush @fflush(enum1) -> i32 <c exact=(data-ptr<Int8,nullable=enum1<Int8>>)->Int bridge=@scoop$1$br$5fea41fa2df91a21b2fca2fc03e9df1fd7243704717d993ef2d55eab7162e007 gc-leaf nounwind>
+  extern ef0 flush @fflush(enum1) -> i32 <c exact=(data-ptr<Int8,nullable=enum1<Int8>>)->Int direct-c=(enum1)->i32 gc-leaf nounwind>
   fun @scoop$1$cb$5f328c9443e9b2c2a4dcf07fe2b358db7099c83b49806becd5583e2065446e11(enum1) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: enum1
-    local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (enum1) -> i32 extern0(param0)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$f7a7568f460f0f9491406516e1385904290abfee1911bd9254b417df12b12b2e(i64) -> void
     local %0 $dependency.argument.0: i64
@@ -24,8 +21,6 @@ Module
     local %2 $argument.0: enum1
     local %3 $parameter.stream: enum1
     local %4 $call.1: i32
-    local %5 $sc.1: enum1
-    local %6 $sc.2: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store param0 -> local0
@@ -35,9 +30,8 @@ Module
     t1 = enum_wrap e1 v1 () : enum1
     store t1 -> local2
     store local2 -> local3
-    store local3 -> local5
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local6 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local5))
-    store local6 -> local4
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t2 = sig=direct0 (enum1) -> i32 extern0(local3)
+    store t2 -> local4
     ret
   fun @scoop$1$cb$c2e76d706b348add516187411f5093e95a78b88d4db64afde7e824f7c2442fbb() -> i32
     local %0 $argument.0: i64

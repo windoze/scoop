@@ -24,8 +24,7 @@ static const ScoopTypeDescriptor failure_type = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(Failure),
                        .instance_alignment = 8},
-    .diagnostic_name = {(const uint8_t *)"GatewayFailure",
-                        sizeof("GatewayFailure") - 1},
+    .diagnostic_name = {(const uint8_t *)"GatewayFailure", sizeof("GatewayFailure") - 1},
 };
 static Failure *failure;
 static const uint64_t scan[] = {1, 0};
@@ -44,8 +43,7 @@ static uint32_t gateway(void) {
     _Alignas(16) uintptr_t frame[4];
     initialize_frame(frame);
     ScoopManagedAnchor anchor;
-    scoop_thread_push_safepoint_anchor(&anchor, 0x1010, (uintptr_t)frame,
-                                       (uintptr_t)&frame[2]);
+    scoop_thread_push_safepoint_anchor(&anchor, 0x1010, (uintptr_t)frame, (uintptr_t)&frame[2]);
     scoop_thread_poll();
     if (result == 1) {
         failure = scoop_gc_alloc_internal(&failure_type, sizeof *failure);
@@ -89,8 +87,7 @@ static void run_failure(unsigned test) {
     const ScoopInitializationUnitDescriptorV1 unit = {
         .cell = &cell,
         .failure_root = &failure_storage,
-        .diagnostic_path = {(const uint8_t *)"fixture.unit",
-                            sizeof("fixture.unit") - 1},
+        .diagnostic_path = {(const uint8_t *)"fixture.unit", sizeof("fixture.unit") - 1},
     };
     scoop_startup_report_failure(&failure_storage, test == 3 ? NULL : &unit);
 }
@@ -111,15 +108,18 @@ static void expect_failure(unsigned test, const char *message) {
     char output[1024] = {0};
     size_t count = 0;
     ssize_t read_count;
-    while ((read_count =
-                read(diagnostics[0], output + count, sizeof output - count - 1)) > 0) {
+    while ((read_count = read(diagnostics[0], output + count, sizeof output - count - 1)) > 0) {
         count += (size_t)read_count;
         assert(count < sizeof output - 1);
     }
     close(diagnostics[0]);
     int status;
     assert(waitpid(child, &status, 0) == child);
-    assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+    if (test < 3) {
+        assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+    } else {
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 1);
+    }
     assert(strstr(output, message) != NULL);
 }
 
@@ -137,9 +137,7 @@ int main(void) {
     expect_failure(1, "gateway failure has no published exception");
     expect_failure(2, "gateway failure has no published exception");
     expect_failure(3, "uncaught exception: GatewayFailure\n");
-    expect_failure(
-        4,
-        "uncaught exception: GatewayFailure during initialization of fixture.unit\n");
+    expect_failure(4, "uncaught exception: GatewayFailure during initialization of fixture.unit\n");
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

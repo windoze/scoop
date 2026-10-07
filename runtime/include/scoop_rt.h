@@ -119,9 +119,9 @@ void scoop_rt_println_long(int64_t value);
 void scoop_rt_print_boolean(bool value);
 void scoop_rt_println_boolean(bool value);
 
-/* M3 addition (DESIGN section 3.1): fatal trap for `!!` on `None`.
- * Writes the message to stderr and aborts; replaced by a real
- * UnwrapException throw in M8. */
+/* Language termination flushes stdio in NativeSafe before ending the process.
+ * Nothing retains its reference carrier; this function never returns it. */
+_Noreturn void *scoop_rt_exit(int32_t code);
 _Noreturn void scoop_rt_trap(const char *message);
 
 /* Checked core collection growth cannot represent another Long element. */

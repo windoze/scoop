@@ -1,0 +1,5 @@
+fun main() {
+    write("panic-buffer")
+    val impossible = MutableArray<Int>(9223372036854775807L) { 0 }
+    println(impossible.size)
+}

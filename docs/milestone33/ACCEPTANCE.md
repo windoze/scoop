@@ -9,7 +9,7 @@
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
-| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 输出完成；入口、argv 与退出待实现 |
+| M33-4 | main、argv、退出码、输出与 ABI 11/7 | 输出与退出完成；入口、argv 和 ABI 升级待实现 |
 | M33-5 | errno 捕获 | 待实现 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
@@ -143,3 +143,17 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin/GNU/musl 各 2 项正式 CLI、4 个变体、22 个进程、12 份 golden 在非更新模式下通过；debug/release 均运行 normal/moving/minor。
 - 输出用例覆盖两个流、空串、NUL、Unicode、ToString 次数与异常，并删除源码后独立链接、执行。并发用例先填满真实 pipe，确认 writer 持有 stdio 锁后，在另一线程完成 GC，再开始排空；分别验证 stdout 写入、stderr 写入与 stdout 刷新不会阻止 GC，并核对全部输出字节。
 - 4 份公共 HIR/MIR 在三平台一致，8 份 Linux LIR 单独保存。复用前一批依赖缓存，没有进行无关全量回归。
+
+## M33-4b：显式退出与失败退出
+
+- core 提供安全的 exit(Int): Nothing，作为普通 Scoop ABI extern 保留实际底类型与 reference 返回 carrier；没有 Unit 占位或返回后的伪控制流。退出请求先进入单向 NativeSafe 状态，刷新 stdout/stderr 后调用 _exit，保留完整 Int 参数。
+- 单向终止不恢复 managed 执行；已发布根、TaskContext、pin 帧和外层冻结段继续供其他线程的 GC 使用。不会执行 finally、release hook、atexit、callback/token shutdown 或 join；stdio 刷新允许正常等待消费者。
+- 未捕获异常、eager 失败和语言级 panic 刷新输出后以 1 退出。异常报告继续读取已发布 failure root 的稳定类型名，不调用用户 toString；内部 gateway/ABI 违例保留 abort。退出实现集中在 42 行 process.c。
+
+已完成的验证：
+
+- Rust fmt、受影响 toolchain/codegen clippy、C 格式化和严格警告检查通过。Darwin/GNU 的 startup gateway 测试确认合法失败以 1 退出、三个内部协议错误仍为 SIGABRT，并在报告前移动实际异常对象。
+- Darwin/GNU/musl 各 5 项正式 CLI、9 个变体、69 个进程、24 份 golden 在非更新模式下通过；debug/release 均运行 normal/moving/minor。所有正例删除源码后独立链接、执行；Nothing 通过普通包装函数流入 Int 位置，非法 Long 参数固定精确诊断。
+- 显式退出覆盖 0、1、37、255、256、负数和 Int 两端，父进程按 POSIX 低 8 位观察结果；验证缓冲内容保留，finally、release 和 atexit 均未调用。失败用例验证用户 toString 不参与诊断。阻塞用例保留活动 callback 和 C 字符串 pin 帧，分别在 exit 与 managed panic 的 stdout 刷新期间完成另一线程的真实 GC，再排空 pipe。
+- Darwin 定向复验 16 项既有异常、初始化与 program-link 用例，19 个变体、67 个进程、92 份 golden 通过。13 份旧 HIR 仅同步导入 arena 索引和 io.scoop 源码范围，eager 用例的旧 LIR 同步既有 DirectC。GNU/musl 另各通过 eager 失败的产物独立链接回归，2 个变体、8 个进程、8 份 golden。
+- 8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。旧产物复制用例复验前清理其只读临时文件，保留热缓存；没有进行全量语言回归。

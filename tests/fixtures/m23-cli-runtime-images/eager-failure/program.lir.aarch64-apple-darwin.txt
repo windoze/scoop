@@ -5,13 +5,11 @@ Module
   global @scoop$1$ss$9339b6b9f7113d861e7e4bdfb6ec30fc936ad8d608219e9ac4856f1fa56afb2b : ptr<managed> scan=refs[0]
   init0 top-level:first storage=@scoop$1$ss$fe42a23505a5f7c5b5613c078b51e6e1daa2a1e905d938021438debe7ea3f9a8 failure=@scoop$1$ss$bb9c3b88fe6a37507eace93a63ba85d97035a80435645b0d052d35eb363d970d initializer=@scoop$1$cb$c5681a0578fac21b7c14e4bbfd08457c87efd7fc14f00fba4367fa920de8ee9f ensure=@scoop$1$cb$e24221eb2ed9d36b5db7329416237d787c682b751ec4b81dd69cea9692af6330 deps=[]
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$068865085b56a5ff0d6dc4a627b8b7c0d1901e8689ea7820de471882af26c782 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$dcc5af44edd788e85271a9d6eadbaeb7bd4ab92c71f3527678d2ff2e29cf1098(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$cbfff39addb6d370e698e4aeb2fc0349355d2c559553e449eee0586093d276eb() -> i32
@@ -21,13 +19,11 @@ Module
     local %3 $default.local.1: ptr<managed>
     local %4 $dependency.parameter.message: enum0
     local %5 $new.1: ptr<managed>
-    local %6 $sc.1: i64
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Long>(0x000000000000000b) -> local0
     store local0 -> local1
-    store local1 -> local6
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local6))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     store global0 -> local2
     store local2 -> local3
@@ -42,13 +38,11 @@ Module
   fun @scoop$1$cb$fc7d4b14bea2ce847e4ce172bfdbcfa2696afed6346acb93d50eafe0de0ce012() -> void
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
-    local %2 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000063) -> local0
     store local0 -> local1
-    store local1 -> local2
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local2))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$c5681a0578fac21b7c14e4bbfd08457c87efd7fc14f00fba4367fa920de8ee9f() -> void

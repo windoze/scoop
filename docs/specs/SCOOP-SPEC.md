@@ -1523,6 +1523,8 @@ build 返回当前所有 parts 按顺序连接的 String 内容快照，空 buil
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止：先输出异常诊断并刷新输出，再以退出码 `1` 结束；eager 初始化失败与异常逃离 `main` 使用同一规则，不调用用户 `toString` 生成诊断。程序因语言级 panic 终止时也使用退出码 `1`。入口的正常返回规则见 12.4.4；runtime 内部 ABI 错误的终止规则见运行时规范第 7 章。
 
+core 提供安全的 `fun exit(code: Int): Nothing`，刷新 stdout/stderr 后以完整 Int 请求结束整个进程。它不展开调用栈，不执行 finally、release hook、线程/token shutdown 检查或 join，也不调用 C atexit；当前 POSIX target 对父进程显示退出码的低 8 位。输出刷新允许等待，期间其他线程仍可推进 GC；具体 NativeSafe 和进程终止合同见运行时规范第 7 章。
+
 跨 Cone 的 throw、catch 与类型转换使用实际 `Throwable`、`ClassCastException` 声明，同名普通 class 不能替代。catch 绑定是可返回、存储和捕获的普通 managed 异常对象，其生命周期不受 handler 限制；异常构造、默认参数、catch 顺序与 finally 均遵守本规范。引用类型转换成功时保留对象身份，强制 `as` 失败时抛出 `ClassCastException`。
 
 - generic class可以继承`Throwable`；其每个exact application都是不同异常类型并拥有不同TypeDescriptor。`catch (e: Error<Int>)`只接收该exact application及普通派生class，`catch (e: Throwable)`仍可接收全部application；不存在`Error<*>`式通配catch。
