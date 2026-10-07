@@ -132,3 +132,9 @@
 - 测量脚本每个 profile 只构建一次，同一 executable 交替运行 nursery/full-only，检查输出、实际收集种类与暂停计数。新增八倍旧图和高存活率/pin 两个程序，原六个基线工作负载不变。
 - Rust fmt、workspace clippy、C 严格告警与 Ruff 0.16.10 通过。五项 nursery 定向测试通过，包含 refill/full 对照、脏区与 pin、晋升失败、多 mutator 和 callback/frozen roots；两个新程序在 Darwin debug 的两种收集模式实际编译运行通过，输出分别为 `199680`、`196614`。该轮与构建并行，仅用于功能验证，不计入性能结果。
 - 最终报告分别比较同 revision 的 debug/release × nursery/full-only，以及整个 M31 与同环境 M30；实际性能测量与 Linux 验收继续进行。
+
+## 物理分区后的空 span
+
+- ELF 可把没有重定位的全零空哨兵放入独立只读节；对象读取接受这种填充，继续拒绝未归属的非零数据和可写/代码节。空 span 保留元素范围、alignment、只读权限及不与实际 atom 重叠的检查。
+- 删除不同记录必须使用同一 sentinel 地址、不同 sentinel 必须有不同地址的额外检查。空数组没有语言身份，不同物理成员可各自携带全零数据；修复泛型 delegate 的多个独立 storage 分区被误拒绝的问题。
+- fmt 与 Darwin/Linux workspace clippy 通过；符号/填充 6 项、静态存储 15 项通过。Linux 三个真实 ELF 测试均覆盖 GNU/musl 的静态初值、独立全零节、前缀和损坏数据；修正旧测试 helper 在多 member 下未按 intent 排序 patch site 的假设。Darwin delegate-siblings 的正式独立链接与运行复测通过。

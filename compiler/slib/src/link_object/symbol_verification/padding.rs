@@ -40,7 +40,18 @@ pub(super) fn validate_and_assign_zero_padding(
                 StrongObjectDefinitionValidationError::InvalidSectionByteRange { section: ordinal },
             )?;
         let Some(ranges) = ranges_by_section.get_mut(&ordinal) else {
-            if section.byte_size() != 0 {
+            if section.byte_size() != 0
+                && (sections.roles()[index] != BuiltinObjectSectionRoleV1::ReadOnlyData
+                    || padding_bytes(
+                        bytes,
+                        section,
+                        ordinal,
+                        section.virtual_address(),
+                        section_end,
+                    )?
+                    .iter()
+                    .any(|byte| *byte != 0))
+            {
                 return Err(StrongObjectDefinitionValidationError::UnownedSection {
                     section: ordinal,
                     role: sections.roles()[index],

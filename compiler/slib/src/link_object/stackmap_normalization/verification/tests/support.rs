@@ -50,7 +50,7 @@ pub(crate) enum Corruption {
     StaticZeroedWritableSection,
     StaticEncodedEmptyInitialState,
     StaticEncodedZeroFillSection,
-    StaticSentinelCollision,
+    StaticAliasedSentinels,
     WritableRegistrationSection,
     RelocatedRegistration,
 }

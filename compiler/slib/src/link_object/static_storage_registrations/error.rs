@@ -152,8 +152,6 @@ pub enum StrongStaticStorageRegistrationValidationError {
         storage: PersistentStaticStorageId,
         intent: DigestPatchIntentId,
     },
-    SentinelTargetMismatch(StaticStorageArtifactRoleV1),
-    SentinelTargetCollision,
     RecordRangeOverflow(PersistentStaticStorageId),
     RecordByteMismatch {
         storage: PersistentStaticStorageId,

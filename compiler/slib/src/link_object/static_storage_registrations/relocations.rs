@@ -1,5 +1,4 @@
 mod local;
-pub(super) use local::sentinel_target_key;
 use local::{validate_local_atom_target, validate_sentinel_target};
 
 use scoop_identity::{

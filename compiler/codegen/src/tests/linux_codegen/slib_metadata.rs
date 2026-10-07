@@ -25,7 +25,7 @@ fn elf_static_immortal_and_initialization_registrations() {
         )
         .expect("ELF immortal String registrations");
         assert_eq!(immortals.registrations().len(), 2);
-        immortals;
+        drop(immortals);
         let storages = verify_strong_static_storage_registrations_v1(
             sites.clone(),
             production.static_storages().clone(),
@@ -64,7 +64,7 @@ fn elf_static_immortal_and_initialization_registrations() {
             )
             .is_err()
         );
-        storages;
+        drop(storages);
         let initializations = verify_strong_initialization_registrations_v1(
             sites,
             production.initialization_units().clone(),
@@ -119,7 +119,7 @@ fn elf_encoded_storage_accepts_only_zero_sentinel_prefixes() {
             )
             .expect("a static scalar needs no immortal or initialization unit");
             assert_eq!(storages.registrations().len(), 1);
-            storages;
+            drop(storages);
             let mut damaged = fixture.objects.clone();
             let (bytes, offset) = damaged
                 .iter_mut()
@@ -153,5 +153,62 @@ fn elf_encoded_storage_accepts_only_zero_sentinel_prefixes() {
                 })
             ));
         }
+    }
+}
+
+#[test]
+fn elf_partitioned_storage_accepts_only_zero_sentinel_sections() {
+    let directory = tempfile::tempdir().unwrap();
+    for target in [
+        TargetProfileId::LinuxX86_64Gnu,
+        TargetProfileId::LinuxX86_64Musl,
+    ] {
+        let fixture = SlibObjects::new(
+            super::slib_metadata_fixture::zeroed_odr_only(target),
+            directory.path(),
+        );
+        let sites = fixture.sites(fixture.builtins(&fixture.objects), &fixture.objects);
+        let storages = verify_strong_static_storage_registrations_v1(
+            sites,
+            fixture
+                .emitted
+                .production()
+                .registration_production()
+                .static_storages()
+                .clone(),
+            &candidates(&fixture.objects),
+        )
+        .expect("zeroed storage keeps typed empty spans after physical partitioning");
+        assert_eq!(storages.registrations().len(), 1);
+
+        let mut damaged = fixture.objects.clone();
+        let (bytes, offset) = damaged
+            .iter_mut()
+            .find_map(|(_, bytes)| {
+                let file = object::File::parse(bytes.as_slice()).unwrap();
+                let offset = file.sections().find_map(|section| {
+                    if section.name() != Ok(".data.rel.ro.scoop.metadata")
+                        || section.size() == 0
+                        || file.symbols().any(|symbol| {
+                            symbol.section_index() == Some(section.index())
+                                && symbol.kind() != object::SymbolKind::Section
+                        })
+                    {
+                        return None;
+                    }
+                    assert!(section.data().unwrap().iter().all(|byte| *byte == 0));
+                    Some(section.file_range().unwrap().0 as usize)
+                })?;
+                Some((bytes, offset))
+            })
+            .expect("LLVM emits the empty sentinels in their own read-only section");
+        bytes[offset] = 1;
+        assert!(matches!(
+            fixture.try_builtins(&damaged),
+            Err(BuiltinObjectSetValidationError::StrongDefinitions {
+                source: StrongObjectDefinitionValidationError::UnownedSection { .. },
+                ..
+            })
+        ));
     }
 }

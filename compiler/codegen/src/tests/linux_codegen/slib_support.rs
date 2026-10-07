@@ -105,7 +105,7 @@ impl SlibObjects {
             })
             .collect::<Vec<_>>();
         objects.sort_by_key(|(member, _)| *member);
-        let patches = emitted
+        let mut patches = emitted
             .members()
             .iter()
             .flat_map(|member| {
@@ -122,6 +122,8 @@ impl SlibObjects {
                 })
             })
             .collect::<Vec<_>>();
+
+        patches.sort_unstable_by_key(|patch| patch.intent());
 
         Self {
             emitted,

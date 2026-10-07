@@ -62,6 +62,21 @@ pub(super) fn encoded_only(target: TargetProfileId, initial: u64) -> Module {
     module
 }
 
+pub(super) fn zeroed_odr_only(target: TargetProfileId) -> Module {
+    let mut module = for_target(values_module(), target);
+    module.globals = Arena::default();
+    module.functions.clear();
+    module.globals.alloc(storage(
+        module.meta.target_profile,
+        "zeroedOdr",
+        odr_static_storage_identity("zeroedOdr"),
+        LirType::I64,
+        RefScan::None,
+        LirStaticInitialState::ZeroedForRuntimeUnit,
+    ));
+    module
+}
+
 fn module_empty_struct(module: &mut Module) -> scoop_lir::StructDefId {
     module.structs.alloc_scoop(
         test_physical_exact("EmptyStatic", scoop_identity::SourceNominalKind::Struct),

@@ -76,7 +76,7 @@ pub(super) fn semantic_module(
         corruption,
         Corruption::StaticZeroedInitialState
             | Corruption::StaticZeroedWritableSection
-            | Corruption::StaticSentinelCollision
+            | Corruption::StaticAliasedSentinels
     ) {
         LirStaticInitialState::ZeroedForRuntimeUnit
     } else if matches!(

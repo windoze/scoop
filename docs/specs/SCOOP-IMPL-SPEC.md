@@ -1932,6 +1932,8 @@ LIR 依赖摘要使用已有 `cross-cone-layout-abi` 和 `cross-cone-param-free-
 
 program-link 在已验证的物理定义表上按 canonical Cone 顺序选定兼容 ODR primary。每个正文与其 EH、stackmap、callable/safepoint registration、Context cell 及其他私有关联 atom 同选；没有独立公共语义的实现附属记录不得单独竞选。共享类型、storage/initialization 与独立 helper 继续按原 typed identity 和必要引用闭包选择，不强制整个 group 来自同一 Cone。codegen 把需要独立选择的定义与关联数据划入可选择的物理成员，普通 Strong metadata 不做无意义分碎。候选 image descriptor 及其六类表具有独立物理成员，供 program-link 整体替换；非 callable 的独立 ODR definition 与自身 associated atoms 各成一个可选择成员。
 
+对象中的全零只读填充可以包含静态存储空数组的 typed sentinel；ELF 可以把这些不含重定位的常量单独放入只读节。此类全零节不需要额外 definition atom，空 span 的引用仍按既有元素大小、alignment、范围与不重叠规则检查。sentinel 地址不表示语言实体：不同记录或物理成员可以分别携带，也可在满足各自 typed span 要求时共用零数据，不要求跨记录地址相同或不同。未归属的非零数据、可写数据和代码仍拒绝，不因物理分区放宽实际定义与引用规则。
+
 最终 image 沿用 startup C/native-object 输出：按所选 definition 过滤已验证的六类登记，保留每个逻辑 Cone 的 coordinate 与直接依赖，使用同一 RuntimeImage 编码计算实际表的内容摘要。startup 对象同时定义这些 image、pointer 表及正文引用的既有 trap-message 符号；原候选 image 对象不参加 native link。定义、未定义引用和最终 relocation 检查均使用实际保留的 member，最终 link map 必须符合显式选择。`scoop-resolved-link-plan-v3` 保留原输入产物摘要，并覆盖所选对象及实际 startup 源码/对象，不增加另一套选择摘要或链接缓存框架。
 
 `.slib` 保留候选 image/registration 数据与物理 owner，program-link 在选择后通过现有 native-object 输出路径生成最终 image descriptor 和六类 pointer 表，不启动 LLVM/Scoop codegen、不读取源码或 runtime header，也不修改已发布 artifact。落选正文及其站点/EH/Context 数据不进入最终对象集合；所有引用指向唯一 TD、storage/cell、callable 和登记。最终 image fingerprint 根据实际表计算并进入既有 link plan，普通 eager 初始化顺序和 lazy unit 的 exactly-once 语义保持。Mach-O 不能依赖独立 weak coalesce 模拟这项关联选择；ELF 采用相同显式规则，不把平台 COMDAT 能力变为另一套语义。

@@ -349,7 +349,7 @@ pub(super) fn push_relocations(
                 (
                     248,
                     u32::try_from(
-                        if matches!(corruption, Corruption::StaticSentinelCollision) {
+                        if matches!(corruption, Corruption::StaticAliasedSentinels) {
                             index * 2
                         } else {
                             index * 2 + 1

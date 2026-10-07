@@ -13,9 +13,7 @@ use super::physical::{
     StaticStorageAtomRangeV1, atom_file_range, atom_range, validate_objects, verified_member,
 };
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
-use super::relocations::{
-    VerifiedStaticStorageRelocations, sentinel_target_key, verify_relocations,
-};
+use super::relocations::{VerifiedStaticStorageRelocations, verify_relocations};
 use super::{
     StaticStorageArtifactRoleV1, StaticStorageRegistrationPatchFailureV1,
     StrongStaticStorageRegistrationValidationError,
@@ -146,71 +144,11 @@ pub fn verify_strong_static_storage_registrations_v1(
     for registration in plan.registrations() {
         registrations.push(verify_registration(&patch_sites, &objects, registration)?);
     }
-    validate_shared_sentinels(&patch_sites, &plan, &registrations)?;
     Ok(VerifiedStrongStaticStorageRegistrationSetV1 {
         patch_sites,
         plan,
         registrations,
     })
-}
-
-fn validate_shared_sentinels(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: &StrongStaticStorageRegistrationPlanSetV1,
-    verified: &[VerifiedStrongStaticStorageRegistrationV1],
-) -> Result<(), StrongStaticStorageRegistrationValidationError> {
-    let mut template_target = None;
-    let mut relocation_target = None;
-    for (plan, verified) in plan.registrations().iter().zip(verified) {
-        let member = verified_member(patch_sites.builtins(), verified.member())?;
-        if matches!(
-            plan.initial_artifacts(),
-            StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
-        ) {
-            insert_shared_target(
-                &mut template_target,
-                sentinel_target_key(member, verified.template_relocation()),
-                StaticStorageArtifactRoleV1::InitialTemplate,
-            )?;
-        }
-        if matches!(
-            plan.initial_artifacts(),
-            StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
-                | StrongStaticStorageInitialArtifactPlanV1::EncodedStaticValue {
-                    relocation_table: StaticStorageRelocationTableArtifactV1::SharedEmptySentinel,
-                    ..
-                }
-        ) {
-            insert_shared_target(
-                &mut relocation_target,
-                sentinel_target_key(member, verified.relocation_table_relocation()),
-                StaticStorageArtifactRoleV1::InitialRelocationTable,
-            )?;
-        }
-    }
-    if template_target.is_some() && template_target == relocation_target {
-        return Err(StrongStaticStorageRegistrationValidationError::SentinelTargetCollision);
-    }
-    Ok(())
-}
-
-fn insert_shared_target(
-    shared: &mut Option<(SlibMemberId, u32, u64)>,
-    actual: Option<(SlibMemberId, u32, u64)>,
-    role: StaticStorageArtifactRoleV1,
-) -> Result<(), StrongStaticStorageRegistrationValidationError> {
-    let actual = actual
-        .ok_or(StrongStaticStorageRegistrationValidationError::SentinelTargetMismatch(role))?;
-    if let Some(expected) = shared {
-        if *expected != actual {
-            return Err(
-                StrongStaticStorageRegistrationValidationError::SentinelTargetMismatch(role),
-            );
-        }
-    } else {
-        *shared = Some(actual);
-    }
-    Ok(())
 }
 
 fn verify_registration(

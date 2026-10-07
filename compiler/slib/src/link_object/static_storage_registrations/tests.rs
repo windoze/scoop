@@ -139,21 +139,19 @@ fn verifies_encoded_null_storage_with_an_empty_relocation_sentinel() {
 }
 
 #[test]
-fn rejects_aliasing_the_two_typed_empty_sentinels() {
-    let fixture = Fixture::new(Corruption::StaticSentinelCollision);
+fn accepts_shared_zero_bytes_for_both_typed_empty_spans() {
+    let fixture = Fixture::new(Corruption::StaticAliasedSentinels);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,
     )];
 
-    assert_eq!(
-        verify_strong_static_storage_registrations_v1(
-            fixture.verified_patch_sites(),
-            fixture.static_storage_registration_plan.clone(),
-            &objects,
-        ),
-        Err(StrongStaticStorageRegistrationValidationError::SentinelTargetCollision)
-    );
+    verify_strong_static_storage_registrations_v1(
+        fixture.verified_patch_sites(),
+        fixture.static_storage_registration_plan.clone(),
+        &objects,
+    )
+    .expect("empty spans have no identity beyond their typed readable range");
 }
 
 #[test]
