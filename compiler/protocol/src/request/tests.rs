@@ -37,6 +37,25 @@ fn core_manifest_request_round_trips_without_a_default_source_slot() {
     assert_eq!(decoded.build().direct_slibs(), &[path("helper.slib")]);
     assert_eq!(decoded.build().support_slibs(), &[path("support.slib")]);
     assert_eq!(decoded, request);
+    let release = ScoopcRequestEnvelopeV1::new(
+        request.request_id(),
+        request
+            .build()
+            .clone()
+            .with_optimization(OptimizationMode::Release),
+    );
+    let bytes = encode(&release).unwrap();
+    assert_ne!(bytes, encode(&request).unwrap());
+    let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&bytes)
+        .unwrap()
+        .validate()
+        .unwrap();
+    assert_eq!(decoded.build().optimization(), OptimizationMode::Release);
+    assert_eq!(decoded.build().target(), request.build().target());
+    let mut unknown = bytes;
+    assert_eq!(unknown.pop(), Some(2));
+    unknown.push(3);
+    assert!(decode_canonical::<DecodedScoopcRequestEnvelopeV1>(&unknown).is_err());
 }
 
 #[test]

@@ -3,8 +3,7 @@ use inkwell::module::Linkage;
 use scoop_identity::ConeIdentity;
 
 use super::{
-    DIGEST_SIZE, NORMALIZED_STACKMAP_FINGERPRINT_OFFSET,
-    REGISTRATION_DEFINITION_FINGERPRINT_OFFSET, SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC,
+    DIGEST_SIZE, NORMALIZED_STACKMAP_FINGERPRINT_OFFSET, SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC,
     SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE, emit_strong_safepoint_registrations_v1,
 };
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
@@ -19,7 +18,14 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
     let context = Context::create();
     let llvm = context.create_module("safepoint-registration");
 
-    let emitted = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
+    )
+    .unwrap();
 
     assert_eq!(emitted.producer(), ConeIdentity::SINGLE_FILE);
     assert_eq!(emitted.registrations().len(), 1);
@@ -28,20 +34,6 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
-
-    let definition_patch = registration.registration_definition_patch();
-    assert_eq!(
-        definition_patch.intent(),
-        expected.registration_definition_patch()
-    );
-    assert_eq!(definition_patch.definition(), expected.definition_plan());
-    assert_eq!(definition_patch.atom(), expected.primary_atom());
-    assert_eq!(
-        definition_patch.byte_offset(),
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET
-    );
-    assert_eq!(definition_patch.byte_size(), DIGEST_SIZE);
-
     let stackmap_patch = registration.normalized_stackmap_patch();
     assert_eq!(
         stackmap_patch.intent(),
@@ -64,7 +56,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 4);
+    assert_eq!(constant_u64(prefix, 1), 5);
     assert_eq!(
         constant_u64(prefix, 2),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE
@@ -89,13 +81,6 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
     assert!(
         identity
             .get_field_at_index(4)
-            .unwrap()
-            .into_struct_value()
-            .is_null()
-    );
-    assert!(
-        identity
-            .get_field_at_index(5)
             .unwrap()
             .into_struct_value()
             .is_null()
@@ -145,14 +130,28 @@ fn completes_one_matching_image_declaration_then_rejects_redefinition() {
     );
     declaration.set_linkage(Linkage::External);
 
-    let emitted = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
+    )
+    .unwrap();
     assert_eq!(
         emitted.registrations()[0].descriptor().get_name(),
         declaration.get_name()
     );
     assert!(declaration.get_initializer().is_some());
 
-    let error = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
+    )
+    .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
 }
 
@@ -165,7 +164,14 @@ fn rejects_an_incompatible_prior_global_declaration() {
     let incompatible = llvm.add_global(context.i8_type(), None, symbol.as_str());
     incompatible.set_linkage(Linkage::External);
 
-    let error = emit_strong_safepoint_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_safepoint_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        plan.registrations()[0].owner(),
+        |_| Some(plan.registrations()[0].root_pair_count() as usize),
+    )
+    .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
 }
 

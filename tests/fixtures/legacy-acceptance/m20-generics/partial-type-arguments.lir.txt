@@ -290,7 +290,7 @@ Module
     store local19 -> local102
     store local102 -> local103
     t24 = variant_test e2 v0 local103 : i1
-    cbr t24 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t25 = variant_payload_project e2 v0 f1 local103 : ptr<managed>
     store t25 -> local79
@@ -299,8 +299,6 @@ Module
     call managed-void-target5 sp<managed-call:21> live=[local25:struct0@8, local29:struct0@8, local34:ptr<managed>@0, local39:ptr<managed>@0, local46:ptr<managed>@0, local53:ptr<managed>@0, local62:ptr<managed>@0, local67:ptr<managed>@0, local72:ptr<managed>@0, local81:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn16(local81)
     t26 = aggregate () : {}
     br @pattern.merge.3
-  block pattern.else.2
-    unreachable
   block pattern.merge.3
     t27 = extract local25, 1 : ptr<managed>
     store t27 -> local82

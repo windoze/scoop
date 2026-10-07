@@ -15,8 +15,9 @@
 #define GC_WORDS_PER_BLOCK (GC_BLOCK_SIZE / sizeof(uint64_t))
 #define GC_BITMAP_WORDS (GC_WORDS_PER_BLOCK / 64)
 #define GC_LINE_BITMAP_WORDS (GC_LINES_PER_BLOCK / 64)
-#define GC_SMALL_MAX (GC_LINE_SIZE / 2)
+#define GC_REGULAR_MAX (GC_BLOCK_SIZE - GC_LINE_SIZE)
 #define GC_INITIAL_THRESHOLD ((size_t)16 << 20)
+#define GC_NURSERY_CAPACITY ((size_t)1 << 20)
 #define GC_ARENA_SIZE ((size_t)1 << 30)
 #define GC_BLOCK_COUNT (GC_ARENA_SIZE / GC_BLOCK_SIZE)
 #define GC_ARENA_HINT ((uintptr_t)0x100000000)
@@ -43,9 +44,15 @@ typedef enum ScoopGcBlockKind {
     SCOOP_BLOCK_KIND_LARGE,
 } ScoopGcBlockKind;
 
+typedef enum ScoopGcGeneration {
+    SCOOP_GC_YOUNG,
+    SCOOP_GC_OLD,
+} ScoopGcGeneration;
+
 typedef struct ScoopGcBlockMeta {
     ScoopGcBlockState state;
     ScoopGcBlockKind kind;
+    ScoopGcGeneration generation;
     uint32_t span_blocks;
     uint32_t owner_block;
     uint64_t *starts;
@@ -54,7 +61,7 @@ typedef struct ScoopGcBlockMeta {
     uint64_t *scanned;
     uint64_t *line_occupied;
     uint64_t *line_live;
-    uint8_t *size_units;
+    uint16_t *size_units;
     void **forwarding;
     size_t exact_size;
     size_t live_bytes;
@@ -95,7 +102,21 @@ typedef struct ScoopGcHeapState {
     _Atomic(uint64_t) last_moved_objects;
     bool arena_ready;
     bool stress_move;
+    bool stress_minor;
+    bool full_only;
+    bool print_metrics;
     bool collection_active;
+    size_t nursery_bytes;
+    _Atomic(uint64_t) nursery_objects;
+    _Atomic(uint64_t) allocated_bytes;
+    _Atomic(uint64_t) nursery_allocated_bytes;
+    ScoopGcMetrics metrics;
+    uint64_t copied_bytes;
+    uint64_t minor_pause_ns;
+    uint64_t full_pause_ns;
+    uint64_t pause_buckets[8];
+    char *old_cursor;
+    char *old_limit;
     uint32_t evacuation_block;
     char *evacuation_cursor;
     char *evacuation_limit;
@@ -167,6 +188,9 @@ bool scoop_heap_object_meta(const void *object, uint32_t *block_index,
 void scoop_heap_record_small_object(uint32_t block_index, void *object,
                                     size_t exact_size, bool marked);
 void scoop_heap_publish_large_object(uint32_t block_index, bool marked);
+void scoop_heap_release_block(uint32_t index);
+void *scoop_heap_bump(char **cursor, char *limit, size_t size, size_t alignment);
+bool scoop_heap_take_free_run(size_t size, char **cursor, char **limit);
 bool scoop_heap_object_pinned(const ScoopGcBlockMeta *block, size_t word);
 bool scoop_heap_object_marked(const ScoopGcBlockMeta *block, size_t word);
 

@@ -127,7 +127,7 @@ Module
     store t17 -> local31
     store local31 -> local32
     t18 = variant_test e1 v0 local32 : i1
-    cbr t18 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     t19 = variant_payload_project e1 v0 f0 local32 : ptr<managed>
     store t19 -> local33
@@ -135,10 +135,6 @@ Module
     store t20 -> local40
     t21 = enum_wrap e2 v0 (local40) : enum2
     store t21 -> local34
-    br @if.merge.3
-  block if.else.2
-    t22 = enum_wrap e2 v1 () : enum2
-    store t22 -> local34
     br @if.merge.3
   block if.merge.3
     store local34 -> local37

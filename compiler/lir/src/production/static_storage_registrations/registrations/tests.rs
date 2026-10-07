@@ -46,16 +46,7 @@ fn joins_every_storage_to_its_shape_definitions_and_digest_writers() {
             plan.scan_symbol().key(),
             PersistentSymbolKey::ScanProgram(semantic.scan())
         );
-        assert_eq!(
-            node(&fixture.digests, plan.registration_fingerprint_node())
-                .direct_inputs()
-                .len(),
-            4
-        );
-        assert_eq!(
-            node(&fixture.digests, plan.registration_fingerprint_node()).patch_intents()[0].id(),
-            plan.registration_definition_patch()
-        );
+
         assert!(
             node(&fixture.digests, plan.layout_fingerprint_node())
                 .patch_intents()
@@ -151,30 +142,6 @@ fn requires_storage_registration_and_shape_symbols() {
 }
 
 #[test]
-fn requires_leaf_registration_and_storage_object_nodes() {
-    for options in [
-        Options {
-            registration_object_input: true,
-            ..Options::default()
-        },
-        Options {
-            storage_object_input: true,
-            ..Options::default()
-        },
-        Options {
-            storage_object_patch: true,
-            ..Options::default()
-        },
-    ] {
-        assert!(matches!(
-            Fixture::new(options).build(),
-            Err(StrongStaticStorageRegistrationPlanBuildError::ObjectLeafInputs { .. })
-                | Err(StrongStaticStorageRegistrationPlanBuildError::ObjectLeafPatches { .. })
-        ));
-    }
-}
-
-#[test]
 fn requires_the_initial_state_specific_associated_atoms() {
     assert!(matches!(
         Fixture::new(Options {
@@ -189,23 +156,7 @@ fn requires_the_initial_state_specific_associated_atoms() {
 }
 
 #[test]
-fn requires_exact_registration_inputs_and_all_three_digest_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_storage_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongStaticStorageRegistrationPlanBuildError::DirectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongStaticStorageRegistrationPlanBuildError::PatchSet { .. })
-    ));
+fn requires_layout_and_scan_digest_writers() {
     for options in [
         Options {
             omit_layout_patch: true,
@@ -230,11 +181,7 @@ struct Options {
     omit_registration_symbol: bool,
     omit_layout_symbol: bool,
     omit_scan_symbol: bool,
-    registration_object_input: bool,
-    storage_object_input: bool,
-    storage_object_patch: bool,
-    omit_storage_input: bool,
-    omit_registration_patch: bool,
+
     omit_layout_patch: bool,
     omit_scan_patch: bool,
     omit_template_atom: bool,
@@ -361,8 +308,7 @@ impl Fixture {
 
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &shape, &storages, options);
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let mut semantic_storages = storages
             .iter()
             .map(|artifacts| StrongStaticStorageSemanticPlanV1 {
@@ -530,73 +476,10 @@ fn digest_plan(
     .unwrap();
 
     let mut nodes = vec![layout.clone(), scan.clone()];
-    let mut image_inputs = Vec::new();
-    for (index, artifacts) in storages.iter().enumerate() {
-        let storage_key = DigestNodeKey::object_definition(artifacts.storage_primary.id());
-        let storage_id = DigestNodeId::from_key(&storage_key).unwrap();
-        let storage = DigestNodeV1::new(
-            storage_key,
-            if options.storage_object_input && index == 0 {
-                vec![DigestInputRefV1::from_node(&layout)]
-            } else {
-                Vec::new()
-            },
-            if options.storage_object_patch && index == 0 {
-                vec![DigestPatchIntentKey::new(
-                    storage_id,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::DescriptorDefinition,
-                )]
-            } else {
-                Vec::new()
-            },
-        )
-        .unwrap();
-        nodes.push(storage.clone());
-        if options.omit_last_registration && index == 1 {
-            continue;
-        }
-
-        let registration_object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(artifacts.registration_primary.id()),
-            if options.registration_object_input && index == 0 {
-                vec![DigestInputRefV1::from_node(&scan)]
-            } else {
-                Vec::new()
-            },
-            Vec::new(),
-        )
-        .unwrap();
-        let strong_key = DigestNodeKey::strong_registration(artifacts.registration_definition.id());
-        let strong_id = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = vec![
-            DigestInputRefV1::from_node(&registration_object),
-            DigestInputRefV1::from_node(&layout),
-            DigestInputRefV1::from_node(&scan),
-        ];
-        if !options.omit_storage_input || index != 0 {
-            inputs.push(DigestInputRefV1::from_node(&storage));
-        }
-        let strong = DigestNodeV1::new(
-            strong_key,
-            inputs,
-            if options.omit_registration_patch && index == 0 {
-                Vec::new()
-            } else {
-                vec![DigestPatchIntentKey::new(
-                    strong_id,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::RegistrationDefinition,
-                )]
-            },
-        )
-        .unwrap();
-        nodes.push(registration_object);
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
+    let image_inputs = vec![
+        DigestInputRefV1::from_node(&layout),
+        DigestInputRefV1::from_node(&scan),
+    ];
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),

@@ -75,19 +75,15 @@ fn rejects_noncanonical_mapping_order_after_all_relations_resolve() {
 }
 
 #[test]
-fn rejects_a_gap_in_role_local_safepoint_ordinals() {
-    let (decoded, mut identities, _) = callback_fixture(&[1], 0);
+fn accepts_retained_safepoint_ordinals_without_renumbering() {
+    let (decoded, mut identities, bytes) = callback_fixture(&[1, 3, u32::MAX], 0);
 
-    assert!(matches!(
-        decoded.validate(ConeIdentity::CORE, &mut identities),
-        Err(LirFoundationValidationError::SafepointRelation(
-            SafepointRelationError::NonContiguousOrdinal {
-                expected: 0,
-                actual: 1,
-                ..
-            }
-        ))
-    ));
+    let validated = decoded
+        .validate(ConeIdentity::CORE, &mut identities)
+        .unwrap();
+
+    assert_eq!(validated.counts().safepoint_sites, 3);
+    assert_eq!(encode(&validated).unwrap(), bytes);
 }
 
 #[test]

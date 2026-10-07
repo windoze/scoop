@@ -75,40 +75,14 @@ pub(super) fn callable_plan() -> (
         )],
     )
     .unwrap();
-    let object_node = DigestNodeV1::new(
-        DigestNodeKey::object_definition(registration_primary.id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let registration_key = DigestNodeKey::strong_registration(registration_definition.id());
-    let registration_source = DigestNodeId::from_key(&registration_key).unwrap();
-    let registration_node = DigestNodeV1::new(
-        registration_key,
-        vec![
-            DigestInputRefV1::from_node(&object_node),
-            DigestInputRefV1::from_node(&body_node),
-        ],
-        vec![DigestPatchIntentKey::new(
-            registration_source,
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        )],
-    )
-    .unwrap();
     let image = DigestNodeV1::new(
         DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
-        vec![DigestInputRefV1::from_node(&registration_node)],
+        vec![DigestInputRefV1::from_node(&body_node)],
         Vec::new(),
     )
     .unwrap();
-    let digests = DigestFinalizationPlanV1::new(
-        vec![body_node, object_node, registration_node, image],
-        &foundation,
-    )
-    .unwrap();
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![body_node, image], &foundation).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = StrongCallableRegistrationPlanSetV1::new(
         &foundation,
         &identities,

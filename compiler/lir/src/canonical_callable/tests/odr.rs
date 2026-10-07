@@ -2,14 +2,14 @@ use super::support::*;
 use super::*;
 use crate::*;
 
-fn definition(module: &Module, foundation: &ConeLirFoundation) -> CanonicalCallableLirDefinitionV1 {
-    CanonicalCallableLirDefinitionsV1::from_module(module, foundation)
+fn definition(module: &Module, foundation: &ConeLirFoundation) -> CanonicalCallableAbiV1 {
+    CanonicalCallableAbisV1::from_module(module, foundation)
         .unwrap()
         .definitions()[0]
 }
 
-fn abi(definition: CanonicalCallableLirDefinitionV1) -> Digest256 {
-    let CanonicalCallableDefinitionOwnerV1::Odr { abi, .. } = definition.owner() else {
+fn abi(definition: CanonicalCallableAbiV1) -> Digest256 {
+    let CanonicalCallableAbiOwnerV1::Odr { abi, .. } = definition.owner() else {
         panic!("expected ODR callable ABI")
     };
     abi
@@ -22,7 +22,7 @@ fn odr_callable_abi_keeps_the_actual_role_and_ignores_body_changes() {
         let foundation = odr_foundation(&mut module, role);
         let original = definition(&module, &foundation);
         assert!(
-            matches!(original.owner(), CanonicalCallableDefinitionOwnerV1::Odr { role: actual, .. } if actual == role)
+            matches!(original.owner(), CanonicalCallableAbiOwnerV1::Odr { role: actual, .. } if actual == role)
         );
 
         let mut shuffled = scalar(true);
@@ -39,7 +39,7 @@ fn odr_callable_abi_keeps_the_actual_role_and_ignores_body_changes() {
         *rhs = Value::IntegerConst(LirIntegerConstant::Signed64(8));
         let changed = definition(&module, &foundation);
         assert_eq!(original.owner(), changed.owner());
-        assert_ne!(original.fingerprint(), changed.fingerprint());
+        assert_eq!(original, changed);
     }
 }
 
@@ -123,7 +123,7 @@ fn canonical_callable_owner_must_match_the_existing_member_key() {
     let mut module = scalar(false);
     let foundation = odr_foundation(&mut module, OdrMemberRole::CallableBody);
     let original = definition(&module, &foundation);
-    let CanonicalCallableDefinitionOwnerV1::Odr {
+    let CanonicalCallableAbiOwnerV1::Odr {
         group,
         member,
         role,
@@ -133,18 +133,17 @@ fn canonical_callable_owner_must_match_the_existing_member_key() {
         panic!("ODR member")
     };
     for owner in [
-        CanonicalCallableDefinitionOwnerV1::Strong,
-        CanonicalCallableDefinitionOwnerV1::Odr {
+        CanonicalCallableAbiOwnerV1::Strong,
+        CanonicalCallableAbiOwnerV1::Odr {
             group,
             member,
             role: OdrMemberRole::DispatchAdapter,
             abi,
         },
     ] {
-        let changed =
-            CanonicalCallableLirDefinitionV1::new(original.body(), original.fingerprint(), owner);
+        let changed = CanonicalCallableAbiV1::new(original.body(), owner);
         assert!(
-            matches!(CanonicalCallableLirDefinitionsV1::new(vec![changed], &foundation), Err(CanonicalCallableLirError::DefinitionOwner { body }) if body == original.body())
+            matches!(CanonicalCallableAbisV1::new(vec![changed], &foundation), Err(CanonicalCallableAbiError::DefinitionOwner { body }) if body == original.body())
         );
     }
     assert_eq!(role, OdrMemberRole::CallableBody);

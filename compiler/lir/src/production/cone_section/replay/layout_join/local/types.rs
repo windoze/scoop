@@ -70,8 +70,6 @@ fn validate_descriptors(
             || exported_registration.semantic_id() != exact
             || exported_registration.definition_plan() != registration.definition_plan()
             || exported_registration.symbol() != registration.symbol()
-            || exported_registration.fingerprint_node()
-                != registration.registration_fingerprint_node()
         {
             return Err(StrongProductionLayoutJoinError::DescriptorProduction(exact));
         }

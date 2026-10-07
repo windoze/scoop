@@ -65,10 +65,7 @@ Module
     store local1 -> local2
     t0 = integer_compare_Equal<Int> local0, local2 : i1
     t1 = Not t0 : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    store true -> local6
-    br @if.merge.3
+    br @if.else.2
   block if.else.2
     store integer<Int8>(0x82) -> local3
     store integer<Int8>(0x82) -> local4
@@ -122,10 +119,7 @@ Module
     store local19 -> local20
     t11 = integer_compare_Equal<Int16> local18, local20 : i1
     t12 = Not t11 : i1
-    cbr t12 then @if.then.12 else @if.else.13
-  block if.then.12
-    store true -> local24
-    br @if.merge.14
+    br @if.else.13
   block if.else.13
     store integer<Int>(0xfffffffb) -> local21
     store integer<Int>(0xfffffffb) -> local22

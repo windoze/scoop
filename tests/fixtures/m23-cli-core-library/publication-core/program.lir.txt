@@ -24,18 +24,7 @@ Module
     store local4 -> local5
     t1 = integer_compare_Equal<Int> local3, local5 : i1
     t2 = Not t1 : i1
-    cbr t2 then @if.then.1 else @if.merge.2
-  block if.then.1
-    store global0 -> local6
-    store local6 -> local7
-    t3 = enum_wrap e0 v0 (local7) : enum0
-    store t3 -> local8
-    call managed-direct-target0 sp<managed-call:0> live=[local8:enum0@0] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
-    store t4 -> local9
-    call managed-void-target0 sp<managed-call:1> live=[local8:enum0@0, local9:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local9, local8)
-    t5 = aggregate () : {}
-    throw local9
-    unreachable
+    br @if.merge.2
   block if.merge.2
     ret
   fun @scoop$1$cb$54f1fcff174e8b7fb96c059f88dd4f25d27e35c361fcb48ae0d2d3f5923fd42e() -> i32

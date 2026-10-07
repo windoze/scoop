@@ -170,15 +170,8 @@ pub(super) fn static_storage_plan() -> StrongStaticStorageRegistrationPlanSetV1 
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
-    let digests = digest_plan(
-        &foundation,
-        &semantics,
-        &shapes,
-        &storages,
-        &immortal_object_definition,
-        &immortal_registration_definition,
-    );
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let digests = digest_plan(&foundation, &semantics, &shapes, &storages);
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     StrongStaticStorageRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
         .unwrap()
 }
@@ -262,19 +255,10 @@ fn digest_plan(
     semantics: &StrongStaticStorageSemanticPlanSetV1,
     shapes: &[ShapeArtifacts],
     storages: &[StorageArtifacts],
-    immortal_object_definition: &CborIdentityRecord<
-        scoop_identity::ObjectDefinitionPlanId,
-        ObjectDefinitionPlanKey,
-    >,
-    immortal_registration_definition: &CborIdentityRecord<
-        scoop_identity::ObjectDefinitionPlanId,
-        ObjectDefinitionPlanKey,
-    >,
 ) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
     for ((semantic, shape), storage) in semantics.storages().iter().zip(shapes).zip(storages) {
-        let registration_primary = primary(&storage.registration_definition);
         let layout_key = DigestNodeKey::layout(shape.layout);
         let layout_id = DigestNodeId::from_key(&layout_key).unwrap();
         let layout = DigestNodeV1::new(
@@ -301,76 +285,14 @@ fn digest_plan(
             )],
         )
         .unwrap();
-        let storage_object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(primary(&storage.storage_definition).id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let registration_object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(registration_primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let strong_key = DigestNodeKey::strong_registration(storage.registration_definition.id());
-        let strong_id = DigestNodeId::from_key(&strong_key).unwrap();
-        let strong = DigestNodeV1::new(
-            strong_key,
-            vec![
-                DigestInputRefV1::from_node(&registration_object),
-                DigestInputRefV1::from_node(&storage_object),
-                DigestInputRefV1::from_node(&layout),
-                DigestInputRefV1::from_node(&scan),
-            ],
-            vec![DigestPatchIntentKey::new(
-                strong_id,
-                storage.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::RegistrationDefinition,
-            )],
-        )
-        .unwrap();
         assert_eq!(semantic.storage(), storage.storage);
-        nodes.extend([layout, scan, storage_object, registration_object]);
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
+        image_inputs.extend([
+            DigestInputRefV1::from_node(&layout),
+            DigestInputRefV1::from_node(&scan),
+        ]);
+        nodes.extend([layout, scan]);
     }
 
-    let immortal_object = DigestNodeV1::new(
-        DigestNodeKey::object_definition(primary(immortal_object_definition).id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let immortal_registration_object = DigestNodeV1::new(
-        DigestNodeKey::object_definition(primary(immortal_registration_definition).id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let immortal_key = DigestNodeKey::strong_registration(immortal_registration_definition.id());
-    let immortal_id = DigestNodeId::from_key(&immortal_key).unwrap();
-    let immortal_registration = DigestNodeV1::new(
-        immortal_key,
-        vec![
-            DigestInputRefV1::from_node(&immortal_registration_object),
-            DigestInputRefV1::from_node(&immortal_object),
-        ],
-        vec![DigestPatchIntentKey::new(
-            immortal_id,
-            immortal_registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        )],
-    )
-    .unwrap();
-    image_inputs.push(DigestInputRefV1::from_node(&immortal_registration));
-    nodes.extend([
-        immortal_object,
-        immortal_registration_object,
-        immortal_registration,
-    ]);
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),

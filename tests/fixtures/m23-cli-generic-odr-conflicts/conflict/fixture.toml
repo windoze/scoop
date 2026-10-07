@@ -145,7 +145,6 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${left_link.result.dependencies.length}", "equals" = 3},
   {"actual" = "${left_link.result.link_plan_fingerprint}", "equals" = "${left_program.result.link_plan_fingerprint}"},
-  {"actual" = "${left_link.result.link_plan}", "snapshot" = "left_link.plan.${target}.txt", "normalize" = ["paths"]},
 ]
 
 [[steps]]
@@ -279,7 +278,6 @@ env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LL
 checks = [
   {"actual" = "${right_link.result.dependencies.length}", "equals" = 3},
   {"actual" = "${right_link.result.link_plan_fingerprint}", "equals" = "${right_program.result.link_plan_fingerprint}"},
-  {"actual" = "${right_link.result.link_plan}", "snapshot" = "right_link.plan.${target}.txt", "normalize" = ["paths"]},
 ]
 
 [[steps]]

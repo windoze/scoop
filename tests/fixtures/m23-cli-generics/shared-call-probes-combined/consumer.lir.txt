@@ -196,7 +196,7 @@ Module
     store local32 -> local75
     store local75 -> local76
     t22 = variant_test e0 v0 local76 : i1
-    cbr t22 then @pattern.pass.10 else @pattern.else.11
+    br @pattern.pass.10
   block pattern.pass.10
     t23 = variant_payload_project e0 v0 f0 local76 : i32
     store t23 -> local33
@@ -204,10 +204,6 @@ Module
     store t24 -> local82
     store local82 -> local34
     br @pattern.merge.12
-  block pattern.else.11
-    store local75 -> local77
-    t25 = variant_test e0 v1 local77 : i1
-    cbr t25 then @pattern.pass.13 else @pattern.else.14
   block pattern.merge.12
     store local34 -> local35
     store integer<Int>(0x0000002a) -> local36
@@ -215,13 +211,6 @@ Module
     t26 = integer_compare_Equal<Int> local35, local37 : i1
     t27 = Not t26 : i1
     cbr t27 then @if.then.16 else @if.merge.17
-  block pattern.pass.13
-    store integer<Int>(0x00000000) -> local34
-    br @pattern.merge.15
-  block pattern.else.14
-    unreachable
-  block pattern.merge.15
-    br @pattern.merge.12
   block if.then.16
     ret integer<Int>(0x00000004)
   block if.merge.17

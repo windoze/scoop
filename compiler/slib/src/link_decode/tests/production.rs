@@ -56,8 +56,8 @@ pub(crate) fn strong_production_fixture(
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
-        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalCallableAbisV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     (canonical, production)

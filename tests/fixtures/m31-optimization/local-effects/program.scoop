@@ -1,0 +1,64 @@
+class Item(val number: Int)
+var effects: Int = 0
+
+fun payload(): Item {
+    effects = effects + 1
+    gcCollect()
+    return Item(7)
+}
+
+@Unsafe fun replace(slot: Ptr<Int>, value: Int) { slot.store(value) }
+
+fun aliases(input: Int): Int {
+    var value = 40
+    val copied = value
+    @Unsafe {
+        val slot = addressOf(value)
+        slot.store(41)
+        if (slot.load() != 41) { throw IllegalStateException() }
+        replace(slot, input)
+    }
+    return if (value == input) { copied } else { -1 }
+}
+
+fun selected(): Int {
+    val value: Item? = Some(payload())
+    val copied = value
+    return when (copied) {
+        Some(item) -> { gcCollect(); item.number }
+        None -> { effects = effects + 100; -1 }
+    }
+}
+
+fun loopAndJoin(limit: Int): Int {
+    var index = 0
+    var total = 0
+    while (index < limit) {
+        var value = 10
+        if (index == 1) { value = 20 }
+        total = total + value
+        index = index + 1
+    }
+    return total
+}
+
+fun exceptional(divisor: Long): Long {
+    try {
+        val numerator = -9223372036854775808L
+        return numerator / divisor
+    } catch (failure: ArithmeticException) {
+        effects = effects + 10
+        return 99L
+    } finally {
+        effects = effects + 1
+    }
+}
+
+fun main() {
+    println(aliases(3))
+    println(selected())
+    println(loopAndJoin(3))
+    println(exceptional(-1L))
+    println(exceptional(0L))
+    println(effects)
+}

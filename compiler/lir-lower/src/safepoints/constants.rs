@@ -2,8 +2,21 @@ use std::collections::HashMap;
 
 use super::*;
 
-/// Fold the boolean copies introduced by argument/default materialization
-/// before LLVM promotes their slots and removes the untaken safepoints.
+mod integers;
+#[cfg(test)]
+mod tests;
+mod values;
+
+use values::{boolean_value, known_result, known_value};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum KnownValue {
+    Scalar(lir::Value),
+    Variant(lir::LirVariantRef),
+}
+
+/// Propagate already evaluated constants along straight CFG chains before
+/// assigning roots and sites. Joins and backedges begin with unknown facts.
 pub(super) fn fold_constant_branches(function: &mut lir::Function) {
     if !function
         .blocks
@@ -27,56 +40,55 @@ pub(super) fn fold_constant_branches(function: &mut lir::Function) {
             }
         }
     }
-    for block in function.blocks.values_mut() {
-        let lir::Terminator::CondBr {
-            cond,
-            then_block,
-            else_block,
-        } = block.terminator
-        else {
-            continue;
-        };
-        let mut constants = BlockConstants::default();
-        for instruction in &block.instructions {
-            constants.apply(instruction, &function.locals, &address_taken);
+    let mut incoming = vec![0usize; function.blocks.len()];
+    incoming[arena_index(function.entry)] = 1;
+    for block in function.blocks.values() {
+        for successor in block_successors(block) {
+            incoming[arena_index(successor)] += 1;
         }
-        if let Some(value) = boolean_value(cond, &constants.values) {
-            block.terminator = lir::Terminator::Br(if value { then_block } else { else_block });
+    }
+    let starts = std::iter::once(function.entry)
+        .chain(
+            function
+                .blocks
+                .iter()
+                .filter_map(|(id, _)| (incoming[arena_index(id)] != 1).then_some(id)),
+        )
+        .chain(function.blocks.iter().map(|(id, _)| id))
+        .collect::<Vec<_>>();
+    let mut visited = vec![false; function.blocks.len()];
+    for mut id in starts {
+        let mut constants = BlockConstants::default();
+        while !visited[arena_index(id)] {
+            visited[arena_index(id)] = true;
+            let block = &mut function.blocks[id];
+            for instruction in &block.instructions {
+                constants.apply(instruction, &function.locals, &address_taken);
+            }
+            if let lir::Terminator::CondBr {
+                cond,
+                then_block,
+                else_block,
+            } = block.terminator
+                && let Some(value) = boolean_value(cond, &constants.values)
+            {
+                block.terminator = lir::Terminator::Br(if value { then_block } else { else_block });
+            }
+            let successors = block_successors(block);
+            let [next] = successors.as_slice() else {
+                break;
+            };
+            if incoming[arena_index(*next)] != 1 {
+                break;
+            }
+            id = *next;
         }
     }
 }
 
-fn known_result(
-    instruction: &lir::Instruction,
-    constants: &HashMap<LiveValue, bool>,
-) -> Option<(LiveValue, bool)> {
-    let (definition, value) = match *instruction {
-        lir::Instruction::Store { local, value } => {
-            (LiveValue::Local(local), boolean_value(value, constants)?)
-        }
-        lir::Instruction::UnaryOp {
-            out,
-            op: lir::UnOp::Not,
-            operand,
-        } => (LiveValue::Temp(out), !boolean_value(operand, constants)?),
-        lir::Instruction::BinOp { out, op, lhs, rhs } => {
-            let left = boolean_value(lhs, constants)?;
-            let right = boolean_value(rhs, constants)?;
-            let value = match op {
-                lir::BinOp::Eq => left == right,
-                lir::BinOp::Ne => left != right,
-                lir::BinOp::MachineEq(_) => return None,
-            };
-            (LiveValue::Temp(out), value)
-        }
-        _ => return None,
-    };
-    Some((definition, value))
-}
-
 #[derive(Default)]
 struct BlockConstants {
-    values: HashMap<LiveValue, bool>,
+    values: HashMap<LiveValue, KnownValue>,
     addresses: HashMap<LiveValue, lir::LocalId>,
 }
 
@@ -124,7 +136,9 @@ impl BlockConstants {
                     .filter(|local| locals[*local].ty() == pointee.storage_type())
                 {
                     let destination = LiveValue::Local(local);
-                    result = boolean_value(*value, &self.values).map(|value| (destination, value));
+                    result = known_value(*value, &self.values)
+                        .filter(|value| matches!(value, KnownValue::Scalar(_)))
+                        .map(|value| (destination, value));
                     address = self.address(*value).map(|target| (destination, target));
                     self.forget(destination);
                 } else {
@@ -142,7 +156,9 @@ impl BlockConstants {
                 {
                     let source = lir::Value::Local(local);
                     let destination = LiveValue::Temp(*out);
-                    result = boolean_value(source, &self.values).map(|value| (destination, value));
+                    result = known_value(source, &self.values)
+                        .filter(|value| matches!(value, KnownValue::Scalar(_)))
+                        .map(|value| (destination, value));
                     address = self.address(source).map(|target| (destination, target));
                 }
             }
@@ -163,14 +179,5 @@ impl BlockConstants {
         if let Some((definition, target)) = address {
             self.addresses.insert(definition, target);
         }
-    }
-}
-
-fn boolean_value(value: lir::Value, constants: &HashMap<LiveValue, bool>) -> Option<bool> {
-    match value {
-        lir::Value::BoolConst(value) => Some(value),
-        lir::Value::Local(local) => constants.get(&LiveValue::Local(local)).copied(),
-        lir::Value::Temp(temp) => constants.get(&LiveValue::Temp(temp)).copied(),
-        _ => None,
     }
 }

@@ -137,7 +137,7 @@ pub struct ValidatedBackendProfile {
     canonical_triple: &'static str,
     cpu: &'static str,
     features: &'static str,
-    optimization: OptimizationLevel,
+    optimization: scoop_lir::OptimizationMode,
     relocation: RelocMode,
     code_model: CodeModel,
     object_format: ObjectFormat,
@@ -160,7 +160,7 @@ impl ValidatedBackendProfile {
         canonical_triple: "aarch64-apple-darwin",
         cpu: "generic",
         features: "",
-        optimization: OptimizationLevel::None,
+        optimization: scoop_lir::OptimizationMode::Debug,
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
@@ -194,6 +194,15 @@ impl ValidatedBackendProfile {
                 ..Self::DARWIN_AARCH64
             },
         })
+    }
+
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.optimization = mode;
+        self
+    }
+
+    pub const fn optimization(self) -> scoop_lir::OptimizationMode {
+        self.optimization
     }
 
     pub fn id(self) -> TargetProfileId {
@@ -290,7 +299,10 @@ impl ValidatedBackendProfile {
     }
 
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
-        self.create_target_machine_with_optimization(self.optimization)
+        self.create_target_machine_with_optimization(match self.optimization {
+            scoop_lir::OptimizationMode::Debug => OptimizationLevel::None,
+            scoop_lir::OptimizationMode::Release => OptimizationLevel::Default,
+        })
     }
 
     pub(crate) fn validate_lir_target_profile(

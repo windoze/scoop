@@ -2,7 +2,7 @@
 
 use super::{ConeLirFoundation, DefinitionPlanRecord};
 use scoop_identity::{
-    CallableBodyKeyKind, DigestNodeKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    CallableBodyKeyKind, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, OdrMemberDiscriminator as D, OdrMemberKey,
     OdrMemberRole as R, StrongDefinitionEntity, StrongDefinitionRole as S,
 };
@@ -65,17 +65,6 @@ impl ConeLirFoundation {
         };
         let id = ObjectDefinitionPlanId::from_key(&ObjectDefinitionPlanKey::odr(member)).ok()?;
         self.definition_plan(id)
-    }
-
-    pub(crate) fn registration_digest_key(&self, record: &DefinitionPlanRecord) -> DigestNodeKey {
-        match record.key().owner() {
-            ObjectDefinitionPlanOwner::Strong { .. } => {
-                DigestNodeKey::strong_registration(record.id())
-            }
-            ObjectDefinitionPlanOwner::Odr { member } => {
-                DigestNodeKey::odr_member_definition(member)
-            }
-        }
     }
 }
 

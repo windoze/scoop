@@ -21,24 +21,6 @@ pub enum TypeRegistrationPatchFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TypeRegistrationDigestPlanFailureV1 {
-    MissingRegistrationObjectDefinitionNode,
-    RegistrationObjectDefinitionNodeIdentity,
-    RegistrationObjectDefinitionDirectInputs,
-    RegistrationObjectDefinitionPatchSet,
-    MissingDescriptorObjectDefinitionNode,
-    DescriptorObjectDefinitionNodeIdentity,
-    MissingLayoutNode,
-    LayoutNodeIdentity,
-    MissingRegistrationNode,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-    DescriptorDefinitionPatchMissing,
-    LayoutPatchMissing,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeRegistrationAtomFileRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -105,10 +87,6 @@ pub enum StrongTypeRegistrationValidationError {
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
     ObjectBytesMismatch(SlibMemberId),
-    DigestPlanMismatch {
-        exact_type: PersistentExactTypeId,
-        kind: TypeRegistrationDigestPlanFailureV1,
-    },
     MissingDefinitionAssignment {
         exact_type: PersistentExactTypeId,
         definition: ObjectDefinitionPlanId,

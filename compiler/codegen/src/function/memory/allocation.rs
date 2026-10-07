@@ -3,7 +3,7 @@
 use super::*;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
-    /// M13 managed allocation fast path. Small objects are bumped directly
+    /// Managed allocation fast path. Block-sized objects are bumped directly
     /// from the current thread's public two-pointer allocation context. A
     /// failed bump calls the collecting slow path; a successful bump calls a
     /// GC-leaf helper that clears the object, initializes its header, and
@@ -135,29 +135,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_int_add(cursor_int, alignment_mask, "tlab_cursor_plus_align")
             .and_then(|cursor| builder.build_and(cursor, inverse_mask, "tlab_aligned_cursor"))
             .map_err(|error| CodegenError(format!("align TLAB object start: {error}")))?;
-        let cursor_end = builder
-            .build_int_add(cursor_int, aligned_size, "tlab_cursor_end")
-            .map_err(|error| CodegenError(format!("advance TLAB cursor: {error}")))?;
-        let line_base = builder
-            .build_and(
-                cursor_int,
-                i64_ty.const_int(!127_u64, false),
-                "tlab_line_base",
-            )
-            .map_err(|error| CodegenError(format!("align TLAB line: {error}")))?;
-        let line_end = builder
-            .build_int_add(line_base, i64_ty.const_int(128, false), "tlab_line_end")
-            .map_err(|error| CodegenError(format!("compute TLAB line end: {error}")))?;
-        let fits_current_line = builder
-            .build_int_compare(IntPredicate::ULE, cursor_end, line_end, "alloc_fits_line")
-            .map_err(|error| CodegenError(format!("check TLAB line: {error}")))?;
-        let object_int = builder
-            .build_select(fits_current_line, cursor_int, line_end, "tlab_object_int")
-            .map_err(|error| CodegenError(format!("select TLAB object: {error}")))?
-            .into_int_value();
+        let object_int = cursor_int;
         let next_int = builder
             .build_int_add(object_int, aligned_size, "tlab_next_int")
-            .map_err(|error| CodegenError(format!("advance selected TLAB object: {error}")))?;
+            .map_err(|error| CodegenError(format!("advance TLAB object: {error}")))?;
         let has_tlab = builder
             .build_int_compare(
                 IntPredicate::NE,
@@ -166,19 +147,37 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 "tlab_present",
             )
             .map_err(|error| CodegenError(format!("check TLAB presence: {error}")))?;
-        let is_small = builder
+        let is_regular = builder
             .build_int_compare(
                 IntPredicate::ULE,
                 aligned_size,
-                i64_ty.const_int(64, false),
-                "alloc_is_small",
+                i64_ty.const_int(scoop_lir::REGULAR_MANAGED_OBJECT_MAX_SIZE, false),
+                "alloc_is_regular",
             )
-            .map_err(|error| CodegenError(format!("check small allocation: {error}")))?;
+            .map_err(|error| CodegenError(format!("check regular allocation: {error}")))?;
         let within_limit = builder
             .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
             .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
+        let hook_slot = builder
+            .build_struct_gep(
+                metadata.type_descriptor(),
+                descriptor,
+                11,
+                "allocation_hook_ptr",
+            )
+            .map_err(|error| CodegenError(format!("allocation release hook: {error}")))?;
+        let hook = builder
+            .build_load(ptr, hook_slot, "allocation_hook")
+            .map_err(|error| CodegenError(format!("load allocation release hook: {error}")))?
+            .into_pointer_value();
+        let nursery_eligible = builder
+            .build_is_null(hook, "allocation_nursery_eligible")
+            .map_err(|error| CodegenError(format!("allocation generation: {error}")))?;
         let fast = builder
-            .build_and(has_tlab, is_small, "alloc_has_small_tlab")
+            .build_and(has_tlab, is_regular, "alloc_has_regular_tlab")
+            .and_then(|condition| {
+                builder.build_and(condition, nursery_eligible, "alloc_young_tlab")
+            })
             .and_then(|condition| builder.build_and(condition, within_limit, "alloc_within_limit"))
             .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
             .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;

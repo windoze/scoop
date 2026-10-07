@@ -3,8 +3,8 @@ use scoop_lir::StrongTypeRegistrationPlan;
 use super::StrongTypeRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
-pub(in crate::link_object) const ABI_VERSION: u32 = 4;
-pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 240;
+pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 208;
 
 pub(super) fn validate_record_bytes<D: Copy, C>(
     object: &[u8],
@@ -43,26 +43,24 @@ pub(super) fn expected_record<D: Copy, C>(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    bytes[16..152].copy_from_slice(
+    bytes[16..120].copy_from_slice(
         &crate::link_object::registration_identity::provisional_registration_identity(
             plan.exact_type().as_array(),
             plan.definition_owner(),
         ),
     );
-    write_u64(&mut bytes, 152, plan.runtime_type().get());
+    write_u64(&mut bytes, 120, plan.runtime_type().get());
     bytes
 }
 
 pub(in crate::link_object) fn expected_final_record<D: Copy, C>(
     plan: &StrongTypeRegistrationPlan<D, C>,
-    registration_definition: &[u8; 32],
     descriptor_definition: &[u8; 32],
     layout: &[u8; 32],
 ) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = expected_record(plan);
-    bytes[120..152].copy_from_slice(registration_definition);
-    bytes[176..208].copy_from_slice(descriptor_definition);
-    bytes[208..240].copy_from_slice(layout);
+    bytes[144..176].copy_from_slice(descriptor_definition);
+    bytes[176..208].copy_from_slice(layout);
     bytes
 }
 

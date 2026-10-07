@@ -5,12 +5,8 @@ use std::sync::Arc;
 
 use scoop_identity::{ConeIdentity, OdrGroupId, OdrMemberId, OdrMemberKey, SpecializationKey};
 
-use crate::{
-    DefinedLinkSymbolOwnerV1, OdrAbiFingerprintV1, OdrDefinitionFingerprintV1,
-    OdrMemberDirectoryEntryV1,
-};
+use crate::{DefinedLinkSymbolOwnerV1, OdrAbiFingerprintV1, OdrMemberDirectoryEntryV1};
 
-mod content;
 mod errors;
 mod merge;
 
@@ -59,10 +55,6 @@ impl MergedOdrMemberDefinition {
 
     pub const fn abi(&self) -> OdrAbiFingerprintV1 {
         self.entry.abi()
-    }
-
-    pub const fn definition(&self) -> OdrDefinitionFingerprintV1 {
-        self.entry.definition()
     }
 
     pub fn candidates(&self) -> impl Iterator<Item = &OdrDefinitionCandidate> {

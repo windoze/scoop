@@ -2,7 +2,7 @@
 
 use super::*;
 
-pub(super) fn boundaries(
+pub(in crate::emission) fn boundaries(
     llvm: &LlvmModule<'_>,
     definition: &scoop_lir::DefinitionSymbolPlanV1,
     symbol: &str,

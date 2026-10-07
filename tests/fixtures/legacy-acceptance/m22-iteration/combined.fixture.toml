@@ -8,14 +8,17 @@ tags = ["legacy", "m22-iteration", "single-file", "run", "moving-gc"]
 
 [[variants]]
 name = "normal"
+vars = {profile = "debug"}
 
 [[variants]]
 name = "moving"
+vars = {profile = "release"}
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+timeout = 300
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--profile", "${profile}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
 exit = 0
 stdout = ""
 stderr = ""

@@ -20,13 +20,6 @@ impl DigestGraphWriter<'_> {
                 value.semantic().instance_layout(),
             )
         }))?;
-        self.project_immortal_objects(
-            registrations
-                .immortal_objects()
-                .registrations()
-                .iter()
-                .map(|value| value.object()),
-        )?;
         self.project_static_storages(registrations.static_storages().registrations().iter().map(
             |value| {
                 (
@@ -44,7 +37,6 @@ impl DigestGraphWriter<'_> {
                 .map(|value| (value.semantic().unit(), value.semantic().schedule())),
         )?;
         self.project_entry(entry)?;
-        self.project_odr_definitions()?;
         self.project_image()?;
         self.finish()
     }

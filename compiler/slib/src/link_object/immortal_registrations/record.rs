@@ -3,10 +3,8 @@ use scoop_lir::StrongImmortalObjectRegistrationPlanV1;
 use super::StrongImmortalObjectRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
-pub(in crate::link_object) const ABI_VERSION: u32 = 4;
-const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
-const DIGEST_WIDTH: usize = 32;
-pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 184;
+pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 152;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],
@@ -57,19 +55,15 @@ pub(super) fn expected_record(
         }
     }
     bytes[24..56].copy_from_slice(plan.object().as_array());
-    write_u64(&mut bytes, 160, plan.object_size());
-    write_u64(&mut bytes, 168, plan.required_alignment());
+    write_u64(&mut bytes, 128, plan.object_size());
+    write_u64(&mut bytes, 136, plan.required_alignment());
     bytes
 }
 
 pub(in crate::link_object) fn expected_final_record(
     plan: StrongImmortalObjectRegistrationPlanV1,
-    registration: &[u8; DIGEST_WIDTH],
 ) -> [u8; DESCRIPTOR_SIZE] {
-    let mut bytes = expected_record(plan);
-    bytes[DEFINITION_FINGERPRINT_OFFSET..DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
-        .copy_from_slice(registration);
-    bytes
+    expected_record(plan)
 }
 
 fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {

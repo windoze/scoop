@@ -172,19 +172,19 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     assert!(
         leaves
             .immortal_object_registration_objects()
-            .fingerprints()
+            .registrations()
             .is_empty()
     );
     assert!(
         leaves
             .static_storage_registration_objects()
-            .fingerprints()
+            .registrations()
             .is_empty()
     );
     assert!(
         leaves
             .initialization_registration_objects()
-            .fingerprints()
+            .registrations()
             .is_empty()
     );
     let dependency_owners = Vec::new();

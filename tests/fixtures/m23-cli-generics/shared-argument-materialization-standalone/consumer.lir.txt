@@ -874,7 +874,7 @@ Module
     store local193 -> local235
     store local235 -> local236
     t92 = variant_test e0 v0 local236 : i1
-    cbr t92 then @pattern.pass.39 else @pattern.else.40
+    br @pattern.pass.39
   block pattern.pass.39
     t93 = variant_payload_project e0 v0 f1 local236 : i32
     store t93 -> local194
@@ -888,8 +888,6 @@ Module
     store local198 -> local199
     t97 = integer_compare_Equal<Long> local197, local199 : i1
     cbr t97 then @if.then.42 else @if.else.43
-  block pattern.else.40
-    unreachable
   block pattern.merge.41
     store local204 -> local205
     store local205 -> local206

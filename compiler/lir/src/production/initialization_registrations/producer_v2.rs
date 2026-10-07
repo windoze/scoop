@@ -7,7 +7,7 @@ use super::{
     StrongInitializationUnitSemanticPlanSetV2,
 };
 use crate::{
-    ConeLirFoundation, DigestFinalizationPlanV1, InitializationDefinitionResolutionErrorV2,
+    ConeLirFoundation, InitializationDefinitionResolutionErrorV2,
     InitializationDependencyResolutionError, RegistrationIdentitySurfaceV1,
     StrongExternalInitializationUseV2, StrongInitializationDefinitionCatalogV2,
     StrongInitializationUnitDefinitionRefV2,
@@ -22,7 +22,6 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
         local: StrongInitializationUnitSemanticPlanSetV1,
         foundation: &ConeLirFoundation,
         identities: &RegistrationIdentitySurfaceV1,
-        digests: &DigestFinalizationPlanV1,
         external_uses: &[StrongExternalInitializationUseV2],
     ) -> Result<Self, StrongInitializationUnitSemanticPlanV2BuildError> {
         let producer = local.static_storages().producer();
@@ -41,7 +40,6 @@ impl StrongInitializationUnitSemanticPlanSetV2 {
                 semantic.unit(),
                 foundation,
                 identities,
-                digests,
             )
             .map_err(StrongInitializationUnitSemanticPlanV2BuildError::LocalDefinition)?;
             definitions.insert(semantic.unit(), definition);

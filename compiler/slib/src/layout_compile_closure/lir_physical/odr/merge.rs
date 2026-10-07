@@ -1,10 +1,10 @@
-use std::collections::btree_map::Entry;
+use std::collections::{BTreeSet, btree_map::Entry};
 
 use super::*;
 use crate::{LinkDefinitionOwnerV1, ReplayedLayoutLinkSymbolUsesV1};
 use scoop_identity::ValidatedIdentityGraph;
 
-/// Compare physical definitions from artifacts whose own semantics, objects,
+/// Compare shared keys and ABIs from artifacts whose own semantics, objects,
 /// and imports have already been checked. This does not read or rehash them.
 pub fn merge_cross_cone_odr_definitions<'a>(
     artifacts: impl IntoIterator<
@@ -18,11 +18,11 @@ pub fn merge_cross_cone_odr_definitions<'a>(
     let mut groups = BTreeMap::<OdrGroupId, (Arc<SpecializationKey>, ConeIdentity)>::new();
     let mut keys = BTreeMap::<OdrMemberId, (Arc<OdrMemberKey>, ConeIdentity)>::new();
     let mut symbol_owners = BTreeMap::new();
-    let mut previous_artifacts = BTreeMap::new();
+    let mut providers = BTreeSet::new();
 
     for (identities, artifact) in artifacts {
         let provider = artifact.provider();
-        if previous_artifacts.insert(provider, artifact).is_some() {
+        if !providers.insert(provider) {
             return Err(OdrDefinitionMergeError::DuplicateArtifact(provider));
         }
         let mut primary = BTreeMap::new();
@@ -113,12 +113,6 @@ pub fn merge_cross_cone_odr_definitions<'a>(
                         let first = previous.first.provider;
                         if previous.entry.abi() != entry.abi() {
                             return Err(conflict(first, OdrDefinitionDifference::Abi));
-                        }
-                        if previous.entry.definition() != entry.definition() {
-                            let original = previous_artifacts[&first];
-                            let difference =
-                                content::difference(original, artifact, entry.member())?;
-                            return Err(conflict(first, difference));
                         }
                         previous.additional.push(candidate);
                     }

@@ -130,10 +130,9 @@ pub use runtime_metadata_v1::{
     EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
     EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
     EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
-    ImmortalObjectRegistrationPatchSiteV1, InitializationRegistrationPatchSiteV1,
-    ProvisionalStrongDigestPatchLocationV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
-    SafepointRegistrationPatchSiteV1, StaticStorageRegistrationPatchSiteV1,
-    TypeRegistrationPatchSiteV1,
+    InitializationRegistrationPatchSiteV1, ProvisionalStrongDigestPatchLocationV1,
+    RootEntryPatchSiteV1, RuntimeImagePatchSiteV1, SafepointRegistrationPatchSiteV1,
+    StaticStorageRegistrationPatchSiteV1, TypeRegistrationPatchSiteV1,
 };
 use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};

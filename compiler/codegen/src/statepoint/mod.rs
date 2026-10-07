@@ -1,8 +1,8 @@
 //! LLVM statepoint rewrite policy and defensive verification.
 //!
-//! Typed LIR is the sole source of safepoint identity and live-root shape.
-//! This module records that complete manifest, configures LLVM 22.1, and
-//! rejects rewritten IR that does not match it exactly.
+//! Typed LIR supplies site identity and logical leaves. Ordinary LLVM passes
+//! determine their final SSA equivalence classes before RS4GC. The same plan
+//! drives relocation checks, runtime metadata and object verification.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{CStr, CString};
@@ -15,7 +15,7 @@ use inkwell::context::Context;
 use inkwell::llvm_sys::core::{
     LLVMBuildCall2, LLVMBuildInvoke2, LLVMConstIntGetZExtValue, LLVMGetCalledValue, LLVMGetGC,
     LLVMGetIntrinsicDeclaration, LLVMGetNumArgOperands, LLVMGetOperand, LLVMGetValueName2,
-    LLVMGlobalGetValueType, LLVMIsAAllocaInst, LLVMIsAConstantInt, LLVMLookupIntrinsicID,
+    LLVMGlobalGetValueType, LLVMIsAConstantInt, LLVMLookupIntrinsicID,
 };
 use inkwell::module::Module as LlvmModule;
 use inkwell::passes::PassBuilderOptions;
@@ -52,39 +52,11 @@ impl TypedManagedPointerBoundary {
     }
 }
 
-pub(crate) fn mark_root_identity(
-    context: &Context,
-    instruction: InstructionValue<'_>,
-    safepoint: scoop_lir::SafepointId,
-    source: scoop_lir::CallerRootSource,
-    byte_offset: u64,
-) -> Result<(), CodegenError> {
-    let (source_kind, source_index) = match source {
-        scoop_lir::CallerRootSource::Param(index) => (0, index),
-        scoop_lir::CallerRootSource::Local(id) => (1, id.into_raw().into_u32()),
-        scoop_lir::CallerRootSource::Temp(id) => (2, id.into_raw().into_u32()),
-    };
-    let i64_type = context.i64_type();
-    instruction
-        .set_metadata(
-            context.metadata_node(&[
-                i64_type.const_int(safepoint.get(), false).into(),
-                i64_type.const_int(source_kind, false).into(),
-                i64_type.const_int(source_index.into(), false).into(),
-                i64_type.const_int(byte_offset, false).into(),
-            ]),
-            context.get_kind_id(STATEPOINT_ROOT_IDENTITY_METADATA),
-        )
-        .map_err(|error| {
-            CodegenError(format!(
-                "mark statepoint {} root identity: {error}",
-                safepoint.get()
-            ))
-        })
-}
-
 mod builders;
+mod finalization;
 mod manifest;
+mod root_identity;
+pub(crate) use root_identity::mark_root_identity;
 mod policy;
 mod provenance;
 mod verifier;
@@ -94,9 +66,11 @@ pub(crate) use builders::{
 };
 #[cfg(test)]
 use manifest::ExpectedSite;
-use manifest::{ExpectedRoot, ExpectedStatepoint};
+use manifest::{ExpectedRoot, ExpectedRoots, ExpectedStatepoint};
 pub(crate) use manifest::{ExpectedSafepoints, expectations};
-pub(crate) use policy::{configure_function, rewrite};
+#[cfg(test)]
+pub(crate) use policy::rewrite;
+pub(crate) use policy::{configure_function, lower, optimize};
 use verifier::ObservedStatepoint;
 pub(crate) use verifier::verify_rewritten;
 

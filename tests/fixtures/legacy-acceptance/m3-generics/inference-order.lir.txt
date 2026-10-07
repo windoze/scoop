@@ -107,7 +107,7 @@ Module
     store local17 -> local47
     store local47 -> local48
     t8 = variant_test e2 v0 local48 : i1
-    cbr t8 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t9 = variant_payload_project e2 v0 f1 local48 : i32
     store t9 -> local18
@@ -116,8 +116,6 @@ Module
     call managed-void-target2 sp<managed-call:3> live=[] sig=void2 (i32) local-fn7(local20)
     t10 = aggregate () : {}
     br @pattern.merge.3
-  block pattern.else.2
-    unreachable
   block pattern.merge.3
     t11 = enum_wrap e0 v1 () : enum0
     store t11 -> local21

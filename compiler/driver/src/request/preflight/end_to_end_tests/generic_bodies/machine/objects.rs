@@ -242,7 +242,7 @@ pub(super) fn check(
                         .find(|registration| registration.body() == body)
                         .unwrap();
                     check_registration(data, body.as_array(), registration.definition_owner());
-                    assert_eq!(&data[152..184], &[0; 32]);
+                    assert_eq!(&data[120..152], &[0; 32]);
                 }
                 (
                     StrongDefinitionRole::SafepointRegistration,
@@ -256,7 +256,7 @@ pub(super) fn check(
                         .find(|registration| registration.site() == site)
                         .unwrap();
                     check_registration(data, site.as_array(), registration.definition_owner());
-                    assert_eq!(&data[200..232], &[0; 32]);
+                    assert_eq!(&data[168..200], &[0; 32]);
                 }
                 _ => {}
             }
@@ -268,7 +268,6 @@ pub(super) fn check(
 fn check_registration(data: &[u8], semantic: &[u8; 32], owner: RegistrationDefinitionOwner) {
     assert_eq!(&data[20..24], &[0; 4]);
     assert_eq!(&data[24..56], semantic);
-    assert_eq!(&data[120..152], &[0; 32]);
     match owner {
         RegistrationDefinitionOwner::Strong => {
             assert_eq!(&data[16..20], &1_u32.to_le_bytes());

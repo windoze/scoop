@@ -70,5 +70,4 @@ fn matches_registration(
         && exported.semantic_id() == exact
         && exported.definition_plan() == registration.definition_plan()
         && exported.symbol() == registration.symbol()
-        && exported.fingerprint_node() == registration.registration_fingerprint_node()
 }

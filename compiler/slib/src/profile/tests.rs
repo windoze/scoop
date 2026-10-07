@@ -11,11 +11,11 @@ fn single_cone_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
     let descriptor = profile.descriptor();
     assert_eq!(
         hex(&encode(&descriptor).unwrap()),
-        "a501a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703050281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03030382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e74657266616365030ba301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03080482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03050583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0305a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f73757265030ea301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e0313"
+        "a501a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c65027273696e676c652d636f6e652d7374726f6e6703050281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03050382a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e74657266616365030ba301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03080482a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03050583a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0306a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f73757265030fa301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e0315"
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "b759821131d7bd4d1e7b2b4e3fcd0d38f8c1b9789092d8913014590dae3bb5f3"
+        "1c6baf9e67e8adbf2a4dddc713eaf98db45a0960566f4113ded5bf9f5eac1ccd"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),
@@ -60,7 +60,7 @@ fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint(
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "b00b99119fc121d69ca2efcaa11234c71d4fffa2bc04df8341abc66299d86be7"
+        "28aa08872f95651355cb9a17dafefdb9091fbaf02f710d8538efb2dc77c2d5e5"
     );
 
     assert_eq!(
@@ -104,9 +104,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
     let code_runtime_link = FingerprintSinkSet::CODE
         .union(FingerprintSinkSet::RUNTIME_IMAGE)
         .union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
-    let lir_code_runtime = FingerprintSinkSet::LIR
-        .union(FingerprintSinkSet::CODE)
-        .union(FingerprintSinkSet::RUNTIME_IMAGE);
+    let code_runtime = FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE);
     let code_link = FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
     for (capability, location, purpose, sinks) in [
         (
@@ -125,7 +123,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             lir_identity_foundation_capability(),
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
-            FingerprintSinkSet::LIR,
+            code_link,
         ),
         (
             manifest_single_cone_production_capability(),
@@ -173,7 +171,7 @@ fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
             lir_strong_production_capability(),
             SectionLocation::Lir,
             MemberPurposeSet::COMPILE_AND_LINK,
-            lir_code_runtime,
+            code_runtime,
         ),
         (
             lir_link_identity_closure_capability(),

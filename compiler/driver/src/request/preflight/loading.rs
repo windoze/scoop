@@ -12,6 +12,7 @@ impl SingleConeBuildRequest {
             output,
             diagnostics,
             emit,
+            optimization,
         } = self;
         let current = load_current_input(current)?;
         if let TrustedCoreInput::Artifact(input) = &trusted_core {
@@ -53,6 +54,7 @@ impl SingleConeBuildRequest {
             output,
             diagnostics,
             emit,
+            optimization,
         })
     }
 }

@@ -13,11 +13,11 @@ pub struct LinkSymbolVerifiedObjectProductionV1 {
         VerifiedStrongCallableRegistrationSetV1,
     pub(in crate::object_production) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
-        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+        VerifiedStrongImmortalObjectRegistrationSetV1,
     pub(in crate::object_production) static_storage_registration_objects:
-        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+        VerifiedStrongStaticStorageRegistrationSetV1,
     pub(in crate::object_production) initialization_registration_objects:
-        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+        VerifiedStrongInitializationRegistrationSetV1,
 }
 
 impl LinkSymbolVerifiedObjectProductionV1 {
@@ -51,19 +51,19 @@ impl LinkSymbolVerifiedObjectProductionV1 {
 
     pub const fn immortal_object_registration_objects(
         &self,
-    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
         &self.immortal_object_registration_objects
     }
 
     pub const fn static_storage_registration_objects(
         &self,
-    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
         &self.static_storage_registration_objects
     }
 
     pub const fn initialization_registration_objects(
         &self,
-    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registration_objects
     }
 
@@ -106,25 +106,14 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             )
             .map_err(BuiltinObjectProductionError::TypeFingerprints)?;
 
-            let immortal_object_definitions =
-                compute_strong_immortal_object_definition_fingerprints_v1(
-                    immortal_object_registration_objects,
-                    undefined_symbols.clone(),
-                    &candidates,
-                )
-                .map_err(BuiltinObjectProductionError::ImmortalObjectDefinitionFingerprints)?;
+            let immortal_object_definitions = immortal_object_registration_objects;
             let immortal_objects = compute_strong_immortal_object_fingerprints_v1(
                 immortal_object_definitions,
                 production.production().canonical_shape_definitions(),
             )
             .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
 
-            let static_storage_definitions =
-                compute_strong_static_storage_definition_fingerprints_v1(
-                    static_storage_registration_objects,
-                    &candidates,
-                )
-                .map_err(BuiltinObjectProductionError::StaticStorageDefinitionFingerprints)?;
+            let static_storage_definitions = static_storage_registration_objects;
             let static_storage_shapes =
                 compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
                     .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
@@ -134,12 +123,7 @@ impl LinkSymbolVerifiedObjectProductionV1 {
             )
             .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
 
-            let initialization_definitions =
-                compute_strong_initialization_definition_fingerprints_v1(
-                    initialization_registration_objects,
-                    &candidates,
-                )
-                .map_err(BuiltinObjectProductionError::InitializationDefinitionFingerprints)?;
+            let initialization_definitions = initialization_registration_objects;
             let initializations = compute_strong_initialization_fingerprints_v1(
                 initialization_definitions,
                 callables.body_objects(),

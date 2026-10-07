@@ -53,12 +53,6 @@ fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
                 .unwrap()
                 .runtime_type()
         );
-        let registration = node(&fixture.digests, plan.registration_fingerprint_node());
-        assert_eq!(registration.direct_inputs().len(), 3);
-        assert_eq!(
-            registration.patch_intents()[0].id(),
-            plan.registration_definition_patch()
-        );
         assert!(
             node(&fixture.digests, plan.descriptor_definition_node())
                 .patch_intents()
@@ -104,21 +98,21 @@ fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     let plans = fixture.build().unwrap();
     let plan = &plans.registrations()[0];
     let mut encoded = encode(plan).unwrap();
-    assert_eq!(&encoded[..2], &[0xb8, 30]);
+    assert_eq!(&encoded[..2], &[0xb8, 27]);
     assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 30, 0xa1, 0, 1]);
-    encoded[1] = 29;
+    encoded[1] = 26;
     encoded.truncate(encoded.len() - 5);
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
-    assert_eq!(&encoded[..2], &[0xb8, 29]);
+    assert_eq!(&encoded[..2], &[0xb8, 26]);
     assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 29, 0xa1, 0, 0]);
-    encoded[1] = 28;
+    encoded[1] = 25;
     encoded.truncate(encoded.len() - 5);
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
     assert_eq!(
         &encoded[encoded.len() - 7..],
         &[0x18, 0x1c, 0xa2, 0, 1, 1, 0]
     );
-    encoded[1] = 0x1b;
+    encoded[1] = 24;
     encoded.truncate(encoded.len() - 7);
 
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded,).is_err());
@@ -266,43 +260,7 @@ fn requires_the_exact_itable_directory_atom_for_nonempty_itables() {
 }
 
 #[test]
-fn requires_a_leaf_registration_object_definition() {
-    assert!(matches!(
-        Fixture::new(Options {
-            registration_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::RegistrationObjectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            registration_object_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::RegistrationObjectPatches { .. })
-    ));
-}
-
-#[test]
-fn requires_exact_registration_inputs_and_digest_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_descriptor_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::DirectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::PatchSet { .. })
-    ));
+fn requires_descriptor_and_layout_digest_writers() {
     assert!(matches!(
         Fixture::new(Options {
             omit_descriptor_patch: true,

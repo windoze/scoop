@@ -37,6 +37,7 @@ pub(crate) struct BuildContext {
     pub(crate) target: scoop_toolchain::ResolvedTargetProfile,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
+    pub(crate) optimization: scoop_lir::OptimizationMode,
 }
 
 #[derive(Debug)]

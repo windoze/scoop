@@ -13,11 +13,7 @@ pub(super) struct Options {
     pub(super) omit_callable_registration: bool,
     pub(super) omit_cell_symbol: bool,
     pub(super) omit_registration_primary: bool,
-    pub(super) omit_registration_object: bool,
     pub(super) omit_diagnostic_atom: bool,
-    pub(super) cell_object_input: bool,
-    pub(super) omit_cell_input: bool,
-    pub(super) omit_registration_patch: bool,
     pub(super) omit_gateway_patch: bool,
     pub(super) unexpected_lazy_gateway_patch: bool,
 }
@@ -248,16 +244,8 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
         let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
-        let digests = digest_plan(
-            &foundation,
-            &cell,
-            &registration,
-            &storage_registrations,
-            &callables,
-            options,
-        );
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let digests = digest_plan(&foundation, &registration, &callables, options);
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         Self {
             foundation,
             identities,
@@ -442,8 +430,4 @@ fn source_site() -> SourceDeclarationSite {
 
 fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
     PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
-}
-
-pub(super) fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
-    plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }

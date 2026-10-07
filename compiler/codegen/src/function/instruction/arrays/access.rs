@@ -124,9 +124,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             symbol = function.symbol()
                         ))
                     })?;
-                // M9 write barrier: mark the stored-to address's card
-                // (array element stores are heap stores too).
-                self.card_mark(element_ptr)?;
+                self.heap_value_barrier(element_ptr, &value_ty)?;
             }
             _ => unreachable!("array instruction dispatch is exhaustive"),
         }

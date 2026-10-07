@@ -5,6 +5,7 @@ use scoop_protocol::{
 
 #[derive(Debug, Default)]
 pub struct DirectBuildOptions {
+    pub optimization: scoop_lir::OptimizationMode,
     pub target: Option<String>,
     pub sysroot: Option<PathBuf>,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
@@ -63,6 +64,7 @@ pub fn normalize_direct_build_request(
         diagnostics,
         emit,
     )
+    .map(|request| request.with_optimization(options.optimization))
     .map_err(BuildRequestNormalizationError::Request)
 }
 
@@ -147,6 +149,7 @@ pub fn normalize_protocol_build_request(
         map_diagnostic_policy(build.diagnostics()),
         map_dump_policy(build.emit()),
     )
+    .map(|request| request.with_optimization(build.optimization()))
     .map_err(BuildRequestNormalizationError::Request)
 }
 

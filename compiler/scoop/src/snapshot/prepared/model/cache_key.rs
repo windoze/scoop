@@ -115,7 +115,8 @@ impl PreparedBuildGraph {
             lir_target,
             backend,
             c_bridge_toolchain,
-        ))
+        )
+        .with_optimization(self.context.optimization))
     }
 
     pub fn compile_cache_key(

@@ -1,0 +1,16 @@
+@NoGC @Extern(lib = "fixture_native", name = "seed")
+fun seed(): Long
+
+class Box(val value: Long)
+
+@Unsafe fun main() {
+    val box = Box(seed())
+    gcCollect()
+    var value = box.value
+    var index = 0L
+    while (index < 10L) {
+        value = value + index
+        index = index + 1L
+    }
+    println(value)
+}

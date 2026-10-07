@@ -9,8 +9,7 @@ fn layout_schema_retains_ten_shared_production_fields() {
     let producer = foundation.producer();
     let target = LirTargetProfile::DARWIN_AARCH64;
 
-    let identities =
-        crate::RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = crate::RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let registrations = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
         target,
         &foundation,
@@ -40,7 +39,7 @@ fn layout_schema_retains_ten_shared_production_fields() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&foundation),
-        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        crate::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     let old = ConeProductionSectionV1::new(
@@ -52,7 +51,7 @@ fn layout_schema_retains_ten_shared_production_fields() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&foundation),
-        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        crate::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     let bytes = encode(&current).unwrap();

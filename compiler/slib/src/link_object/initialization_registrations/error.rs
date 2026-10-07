@@ -40,25 +40,6 @@ pub enum InitializationRegistrationPatchFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum InitializationRegistrationDigestPlanFailureV1 {
-    MissingRegistrationObjectDefinitionNode,
-    RegistrationObjectDefinitionNodeIdentity,
-    RegistrationObjectDefinitionDirectInputs,
-    RegistrationObjectDefinitionPatchSet,
-    MissingCellObjectDefinitionNode,
-    CellObjectDefinitionNodeIdentity,
-    CellObjectDefinitionDirectInputs,
-    CellObjectDefinitionPatchSet,
-    MissingRegistrationNode,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-    MissingGatewayObjectDefinitionNode,
-    GatewayObjectDefinitionNodeIdentity,
-    GatewayDefinitionPatchSet,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InitializationAtomFileRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -95,10 +76,6 @@ pub enum StrongInitializationRegistrationValidationError {
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
     ObjectBytesMismatch(SlibMemberId),
-    DigestPlanMismatch {
-        unit: PersistentInitializationUnitId,
-        kind: InitializationRegistrationDigestPlanFailureV1,
-    },
     MissingDefinitionAssignment {
         unit: PersistentInitializationUnitId,
         definition: ObjectDefinitionPlanId,

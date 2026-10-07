@@ -151,7 +151,14 @@ json = "stderr"
 diagnostics = []
 checks = [
   {"actual" = "${link.result.dependencies.length}", "equals" = 4},
-  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.${target}.txt"},
+  {actual = "${link.result.link_plan}", contains = "program-link v3\n"},
+  {actual = "${link.result.link_plan}", contains = "cone scoop:scoop.core:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:enum-provider:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:enums-patterns:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:downstream-patterns:0.1.0 kind=Library objects="},
+  {actual = "${link.result.link_plan}", contains = "cone dev.example:value-runtime-enum-patterns:0.1.0 kind=Executable objects="},
+  {actual = "${link.result.link_plan}", contains = "images=5 root=${symbol_prefix}scoop$$1$$re$$53a6b9d3245b0e066da9bec909b9de6379ed081583e408684bff9bdffe5324e2"},
+  {actual = "${link.result.link_plan}", contains = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$$1$$td$$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"},
   {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
 ]
 

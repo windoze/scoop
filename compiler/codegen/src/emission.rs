@@ -1,149 +1,12 @@
 use super::*;
 
+mod metadata_partition;
 mod objects;
 mod storage;
 pub use objects::*;
 
-fn prepare_non_callable_strong_llvm_module<
-    'ctx,
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-    I: Clone,
->(
-    context: &'ctx Context,
-    module: &Module,
-    production: &scoop_lir::ConeProductionSection<D, C, I>,
-    machine: &TargetMachine,
-    profile: ValidatedBackendProfile,
-    expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
-    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
-        context,
-        module,
-        production.canonical_definitions(),
-        machine,
-        profile,
-        StrongObjectEmissionSelection::NonCallable,
-        |context, llvm, target_data, bounds_message, array_size_message| {
-            let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
-                context,
-                llvm,
-                target_data,
-                profile,
-                production,
-                bounds_message,
-                array_size_message,
-            )?;
-            let (runtime_metadata, emitted_initialization_units) = runtime_metadata.into_parts();
-            let initialization_units =
-                initialization_unit_globals(module, &emitted_initialization_units)?;
-            Ok((runtime_metadata, initialization_units))
-        },
-    )?;
-
-    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
-    Ok((llvm, runtime_metadata))
-}
-
-fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
-    context: &'ctx Context,
-    module: &Module,
-    production: &scoop_lir::ConeProductionSection<D, C, I>,
-    machine: &TargetMachine,
-    profile: ValidatedBackendProfile,
-    expected_safepoints: &statepoint::ExpectedSafepoints,
-    body: scoop_lir::PersistentCallableBodyId,
-) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
-    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
-        context,
-        module,
-        production.canonical_definitions(),
-        machine,
-        profile,
-        StrongObjectEmissionSelection::CallableBody(body),
-        |context, llvm, target_data, _, _| {
-            Ok((
-                runtime_metadata_v1::emit_context_callable_metadata_v1(
-                    context,
-                    llvm,
-                    target_data,
-                    profile,
-                    production,
-                    body,
-                )?,
-                declare_initialization_unit_globals(context, llvm, module, production)?,
-            ))
-        },
-    )?;
-    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
-    Ok((llvm, runtime_metadata))
-}
-
-fn write_object(
-    machine: &TargetMachine,
-    llvm: &LlvmModule<'_>,
-    output: &Path,
-) -> Result<(), CodegenError> {
-    machine
-        .write_to_file(llvm, FileType::Object, output)
-        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
-}
-
-fn verify_and_seal_object(
-    output: &Path,
-    profile: ValidatedBackendProfile,
-    expected_safepoints: &statepoint::ExpectedSafepoints,
-    expected_eh: &artifact::ExpectedEh,
-) -> Result<(), CodegenError> {
-    if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
-        return Err(discard_invalid_object(output, error));
-    }
-    let mut permissions = std::fs::metadata(output)
-        .map_err(|error| {
-            CodegenError(format!(
-                "cannot inspect verified object {}: {error}",
-                output.display()
-            ))
-        })?
-        .permissions();
-    permissions.set_readonly(true);
-    std::fs::set_permissions(output, permissions).map_err(|error| {
-        CodegenError(format!(
-            "cannot seal verified object {} read-only: {error}",
-            output.display()
-        ))
-    })?;
-    Ok(())
-}
-
-fn discard_invalid_object(output: &Path, error: CodegenError) -> CodegenError {
-    match std::fs::remove_file(output) {
-        Ok(()) => error,
-        Err(remove_error) => CodegenError(format!(
-            "{error}; also failed to discard invalid object {}: {remove_error}",
-            output.display()
-        )),
-    }
-}
-
-fn verify_and_rewrite_module(
-    llvm: &LlvmModule<'_>,
-    machine: &TargetMachine,
-    profile: ValidatedBackendProfile,
-    expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<(), CodegenError> {
-    crate::metadata_sections::place_immutable_metadata(llvm, profile);
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
-
-    // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
-    // invoke in the GC-strategy functions into a `gc.statepoint`; the
-    // object file's `__llvm_stackmaps` section is produced from them.
-    statepoint::rewrite(llvm, machine)?;
-    llvm.verify()
-        .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(llvm, expected_safepoints, profile)
-}
+mod prepare;
+use prepare::*;
 
 /// Test helper for constructing the one supported host profile. Production
 /// code receives a profile selected by the driver.
@@ -526,7 +389,9 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         }
     }
     if module.meta.target_profile.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
-        crate::elf_llvm::prepare(&llvm, surface)?;
+        if !matches!(selection, StrongObjectEmissionSelection::CallableBody(_)) {
+            crate::elf_llvm::prepare(&llvm, surface)?;
+        }
         for global in external_type_tds {
             crate::elf_llvm::apply_visibility(global);
         }

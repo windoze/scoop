@@ -54,7 +54,6 @@ impl_patch_site_parts!(
     SafepointRegistrationPatchSiteV1,
     CallableRegistrationPatchSiteV1,
     TypeRegistrationPatchSiteV1,
-    ImmortalObjectRegistrationPatchSiteV1,
     StaticStorageRegistrationPatchSiteV1,
     InitializationRegistrationPatchSiteV1,
     RuntimeImagePatchSiteV1,

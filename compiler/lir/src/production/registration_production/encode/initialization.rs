@@ -3,7 +3,7 @@ use super::*;
 impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPlan<D> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(24)?;
+        encoder.map(20)?;
         super::projections::encode_unit_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 9, &self.registration_symbol())?;
         encode_field(encoder, 10, &self.registration_definition_plan())?;
@@ -22,10 +22,7 @@ impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPl
         encode_initialization_callable_ref(encoder, self.ensure())?;
         encoder.field(23)?;
         encode_initialization_registration_schedule(encoder, self.schedule())?;
-        encode_field(encoder, 24, &self.registration_object_node())?;
-        encode_field(encoder, 25, &self.cell_definition_node())?;
-        encode_field(encoder, 27, &self.registration_fingerprint_node())?;
-        encode_field(encoder, 28, &self.registration_definition_patch())
+        Ok(())
     }
 }
 
@@ -99,20 +96,20 @@ fn encode_initialization_storage_ref(
     encoder: &mut Encoder,
     reference: StrongInitializationStaticStorageRefPlanV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(6)?;
+    encoder.map(5)?;
     encode_field(encoder, 1, &reference.storage())?;
     encode_field(encoder, 2, &reference.storage_symbol())?;
     encode_field(encoder, 3, &reference.registration_symbol())?;
     encode_field(encoder, 4, &reference.registration_definition_plan())?;
     encode_field(encoder, 5, &reference.registration_primary_atom())?;
-    encode_field(encoder, 6, &reference.registration_fingerprint_node())
+    Ok(())
 }
 
 fn encode_initialization_callable_ref(
     encoder: &mut Encoder,
     reference: StrongInitializationCallableRefPlanV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(9)?;
+    encoder.map(8)?;
     encode_field(encoder, 1, &reference.body())?;
     encode_field(encoder, 2, &reference.entry_symbol())?;
     encode_field(encoder, 3, &reference.registration_symbol())?;
@@ -121,7 +118,7 @@ fn encode_initialization_callable_ref(
     encode_field(encoder, 6, &reference.body_definition_node())?;
     encode_field(encoder, 7, &reference.registration_definition_plan())?;
     encode_field(encoder, 8, &reference.registration_primary_atom())?;
-    encode_field(encoder, 9, &reference.registration_fingerprint_node())
+    Ok(())
 }
 
 fn encode_initialization_registration_schedule(

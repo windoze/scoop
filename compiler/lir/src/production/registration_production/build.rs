@@ -46,7 +46,6 @@ impl<
             foundation,
             &identities,
             &immortal_semantics,
-            digests,
         )
         .map_err(StrongRegistrationProductionBuildError::ImmortalObjects)?;
         let static_storages = StrongStaticStorageRegistrationPlanSetV1::new(

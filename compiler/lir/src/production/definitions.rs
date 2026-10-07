@@ -80,6 +80,17 @@ pub struct ObjectDefinitionPlanSurfaceV1 {
 }
 
 impl ObjectDefinitionPlanSurfaceV1 {
+    pub(crate) fn remove_codegen_records(
+        &mut self,
+        definitions: &BTreeSet<ObjectDefinitionPlanId>,
+        atoms: &BTreeSet<ObjectDefinitionAtomId>,
+    ) {
+        self.plans.retain(|plan| !definitions.contains(&plan.plan));
+        for plan in &mut self.plans {
+            plan.associated_atoms.retain(|atom| !atoms.contains(atom));
+        }
+    }
+
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ObjectDefinitionPlanBuildError> {

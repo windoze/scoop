@@ -263,6 +263,11 @@ fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
         ("o0", OptimizationLevel::None),
         ("o2", OptimizationLevel::Default),
     ] {
+        let profile = profile.with_optimization(if optimization == OptimizationLevel::None {
+            scoop_lir::OptimizationMode::Debug
+        } else {
+            scoop_lir::OptimizationMode::Release
+        });
         let machine = profile
             .create_qualification_target_machine(optimization)
             .expect("qualified target machine");
@@ -270,7 +275,9 @@ fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
         let llvm =
             emit_llvm_module(&context, &module, &machine, profile).expect("emit LLVM module");
         llvm.verify().expect("valid LLVM module");
-        statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+        let expected_safepoints =
+            statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
+                .expect("rewrite-statepoints-for-gc pass");
         llvm.verify().expect("valid post-RS4GC module");
         statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
             .expect("statepoint manifest matches");

@@ -847,9 +847,9 @@ Module
     t33 = Not t32 : i1
     cbr t33 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target7 sp<managed-call:95> live=[] t34 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td26, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target7 sp<managed-call:93> live=[] t34 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td26, machine<byte-size>(ByteSize(24)))
     store t34 -> local259
-    call managed-void-target11 sp<managed-call:96> live=[local259:ptr<managed>@0] sig=void11 (ptr<managed>) external-fn51(local259)
+    call managed-void-target11 sp<managed-call:94> live=[local259:ptr<managed>@0] sig=void11 (ptr<managed>) external-fn51(local259)
     t35 = aggregate () : {}
     throw local259
     unreachable
@@ -1136,7 +1136,7 @@ Module
     store local180 -> local252
     store local181 -> local253
     t126 = integer_compare_Less<Long> local252, integer<Long>(0x0000000000000000) : i1
-    cbr t126 then @if.then.24 else @if.merge.25
+    br @if.merge.25
   block try.body.19
     invoke managed-void-target40 sp<managed-invoke:0> roots=[local136:normal+unwind] sig=void40 () external-fn57() normal @invoke.normal.1 unwind @try.unwind.12
     br @invoke.normal.1
@@ -1153,13 +1153,6 @@ Module
     br @invoke.normal.6
   block scope.23
     br @try.end.18
-  block if.then.24
-    call managed-direct-target33 sp<managed-call:93> live=[] t139 = sig=direct39 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td27, machine<byte-size>(ByteSize(24)))
-    store t139 -> local267
-    call managed-void-target44 sp<managed-call:94> live=[local267:ptr<managed>@0] sig=void45 (ptr<managed>) external-fn53(local267)
-    t140 = aggregate () : {}
-    throw local267
-    unreachable
   block if.merge.25
     t141 = array_alloc_dynamic array1 count local252 overflow global35 sp<managed-call:69> live local136:ptr<managed>@0, local253:ptr<managed>@0 : ptr<managed>
     store t141 -> local254

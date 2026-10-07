@@ -18,7 +18,6 @@ pub struct StrongInitializationStaticStorageRefPlanV1 {
     pub(super) registration_symbol: PersistentSymbolRequest,
     pub(super) registration_definition_plan: ObjectDefinitionPlanId,
     pub(super) registration_primary_atom: ObjectDefinitionAtomId,
-    pub(super) registration_fingerprint_node: DigestNodeId,
 }
 
 impl StrongInitializationStaticStorageRefPlanV1 {
@@ -41,10 +40,6 @@ impl StrongInitializationStaticStorageRefPlanV1 {
     pub const fn registration_primary_atom(self) -> ObjectDefinitionAtomId {
         self.registration_primary_atom
     }
-
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -57,7 +52,6 @@ pub struct StrongInitializationCallableRefPlanV1 {
     pub(super) body_definition_node: DigestNodeId,
     pub(super) registration_definition_plan: ObjectDefinitionPlanId,
     pub(super) registration_primary_atom: ObjectDefinitionAtomId,
-    pub(super) registration_fingerprint_node: DigestNodeId,
 }
 
 impl StrongInitializationCallableRefPlanV1 {
@@ -91,10 +85,6 @@ impl StrongInitializationCallableRefPlanV1 {
 
     pub const fn registration_primary_atom(self) -> ObjectDefinitionAtomId {
         self.registration_primary_atom
-    }
-
-    pub const fn registration_fingerprint_node(self) -> DigestNodeId {
-        self.registration_fingerprint_node
     }
 }
 
@@ -144,10 +134,6 @@ pub struct StrongInitializationUnitRegistrationPlan<D> {
     pub(super) initializer: StrongInitializationCallableRefPlanV1,
     pub(super) ensure: StrongInitializationCallableRefPlanV1,
     pub(super) schedule: StrongInitializationRegistrationSchedulePlanV1,
-    pub(super) registration_object_node: DigestNodeId,
-    pub(super) cell_definition_node: DigestNodeId,
-    pub(super) registration_fingerprint_node: DigestNodeId,
-    pub(super) registration_definition_patch: DigestPatchIntentId,
 }
 
 impl<D> StrongInitializationUnitRegistrationPlan<D> {
@@ -205,22 +191,6 @@ impl<D> StrongInitializationUnitRegistrationPlan<D> {
 
     pub const fn schedule(&self) -> &StrongInitializationRegistrationSchedulePlanV1 {
         &self.schedule
-    }
-
-    pub const fn registration_object_node(&self) -> DigestNodeId {
-        self.registration_object_node
-    }
-
-    pub const fn cell_definition_node(&self) -> DigestNodeId {
-        self.cell_definition_node
-    }
-
-    pub const fn registration_fingerprint_node(&self) -> DigestNodeId {
-        self.registration_fingerprint_node
-    }
-
-    pub const fn registration_definition_patch(&self) -> DigestPatchIntentId {
-        self.registration_definition_patch
     }
 }
 

@@ -41,30 +41,6 @@ pub enum StaticStorageRegistrationPatchFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StaticStorageRegistrationDigestPlanFailureV1 {
-    MissingRegistrationObjectDefinitionNode,
-    RegistrationObjectDefinitionNodeIdentity,
-    RegistrationObjectDefinitionDirectInputs,
-    RegistrationObjectDefinitionPatchSet,
-    MissingStorageObjectDefinitionNode,
-    StorageObjectDefinitionNodeIdentity,
-    StorageObjectDefinitionDirectInputs,
-    StorageObjectDefinitionPatchSet,
-    MissingLayoutNode,
-    LayoutNodeIdentity,
-    LayoutDirectInputs,
-    LayoutPatch,
-    MissingScanNode,
-    ScanNodeIdentity,
-    ScanDirectInputs,
-    ScanPatch,
-    MissingRegistrationNode,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StaticStorageAtomRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -102,10 +78,6 @@ pub enum StrongStaticStorageRegistrationValidationError {
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
     ObjectBytesMismatch(SlibMemberId),
-    DigestPlanMismatch {
-        storage: PersistentStaticStorageId,
-        kind: StaticStorageRegistrationDigestPlanFailureV1,
-    },
     MissingDefinitionAssignment {
         storage: PersistentStaticStorageId,
         definition: ObjectDefinitionPlanId,
@@ -180,8 +152,6 @@ pub enum StrongStaticStorageRegistrationValidationError {
         storage: PersistentStaticStorageId,
         intent: DigestPatchIntentId,
     },
-    SentinelTargetMismatch(StaticStorageArtifactRoleV1),
-    SentinelTargetCollision,
     RecordRangeOverflow(PersistentStaticStorageId),
     RecordByteMismatch {
         storage: PersistentStaticStorageId,

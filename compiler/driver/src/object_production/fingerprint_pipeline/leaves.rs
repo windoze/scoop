@@ -11,11 +11,11 @@ pub struct RegistrationObjectLeafFingerprintedProductionV1 {
         VerifiedStrongCallableRegistrationSetV1,
     pub(in crate::object_production) type_registrations: VerifiedStrongTypeRegistrationSetV1,
     pub(in crate::object_production) immortal_object_registration_objects:
-        VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+        VerifiedStrongImmortalObjectRegistrationSetV1,
     pub(in crate::object_production) static_storage_registration_objects:
-        VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
+        VerifiedStrongStaticStorageRegistrationSetV1,
     pub(in crate::object_production) initialization_registration_objects:
-        VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+        VerifiedStrongInitializationRegistrationSetV1,
 }
 
 impl RegistrationObjectLeafFingerprintedProductionV1 {
@@ -26,9 +26,9 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
         safepoints: VerifiedStrongSafepointFingerprintSetV1,
         callable_registrations: VerifiedStrongCallableRegistrationSetV1,
         type_registrations: VerifiedStrongTypeRegistrationSetV1,
-        immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-        static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-        initialization_registration_objects: VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+        immortal_object_registration_objects: VerifiedStrongImmortalObjectRegistrationSetV1,
+        static_storage_registration_objects: VerifiedStrongStaticStorageRegistrationSetV1,
+        initialization_registration_objects: VerifiedStrongInitializationRegistrationSetV1,
     ) -> Self {
         Self {
             production,
@@ -64,19 +64,19 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
 
     pub const fn immortal_object_registration_objects(
         &self,
-    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
         &self.immortal_object_registration_objects
     }
 
     pub const fn static_storage_registration_objects(
         &self,
-    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
         &self.static_storage_registration_objects
     }
 
     pub const fn initialization_registration_objects(
         &self,
-    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registration_objects
     }
 

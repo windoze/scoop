@@ -23,6 +23,11 @@ pub struct VerifiedSingleConeProductionCodeProjectionV2 {
 }
 
 impl VerifiedSingleConeProductionCodeProjectionV2 {
+    pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
+        self.projection = self.projection.with_optimization(mode);
+        self
+    }
+
     pub const fn strong_production(&self) -> &ConeProductionSectionV2 {
         &self.strong_production
     }
@@ -71,6 +76,10 @@ pub struct CrossConeLayoutProductionManifestV1 {
 }
 
 impl CrossConeLayoutProductionManifestV1 {
+    pub const fn optimization(&self) -> scoop_lir::OptimizationMode {
+        self.projection().optimization()
+    }
+
     pub const fn from_verified_code(code: VerifiedCodeFingerprintV2) -> Self {
         Self { code }
     }
@@ -93,12 +102,6 @@ impl CrossConeLayoutProductionManifestV1 {
 
     pub const fn runtime_registration_projection(&self) -> &RegistrationIdentitySurfaceV1 {
         self.projection().runtime_registration_projection()
-    }
-
-    pub const fn strong_registration_set(
-        &self,
-    ) -> &crate::CanonicalStrongRegistrationFingerprintSetV1 {
-        self.projection().strong_registration_set()
     }
 
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
@@ -141,8 +144,6 @@ impl WireEncode for CrossConeLayoutProductionManifestV1 {
         self.image_owner_member().encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection().encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set().encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint().encode(encoder)?;
         encoder.field(7)?;
@@ -154,7 +155,9 @@ impl WireEncode for CrossConeLayoutProductionManifestV1 {
         encoder.field(10)?;
         self.c_bridge_production().encode(encoder)?;
         encoder.field(11)?;
-        self.odr_members().encode(encoder)
+        self.odr_members().encode(encoder)?;
+        encoder.field(12)?;
+        self.optimization().encode(encoder)
     }
 }
 

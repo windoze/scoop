@@ -84,6 +84,13 @@ pub(crate) fn verify(
     for name in inputs.images.iter().chain(std::iter::once(&inputs.root)) {
         image.read_only(image.symbol(name)?, 1)?;
     }
+    metadata::check(
+        &inputs.final_images,
+        |name| image.symbol(name),
+        |address, size| image.at(address, size),
+        |address| image.pointer(address),
+        |address, size| image.read_only(address, size),
+    )?;
     image.symbol("main")?;
     image.symbol("scoop_rt_run_program")?;
     let crate::namespace::NativeNamespace::Elf(namespace) = &inputs.namespace else {

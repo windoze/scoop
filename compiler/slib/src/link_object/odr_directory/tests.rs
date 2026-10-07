@@ -128,20 +128,21 @@ fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
     let bytes = encode(&directory).unwrap();
     let entry = encode(&directory.groups[0].members[0]).unwrap();
     let start = bytes.windows(entry.len()).position(|v| v == entry).unwrap();
-    for field_count in [0xa3, 0xa5] {
+    for field_count in [0xa2, 0xa4] {
         let mut changed = bytes.clone();
         changed[start] = field_count;
         assert!(decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&changed).is_err());
     }
-    // A four-field entry starts with a 32-byte ID, then the role field.
-    assert_eq!(&entry[..4], &[0xa4, 1, 0x58, 32]);
+    // A three-field entry starts with a 32-byte ID, then the role field.
+    assert_eq!(&entry[..4], &[0xa3, 1, 0x58, 32]);
     assert_eq!(entry[36], 2);
     for role in [0, 2, 17] {
         let mut changed = bytes.clone();
         changed[start + 37] = role;
         assert!(decode_canonical::<DecodedCanonicalOdrMemberDirectoryV1>(&changed).is_err());
     }
-    for digest_start in [39, 74] {
+    {
+        let digest_start = 39;
         assert_eq!(&entry[digest_start..digest_start + 2], &[0x58, 32]);
         let mut changed = bytes.clone();
         changed[start + digest_start + 1] = 31;
@@ -158,7 +159,7 @@ fn directory_reader_checks_record_shapes_roles_and_digest_widths() {
 }
 
 #[test]
-fn directory_reader_compares_group_member_role_abi_and_definition() {
+fn directory_reader_compares_group_member_role_and_abi() {
     let directory = directory();
     let member = directory.groups[0].members[0].member;
     for (changed, error) in [
@@ -185,15 +186,6 @@ fn directory_reader_compares_group_member_role_abi_and_definition() {
                 changed
             },
             OdrMemberDirectoryValidationError::AbiMismatch(member),
-        ),
-        (
-            {
-                let mut changed = directory.clone();
-                changed.groups[0].members[0].definition =
-                    OdrDefinitionFingerprintV1::from_array([9; 32]);
-                changed
-            },
-            OdrMemberDirectoryValidationError::DefinitionMismatch(member),
         ),
     ] {
         let decoded =
@@ -278,7 +270,6 @@ fn entries() -> [(OdrGroupId, OdrMemberDirectoryEntryV1); 3] {
                 member,
                 role,
                 abi: OdrAbiFingerprintV1::from_array([3; 32]),
-                definition: OdrDefinitionFingerprintV1::from_array([4; 32]),
             },
         )
     })

@@ -235,7 +235,6 @@ fn strong_registration<I: PersistentId>(
         semantic_id,
         definition_plan,
         symbol,
-        fingerprint_node: registration.fingerprint_node(),
     })
 }
 

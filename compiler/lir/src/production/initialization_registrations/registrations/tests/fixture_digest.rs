@@ -4,44 +4,13 @@ use super::*;
 
 pub(super) fn digest_plan(
     foundation: &ConeLirFoundation,
-    cell: &DefinitionArtifacts,
     registration: &DefinitionArtifacts,
-    storages: &[DefinitionArtifacts; 2],
     callables: &[CallableArtifacts],
     options: Options,
 ) -> DigestFinalizationPlanV1 {
-    let auxiliary_input = options.cell_object_input.then(|| {
-        DigestNodeV1::new(
-            DigestNodeKey::source_signature(callables[0].body.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap()
-    });
-    let cell_object = DigestNodeV1::new(
-        DigestNodeKey::object_definition(cell.primary.id()),
-        auxiliary_input
-            .as_ref()
-            .map(DigestInputRefV1::from_node)
-            .into_iter()
-            .collect(),
-        Vec::new(),
-    )
-    .unwrap();
     let unit_registration_present = !options.omit_unit_registration;
     let registration_primary_present =
         unit_registration_present && !options.omit_registration_primary;
-    let registration_object = (unit_registration_present
-        && !options.omit_registration_primary
-        && !options.omit_registration_object)
-        .then(|| {
-            DigestNodeV1::new(
-                DigestNodeKey::object_definition(registration.primary.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap()
-        });
     let callable_body_nodes = callables
         .iter()
         .enumerate()
@@ -68,69 +37,12 @@ pub(super) fn digest_plan(
         })
         .collect::<Vec<_>>();
 
-    let mut nodes = vec![cell_object.clone()];
-    nodes.extend(auxiliary_input);
-    nodes.extend(registration_object.clone());
-    nodes.extend(callable_body_nodes.iter().cloned());
-    let mut image_inputs = Vec::new();
-    for (index, storage) in storages.iter().enumerate() {
-        if options.omit_storage_registration && index == 0 {
-            continue;
-        }
-        let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(storage.definition.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-    for (index, callable) in callables.iter().enumerate() {
-        if options.omit_callable_registration && index == 0 {
-            continue;
-        }
-        let strong = DigestNodeV1::new(
-            DigestNodeKey::strong_registration(callable.registration.definition.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-    if unit_registration_present {
-        let strong_key = DigestNodeKey::strong_registration(registration.definition.id());
-        let strong_source = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = registration_object
-            .as_ref()
-            .map(DigestInputRefV1::from_node)
-            .into_iter()
-            .collect::<Vec<_>>();
-        if !options.omit_cell_input {
-            inputs.push(DigestInputRefV1::from_node(&cell_object));
-        }
-        if !options.lazy {
-            inputs.push(DigestInputRefV1::from_node(&callable_body_nodes[2]));
-        }
-        let strong = DigestNodeV1::new(
-            strong_key,
-            inputs,
-            if options.omit_registration_patch || !registration_primary_present {
-                Vec::new()
-            } else {
-                vec![DigestPatchIntentKey::new(
-                    strong_source,
-                    registration.definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::RegistrationDefinition,
-                )]
-            },
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
+    let mut nodes = callable_body_nodes;
+    let image_inputs = nodes
+        .iter()
+        .filter(|node| !node.patch_intents().is_empty())
+        .map(DigestInputRefV1::from_node)
+        .collect();
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),

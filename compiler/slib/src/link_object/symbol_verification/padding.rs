@@ -6,6 +6,7 @@ pub(super) fn validate_and_assign_zero_padding(
     bytes: &[u8],
     sections: &ValidatedBuiltinObjectSectionInventoryV1,
     definitions: &mut [VerifiedStrongObjectDefinitionV1],
+    literal_pools: &LiteralPools,
 ) -> Result<(), StrongObjectDefinitionValidationError> {
     let mut ranges_by_section = BTreeMap::<NonZeroU32, Vec<VerifiedDefinitionAtomRangeV1>>::new();
     for range in definitions
@@ -19,9 +20,7 @@ pub(super) fn validate_and_assign_zero_padding(
     }
     let mut padding_ends = BTreeMap::new();
     for (index, section) in sections.envelope().sections().iter().enumerate() {
-        if sections.roles()[index] == BuiltinObjectSectionRoleV1::ObjectMetadata
-            || super::super::literal_pools::literal_width(section).is_some()
-        {
+        if sections.roles()[index] == BuiltinObjectSectionRoleV1::ObjectMetadata {
             continue;
         }
         let ordinal_index = index + 1;
@@ -33,6 +32,9 @@ pub(super) fn validate_and_assign_zero_padding(
                     index: u32::try_from(ordinal_index).unwrap_or(u32::MAX),
                 },
             )?;
+        if literal_pools.contains_section(ordinal) {
+            continue;
+        }
         let section_end = section
             .virtual_address()
             .checked_add(section.byte_size())
@@ -40,7 +42,18 @@ pub(super) fn validate_and_assign_zero_padding(
                 StrongObjectDefinitionValidationError::InvalidSectionByteRange { section: ordinal },
             )?;
         let Some(ranges) = ranges_by_section.get_mut(&ordinal) else {
-            if section.byte_size() != 0 {
+            if section.byte_size() != 0
+                && (sections.roles()[index] != BuiltinObjectSectionRoleV1::ReadOnlyData
+                    || padding_bytes(
+                        bytes,
+                        section,
+                        ordinal,
+                        section.virtual_address(),
+                        section_end,
+                    )?
+                    .iter()
+                    .any(|byte| *byte != 0))
+            {
                 return Err(StrongObjectDefinitionValidationError::UnownedSection {
                     section: ordinal,
                     role: sections.roles()[index],

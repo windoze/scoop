@@ -18,6 +18,7 @@ mod elf_relocations;
 pub(super) use elf::verify_elf_eh;
 mod frame;
 mod lsda;
+mod optimized;
 
 use calls::verify_lsda;
 use frame::parse_eh_frame;

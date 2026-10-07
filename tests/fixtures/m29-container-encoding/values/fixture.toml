@@ -25,6 +25,7 @@ diagnostics = []
 
 [[steps]]
 name = "build"
+timeout = 300
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
 exit = 0
 stdout = ""

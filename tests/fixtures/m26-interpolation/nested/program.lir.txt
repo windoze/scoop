@@ -336,12 +336,9 @@ Module
     store local77 -> local79
     store integer<Int>(0x000096ea) -> local91
     t50 = integer_compare_Equal<Int> local91, integer<Int>(0x000096ea) : i1
-    cbr t50 then @pattern.pass.7 else @pattern.else.8
+    br @pattern.pass.7
   block pattern.pass.7
     store global13 -> local78
-    br @pattern.merge.9
-  block pattern.else.8
-    store global14 -> local78
     br @pattern.merge.9
   block pattern.merge.9
     store local78 -> local80

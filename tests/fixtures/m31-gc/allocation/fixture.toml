@@ -1,0 +1,21 @@
+schema = 1
+name = "m31-gc-allocation"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m31", "gc", "allocation", "barrier"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "moving", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "780\n46\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

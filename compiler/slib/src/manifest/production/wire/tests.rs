@@ -24,7 +24,7 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     old[0] = 0xaa;
     let mut extended = library_manifest_bytes();
     extended[0] = 0xac;
-    extended.extend_from_slice(&[12, 0x80]);
+    extended.extend_from_slice(&[13, 0x80]);
     for bytes in [old, extended] {
         assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
     }
@@ -38,10 +38,10 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
 #[test]
 fn manifest_reader_requires_the_odr_directory_field_even_when_empty() {
     let mut missing = library_manifest_bytes();
-    missing.truncate(missing.len() - 2);
+    missing.drain(missing.len() - 4..missing.len() - 2);
     assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&missing).is_err());
     let mut wrong_field = library_manifest_bytes();
-    let field = wrong_field.len() - 2;
+    let field = wrong_field.len() - 4;
     assert_eq!(wrong_field[field], 11);
     wrong_field[field] = 12;
     let error =
@@ -84,8 +84,6 @@ pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     fixed(&mut bytes, 3);
     field(&mut bytes, 4);
     six_empty_tables(&mut bytes);
-    field(&mut bytes, 5);
-    six_empty_tables(&mut bytes);
     field(&mut bytes, 6);
     fixed(&mut bytes, 6);
     field(&mut bytes, 7);
@@ -98,6 +96,8 @@ pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);
     field(&mut bytes, 11);
     bytes.push(0x80);
+    field(&mut bytes, 12);
+    bytes.push(1);
     bytes
 }
 

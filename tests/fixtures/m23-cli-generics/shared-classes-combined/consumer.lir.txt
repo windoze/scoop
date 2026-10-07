@@ -311,14 +311,11 @@ Module
     store local31 -> local41
     store local32 -> local42
     t21 = integer_compare_Less<Long> local41, integer<Long>(0x0000000000000000) : i1
-    cbr t21 then @logic.short.8 else @logic.rhs.7
+    br @logic.rhs.7
   block logic.rhs.7
     t22 = array_len array1 local40 : i64
     t23 = integer_compare_GreaterOrEqual<Long> local41, t22 : i1
     store t23 -> local47
-    br @logic.merge.9
-  block logic.short.8
-    store true -> local47
     br @logic.merge.9
   block logic.merge.9
     cbr local47 then @if.then.10 else @if.merge.11
@@ -482,14 +479,11 @@ Module
     store local31 -> local41
     store local32 -> local42
     t24 = integer_compare_Less<Long> local41, integer<Long>(0x0000000000000000) : i1
-    cbr t24 then @logic.short.8 else @logic.rhs.7
+    br @logic.rhs.7
   block logic.rhs.7
     t25 = array_len array3 local40 : i64
     t26 = integer_compare_GreaterOrEqual<Long> local41, t25 : i1
     store t26 -> local44
-    br @logic.merge.9
-  block logic.short.8
-    store true -> local44
     br @logic.merge.9
   block logic.merge.9
     cbr local44 then @if.then.10 else @if.merge.11
@@ -655,14 +649,11 @@ Module
     store local31 -> local41
     store local32 -> local42
     t21 = integer_compare_Less<Long> local41, integer<Long>(0x0000000000000000) : i1
-    cbr t21 then @logic.short.8 else @logic.rhs.7
+    br @logic.rhs.7
   block logic.rhs.7
     t22 = array_len array5 local40 : i64
     t23 = integer_compare_GreaterOrEqual<Long> local41, t22 : i1
     store t23 -> local47
-    br @logic.merge.9
-  block logic.short.8
-    store true -> local47
     br @logic.merge.9
   block logic.merge.9
     cbr local47 then @if.then.10 else @if.merge.11

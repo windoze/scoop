@@ -96,6 +96,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                 }
+                self.heap_array_barrier(
+                    array,
+                    &layout,
+                    context.i64_type().const_int(total, false),
+                )?;
                 self.temps.insert(*out, array.into());
             }
             _ => unreachable!("array instruction dispatch is exhaustive"),

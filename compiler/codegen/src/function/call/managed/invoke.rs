@@ -97,6 +97,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         )
                         .map_err(|error| CodegenError(format!("typed direct invoke: {error}")))?,
                 };
+                // Preserve each protected call through machine tail merging.
+                call.add_attribute(
+                    AttributeLoc::Function,
+                    self.context
+                        .create_enum_attribute(Attribute::get_named_enum_kind_id("nomerge"), 0),
+                );
                 if apply_scoop_abi_attributes {
                     abi::apply_call_attributes(
                         self.context,

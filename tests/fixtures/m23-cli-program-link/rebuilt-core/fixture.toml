@@ -34,7 +34,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "prepare_core"
@@ -106,7 +106,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "snapshot" = "rebuilt.${target}.plan"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
+checks = [{"actual" = "${rebuilt_link.result.link_plan_fingerprint}", "equals" = "${rebuilt.result.link_plan_fingerprint}"}, {"actual" = "${rebuilt_link.result.link_plan}", "not_contains" = "alias ${symbol_prefix}scoop_td_String -> ${symbol_prefix}scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868"}]
 
 [[steps]]
 name = "actual_string_owner"

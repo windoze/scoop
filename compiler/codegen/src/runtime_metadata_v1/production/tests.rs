@@ -236,8 +236,8 @@ fn production() -> (
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
-        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalCallableAbisV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     (
@@ -307,8 +307,8 @@ fn production_v2() -> (
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CanonicalCallableLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
-        scoop_lir::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalCallableAbisV1::new(Vec::new(), &foundation).unwrap(),
+        scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
     (

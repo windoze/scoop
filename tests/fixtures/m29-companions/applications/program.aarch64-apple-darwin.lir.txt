@@ -456,16 +456,13 @@ Module
     store integer<Int>(0x00000008) -> local1
     store local1 -> local2
     t0 = integer_compare_Equal<Int> local0, local2 : i1
-    cbr t0 then @if.then.1 else @if.else.2
+    br @if.then.1
   block if.then.1
     store integer<Int>(0x00000004) -> local3
     store integer<Int>(0x00000004) -> local4
     store local4 -> local5
     t1 = integer_compare_Equal<Int> local3, local5 : i1
     store t1 -> local6
-    br @if.merge.3
-  block if.else.2
-    store false -> local6
     br @if.merge.3
   block if.merge.3
     store local6 -> local7

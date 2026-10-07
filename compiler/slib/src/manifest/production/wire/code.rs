@@ -21,6 +21,7 @@ impl DecodedSingleConeProductionManifestV1 {
             &Array(libraries),
             9,
         )?;
+        same(&self.optimization, &production.optimization(), 12)?;
         self.odr_members
             .validate_against(production.odr_members())
             .map_err(CodeProductionProjectionError::OdrMembers)

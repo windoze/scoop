@@ -1,0 +1,18 @@
+class Node(val value: Long, var next: Node?)
+
+@Unsafe fun main() {
+    val values = MutableArray<Node>(16384L) { i -> Node(i, None) }
+    val pinned = pin(Node(7L, None))
+    var round = 0L
+    while (round < 12L) {
+        var index = 0L
+        while (index < 16384L) {
+            val next = values[(index + 1L) % 16384L]
+            values[index] = Node(round * 16384L + index, Some(next))
+            index = index + 1L
+        }
+        round = round + 1L
+    }
+    gcCollect()
+    println(unpin(pinned).value + values[16383L].value)
+}

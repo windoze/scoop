@@ -185,6 +185,10 @@ where
         let Some(target) = relocation.shape().absolute64_target() else {
             return descriptor_relocation_error(plan.exact_type(), offset);
         };
+        let resolved =
+            super::super::targets::local_definition(builtins, member.member(), relocation)
+                .map(|definition| VerifiedRelocationTargetV1::StrongDefinition { definition });
+        let target = resolved.as_ref().unwrap_or(target);
         let target_matches = match offset {
             64 => matches!(
                 (plan.inline_scan().definition_plan(), target),

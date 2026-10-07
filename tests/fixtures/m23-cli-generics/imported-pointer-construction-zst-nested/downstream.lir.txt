@@ -171,14 +171,12 @@ Module
     store local30 -> local31
     t19 = integer_compare_Equal<ULong> local29, local31 : i1
     t20 = Not t19 : i1
-    cbr t20 then @if.then.6 else @if.merge.7
-  block if.then.6
-    ret integer<Int>(0x00000002)
+    br @if.merge.7
   block if.merge.7
     store local7 -> local39
     store local39 -> local40
     t21 = variant_test e0 v0 local40 : i1
-    cbr t21 then @pattern.pass.8 else @pattern.else.9
+    br @pattern.pass.8
   block pattern.pass.8
     t22 = variant_payload_project e0 v0 f0 local40 : ptr<raw>
     store t22 -> local9
@@ -194,31 +192,17 @@ Module
     raw_store local36 local38 align 4
     t25 = aggregate () : {}
     br @pattern.merge.10
-  block pattern.else.9
-    store local39 -> local41
-    t26 = variant_test e0 v1 local41 : i1
-    cbr t26 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
     store local8 -> local42
     store local42 -> local43
     t27 = variant_test e0 v0 local43 : i1
-    cbr t27 then @pattern.pass.14 else @pattern.else.15
-  block pattern.pass.11
-    ret integer<Int>(0x00000003)
-  block pattern.else.12
-    unreachable
-  block pattern.pass.14
-    t28 = variant_payload_project e0 v0 f0 local43 : ptr<raw>
-    store t28 -> local10
-    ret integer<Int>(0x00000004)
+    br @pattern.else.15
   block pattern.else.15
     store local42 -> local44
     t29 = variant_test e0 v1 local44 : i1
-    cbr t29 then @pattern.pass.17 else @pattern.else.18
+    br @pattern.pass.17
   block pattern.pass.17
     ret local1
-  block pattern.else.18
-    unreachable
   fun @scoop$1$cb$42362b6a6033ea38630bb45ecbc92fe0d7bc88054c4d6699d819e13eaf365302(i32) -> i32
     local %0 $dependency.local.1: {} <zst-token 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align=1 lifetime=function>
     local %1 $dependency.local.2: i32
@@ -329,14 +313,12 @@ Module
     store local30 -> local31
     t19 = integer_compare_Equal<ULong> local29, local31 : i1
     t20 = Not t19 : i1
-    cbr t20 then @if.then.6 else @if.merge.7
-  block if.then.6
-    ret integer<Int>(0x00000002)
+    br @if.merge.7
   block if.merge.7
     store local7 -> local39
     store local39 -> local40
     t21 = variant_test e0 v0 local40 : i1
-    cbr t21 then @pattern.pass.8 else @pattern.else.9
+    br @pattern.pass.8
   block pattern.pass.8
     t22 = variant_payload_project e0 v0 f0 local40 : ptr<raw>
     store t22 -> local9
@@ -352,31 +334,17 @@ Module
     raw_store local36 local38 align 4
     t25 = aggregate () : {}
     br @pattern.merge.10
-  block pattern.else.9
-    store local39 -> local41
-    t26 = variant_test e0 v1 local41 : i1
-    cbr t26 then @pattern.pass.11 else @pattern.else.12
   block pattern.merge.10
     store local8 -> local42
     store local42 -> local43
     t27 = variant_test e0 v0 local43 : i1
-    cbr t27 then @pattern.pass.14 else @pattern.else.15
-  block pattern.pass.11
-    ret integer<Int>(0x00000003)
-  block pattern.else.12
-    unreachable
-  block pattern.pass.14
-    t28 = variant_payload_project e0 v0 f0 local43 : ptr<raw>
-    store t28 -> local10
-    ret integer<Int>(0x00000004)
+    br @pattern.else.15
   block pattern.else.15
     store local42 -> local44
     t29 = variant_test e0 v1 local44 : i1
-    cbr t29 then @pattern.pass.17 else @pattern.else.18
+    br @pattern.pass.17
   block pattern.pass.17
     ret local1
-  block pattern.else.18
-    unreachable
   fun @scoop$1$cb$cd4cbf7fff7ac66ab14a0417764b2e4cb48764981e47c58034b36440d02113b3(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

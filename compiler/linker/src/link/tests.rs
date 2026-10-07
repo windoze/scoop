@@ -31,12 +31,14 @@ fn native_file_and_symlink_replacement_cannot_change_the_read_link_inputs() {
     std::fs::remove_file(&alias).unwrap();
     std::os::unix::fs::symlink(&invalid, &alias).unwrap();
 
+    let quoted_directory = directory.join("objects with spaces, 'single' and \"double\" \\");
+    std::fs::create_dir(&quoted_directory).unwrap();
     let output = link_inputs(
         &fixture.closure,
         &fixture.runtime,
         &fixture.profile,
         &inputs,
-        &directory.join("snapshot"),
+        &quoted_directory.join("snapshot"),
     )
     .unwrap();
     assert_eq!(output.fingerprint, fixture.output.fingerprint);

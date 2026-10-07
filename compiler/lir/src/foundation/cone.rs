@@ -13,6 +13,8 @@ use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
 use super::{CanonicalLirFoundation, LirFoundationBuildError};
 use crate::ValidatedLirFoundation;
 
+mod codegen;
+
 /// The physical producer and its single canonical LIR identity foundation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConeLirFoundation {

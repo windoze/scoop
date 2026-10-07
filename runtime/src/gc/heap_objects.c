@@ -56,7 +56,7 @@ size_t scoop_gc_object_size_locked(const void *object) {
     if (block->kind == SCOOP_BLOCK_KIND_LARGE) {
         return block->exact_size;
     }
-    uint8_t units = block->size_units[word_index];
+    uint16_t units = block->size_units[word_index];
     if (units == 0) {
         heap_fatal("published small object has no exact allocation size");
     }
@@ -67,7 +67,7 @@ void record_small_object(uint32_t block_index, void *object,
                          size_t exact_size, bool marked) {
     ScoopGcBlockMeta *block = &blocks[block_index];
     if (block->kind != SCOOP_BLOCK_KIND_SMALL || exact_size == 0 ||
-        exact_size > GC_SMALL_MAX || exact_size % sizeof(uint64_t) != 0) {
+        exact_size > GC_REGULAR_MAX || exact_size % sizeof(uint64_t) != 0) {
         heap_fatal("invalid small-object metadata publication");
     }
     size_t word = object_word_index(block_index, object);
@@ -76,16 +76,21 @@ void record_small_object(uint32_t block_index, void *object,
     size_t line = (size_t)((address - base) / GC_LINE_SIZE);
     if (line == 0 || word >= GC_WORDS_PER_BLOCK ||
         address + exact_size > base + GC_BLOCK_SIZE ||
-        (address / GC_LINE_SIZE) !=
-            ((address + exact_size - 1) / GC_LINE_SIZE) ||
-        bit_test(block->starts, word)) {
+        (__atomic_load_n(&block->starts[word / 64], __ATOMIC_RELAXED) &
+         (UINT64_C(1) << (word % 64))) != 0) {
         heap_fatal("small object overlaps invalid storage");
     }
-    block->size_units[word] = (uint8_t)(exact_size / sizeof(uint64_t));
-    bit_set(block->line_occupied, line);
+    block->size_units[word] = (uint16_t)(exact_size / sizeof(uint64_t));
+    size_t last_line = (size_t)((address + exact_size - 1 - base) / GC_LINE_SIZE);
+    for (; line <= last_line; line++) {
+        (void)__atomic_fetch_or(&block->line_occupied[line / 64],
+                                UINT64_C(1) << (line % 64), __ATOMIC_RELAXED);
+        if (marked) {
+            bit_set(block->line_live, line);
+        }
+    }
     if (marked) {
         bit_set(block->marks, word);
-        bit_set(block->line_live, line);
         block->live_bytes += exact_size;
         block->movable_live_bytes += exact_size;
     }
@@ -150,19 +155,28 @@ bool object_marked(const ScoopGcBlockMeta *block, size_t word) {
                : bit_test(block->marks, word);
 }
 
-void scoop_gc_heap_begin_collection_locked(void) {
+bool scoop_gc_is_young_object_locked(const void *object) {
+    uint32_t index;
+    return pointer_block_index(object, &index) && blocks[index].generation == SCOOP_GC_YOUNG;
+}
+
+void scoop_gc_heap_begin_collection_locked(bool minor) {
     require_arena();
     if (collection_active) {
         heap_fatal("nested heap collection");
     }
-    free_run_nodes();
+    if (!minor) {
+        free_run_nodes();
+        scoop_gc_heap_state.old_cursor = NULL;
+        scoop_gc_heap_state.old_limit = NULL;
+    }
     evacuation_block = UINT32_MAX;
     evacuation_cursor = NULL;
     evacuation_limit = NULL;
     moved_objects = 0;
     for (uint32_t index = 0; index < arena_next_block; index++) {
         ScoopGcBlockMeta *block = &blocks[index];
-        if (!active_head(block)) {
+        if (!active_head(block) || (minor && block->generation == SCOOP_GC_OLD)) {
             continue;
         }
         if (block->state == SCOOP_BLOCK_EVACUATION_SOURCE ||

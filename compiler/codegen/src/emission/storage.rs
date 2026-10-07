@@ -2,7 +2,7 @@
 
 use super::*;
 
-mod tls;
+pub(super) mod tls;
 
 pub(super) struct StorageEmitter<'a, 'ctx> {
     pub(super) context: &'ctx Context,

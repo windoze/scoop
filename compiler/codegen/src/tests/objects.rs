@@ -512,9 +512,9 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "generated code must not route every allocation through the compatibility entry:\n{ir}"
     );
     assert!(
-        ir.contains("and i64 %tlab_aligned_cursor, -128")
-            && ir.contains("add i64 %tlab_line_base, 128"),
-        "the inline allocator must use runtime's 128-byte Immix line boundary:\n{ir}"
+        ir.contains("%alloc_is_regular = icmp ule i64 %alloc_size, 32640")
+            && !ir.contains("tlab_line_base"),
+        "the inline allocator must accept contiguous objects across Immix lines:\n{ir}"
     );
     let output = std::env::temp_dir().join(format!(
         "scoop_codegen_m6_heap_test_{}.o",

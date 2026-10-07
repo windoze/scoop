@@ -65,6 +65,10 @@ void *scoop_rt_box_value_impl(const ScoopTypeDescriptor *td, const void *source,
     scoop_thread_poll();
     void *object = scoop_gc_alloc_internal(td, (size_t)shape->minimum_size);
     memcpy((char *)object + shape->inline_offset, source, (size_t)shape->inline_size);
+    if (shape->inline_scan != NULL) {
+        scoop_rt_gc_write_barrier((char *)object + shape->inline_offset,
+                                   (size_t)shape->inline_size);
+    }
     scoop_thread_pop_managed_anchor(&anchor);
     return object;
 }

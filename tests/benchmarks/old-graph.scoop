@@ -1,0 +1,14 @@
+class Node(val value: Long, var next: Node?)
+
+fun main() {
+    val old = MutableArray<Node>(8192L) { i -> Node(i, None) }
+    gcCollect()
+    var index = 0L
+    while (index < 200000L) {
+        val fresh = Node(index, None)
+        if (index % 1024L == 0L) { old[0L].next = Some(fresh) }
+        index = index + 1L
+    }
+    gcCollect()
+    println(old[0L].next!!.value)
+}

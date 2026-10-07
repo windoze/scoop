@@ -223,13 +223,18 @@ pub(super) fn assemble(
     let backend = scoop_codegen::ValidatedBackendProfile::from_selection(
         request.target().lir_target_selection(),
     )
-    .map_err(Error::Codegen)?;
+    .map_err(Error::Codegen)?
+    .with_optimization(request.optimization());
     let objects = scoop_codegen::emit_object_set_v2(&lir, registration, temporary_parent, backend)
         .map_err(Error::Codegen)?;
     let generated = scoop_codegen::emit_c_bridge_object_set(
         &lir,
         temporary_parent,
-        request.target().c_bridge_toolchain(),
+        &request
+            .target()
+            .c_bridge_toolchain()
+            .clone()
+            .with_optimization(request.optimization()),
     )
     .map_err(Error::Codegen)?;
     let producer = slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))

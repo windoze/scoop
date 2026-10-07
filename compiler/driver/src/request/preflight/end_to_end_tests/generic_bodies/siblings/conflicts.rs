@@ -1,72 +1,44 @@
 use super::*;
 
 #[test]
-fn actual_duplicate_generic_members_reject_different_bodies_with_equal_abis() {
-    check_conflicting_members("conflict");
-}
-
-#[test]
-fn actual_duplicate_generic_strings_reject_changed_content_with_equal_abis() {
-    check_conflicting_members("strings-conflict");
-}
-
-#[test]
-fn actual_duplicate_release_hooks_reject_changed_content_with_equal_abis() {
-    check_conflicting_members("release");
-}
-
-fn check_conflicting_members(case: &str) {
-    let target = resolved_target().expect("ODR conflict validation requires a target");
+fn actual_duplicate_generic_members_accept_different_optimization() {
+    let target = resolved_target().expect("ODR validation requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-generic-odr-siblings");
-    let provider_coordinate =
-        ConeCoordinate::new("dev.example", "generic-odr-conflict-provider", "0.1.0").unwrap();
+    let coordinate = ConeCoordinate::new("dev.example", "odr-provider", "0.1.0").unwrap();
+    let provider_root = sysroot.path().join("provider");
+    write_manifest_cone(
+        &provider_root,
+        "dev.example",
+        coordinate.name(),
+        "library",
+        &std::fs::read_to_string(fixtures.join("conflict-provider-left.scoop")).unwrap(),
+    );
+    let provider = build_manifest(
+        sysroot.path(),
+        &target,
+        &provider_root,
+        &sysroot.path().join("output/provider.slib"),
+    );
+    let provider_bytes = std::fs::read(provider.artifact().path()).unwrap();
+    std::fs::remove_dir_all(provider_root).unwrap();
     let mut closures = Vec::new();
     let mut identities = Vec::new();
-    for side in ["left", "right"] {
-        let provider_root = sysroot.path().join(format!("provider-{side}"));
-        let source = if case == "release" {
-            let original = std::fs::read_to_string(crate::workspace_root().join(
-                "tests/fixtures/m24-release-blocks/generic/cross-cone/provider/src/main.scoop",
-            ))
-            .unwrap();
-            if side == "right" {
-                original.replace("record(adjusted(handle))", "record(adjusted(handle) + 1)")
-            } else {
-                original
-            }
-        } else {
-            std::fs::read_to_string(fixtures.join(format!("{case}-provider-{side}.scoop"))).unwrap()
-        };
+    for (name, optimization) in [
+        ("left", scoop_lir::OptimizationMode::Debug),
+        ("right", scoop_lir::OptimizationMode::Release),
+    ] {
+        let root = sysroot.path().join(name);
         write_manifest_cone(
-            &provider_root,
+            &root,
             "dev.example",
-            provider_coordinate.name(),
+            name,
             "library",
-            &source,
+            &std::fs::read_to_string(fixtures.join("conflict-consumer.scoop")).unwrap(),
         );
-        let provider = build_manifest(
-            sysroot.path(),
-            &target,
-            &provider_root,
-            &sysroot.path().join(format!("output/provider-{side}.slib")),
-        );
-        std::fs::rename(
-            provider_root.join("src"),
-            provider_root.join("unused-source"),
-        )
-        .unwrap();
-        let name = format!("generic-odr-conflict-{side}");
-        let root = sysroot.path().join(&name);
-        let source = if case == "release" {
-            "import releasegeneric.Owner\npublic fun make(): Owner<Int> = Owner(7, 11)\n".to_owned()
-        } else {
-            std::fs::read_to_string(fixtures.join(format!("{case}-consumer.scoop"))).unwrap()
-        };
-        write_manifest_cone(&root, "dev.example", &name, "library", &source);
-        write_dependency_manifest(&root, &name, &[&provider_coordinate]);
+        write_dependency_manifest(&root, name, &[&coordinate]);
         let consumer = build_manifest_request(
             sysroot.path(),
             &target,
@@ -75,94 +47,69 @@ fn check_conflicting_members(case: &str) {
             vec![provider.artifact().path().to_path_buf()],
             Vec::new(),
         )
+        .with_optimization(optimization)
         .build_and_publish()
-        .unwrap_or_else(|error| panic!("{side}: {error:?}"));
-        let identity = consumer
-            .artifact()
-            .summary()
-            .coordinate()
-            .identity()
-            .unwrap();
-        let mut direct = consumer
-            .artifact()
-            .summary()
+        .unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        let summary = consumer.artifact().summary();
+        let identity = summary.coordinate().identity().unwrap();
+        let mut direct = summary
             .direct_dependencies()
             .iter()
             .map(scoop_slib::DependencyRecord::identity)
             .collect::<Vec<_>>();
         direct.sort_unstable();
-        let provider_bytes = std::fs::read(provider.artifact().path()).unwrap();
         let consumer_bytes = std::fs::read(consumer.artifact().path()).unwrap();
-        let closure = scoop_slib::read_cross_cone_layout_artifact_closure(
-            scoop_slib::CrossConeArtifactClosureInput::completed(
-                identity,
-                target.lir_target_selection(),
-                direct,
-                vec![&core_bytes, &provider_bytes],
-                &consumer_bytes,
-            ),
-            target.c_bridge_toolchain().profile(),
-        )
-        .unwrap();
-        closures.push(closure);
+        closures.push(
+            scoop_slib::read_cross_cone_layout_artifact_closure(
+                scoop_slib::CrossConeArtifactClosureInput::completed(
+                    identity,
+                    target.lir_target_selection(),
+                    direct,
+                    vec![&core_bytes, &provider_bytes],
+                    &consumer_bytes,
+                ),
+                target.c_bridge_toolchain().profile(),
+            )
+            .unwrap(),
+        );
         identities.push(identity);
-    }
-    let mut different = false;
-    let mut changed_roles = Vec::new();
-    for first in closures[0].odr_definitions().members() {
-        let second = closures[1]
-            .odr_definitions()
-            .get(first.key().group(), first.member())
-            .expect("the same generic application retains its group and member keys");
-        assert_eq!(first.group_key(), second.group_key());
-        assert_eq!(first.key(), second.key());
-        assert_eq!(first.abi(), second.abi());
-        different |= first.definition() != second.definition();
-        if first.definition() != second.definition() {
-            changed_roles.push(first.key().role());
-        }
-    }
-    assert!(
-        different,
-        "the changed body must change actual definition content"
-    );
-    if case == "strings-conflict" {
-        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::ImmortalObject));
-        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::RegistrationRecord));
-    }
-    if case == "release" {
-        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::ReleaseHook));
-        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::RegistrationRecord));
     }
     let first = closures[0].artifact(identities[0]).unwrap();
     let second = closures[1].artifact(identities[1]).unwrap();
+    let first_bodies = first
+        .1
+        .final_objects()
+        .runtime_images()
+        .fingerprint()
+        .registrations()
+        .callables()
+        .fingerprints();
+    let second_bodies = second
+        .1
+        .final_objects()
+        .runtime_images()
+        .fingerprint()
+        .registrations()
+        .callables()
+        .fingerprints();
+    assert!(
+        first_bodies.iter().any(|left| second_bodies
+            .iter()
+            .any(|right| left.body() == right.body()
+                && left.body_definition() != right.body_definition())),
+        "machine optimization must change a shared body's actual object"
+    );
     let first = (first.0.identity_graph(), first.1);
     let second = (second.0.identity_graph(), second.1);
-    let error = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap_err();
-    let scoop_slib::OdrDefinitionMergeError::Conflict(conflict) = error else {
-        panic!("expected a duplicate member conflict: {error:?}");
-    };
-    assert_eq!(conflict.first, identities[0]);
-    assert_eq!(conflict.second, identities[1]);
+    let merged = scoop_slib::merge_cross_cone_odr_definitions([first, second]).unwrap();
     assert!(
-        closures[0]
-            .odr_definitions()
-            .get(conflict.group, conflict.member)
-            .is_some()
-    );
-    assert!(
-        (case == "strings-conflict"
-            && conflict.difference == scoop_slib::OdrDefinitionDifference::Definition)
-            || matches!(
-                conflict.difference,
-                scoop_slib::OdrDefinitionDifference::Lir
-                    | scoop_slib::OdrDefinitionDifference::Object
-                    | scoop_slib::OdrDefinitionDifference::Stackmap
-            ),
-        "{conflict:?}"
+        merged
+            .members()
+            .any(|member| member.candidates().count() == 2)
     );
     assert!(matches!(
         scoop_slib::merge_cross_cone_odr_definitions([first, first]),
-        Err(scoop_slib::OdrDefinitionMergeError::DuplicateArtifact(provider)) if provider == identities[0]
+        Err(scoop_slib::OdrDefinitionMergeError::DuplicateArtifact(provider))
+            if provider == identities[0]
     ));
 }

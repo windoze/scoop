@@ -5,6 +5,7 @@ use object::{Object, ObjectSymbol};
 use super::*;
 
 mod no_gc;
+mod optimized;
 
 #[test]
 fn partitions_each_callable_body_away_from_non_callable_definitions() {
@@ -20,7 +21,7 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
     let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
     let partition = ScoopLirObjectPartitionV1::from_input(&input, &surface).unwrap();
 
-    assert_eq!(partition.objects().len(), callable_bodies.len() + 1);
+    assert_eq!(partition.objects().len(), callable_bodies.len() + 2);
     let non_callable = &partition.objects()[0];
     assert_eq!(non_callable.kind(), ScoopLirObjectKindV1::NonCallable);
     assert!(!non_callable.definition_plans().is_empty());
@@ -30,17 +31,51 @@ fn partitions_each_callable_body_away_from_non_callable_definitions() {
             .iter()
             .find(|plan| plan.definition_plan() == *definition)
             .is_some_and(|plan| {
-                plan.definition_role() != scoop_lir::StrongDefinitionRole::CallableBody
+                !matches!(
+                    plan.definition_role(),
+                    scoop_lir::StrongDefinitionRole::CallableBody
+                        | scoop_lir::StrongDefinitionRole::CallableRegistration
+                        | scoop_lir::StrongDefinitionRole::SafepointRegistration
+                )
             })
     }));
 
-    let actual_bodies = partition.objects()[1..]
+    let actual_bodies = partition
+        .objects()
         .iter()
+        .filter(|object| matches!(object.kind(), ScoopLirObjectKindV1::CallableBody(_)))
         .map(|object| {
-            assert_eq!(object.definition_plans().len(), 1);
             let ScoopLirObjectKindV1::CallableBody(body) = object.kind() else {
                 panic!("only the first object may be non-callable");
             };
+            let plans = object
+                .definition_plans()
+                .iter()
+                .map(|id| surface.plan(*id).unwrap())
+                .collect::<Vec<_>>();
+            assert!(plans.iter().any(|plan| plan.definition_role()
+                == scoop_lir::StrongDefinitionRole::CallableRegistration));
+            for plan in plans {
+                match plan.owner().kind() {
+                    scoop_lir::StrongDefinitionEntityKind::CallableBody(owner) => {
+                        assert_eq!(owner, body)
+                    }
+                    scoop_lir::StrongDefinitionEntityKind::SafepointSite(site) => {
+                        let function = input
+                            .module()
+                            .callable_bodies()
+                            .find(|function| function.callable_body.id() == body)
+                            .unwrap();
+                        assert!(
+                            function
+                                .safepoints
+                                .iter()
+                                .any(|entry| entry.site_id() == site)
+                        );
+                    }
+                    other => panic!("unrelated definition in callable object: {other:?}"),
+                }
+            }
             body
         })
         .collect::<BTreeSet<_>>();
@@ -131,7 +166,7 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
 fn emitted_object_set_owns_verified_temporary_members() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
-    let expected_members = module.functions.len() + 1;
+    let expected_members = module.functions.len() + 2;
     let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
     let parent = tempfile::tempdir().unwrap();
 
@@ -168,7 +203,6 @@ fn emitted_object_set_owns_verified_temporary_members() {
                     digest_patches.len(),
                     runtime_metadata.patch_locations().len()
                 );
-                assert!(!digest_patches.is_empty());
                 let bytes = std::fs::read(member.path()).unwrap();
                 for (materialization, location) in digest_patches
                     .iter()
@@ -179,26 +213,28 @@ fn emitted_object_set_owns_verified_temporary_members() {
                     let end = start + usize::from(location.width_bytes());
                     assert!(bytes[start..end].iter().all(|byte| *byte == 0));
                 }
-                let mut tampered = bytes;
-                let tampered_offset =
-                    usize::try_from(digest_patches[0].checked_object_offset()).unwrap();
-                tampered[tampered_offset] = 1;
-                let tampered_path = parent.path().join("tampered-patch.o");
-                std::fs::write(&tampered_path, tampered).unwrap();
-                let error =
-                    crate::object_materialization::resolve_digest_patch_materializations_v1(
-                        &tampered_path,
-                        input.module().meta.target_profile,
-                        emitted.production().canonical_definitions(),
-                        runtime_metadata,
-                    )
-                    .unwrap_err();
-                assert!(error.0.contains("not provisionally zero"), "{error}");
+                if !digest_patches.is_empty() {
+                    let mut tampered = bytes;
+                    let tampered_offset =
+                        usize::try_from(digest_patches[0].checked_object_offset()).unwrap();
+                    tampered[tampered_offset] = 1;
+                    let tampered_path = parent.path().join("tampered-patch.o");
+                    std::fs::write(&tampered_path, tampered).unwrap();
+                    let error =
+                        crate::object_materialization::resolve_digest_patch_materializations_v1(
+                            &tampered_path,
+                            input.module().meta.target_profile,
+                            emitted.production().canonical_definitions(),
+                            runtime_metadata,
+                        )
+                        .unwrap_err();
+                    assert!(error.0.contains("not provisionally zero"), "{error}");
+                }
             }
             EmittedConeObjectMemberKindV1::CallableBody { .. } => {}
         }
     }
-    assert_eq!(non_callable_members, 1);
+    assert_eq!(non_callable_members, 2);
     let backing = emitted.temporary_directory().to_path_buf();
     assert!(backing.starts_with(parent.path()));
     drop(emitted);
@@ -233,13 +269,12 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
             continue;
         };
         callable_count += 1;
-        let [definition] = member.units().definition_plans() else {
-            panic!("each callable member must own exactly one definition");
-        };
-        let plan = emitted
-            .production()
-            .canonical_definitions()
-            .plan(*definition)
+        let plan = member
+            .units()
+            .definition_plans()
+            .iter()
+            .filter_map(|id| emitted.production().canonical_definitions().plan(*id))
+            .find(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
             .unwrap();
         assert_eq!(
             plan.owner().kind(),
@@ -247,6 +282,21 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
         );
         let bytes = std::fs::read(member.path()).unwrap();
         let object = object::File::parse(bytes.as_slice()).unwrap();
+        for definition in member.units().definition_plans() {
+            let definition = emitted
+                .production()
+                .canonical_definitions()
+                .plan(*definition)
+                .unwrap();
+            let name = normalization
+                .compiler_generated_object_symbol(definition.primary_symbol().symbol().as_str());
+            assert!(
+                object
+                    .symbol_by_name(&name)
+                    .is_some_and(|symbol| symbol.is_definition()),
+                "missing colocated definition {name}"
+            );
+        }
         let primary_name =
             normalization.compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str());
         let primary = object.symbol_by_name(&primary_name).unwrap();

@@ -143,7 +143,7 @@ Module
     store local5 -> local51
     store local51 -> local52
     t9 = variant_test e2 v1 local52 : i1
-    cbr t9 then @pattern.pass.1 else @pattern.else.3
+    br @pattern.pass.1
   block pattern.pass.1
     t10 = variant_payload_project e2 v1 f0 local52 : enum0
     store t10 -> local53

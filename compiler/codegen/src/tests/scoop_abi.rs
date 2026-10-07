@@ -473,7 +473,8 @@ fn aggregate_abi_attributes_survive_definitions_calls_and_statepoint_rewrite() {
     );
 
     let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
-    statepoint::rewrite(&llvm, &machine).expect("rewrite aggregate statepoints");
+    let expected = statepoint::rewrite(&llvm, &machine, &expected, host_profile())
+        .expect("rewrite aggregate statepoints");
     llvm.verify()
         .expect("valid post-RS4GC aggregate ABI module");
     statepoint::verify_rewritten(&llvm, &expected, host_profile())

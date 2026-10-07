@@ -22,9 +22,16 @@ fn elf_startup_passes_the_exact_image_order_and_root_to_the_runtime_entry() {
         };
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path();
-        let startup = StartupObject::build_for_symbols(
-            &["scoop$test$image$a".into(), "scoop$test$image$b".into()],
+        let mut source = String::from(
+            "#include <stdint.h>\ntypedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;\ntypedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;\n",
+        );
+        source.push_str("extern const ScoopImageDescriptorV1 image_0 __asm__(\"scoop$test$image$a\");\nextern const ScoopImageDescriptorV1 image_1 __asm__(\"scoop$test$image$b\");\n");
+        let startup = StartupObject::build_source(
+            source,
+            2,
             "scoop$test$root",
+            BTreeSet::from(["scoop$test$image$a".into(), "scoop$test$image$b".into()]),
+            BTreeSet::new(),
             &profile,
             path,
         )

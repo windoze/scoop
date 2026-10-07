@@ -16,11 +16,7 @@ Module
     store t0 -> local0
     store local0 -> local3
     t1 = variant_test e1 v0 local3 : i1
-    cbr t1 then @if.then.1 else @if.else.2
-  block if.then.1
-    t2 = variant_payload_project e1 v0 f0 local3 : i32
-    store t2 -> local4
-    br @if.merge.3
+    br @if.else.2
   block if.else.2
     call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t3 -> local5
@@ -28,12 +24,6 @@ Module
     t4 = aggregate () : {}
     throw local5
     unreachable
-  block if.merge.3
-    store local4 -> local1
-    store local1 -> local2
-    call managed-void-target1 sp<managed-call:2> live=[] sig=void1 (i32) local-fn1(local2)
-    t5 = aggregate () : {}
-    ret
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>

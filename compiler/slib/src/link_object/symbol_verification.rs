@@ -275,8 +275,8 @@ pub fn verify_member_strong_object_definitions_v1(
         .map(finalize_definition)
         .collect::<Result<Vec<_>, _>>()?;
     validate_disjoint_atom_ranges(&definitions)?;
-    let literal_pools = LiteralPools::read(bytes, &sections)?;
-    validate_and_assign_zero_padding(bytes, &sections, &mut definitions)?;
+    let literal_pools = LiteralPools::read(bytes, &sections, &definitions)?;
+    validate_and_assign_zero_padding(bytes, &sections, &mut definitions, &literal_pools)?;
 
     Ok(VerifiedMemberStrongObjectDefinitionIndexV1 {
         producer: plan.producer(),

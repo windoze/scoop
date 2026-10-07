@@ -1,0 +1,612 @@
+{
+  "revision": "6e62514da",
+  "host": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "profile": "debug",
+  "runs": 5,
+  "build_args": [],
+  "gc_stats": false,
+  "compare_full": false,
+  "cases": [
+    {
+      "name": "aggregate",
+      "cold_build_seconds": 16.808094499981962,
+      "warm_build_seconds": 2.8953220419352874,
+      "run_seconds": [
+        0.5780307500390336,
+        0.040969124995172024,
+        0.040936000063084066,
+        0.041145625058561563,
+        0.04082833300344646
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.040969124995172024,
+      "min_seconds": 0.04082833300344646,
+      "max_seconds": 0.5780307500390336,
+      "stdout": "2000000\n",
+      "executable_bytes": 5414808,
+      "slib_bytes": 195806,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "51512f0f7b531d1c2f078feb1617c492a2709fc7366332a270087c49f9d962f2",
+          "observations": {
+            "child_invocations": [
+              "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "compiled"
+              },
+              {
+                "cache_key": "89e29445ff7383b66009cf3c1fa3c3728e5e43a6e86ffaa565337a3ef1c79d88",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/aggregate",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "deb748e3188c83db7b1da5e58c0766985f1f761b1479ce0cdce77be37ca1df82",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/89e29445ff7383b66009cf3c1fa3c3728e5e43a6e86ffaa565337a3ef1c79d88/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "allocation",
+      "cold_build_seconds": 5.2278159589041024,
+      "warm_build_seconds": 2.9622057089582086,
+      "run_seconds": [
+        0.35952629102393985,
+        0.017489208024926484,
+        0.016854542074725032,
+        0.017259250045754015,
+        0.01713108306284994
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.017259250045754015,
+      "min_seconds": 0.016854542074725032,
+      "max_seconds": 0.35952629102393985,
+      "stdout": "1599960000\n",
+      "executable_bytes": 5419608,
+      "slib_bytes": 251936,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "a423fe83a7bf2eb437178f2f10832855d654c24f5f7275b9b4f49bbfd9258d2c",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "4b27fd52b4aa1b226a3515e16953151f889d05290c944b887bc7617a37cc7f39",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/allocation",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "68314d6b1a47ae3ca87107b8dfac63c1d427bf98c54f820db801987dd2c7c42f",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/4b27fd52b4aa1b226a3515e16953151f889d05290c944b887bc7617a37cc7f39/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "arrays",
+      "cold_build_seconds": 5.322288959054276,
+      "warm_build_seconds": 2.9855743749067187,
+      "run_seconds": [
+        0.3720594169571996,
+        0.025961584062315524,
+        0.025797207956202328,
+        0.02551754203159362,
+        0.024998583015985787
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.025797207956202328,
+      "min_seconds": 0.024998583015985787,
+      "max_seconds": 0.3720594169571996,
+      "stdout": "393216\n",
+      "executable_bytes": 5634232,
+      "slib_bytes": 1330646,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "e8ef17e6be5b010bdfe07227b22af6ef27b6e3532d5b6043efef2e37dd136d0e",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "29ee418f02fd2bcf15f564e2a4c69a34cb38f227a56b8cce1694fa64cc7d6f5c",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/arrays",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "2da55e49bf640c5895cdeaf09d587556debd7a3f9fa5c9f5f17041540f2a3770",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/29ee418f02fd2bcf15f564e2a4c69a34cb38f227a56b8cce1694fa64cc7d6f5c/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "collections",
+      "cold_build_seconds": 5.320519209024496,
+      "warm_build_seconds": 2.9908819160191342,
+      "run_seconds": [
+        0.37404466595035046,
+        0.032838541897945106,
+        0.03270529198925942,
+        0.032516540959477425,
+        0.032315334072336555
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.03270529198925942,
+      "min_seconds": 0.032315334072336555,
+      "max_seconds": 0.37404466595035046,
+      "stdout": "312600\n",
+      "executable_bytes": 5436872,
+      "slib_bytes": 1651096,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "f3fdfafd09cc1f7b7408485d42a182010cd36cc5432181e3a6d3fb018f75004a",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "99d145226cc257af09d156c352108056eabf8f37ba99b8b1ab4328d637e253e2",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/collections",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "50b4038333e40bd984aa725ae41eaeb6624cf395311e409db14c3ca17ef9ef10",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/99d145226cc257af09d156c352108056eabf8f37ba99b8b1ab4328d637e253e2/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "old-graph-large",
+      "cold_build_seconds": 5.2739716249052435,
+      "warm_build_seconds": 2.97546800004784,
+      "run_seconds": [
+        0.3849542080424726,
+        0.05070562509354204,
+        0.05098954192362726,
+        0.05061624990776181,
+        0.05055020796135068
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.05070562509354204,
+      "min_seconds": 0.05055020796135068,
+      "max_seconds": 0.3849542080424726,
+      "stdout": "199680\n",
+      "executable_bytes": 5550776,
+      "slib_bytes": 906670,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "6c81e510c5e18f5b29326542c4ef80746ab5ccb6bb8ae588050711714b680004",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "c10f131a4c861b7549eff55858b12c19fb895603dc624798d2a7f418fd40d699",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/old-graph-large",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "318f890784c4d5909bc642fe5b8d280bb5b463a0e48a0c71212fe366e90e9f8a",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/c10f131a4c861b7549eff55858b12c19fb895603dc624798d2a7f418fd40d699/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "old-graph",
+      "cold_build_seconds": 5.2435698750196025,
+      "warm_build_seconds": 2.9543891249923036,
+      "run_seconds": [
+        0.3705952500458807,
+        0.026567500084638596,
+        0.027216542046517134,
+        0.026994792046025395,
+        0.026962000061757863
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.026994792046025395,
+      "min_seconds": 0.026567500084638596,
+      "max_seconds": 0.3705952500458807,
+      "stdout": "199680\n",
+      "executable_bytes": 5550776,
+      "slib_bytes": 906670,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "74aa21e1d1f8bd80f1d3920fa8073d5de0cb1da96532407391bdaadaf557b7bf",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "2cd91af75298a42e9a242711558842563797348ea3b4f20cc0b96bbfbd6c7638",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/old-graph",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "958abe61e4345ee7f50b473c378c3770762857df5129f68777fb17a51da7acb1",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/2cd91af75298a42e9a242711558842563797348ea3b4f20cc0b96bbfbd6c7638/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "primitive",
+      "cold_build_seconds": 5.208391291904263,
+      "warm_build_seconds": 2.947297791019082,
+      "run_seconds": [
+        0.5666423749644309,
+        0.2585520410211757,
+        0.24634220800362527,
+        0.27771941700484604,
+        0.2671322909882292
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.2671322909882292,
+      "min_seconds": 0.24634220800362527,
+      "max_seconds": 0.5666423749644309,
+      "stdout": "79999971\n",
+      "executable_bytes": 5407128,
+      "slib_bytes": 188616,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "bef7138707a521a7cdccd2774751d17f4a01ac3b005876e99f1e62373b54ee6d",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "b68f7b54ab25db5e9c926e21226e3b898c1273881108d7c8e5c7df0824881eb3",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/primitive",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "61c08ccd78a4a989f5152d5a01c9f809066fb20d9e70502841f2455ded56d132",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/b68f7b54ab25db5e9c926e21226e3b898c1273881108d7c8e5c7df0824881eb3/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    },
+    {
+      "name": "survivors",
+      "cold_build_seconds": 5.380864957929589,
+      "warm_build_seconds": 2.9690924159949645,
+      "run_seconds": [
+        0.4041786250891164,
+        0.06725900003220886,
+        0.06683883292134851,
+        0.06466487504076213,
+        0.06465179100632668
+      ],
+      "gc": [],
+      "stderr": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "median_seconds": 0.06683883292134851,
+      "min_seconds": 0.06465179100632668,
+      "max_seconds": 0.4041786250891164,
+      "stdout": "196614\n",
+      "executable_bytes": 5578920,
+      "slib_bytes": 1002538,
+      "build_records": [
+        {
+          "dependencies": [
+            {
+              "artifact_fingerprint": "8111447a5a941fe54d064495feaad9b0c7239b715cc2bc25f5a31b35fcf5da0e",
+              "coordinate": {
+                "group": "scoop",
+                "name": "scoop.core",
+                "version": "0.1.0"
+              },
+              "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+              "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95/artifact.slib"
+            }
+          ],
+          "kind": "executable",
+          "link_plan_fingerprint": "46757d97e3a5d091467ec96c2c833a75d17643274fa6edaf63b233058b6076f9",
+          "observations": {
+            "child_invocations": [
+              "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6"
+            ],
+            "nodes": [
+              {
+                "cache_key": "a1bafca68b81cd5f607d6e3e5d9cef984bca3f055799abfb48d25b70b0c3fe95",
+                "identity": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+                "origin": "cache"
+              },
+              {
+                "cache_key": "9c52c8cd9efff76aeec35e383dd2dc215c6b89985b5ce11f8129613b7bd9ca42",
+                "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+                "origin": "compiled"
+              }
+            ]
+          },
+          "output": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/survivors",
+          "profile": "debug",
+          "root": {
+            "artifact_fingerprint": "3b2f92c029cc509c693829e1b90d6ab6f8a33ca37a44b95afba6a36a15d29a5e",
+            "coordinate": {
+              "group": "scoop",
+              "name": "single-file",
+              "version": "0.0.0"
+            },
+            "identity": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+            "path": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/compile-v1/9c52c8cd9efff76aeec35e383dd2dc215c6b89985b5ce11f8129613b7bd9ca42/artifact.slib"
+          },
+          "runtime_index": "/Volumes/Data/home/chenxu/repos/scoop/target/m31-performance/m30-darwin-control/cache/runtime-v1/50e9780849456ced8127da5029ba82fd770d93e300b001dfdecae66c5dc7d482/index.cbor",
+          "schema": 1
+        }
+      ]
+    }
+  ]
+}

@@ -266,13 +266,6 @@ fn preserves_library_output_without_an_entry() {
 #[test]
 fn strong_writer_projects_the_complete_executable_production_section() {
     let section = lower_production(hello_world());
-    let registrations = section.registration_production().identities();
-    let registration_count = registrations.static_storages().len()
-        + registrations.immortal_objects().len()
-        + registrations.initialization_units().len()
-        + registrations.type_registrations().len()
-        + registrations.safepoints().len()
-        + registrations.callables().len();
     let image = section
         .digest_finalization_plan()
         .nodes()
@@ -280,7 +273,29 @@ fn strong_writer_projects_the_complete_executable_production_section() {
         .find(|node| node.kind() == scoop_identity::DigestKind::RuntimeImage)
         .expect("the strong writer always emits one runtime-image node");
 
-    assert_eq!(image.direct_inputs().len(), registration_count);
+    let expected = section
+        .digest_finalization_plan()
+        .nodes()
+        .iter()
+        .filter(|node| {
+            node.patch_intents().iter().any(|patch| {
+                !matches!(
+                    patch.key().semantic_field_role(),
+                    scoop_identity::DigestSemanticFieldRole::RuntimeImage
+                        | scoop_identity::DigestSemanticFieldRole::SourceSignature
+                )
+            })
+        })
+        .map(lir::DigestInputRefV1::from_node)
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        image
+            .direct_inputs()
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>(),
+        expected
+    );
     assert!(matches!(
         section.entry_plan(),
         lir::EntryProductionPlanV1::Executable(_)

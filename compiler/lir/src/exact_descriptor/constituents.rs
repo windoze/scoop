@@ -83,13 +83,10 @@ impl ExactDescriptorExportV1 {
             ExternalStrongShapeSubjectV1::TypeRegistration(exact),
             foundation,
         )?;
-        let fingerprint =
-            replay::registration_fingerprint(exact, physical.definition(), foundation)?;
         let registration = StrongShapeRegistrationV1::from_artifact(
             exact,
             physical.definition(),
             physical.symbol(),
-            fingerprint,
         );
         replay::replay_parts(
             target,

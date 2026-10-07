@@ -13,28 +13,10 @@ use crate::CodegenError;
 
 mod context_keys;
 
-#[derive(Clone, Copy)]
-pub(crate) enum CallableRegistrationSelection {
-    NonContext,
-    ContextBody(PersistentCallableBodyId),
-}
-
-impl CallableRegistrationSelection {
-    fn includes(self, registration: &StrongCallableRegistrationPlanV1) -> bool {
-        match self {
-            Self::NonContext => registration.context_key_count() == 0,
-            Self::ContextBody(body) => {
-                registration.body() == body && registration.context_key_count() != 0
-            }
-        }
-    }
-}
-
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 208;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 152;
+const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 176;
+const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
 const DIGEST_SIZE: u64 = 32;
 
 /// One graph-managed digest slot in an emitted callable registration.
@@ -78,7 +60,7 @@ impl<'ctx> CallableRegistrationPatchSiteV1<'ctx> {
 pub struct EmittedStrongCallableRegistrationV1<'ctx> {
     body: PersistentCallableBodyId,
     descriptor: GlobalValue<'ctx>,
-    registration_definition_patch: CallableRegistrationPatchSiteV1<'ctx>,
+
     body_definition_patch: CallableRegistrationPatchSiteV1<'ctx>,
 }
 
@@ -89,10 +71,6 @@ impl<'ctx> EmittedStrongCallableRegistrationV1<'ctx> {
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn registration_definition_patch(self) -> CallableRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 
     pub const fn body_definition_patch(self) -> CallableRegistrationPatchSiteV1<'ctx> {
@@ -126,14 +104,14 @@ pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
     plan: &StrongCallableRegistrationPlanSetV1,
     surface: &scoop_lir::ObjectSymbolSurfaceV1,
     profile: crate::target::ValidatedBackendProfile,
-    selection: CallableRegistrationSelection,
+    body: PersistentCallableBodyId,
 ) -> Result<EmittedStrongCallableRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let mut context_atoms = Vec::new();
     let registrations = plan
         .registrations()
         .iter()
-        .filter(|registration| selection.includes(registration))
+        .filter(|registration| registration.body() == body)
         .map(|registration| {
             let runtime = plan
                 .runtime_scans()
@@ -160,7 +138,6 @@ pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
                 *registration,
                 keys,
                 runtime.context_keys().len() as u64,
-                selection,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -178,7 +155,6 @@ fn emit_registration<'ctx>(
     plan: StrongCallableRegistrationPlanV1,
     keys: inkwell::values::PointerValue<'ctx>,
     key_count: u64,
-    selection: CallableRegistrationSelection,
 ) -> Result<EmittedStrongCallableRegistrationV1<'ctx>, CodegenError> {
     let descriptor_request = plan.symbol();
     let descriptor_symbol = descriptor_request.symbol();
@@ -194,12 +170,9 @@ fn emit_registration<'ctx>(
             "callable entry `{entry_symbol}` is not declared in the LLVM module"
         ))
     })?;
-    // Context metadata is colocated with the selected body and emitted before
-    // that body's basic blocks. Its definition linkage already comes from the plan.
-    let entry_linkage = if entry_request.linkage() == LinkageClass::OdrWeak
-        && (matches!(selection, CallableRegistrationSelection::ContextBody(_))
-            || entry.get_first_basic_block().is_some())
-    {
+    // The registration is emitted before its selected body's basic blocks.
+    // Definition linkage already comes from the body plan.
+    let entry_linkage = if entry_request.linkage() == LinkageClass::OdrWeak {
         Linkage::WeakODR
     } else {
         Linkage::External
@@ -276,13 +249,7 @@ fn emit_registration<'ctx>(
     Ok(EmittedStrongCallableRegistrationV1 {
         body: plan.body(),
         descriptor,
-        registration_definition_patch: CallableRegistrationPatchSiteV1 {
-            intent: plan.registration_definition_patch(),
-            definition: plan.definition_plan(),
-            atom: plan.primary_atom(),
-            owner: descriptor,
-            byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-        },
+
         body_definition_patch: CallableRegistrationPatchSiteV1 {
             intent: plan.body_definition_patch(),
             definition: plan.definition_plan(),

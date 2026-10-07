@@ -1,20 +1,16 @@
 use scoop_identity::{
     CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DecodedCborIdentityRecord,
-    DecodedSourceDeclarationKey, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey,
-    ExactTypeKey, GeneratedNominalKey, IdentityLayer, LayoutKey, LinkageClass,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PendingIdentityValidation,
-    PersistentExactTypeId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, RepresentationRole,
-    ScanKey, ScanRole, SourceDeclarationKey, StrongDefinitionEntity, StrongDefinitionRole,
-    ValidatedIdentityGraph,
+    DecodedSourceDeclarationKey, DefinitionAtomRole, DefinitionAtomSubkey, ExactTypeKey,
+    GeneratedNominalKey, IdentityLayer, LayoutKey, LinkageClass, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanKey, PendingIdentityValidation, PersistentExactTypeId, PersistentLayoutId,
+    PersistentScanId, PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
+    PersistentTypeId, RepresentationRole, ScanKey, ScanRole, SourceDeclarationKey,
+    StrongDefinitionEntity, StrongDefinitionRole, ValidatedIdentityGraph,
 };
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{
-    CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
-    DigestNodeV1, RegistrationIdentitySurfaceV1,
-};
+use crate::{CanonicalLirFoundation, ConeLirFoundation, RegistrationIdentitySurfaceV1};
 
 mod providers;
 
@@ -94,20 +90,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
 
     let foundation =
         ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
-    let digests = DigestFinalizationPlanV1::new(
-        vec![
-            DigestNodeV1::new(
-                DigestNodeKey::runtime_image(ConeIdentity::CORE),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        ],
-        &foundation,
-    )
-    .unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let empty = ParamFreeShapeSupportPlanSetV1::from_sources(
         std::iter::empty(),
         &foundation,
@@ -263,20 +246,7 @@ fn foreign_source_cannot_build_a_local_shape_plan() {
     let foundation =
         ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
-    let digests = DigestFinalizationPlanV1::new(
-        vec![
-            DigestNodeV1::new(
-                DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        ],
-        &foundation,
-    )
-    .unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     assert!(matches!(
         ParamFreeShapeSupportPlanSetV1::from_sources(
             [&CoreBuiltinNominal::Unit.declaration_key()],
@@ -435,38 +405,7 @@ fn finish_fixture(
     canonical.set_definition_atoms(parts.atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(parts.symbols).unwrap());
     let foundation = ConeLirFoundation::try_new(parts.source.origin(), canonical).unwrap();
-    let mut nodes = foundation
-        .definition_plans()
-        .iter()
-        .filter(|record| {
-            matches!(
-                record.key().definition_role(),
-                scoop_identity::ObjectDefinitionPlanRole::Strong(
-                    StrongDefinitionRole::TypeRegistration
-                )
-            )
-        })
-        .map(|record| {
-            DigestNodeV1::new(
-                DigestNodeKey::strong_registration(record.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    let inputs = nodes.iter().map(DigestInputRefV1::from_node).collect();
-    nodes.push(
-        DigestNodeV1::new(
-            DigestNodeKey::runtime_image(parts.source.origin()),
-            inputs,
-            Vec::new(),
-        )
-        .unwrap(),
-    );
-    let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     Fixture {
         source: parts.source,
         foundation,

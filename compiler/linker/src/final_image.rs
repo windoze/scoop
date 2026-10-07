@@ -18,6 +18,7 @@ mod commands;
 pub(crate) mod elf;
 mod exports;
 mod fixups;
+mod metadata;
 mod references;
 mod sections;
 mod signature;
@@ -128,6 +129,25 @@ pub(crate) fn verify(
         }
     }
     startup::check(&image, startup_object, inputs)?;
+    metadata::check(
+        &inputs.final_images,
+        |name| image.symbol(name),
+        |address, size| image.at(address, size),
+        |address| image.pointer(address),
+        |address, size| {
+            if image.file.sections().any(|section| {
+                section.segment_name().ok() == Some(Some("__DATA_CONST"))
+                    && address
+                        .checked_sub(section.address())
+                        .and_then(|offset| offset.checked_add(size))
+                        .is_some_and(|end| end <= section.size())
+            }) {
+                Ok(())
+            } else {
+                Err(error("final image metadata is outside __DATA_CONST"))
+            }
+        },
+    )?;
     references::check(&image, inputs, map)?;
     sections::check(&image, inputs)?;
     Ok(())

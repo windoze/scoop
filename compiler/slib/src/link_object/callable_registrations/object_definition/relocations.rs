@@ -1,15 +1,5 @@
 use super::*;
 
-pub(in crate::link_object) fn canonicalize_relocations(
-    bytes: &[u8],
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    atom: scoop_identity::ObjectDefinitionAtomId,
-    closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &VerifiedObjectDefinitionRequirementSetV1,
-) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
-    canonicalize_relocations_with_associated_atoms(bytes, member, atom, closure, requirements, &[])
-}
-
 pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
     bytes: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
@@ -35,18 +25,14 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
                     section_ordinal,
                     value,
                     ..
-                } if member
-                    .definitions()
-                    .literal_at(*section_ordinal, *value)
-                    .is_some() =>
-                {
-                    CanonicalRelocationTargetKindV1::Literal(
-                        member
-                            .definitions()
-                            .literal_at(*section_ordinal, *value)
-                            .expect("the local target belongs to a literal pool"),
-                    )
-                }
+                } => CanonicalRelocationTargetKindV1::Literal(
+                    member
+                        .definitions()
+                        .literal_at(*section_ordinal, *value)
+                        .ok_or(
+                            ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
+                        )?,
+                ),
                 VerifiedRelocationTargetV1::LocalDefinition {
                     owner_atom: Some(target_atom),
                     section_ordinal,
@@ -119,8 +105,7 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
                         offset_within_atom: address - range.start(),
                     }
                 }
-                VerifiedRelocationTargetV1::LocalDefinition { .. }
-                | VerifiedRelocationTargetV1::SectionBase { .. } => {
+                VerifiedRelocationTargetV1::SectionBase { .. } => {
                     return Err(
                         ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget,
                     );

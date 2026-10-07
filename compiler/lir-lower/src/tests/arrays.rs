@@ -56,7 +56,7 @@ fn generic_array_preserves_application_shape_and_allocation() {
     );
     let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
     let storages = lir::StrongStaticStorageSemanticPlanSetV1::from_module(module).unwrap();
-    let shapes = lir::CanonicalShapeLirDefinitionsV1::from_module(
+    let shapes = lir::CanonicalShapeAbisV1::from_module(
         module,
         output.foundation(),
         immortals.objects().iter().copied(),

@@ -85,14 +85,11 @@ Module
     store t0 -> local14
     store local14 -> local15
     t1 = variant_test e1 v3 local15 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t2 = variant_payload_project e1 v3 f1 local15 : i32
     store t2 -> local3
     store local3 -> local4
-    br @pattern.merge.3
-  block pattern.else.2
-    store integer<Int>(0x00000000) -> local4
     br @pattern.merge.3
   block pattern.merge.3
     store local4 -> local5

@@ -197,7 +197,24 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 .unwrap(),
         )
         .unwrap();
-        assert_eq!(objects.members().len(), lir.module().functions.len() + 1);
+        let mut actual_bodies = objects
+            .members()
+            .iter()
+            .filter_map(|member| match member.kind() {
+                scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } => {
+                    Some(body)
+                }
+                scoop_codegen::EmittedConeObjectMemberKindV1::NonCallable { .. } => None,
+            })
+            .collect::<Vec<_>>();
+        let mut expected_members = lir
+            .module()
+            .callable_bodies()
+            .map(|function| function.callable_body.id())
+            .collect::<Vec<_>>();
+        actual_bodies.sort_unstable();
+        expected_members.sort_unstable();
+        assert_eq!(actual_bodies, expected_members);
         let native_bodies = objects::check(&objects);
         reader::check(
             &lir,
@@ -259,50 +276,20 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 for (body, original) in &object_fingerprints {
                     if *body == changed_body {
                         assert_ne!(
-                            original.objects[0], changed[body].objects[0],
+                            original.object, changed[body].object,
                             "{role:?} must affect its body"
                         );
-                        assert_ne!(
-                            original.objects[1], changed[body].objects[1],
-                            "{role:?} must affect the ODR registration"
-                        );
-                        let (
-                            scoop_slib::CallableDefinitionFingerprintV1::Odr(before),
-                            scoop_slib::CallableDefinitionFingerprintV1::Odr(after),
-                        ) = (original.definition, changed[body].definition)
-                        else {
-                            panic!("associated atoms belong to an ODR callable member");
-                        };
-                        assert_eq!(before.abi(), after.abi());
-                        assert_eq!(before.lir(), after.lir());
-                        assert_ne!(before.definition(), after.definition());
-                        let (
-                            scoop_slib::RegistrationFingerprintV1::Odr(before),
-                            scoop_slib::RegistrationFingerprintV1::Odr(after),
-                        ) = (original.registration, changed[body].registration)
-                        else {
-                            panic!("associated atoms belong to an ODR callable");
-                        };
-                        assert_eq!(before.abi(), after.abi());
-                        assert_eq!(before.lir(), after.lir());
-                        assert_ne!(before.definition(), after.definition());
+                        assert_eq!(original.definition, changed[body].definition);
+                        assert_eq!(original.registration, changed[body].registration);
                         if role == DefinitionAtomRole::Stackmap {
                             assert!(!original.safepoints.is_empty());
                             assert_eq!(original.safepoints.len(), changed[body].safepoints.len());
-                            for ((site, before), (other_site, after)) in
+                            for ((site, before, stackmap), (other_site, after, other_stackmap)) in
                                 original.safepoints.iter().zip(&changed[body].safepoints)
                             {
                                 assert_eq!(site, other_site);
-                                let (
-                                    scoop_slib::RegistrationFingerprintV1::Odr(before),
-                                    scoop_slib::RegistrationFingerprintV1::Odr(after),
-                                ) = (before, after)
-                                else {
-                                    panic!("an ODR body's safepoints must retain ODR ownership");
-                                };
-                                assert_eq!(before.abi(), after.abi());
-                                assert_eq!(before.lir(), after.lir());
-                                assert_ne!(before.definition(), after.definition());
+                                assert_eq!(before, after);
+                                assert_ne!(stackmap, other_stackmap);
                             }
                         } else {
                             assert_eq!(original.safepoints, changed[body].safepoints);
@@ -386,28 +373,20 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 encode(production.canonical_definitions().plan(plan.id()).unwrap()).unwrap(),
             ];
             object_fingerprints[&body.id()].append_contents(&mut records);
-            for id in [member, registration.id()] {
-                let node = production
-                    .digest_finalization_plan()
-                    .nodes()
-                    .iter()
-                    .find(|node| {
-                        node.key().owner_and_role()
-                            == scoop_identity::DigestOwnerAndRoleKey::OdrMemberDefinition(id)
-                    })
-                    .unwrap();
-                assert!(
-                    node.direct_inputs()
-                        .iter()
-                        .any(|input| input.kind() == scoop_identity::DigestKind::LirDefinition)
-                );
-                assert!(
-                    node.direct_inputs()
-                        .iter()
-                        .any(|input| input.kind() == scoop_identity::DigestKind::ObjectDefinition)
-                );
-                records.push(encode(node).unwrap());
-            }
+            let body_plan = production
+                .registration_production()
+                .callables()
+                .registrations()
+                .iter()
+                .find(|value| value.body() == body.id())
+                .unwrap();
+            let node = production
+                .digest_finalization_plan()
+                .nodes()
+                .iter()
+                .find(|node| node.id() == body_plan.body_definition_node())
+                .unwrap();
+            records.push(encode(node).unwrap());
             for atom in atoms.iter().filter(|atom| atom.key().plan() == plan.id()) {
                 records.push(encode(atom).unwrap());
             }

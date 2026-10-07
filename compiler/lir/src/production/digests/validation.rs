@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_identity::{
     CborIdentityRecord, DefinitionAtomRole, DigestKind, DigestNodeId, DigestOwnerAndRoleKey,
     DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanRole, StrongDefinitionRole,
 };
 
 use super::{DigestInputRefV1, DigestNodeV1};
@@ -189,37 +188,10 @@ fn validate_owner(
         // Layout and scan ids are resolved typed references. Their definitions
         // may belong to a dependency; only physical patch targets must be local.
         DigestOwnerAndRoleKey::Layout(_) | DigestOwnerAndRoleKey::Scan(_) => true,
-        DigestOwnerAndRoleKey::LirDefinition(id)
-        | DigestOwnerAndRoleKey::ObjectSupport(id)
-        | DigestOwnerAndRoleKey::ObjectDefinition(id) => foundation.definition_atom(id).is_some(),
+        DigestOwnerAndRoleKey::ObjectSupport(id) | DigestOwnerAndRoleKey::ObjectDefinition(id) => {
+            foundation.definition_atom(id).is_some()
+        }
         DigestOwnerAndRoleKey::StackmapRecord(id) => foundation.contains_safepoint_site(id),
-        DigestOwnerAndRoleKey::OdrMemberDefinition(member) => {
-            foundation.definition_plans().iter().any(|record| {
-                record.key().owner() == scoop_identity::ObjectDefinitionPlanOwner::Odr { member }
-            })
-        }
-        DigestOwnerAndRoleKey::StrongRegistration(plan) => {
-            let Some(record) = foundation.definition_plan(plan) else {
-                return Err(DigestPlanError::UnknownOwner(node.id()));
-            };
-            if !matches!(
-                record.key().definition_role(),
-                ObjectDefinitionPlanRole::Strong(
-                    StrongDefinitionRole::RootRegistration
-                        | StrongDefinitionRole::ImmortalRegistration
-                        | StrongDefinitionRole::InitializationRegistration
-                        | StrongDefinitionRole::TypeRegistration
-                        | StrongDefinitionRole::SafepointRegistration
-                        | StrongDefinitionRole::CallableRegistration
-                )
-            ) {
-                return Err(DigestPlanError::NonRegistrationPlan {
-                    node: node.id(),
-                    plan,
-                });
-            }
-            true
-        }
         DigestOwnerAndRoleKey::RuntimeImage(actual) => {
             if actual != foundation.producer() {
                 return Err(DigestPlanError::ForeignRuntimeImage {
@@ -257,7 +229,7 @@ fn validate_patch_target(
 fn allows_input(node: DigestKind, input: DigestKind) -> bool {
     use DigestKind as K;
     match node {
-        K::SourceSignature | K::Layout | K::Scan | K::LirDefinition | K::ObjectSupport => false,
+        K::SourceSignature | K::Layout | K::Scan | K::ObjectSupport => false,
         K::StackmapRecord => matches!(input, K::SourceSignature | K::ObjectSupport),
         K::ObjectDefinition => matches!(
             input,
@@ -265,32 +237,12 @@ fn allows_input(node: DigestKind, input: DigestKind) -> bool {
                 | K::SourceSignature
                 | K::Layout
                 | K::Scan
-                | K::LirDefinition
                 | K::ObjectSupport
-                | K::StackmapRecord
-        ),
-        K::OdrDefinition => matches!(
-            input,
-            K::LirDefinition | K::ObjectDefinition | K::StackmapRecord | K::Layout | K::Scan
-        ),
-        K::StrongRegistration => matches!(
-            input,
-            K::SourceSignature
-                | K::Layout
-                | K::Scan
-                | K::LirDefinition
-                | K::ObjectDefinition
                 | K::StackmapRecord
         ),
         K::RuntimeImage => matches!(
             input,
-            K::SourceSignature
-                | K::Layout
-                | K::Scan
-                | K::ObjectDefinition
-                | K::StackmapRecord
-                | K::StrongRegistration
-                | K::OdrDefinition
+            K::SourceSignature | K::Layout | K::Scan | K::ObjectDefinition | K::StackmapRecord
         ),
     }
 }

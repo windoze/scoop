@@ -20,15 +20,7 @@ fn consumer_at(
     let foundation =
         crate::ConeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
             .unwrap();
-    let image = crate::DigestNodeV1::new(
-        scoop_identity::DigestNodeKey::runtime_image(producer),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let digests = crate::DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
 
     (foundation, registrations)
 }

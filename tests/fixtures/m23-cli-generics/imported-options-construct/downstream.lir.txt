@@ -181,18 +181,14 @@ Module
     store local0 -> local37
     store local37 -> local38
     t7 = variant_test e1 v0 local38 : i1
-    cbr t7 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t8 = variant_payload_project e1 v0 f0 local38 : ptr<managed>
     store t8 -> local7
     store local2 -> local39
     store local39 -> local40
     t9 = variant_test e2 v0 local40 : i1
-    cbr t9 then @pattern.pass.4 else @pattern.else.6
-  block pattern.else.2
-    store local37 -> local45
-    t10 = variant_test e1 v1 local45 : i1
-    cbr t10 then @pattern.pass.12 else @pattern.else.13
+    br @pattern.pass.4
   block pattern.merge.3
     ret local36
   block pattern.pass.4
@@ -244,13 +240,6 @@ Module
   block pattern.merge.11
     store local34 -> local35
     br @pattern.merge.7
-  block pattern.pass.12
-    store integer<Int>(0x00000003) -> local36
-    br @pattern.merge.14
-  block pattern.else.13
-    unreachable
-  block pattern.merge.14
-    br @pattern.merge.3
   fun @scoop$1$cb$731701067c167232df8956c57f6ed7cb5af35f59913af3e893865e56709cba6e(i32) -> i32
     local %0 $dependency.local.1: enum3
     local %1 $dependency.local.2: enum3
@@ -339,18 +328,14 @@ Module
     store local0 -> local37
     store local37 -> local38
     t6 = variant_test e3 v0 local38 : i1
-    cbr t6 then @pattern.pass.1 else @pattern.else.2
+    br @pattern.pass.1
   block pattern.pass.1
     t7 = variant_payload_project e3 v0 f0 local38 : i32
     store t7 -> local7
     store local2 -> local39
     store local39 -> local40
     t8 = variant_test e4 v0 local40 : i1
-    cbr t8 then @pattern.pass.4 else @pattern.else.6
-  block pattern.else.2
-    store local37 -> local45
-    t9 = variant_test e3 v1 local45 : i1
-    cbr t9 then @pattern.pass.12 else @pattern.else.13
+    br @pattern.pass.4
   block pattern.merge.3
     ret local36
   block pattern.pass.4
@@ -402,13 +387,6 @@ Module
   block pattern.merge.11
     store local34 -> local35
     br @pattern.merge.7
-  block pattern.pass.12
-    store integer<Int>(0x00000003) -> local36
-    br @pattern.merge.14
-  block pattern.else.13
-    unreachable
-  block pattern.merge.14
-    br @pattern.merge.3
   fun @scoop$1$cb$9ea7d7225c722c5f630e659030ef8fd5b53141911c692600ae48761a47dddfe6(ptr<managed>) -> sret<enum2 size=16 align=8 scan=refs[8]>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>

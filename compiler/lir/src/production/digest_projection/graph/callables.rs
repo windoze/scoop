@@ -15,8 +15,6 @@ impl DigestGraphWriter<'_> {
                 StrongDefinitionEntity::safepoint_site(site),
                 StrongDefinitionRole::SafepointRegistration,
             )?;
-            let registration_object = DigestNodeKey::object_definition(registration.primary);
-            self.ensure(registration_object);
 
             let stackmap = DigestNodeKey::stackmap_record(site);
             self.ensure(stackmap);
@@ -26,7 +24,7 @@ impl DigestGraphWriter<'_> {
                 DigestSemanticFieldRole::NormalizedStackmap,
             )?;
 
-            self.registration(registration.plan, [registration_object, stackmap])?;
+            self.image_inputs.extend([stackmap]);
 
             let body = self.definition(
                 StrongDefinitionEntity::callable_body(owner),
@@ -58,14 +56,12 @@ impl DigestGraphWriter<'_> {
                 StrongDefinitionEntity::callable_body(body),
                 StrongDefinitionRole::CallableRegistration,
             )?;
-            let registration_object = DigestNodeKey::object_definition(registration.primary);
-            self.ensure(registration_object);
             self.patch(
                 body_node,
                 registration.plan,
                 DigestSemanticFieldRole::CallableBodyDefinition,
             )?;
-            self.registration(registration.plan, [registration_object, body_node])?;
+            self.image_inputs.extend([body_node]);
         }
         Ok(())
     }

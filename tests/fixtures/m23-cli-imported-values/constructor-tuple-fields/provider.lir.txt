@@ -391,14 +391,11 @@ Module
     store local2 -> local8
     store local8 -> local9
     t1 = variant_test e0 v0 local9 : i1
-    cbr t1 then @pattern.pass.1 else @pattern.else.2
-  block pattern.pass.1
-    store integer<Long>(0x0000000000000000) -> local7
-    br @pattern.merge.3
+    br @pattern.else.2
   block pattern.else.2
     store local8 -> local10
     t2 = variant_test e0 v1 local10 : i1
-    cbr t2 then @pattern.pass.4 else @pattern.else.5
+    br @pattern.pass.4
   block pattern.merge.3
     ret local7
   block pattern.pass.4
@@ -412,8 +409,6 @@ Module
     t6 = integer_Add<Long> local4, local6 : i64
     store t6 -> local7
     br @pattern.merge.6
-  block pattern.else.5
-    unreachable
   block pattern.merge.6
     br @pattern.merge.3
   fun @scoop$1$cb$7a1a8d84c3e36c46b87afac028154ed5ba71b66094345730ecb6ff7905fdb29a(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void

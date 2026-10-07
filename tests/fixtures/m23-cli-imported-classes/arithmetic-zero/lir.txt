@@ -166,30 +166,12 @@ Module
     store local10 -> local27
     store local12 -> local28
     t22 = integer_compare_Equal<UInt> local28, integer<UInt>(0x00000000) : i1
-    cbr t22 then @if.then.21 else @if.merge.22
+    br @if.then.21
   block if.then.21
     call managed-direct-target3 sp<managed-call:1> live=[] t23 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(16)))
     store t23 -> local31
     invoke managed-void-target1 sp<managed-invoke:1> roots=[local31:normal] sig=void2 (ptr<managed>) external-fn1(local31) normal @invoke.normal.3 unwind @try.unwind.13
     br @invoke.normal.3
-  block if.merge.22
-    t25 = safe_integer_Remainder<UInt> local27, local28 : i32
-    store t25 -> local13
-    store local0 -> local15
-    store local13 -> local14
-    t26 = integer_convert<UInt->Long> local14 : i64
-    store t26 -> local16
-    store local16 -> local17
-    t27 = integer_Add<Long> local15, local17 : i64
-    store t27 -> local0
-    br @scope.23
-  block scope.23
-    store local0 -> local22
-    store integer<Long>(0x0000000000000001) -> local23
-    store local23 -> local24
-    t28 = integer_Add<Long> local22, local24 : i64
-    store t28 -> local0
-    br @try.end.19
   block try.catch.24
     call managed-direct-target4 sp<managed-call:2> live=[local36:ptr<managed>@0] t29 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local36)
     store t29 -> local32

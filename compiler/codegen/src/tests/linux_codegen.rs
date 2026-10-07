@@ -37,11 +37,16 @@ fn emit(
     optimization: OptimizationLevel,
     separate_sections: bool,
     path: &Path,
-) -> ValidatedBackendProfile {
+) -> (ValidatedBackendProfile, statepoint::ExpectedSafepoints) {
     let profile = ValidatedBackendProfile::from_selection(
         scoop_lir::ValidatedLirTargetSelection::from_id(module.meta.target_profile.id()),
     )
-    .expect("Linux backend");
+    .expect("Linux backend")
+    .with_optimization(if optimization == OptimizationLevel::None {
+        scoop_lir::OptimizationMode::Debug
+    } else {
+        scoop_lir::OptimizationMode::Release
+    });
     let machine = profile
         .create_qualification_target_machine(optimization)
         .expect("target machine");
@@ -62,25 +67,22 @@ fn emit(
     let expected = statepoint::expectations(module).unwrap();
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
     llvm.verify().expect("valid LLVM IR");
-    statepoint::rewrite(&llvm, &machine).expect("RS4GC");
+    let expected = statepoint::rewrite(&llvm, &machine, &expected, profile).expect("RS4GC");
     llvm.verify().expect("valid rewritten IR");
     statepoint::verify_rewritten(&llvm, &expected, profile).expect("machine policy and roots");
     machine
         .write_to_file(&llvm, FileType::Object, path)
         .expect("emit ELF");
-    profile
+    (profile, expected)
 }
 
 fn check(
     module: &Module,
+    expected: &statepoint::ExpectedSafepoints,
     profile: ValidatedBackendProfile,
     path: &Path,
 ) -> Result<(), CodegenError> {
-    profile.verify_object(
-        path,
-        &statepoint::expectations(module)?,
-        &artifact::eh_expectations(module)?,
-    )
+    profile.verify_object(path, expected, &artifact::eh_expectations(module)?)
 }
 
 #[test]
@@ -98,8 +100,8 @@ fn linux_amd64_statepoints_and_exceptions_at_o0_and_o2() {
                 ] {
                     let module = for_target(module, target);
                     let path = directory.path().join("code.o");
-                    let profile = emit(&module, optimization, separate_sections, &path);
-                    check(&module, profile, &path).unwrap_or_else(|error| {
+                    let (profile, expected) = emit(&module, optimization, separate_sections, &path);
+                    check(&module, &expected, profile, &path).unwrap_or_else(|error| {
                         panic!("{target:?}/{optimization:?}/COMDAT={separate_sections}: {error}")
                     });
                 }
@@ -113,8 +115,8 @@ fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("code.o");
     let module = for_target(exceptions_module(), TargetProfileId::LinuxX86_64Gnu);
-    let profile = emit(&module, OptimizationLevel::None, true, &path);
-    check(&module, profile, &path).unwrap();
+    let (profile, expected) = emit(&module, OptimizationLevel::None, true, &path);
+    check(&module, &expected, profile, &path).unwrap();
     let bytes = std::fs::read(&path).unwrap();
     let file = object::File::parse(bytes.as_slice()).unwrap();
     let stackmap = file.section_by_name(".llvm_stackmaps").unwrap();
@@ -124,7 +126,7 @@ fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
     damaged[offset + 24..offset + 32].copy_from_slice(&16u64.to_le_bytes());
     std::fs::write(&path, damaged).unwrap();
     assert!(
-        check(&module, profile, &path)
+        check(&module, &expected, profile, &path)
             .unwrap_err()
             .0
             .contains("invalid stack size")
@@ -137,7 +139,7 @@ fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
     damaged[field] = 1;
     std::fs::write(&path, damaged).unwrap();
     assert!(
-        check(&module, profile, &path)
+        check(&module, &expected, profile, &path)
             .unwrap_err()
             .0
             .contains("nonzero in-place addend")
@@ -149,7 +151,7 @@ fn linux_amd64_rejects_damaged_stackmap_and_eh_pointers() {
     damaged[field..field + 4].copy_from_slice(&object::elf::R_X86_64_64.to_le_bytes());
     std::fs::write(&path, damaged).unwrap();
     assert!(
-        check(&module, profile, &path)
+        check(&module, &expected, profile, &path)
             .unwrap_err()
             .0
             .contains("unexpected relocation")
@@ -169,14 +171,18 @@ fn linux_amd64_requires_noredzone_on_rewritten_functions() {
     let machine = profile.create_target_machine().unwrap();
     let context = Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine, profile).unwrap();
-    statepoint::rewrite(&llvm, &machine).unwrap();
+    let expected = statepoint::rewrite(
+        &llvm,
+        &machine,
+        &statepoint::expectations(&module).unwrap(),
+        profile,
+    )
+    .unwrap();
     let function = llvm.get_function(module.functions[0].symbol()).unwrap();
     function.remove_enum_attribute(
         AttributeLoc::Function,
         Attribute::get_named_enum_kind_id("noredzone"),
     );
-    let error =
-        statepoint::verify_rewritten(&llvm, &statepoint::expectations(&module).unwrap(), profile)
-            .unwrap_err();
+    let error = statepoint::verify_rewritten(&llvm, &expected, profile).unwrap_err();
     assert!(error.0.contains("noredzone"), "{error}");
 }

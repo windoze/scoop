@@ -57,54 +57,8 @@ pub(super) fn digest_plan(
             continue;
         }
 
-        let object_key = DigestNodeKey::object_definition(artifacts.registration_primary.id());
-        let object_source = DigestNodeId::from_key(&object_key).unwrap();
-        let object = DigestNodeV1::new(
-            object_key,
-            if options.registration_object_input && index == 0 {
-                vec![DigestInputRefV1::from_node(layout.as_ref().unwrap())]
-            } else {
-                Vec::new()
-            },
-            if options.registration_object_patch && index == 0 {
-                vec![DigestPatchIntentKey::new(
-                    object_source,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::CallableBodyDefinition,
-                )]
-            } else {
-                Vec::new()
-            },
-        )
-        .unwrap();
-        let strong_key = DigestNodeKey::strong_registration(artifacts.registration_definition.id());
-        let strong_source = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = vec![DigestInputRefV1::from_node(&object)];
-        if !options.omit_descriptor_input || index != 0 {
-            inputs.push(DigestInputRefV1::from_node(&descriptor));
-        }
-        if let Some(layout) = &layout {
-            inputs.push(DigestInputRefV1::from_node(layout));
-        }
-        let strong = DigestNodeV1::new(
-            strong_key,
-            inputs,
-            if options.omit_registration_patch && index == 0 {
-                Vec::new()
-            } else {
-                vec![DigestPatchIntentKey::new(
-                    strong_source,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::RegistrationDefinition,
-                )]
-            },
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(object);
-        nodes.push(strong);
+        image_inputs.push(DigestInputRefV1::from_node(&descriptor));
+        image_inputs.extend(layout.iter().map(DigestInputRefV1::from_node));
     }
     nodes.push(
         DigestNodeV1::new(

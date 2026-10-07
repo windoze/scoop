@@ -38,7 +38,7 @@ pub(super) struct BuildOptions {
     pub sysroot: Option<PathBuf>,
     #[command(flatten)]
     pub native: NativeOptions,
-    /// Output profile; debug and release currently use the same compiler settings.
+    /// Compiler optimization and output profile; release enables optimized code.
     #[arg(long, conflicts_with = "release")]
     pub profile: Option<BuildProfile>,
     #[arg(long, conflicts_with = "profile")]
