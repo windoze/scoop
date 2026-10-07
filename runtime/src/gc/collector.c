@@ -3,6 +3,7 @@
  * The collection is a closed phase sequence: mark, plan, relocate/update,
  * verify, then retire. Every managed pointer source is reduced to the same
  * writable slot visitor; heap storage details remain in heap.c. */
+#define _POSIX_C_SOURCE 200809L
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>

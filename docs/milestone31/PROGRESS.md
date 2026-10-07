@@ -149,3 +149,8 @@
 - 移除 27 份声明中的 85 个旧版完整 startup/link-plan 快照，保留本次构建与独立链接的实际 fingerprint 一致、原生输入/Cone 关系、所有阶段结构和运行结果。源码/运行时变化仍检查链接失效及输出；重建 core 继续核对实际 String owner。
 - 损坏用例按当前 Mach-O 产物确认 payload 修改位置与尾部截断长度，保留完整诊断、失败位置和原子输出。普通函数源码变化不再改变 LIR 的共享 ABI 摘要；旧 stale 负例按现有 HIR 观察面继续拒绝，并锁定实际摘要相等关系。
 - 36 个独立链接 fixture 全部通过，合计 57 个变体、272 个正式进程、280 份阶段快照；先执行整组，之后仅复测失败项。结果见 [M31-DARWIN-LINK.json](M31-DARWIN-LINK.json)。公共 runner 的 44 项测试通过。
+
+## musl 暂停计时的 POSIX 声明
+
+- collector 在所有系统头之前声明 `_POSIX_C_SOURCE=200809L`，使正式 runtime 的严格 C11 编译可以使用 `clock_gettime(CLOCK_MONOTONIC)`。此前单元测试命令已有该宏，正式 musl 构建暴露了缺项；计时语义、公开结构和 ABI 不变。
+- Darwin cc 与 musl-gcc 均在不额外传入 feature macro 的情况下通过 `-std=c11 -Wall -Wextra -Werror` 语法检查。musl 九个 M31 fixture 的实际构建、链接与运行全部通过，23 个变体、73 个进程；本轮同时生成目标快照，普通模式复验与平台组合随后继续。
