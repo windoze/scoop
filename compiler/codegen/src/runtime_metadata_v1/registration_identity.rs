@@ -38,7 +38,6 @@ pub(super) fn registration_identity_value<'ctx>(
         digest(semantic_id).into(),
         group.into(),
         member.into(),
-        zero.into(),
     ])
 }
 

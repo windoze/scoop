@@ -104,12 +104,6 @@ impl CrossConeLayoutProductionManifestV1 {
         self.projection().runtime_registration_projection()
     }
 
-    pub const fn strong_registration_set(
-        &self,
-    ) -> &crate::CanonicalStrongRegistrationFingerprintSetV1 {
-        self.projection().strong_registration_set()
-    }
-
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
         self.projection().runtime_image_fingerprint()
     }
@@ -141,7 +135,7 @@ impl CrossConeLayoutProductionManifestV1 {
 
 impl WireEncode for CrossConeLayoutProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.distribution().encode(encoder)?;
         encoder.field(2)?;
@@ -150,8 +144,6 @@ impl WireEncode for CrossConeLayoutProductionManifestV1 {
         self.image_owner_member().encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection().encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set().encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint().encode(encoder)?;
         encoder.field(7)?;

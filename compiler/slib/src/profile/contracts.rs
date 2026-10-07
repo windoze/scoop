@@ -136,12 +136,12 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "identity-foundation", 5) => (
+            ("org.scoop-lang.lir", "identity-foundation", 6) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.manifest", "single-cone-production", 4) => (
+            ("org.scoop-lang.manifest", "single-cone-production", 5) => (
                 SectionLocation::Manifest,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE
@@ -168,7 +168,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 9) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 10) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
@@ -198,13 +198,13 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.lir", "strong-production", 19)
-            | ("org.scoop-lang.lir", "cone-production", 8) => (
+            ("org.scoop-lang.lir", "strong-production", 20)
+            | ("org.scoop-lang.lir", "cone-production", 9) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 14) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 15) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

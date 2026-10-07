@@ -33,13 +33,9 @@ pub(super) struct FixtureOptions {
     pub(super) include_callable_owner: bool,
     pub(super) include_primary_atoms: bool,
     pub(super) include_symbols: bool,
-    pub(super) include_object_nodes: bool,
+
     pub(super) include_stackmap_nodes: bool,
-    pub(super) object_node_input: bool,
-    pub(super) object_node_patch: bool,
-    pub(super) exact_direct_inputs: bool,
-    pub(super) extra_direct_input: bool,
-    pub(super) registration_definition_patch: bool,
+
     pub(super) normalized_stackmap_patch: bool,
 }
 
@@ -52,13 +48,9 @@ impl Default for FixtureOptions {
             include_callable_owner: true,
             include_primary_atoms: true,
             include_symbols: true,
-            include_object_nodes: true,
+
             include_stackmap_nodes: true,
-            object_node_input: false,
-            object_node_patch: false,
-            exact_direct_inputs: true,
-            extra_direct_input: false,
-            registration_definition_patch: true,
+
             normalized_stackmap_patch: true,
         }
     }
@@ -69,7 +61,6 @@ pub(super) struct Fixture {
     pub(super) identities: RegistrationIdentitySurfaceV1,
     pub(super) semantics: StrongSafepointSemanticPlanSetV1,
     pub(super) digests: DigestFinalizationPlanV1,
-    pub(super) primary_atoms: Vec<ObjectDefinitionAtomId>,
 }
 
 impl Fixture {
@@ -138,87 +129,29 @@ impl Fixture {
         }
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
-        let extra_source = (options.extra_direct_input || options.object_node_input).then(|| {
-            DigestNodeV1::new(
-                DigestNodeKey::source_signature(body.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap()
-        });
         let mut nodes = Vec::new();
         let mut image_inputs = Vec::new();
         for registration in &registrations {
-            let object = options.include_object_nodes.then(|| {
-                let direct_inputs = options
-                    .object_node_input
-                    .then(|| DigestInputRefV1::from_node(extra_source.as_ref().unwrap()))
-                    .into_iter()
-                    .collect();
-                let key = DigestNodeKey::object_definition(registration.primary.id());
-                let source = DigestNodeId::from_key(&key).unwrap();
-                let patches = options
-                    .object_node_patch
-                    .then(|| {
-                        DigestPatchIntentKey::new(
-                            source,
-                            registration.plan.id(),
-                            DefinitionAtomRole::Primary,
-                            DigestSemanticFieldRole::DescriptorDefinition,
-                        )
-                    })
-                    .into_iter()
-                    .collect();
-                DigestNodeV1::new(key, direct_inputs, patches).unwrap()
-            });
-            let stackmap = options.include_stackmap_nodes.then(|| {
-                let key = DigestNodeKey::stackmap_record(registration.site);
-                let source = DigestNodeId::from_key(&key).unwrap();
-                let patches = options
-                    .normalized_stackmap_patch
-                    .then(|| {
-                        DigestPatchIntentKey::new(
-                            source,
-                            registration.plan.id(),
-                            DefinitionAtomRole::Primary,
-                            DigestSemanticFieldRole::NormalizedStackmap,
-                        )
-                    })
-                    .into_iter()
-                    .collect();
-                DigestNodeV1::new(key, Vec::new(), patches).unwrap()
-            });
-            let key = DigestNodeKey::strong_registration(registration.plan.id());
+            if !options.include_stackmap_nodes {
+                continue;
+            }
+            let key = DigestNodeKey::stackmap_record(registration.site);
             let source = DigestNodeId::from_key(&key).unwrap();
-            let mut direct_inputs: Vec<DigestInputRefV1> = if options.exact_direct_inputs {
-                object
-                    .iter()
-                    .chain(stackmap.iter())
-                    .map(DigestInputRefV1::from_node)
-                    .collect()
-            } else {
-                stackmap.iter().map(DigestInputRefV1::from_node).collect()
-            };
-            direct_inputs.extend(extra_source.iter().map(DigestInputRefV1::from_node));
-            let patches = options
-                .registration_definition_patch
+            let patches = (options.normalized_stackmap_patch && options.include_primary_atoms)
                 .then(|| {
                     DigestPatchIntentKey::new(
                         source,
                         registration.plan.id(),
                         DefinitionAtomRole::Primary,
-                        DigestSemanticFieldRole::RegistrationDefinition,
+                        DigestSemanticFieldRole::NormalizedStackmap,
                     )
                 })
                 .into_iter()
                 .collect();
-            let fingerprint = DigestNodeV1::new(key, direct_inputs, patches).unwrap();
-            image_inputs.push(DigestInputRefV1::from_node(&fingerprint));
-            nodes.extend(object);
-            nodes.extend(stackmap);
-            nodes.push(fingerprint);
+            let stackmap = DigestNodeV1::new(key, Vec::new(), patches).unwrap();
+            image_inputs.push(DigestInputRefV1::from_node(&stackmap));
+            nodes.push(stackmap);
         }
-        nodes.extend(extra_source);
         nodes.push(
             DigestNodeV1::new(
                 DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
@@ -228,19 +161,12 @@ impl Fixture {
             .unwrap(),
         );
         let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-        let primary_atoms = registrations
-            .iter()
-            .map(|registration| registration.primary.id())
-            .collect();
-
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         Self {
             foundation,
             identities,
             semantics,
             digests,
-            primary_atoms,
         }
     }
 

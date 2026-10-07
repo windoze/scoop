@@ -71,7 +71,7 @@ impl DecodedStrongRegistrationProductionSurfaceV1 {
         let actual = encode(&self).map_err(StrongRegistrationProductionValidationError::Encode)?;
         let identities = self
             .identities
-            .validate(foundation, digests)
+            .validate(foundation)
             .map_err(StrongRegistrationProductionValidationError::Identities)?;
         let safepoint_semantics = validate_safepoints(self.safepoints, foundation, &identities)?;
         let callable_runtime_scans =

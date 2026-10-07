@@ -25,8 +25,7 @@ fn elf_static_immortal_and_initialization_registrations() {
         )
         .expect("ELF immortal String registrations");
         assert_eq!(immortals.registrations().len(), 2);
-        compute_strong_immortal_object_registration_object_fingerprints_v1(immortals, &objects)
-            .expect("immortal registration canonical pointers");
+        immortals;
         let storages = verify_strong_static_storage_registrations_v1(
             sites.clone(),
             production.static_storages().clone(),
@@ -65,8 +64,7 @@ fn elf_static_immortal_and_initialization_registrations() {
             )
             .is_err()
         );
-        compute_strong_static_storage_registration_object_fingerprints_v1(storages, &objects)
-            .expect("static registration canonical pointers");
+        storages;
         let initializations = verify_strong_initialization_registrations_v1(
             sites,
             production.initialization_units().clone(),
@@ -121,11 +119,7 @@ fn elf_encoded_storage_accepts_only_zero_sentinel_prefixes() {
             )
             .expect("a static scalar needs no immortal or initialization unit");
             assert_eq!(storages.registrations().len(), 1);
-            compute_strong_static_storage_registration_object_fingerprints_v1(
-                storages,
-                &candidates(&fixture.objects),
-            )
-            .expect("the empty relocation sentinel has a canonical fingerprint");
+            storages;
             let mut damaged = fixture.objects.clone();
             let (bytes, offset) = damaged
                 .iter_mut()

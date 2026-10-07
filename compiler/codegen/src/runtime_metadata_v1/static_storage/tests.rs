@@ -8,9 +8,8 @@ use scoop_lir::{LirTargetProfile, StaticStorageScanKindV1, StrongStaticStorageIn
 use super::{
     DIGEST_SIZE, EMPTY_RELOCATION_SENTINEL, EMPTY_TEMPLATE_SENTINEL,
     EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
-    LAYOUT_FINGERPRINT_OFFSET, REGISTRATION_DEFINITION_FINGERPRINT_OFFSET, SCAN_FINGERPRINT_OFFSET,
-    STATIC_STORAGE_DESCRIPTOR_MAGIC, STATIC_STORAGE_DESCRIPTOR_SIZE,
-    emit_strong_static_storage_registrations_v1,
+    LAYOUT_FINGERPRINT_OFFSET, SCAN_FINGERPRINT_OFFSET, STATIC_STORAGE_DESCRIPTOR_MAGIC,
+    STATIC_STORAGE_DESCRIPTOR_SIZE, emit_strong_static_storage_registrations_v1,
 };
 use crate::ManagedAddressSpace;
 
@@ -56,7 +55,7 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
             .unwrap()
             .into_struct_value();
         assert_eq!(constant_u64(prefix, 0), STATIC_STORAGE_DESCRIPTOR_MAGIC);
-        assert_eq!(constant_u64(prefix, 1), 4);
+        assert_eq!(constant_u64(prefix, 1), 5);
         assert_eq!(constant_u64(prefix, 2), STATIC_STORAGE_DESCRIPTOR_SIZE);
         assert_eq!(
             constant_u64(initializer, 2),
@@ -88,11 +87,6 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
         );
 
         let patches = [
-            (
-                registration.registration_definition_patch(),
-                expected.registration_definition_patch(),
-                REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-            ),
             (
                 registration.scan_fingerprint_patch(),
                 expected.scan_fingerprint_patch(),

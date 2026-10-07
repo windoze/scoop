@@ -36,11 +36,7 @@ mod digest_fingerprints;
 pub use digest_fingerprints::*;
 
 mod odr_member_fingerprints;
-mod shape_fingerprints;
-pub use odr_member_fingerprints::{
-    CallableDefinitionFingerprintV1, OdrMemberFingerprintV1, RegistrationFingerprintV1,
-};
-pub use shape_fingerprints::{OdrShapeFingerprintError, OdrShapeFingerprintV1};
+pub use odr_member_fingerprints::{CallableDefinitionAbiV1, OdrMemberAbiV1, RegistrationAbiV1};
 
 mod odr_directory;
 pub use odr_directory::*;
@@ -74,9 +70,6 @@ pub use entry_production::*;
 
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
-
-mod registration_projection;
-pub use registration_projection::*;
 
 mod generated_bridge_semantics;
 pub use generated_bridge_semantics::*;

@@ -64,8 +64,7 @@ fn executable_plan_derives_the_complete_root_surface_and_round_trips() {
 fn library_plan_has_a_closed_empty_wire_branch() {
     let foundation = empty_foundation();
     let digests = image_only_digests(&foundation);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = EntryProductionPlanV1::new(
         EntryProductionSourceV1::Library,
         &foundation,
@@ -107,8 +106,7 @@ fn library_rejects_every_executable_root_surface() {
 fn executable_requires_the_derived_root_entities() {
     let foundation = empty_foundation();
     let digests = image_only_digests(&foundation);
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     assert!(matches!(
         EntryProductionPlanV1::new(
             EntryProductionSourceV1::executable(executable_source_entry()),
@@ -295,30 +293,6 @@ fn executable_fixture() -> ExecutableFixture {
     )
     .unwrap();
     let mut nodes = vec![source, gateway_definition_node];
-    for (entity, role) in [
-        (
-            StrongDefinitionEntity::callable_body(main.body()),
-            StrongDefinitionRole::CallableRegistration,
-        ),
-        (
-            StrongDefinitionEntity::callable_body(gateway),
-            StrongDefinitionRole::CallableRegistration,
-        ),
-        (
-            StrongDefinitionEntity::static_storage(failure_root),
-            StrongDefinitionRole::RootRegistration,
-        ),
-    ] {
-        let registration = definition_plan(producer, entity, role);
-        nodes.push(
-            DigestNodeV1::new(
-                DigestNodeKey::strong_registration(registration),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap(),
-        );
-    }
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(producer),
@@ -328,8 +302,7 @@ fn executable_fixture() -> ExecutableFixture {
         .unwrap(),
     );
     let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
-    let registrations =
-        RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let source = EntryProductionSourceV1::executable(entry);
     ExecutableFixture {
         source,

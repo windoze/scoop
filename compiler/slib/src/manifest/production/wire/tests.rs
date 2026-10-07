@@ -21,9 +21,9 @@ fn library_manifest_wire_round_trips_without_promoting_carried_values() {
 fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     let mut old = library_manifest_bytes();
     old.truncate(old.len() - 2);
-    old[0] = 0xab;
+    old[0] = 0xaa;
     let mut extended = library_manifest_bytes();
-    extended[0] = 0xad;
+    extended[0] = 0xac;
     extended.extend_from_slice(&[13, 0x80]);
     for bytes in [old, extended] {
         assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
@@ -75,7 +75,7 @@ fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
 }
 
 pub(crate) fn library_manifest_bytes() -> Vec<u8> {
-    let mut bytes = vec![0xac];
+    let mut bytes = vec![0xab];
     field(&mut bytes, 1);
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);
     field(&mut bytes, 2);
@@ -83,8 +83,6 @@ pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     field(&mut bytes, 3);
     fixed(&mut bytes, 3);
     field(&mut bytes, 4);
-    six_empty_tables(&mut bytes);
-    field(&mut bytes, 5);
     six_empty_tables(&mut bytes);
     field(&mut bytes, 6);
     fixed(&mut bytes, 6);

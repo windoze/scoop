@@ -3,11 +3,10 @@ use scoop_lir::StrongCallableRegistrationPlanV1;
 use super::StrongCallableRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-pub(in crate::link_object) const ABI_VERSION: u32 = 4;
-const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
-const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 152;
+pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const DIGEST_WIDTH: usize = 32;
-pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 208;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 176;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],
@@ -47,8 +46,8 @@ pub(in crate::link_object) fn expected_record(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    write_u64(&mut bytes, 200, plan.context_key_count());
-    bytes[16..152].copy_from_slice(
+    write_u64(&mut bytes, 168, plan.context_key_count());
+    bytes[16..120].copy_from_slice(
         &crate::link_object::registration_identity::provisional_registration_identity(
             plan.body().as_array(),
             plan.definition_owner(),
@@ -59,12 +58,9 @@ pub(in crate::link_object) fn expected_record(
 
 pub(in crate::link_object) fn expected_final_record(
     plan: StrongCallableRegistrationPlanV1,
-    registration: &[u8; DIGEST_WIDTH],
     body_definition: &[u8; DIGEST_WIDTH],
 ) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = expected_record(plan);
-    bytes[DEFINITION_FINGERPRINT_OFFSET..DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
-        .copy_from_slice(registration);
     bytes[BODY_DEFINITION_FINGERPRINT_OFFSET..BODY_DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
         .copy_from_slice(body_definition);
     bytes

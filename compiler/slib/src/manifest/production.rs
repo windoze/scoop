@@ -3,7 +3,7 @@
 use std::fmt;
 
 use scoop_identity::{
-    DigestNodeId, MainCallableBodyId, ObjectDefinitionPlanId, PersistentCallableBodyId,
+    MainCallableBodyId, ObjectDefinitionPlanId, PersistentCallableBodyId,
     PersistentStaticStorageId, SourceSignatureFingerprint,
 };
 use scoop_lir::{
@@ -15,9 +15,8 @@ use scoop_wire::{Encoder, WireEncode};
 use super::{ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, RuntimeImageFingerprint};
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalOdrMemberDirectoryV1, CanonicalStrongRegistrationFingerprintSetV1,
-    ObjectDefinitionFingerprintV1, OdrMemberDirectoryProjectionError,
-    StrongRegistrationFingerprintProjectionError, VerifiedCodeFingerprintV1,
+    CanonicalOdrMemberDirectoryV1, ObjectDefinitionFingerprintV1,
+    OdrMemberDirectoryProjectionError, VerifiedCodeFingerprintV1,
     VerifiedCodeLinkObjectMemberSetV1, VerifiedEntryProductionBranchV1,
     VerifiedStrongRegistrationPatchSetV1,
 };
@@ -138,7 +137,7 @@ pub struct SingleConeProductionCodeProjectionV1 {
     output: SingleConeProductionOutputV1,
     image_owner_member: SlibMemberId,
     runtime_registration_projection: RegistrationIdentitySurfaceV1,
-    strong_registration_set: CanonicalStrongRegistrationFingerprintSetV1,
+
     runtime_image_fingerprint: RuntimeImageFingerprint,
     odr_members: CanonicalOdrMemberDirectoryV1,
     optimization: scoop_lir::OptimizationMode,
@@ -170,10 +169,6 @@ impl SingleConeProductionCodeProjectionV1 {
         &self.runtime_registration_projection
     }
 
-    pub const fn strong_registration_set(&self) -> &CanonicalStrongRegistrationFingerprintSetV1 {
-        &self.strong_registration_set
-    }
-
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
         self.runtime_image_fingerprint
     }
@@ -185,7 +180,7 @@ impl SingleConeProductionCodeProjectionV1 {
 
 impl WireEncode for SingleConeProductionCodeProjectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -194,8 +189,6 @@ impl WireEncode for SingleConeProductionCodeProjectionV1 {
         self.image_owner_member.encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection.encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set.encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint.encode(encoder)?;
         encoder.field(11)?;
@@ -269,10 +262,6 @@ impl SingleConeProductionManifestV1 {
         self.projection().runtime_registration_projection()
     }
 
-    pub const fn strong_registration_set(&self) -> &CanonicalStrongRegistrationFingerprintSetV1 {
-        self.projection().strong_registration_set()
-    }
-
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
         self.projection().runtime_image_fingerprint()
     }
@@ -306,7 +295,7 @@ impl SingleConeProductionManifestV1 {
 
 impl WireEncode for SingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.distribution().encode(encoder)?;
         encoder.field(2)?;
@@ -315,8 +304,6 @@ impl WireEncode for SingleConeProductionManifestV1 {
         self.image_owner_member().encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection().encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set().encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint().encode(encoder)?;
         encoder.field(7)?;
@@ -427,7 +414,7 @@ pub enum ProductionCodeProjectionError {
     },
     OutputMismatch,
     MissingGatewayFingerprint(PersistentCallableBodyId),
-    StrongRegistrations(StrongRegistrationFingerprintProjectionError),
+
     OdrMembers(OdrMemberDirectoryProjectionError),
 }
 
@@ -440,7 +427,6 @@ impl fmt::Display for ProductionCodeProjectionError {
 impl std::error::Error for ProductionCodeProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::StrongRegistrations(source) => Some(source),
             Self::OdrMembers(source) => Some(source),
             _ => None,
         }

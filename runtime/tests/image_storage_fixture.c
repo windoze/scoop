@@ -23,8 +23,7 @@ static ScoopDescriptorPrefixV1 prefix(uint64_t magic, size_t size) {
 static ScoopRegistrationIdentityV1 identity(uint8_t id) {
     return (ScoopRegistrationIdentityV1){
         .linkage_kind = SCOOP_REGISTRATION_LINKAGE_STRONG_V1,
-        .semantic_id = {{id}},
-        .definition_fingerprint = {{id}}};
+        .semantic_id = {{id}}};
 }
 
 static int range_order(const void *left, const void *right) {

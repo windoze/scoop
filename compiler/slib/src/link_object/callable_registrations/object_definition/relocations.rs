@@ -1,15 +1,5 @@
 use super::*;
 
-pub(in crate::link_object) fn canonicalize_relocations(
-    bytes: &[u8],
-    member: &VerifiedMemberObjectRelocationIndexV1,
-    atom: scoop_identity::ObjectDefinitionAtomId,
-    closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &VerifiedObjectDefinitionRequirementSetV1,
-) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
-    canonicalize_relocations_with_associated_atoms(bytes, member, atom, closure, requirements, &[])
-}
-
 pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
     bytes: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,

@@ -58,15 +58,12 @@ where
     let output = output(cone, final_objects)?;
     let odr_members = CanonicalOdrMemberDirectoryV1::from_patch_set(registrations)
         .map_err(ProductionCodeProjectionError::OdrMembers)?;
-    let strong_registration_set =
-        CanonicalStrongRegistrationFingerprintSetV1::from_patch_set(registrations)
-            .map_err(ProductionCodeProjectionError::StrongRegistrations)?;
     let projection = SingleConeProductionCodeProjectionV1 {
         distribution,
         output,
         image_owner_member: runtime_image.image().member(),
         runtime_registration_projection: plans.identities.clone(),
-        strong_registration_set,
+
         runtime_image_fingerprint: runtime_image.fingerprint(),
         odr_members,
         optimization: scoop_lir::OptimizationMode::Debug,

@@ -21,12 +21,9 @@ pub enum DigestInputRefV1 {
     SourceSignature(DigestNodeId),
     Layout(DigestNodeId),
     Scan(DigestNodeId),
-    LirDefinition(DigestNodeId),
     ObjectSupport(DigestNodeId),
     ObjectDefinition(DigestNodeId),
     StackmapRecord(DigestNodeId),
-    OdrDefinition(DigestNodeId),
-    StrongRegistration(DigestNodeId),
     RuntimeImage(DigestNodeId),
 }
 
@@ -40,12 +37,9 @@ impl DigestInputRefV1 {
             DigestKind::SourceSignature => Self::SourceSignature(id),
             DigestKind::Layout => Self::Layout(id),
             DigestKind::Scan => Self::Scan(id),
-            DigestKind::LirDefinition => Self::LirDefinition(id),
             DigestKind::ObjectSupport => Self::ObjectSupport(id),
             DigestKind::ObjectDefinition => Self::ObjectDefinition(id),
             DigestKind::StackmapRecord => Self::StackmapRecord(id),
-            DigestKind::OdrDefinition => Self::OdrDefinition(id),
-            DigestKind::StrongRegistration => Self::StrongRegistration(id),
             DigestKind::RuntimeImage => Self::RuntimeImage(id),
         }
     }
@@ -55,12 +49,9 @@ impl DigestInputRefV1 {
             Self::SourceSignature(_) => DigestKind::SourceSignature,
             Self::Layout(_) => DigestKind::Layout,
             Self::Scan(_) => DigestKind::Scan,
-            Self::LirDefinition(_) => DigestKind::LirDefinition,
             Self::ObjectSupport(_) => DigestKind::ObjectSupport,
             Self::ObjectDefinition(_) => DigestKind::ObjectDefinition,
             Self::StackmapRecord(_) => DigestKind::StackmapRecord,
-            Self::OdrDefinition(_) => DigestKind::OdrDefinition,
-            Self::StrongRegistration(_) => DigestKind::StrongRegistration,
             Self::RuntimeImage(_) => DigestKind::RuntimeImage,
         }
     }
@@ -70,12 +61,9 @@ impl DigestInputRefV1 {
             Self::SourceSignature(id)
             | Self::Layout(id)
             | Self::Scan(id)
-            | Self::LirDefinition(id)
             | Self::ObjectSupport(id)
             | Self::ObjectDefinition(id)
             | Self::StackmapRecord(id)
-            | Self::OdrDefinition(id)
-            | Self::StrongRegistration(id)
             | Self::RuntimeImage(id) => id,
         }
     }
@@ -96,12 +84,9 @@ enum DecodedDigestInputRefV1 {
     SourceSignature(DecodedPersistentId<DigestNodeId>),
     Layout(DecodedPersistentId<DigestNodeId>),
     Scan(DecodedPersistentId<DigestNodeId>),
-    LirDefinition(DecodedPersistentId<DigestNodeId>),
     ObjectSupport(DecodedPersistentId<DigestNodeId>),
     ObjectDefinition(DecodedPersistentId<DigestNodeId>),
     StackmapRecord(DecodedPersistentId<DigestNodeId>),
-    OdrDefinition(DecodedPersistentId<DigestNodeId>),
-    StrongRegistration(DecodedPersistentId<DigestNodeId>),
     RuntimeImage(DecodedPersistentId<DigestNodeId>),
 }
 
@@ -111,12 +96,9 @@ impl DecodedDigestInputRefV1 {
             Self::SourceSignature(_) => DigestKind::SourceSignature,
             Self::Layout(_) => DigestKind::Layout,
             Self::Scan(_) => DigestKind::Scan,
-            Self::LirDefinition(_) => DigestKind::LirDefinition,
             Self::ObjectSupport(_) => DigestKind::ObjectSupport,
             Self::ObjectDefinition(_) => DigestKind::ObjectDefinition,
             Self::StackmapRecord(_) => DigestKind::StackmapRecord,
-            Self::OdrDefinition(_) => DigestKind::OdrDefinition,
-            Self::StrongRegistration(_) => DigestKind::StrongRegistration,
             Self::RuntimeImage(_) => DigestKind::RuntimeImage,
         }
     }
@@ -126,12 +108,9 @@ impl DecodedDigestInputRefV1 {
             Self::SourceSignature(id)
             | Self::Layout(id)
             | Self::Scan(id)
-            | Self::LirDefinition(id)
             | Self::ObjectSupport(id)
             | Self::ObjectDefinition(id)
             | Self::StackmapRecord(id)
-            | Self::OdrDefinition(id)
-            | Self::StrongRegistration(id)
             | Self::RuntimeImage(id) => *id,
         }
     }
@@ -150,12 +129,9 @@ impl WireDecode for DecodedDigestInputRefV1 {
             1 => decode_id_variant(decoder, fields, Self::SourceSignature),
             2 => decode_id_variant(decoder, fields, Self::Layout),
             3 => decode_id_variant(decoder, fields, Self::Scan),
-            4 => decode_id_variant(decoder, fields, Self::LirDefinition),
             5 => decode_id_variant(decoder, fields, Self::ObjectSupport),
             6 => decode_id_variant(decoder, fields, Self::ObjectDefinition),
             7 => decode_id_variant(decoder, fields, Self::StackmapRecord),
-            8 => decode_id_variant(decoder, fields, Self::OdrDefinition),
-            9 => decode_id_variant(decoder, fields, Self::StrongRegistration),
             10 => decode_id_variant(decoder, fields, Self::RuntimeImage),
             tag => Err(unknown_tag(decoder, tag)),
         }

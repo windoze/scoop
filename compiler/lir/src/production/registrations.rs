@@ -1,15 +1,15 @@
 use std::fmt;
 
 use scoop_identity::{
-    DecodedPersistentId, DigestNodeId, DigestNodeKey, LinkageClass, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentId, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentSafepointSiteId, PersistentStaticStorageId,
-    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntityKind, StrongDefinitionRole,
+    DecodedPersistentId, LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner,
+    OdrGroupId, OdrMemberId, PersistentCallableBodyId, PersistentExactTypeId, PersistentId,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
+    PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntityKind, StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
-use crate::{ConeLirFoundation, DigestFinalizationPlanV1};
+use crate::ConeLirFoundation;
 
 /// Semantic ownership of a physical runtime registration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -28,20 +28,12 @@ impl RegistrationDefinitionOwner {
             Self::Odr { .. } => LinkageClass::OdrWeak,
         }
     }
-
-    pub const fn digest_key(self, plan: ObjectDefinitionPlanId) -> DigestNodeKey {
-        match self {
-            Self::Strong => DigestNodeKey::strong_registration(plan),
-            Self::Odr { member, .. } => DigestNodeKey::odr_member_definition(member),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RegistrationIdentityV1<I: PersistentId> {
     semantic_id: I,
     definition_plan: ObjectDefinitionPlanId,
-    fingerprint_node: DigestNodeId,
     owner: RegistrationDefinitionOwner,
 }
 
@@ -57,21 +49,15 @@ impl<I: PersistentId> RegistrationIdentityV1<I> {
     pub const fn definition_plan(&self) -> ObjectDefinitionPlanId {
         self.definition_plan
     }
-
-    pub const fn fingerprint_node(&self) -> DigestNodeId {
-        self.fingerprint_node
-    }
 }
 
 impl<I: PersistentId + WireEncode> WireEncode for RegistrationIdentityV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.semantic_id.encode(encoder)?;
         encoder.field(2)?;
-        self.definition_plan.encode(encoder)?;
-        encoder.field(3)?;
-        self.fingerprint_node.encode(encoder)
+        self.definition_plan.encode(encoder)
     }
 }
 
@@ -79,28 +65,24 @@ impl<I: PersistentId + WireEncode> WireEncode for RegistrationIdentityV1<I> {
 struct DecodedRegistrationIdentityV1<I: PersistentId> {
     semantic_id: DecodedPersistentId<I>,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
-    fingerprint_node: DecodedPersistentId<DigestNodeId>,
 }
 
 impl<I: PersistentId> WireEncode for DecodedRegistrationIdentityV1<I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.semantic_id.encode(encoder)?;
         encoder.field(2)?;
-        self.definition_plan.encode(encoder)?;
-        encoder.field(3)?;
-        self.fingerprint_node.encode(encoder)
+        self.definition_plan.encode(encoder)
     }
 }
 
 impl<I: PersistentId> WireDecode for DecodedRegistrationIdentityV1<I> {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             semantic_id: decoder.field(1, DecodedPersistentId::decode)?,
             definition_plan: decoder.field(2, DecodedPersistentId::decode)?,
-            fingerprint_node: decoder.field(3, DecodedPersistentId::decode)?,
         })
     }
 }
@@ -118,7 +100,6 @@ pub struct RegistrationIdentitySurfaceV1 {
 impl RegistrationIdentitySurfaceV1 {
     pub fn from_foundation(
         foundation: &ConeLirFoundation,
-        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<Self, RegistrationIdentityBuildError> {
         let mut surface = Self::empty();
         for record in foundation.definition_plans() {
@@ -143,52 +124,32 @@ impl RegistrationIdentitySurfaceV1 {
                     }
                 }
             };
-            let fingerprint_node = digest_plan
-                .nodes()
-                .iter()
-                .find(|node| *node.key() == owner.digest_key(record.id()))
-                .map(|node| node.id())
-                .ok_or(RegistrationIdentityBuildError::MissingFingerprintNode(
-                    record.id(),
-                ))?;
             let plan = record.id();
             match (table, entity.kind()) {
                 (
                     RegistrationTableV1::StaticStorage,
                     StrongDefinitionEntityKind::StaticStorage(id),
                 ) => {
-                    surface
-                        .static_storages
-                        .push(entry(id, plan, fingerprint_node, owner));
+                    surface.static_storages.push(entry(id, plan, owner));
                 }
                 (
                     RegistrationTableV1::ImmortalObject,
                     StrongDefinitionEntityKind::ImmortalObject(id),
                 ) => {
-                    surface
-                        .immortal_objects
-                        .push(entry(id, plan, fingerprint_node, owner));
+                    surface.immortal_objects.push(entry(id, plan, owner));
                 }
                 (
                     RegistrationTableV1::InitializationUnit,
                     StrongDefinitionEntityKind::InitializationUnit(id),
-                ) => surface
-                    .initialization_units
-                    .push(entry(id, plan, fingerprint_node, owner)),
+                ) => surface.initialization_units.push(entry(id, plan, owner)),
                 (RegistrationTableV1::Type, StrongDefinitionEntityKind::ExactType(id)) => {
-                    surface
-                        .type_registrations
-                        .push(entry(id, plan, fingerprint_node, owner));
+                    surface.type_registrations.push(entry(id, plan, owner));
                 }
                 (RegistrationTableV1::Safepoint, StrongDefinitionEntityKind::SafepointSite(id)) => {
-                    surface
-                        .safepoints
-                        .push(entry(id, plan, fingerprint_node, owner));
+                    surface.safepoints.push(entry(id, plan, owner));
                 }
                 (RegistrationTableV1::Callable, StrongDefinitionEntityKind::CallableBody(id)) => {
-                    surface
-                        .callables
-                        .push(entry(id, plan, fingerprint_node, owner));
+                    surface.callables.push(entry(id, plan, owner));
                 }
                 _ => {
                     return Err(RegistrationIdentityBuildError::RoleEntityMismatch {
@@ -352,9 +313,8 @@ impl DecodedRegistrationIdentitySurfaceV1 {
     pub fn validate(
         self,
         foundation: &ConeLirFoundation,
-        digest_plan: &DigestFinalizationPlanV1,
     ) -> Result<RegistrationIdentitySurfaceV1, RegistrationIdentityValidationError> {
-        let expected = RegistrationIdentitySurfaceV1::from_foundation(foundation, digest_plan)
+        let expected = RegistrationIdentitySurfaceV1::from_foundation(foundation)
             .map_err(RegistrationIdentityValidationError::Foundation)?;
         validate_table(
             RegistrationTableV1::StaticStorage,
@@ -435,7 +395,6 @@ pub enum RegistrationTableV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RegistrationIdentityBuildError {
     UnknownDefinition(ObjectDefinitionPlanId),
-    MissingFingerprintNode(ObjectDefinitionPlanId),
     RoleEntityMismatch {
         plan: ObjectDefinitionPlanId,
         role: StrongDefinitionRole,
@@ -508,13 +467,11 @@ fn registration_symbol(
 fn entry<I: PersistentId>(
     semantic_id: I,
     definition_plan: ObjectDefinitionPlanId,
-    fingerprint_node: DigestNodeId,
     owner: RegistrationDefinitionOwner,
 ) -> RegistrationIdentityV1<I> {
     RegistrationIdentityV1 {
         semantic_id,
         definition_plan,
-        fingerprint_node,
         owner,
     }
 }
@@ -552,10 +509,6 @@ fn validate_table<I: PersistentId>(
             || decoded
                 .definition_plan
                 .verify(expected.definition_plan)
-                .is_err()
-            || decoded
-                .fingerprint_node
-                .verify(expected.fingerprint_node)
                 .is_err()
         {
             return Err(RegistrationIdentityValidationError::EntryMismatch { table, index });

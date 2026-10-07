@@ -85,7 +85,7 @@ pub(super) fn type_plan(type_count: u8) -> StrongTypeRegistrationPlanSetV1 {
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
     let digests = digest_plan(&foundation, &types);
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let semantics = type_semantics(&types);
     StrongTypeRegistrationPlanSetV1::new(
         LirTargetProfile::DARWIN_AARCH64,
@@ -297,32 +297,11 @@ fn digest_plan(
             )],
         )
         .unwrap();
-        let object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(item.registration_primary.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap();
-        let registration_key =
-            DigestNodeKey::strong_registration(item.registration_definition.id());
-        let registration_source = DigestNodeId::from_key(&registration_key).unwrap();
-        let registration = DigestNodeV1::new(
-            registration_key,
-            vec![
-                DigestInputRefV1::from_node(&object),
-                DigestInputRefV1::from_node(&descriptor),
-                DigestInputRefV1::from_node(&layout),
-            ],
-            vec![DigestPatchIntentKey::new(
-                registration_source,
-                item.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::RegistrationDefinition,
-            )],
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&registration));
-        nodes.extend([descriptor, layout, object, registration]);
+        image_inputs.extend([
+            DigestInputRefV1::from_node(&descriptor),
+            DigestInputRefV1::from_node(&layout),
+        ]);
+        nodes.extend([descriptor, layout]);
     }
     nodes.push(
         DigestNodeV1::new(

@@ -42,13 +42,7 @@ where
         encoder: &mut RuntimeEncoder,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.static_storages();
-        let plans = fingerprints
-            .shapes()
-            .storage_definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
+        let plans = fingerprints.shapes().registrations().plan().registrations();
         let records = plans
             .iter()
             .zip(fingerprints.fingerprints())
@@ -61,7 +55,6 @@ where
             runtime_encode_strong_static_storage_record_v1(
                 encoder,
                 plan,
-                fingerprint.registration().as_array(),
                 fingerprint.layout(),
                 fingerprint.scan(),
             )?;
@@ -74,12 +67,7 @@ where
         encoder: &mut RuntimeEncoder,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.immortal_objects();
-        let plans = fingerprints
-            .object_definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
+        let plans = fingerprints.registrations().plan().registrations();
         let records = plans
             .iter()
             .zip(fingerprints.fingerprints())
@@ -88,7 +76,7 @@ where
                     .is_none_or(|selected| selected.contains(&plan.registration_definition_plan()))
             });
         encoder.sequence_length(records.clone().count())?;
-        for (plan, fingerprint) in records {
+        for (plan, _fingerprint) in records {
             runtime_encode_strong_immortal_object_record_v1(
                 encoder,
                 plan.object(),
@@ -96,7 +84,6 @@ where
                 plan.required_alignment(),
                 plan.type_registration(),
                 plan.definition_owner(),
-                fingerprint.registration().as_array(),
             )?;
         }
         Ok(())
@@ -107,12 +94,7 @@ where
         encoder: &mut RuntimeEncoder,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.initializations();
-        let plans = fingerprints
-            .definitions()
-            .registration_objects()
-            .registrations()
-            .plan()
-            .registrations();
+        let plans = fingerprints.registrations().plan().registrations();
         let records = plans
             .iter()
             .zip(fingerprints.fingerprints())
@@ -125,12 +107,7 @@ where
             let gateway = fingerprint
                 .gateway_body()
                 .zip(fingerprint.gateway_definition());
-            runtime_encode_strong_initialization_record_v1(
-                encoder,
-                plan,
-                fingerprint.registration().as_array(),
-                gateway,
-            )?;
+            runtime_encode_strong_initialization_record_v1(encoder, plan, gateway)?;
         }
         Ok(())
     }
@@ -150,7 +127,6 @@ where
             runtime_encode_type_record_v1(
                 encoder,
                 plan,
-                fingerprint.registration().as_array(),
                 fingerprint.descriptor_definition().as_array(),
                 fingerprint.layout().as_array(),
             )?;
@@ -170,12 +146,7 @@ where
             });
         encoder.sequence_length(records.clone().count())?;
         for (plan, fingerprint) in records {
-            runtime_encode_safepoint_record_v1(
-                encoder,
-                *plan,
-                fingerprint.registration().as_array(),
-                fingerprint.stackmap().as_array(),
-            )?;
+            runtime_encode_safepoint_record_v1(encoder, *plan, fingerprint.stackmap().as_array())?;
         }
         Ok(())
     }
@@ -184,7 +155,6 @@ where
         let fingerprints = self.registrations.callables();
         let plans = fingerprints
             .body_objects()
-            .registration_objects()
             .registrations()
             .plan()
             .registrations();
@@ -200,7 +170,6 @@ where
             runtime_encode_callable_record_v1(
                 encoder,
                 *plan,
-                fingerprint.registration().as_array(),
                 fingerprint.body_definition().as_array(),
             )?;
         }

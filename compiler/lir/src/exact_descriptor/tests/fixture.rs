@@ -59,14 +59,10 @@ impl Fixture {
             &foundation,
         )
         .unwrap();
-        let fingerprint_node =
-            DigestNodeId::from_key(&DigestNodeKey::strong_registration(physical.definition()))
-                .unwrap();
         let registration = StrongShapeRegistrationV1::from_artifact(
             exact_record.id(),
             physical.definition(),
             physical.symbol(),
-            fingerprint_node,
         );
         let diagnostics = Graph::new(declaration, exact_record.key().clone());
         let name =

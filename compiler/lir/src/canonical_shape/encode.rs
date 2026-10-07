@@ -7,7 +7,6 @@ type Result = std::result::Result<(), EncodeError>;
 pub(super) struct ShapeProjection<'a> {
     pub(super) module: &'a Module,
     pub(super) shape: ShapeContent<'a>,
-    pub(super) abi: bool,
 }
 
 pub(super) struct AbiProjection<'a> {
@@ -29,7 +28,6 @@ impl WireEncode for AbiProjection<'_> {
         ShapeProjection {
             module: self.module,
             shape: self.shape,
-            abi: true,
         }
         .encode(e)
     }
@@ -107,8 +105,8 @@ impl WireEncode for ShapeProjection<'_> {
                 }
                 Ok(())
             }
-            ShapeContent::Immortal(plan, value) => {
-                tagged(e, 7, if self.abi { 5 } else { 6 })?;
+            ShapeContent::Immortal(plan) => {
+                tagged(e, 7, 5)?;
                 e.field(1)?;
                 plan.object().encode(e)?;
                 e.field(2)?;
@@ -117,43 +115,29 @@ impl WireEncode for ShapeProjection<'_> {
                 e.unsigned(plan.object_size())?;
                 e.field(4)?;
                 e.unsigned(plan.required_alignment())?;
-                if !self.abi {
-                    e.field(5)?;
-                    e.bytes(value.as_bytes())?;
-                }
                 Ok(())
             }
             ShapeContent::Storage(plan) => {
-                if self.abi {
-                    tagged(e, 8, 6)?;
-                    e.field(1)?;
-                    plan.storage().encode(e)?;
-                    e.field(2)?;
-                    plan.layout().encode(e)?;
-                    e.field(3)?;
-                    e.unsigned(plan.byte_size())?;
-                    e.field(4)?;
-                    e.unsigned(plan.allocation_extent())?;
-                    e.field(5)?;
-                    e.unsigned(plan.required_alignment())
-                } else {
-                    tagged(e, 8, 2)?;
-                    e.field(1)?;
-                    plan.canonical_projection().encode(e)
-                }
+                tagged(e, 8, 6)?;
+                e.field(1)?;
+                plan.storage().encode(e)?;
+                e.field(2)?;
+                plan.layout().encode(e)?;
+                e.field(3)?;
+                e.unsigned(plan.byte_size())?;
+                e.field(4)?;
+                e.unsigned(plan.allocation_extent())?;
+                e.field(5)?;
+                e.unsigned(plan.required_alignment())
             }
             ShapeContent::InitializationCell(unit) => {
-                tagged(e, 9, if self.abi { 4 } else { 5 })?;
+                tagged(e, 9, 4)?;
                 e.field(1)?;
                 unit.encode(e)?;
                 e.field(2)?;
                 e.unsigned(16)?;
                 e.field(3)?;
                 e.unsigned(8)?;
-                if !self.abi {
-                    e.field(4)?;
-                    e.bytes(&[0; 16])?;
-                }
                 Ok(())
             }
         }
@@ -224,7 +208,7 @@ impl ShapeProjection<'_> {
     }
 
     fn descriptor(&self, descriptor: &TypeDescriptor, e: &mut Encoder) -> Result {
-        tagged(e, 5, if self.abi { 10 } else { 11 })?;
+        tagged(e, 5, 10)?;
         e.field(1)?;
         descriptor.identity.exact_type().encode(e)?;
         e.field(2)?;
@@ -267,10 +251,6 @@ impl ShapeProjection<'_> {
             }
             Ok(())
         })?;
-        if !self.abi {
-            e.field(9)?;
-            e.text(&descriptor.diagnostic_name)?;
-        }
         e.field(10)?;
         descriptor.release_policy.encode(e)
     }

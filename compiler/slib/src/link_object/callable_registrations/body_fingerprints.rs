@@ -11,11 +11,7 @@ use super::object_definition::{
     ObjectDefinitionRelocationFailureV1, canonicalize_relocations_with_associated_atoms,
 };
 use super::physical::{atom_file_range, validate_objects, verified_member};
-use super::{
-    StrongCallableRegistrationValidationError,
-    VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
-    VerifiedStrongCallableRegistrationSetV1,
-};
+use super::{StrongCallableRegistrationValidationError, VerifiedStrongCallableRegistrationSetV1};
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
@@ -59,7 +55,7 @@ impl VerifiedStrongCallableBodyObjectFingerprintV1 {
 /// stackmap, undefined-requirement, relocation, and exact-object proofs.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongCallableBodyObjectFingerprintSetV1 {
-    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    registrations: VerifiedStrongCallableRegistrationSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     fingerprints: Vec<VerifiedStrongCallableBodyObjectFingerprintV1>,
@@ -67,13 +63,11 @@ pub struct VerifiedStrongCallableBodyObjectFingerprintSetV1 {
 
 impl VerifiedStrongCallableBodyObjectFingerprintSetV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.registration_objects.producer()
+        self.registrations.producer()
     }
 
-    pub const fn registration_objects(
-        &self,
-    ) -> &VerifiedStrongCallableRegistrationObjectFingerprintSetV1 {
-        &self.registration_objects
+    pub const fn registrations(&self) -> &VerifiedStrongCallableRegistrationSetV1 {
+        &self.registrations
     }
 
     pub const fn stackmaps(&self) -> &VerifiedScoopLirStackmapSetV1 {
@@ -301,15 +295,8 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
         });
     }
 
-    let registration_objects = super::fingerprints::compute_registration_object_fingerprints(
-        registrations,
-        &fingerprints,
-        &objects,
-        &undefined_requirements,
-    )
-    .map_err(StrongCallableBodyFingerprintError::RegistrationObject)?;
     Ok(VerifiedStrongCallableBodyObjectFingerprintSetV1 {
-        registration_objects,
+        registrations,
         stackmaps,
         undefined_requirements,
         fingerprints,

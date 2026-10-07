@@ -20,11 +20,10 @@ use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 use crate::target::ValidatedBackendProfile;
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const INITIALIZATION_UNIT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-const INITIALIZATION_UNIT_DESCRIPTOR_SIZE: u64 = 352;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 312;
+const INITIALIZATION_UNIT_DESCRIPTOR_SIZE: u64 = 320;
+const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 280;
 const DIGEST_SIZE: u64 = 32;
 
 #[derive(Clone, Copy, Debug)]
@@ -69,7 +68,7 @@ pub struct EmittedStrongInitializationUnitRegistrationV1<'ctx> {
     diagnostic_atom: ObjectDefinitionAtomId,
     diagnostic: GlobalValue<'ctx>,
     registration_descriptor: GlobalValue<'ctx>,
-    registration_definition_patch: InitializationRegistrationPatchSiteV1<'ctx>,
+
     gateway_definition_patch: Option<InitializationRegistrationPatchSiteV1<'ctx>>,
 }
 
@@ -92,12 +91,6 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationV1<'ctx> {
 
     pub const fn registration_descriptor(self) -> GlobalValue<'ctx> {
         self.registration_descriptor
-    }
-
-    pub const fn registration_definition_patch(
-        self,
-    ) -> InitializationRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 
     pub const fn gateway_definition_patch(
@@ -355,13 +348,7 @@ fn emit_registration<'ctx, D>(
         true,
         registration_value.into(),
     );
-    let registration_definition_patch = InitializationRegistrationPatchSiteV1 {
-        intent: plan.registration_definition_patch(),
-        definition: plan.registration_definition_plan(),
-        atom: plan.registration_primary_atom(),
-        owner: registration,
-        byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    };
+
     let gateway_definition_patch = plan.schedule().gateway_definition_patch().map(|intent| {
         InitializationRegistrationPatchSiteV1 {
             intent,
@@ -377,7 +364,7 @@ fn emit_registration<'ctx, D>(
         diagnostic_atom: plan.diagnostic_atom(),
         diagnostic,
         registration_descriptor: registration,
-        registration_definition_patch,
+
         gateway_definition_patch,
     })
 }

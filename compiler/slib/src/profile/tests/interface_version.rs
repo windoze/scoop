@@ -48,10 +48,10 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v9_retains_floating_scalars() {
+fn lir_layout_abi_v10_retains_floating_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        9,
+        10,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

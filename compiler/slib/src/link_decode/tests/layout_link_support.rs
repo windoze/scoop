@@ -63,14 +63,6 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::VerifiedCodeL
         &objects,
     )
     .unwrap();
-    let initializations = crate::compute_strong_initialization_registration_object_fingerprints_v2(
-        initializations,
-        &objects,
-    )
-    .unwrap();
-    let initializations =
-        crate::compute_strong_initialization_definition_fingerprints_v2(initializations, &objects)
-            .unwrap();
     let previous_image = previous.runtime_images().fingerprint();
     let registrations = previous_image.registrations();
     let initializations = crate::compute_strong_initialization_fingerprints_v2(

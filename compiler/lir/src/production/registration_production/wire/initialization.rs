@@ -44,31 +44,28 @@ struct DecodedStrongInitializationStaticStorageRefPlanV1 {
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    registration_fingerprint_node: DecodedPersistentId<DigestNodeId>,
 }
 
 impl WireEncode for DecodedStrongInitializationStaticStorageRefPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(5)?;
         encode_field(encoder, 1, &self.storage)?;
         encode_field(encoder, 2, &self.storage_symbol)?;
         encode_field(encoder, 3, &self.registration_symbol)?;
         encode_field(encoder, 4, &self.registration_definition_plan)?;
-        encode_field(encoder, 5, &self.registration_primary_atom)?;
-        encode_field(encoder, 6, &self.registration_fingerprint_node)
+        encode_field(encoder, 5, &self.registration_primary_atom)
     }
 }
 
 impl WireDecode for DecodedStrongInitializationStaticStorageRefPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(5)?;
         Ok(Self {
             storage: decoder.field(1, DecodedPersistentId::decode)?,
             storage_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
             registration_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
             registration_definition_plan: decoder.field(4, DecodedPersistentId::decode)?,
             registration_primary_atom: decoder.field(5, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(6, DecodedPersistentId::decode)?,
         })
     }
 }
@@ -83,12 +80,11 @@ struct DecodedStrongInitializationCallableRefPlanV1 {
     body_definition_node: DecodedPersistentId<DigestNodeId>,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    registration_fingerprint_node: DecodedPersistentId<DigestNodeId>,
 }
 
 impl WireEncode for DecodedStrongInitializationCallableRefPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(8)?;
         encode_field(encoder, 1, &self.body)?;
         encode_field(encoder, 2, &self.entry_symbol)?;
         encode_field(encoder, 3, &self.registration_symbol)?;
@@ -96,14 +92,13 @@ impl WireEncode for DecodedStrongInitializationCallableRefPlanV1 {
         encode_field(encoder, 5, &self.body_primary_atom)?;
         encode_field(encoder, 6, &self.body_definition_node)?;
         encode_field(encoder, 7, &self.registration_definition_plan)?;
-        encode_field(encoder, 8, &self.registration_primary_atom)?;
-        encode_field(encoder, 9, &self.registration_fingerprint_node)
+        encode_field(encoder, 8, &self.registration_primary_atom)
     }
 }
 
 impl WireDecode for DecodedStrongInitializationCallableRefPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(8)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
             entry_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
@@ -113,7 +108,6 @@ impl WireDecode for DecodedStrongInitializationCallableRefPlanV1 {
             body_definition_node: decoder.field(6, DecodedPersistentId::decode)?,
             registration_definition_plan: decoder.field(7, DecodedPersistentId::decode)?,
             registration_primary_atom: decoder.field(8, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(9, DecodedPersistentId::decode)?,
         })
     }
 }
@@ -183,15 +177,11 @@ pub struct DecodedStrongInitializationUnitRegistrationPlanV1 {
     initializer: DecodedStrongInitializationCallableRefPlanV1,
     ensure: DecodedStrongInitializationCallableRefPlanV1,
     registration_schedule: DecodedStrongInitializationRegistrationSchedulePlanV1,
-    registration_object_node: DecodedPersistentId<DigestNodeId>,
-    cell_definition_node: DecodedPersistentId<DigestNodeId>,
-    registration_fingerprint_node: DecodedPersistentId<DigestNodeId>,
-    registration_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedStrongInitializationUnitRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(24)?;
+        encoder.map(20)?;
         self.semantic.encode_fields(encoder)?;
         encode_field(encoder, 9, &self.registration_symbol)?;
         encode_field(encoder, 10, &self.registration_definition_plan)?;
@@ -205,16 +195,13 @@ impl WireEncode for DecodedStrongInitializationUnitRegistrationPlanV1 {
         encode_field(encoder, 21, &self.initializer)?;
         encode_field(encoder, 22, &self.ensure)?;
         encode_field(encoder, 23, &self.registration_schedule)?;
-        encode_field(encoder, 24, &self.registration_object_node)?;
-        encode_field(encoder, 25, &self.cell_definition_node)?;
-        encode_field(encoder, 27, &self.registration_fingerprint_node)?;
-        encode_field(encoder, 28, &self.registration_definition_patch)
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedStrongInitializationUnitRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(24)?;
+        decoder.expect_map(20)?;
         Ok(Self {
             semantic: DecodedStrongInitializationUnitSemanticProjectionV1::decode_fields(decoder)?,
             registration_symbol: decoder.field(9, DecodedPersistentSymbolRequest::decode)?,
@@ -238,10 +225,6 @@ impl WireDecode for DecodedStrongInitializationUnitRegistrationPlanV1 {
                 23,
                 DecodedStrongInitializationRegistrationSchedulePlanV1::decode,
             )?,
-            registration_object_node: decoder.field(24, DecodedPersistentId::decode)?,
-            cell_definition_node: decoder.field(25, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(27, DecodedPersistentId::decode)?,
-            registration_definition_patch: decoder.field(28, DecodedPersistentId::decode)?,
         })
     }
 }

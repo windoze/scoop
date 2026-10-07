@@ -16,8 +16,8 @@ use crate::link_object::{
     VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
-const OBJECT_POINTER_OFFSET: u64 = 152;
-const TYPE_REGISTRATION_POINTER_OFFSET: u64 = 176;
+const OBJECT_POINTER_OFFSET: u64 = 120;
+const TYPE_REGISTRATION_POINTER_OFFSET: u64 = 144;
 
 pub(super) fn registration_relocations<'a>(
     patch_sites: &'a VerifiedScoopLirDigestPatchSiteSetV1,

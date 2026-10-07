@@ -116,7 +116,7 @@ pub(super) fn finalized_link_object_fixture() -> (
     )
     .unwrap();
     let safepoints =
-        crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations, &objects).unwrap();
+        crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations).unwrap();
     let callable_registrations = crate::verify_strong_callable_registrations_v1(
         patch_sites.clone(),
         registrations.callables().clone(),
@@ -156,18 +156,8 @@ pub(super) fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let immortal_registration_objects =
-        crate::compute_strong_immortal_object_registration_object_fingerprints_v1(
-            immortal_registrations,
-            &objects,
-        )
-        .unwrap();
-    let immortal_definitions = crate::compute_strong_immortal_object_definition_fingerprints_v1(
-        immortal_registration_objects,
-        requirements.clone(),
-        &objects,
-    )
-    .unwrap();
+    let immortal_registration_objects = immortal_registrations;
+    let immortal_definitions = immortal_registration_objects;
     let immortal_objects = crate::compute_strong_immortal_object_fingerprints_v1(
         immortal_definitions,
         production.canonical_shape_definitions(),
@@ -179,18 +169,8 @@ pub(super) fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let static_storage_objects =
-        crate::compute_strong_static_storage_registration_object_fingerprints_v1(
-            static_storage_registrations,
-            &objects,
-        )
-        .unwrap();
-    let static_storage_definitions =
-        crate::compute_strong_static_storage_definition_fingerprints_v1(
-            static_storage_objects,
-            &objects,
-        )
-        .unwrap();
+    let static_storage_objects = static_storage_registrations;
+    let static_storage_definitions = static_storage_objects;
     let static_storage_shapes =
         crate::compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
             .unwrap();
@@ -205,18 +185,8 @@ pub(super) fn finalized_link_object_fixture() -> (
         &objects,
     )
     .unwrap();
-    let initialization_objects =
-        crate::compute_strong_initialization_registration_object_fingerprints_v1(
-            initialization_registrations,
-            &objects,
-        )
-        .unwrap();
-    let initialization_definitions =
-        crate::compute_strong_initialization_definition_fingerprints_v1(
-            initialization_objects,
-            &objects,
-        )
-        .unwrap();
+    let initialization_objects = initialization_registrations;
+    let initialization_definitions = initialization_objects;
     let initializations = crate::compute_strong_initialization_fingerprints_v1(
         initialization_definitions,
         &callable_bodies,

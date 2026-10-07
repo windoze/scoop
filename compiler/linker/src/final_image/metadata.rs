@@ -14,7 +14,7 @@ pub(super) fn check<'a>(
         read_only(address, 240)?;
         let bytes = at(address, 240)?;
         if bytes[..8] != 0x5343_4f4f_5049_4d47u64.to_le_bytes()
-            || bytes[8..12] != 4u32.to_le_bytes()
+            || bytes[8..12] != 5u32.to_le_bytes()
             || bytes[12..16] != 240u32.to_le_bytes()
             || bytes[64..96] != image.cone
             || bytes[96..128] != image.fingerprint

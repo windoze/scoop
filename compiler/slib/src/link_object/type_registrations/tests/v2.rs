@@ -9,9 +9,7 @@ fn plans(corruption: Corruption) -> StrongTypeRegistrationPlanSetV2 {
     let input = semantic::inputs(corruption);
 
     let semantics = StrongTypeDescriptorSemanticPlanSetV2::from_module(&input.module).unwrap();
-    let identities =
-        RegistrationIdentitySurfaceV1::from_foundation(&input.foundation, &input.digest_plan)
-            .unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&input.foundation).unwrap();
     StrongTypeRegistrationPlanSetV2::new(
         input.module.meta.target_profile,
         &input.foundation,

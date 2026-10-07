@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, fmt};
 mod encoding;
 use encoding::RuntimeImageFingerprintInputV1;
 
-use scoop_identity::{ConeIdentity, DigestNodeKey};
+use scoop_identity::ConeIdentity;
 use scoop_lir::{RuntimeAbiFingerprint, TargetProfileFingerprint};
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
@@ -18,7 +18,7 @@ use crate::link_object::{
 };
 use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistrationPatchSetV1};
 
-const RUNTIME_IMAGE_DOMAIN: &str = "scoop-runtime-image-v1";
+const RUNTIME_IMAGE_DOMAIN: &str = "scoop-runtime-image-v2";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedRuntimeImageFingerprintV1<
@@ -108,7 +108,6 @@ where
 {
     validate_proof_binding(&image, &registrations)?;
     validate_tables(&image, &registrations)?;
-    validate_runtime_image_inputs(&image, &registrations)?;
     let fingerprint = domain_separated_runtime_hash(
         RUNTIME_IMAGE_DOMAIN,
         &RuntimeImageFingerprintInputV1 {
@@ -225,75 +224,6 @@ fn require_table<T: Copy + Eq>(
     } else {
         Err(RuntimeImageFingerprintError::TableMismatch(kind))
     }
-}
-
-fn validate_runtime_image_inputs<D, C, I>(
-    image: &VerifiedConeImageV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
-) -> Result<(), RuntimeImageFingerprintError>
-where
-    D: scoop_lir::StrongDescriptorReference,
-    C: Clone,
-{
-    let expected_key = DigestNodeKey::runtime_image(image.producer());
-    let node = image
-        .patch_sites()
-        .digest_plan()
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &expected_key)
-        .ok_or(RuntimeImageFingerprintError::MissingDigestNode)?;
-    let actual = node
-        .direct_inputs()
-        .iter()
-        .map(|input| (input.kind(), input.node()))
-        .collect::<Vec<_>>();
-    let mut expected = registrations
-        .static_storages()
-        .fingerprints()
-        .iter()
-        .map(|entry| (entry.registration().kind(), entry.registration_node()))
-        .chain(
-            registrations
-                .initializations()
-                .fingerprints()
-                .iter()
-                .map(|entry| (entry.registration().kind(), entry.registration_node())),
-        )
-        .chain(
-            registrations
-                .immortal_objects()
-                .fingerprints()
-                .iter()
-                .map(|entry| (entry.registration().kind(), entry.registration_node())),
-        )
-        .chain(
-            registrations
-                .types()
-                .fingerprints()
-                .iter()
-                .map(|entry| (entry.registration().kind(), entry.registration_node())),
-        )
-        .chain(
-            registrations
-                .safepoints()
-                .fingerprints()
-                .iter()
-                .map(|entry| (entry.registration().kind(), entry.registration_node())),
-        )
-        .chain(
-            registrations
-                .callables()
-                .fingerprints()
-                .iter()
-                .map(|entry| (entry.registration().kind(), entry.registration_node())),
-        )
-        .collect::<Vec<_>>();
-    expected.sort_unstable();
-    if actual != expected {
-        return Err(RuntimeImageFingerprintError::DigestInputMismatch);
-    }
-    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

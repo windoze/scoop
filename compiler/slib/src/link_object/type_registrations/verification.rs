@@ -8,7 +8,6 @@ use registration::{required_scoop_member, verify_descriptor_relocation, verify_l
 
 use std::collections::BTreeMap;
 
-use super::digest::validate_digest_graph;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::{
@@ -36,10 +35,9 @@ use scoop_lir::{
 
 use super::versioned::{DescriptorReferenceKind, LinkDescriptorReference};
 
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const DESCRIPTOR_POINTER_OFFSET: u64 = 168;
-const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 176;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 208;
+const DESCRIPTOR_POINTER_OFFSET: u64 = 136;
+const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 144;
+const LAYOUT_FINGERPRINT_OFFSET: u64 = 176;
 const DIGEST_WIDTH: u8 = 32;
 const TYPE_DESCRIPTOR_SIZE: u64 = 152;
 const TYPE_DESCRIPTOR_DIAGNOSTIC_POINTER_OFFSET: u64 = 112;
@@ -141,7 +139,7 @@ pub struct VerifiedStrongTypeRegistrationV1 {
     checked_offset: u64,
     descriptor_relocation: StrongRelocationBindingV1,
     descriptor: VerifiedStrongTypeDescriptorV1,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     descriptor_definition_patch: VerifiedMaterializedPatchSiteV1,
     layout_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
 }
@@ -169,10 +167,6 @@ impl VerifiedStrongTypeRegistrationV1 {
 
     pub const fn descriptor(&self) -> &VerifiedStrongTypeDescriptorV1 {
         &self.descriptor
-    }
-
-    pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
     }
 
     pub const fn descriptor_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
@@ -255,7 +249,6 @@ where
         .collect::<BTreeMap<_, _>>();
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), registration)?;
         registrations.push(verify_registration(
             &patch_sites,
             &objects,
@@ -338,16 +331,7 @@ where
     verify_layout_definition(builtins, plan)?;
     let descriptor = verify_descriptor(patch_sites, objects, plan, plans_by_exact)?;
     let descriptor_relocation = verify_descriptor_relocation(patch_sites, verified_member, plan)?;
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        plan.registration_definition_patch(),
-        plan.registration_fingerprint_node(),
-        DigestSemanticFieldRole::RegistrationDefinition,
-        member,
-        file_start,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    )?;
+
     let descriptor_definition_patch = require_patch(
         patch_sites,
         plan,
@@ -378,7 +362,7 @@ where
         checked_offset: file_start,
         descriptor_relocation,
         descriptor,
-        registration_definition_patch,
+
         descriptor_definition_patch,
         layout_fingerprint_patch,
     })
@@ -453,7 +437,6 @@ fn validate_exact_atom_patch_set<D: Copy, C>(
     member: SlibMemberId,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     let expected = [
-        plan.registration_definition_patch(),
         plan.descriptor_definition_patch(),
         plan.layout_fingerprint_patch(),
     ];

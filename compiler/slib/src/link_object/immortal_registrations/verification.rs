@@ -1,29 +1,21 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::{
-    DefinitionAtomRole, DigestSemanticFieldRole, ObjectDefinitionPlanId, PersistentImmortalObjectId,
-};
+use scoop_identity::{DefinitionAtomRole, ObjectDefinitionPlanId, PersistentImmortalObjectId};
 use scoop_lir::{
     StrongImmortalObjectRegistrationPlanSetV1, StrongImmortalObjectRegistrationPlanV1,
 };
 
-use super::digest::validate_digest_graph;
+use super::StrongImmortalObjectRegistrationValidationError;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::relocations::{
     registration_relocations, verify_object_relocation, verify_type_registration_relocation,
 };
-use super::{
-    ImmortalObjectRegistrationPatchFailureV1, StrongImmortalObjectRegistrationValidationError,
-};
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, ScoopLirObjectCandidateV1, StrongRelocationBindingV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedScoopLirDigestPatchSiteSetV1,
 };
-
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const DIGEST_WIDTH: u8 = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongImmortalObjectRegistrationV1 {
@@ -33,7 +25,6 @@ pub struct VerifiedStrongImmortalObjectRegistrationV1 {
     checked_offset: u64,
     object_relocation: StrongRelocationBindingV1,
     type_registration_relocation: StrongRelocationBindingV1,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
 }
 
 impl VerifiedStrongImmortalObjectRegistrationV1 {
@@ -59,10 +50,6 @@ impl VerifiedStrongImmortalObjectRegistrationV1 {
 
     pub const fn type_registration_relocation(&self) -> &StrongRelocationBindingV1 {
         &self.type_registration_relocation
-    }
-
-    pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
     }
 }
 
@@ -109,7 +96,6 @@ pub fn verify_strong_immortal_object_registrations_v1(
     let objects = validate_objects(patch_sites.builtins(), scoop_objects)?;
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), *registration)?;
         registrations.push(verify_registration(
             &patch_sites,
             &objects,
@@ -198,13 +184,8 @@ fn verify_registration(
     let object_relocation = verify_object_relocation(patch_sites, plan, bindings[0])?;
     let type_registration_relocation =
         verify_type_registration_relocation(patch_sites, producer, plan, bindings[1])?;
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        member,
-        file_start,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    )?;
+
+    super::object::validate(builtins, objects, plan)?;
     validate_exact_atom_patch_set(patch_sites, plan, member)?;
     validate_record_bytes(objects[&member], file_start, plan)?;
 
@@ -215,7 +196,6 @@ fn verify_registration(
         checked_offset: file_start,
         object_relocation,
         type_registration_relocation,
-        registration_definition_patch,
     })
 }
 
@@ -249,73 +229,16 @@ pub(super) fn required_scoop_member(
     Ok(member)
 }
 
-fn require_patch(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: StrongImmortalObjectRegistrationPlanV1,
-    member: SlibMemberId,
-    file_start: u64,
-    offset_within_atom: u64,
-) -> Result<VerifiedMaterializedPatchSiteV1, StrongImmortalObjectRegistrationValidationError> {
-    let intent = plan.registration_definition_patch();
-    let patch = patch_sites
-        .sites()
-        .iter()
-        .find(|site| site.intent() == intent)
-        .copied()
-        .ok_or(
-            StrongImmortalObjectRegistrationValidationError::MissingPatch {
-                object: plan.object(),
-                intent,
-            },
-        )?;
-    let expected_checked_offset = file_start.checked_add(offset_within_atom).ok_or(
-        StrongImmortalObjectRegistrationValidationError::RecordRangeOverflow(plan.object()),
-    )?;
-    let kind = if patch.source() != plan.registration_fingerprint_node() {
-        Some(ImmortalObjectRegistrationPatchFailureV1::Source)
-    } else if patch.semantic_field_role() != DigestSemanticFieldRole::RegistrationDefinition {
-        Some(ImmortalObjectRegistrationPatchFailureV1::SemanticFieldRole)
-    } else if patch.member() != member {
-        Some(ImmortalObjectRegistrationPatchFailureV1::Member)
-    } else if patch.definition() != plan.registration_definition_plan() {
-        Some(ImmortalObjectRegistrationPatchFailureV1::Definition)
-    } else if patch.atom() != plan.registration_primary_atom() {
-        Some(ImmortalObjectRegistrationPatchFailureV1::Atom)
-    } else if patch.atom_role() != DefinitionAtomRole::Primary {
-        Some(ImmortalObjectRegistrationPatchFailureV1::AtomRole)
-    } else if patch.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData {
-        Some(ImmortalObjectRegistrationPatchFailureV1::SectionRole)
-    } else if patch.offset_within_atom() != offset_within_atom {
-        Some(ImmortalObjectRegistrationPatchFailureV1::OffsetWithinAtom)
-    } else if patch.checked_offset() != expected_checked_offset {
-        Some(ImmortalObjectRegistrationPatchFailureV1::CheckedOffset)
-    } else if patch.width_bytes() != DIGEST_WIDTH {
-        Some(ImmortalObjectRegistrationPatchFailureV1::Width)
-    } else {
-        None
-    };
-    if let Some(kind) = kind {
-        return Err(
-            StrongImmortalObjectRegistrationValidationError::PatchMismatch {
-                object: plan.object(),
-                intent,
-                kind,
-            },
-        );
-    }
-    Ok(patch)
-}
-
 fn validate_exact_atom_patch_set(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
     member: SlibMemberId,
 ) -> Result<(), StrongImmortalObjectRegistrationValidationError> {
-    if let Some(site) = patch_sites.sites().iter().find(|site| {
-        site.member() == member
-            && site.atom() == plan.registration_primary_atom()
-            && site.intent() != plan.registration_definition_patch()
-    }) {
+    if let Some(site) = patch_sites
+        .sites()
+        .iter()
+        .find(|site| site.member() == member && site.atom() == plan.registration_primary_atom())
+    {
         return Err(
             StrongImmortalObjectRegistrationValidationError::UnexpectedPatchInPrimaryAtom {
                 object: plan.object(),

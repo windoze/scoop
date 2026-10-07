@@ -18,7 +18,7 @@
 #error "Scoop runtime metadata ABI v1 requires little-endian byte order"
 #endif
 
-#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(4)
+#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(5)
 
 /* Unused program/core record magic values 0x53434f4f50505247 and
  * 0x53434f4f50434f52 are retired and must not be reused. */
@@ -128,7 +128,6 @@ typedef struct ScoopRegistrationIdentityV1 {
     ScoopDigest256V1 semantic_id;
     ScoopDigest256V1 odr_group_id;
     ScoopDigest256V1 odr_member_id;
-    ScoopDigest256V1 definition_fingerprint;
 } ScoopRegistrationIdentityV1;
 
 typedef struct ScoopImmortalObjectDescriptorV1 ScoopImmortalObjectDescriptorV1;
@@ -255,12 +254,13 @@ struct ScoopImageDescriptorV1 {
     uint64_t callable_count;
 };
 
-#define SCOOP_METADATA_ASSERT_LAYOUT(type, size, alignment) \
-    _Static_assert(sizeof(type) == (size), #type " size"); \
+#define SCOOP_METADATA_ASSERT_LAYOUT(type, size, alignment)                            \
+    _Static_assert(sizeof(type) == (size), #type " size");                             \
     _Static_assert(_Alignof(type) == (alignment), #type " alignment")
 
-#define SCOOP_METADATA_ASSERT_OFFSET(type, field, offset) \
-    _Static_assert(offsetof(type, field) == (offset), #type "." #field " offset")
+#define SCOOP_METADATA_ASSERT_OFFSET(type, field, offset)                              \
+    _Static_assert(offsetof(type, field) == (offset), #type "." #field " offse"        \
+                                                            "t")
 
 _Static_assert(sizeof(void *) == 8, "runtime metadata pointer size");
 _Static_assert(_Alignof(void *) == 8, "runtime metadata pointer alignment");
@@ -308,93 +308,101 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_type_count, 132);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, function_result, 136);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, release_hook, 144);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_types, 152);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopRegistrationIdentityV1, 136, 4);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopRegistrationIdentityV1, 104, 4);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, linkage_kind, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, reserved_zero, 4);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, semantic_id, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, odr_group_id, 40);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, odr_member_id, 72);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, definition_fingerprint, 104);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopStaticImmortalRelocationV1, 16, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticImmortalRelocationV1, pointer_offset, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticImmortalRelocationV1, target, 8);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopStaticStorageDescriptorV1, 296, 8);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopStaticStorageDescriptorV1, 264, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, registration, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_kind, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_state_kind, 156);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, writable_base, 160);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, byte_size, 168);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, allocation_extent, 176);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, required_alignment, 184);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_program, 192);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_fingerprint, 200);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, layout_fingerprint, 232);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_template, 264);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_relocations, 280);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_relocation_count, 288);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeRegistrationDescriptorV1, 240, 8);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_kind, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_state_kind, 124);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, writable_base, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, byte_size, 136);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, allocation_extent, 144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, required_alignment, 152);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_program, 160);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, scan_fingerprint, 168);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, layout_fingerprint, 200);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_template, 232);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_relocations, 248);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopStaticStorageDescriptorV1, initial_relocation_count,
+                             256);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeRegistrationDescriptorV1, 208, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, registration, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, runtime_type_id, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, reserved_zero, 160);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor, 168);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor_fingerprint, 176);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, layout_fingerprint, 208);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, runtime_type_id, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, reserved_zero, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor, 136);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor_fingerprint,
+                             144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, layout_fingerprint,
+                             176);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopContextKeyUseV1, 40, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopContextKeyUseV1, exact_key, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopContextKeyUseV1, slot_cell, 32);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopCallableRegistrationDescriptorV1, 208, 8);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopCallableRegistrationDescriptorV1, 176, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, registration, 16);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1,
-                             body_definition_fingerprint, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, entry, 184);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_keys, 192);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_key_count, 200);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopImmortalObjectDescriptorV1, 184, 8);
+                             body_definition_fingerprint, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, entry, 152);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_keys, 160);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_key_count,
+                             168);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopImmortalObjectDescriptorV1, 152, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, registration, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, object_start, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, object_size, 160);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, required_alignment, 168);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, type_registration, 176);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopInitializationUnitDescriptorV1, 352, 8);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, object_start, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, object_size, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, required_alignment, 136);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, type_registration, 144);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopInitializationUnitDescriptorV1, 320, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, registration, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, schedule_kind, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, reserved_zero, 156);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, diagnostic_path, 160);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, cell, 176);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, storage, 184);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, failure_root, 192);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, initializer_callable_id, 200);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, ensure_callable_id, 232);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, initializer_entry, 264);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, ensure_entry, 272);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, schedule_kind, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, reserved_zero, 124);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, diagnostic_path, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, cell, 144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, storage, 152);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, failure_root, 160);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1,
-                             startup_gateway_callable_id, 280);
+                             initializer_callable_id, 168);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, ensure_callable_id,
+                             200);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, initializer_entry,
+                             232);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, ensure_entry, 240);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1,
-                             startup_gateway_definition_fingerprint, 312);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, startup_gateway, 344);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopSafepointRegistrationDescriptorV1, 232, 8);
+                             startup_gateway_callable_id, 248);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1,
+                             startup_gateway_definition_fingerprint, 280);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopInitializationUnitDescriptorV1, startup_gateway, 312);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopSafepointRegistrationDescriptorV1, 200, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, registration, 16);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, safepoint_id, 152);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, site_role, 160);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, root_pair_count, 164);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, owner_callable_id, 168);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, safepoint_id, 120);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, site_role, 128);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, root_pair_count,
+                             132);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1, owner_callable_id,
+                             136);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopSafepointRegistrationDescriptorV1,
-                             normalized_stackmap_fingerprint, 200);
+                             normalized_stackmap_fingerprint, 168);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopRootEntryDescriptorV1, 192, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, owner_cone_identity, 16);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, callable_id, 48);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1,
-                             source_signature_fingerprint, 80);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, source_signature_fingerprint,
+                             80);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, gateway_callable_id, 112);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1,
-                             gateway_definition_fingerprint, 144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, gateway_definition_fingerprint,
+                             144);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, failure_root, 176);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRootEntryDescriptorV1, gateway, 184);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopImageDescriptorV1, 240, 8);

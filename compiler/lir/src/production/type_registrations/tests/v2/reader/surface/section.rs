@@ -27,7 +27,7 @@ fn section(fixture: &Fixture) -> ConeProductionSectionV2 {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
-        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &fixture.foundation).unwrap(),
+        crate::CanonicalShapeAbisV1::new(Vec::new(), &fixture.foundation).unwrap(),
     )
     .unwrap()
 }
@@ -160,7 +160,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
         EntryProductionSourceV1::Library,
         &[],
         crate::canonical_callable::tests::fixture_definitions(&fixture.foundation),
-        crate::CanonicalShapeLirDefinitionsV1::new(Vec::new(), &fixture.foundation).unwrap(),
+        crate::CanonicalShapeAbisV1::new(Vec::new(), &fixture.foundation).unwrap(),
     )
     .unwrap();
     let expected = production.registration_production().types().clone();

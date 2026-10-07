@@ -43,10 +43,7 @@ fn dependency_definitions_retain_provider_and_cell_and_registration_relations() 
         definition.registration().symbol(),
         plan.registration_symbol()
     );
-    assert_eq!(
-        definition.registration_fingerprint(),
-        plan.registration_fingerprint_node()
-    );
+
     assert!(Definition::from_registrations(&plans, source_unit()).is_none());
 }
 
@@ -122,13 +119,9 @@ fn unit_definitions_resolve_before_dependency_semantics_for_both_schedules() {
                 provider,
                 "definition",
             );
-            let before = Definition::from_foundation(
-                fixture.unit,
-                &fixture.foundation,
-                &fixture.identities,
-                &fixture.digests,
-            )
-            .unwrap();
+            let before =
+                Definition::from_foundation(fixture.unit, &fixture.foundation, &fixture.identities)
+                    .unwrap();
             let complete = fixture.build().unwrap();
             assert_eq!(
                 before,
@@ -144,12 +137,7 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
     use crate::InitializationDefinitionResolutionErrorV2 as DefinitionError;
     let fixture = Fixture::new(Options::default());
     assert!(matches!(
-        Definition::from_foundation(
-            source_unit(),
-            &fixture.foundation,
-            &fixture.identities,
-            &fixture.digests
-        ),
+        Definition::from_foundation(source_unit(), &fixture.foundation, &fixture.identities,),
         Err(DefinitionError::MissingRegistrationIdentity(_))
     ));
     let missing_registration = Fixture::new(Options {
@@ -161,7 +149,6 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
             missing_registration.unit,
             &missing_registration.foundation,
             &missing_registration.identities,
-            &missing_registration.digests
         ),
         Err(DefinitionError::MissingRegistrationIdentity(_))
     ));
@@ -189,13 +176,9 @@ fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() 
         ),
     ] {
         let fixture = Fixture::new(options);
-        let error = Definition::from_foundation(
-            fixture.unit,
-            &fixture.foundation,
-            &fixture.identities,
-            &fixture.digests,
-        )
-        .unwrap_err();
+        let error =
+            Definition::from_foundation(fixture.unit, &fixture.foundation, &fixture.identities)
+                .unwrap_err();
         assert!(matches!(
             (error, expected),
             (DefinitionError::MissingSymbol(_), "symbol")

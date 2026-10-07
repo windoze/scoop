@@ -77,9 +77,6 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
             CanonicalRelocationTargetKindV1::Requirement(requirement) => {
                 requirement.runtime_encode(encoder)
             }
-            CanonicalRelocationTargetKindV1::StaticStorage(target) => {
-                encode_static_storage_target(encoder, target)
-            }
             CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
                 atom,
                 role,
@@ -229,32 +226,6 @@ fn encode_optional_addend(
         Some(value) => {
             encoder.u32(2)?;
             encoder.u32(value as u32)
-        }
-    }
-}
-
-fn encode_static_storage_target(
-    encoder: &mut RuntimeEncoder,
-    target: CanonicalStaticStorageTargetV1,
-) -> Result<(), RuntimeEncodeError> {
-    match target {
-        CanonicalStaticStorageTargetV1::InitialTemplate(storage) => {
-            encoder.u32(8)?;
-            encoder.u32(1)?;
-            encoder.fixed(storage.as_array())
-        }
-        CanonicalStaticStorageTargetV1::InitialRelocationTable(storage) => {
-            encoder.u32(8)?;
-            encoder.u32(2)?;
-            encoder.fixed(storage.as_array())
-        }
-        CanonicalStaticStorageTargetV1::EmptyTemplateSentinel => {
-            encoder.u32(9)?;
-            encoder.u32(1)
-        }
-        CanonicalStaticStorageTargetV1::EmptyRelocationTableSentinel => {
-            encoder.u32(9)?;
-            encoder.u32(2)
         }
     }
 }

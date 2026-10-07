@@ -7,7 +7,7 @@ fn registration_catalog_derives_local_definitions_and_preserves_external_ones() 
     let source = Fixture::with_source(Options::default(), ConeIdentity::SINGLE_FILE, "source");
     let catalog = Catalog::new(ConeIdentity::SINGLE_FILE, &[definition(&external)]).unwrap();
     let complete = catalog
-        .with_local_foundation(&local.foundation, &local.identities, &local.digests)
+        .with_local_foundation(&local.foundation, &local.identities)
         .unwrap();
     for (fixture, is_local) in [(&local, true), (&external, false)] {
         let id = decode_canonical(&encode(&fixture.unit).unwrap()).unwrap();
@@ -23,13 +23,13 @@ fn registration_catalog_rejects_injected_local_definitions_and_wrong_consumers()
     let fixture = Fixture::new(Options::default());
     let catalog = Catalog::new(ConeIdentity::SINGLE_FILE, &[definition(&fixture)]).unwrap();
     assert!(matches!(
-        catalog.with_local_foundation(&fixture.foundation, &fixture.identities, &fixture.digests),
+        catalog.with_local_foundation(&fixture.foundation, &fixture.identities),
         Err(Error::InitializationDependency(crate::InitializationDependencyResolutionError::CurrentConeDefinition(unit)))
             if unit == fixture.unit
     ));
     let wrong = Catalog::new(ConeIdentity::CORE, &[]).unwrap();
     assert!(matches!(
-        wrong.with_local_foundation(&fixture.foundation, &fixture.identities, &fixture.digests),
+        wrong.with_local_foundation(&fixture.foundation, &fixture.identities),
         Err(Error::ProducerMismatch)
     ));
 }

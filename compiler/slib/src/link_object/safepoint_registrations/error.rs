@@ -29,20 +29,6 @@ pub enum SafepointRegistrationPatchFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SafepointRegistrationDigestPlanFailureV1 {
-    MissingObjectDefinitionNode,
-    ObjectDefinitionDirectInputs,
-    ObjectDefinitionPatchSet,
-    MissingStackmapNode,
-    MissingRegistrationNode,
-    StackmapNodeIdentity,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-    StackmapPatchSet,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SafepointRegistrationAtomFileRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -69,10 +55,6 @@ pub enum StrongSafepointRegistrationValidationError {
     StackmapSemanticMismatch {
         site: PersistentSafepointSiteId,
         field: SafepointRegistrationSemanticFieldV1,
-    },
-    DigestPlanMismatch {
-        site: PersistentSafepointSiteId,
-        kind: SafepointRegistrationDigestPlanFailureV1,
     },
     MissingDefinitionAssignment {
         site: PersistentSafepointSiteId,

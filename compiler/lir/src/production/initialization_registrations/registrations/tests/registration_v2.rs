@@ -54,7 +54,7 @@ fn dependency(
 }
 
 #[test]
-fn both_schedules_keep_twenty_four_fields_and_reject_the_retired_record() {
+fn both_schedules_keep_twenty_fields_and_reject_the_retired_record() {
     for lazy in [false, true] {
         let fixture = Fixture::new(Options {
             lazy,
@@ -64,9 +64,9 @@ fn both_schedules_keep_twenty_four_fields_and_reject_the_retired_record() {
         let current = build(&fixture, Vec::new()).unwrap();
         let bytes = encode(&current.registrations()[0]).unwrap();
         assert_eq!(bytes, encode(&old.registrations()[0]).unwrap());
-        assert_eq!(&bytes[..2], &[0xb8, 24]);
-        let mut retired = bytes.clone();
-        retired[1] = 28;
+        assert_eq!(bytes[0], 0xb4);
+        let mut retired = vec![0xb8, 24];
+        retired.extend_from_slice(&bytes[1..]);
         assert!(
             decode_canonical::<DecodedStrongInitializationUnitRegistrationPlanV1>(&retired)
                 .is_err()
@@ -141,14 +141,14 @@ fn both_versions_reject_duplicate_and_self_dependencies_before_registration() {
 }
 
 #[test]
-fn version_two_requires_complete_registration_definition_and_digest() {
+fn version_two_requires_complete_registration_definition_and_symbols() {
     for options in [
         Options {
             omit_registration_primary: true,
             ..Options::default()
         },
         Options {
-            omit_cell_input: true,
+            omit_cell_symbol: true,
             ..Options::default()
         },
     ] {

@@ -1,19 +1,19 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LinkageClass,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentImmortalObjectId,
-    PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionAtomSubkey, DefinitionOwnerChain, ExactTypeKey, ImmortalObjectKey,
+    ImmortalObjectOwner, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
+    PackagePath, PersistentImmortalObjectId, PersistentPropertyId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity,
+    StrongDefinitionRole, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment,
 };
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, DigestNodeV1, Global, GlobalInit, ImmortalObjectIdentity,
-    LirTargetProfile, MaterializationRoot, PointerKind, RefScan,
+    CanonicalLirFoundation, Global, GlobalInit, ImmortalObjectIdentity, LirTargetProfile,
+    MaterializationRoot, PointerKind, RefScan,
 };
 
 #[test]
@@ -122,7 +122,7 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
 }
 
 #[test]
-fn joins_every_immortal_object_to_definition_and_registration_graph() {
+fn joins_every_immortal_object_to_its_definition_and_registration() {
     let fixture = Fixture::new(Options::default());
 
     let plans = fixture.build().unwrap();
@@ -148,15 +148,11 @@ fn joins_every_immortal_object_to_definition_and_registration_graph() {
             plan.type_registration_symbol().key(),
             PersistentSymbolKey::TypeRegistration(plan.type_registration())
         );
-        assert_eq!(
-            node(&fixture.digests, plan.registration_fingerprint_node()).patch_intents()[0].id(),
-            plan.registration_definition_patch()
-        );
     }
 }
 
 #[test]
-fn registration_plans_require_complete_semantics_symbols_and_digest_edges() {
+fn registration_plans_require_complete_semantics_and_symbols() {
     assert!(matches!(
         Fixture::new(Options {
             omit_last_registration: true,
@@ -181,46 +177,7 @@ fn registration_plans_require_complete_semantics_symbols_and_digest_edges() {
             Err(StrongImmortalObjectRegistrationPlanBuildError::MissingSymbol(_))
         ));
     }
-    assert!(matches!(
-        Fixture::new(Options {
-            registration_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongImmortalObjectRegistrationPlanBuildError::RegistrationObjectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            immortal_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            immortal_object_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongImmortalObjectRegistrationPlanBuildError::ImmortalObjectPatches { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongImmortalObjectRegistrationPlanBuildError::DirectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongImmortalObjectRegistrationPlanBuildError::PatchSet { .. })
-    ));
+
     assert!(matches!(
         Fixture::new(Options {
             claim_local_string_type: true,
@@ -241,11 +198,7 @@ struct Options {
     omit_last_registration: bool,
     omit_object_symbol: bool,
     omit_registration_symbol: bool,
-    registration_object_input: bool,
-    immortal_object_input: bool,
-    immortal_object_patch: bool,
-    omit_object_input: bool,
-    omit_registration_patch: bool,
+
     claim_local_string_type: bool,
 }
 
@@ -265,7 +218,6 @@ struct Fixture {
     foundation: ConeLirFoundation,
     identities: RegistrationIdentitySurfaceV1,
     semantics: StrongImmortalObjectSemanticPlanSetV1,
-    digests: DigestFinalizationPlanV1,
 }
 
 impl Fixture {
@@ -347,9 +299,8 @@ impl Fixture {
             .unwrap(),
         );
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
-        let digests = digest_plan(&foundation, &artifacts, options);
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let mut objects = artifacts
             .iter()
             .map(|artifacts| {
@@ -378,7 +329,6 @@ impl Fixture {
             foundation,
             identities,
             semantics,
-            digests,
         }
     }
 
@@ -392,7 +342,6 @@ impl Fixture {
             &self.foundation,
             &self.identities,
             &self.semantics,
-            &self.digests,
         )
     }
 }
@@ -416,105 +365,6 @@ fn object_artifacts(seed: u32) -> ObjectArtifacts {
         registration_definition,
         registration_primary,
     }
-}
-
-fn digest_plan(
-    foundation: &ConeLirFoundation,
-    artifacts: &[ObjectArtifacts; 2],
-    options: Options,
-) -> DigestFinalizationPlanV1 {
-    let mut nodes = Vec::new();
-    let mut image_inputs = Vec::new();
-    for (index, artifacts) in artifacts.iter().enumerate() {
-        let object_lir_definition = options.immortal_object_input.then(|| {
-            DigestNodeV1::new(
-                DigestNodeKey::lir_definition(artifacts.object_primary.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap()
-        });
-        let object_key = DigestNodeKey::object_definition(artifacts.object_primary.id());
-        let object_id = DigestNodeId::from_key(&object_key).unwrap();
-        let object_patches = if options.immortal_object_patch {
-            vec![DigestPatchIntentKey::new(
-                object_id,
-                artifacts.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::DescriptorDefinition,
-            )]
-        } else {
-            Vec::new()
-        };
-        let object = DigestNodeV1::new(
-            object_key,
-            object_lir_definition
-                .as_ref()
-                .map(|node| vec![DigestInputRefV1::from_node(node)])
-                .unwrap_or_default(),
-            object_patches,
-        )
-        .unwrap();
-        nodes.extend(object_lir_definition);
-        nodes.push(object.clone());
-        if options.omit_last_registration && index == 1 {
-            continue;
-        }
-
-        let lir_definition = options.registration_object_input.then(|| {
-            DigestNodeV1::new(
-                DigestNodeKey::lir_definition(artifacts.registration_primary.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap()
-        });
-        let registration_object = DigestNodeV1::new(
-            DigestNodeKey::object_definition(artifacts.registration_primary.id()),
-            lir_definition
-                .as_ref()
-                .map(|node| vec![DigestInputRefV1::from_node(node)])
-                .unwrap_or_default(),
-            Vec::new(),
-        )
-        .unwrap();
-        let strong_key = DigestNodeKey::strong_registration(artifacts.registration_definition.id());
-        let strong_id = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = vec![DigestInputRefV1::from_node(&registration_object)];
-        if !(options.omit_object_input && index == 0) {
-            inputs.push(DigestInputRefV1::from_node(&object));
-        }
-        let strong = DigestNodeV1::new(
-            strong_key,
-            inputs,
-            if options.omit_registration_patch && index == 0 {
-                Vec::new()
-            } else {
-                vec![DigestPatchIntentKey::new(
-                    strong_id,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::RegistrationDefinition,
-                )]
-            },
-        )
-        .unwrap();
-        if let Some(lir_definition) = lir_definition {
-            nodes.push(lir_definition);
-        }
-        nodes.push(registration_object);
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
-        nodes.push(strong);
-    }
-    nodes.push(
-        DigestNodeV1::new(
-            DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
-            image_inputs,
-            Vec::new(),
-        )
-        .unwrap(),
-    );
-    DigestFinalizationPlanV1::new(nodes, foundation).unwrap()
 }
 
 fn definition(
@@ -543,10 +393,6 @@ fn primary(
 
 fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
     PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
-}
-
-fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
-    plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
 
 fn string_global(path_index: u32, value: &str) -> Global {

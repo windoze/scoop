@@ -13,22 +13,16 @@ where
     let static_storages = registrations
         .static_storages()
         .shapes()
-        .storage_definitions()
-        .registration_objects()
         .registrations()
         .plan()
         .registrations();
     let immortal_objects = registrations
         .immortal_objects()
-        .object_definitions()
-        .registration_objects()
         .registrations()
         .plan()
         .registrations();
     let initializations = registrations
         .initializations()
-        .definitions()
-        .registration_objects()
         .registrations()
         .plan()
         .registrations();
@@ -41,7 +35,6 @@ where
     let callables = registrations
         .callables()
         .body_objects()
-        .registration_objects()
         .registrations()
         .plan()
         .registrations();
@@ -52,69 +45,42 @@ where
             (
                 plan.semantic().storage(),
                 plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
             )
         }),
     ) && table_matches(
         identities.immortal_objects(),
-        immortal_objects.iter().map(|plan| {
-            (
-                plan.object(),
-                plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
+        immortal_objects
+            .iter()
+            .map(|plan| (plan.object(), plan.registration_definition_plan())),
     ) && table_matches(
         identities.initialization_units(),
-        initializations.iter().map(|plan| {
-            (
-                plan.semantic().unit(),
-                plan.registration_definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
+        initializations
+            .iter()
+            .map(|plan| (plan.semantic().unit(), plan.registration_definition_plan())),
     ) && table_matches(
         identities.type_registrations(),
-        types.iter().map(|plan| {
-            (
-                plan.exact_type(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
+        types
+            .iter()
+            .map(|plan| (plan.exact_type(), plan.definition_plan())),
     ) && table_matches(
         identities.safepoints(),
-        safepoints.iter().map(|plan| {
-            (
-                plan.site(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
+        safepoints
+            .iter()
+            .map(|plan| (plan.site(), plan.definition_plan())),
     ) && table_matches(
         identities.callables(),
-        callables.iter().map(|plan| {
-            (
-                plan.body(),
-                plan.definition_plan(),
-                plan.registration_fingerprint_node(),
-            )
-        }),
+        callables
+            .iter()
+            .map(|plan| (plan.body(), plan.definition_plan())),
     )
 }
 
 fn table_matches<I: scoop_identity::PersistentId>(
     identities: &[RegistrationIdentityV1<I>],
-    plans: impl IntoIterator<Item = (I, ObjectDefinitionPlanId, DigestNodeId)>,
+    plans: impl IntoIterator<Item = (I, ObjectDefinitionPlanId)>,
 ) -> bool {
     identities
         .iter()
-        .map(|identity| {
-            (
-                identity.semantic_id(),
-                identity.definition_plan(),
-                identity.fingerprint_node(),
-            )
-        })
+        .map(|identity| (identity.semantic_id(), identity.definition_plan()))
         .eq(plans)
 }

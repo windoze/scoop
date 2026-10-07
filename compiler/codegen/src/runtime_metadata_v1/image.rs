@@ -11,7 +11,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const IMAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d47;
 const IMAGE_DESCRIPTOR_SIZE: u64 = 240;
 const RUNTIME_IMAGE_FINGERPRINT_OFFSET: u64 = 96;
@@ -531,8 +531,7 @@ mod tests {
     fn image_emission_preserves_the_closed_plan_and_zero_patch() {
         let coordinate = ConeCoordinate::reserved_single_file();
         let (foundation, digests) = image_fixture(coordinate.clone(), Some(unit_exact_type()));
-        let registrations =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let plan = ConeImagePlanV1::new(
             coordinate,
             &[scoop_identity::ConeIdentity::CORE],
@@ -615,8 +614,7 @@ mod tests {
     fn image_emission_rejects_a_duplicate_image_definition() {
         let coordinate = ConeCoordinate::reserved_core();
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
-        let registrations =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let plan =
             ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digests).unwrap();
         let context = Context::create();
@@ -649,8 +647,7 @@ mod tests {
     fn image_emission_rejects_a_noncanonical_trap_message() {
         let coordinate = ConeCoordinate::reserved_single_file();
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
-        let registrations =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let plan = ConeImagePlanV1::new(
             coordinate,
             &[scoop_identity::ConeIdentity::CORE],
@@ -743,14 +740,7 @@ mod tests {
                 .unwrap(),
             )
             .unwrap();
-            let registration_node = DigestNodeV1::new(
-                DigestNodeKey::strong_registration(registration_plan.id()),
-                Vec::new(),
-                Vec::new(),
-            )
-            .unwrap();
             plans.push(registration_plan);
-            nodes.push(registration_node);
         }
 
         let mut canonical = CanonicalLirFoundation::empty();

@@ -195,24 +195,15 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     for registration in types.registrations() {
         let registration = *registration;
         for patch in [
-            registration.registration_definition_patch(),
             registration.descriptor_definition_patch(),
             registration.layout_fingerprint_patch(),
         ] {
             record_patch(production, &mut patches, patch.into_parts())?;
         }
     }
-    for registration in immortal_objects.registrations() {
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
-    }
     for registration in static_storages.registrations() {
         let registration = *registration;
         for patch in [
-            registration.registration_definition_patch(),
             registration.scan_fingerprint_patch(),
             registration.layout_fingerprint_patch(),
         ] {
@@ -221,11 +212,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     }
     for registration in initialization_units.registrations() {
         let registration = *registration;
-        record_patch(
-            production,
-            &mut patches,
-            registration.registration_definition_patch().into_parts(),
-        )?;
         if let Some(patch) = registration.gateway_definition_patch() {
             record_patch(production, &mut patches, patch.into_parts())?;
         }
@@ -281,7 +267,7 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     let mut atoms = Vec::new();
     atoms.extend(types.registrations().iter().map(|registration| {
         GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
+            registration.descriptor_definition_patch().atom(),
             registration.descriptor(),
         )
     }));

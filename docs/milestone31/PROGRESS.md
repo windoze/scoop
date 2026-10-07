@@ -95,3 +95,13 @@
 - 正式 ODR fixture 覆盖两种相反的混合优化组合、缓存键变化、消费者零次重编译、最终链接失效及重复输入稳定；移除源码后倒序传入产物链接，并运行 minor/full moving。真实泛型模板增加 GC 调用后，旧消费者仍以 StaleDependency 拒绝且不发布输出。
 - workspace fmt/clippy 通过；摘要与 registry 定向检查 8 项、真实同 key/ABI 不同机器对象测试 1 项通过；Darwin 正式 fixture 两变体共 20 个进程、6 项 stage golden 通过（37.30s，复用编译缓存）。Linux SSH 仍超时，本批 Linux 验证待补。
 - metadata ABI 5、公共 definition 字段及仅服务这些字段的摘要节点/正文编码将在下一批迁移，本批不声明 M31-2 全部完成。
+
+## M31-2：metadata ABI 5 与专用正文摘要退役
+
+- 六类 registration 删除公共 definition fingerprint，公共 identity 由 136 bytes 缩为 104 bytes；其余实际 body、descriptor、layout、scan、stackmap 和 gateway 字段保留。C/LLVM/reader/final-image 布局统一为 ABI 5，runtime ABI contract 为 9，RuntimeImage 使用 `scoop-runtime-image-v2`。
+- 删除 LirDefinition、OdrDefinition、StrongRegistration 的类型、节点、补丁、正文编码及只服务这些字段的对象摘要。callable/shape 表只记录既有 typed owner 和共享 ABI；manifest field 5 的 Strong registration 摘要表退出。受影响 capability 为 LIR foundation 6、strong production 20、cone production 9、layout ABI 10、link identity closure 15、manifest production 5；普通物理引用 closure 保持 5，退役 tag 不复用。
+- 六类读取路径复用已验证的语义和物理结果，删除重复的 digest graph 重放；immortal String 的长度、UTF-8、padding 和 TD relocation 检查移入对象读取边界，保留必要负例。实际字段回填及最终对象内容仍按普通格式和引用规则验证。
+- 最终回填模块按覆盖、回填、记录和内容检查拆分，主文件约 350 行；原 2798 行 Mach-O fixture 和 1054 行语义 fixture 按职责拆分，主文件分别为 169、380 行，子模块不超过约 650 行。本批净删除约 1.3 万行专用摘要代码和旧测试。
+- Rust fmt、workspace clippy 通过；identity 340 项、LIR production/canonical 189 项及 runtime ABI 定向检查、slib 全部 563 项、C/LLVM metadata 与 image 40 项、GNU/musl ELF 交叉对象检查、真实泛型对象回填与关联 EH/stackmap 内容检查均通过。修正了正文登记同放一个对象后旧测试取第一个 definition 的错误假设，按 typed role 查找实际正文。
+- Darwin 正式混合优化、nursery/native/Context/跨卡复制、两种真实模板冲突共 7 个变体、57 个进程、54 份 stage golden 通过。冲突用例继续检查独立链接结果一致性、真实运行和 stale 拒绝，移除与冲突规则无关的整份 core startup 源码快照。混合优化本轮冷缓存用时 108.09s，未与前一轮热缓存耗时直接比较。
+- Linux 原生运行仍待补：本批 SSH 再次连接超时。交叉发射只证明 ELF 对象生成及读取，不替代 GNU/musl 上的 nursery、启动、链接和运行验收。

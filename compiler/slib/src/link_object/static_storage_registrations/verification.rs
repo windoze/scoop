@@ -9,7 +9,6 @@ use scoop_lir::{
     StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanV1,
 };
 
-use super::digest::validate_digest_graph;
 use super::physical::{
     StaticStorageAtomRangeV1, atom_file_range, atom_range, validate_objects, verified_member,
 };
@@ -28,9 +27,8 @@ use crate::link_object::{
     VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const SCAN_FINGERPRINT_OFFSET: u64 = 200;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 232;
+const SCAN_FINGERPRINT_OFFSET: u64 = 168;
+const LAYOUT_FINGERPRINT_OFFSET: u64 = 200;
 const DIGEST_WIDTH: u8 = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,14 +38,13 @@ pub struct VerifiedStrongStaticStorageRegistrationV1 {
     primary_symbol_table_index: u32,
     checked_offset: u64,
     storage_member: SlibMemberId,
-    storage_materialization: VerifiedStaticStorageMaterializationV1,
     storage_relocation: StrongRelocationBindingV1,
     scan_relocation: StrongRelocationBindingV1,
     template_relocation: VerifiedRelocationUseV1,
     relocation_table_relocation: VerifiedRelocationUseV1,
     initial_storage_relocations: Vec<StrongRelocationBindingV1>,
     initial_target_relocations: Vec<StrongRelocationBindingV1>,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     scan_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
     layout_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
 }
@@ -71,10 +68,6 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
 
     pub const fn storage_member(&self) -> SlibMemberId {
         self.storage_member
-    }
-
-    pub(super) const fn storage_materialization(&self) -> VerifiedStaticStorageMaterializationV1 {
-        self.storage_materialization
     }
 
     pub const fn storage_relocation(&self) -> &StrongRelocationBindingV1 {
@@ -101,10 +94,6 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
         &self.initial_target_relocations
     }
 
-    pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
-    }
-
     pub const fn scan_fingerprint_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
         self.scan_fingerprint_patch
     }
@@ -112,12 +101,6 @@ impl VerifiedStrongStaticStorageRegistrationV1 {
     pub const fn layout_fingerprint_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
         self.layout_fingerprint_patch
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum VerifiedStaticStorageMaterializationV1 {
-    FileBacked { checked_offset: u64 },
-    ZeroFill,
 }
 
 /// Proof that every final-LIR static storage has one exact provisional root
@@ -161,7 +144,6 @@ pub fn verify_strong_static_storage_registrations_v1(
     let objects = validate_objects(patch_sites.builtins(), scoop_objects)?;
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), registration)?;
         registrations.push(verify_registration(&patch_sites, &objects, registration)?);
     }
     validate_shared_sentinels(&patch_sites, &plan, &registrations)?;
@@ -257,16 +239,7 @@ fn verify_registration(
 
     let storage_artifacts = verify_storage_artifacts(patch_sites, objects, plan)?;
     let relocations = verify_relocations(patch_sites, verified_member, plan)?;
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        member,
-        file_start,
-        plan.registration_definition_patch(),
-        plan.registration_fingerprint_node(),
-        DigestSemanticFieldRole::RegistrationDefinition,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    )?;
+
     let scan_fingerprint_patch = require_patch(
         patch_sites,
         plan,
@@ -303,23 +276,16 @@ fn verify_registration(
         file_start,
         storage_artifacts,
         relocations,
-        registration_definition_patch,
         scan_fingerprint_patch,
         layout_fingerprint_patch,
     ))
-}
-
-#[derive(Clone, Copy)]
-struct VerifiedStaticStorageArtifactsV1 {
-    member: SlibMemberId,
-    materialization: VerifiedStaticStorageMaterializationV1,
 }
 
 fn verify_storage_artifacts(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
     plan: &StrongStaticStorageRegistrationPlanV1,
-) -> Result<VerifiedStaticStorageArtifactsV1, StrongStaticStorageRegistrationValidationError> {
+) -> Result<SlibMemberId, StrongStaticStorageRegistrationValidationError> {
     let builtins = patch_sites.builtins();
     let storage_member = required_scoop_member(builtins, plan, plan.storage_definition_plan())?;
     let storage_index = verified_member(builtins, storage_member)?;
@@ -462,19 +428,7 @@ fn verify_storage_artifacts(
             }
         }
     }
-    Ok(VerifiedStaticStorageArtifactsV1 {
-        member: storage_member,
-        materialization: match storage_range {
-            StaticStorageAtomRangeV1::FileBacked { start, .. } => {
-                VerifiedStaticStorageMaterializationV1::FileBacked {
-                    checked_offset: start,
-                }
-            }
-            StaticStorageAtomRangeV1::ZeroFill { .. } => {
-                VerifiedStaticStorageMaterializationV1::ZeroFill
-            }
-        },
-    })
+    Ok(storage_member)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -483,9 +437,9 @@ fn build_verified_registration(
     member: SlibMemberId,
     primary_symbol_table_index: u32,
     checked_offset: u64,
-    storage_artifacts: VerifiedStaticStorageArtifactsV1,
+    storage_artifacts: SlibMemberId,
     relocations: VerifiedStaticStorageRelocations,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     scan_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
     layout_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
 ) -> VerifiedStrongStaticStorageRegistrationV1 {
@@ -494,15 +448,14 @@ fn build_verified_registration(
         member,
         primary_symbol_table_index,
         checked_offset,
-        storage_member: storage_artifacts.member,
-        storage_materialization: storage_artifacts.materialization,
+        storage_member: storage_artifacts,
         storage_relocation: relocations.storage,
         scan_relocation: relocations.scan,
         template_relocation: relocations.template,
         relocation_table_relocation: relocations.relocation_table,
         initial_storage_relocations: relocations.initial_storage,
         initial_target_relocations: relocations.initial_targets,
-        registration_definition_patch,
+
         scan_fingerprint_patch,
         layout_fingerprint_patch,
     }
@@ -873,7 +826,6 @@ fn validate_exact_atom_patch_set(
     member: SlibMemberId,
 ) -> Result<(), StrongStaticStorageRegistrationValidationError> {
     let expected = [
-        plan.registration_definition_patch(),
         plan.scan_fingerprint_patch(),
         plan.layout_fingerprint_patch(),
     ];

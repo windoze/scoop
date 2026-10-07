@@ -65,13 +65,10 @@ fn fixture(producer: ConeIdentity, shuffled: bool) -> (lir::ConeLirOutput, OdrGr
     (try_lower(module).unwrap(), group_id)
 }
 
-fn shapes(
-    module: &lir::Module,
-    foundation: &lir::ConeLirFoundation,
-) -> lir::CanonicalShapeLirDefinitionsV1 {
+fn shapes(module: &lir::Module, foundation: &lir::ConeLirFoundation) -> lir::CanonicalShapeAbisV1 {
     let immortals = lir::StrongImmortalObjectSemanticPlanSetV1::from_module(module).unwrap();
     let storages = lir::StrongStaticStorageSemanticPlanSetV1::from_module(module).unwrap();
-    lir::CanonicalShapeLirDefinitionsV1::from_module(
+    lir::CanonicalShapeAbisV1::from_module(
         module,
         foundation,
         immortals.objects().iter().copied(),
@@ -107,7 +104,7 @@ fn nominal_shape_content_ignores_producer_and_arena_order() {
             LinkageClass::OdrWeak
         );
         let bytes = encode(&canonical).unwrap();
-        let decoded: lir::DecodedCanonicalShapeLirDefinitionsV1 = decode_canonical(&bytes).unwrap();
+        let decoded: lir::DecodedCanonicalShapeAbisV1 = decode_canonical(&bytes).unwrap();
         assert_eq!(decoded.validate(output.foundation()).unwrap(), canonical);
         records.push(canonical);
     }
@@ -146,7 +143,6 @@ fn nominal_shape_fingerprints_include_fields_scans_and_dispatch_order() {
                 module.meta.layouts[layout].identity.layout_record().id(),
             )
         {
-            assert_ne!(definition.fingerprint(), current.fingerprint());
             assert_ne!(definition.abi(), current.abi());
         } else {
             assert_eq!(definition, current);
@@ -159,10 +155,6 @@ fn nominal_shape_fingerprints_include_fields_scans_and_dispatch_order() {
     for definition in original.definitions() {
         let current = renamed.get(definition.member()).unwrap();
         assert_eq!(definition.abi(), current.abi());
-        assert_eq!(
-            definition.fingerprint() != current.fingerprint(),
-            definition.role() == OdrMemberRole::TypeDescriptor,
-        );
     }
     module.meta.type_descriptors[descriptor].diagnostic_name = "Box".into();
 
@@ -185,7 +177,7 @@ fn nominal_shape_fingerprints_include_fields_scans_and_dispatch_order() {
     let rescanned = shapes(&module, &foundation);
     assert!(original.definitions().iter().any(|definition| {
         definition.role() == OdrMemberRole::ScanProgram
-            && definition.fingerprint() != rescanned.get(definition.member()).unwrap().fingerprint()
+            && definition.abi() != rescanned.get(definition.member()).unwrap().abi()
     }));
     module.meta.layouts[layout].kind = old_kind;
     module.meta.type_descriptors[descriptor].instance_shape = old_shape;
@@ -202,10 +194,7 @@ fn nominal_shape_fingerprints_include_fields_scans_and_dispatch_order() {
     let reversed = shapes(&module, &foundation);
     for definition in ordered.definitions() {
         let current = reversed.get(definition.member()).unwrap();
-        assert_eq!(
-            definition.fingerprint() != current.fingerprint(),
-            definition.role() == OdrMemberRole::DispatchTable,
-        );
+
         assert_eq!(
             definition.abi() != current.abi(),
             definition.role() == OdrMemberRole::DispatchTable,
@@ -223,33 +212,33 @@ fn nominal_shape_reader_rejects_missing_duplicate_unsorted_and_unknown_members()
     let width = (bytes.len() - 1) / count;
     assert_eq!(bytes.len(), 1 + count * width);
     let validate = |bytes: &[u8]| {
-        decode_canonical::<lir::DecodedCanonicalShapeLirDefinitionsV1>(bytes)
+        decode_canonical::<lir::DecodedCanonicalShapeAbisV1>(bytes)
             .unwrap()
             .validate(output.foundation())
     };
     assert!(matches!(
         validate(&[0x80]),
-        Err(lir::CanonicalShapeLirError::MemberSet)
+        Err(lir::CanonicalShapeAbiError::MemberSet)
     ));
 
     let mut missing = bytes[..bytes.len() - width].to_vec();
     missing[0] -= 1;
     assert!(matches!(
         validate(&missing),
-        Err(lir::CanonicalShapeLirError::MemberSet)
+        Err(lir::CanonicalShapeAbiError::MemberSet)
     ));
     let mut duplicate = bytes.clone();
     duplicate[1 + width..1 + 2 * width].copy_from_slice(&bytes[1..1 + width]);
     assert!(matches!(
         validate(&duplicate),
-        Err(lir::CanonicalShapeLirError::MemberSet)
+        Err(lir::CanonicalShapeAbiError::MemberSet)
     ));
     let mut unsorted = bytes.clone();
     unsorted[1..1 + width].copy_from_slice(&bytes[1 + width..1 + 2 * width]);
     unsorted[1 + width..1 + 2 * width].copy_from_slice(&bytes[1..1 + width]);
     assert!(matches!(
         validate(&unsorted),
-        Err(lir::CanonicalShapeLirError::MemberSet)
+        Err(lir::CanonicalShapeAbiError::MemberSet)
     ));
     let mut unknown = bytes;
     let member = canonical.definitions()[0].member();
@@ -260,6 +249,6 @@ fn nominal_shape_reader_rejects_missing_duplicate_unsorted_and_unknown_members()
     unknown[offset] ^= 1;
     assert!(matches!(
         validate(&unknown),
-        Err(lir::CanonicalShapeLirError::UnknownMember(_))
+        Err(lir::CanonicalShapeAbiError::UnknownMember(_))
     ));
 }

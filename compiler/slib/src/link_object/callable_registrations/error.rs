@@ -21,21 +21,6 @@ pub enum CallableRegistrationPatchFailureV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CallableRegistrationDigestPlanFailureV1 {
-    MissingRegistrationObjectDefinitionNode,
-    RegistrationObjectDefinitionNodeIdentity,
-    RegistrationObjectDefinitionDirectInputs,
-    RegistrationObjectDefinitionPatchSet,
-    MissingBodyObjectDefinitionNode,
-    BodyObjectDefinitionNodeIdentity,
-    MissingRegistrationNode,
-    RegistrationNodeIdentity,
-    RegistrationDirectInputs,
-    RegistrationPatchSet,
-    BodyDefinitionPatchMissing,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CallableRegistrationAtomFileRangeFailureV1 {
     MissingSection,
     NotFileBacked,
@@ -75,10 +60,6 @@ pub enum StrongCallableRegistrationValidationError {
     MissingObjectMember(SlibMemberId),
     MissingVerifiedMember(SlibMemberId),
     ObjectBytesMismatch(SlibMemberId),
-    DigestPlanMismatch {
-        body: PersistentCallableBodyId,
-        kind: CallableRegistrationDigestPlanFailureV1,
-    },
     MissingDefinitionAssignment {
         body: PersistentCallableBodyId,
         definition: ObjectDefinitionPlanId,

@@ -49,10 +49,6 @@ impl<I: PersistentId> DecodedStrongShapeRegistrationV1<I> {
                 .definition_plan
                 .verify(expected.definition_plan())
                 .is_err()
-            || self
-                .fingerprint_node
-                .verify(expected.fingerprint_node())
-                .is_err()
         {
             return Ok(false);
         }

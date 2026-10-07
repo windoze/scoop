@@ -10,12 +10,11 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const TYPE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
-const TYPE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 240;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 176;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 208;
+const TYPE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 208;
+const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 144;
+const LAYOUT_FINGERPRINT_OFFSET: u64 = 176;
 const DIGEST_SIZE: u64 = 32;
 
 /// One graph-managed digest slot in an emitted type registration.
@@ -59,7 +58,7 @@ impl<'ctx> TypeRegistrationPatchSiteV1<'ctx> {
 pub struct EmittedStrongTypeRegistrationV1<'ctx> {
     exact_type: PersistentExactTypeId,
     descriptor: GlobalValue<'ctx>,
-    registration_definition_patch: TypeRegistrationPatchSiteV1<'ctx>,
+
     descriptor_definition_patch: TypeRegistrationPatchSiteV1<'ctx>,
     layout_fingerprint_patch: TypeRegistrationPatchSiteV1<'ctx>,
 }
@@ -71,10 +70,6 @@ impl<'ctx> EmittedStrongTypeRegistrationV1<'ctx> {
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn registration_definition_patch(self) -> TypeRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 
     pub const fn descriptor_definition_patch(self) -> TypeRegistrationPatchSiteV1<'ctx> {
@@ -275,10 +270,7 @@ fn emit_registration<'ctx, D: Copy, C>(
     EmittedStrongTypeRegistrationV1 {
         exact_type: plan.exact_type(),
         descriptor,
-        registration_definition_patch: patch(
-            plan.registration_definition_patch(),
-            REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-        ),
+
         descriptor_definition_patch: patch(
             plan.descriptor_definition_patch(),
             DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET,

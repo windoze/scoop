@@ -27,26 +27,22 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
     let mut patches = Vec::new();
     let mut atoms = callables.context_atoms.clone();
     for registration in callables.registrations() {
-        for patch in [
-            registration.registration_definition_patch(),
-            registration.body_definition_patch(),
-        ] {
+        {
+            let patch = registration.body_definition_patch();
             record_patch(production, &mut patches, patch.into_parts())?;
         }
         atoms.push(GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
+            registration.body_definition_patch().atom(),
             registration.descriptor(),
         ));
     }
     for registration in safepoints.registrations() {
-        for patch in [
-            registration.registration_definition_patch(),
-            registration.normalized_stackmap_patch(),
-        ] {
+        {
+            let patch = registration.normalized_stackmap_patch();
             record_patch(production, &mut patches, patch.into_parts())?;
         }
         atoms.push(GlobalAtomMaterializationV1::new(
-            registration.registration_definition_patch().atom(),
+            registration.normalized_stackmap_patch().atom(),
             registration.descriptor(),
         ));
     }

@@ -65,7 +65,7 @@ impl ConeLirOutput {
             &entry_source,
         )
         .map_err(ConeProductionWriterError::Registrations)?;
-        let canonical_shapes = crate::CanonicalShapeLirDefinitionsV1::from_module(
+        let canonical_shapes = crate::CanonicalShapeAbisV1::from_module(
             &self.module,
             &self.foundation,
             registrations
@@ -88,7 +88,7 @@ impl ConeLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
-            crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
+            crate::CanonicalCallableAbisV1::from_module(&self.module, &self.foundation)
                 .map_err(ConeProductionWriterError::CanonicalCallables)?,
             canonical_shapes,
         )
@@ -111,7 +111,7 @@ impl ConeLirOutput {
             external_initialization_uses,
         )
         .map_err(ConeProductionWriterError::Registrations)?;
-        let canonical_shapes = crate::CanonicalShapeLirDefinitionsV1::from_module(
+        let canonical_shapes = crate::CanonicalShapeAbisV1::from_module(
             &self.module,
             &self.foundation,
             registrations
@@ -134,7 +134,7 @@ impl ConeLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
-            crate::CanonicalCallableLirDefinitionsV1::from_module(&self.module, &self.foundation)
+            crate::CanonicalCallableAbisV1::from_module(&self.module, &self.foundation)
                 .map_err(ConeProductionWriterError::CanonicalCallables)?,
             canonical_shapes,
         )
@@ -172,8 +172,8 @@ impl std::error::Error for ConeLirOutputError {
 
 #[derive(Debug)]
 pub enum ConeProductionWriterError {
-    CanonicalCallables(crate::CanonicalCallableLirError),
-    CanonicalShapes(crate::CanonicalShapeLirError),
+    CanonicalCallables(crate::CanonicalCallableAbiError),
+    CanonicalShapes(crate::CanonicalShapeAbiError),
     Registrations(StrongRegistrationProductionBuildError),
     Section(ConeProductionSectionBuildError),
 }

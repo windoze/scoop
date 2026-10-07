@@ -99,7 +99,7 @@ pub(in crate::tests) fn lower_test_input(
             .collect(),
     )
     .map_err(LirLoweringError::Output)?;
-    lir::CanonicalCallableLirDefinitionsV1::from_module(output.module(), output.foundation())
+    lir::CanonicalCallableAbisV1::from_module(output.module(), output.foundation())
         .expect("every actual lowered Function has a canonical content leaf");
     Ok(output)
 }

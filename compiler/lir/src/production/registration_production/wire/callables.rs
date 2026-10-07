@@ -14,15 +14,13 @@ pub struct DecodedStrongSafepointRegistrationPlanV1 {
     symbol: DecodedPersistentSymbolRequest,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    registration_fingerprint_node: DecodedPersistentId<DigestNodeId>,
     normalized_stackmap_fingerprint_node: DecodedPersistentId<DigestNodeId>,
-    registration_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
     normalized_stackmap_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedStrongSafepointRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(10)?;
         encode_field(encoder, 1, &self.site)?;
         encode_unsigned_field(encoder, 2, self.safepoint)?;
         encode_field(encoder, 3, &self.owner)?;
@@ -31,16 +29,14 @@ impl WireEncode for DecodedStrongSafepointRegistrationPlanV1 {
         encode_field(encoder, 6, &self.symbol)?;
         encode_field(encoder, 7, &self.definition_plan)?;
         encode_field(encoder, 8, &self.primary_atom)?;
-        encode_field(encoder, 9, &self.registration_fingerprint_node)?;
         encode_field(encoder, 10, &self.normalized_stackmap_fingerprint_node)?;
-        encode_field(encoder, 11, &self.registration_definition_patch)?;
         encode_field(encoder, 12, &self.normalized_stackmap_patch)
     }
 }
 
 impl WireDecode for DecodedStrongSafepointRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(12)?;
+        decoder.expect_map(10)?;
         Ok(Self {
             site: decoder.field(1, DecodedPersistentId::decode)?,
             safepoint: decoder.field(2, Decoder::unsigned)?,
@@ -50,9 +46,7 @@ impl WireDecode for DecodedStrongSafepointRegistrationPlanV1 {
             symbol: decoder.field(6, DecodedPersistentSymbolRequest::decode)?,
             definition_plan: decoder.field(7, DecodedPersistentId::decode)?,
             primary_atom: decoder.field(8, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(9, DecodedPersistentId::decode)?,
             normalized_stackmap_fingerprint_node: decoder.field(10, DecodedPersistentId::decode)?,
-            registration_definition_patch: decoder.field(11, DecodedPersistentId::decode)?,
             normalized_stackmap_patch: decoder.field(12, DecodedPersistentId::decode)?,
         })
     }
@@ -67,16 +61,14 @@ pub struct DecodedStrongCallableRegistrationPlanV1 {
     entry_symbol: DecodedPersistentSymbolRequest,
     body_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     body_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
-    registration_object_node: DecodedPersistentId<DigestNodeId>,
+
     body_definition_node: DecodedPersistentId<DigestNodeId>,
-    registration_fingerprint_node: DecodedPersistentId<DigestNodeId>,
-    registration_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
     body_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedStrongCallableRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(9)?;
         encode_field(encoder, 1, &self.body)?;
         encode_field(encoder, 2, &self.symbol)?;
         encode_field(encoder, 3, &self.definition_plan)?;
@@ -84,17 +76,14 @@ impl WireEncode for DecodedStrongCallableRegistrationPlanV1 {
         encode_field(encoder, 5, &self.entry_symbol)?;
         encode_field(encoder, 6, &self.body_definition_plan)?;
         encode_field(encoder, 7, &self.body_primary_atom)?;
-        encode_field(encoder, 8, &self.registration_object_node)?;
         encode_field(encoder, 9, &self.body_definition_node)?;
-        encode_field(encoder, 10, &self.registration_fingerprint_node)?;
-        encode_field(encoder, 11, &self.registration_definition_patch)?;
         encode_field(encoder, 12, &self.body_definition_patch)
     }
 }
 
 impl WireDecode for DecodedStrongCallableRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(12)?;
+        decoder.expect_map(9)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
             symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
@@ -103,10 +92,8 @@ impl WireDecode for DecodedStrongCallableRegistrationPlanV1 {
             entry_symbol: decoder.field(5, DecodedPersistentSymbolRequest::decode)?,
             body_definition_plan: decoder.field(6, DecodedPersistentId::decode)?,
             body_primary_atom: decoder.field(7, DecodedPersistentId::decode)?,
-            registration_object_node: decoder.field(8, DecodedPersistentId::decode)?,
+
             body_definition_node: decoder.field(9, DecodedPersistentId::decode)?,
-            registration_fingerprint_node: decoder.field(10, DecodedPersistentId::decode)?,
-            registration_definition_patch: decoder.field(11, DecodedPersistentId::decode)?,
             body_definition_patch: decoder.field(12, DecodedPersistentId::decode)?,
         })
     }

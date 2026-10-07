@@ -25,12 +25,11 @@ use validation::{
     PreparedStaticStorageRegistrationV1, prepare_registration, validate_shared_names,
 };
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const STATIC_STORAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_544f;
-const STATIC_STORAGE_DESCRIPTOR_SIZE: u64 = 296;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const SCAN_FINGERPRINT_OFFSET: u64 = 200;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 232;
+const STATIC_STORAGE_DESCRIPTOR_SIZE: u64 = 264;
+const SCAN_FINGERPRINT_OFFSET: u64 = 168;
+const LAYOUT_FINGERPRINT_OFFSET: u64 = 200;
 const DIGEST_SIZE: u64 = 32;
 const EMPTY_TEMPLATE_SENTINEL: &str = "scoop.metadata.static.template.empty.v1";
 const EMPTY_RELOCATION_SENTINEL: &str = "scoop.metadata.static.relocations.empty.v1";
@@ -80,7 +79,7 @@ pub struct EmittedStrongStaticStorageRegistrationV1<'ctx> {
     storage_value: GlobalValue<'ctx>,
     scan_program: GlobalValue<'ctx>,
     initial_state: EmittedStaticStorageInitialStateV1<'ctx>,
-    registration_definition_patch: StaticStorageRegistrationPatchSiteV1<'ctx>,
+
     scan_fingerprint_patch: StaticStorageRegistrationPatchSiteV1<'ctx>,
     layout_fingerprint_patch: StaticStorageRegistrationPatchSiteV1<'ctx>,
 }
@@ -104,10 +103,6 @@ impl<'ctx> EmittedStrongStaticStorageRegistrationV1<'ctx> {
 
     pub const fn initial_state(self) -> EmittedStaticStorageInitialStateV1<'ctx> {
         self.initial_state
-    }
-
-    pub const fn registration_definition_patch(self) -> StaticStorageRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 
     pub const fn scan_fingerprint_patch(self) -> StaticStorageRegistrationPatchSiteV1<'ctx> {
@@ -294,10 +289,7 @@ fn emit_registration<'ctx>(
         storage_value: prepared.storage_value,
         scan_program,
         initial_state,
-        registration_definition_patch: patch(
-            plan.registration_definition_patch(),
-            REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-        ),
+
         scan_fingerprint_patch: patch(plan.scan_fingerprint_patch(), SCAN_FINGERPRINT_OFFSET),
         layout_fingerprint_patch: patch(plan.layout_fingerprint_patch(), LAYOUT_FINGERPRINT_OFFSET),
     })

@@ -1,6 +1,6 @@
 use scoop_identity::{
     DefinitionAtomRole, DigestKind, DigestNodeId, ObjectDefinitionAtomId, PersistentExactTypeId,
-    PersistentStaticStorageId, StrongDefinitionEntity, StrongDefinitionRole,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::link_object::{
@@ -17,9 +17,7 @@ const PRIMARY_ATOM_ROLE: u32 = 1;
 mod relocations;
 mod runtime_encoding;
 
-pub(in crate::link_object) use relocations::{
-    canonicalize_relocations, canonicalize_relocations_with_associated_atoms,
-};
+pub(in crate::link_object) use relocations::canonicalize_relocations_with_associated_atoms;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ObjectDefinitionRelocationFailureV1 {
@@ -65,19 +63,7 @@ pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     targets: Vec<CanonicalRelocationTargetV1>,
 }
 
-#[derive(Clone, Copy)]
-pub(in crate::link_object) enum CanonicalStaticStorageTargetV1 {
-    InitialTemplate(PersistentStaticStorageId),
-    InitialRelocationTable(PersistentStaticStorageId),
-    EmptyTemplateSentinel,
-    EmptyRelocationTableSentinel,
-}
-
 impl CanonicalObjectRelocationV1 {
-    pub(in crate::link_object) fn type_descriptor(exact_type: PersistentExactTypeId) -> Self {
-        Self::intra_cone_type_descriptor(168, exact_type)
-    }
-
     pub(in crate::link_object) fn intra_cone_type_descriptor(
         offset_within_atom: u64,
         exact_type: PersistentExactTypeId,
@@ -144,22 +130,6 @@ impl CanonicalObjectRelocationV1 {
                 target: CanonicalRelocationTargetKindV1::Requirement(
                     CanonicalObjectDefinitionRequirementV1::Legacy(requirement),
                 ),
-            }],
-        }
-    }
-
-    pub(in crate::link_object) fn static_storage_target(
-        offset_within_atom: u64,
-        target: CanonicalStaticStorageTargetV1,
-    ) -> Self {
-        Self {
-            offset_within_atom,
-            form: VerifiedObjectRelocationFormV1::Unsigned64,
-            encoded_value: 0,
-            canonical_value: 0,
-            targets: vec![CanonicalRelocationTargetV1 {
-                slot: RelocationTargetSlotV1::Single,
-                target: CanonicalRelocationTargetKindV1::StaticStorage(target),
             }],
         }
     }
@@ -269,7 +239,6 @@ struct CanonicalRelocationTargetV1 {
 enum CanonicalRelocationTargetKindV1 {
     Literal(crate::link_object::literal_pools::ObjectLiteral),
     Requirement(CanonicalObjectDefinitionRequirementV1),
-    StaticStorage(CanonicalStaticStorageTargetV1),
     OwningAssociatedAtomOffset {
         atom: ObjectDefinitionAtomId,
         role: DefinitionAtomRole,

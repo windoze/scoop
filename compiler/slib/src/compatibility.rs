@@ -253,20 +253,20 @@ mod tests {
             LanguageAbiContract.fingerprint().unwrap().to_string(),
             "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010802010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010902010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "9ed08083478a8b878ef49b8829f4f47211bed7d434e032970789ff41bab5b4ba"
+            "84066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f24"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258209ed08083478a8b878ef49b8829f4f47211bed7d434e032970789ff41bab5b4ba0301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc900539102582084066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f240301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "046f4c5742a158f104ff7005f0dd6f8bd5fc7ab3933f7f329b433ec8a4f7df74"
+            "4aabba581b4ca4fcffb4e3e020923e507a1e75b4aca4ed3bdd1bc88a89cb3509"
         );
     }
 
@@ -290,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "f61035c788626ca2b967f499ae291d91d711f0305ed9095f0a62ea5835f9e31f"
+            "97adff024fd1bac2b70e7293eccc178a6e064e4be672f4dd23859bf1ce3eeeff"
         );
     }
 

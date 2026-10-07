@@ -59,8 +59,8 @@ pub(crate) struct Fixture {
     pub(crate) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(crate) semantic_plan: StrongSafepointSemanticPlanSetV1,
     pub(crate) foundation: ConeLirFoundation,
-    pub(crate) canonical_callables: scoop_lir::CanonicalCallableLirDefinitionsV1,
-    pub(crate) canonical_shapes: scoop_lir::CanonicalShapeLirDefinitionsV1,
+    pub(crate) canonical_callables: scoop_lir::CanonicalCallableAbisV1,
+    pub(crate) canonical_shapes: scoop_lir::CanonicalShapeAbisV1,
     pub(crate) digest_plan: DigestFinalizationPlanV1,
     pub(crate) registration_plan: StrongSafepointRegistrationPlanSetV1,
     pub(crate) callable_registration_plan: StrongCallableRegistrationPlanSetV1,
@@ -76,12 +76,10 @@ pub(crate) struct Fixture {
 impl Fixture {
     pub(crate) fn new(corruption: Corruption) -> Self {
         let inputs = semantic::inputs(corruption);
-        let canonical_callables = scoop_lir::CanonicalCallableLirDefinitionsV1::from_module(
-            &inputs.module,
-            &inputs.foundation,
-        )
-        .unwrap();
-        let canonical_shapes = scoop_lir::CanonicalShapeLirDefinitionsV1::from_module(
+        let canonical_callables =
+            scoop_lir::CanonicalCallableAbisV1::from_module(&inputs.module, &inputs.foundation)
+                .unwrap();
+        let canonical_shapes = scoop_lir::CanonicalShapeAbisV1::from_module(
             &inputs.module,
             &inputs.foundation,
             inputs

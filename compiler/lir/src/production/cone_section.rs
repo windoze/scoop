@@ -42,8 +42,8 @@ pub struct ConeProductionSection<D, C, I> {
     entry_plan: EntryProductionPlanV1,
     shape_support_plan: ParamFreeShapeSupportPlanSetV1,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
-    canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
-    canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
+    canonical_callables: crate::CanonicalCallableAbisV1,
+    canonical_shapes: crate::CanonicalShapeAbisV1,
 }
 
 impl ConeProductionSectionV1 {
@@ -56,8 +56,8 @@ impl ConeProductionSectionV1 {
         registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
-        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
+        canonical_callables: crate::CanonicalCallableAbisV1,
+        canonical_shapes: crate::CanonicalShapeAbisV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -83,8 +83,8 @@ impl ConeProductionSectionV2 {
         registration_production: crate::StrongRegistrationProductionSurfaceV2,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
-        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
+        canonical_callables: crate::CanonicalCallableAbisV1,
+        canonical_shapes: crate::CanonicalShapeAbisV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -110,8 +110,8 @@ impl<D, C, I> ConeProductionSection<D, C, I> {
         registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        canonical_callables: crate::CanonicalCallableLirDefinitionsV1,
-        canonical_shapes: crate::CanonicalShapeLirDefinitionsV1,
+        canonical_callables: crate::CanonicalCallableAbisV1,
+        canonical_shapes: crate::CanonicalShapeAbisV1,
     ) -> Result<Self, ConeProductionSectionBuildError> {
         digest_finalization_plan
             .validate_against(foundation)
@@ -188,13 +188,11 @@ impl<D, C, I> ConeProductionSection<D, C, I> {
         &self.shape_support_plan
     }
 
-    pub const fn canonical_callable_definitions(
-        &self,
-    ) -> &crate::CanonicalCallableLirDefinitionsV1 {
+    pub const fn canonical_callable_definitions(&self) -> &crate::CanonicalCallableAbisV1 {
         &self.canonical_callables
     }
 
-    pub const fn canonical_shape_definitions(&self) -> &crate::CanonicalShapeLirDefinitionsV1 {
+    pub const fn canonical_shape_definitions(&self) -> &crate::CanonicalShapeAbisV1 {
         &self.canonical_shapes
     }
 
@@ -311,8 +309,8 @@ impl std::error::Error for ConeProductionSectionBuildError {}
 
 #[derive(Debug)]
 pub enum ConeProductionSectionValidationError {
-    CanonicalCallables(crate::CanonicalCallableLirError),
-    CanonicalShapes(crate::CanonicalShapeLirError),
+    CanonicalCallables(crate::CanonicalCallableAbiError),
+    CanonicalShapes(crate::CanonicalShapeAbiError),
     DigestReplay(Box<crate::DigestPlanReplayError>),
     DigestProjection(Box<crate::DigestProjectionError>),
     DigestMismatch,

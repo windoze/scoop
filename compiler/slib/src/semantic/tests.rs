@@ -74,9 +74,9 @@ fn foundation_fingerprints_have_fixed_vectors() {
             fingerprints.lir().to_string()
         ],
         [
-            "9d5c869ebc0c76f8e1f181ac17884a4af14c4d9174c726686acc41f70ca73d8d",
-            "40b09b4835433a85f7c614bea44f9b2e7280ddbdc9d4c5e929b8557bdf14f0df",
-            "be272e353fcc41debd2f53aab9936fdb554bef35b115cd0d693dceeecad0aa00",
+            "1bd0a19c50947a9039a9b5f83eba9533caedfa0de04e15d3baaad2705056c75a",
+            "22725b28ec962d3c15bc2cd267e2e35438cc26d532a730207793dce27e971b45",
+            "41ec9bda7e4e9a33434115c5d8d0f7172f5a1c7e3c43a65201cd0f1fa0a1d59d",
         ]
     );
 }

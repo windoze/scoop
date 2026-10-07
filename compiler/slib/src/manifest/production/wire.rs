@@ -20,8 +20,8 @@ use super::SingleConeProductionManifestV1;
 use crate::CrossConeLayoutProductionManifestV1;
 use crate::link_object::{
     DecodedCanonicalNativeExternalContractCodeSetV1, DecodedCanonicalOdrMemberDirectoryV1,
-    DecodedCanonicalStrongRegistrationFingerprintSetV1, DecodedFixedBytesV1,
-    ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
+    DecodedFixedBytesV1, ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1,
+    VerifiedCodeFingerprintV2,
 };
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
 
@@ -156,7 +156,7 @@ pub struct DecodedSingleConeProductionManifestV1 {
     output: DecodedSingleConeProductionOutputV1,
     image_owner_member: DecodedFixedBytesV1<SlibMemberId>,
     runtime_registration_projection: DecodedRegistrationIdentitySurfaceV1,
-    strong_registration_set: DecodedCanonicalStrongRegistrationFingerprintSetV1,
+
     runtime_image_fingerprint: DecodedFixedBytesV1<RuntimeImageFingerprint>,
     code_fingerprint: DecodedFixedBytesV1<CodeFingerprint>,
     native_contracts: DecodedCanonicalNativeExternalContractCodeSetV1,
@@ -249,7 +249,7 @@ impl DecodedSingleConeProductionManifestV1 {
 
 impl WireEncode for DecodedSingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(12)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -258,8 +258,6 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         self.image_owner_member.encode(encoder)?;
         encoder.field(4)?;
         self.runtime_registration_projection.encode(encoder)?;
-        encoder.field(5)?;
-        self.strong_registration_set.encode(encoder)?;
         encoder.field(6)?;
         self.runtime_image_fingerprint.encode(encoder)?;
         encoder.field(7)?;
@@ -279,17 +277,13 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
 
 impl WireDecode for DecodedSingleConeProductionManifestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(12)?;
+        decoder.expect_map(11)?;
         Ok(Self {
             distribution: decoder.field(1, DecodedArtifactDistributionClassV1::decode)?,
             output: decoder.field(2, DecodedSingleConeProductionOutputV1::decode)?,
             image_owner_member: decoder.field(3, DecodedFixedBytesV1::decode)?,
             runtime_registration_projection: decoder
                 .field(4, DecodedRegistrationIdentitySurfaceV1::decode)?,
-            strong_registration_set: decoder.field(
-                5,
-                DecodedCanonicalStrongRegistrationFingerprintSetV1::decode,
-            )?,
             runtime_image_fingerprint: decoder.field(6, DecodedFixedBytesV1::decode)?,
             code_fingerprint: decoder.field(7, DecodedFixedBytesV1::decode)?,
             native_contracts: decoder

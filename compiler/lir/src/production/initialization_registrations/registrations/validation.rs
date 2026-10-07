@@ -6,7 +6,6 @@ pub(super) fn require_static_storage(
     foundation: &ConeLirFoundation,
     identities: &RegistrationIdentitySurfaceV1,
     storage: PersistentStaticStorageId,
-    digests: &DigestFinalizationPlanV1,
 ) -> Result<
     StrongInitializationStaticStorageRefPlanV1,
     StrongInitializationUnitRegistrationPlanBuildError,
@@ -47,16 +46,6 @@ pub(super) fn require_static_storage(
         PersistentSymbolKey::RootRegistration(storage),
         identity.owner().linkage(),
     )?;
-    let fingerprint = require_digest_node(digests, identity.owner().digest_key(definition.id()))?;
-    if fingerprint.id() != identity.fingerprint_node() {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::ReferencedRegistrationDigestMismatch {
-                registration: InitializationReferencedRegistrationV1::StaticStorage(storage),
-                expected: fingerprint.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
     Ok(StrongInitializationStaticStorageRefPlanV1 {
         storage,
         storage_symbol: require_symbol(
@@ -67,7 +56,6 @@ pub(super) fn require_static_storage(
         registration_symbol: symbol,
         registration_definition_plan: definition.id(),
         registration_primary_atom: primary,
-        registration_fingerprint_node: fingerprint.id(),
     })
 }
 
@@ -112,19 +100,6 @@ pub(super) fn require_callable(
         );
     }
     let registration_primary = require_primary_atom(foundation, registration_definition.id())?;
-    let registration_fingerprint = require_digest_node(
-        digests,
-        identity.owner().digest_key(registration_definition.id()),
-    )?;
-    if registration_fingerprint.id() != identity.fingerprint_node() {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::ReferencedRegistrationDigestMismatch {
-                registration: InitializationReferencedRegistrationV1::Callable(body),
-                expected: registration_fingerprint.id(),
-                actual: identity.fingerprint_node(),
-            },
-        );
-    }
     Ok(StrongInitializationCallableRefPlanV1 {
         body,
         entry_symbol: require_symbol(
@@ -142,7 +117,6 @@ pub(super) fn require_callable(
         body_definition_node: body_node.id(),
         registration_definition_plan: registration_definition.id(),
         registration_primary_atom: registration_primary,
-        registration_fingerprint_node: registration_fingerprint.id(),
     })
 }
 
@@ -241,53 +215,6 @@ pub(super) fn require_digest_node(
         .iter()
         .find(|node| node.key() == &key)
         .ok_or(StrongInitializationUnitRegistrationPlanBuildError::MissingDigestNode(key))
-}
-
-pub(super) fn require_leaf_object_node(
-    digests: &DigestFinalizationPlanV1,
-    atom: ObjectDefinitionAtomId,
-    leaf: InitializationObjectLeafV1,
-) -> Result<&DigestNodeV1, StrongInitializationUnitRegistrationPlanBuildError> {
-    let node = require_digest_node(digests, DigestNodeKey::object_definition(atom))?;
-    if !node.direct_inputs().is_empty() {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::ObjectLeafInputs {
-                leaf,
-                node: node.id(),
-                actual: node.direct_inputs().to_vec(),
-            },
-        );
-    }
-    if !node.patch_intents().is_empty() {
-        return Err(
-            StrongInitializationUnitRegistrationPlanBuildError::ObjectLeafPatches {
-                leaf,
-                node: node.id(),
-                actual: node
-                    .patch_intents()
-                    .iter()
-                    .map(|patch| *patch.key())
-                    .collect(),
-            },
-        );
-    }
-    Ok(node)
-}
-
-pub(super) fn require_only_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongInitializationUnitRegistrationPlanBuildError> {
-    match node.patch_intents() {
-        [patch] if patch.key() == &expected => Ok(patch.id()),
-        actual => Err(
-            StrongInitializationUnitRegistrationPlanBuildError::PatchSet {
-                node: node.id(),
-                expected: Box::new(expected),
-                actual: actual.iter().map(|patch| *patch.key()).collect(),
-            },
-        ),
-    }
 }
 
 fn gateway_patches(

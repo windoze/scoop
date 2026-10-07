@@ -22,15 +22,6 @@ pub enum BuiltinObjectProductionError {
     StaticStorageRegistrations(StrongStaticStorageRegistrationValidationError),
     InitializationRegistrations(StrongInitializationRegistrationValidationError),
     SafepointFingerprints(StrongSafepointFingerprintError),
-    ImmortalObjectRegistrationObjectFingerprints(
-        StrongImmortalObjectRegistrationObjectFingerprintError,
-    ),
-    StaticStorageRegistrationObjectFingerprints(
-        StrongStaticStorageRegistrationObjectFingerprintError,
-    ),
-    InitializationRegistrationObjectFingerprints(
-        StrongInitializationRegistrationObjectFingerprintError,
-    ),
     DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
     CurrentConeRequirements(CurrentConeUndefinedRequirementValidationError),
     NativeRequirementSurface(CanonicalNativeExternalRequirementBuildError),
@@ -44,12 +35,12 @@ pub enum BuiltinObjectProductionError {
     CallableBodyFingerprints(StrongCallableBodyFingerprintError),
     CallableFingerprints(StrongCallableFingerprintError),
     TypeFingerprints(StrongTypeFingerprintError),
-    ImmortalObjectDefinitionFingerprints(StrongImmortalObjectDefinitionFingerprintError),
+
     ImmortalObjectFingerprints(StrongImmortalObjectFingerprintError),
-    StaticStorageDefinitionFingerprints(StrongStaticStorageDefinitionFingerprintError),
+
     StaticStorageShapeFingerprints(StrongStaticStorageShapeFingerprintError),
     StaticStorageFingerprints(StrongStaticStorageFingerprintError),
-    InitializationDefinitionFingerprints(StrongInitializationDefinitionFingerprintError),
+
     InitializationFingerprints(StrongInitializationFingerprintError),
     ConeImage(ConeImageValidationError),
     EntryProduction(EntryProductionValidationError),
@@ -109,9 +100,6 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::StaticStorageRegistrations(source) => Some(source),
             Self::InitializationRegistrations(source) => Some(source),
             Self::SafepointFingerprints(source) => Some(source),
-            Self::ImmortalObjectRegistrationObjectFingerprints(source) => Some(source),
-            Self::StaticStorageRegistrationObjectFingerprints(source) => Some(source),
-            Self::InitializationRegistrationObjectFingerprints(source) => Some(source),
             Self::DefinedSymbols(source) => Some(source),
             Self::CurrentConeRequirements(source) => Some(source),
             Self::NativeRequirementSurface(source) => Some(source),
@@ -125,12 +113,12 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::CallableBodyFingerprints(source) => Some(source),
             Self::CallableFingerprints(source) => Some(source),
             Self::TypeFingerprints(source) => Some(source),
-            Self::ImmortalObjectDefinitionFingerprints(source) => Some(source),
+
             Self::ImmortalObjectFingerprints(source) => Some(source),
-            Self::StaticStorageDefinitionFingerprints(source) => Some(source),
+
             Self::StaticStorageShapeFingerprints(source) => Some(source),
             Self::StaticStorageFingerprints(source) => Some(source),
-            Self::InitializationDefinitionFingerprints(source) => Some(source),
+
             Self::InitializationFingerprints(source) => Some(source),
             Self::ConeImage(source) => Some(source),
             Self::EntryProduction(source) => Some(source),

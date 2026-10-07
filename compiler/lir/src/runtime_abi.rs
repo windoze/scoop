@@ -63,7 +63,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 8,
+                1 => 9,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -755,10 +755,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010802010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010902010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "9ed08083478a8b878ef49b8829f4f47211bed7d434e032970789ff41bab5b4ba"
+            "84066a1e28c42a6f63d910e884d82896f178b4b01c1e9a9638f47537526b7f24"
         );
     }
 
@@ -832,7 +832,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "b92d82f321591de8257a9d15a0c0d6b5fb265941416f3bf8006bdd2b3d35ad27"
+            "610af0dd634a8c26a48c0c9981d9ccbf72ba48c108edd71b68be422c4ac50dcc"
         );
         assert!(
             registry
@@ -888,7 +888,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "1a2cccf01093a35063710f9bdf89395d7f2e4e7619688f5bf9cd2eaefe60fe08"
+            "3b7eb76e52a5fa72f8e014078d3be929db049ba296bc07d28c554c379fe1794f"
         );
     }
 

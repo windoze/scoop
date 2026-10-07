@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use super::physical::{atom_file_range, validate_objects, verified_member};
 use super::record::{DESCRIPTOR_SIZE, validate_record_bytes};
 use super::{
-    CallableRegistrationDigestPlanFailureV1, CallableRegistrationPatchFailureV1,
-    CallableRegistrationRelocationFailureV1, StrongCallableRegistrationValidationError,
+    CallableRegistrationPatchFailureV1, CallableRegistrationRelocationFailureV1,
+    StrongCallableRegistrationValidationError,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -13,19 +13,15 @@ use crate::link_object::{
     VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use scoop_identity::{
-    DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId, DigestSemanticFieldRole,
+    DefinitionAtomRole, DigestNodeId, DigestPatchIntentId, DigestSemanticFieldRole,
     PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_lir::{
-    DigestFinalizationPlanV1, DigestInputRefV1, StrongCallableRegistrationPlanSetV1,
-    StrongCallableRegistrationPlanV1,
-};
+use scoop_lir::{StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1};
 
 mod context_keys;
 
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 152;
-const ENTRY_POINTER_OFFSET: u64 = 184;
+const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
+const ENTRY_POINTER_OFFSET: u64 = 152;
 const DIGEST_WIDTH: u8 = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -35,7 +31,7 @@ pub struct VerifiedStrongCallableRegistrationV1 {
     primary_symbol_table_index: u32,
     checked_offset: u64,
     entry_relocation: StrongRelocationBindingV1,
-    registration_definition_patch: VerifiedMaterializedPatchSiteV1,
+
     body_definition_patch: VerifiedMaterializedPatchSiteV1,
 }
 
@@ -58,10 +54,6 @@ impl VerifiedStrongCallableRegistrationV1 {
 
     pub const fn entry_relocation(&self) -> &StrongRelocationBindingV1 {
         &self.entry_relocation
-    }
-
-    pub const fn registration_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
-        self.registration_definition_patch
     }
 
     pub const fn body_definition_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
@@ -108,7 +100,6 @@ pub fn verify_strong_callable_registrations_v1(
     let objects = validate_objects(patch_sites.builtins(), scoop_objects)?;
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
-        validate_digest_graph(patch_sites.digest_plan(), *registration)?;
         let support = plan
             .runtime_scans()
             .callable(registration.body())
@@ -126,145 +117,6 @@ pub fn verify_strong_callable_registrations_v1(
         plan,
         registrations,
     })
-}
-
-fn validate_digest_graph(
-    digest_plan: &DigestFinalizationPlanV1,
-    plan: StrongCallableRegistrationPlanV1,
-) -> Result<(), StrongCallableRegistrationValidationError> {
-    use CallableRegistrationDigestPlanFailureV1 as Failure;
-
-    let registration_object = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &DigestNodeKey::object_definition(plan.primary_atom()))
-        .ok_or(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::MissingRegistrationObjectDefinitionNode,
-            },
-        )?;
-    if registration_object.id() != plan.registration_object_node() {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationObjectDefinitionNodeIdentity,
-            },
-        );
-    }
-    let odr = matches!(
-        plan.definition_owner(),
-        scoop_lir::RegistrationDefinitionOwner::Odr { .. }
-    );
-    let expected_object_inputs = if odr {
-        vec![DigestInputRefV1::ObjectDefinition(
-            plan.body_definition_node(),
-        )]
-    } else {
-        Vec::new()
-    };
-    if registration_object.direct_inputs() != expected_object_inputs {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationObjectDefinitionDirectInputs,
-            },
-        );
-    }
-    if !registration_object.patch_intents().is_empty() {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationObjectDefinitionPatchSet,
-            },
-        );
-    }
-
-    let body_definition = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &DigestNodeKey::object_definition(plan.body_primary_atom()))
-        .ok_or(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::MissingBodyObjectDefinitionNode,
-            },
-        )?;
-    if body_definition.id() != plan.body_definition_node() {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::BodyObjectDefinitionNodeIdentity,
-            },
-        );
-    }
-
-    let registration = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &plan.definition_owner().digest_key(plan.definition_plan()))
-        .ok_or(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::MissingRegistrationNode,
-            },
-        )?;
-    if registration.id() != plan.registration_fingerprint_node() {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationNodeIdentity,
-            },
-        );
-    }
-    let mut expected_inputs = vec![DigestInputRefV1::from_node(registration_object)];
-    if odr {
-        let lir = digest_plan
-            .nodes()
-            .iter()
-            .find(|node| node.key() == &DigestNodeKey::lir_definition(plan.primary_atom()))
-            .ok_or(
-                StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                    body: plan.body(),
-                    kind: Failure::RegistrationDirectInputs,
-                },
-            )?;
-        expected_inputs.push(DigestInputRefV1::from_node(lir));
-    } else {
-        expected_inputs.push(DigestInputRefV1::from_node(body_definition));
-    }
-    expected_inputs.sort_unstable();
-    if registration.direct_inputs() != expected_inputs {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationDirectInputs,
-            },
-        );
-    }
-    if registration.patch_intents().len() != 1
-        || registration.patch_intents()[0].id() != plan.registration_definition_patch()
-    {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::RegistrationPatchSet,
-            },
-        );
-    }
-    if !body_definition
-        .patch_intents()
-        .iter()
-        .any(|patch| patch.id() == plan.body_definition_patch())
-    {
-        return Err(
-            StrongCallableRegistrationValidationError::DigestPlanMismatch {
-                body: plan.body(),
-                kind: Failure::BodyDefinitionPatchMissing,
-            },
-        );
-    }
-    Ok(())
 }
 
 fn verify_registration(
@@ -334,16 +186,7 @@ fn verify_registration(
 
     let entry_relocation = verify_entry_relocation(patch_sites, verified_member, plan)?;
     context_keys::verify(objects[&member], verified_member, plan, keys)?;
-    let registration_definition_patch = require_patch(
-        patch_sites,
-        plan,
-        plan.registration_definition_patch(),
-        plan.registration_fingerprint_node(),
-        DigestSemanticFieldRole::RegistrationDefinition,
-        member,
-        file_start,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    )?;
+
     let body_definition_patch = require_patch(
         patch_sites,
         plan,
@@ -363,7 +206,7 @@ fn verify_registration(
         primary_symbol_table_index: definition.primary_symbol_table_index(),
         checked_offset: file_start,
         entry_relocation,
-        registration_definition_patch,
+
         body_definition_patch,
     })
 }
@@ -595,10 +438,7 @@ fn validate_exact_atom_patch_set(
     plan: StrongCallableRegistrationPlanV1,
     member: SlibMemberId,
 ) -> Result<(), StrongCallableRegistrationValidationError> {
-    let expected = [
-        plan.registration_definition_patch(),
-        plan.body_definition_patch(),
-    ];
+    let expected = [plan.body_definition_patch()];
     if let Some(site) = patch_sites.sites().iter().find(|site| {
         site.member() == member
             && site.atom() == plan.primary_atom()

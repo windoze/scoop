@@ -44,7 +44,7 @@ pub(super) fn verify(
         .ok_or_else(|| invalid("table atom"))?;
     let pointer = pointers
         .iter()
-        .find(|r| r.offset_within_atom() == 192)
+        .find(|r| r.offset_within_atom() == 160)
         .ok_or_else(|| invalid("table pointer"))?;
     if !points_to(pointer.shape(), pointer.encoded_value(), table) {
         return Err(invalid("table pointer target"));

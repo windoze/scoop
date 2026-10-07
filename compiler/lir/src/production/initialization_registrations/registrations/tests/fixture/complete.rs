@@ -60,8 +60,6 @@ impl Fixture {
                 symbol(PersistentSymbolKey::Layout(layout.layout_record().id())),
                 symbol(PersistentSymbolKey::ScanProgram(layout.scan_record().id())),
             ]);
-            let registration_object = leaf(registration.primary.id());
-            let storage_object = leaf(storage_definition.primary.id());
             let layout_node = with_patch(
                 DigestNodeKey::layout(layout.layout_record().id()),
                 Vec::new(),
@@ -74,27 +72,7 @@ impl Fixture {
                 registration.definition.id(),
                 DigestSemanticFieldRole::Scan,
             );
-            let registration_node = with_patch(
-                DigestNodeKey::strong_registration(registration.definition.id()),
-                [
-                    &registration_object,
-                    &storage_object,
-                    &layout_node,
-                    &scan_node,
-                ]
-                .into_iter()
-                .map(DigestInputRefV1::from_node)
-                .collect(),
-                registration.definition.id(),
-                DigestSemanticFieldRole::RegistrationDefinition,
-            );
-            for node in [
-                registration_object,
-                storage_object,
-                layout_node,
-                scan_node,
-                registration_node,
-            ] {
+            for node in [layout_node, scan_node] {
                 nodes.insert(node.id(), node);
             }
         }
@@ -116,20 +94,29 @@ impl Fixture {
             ));
             let body_node =
                 DigestNodeV1::new(body_key, original.direct_inputs().to_vec(), patches).unwrap();
-            let registration_object = leaf(artifacts.registration.primary.id());
-            let registration_node = with_patch(
-                DigestNodeKey::strong_registration(artifacts.registration.definition.id()),
-                [&registration_object, &body_node]
-                    .into_iter()
-                    .map(DigestInputRefV1::from_node)
-                    .collect(),
-                artifacts.registration.definition.id(),
-                DigestSemanticFieldRole::RegistrationDefinition,
-            );
-            for node in [body_node, registration_object, registration_node] {
+            {
+                let node = body_node;
                 nodes.insert(node.id(), node);
             }
         }
+        let image_key = DigestNodeKey::runtime_image(producer);
+        let image_id = DigestNodeId::from_key(&image_key).unwrap();
+        let inputs = nodes
+            .values()
+            .filter(|node| node.id() != image_id && !node.patch_intents().is_empty())
+            .map(DigestInputRefV1::from_node)
+            .collect();
+        let image = DigestNodeV1::new(
+            image_key,
+            inputs,
+            nodes[&image_id]
+                .patch_intents()
+                .iter()
+                .map(|patch| *patch.key())
+                .collect(),
+        )
+        .unwrap();
+        nodes.insert(image_id, image);
         canonical.set_layouts(layouts).unwrap();
         canonical.set_scans(scans).unwrap();
         canonical.set_definition_plans(definitions).unwrap();
@@ -140,19 +127,9 @@ impl Fixture {
             DigestFinalizationPlanV1::new(nodes.into_values().collect(), &fixture.foundation)
                 .unwrap();
         fixture.identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&fixture.foundation, &fixture.digests)
-                .unwrap();
+            RegistrationIdentitySurfaceV1::from_foundation(&fixture.foundation).unwrap();
         fixture
     }
-}
-
-fn leaf(atom: scoop_identity::ObjectDefinitionAtomId) -> DigestNodeV1 {
-    DigestNodeV1::new(
-        DigestNodeKey::object_definition(atom),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap()
 }
 
 fn with_patch(

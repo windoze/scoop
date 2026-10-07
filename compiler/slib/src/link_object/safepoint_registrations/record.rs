@@ -3,11 +3,10 @@ use scoop_lir::StrongSafepointRegistrationPlanV1;
 use super::StrongSafepointRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
-pub(in crate::link_object) const ABI_VERSION: u32 = 4;
-const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
-pub(super) const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
+pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+pub(super) const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 168;
 const DIGEST_WIDTH: usize = 32;
-pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 232;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 200;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],
@@ -46,27 +45,24 @@ pub(super) fn expected_record(plan: StrongSafepointRegistrationPlanV1) -> [u8; D
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
-    bytes[16..152].copy_from_slice(
+    bytes[16..120].copy_from_slice(
         &crate::link_object::registration_identity::provisional_registration_identity(
             plan.site().as_array(),
             plan.definition_owner(),
         ),
     );
-    write_u64(&mut bytes, 152, plan.safepoint().get());
-    write_u32(&mut bytes, 160, plan.role().tag());
-    write_u32(&mut bytes, 164, plan.root_pair_count());
-    bytes[168..200].copy_from_slice(plan.owner().as_array());
+    write_u64(&mut bytes, 120, plan.safepoint().get());
+    write_u32(&mut bytes, 128, plan.role().tag());
+    write_u32(&mut bytes, 132, plan.root_pair_count());
+    bytes[136..168].copy_from_slice(plan.owner().as_array());
     bytes
 }
 
 pub(in crate::link_object) fn expected_final_record(
     plan: StrongSafepointRegistrationPlanV1,
-    registration: &[u8; DIGEST_WIDTH],
     stackmap: &[u8; DIGEST_WIDTH],
 ) -> [u8; DESCRIPTOR_SIZE] {
     let mut bytes = expected_record(plan);
-    bytes[DEFINITION_FINGERPRINT_OFFSET..DEFINITION_FINGERPRINT_OFFSET + DIGEST_WIDTH]
-        .copy_from_slice(registration);
     bytes[NORMALIZED_STACKMAP_FINGERPRINT_OFFSET
         ..NORMALIZED_STACKMAP_FINGERPRINT_OFFSET + DIGEST_WIDTH]
         .copy_from_slice(stackmap);

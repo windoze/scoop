@@ -1,4 +1,4 @@
-//! Canonical content leaves for the final LIR function bodies.
+//! Shared callable ABIs bound to their existing physical body identities.
 
 use std::fmt;
 
@@ -8,26 +8,25 @@ use scoop_identity::{
 };
 use scoop_wire::{Digest256, HashError, domain_separated_cbor_hash};
 
-use crate::{ConeLirFoundation, Function, Module};
+use crate::{ConeLirFoundation, Module};
 
 mod encode;
 mod wire;
 
 #[cfg(test)]
 pub(crate) mod tests;
-pub use wire::DecodedCanonicalCallableLirDefinitionsV1;
+pub use wire::DecodedCanonicalCallableAbisV1;
 
-/// A content hash, distinct from every persistent entity identity.
+/// The shared ABI and typed ownership of an emitted callable.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CanonicalCallableLirDefinitionV1 {
+pub struct CanonicalCallableAbiV1 {
     body: PersistentCallableBodyId,
-    fingerprint: Digest256,
-    owner: CanonicalCallableDefinitionOwnerV1,
+    owner: CanonicalCallableAbiOwnerV1,
 }
 
 /// ODR members carry their actual member role and complete ABI content.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CanonicalCallableDefinitionOwnerV1 {
+pub enum CanonicalCallableAbiOwnerV1 {
     Strong,
     Odr {
         group: OdrGroupId,
@@ -37,50 +36,38 @@ pub enum CanonicalCallableDefinitionOwnerV1 {
     },
 }
 
-impl CanonicalCallableLirDefinitionV1 {
-    pub const fn new(
-        body: PersistentCallableBodyId,
-        fingerprint: Digest256,
-        owner: CanonicalCallableDefinitionOwnerV1,
-    ) -> Self {
-        Self {
-            body,
-            fingerprint,
-            owner,
-        }
+impl CanonicalCallableAbiV1 {
+    pub const fn new(body: PersistentCallableBodyId, owner: CanonicalCallableAbiOwnerV1) -> Self {
+        Self { body, owner }
     }
 
     pub const fn body(self) -> PersistentCallableBodyId {
         self.body
     }
 
-    pub const fn fingerprint(self) -> Digest256 {
-        self.fingerprint
-    }
-
-    pub const fn owner(self) -> CanonicalCallableDefinitionOwnerV1 {
+    pub const fn owner(self) -> CanonicalCallableAbiOwnerV1 {
         self.owner
     }
 }
 
-/// The exact set of LIR Function leaves, including lowered root and
+/// The complete callable ABI table, including lowered root and
 /// initialization gateways as well as ordinary Strong and ODR bodies.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CanonicalCallableLirDefinitionsV1 {
-    definitions: Vec<CanonicalCallableLirDefinitionV1>,
+pub struct CanonicalCallableAbisV1 {
+    definitions: Vec<CanonicalCallableAbiV1>,
 }
 
-impl CanonicalCallableLirDefinitionsV1 {
+impl CanonicalCallableAbisV1 {
     pub fn from_module(
         module: &Module,
         foundation: &ConeLirFoundation,
-    ) -> Result<Self, CanonicalCallableLirError> {
+    ) -> Result<Self, CanonicalCallableAbiError> {
         let definitions = module
             .callable_bodies()
             .map(|function| {
                 let owner =
                     match body_odr_member(function.callable_body.identity_record(), foundation) {
-                        None => CanonicalCallableDefinitionOwnerV1::Strong,
+                        None => CanonicalCallableAbiOwnerV1::Strong,
                         Some((group, member, role)) => {
                             let abi = domain_separated_cbor_hash(
                                 "scoop-odr-member-abi-v1",
@@ -92,8 +79,8 @@ impl CanonicalCallableLirDefinitionsV1 {
                                     role,
                                 },
                             )
-                            .map_err(CanonicalCallableLirError::Hash)?;
-                            CanonicalCallableDefinitionOwnerV1::Odr {
+                            .map_err(CanonicalCallableAbiError::Hash)?;
+                            CanonicalCallableAbiOwnerV1::Odr {
                                 group,
                                 member,
                                 role,
@@ -101,25 +88,23 @@ impl CanonicalCallableLirDefinitionsV1 {
                             }
                         }
                     };
-                Ok(CanonicalCallableLirDefinitionV1::new(
+                Ok(CanonicalCallableAbiV1::new(
                     function.callable_body.id(),
-                    canonical_callable_lir_fingerprint(module, function)
-                        .map_err(CanonicalCallableLirError::Hash)?,
                     owner,
                 ))
             })
-            .collect::<Result<Vec<_>, CanonicalCallableLirError>>()?;
+            .collect::<Result<Vec<_>, CanonicalCallableAbiError>>()?;
         Self::new(definitions, foundation)
     }
 
     pub fn new(
-        mut definitions: Vec<CanonicalCallableLirDefinitionV1>,
+        mut definitions: Vec<CanonicalCallableAbiV1>,
         foundation: &ConeLirFoundation,
-    ) -> Result<Self, CanonicalCallableLirError> {
+    ) -> Result<Self, CanonicalCallableAbiError> {
         definitions.sort_by_key(|definition| definition.body);
         let mut records = foundation.callable_bodies().iter().collect::<Vec<_>>();
         // Foundation records are topological: a root gateway follows main
-        // even when its body ID sorts first. Content leaves are ID-ordered.
+        // even when its body ID sorts first. ABI records are ID-ordered.
         records.sort_unstable_by_key(|record| record.id());
         let expected = records.iter().map(|record| record.id()).collect::<Vec<_>>();
         let actual = definitions
@@ -127,14 +112,14 @@ impl CanonicalCallableLirDefinitionsV1 {
             .map(|definition| definition.body)
             .collect::<Vec<_>>();
         if actual != expected {
-            return Err(CanonicalCallableLirError::BodySet { expected, actual });
+            return Err(CanonicalCallableAbiError::BodySet { expected, actual });
         }
         for (record, definition) in records.into_iter().zip(&definitions) {
             let matches = match (body_odr_member(record, foundation), definition.owner) {
-                (None, CanonicalCallableDefinitionOwnerV1::Strong) => true,
+                (None, CanonicalCallableAbiOwnerV1::Strong) => true,
                 (
                     Some(expected),
-                    CanonicalCallableDefinitionOwnerV1::Odr {
+                    CanonicalCallableAbiOwnerV1::Odr {
                         group,
                         member,
                         role,
@@ -144,17 +129,17 @@ impl CanonicalCallableLirDefinitionsV1 {
                 _ => false,
             };
             if !matches {
-                return Err(CanonicalCallableLirError::DefinitionOwner { body: record.id() });
+                return Err(CanonicalCallableAbiError::DefinitionOwner { body: record.id() });
             }
         }
         Ok(Self { definitions })
     }
 
-    pub fn definitions(&self) -> &[CanonicalCallableLirDefinitionV1] {
+    pub fn definitions(&self) -> &[CanonicalCallableAbiV1] {
         &self.definitions
     }
 
-    pub fn get(&self, body: PersistentCallableBodyId) -> Option<&CanonicalCallableLirDefinitionV1> {
+    pub fn get(&self, body: PersistentCallableBodyId) -> Option<&CanonicalCallableAbiV1> {
         self.definitions
             .binary_search_by_key(&body, |definition| definition.body)
             .ok()
@@ -197,20 +182,8 @@ fn function_bodies(
         .map(|record| record.id())
 }
 
-/// Computes the content of one actual function without referring to its
-/// producer, diagnostic names, local arena numbering or object placement.
-pub fn canonical_callable_lir_fingerprint(
-    module: &Module,
-    function: &Function,
-) -> Result<Digest256, HashError> {
-    domain_separated_cbor_hash(
-        "scoop-lir-definition-v1",
-        &encode::CallableProjection::new(module, function)?,
-    )
-}
-
 #[derive(Debug)]
-pub enum CanonicalCallableLirError {
+pub enum CanonicalCallableAbiError {
     Hash(HashError),
     BodySet {
         expected: Vec<PersistentCallableBodyId>,
@@ -223,9 +196,9 @@ pub enum CanonicalCallableLirError {
     },
 }
 
-impl fmt::Display for CanonicalCallableLirError {
+impl fmt::Display for CanonicalCallableAbiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "invalid canonical LIR callable definitions: {self:?}")
+        write!(f, "invalid canonical callable ABIs: {self:?}")
     }
 }
-impl std::error::Error for CanonicalCallableLirError {}
+impl std::error::Error for CanonicalCallableAbiError {}

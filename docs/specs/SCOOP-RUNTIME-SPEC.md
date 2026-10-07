@@ -251,11 +251,11 @@ M23-8 起上述 coordinator API 直接接收 `const ScoopInitializationUnitDescr
 
 ### 2.8 M23 多 image 登记与启动
 
-**M31 修订（待实现）：**ODR 只在普通依赖定义一致的前提下比较 typed key 与共享 ABI，不比较不同 producer 的 LIR、机器码、EH 或 stackmap。artifact-only program-link 先选定每个兼容定义，再将 callable 正文、EH、stackmap、callable/safepoint registration 和 Context cell 等实现附属数据作为同一物理选择保留；runtime 只看到所选实现。不同优化级别不能让同一 body 使用另一份实现的栈图，也不能产生两个 TD、static storage 或初始化状态。独立 helper 仍可取并集，不要求整个泛型 group 选择同一 producer。
+**M31 修订：**ODR 只在普通依赖定义一致的前提下比较 typed key 与共享 ABI，不比较不同 producer 的 LIR、机器码、EH 或 stackmap。artifact-only program-link 先选定每个兼容定义，再将 callable 正文、EH、stackmap、callable/safepoint registration 和 Context cell 等实现附属数据作为同一物理选择保留；runtime 只看到所选实现。不同优化级别不能让同一 body 使用另一份实现的栈图，也不能产生两个 TD、static storage 或初始化状态。独立 helper 仍可取并集，不要求整个泛型 group 选择同一 producer。
 
 M31 的 `.slib` 保存各 Cone 的完整候选登记数据与物理归属，最终链接按所选定义生成每 Cone 的 image descriptor 和 pointer 表。落选正文及其私有站点不进入最终对象或登记集合；共享登记只在实际选中 provider 的 image 中列一次。image identity、依赖顺序和初始化协议保持；选择结果与最终 image 内容进入现有链接缓存和内容摘要，不改写输入 `.slib`。本节历史版本中“每个输入 image 已固定全部登记表、native linker 独立 weak coalesce”的做法由此取代，具体产物分工见实现规范 2.19。
 
-M31 将 metadata ABI 从 4 升至 5，删除六类 registration 公共 identity 中仅用于内容判等的 `definition_fingerprint[32]`，保留 linkage、semantic id 与 ODR group/member。`OdrDefinition` 以及仅用于回填该公共字段的 `StrongRegistration` 摘要节点一并退出；记录内容由已有 RuntimeImage／Code／Artifact 摘要覆盖，不增加替代正文摘要。仍有实际消费者的 body、descriptor、layout、scan 和 normalized-stackmap 字段保留，用于所选实现自身的格式、引用和 GC 检查。共同结构缩短 32 bytes，callable record 由 208 变为 176 bytes，其余五类登记按同样删除位置更新；TypeDescriptor、对象头与 managed reference 表示不因此改变。canonical record 同步删除该公共字段；修改 RuntimeImage 编码域及受影响 section/profile，旧产物和缓存重建。以下 ABI 2～4 的字段与摘要公式保留为迁移记录，M31 不再消费其中退役字段。
+M31 将 metadata ABI 从 4 升至 5，删除六类 registration 公共 identity 中仅用于内容判等的 `definition_fingerprint[32]`，保留 linkage、semantic id 与 ODR group/member。`OdrDefinition` 以及仅用于回填该公共字段的 `StrongRegistration` 摘要节点一并退出；记录内容由已有 RuntimeImage／Code／Artifact 摘要覆盖，不增加替代正文摘要。仍有实际消费者的 body、descriptor、layout、scan 和 normalized-stackmap 字段保留，用于所选实现自身的格式、引用和 GC 检查。共同结构缩短 32 bytes，callable record 由 208 变为 176 bytes，其余五类登记按同样删除位置更新；TypeDescriptor、对象头与 managed reference 表示不因此改变。canonical record 同步删除该公共字段；修改 RuntimeImage 编码域及受影响 section/profile，旧产物和缓存重建。ABI 5 的共同 prefix 与 identity 共占 120 bytes；safepoint、callable、type、immortal、static-storage、initialization-unit record 大小依次为 200、176、208、152、264、320 bytes。RuntimeImage 内容编码域为 `scoop-runtime-image-v2`，runtime ABI contract 为 9，受影响的产物 section 版本见实现规范 2.19。以下 ABI 2～4 的字段与摘要公式保留为迁移记录，M31 不再消费其中退役字段。
 
 M23-8/9 继承 M23-6a 的共同 HIR 和 M23-7 的完整机器定义闭包。登记与启动不接收 AST、模板或待推断类型，不补造缺失 callable、scan、TD 或初始化服务；这些缺口在编译／产物消费边界报告。六类 registration、普通与 ODR 定义的去重和动态 GC 检查沿本节实际数据执行，不另建来源专用路径。
 

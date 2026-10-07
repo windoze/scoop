@@ -17,7 +17,7 @@ use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObject
 use super::Corruption;
 
 const COMMAND_BYTES: u32 = 72 + 4 * 80 + 24 + 80;
-const CALLABLE_REGISTRATION_SIZE: u64 = 208;
+const CALLABLE_REGISTRATION_SIZE: u64 = 176;
 const TEXT_FILE_OFFSET: u32 = 32 + COMMAND_BYTES;
 
 pub(super) struct ObjectFixture {
@@ -50,7 +50,7 @@ pub(super) fn object_bytes(
                 * CALLABLE_REGISTRATION_SIZE,
         8,
     );
-    let readonly_size = registration_relative + 352;
+    let readonly_size = registration_relative + 320;
     let cstring_base = readonly_base + readonly_size;
     let diagnostic = plan
         .semantic()
@@ -110,7 +110,7 @@ pub(super) fn object_bytes(
         plan.registration_primary_atom(),
         2,
         readonly_base + registration_relative,
-        352,
+        320,
     );
     insert_location(
         &mut locations,
@@ -136,7 +136,7 @@ pub(super) fn object_bytes(
             );
     }
     readonly[usize::try_from(registration_relative).unwrap()
-        ..usize::try_from(registration_relative + 352).unwrap()]
+        ..usize::try_from(registration_relative + 320).unwrap()]
         .copy_from_slice(&super::super::super::record::expected_record(plan));
     let mut cstring = vec![0; usize::try_from(cstring_size).unwrap()];
     cstring[..diagnostic.len()].copy_from_slice(&diagnostic);
@@ -273,21 +273,14 @@ pub(super) fn object_bytes(
     bytes.extend_from_slice(&strings);
 
     let registration_file = readonly_file_offset + registration_relative;
-    let mut patch_offsets = vec![(
-        plan.registration_definition_patch(),
-        registration_file + 120,
-    )];
+    let mut patch_offsets = Vec::new();
     if let Some(intent) = plan.schedule().gateway_definition_patch() {
-        patch_offsets.push((intent, registration_file + 312));
+        patch_offsets.push((intent, registration_file + 280));
     }
     for callable in callable_plans.registrations() {
         let callable_file =
             readonly_file_offset + callable_registration_relative(callable_plans, callable.body());
-        patch_offsets.push((
-            callable.registration_definition_patch(),
-            callable_file + 120,
-        ));
-        patch_offsets.push((callable.body_definition_patch(), callable_file + 152));
+        patch_offsets.push((callable.body_definition_patch(), callable_file + 120));
     }
     patch_offsets.sort_unstable_by_key(|(intent, _)| *intent);
     ObjectFixture {
@@ -313,10 +306,10 @@ fn relocations(
     let initializer = primary_symbol_index(symbols, plan.initializer().body_definition_plan());
     let ensure = primary_symbol_index(symbols, plan.ensure().body_definition_plan());
     let mut items = vec![
-        (registration + 160, local_diagnostic),
-        (registration + 176, cell),
+        (registration + 128, local_diagnostic),
+        (registration + 144, cell),
         (
-            registration + 184,
+            registration + 152,
             if matches!(corruption, Corruption::StorageRegistrationTarget) {
                 storage
             } else {
@@ -324,17 +317,17 @@ fn relocations(
             },
         ),
         (
-            registration + 192,
+            registration + 160,
             primary_symbol_index(symbols, plan.failure_root().registration_definition_plan()),
         ),
-        (registration + 264, initializer),
-        (registration + 272, ensure),
+        (registration + 232, initializer),
+        (registration + 240, ensure),
     ];
     if let StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway, .. } =
         plan.schedule()
     {
         items.push((
-            registration + 344,
+            registration + 312,
             if matches!(corruption, Corruption::GatewayTarget) {
                 initializer
             } else {
@@ -344,7 +337,7 @@ fn relocations(
     }
     for callable in callable_plans.registrations() {
         items.push((
-            callable_registration_relative(callable_plans, callable.body()) + 184,
+            callable_registration_relative(callable_plans, callable.body()) + 152,
             primary_symbol_index(symbols, callable.body_definition_plan()),
         ));
     }

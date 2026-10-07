@@ -6,8 +6,8 @@ use scoop_identity::ConeIdentity;
 
 use super::{
     DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET, DIGEST_SIZE, LAYOUT_FINGERPRINT_OFFSET,
-    REGISTRATION_DEFINITION_FINGERPRINT_OFFSET, TYPE_REGISTRATION_DESCRIPTOR_MAGIC,
-    TYPE_REGISTRATION_DESCRIPTOR_SIZE, emit_strong_type_registrations_v1,
+    TYPE_REGISTRATION_DESCRIPTOR_MAGIC, TYPE_REGISTRATION_DESCRIPTOR_SIZE,
+    emit_strong_type_registrations_v1,
 };
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
 
@@ -15,7 +15,7 @@ mod support;
 use support::type_plan;
 
 #[test]
-fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
+fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
     let plan = type_plan(1);
     let expected = &plan.registrations()[0];
     let context = Context::create();
@@ -32,14 +32,6 @@ fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
 
-    assert_patch(
-        registration.registration_definition_patch(),
-        expected.registration_definition_patch(),
-        expected.definition_plan(),
-        expected.primary_atom(),
-        descriptor,
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    );
     assert_patch(
         registration.descriptor_definition_patch(),
         expected.descriptor_definition_patch(),
@@ -63,7 +55,7 @@ fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
         .unwrap()
         .into_struct_value();
     assert_eq!(constant_u64(prefix, 0), TYPE_REGISTRATION_DESCRIPTOR_MAGIC);
-    assert_eq!(constant_u64(prefix, 1), 4);
+    assert_eq!(constant_u64(prefix, 1), 5);
     assert_eq!(constant_u64(prefix, 2), TYPE_REGISTRATION_DESCRIPTOR_SIZE);
     let identity = initializer
         .get_field_at_index(1)
@@ -79,7 +71,7 @@ fn emits_closed_strong_record_descriptor_and_three_zero_patch_sites() {
             expected.exact_type().as_array(),
         )
     );
-    for index in 3..=5 {
+    for index in 3..=4 {
         assert!(
             identity
                 .get_field_at_index(index)

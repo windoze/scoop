@@ -5,8 +5,7 @@ use scoop_identity::ConeIdentity;
 
 use super::{
     BODY_DEFINITION_FINGERPRINT_OFFSET, CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC,
-    CALLABLE_REGISTRATION_DESCRIPTOR_SIZE, DIGEST_SIZE, REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-    emit_strong_callable_registrations_v1,
+    CALLABLE_REGISTRATION_DESCRIPTOR_SIZE, DIGEST_SIZE, emit_strong_callable_registrations_v1,
 };
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
 
@@ -14,7 +13,7 @@ mod support;
 use support::callable_plan;
 
 #[test]
-fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
+fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
     let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -42,20 +41,6 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
-
-    let definition_patch = registration.registration_definition_patch();
-    assert_eq!(
-        definition_patch.intent(),
-        expected.registration_definition_patch()
-    );
-    assert_eq!(definition_patch.definition(), expected.definition_plan());
-    assert_eq!(definition_patch.atom(), expected.primary_atom());
-    assert_eq!(
-        definition_patch.byte_offset(),
-        REGISTRATION_DEFINITION_FINGERPRINT_OFFSET
-    );
-    assert_eq!(definition_patch.byte_size(), DIGEST_SIZE);
-
     let body_patch = registration.body_definition_patch();
     assert_eq!(body_patch.intent(), expected.body_definition_patch());
     assert_eq!(body_patch.definition(), expected.definition_plan());
@@ -72,7 +57,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 4);
+    assert_eq!(constant_u64(prefix, 1), 5);
     assert_eq!(
         constant_u64(prefix, 2),
         CALLABLE_REGISTRATION_DESCRIPTOR_SIZE
@@ -91,7 +76,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
             expected.body().as_array()
         )
     );
-    for index in 3..=5 {
+    for index in 3..=4 {
         assert!(
             identity
                 .get_field_at_index(index)

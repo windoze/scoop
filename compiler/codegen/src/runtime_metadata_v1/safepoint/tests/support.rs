@@ -63,12 +63,6 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
-    let object = DigestNodeV1::new(
-        DigestNodeKey::object_definition(primary.id()),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
     let stackmap_key = DigestNodeKey::stackmap_record(safepoint.site_id());
     let stackmap_id = DigestNodeId::from_key(&stackmap_key).unwrap();
     let stackmap = DigestNodeV1::new(
@@ -82,32 +76,14 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
         )],
     )
     .unwrap();
-    let registration_key = DigestNodeKey::strong_registration(plan.id());
-    let registration_id = DigestNodeId::from_key(&registration_key).unwrap();
-    let registration = DigestNodeV1::new(
-        registration_key,
-        vec![
-            DigestInputRefV1::from_node(&object),
-            DigestInputRefV1::from_node(&stackmap),
-        ],
-        vec![DigestPatchIntentKey::new(
-            registration_id,
-            plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RegistrationDefinition,
-        )],
-    )
-    .unwrap();
     let image = DigestNodeV1::new(
         DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
-        vec![DigestInputRefV1::from_node(&registration)],
+        vec![DigestInputRefV1::from_node(&stackmap)],
         Vec::new(),
     )
     .unwrap();
-    let digests =
-        DigestFinalizationPlanV1::new(vec![object, stackmap, registration, image], &foundation)
-            .unwrap();
-    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+    let digests = DigestFinalizationPlanV1::new(vec![stackmap, image], &foundation).unwrap();
+    let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     StrongSafepointRegistrationPlanSetV1::new(&foundation, &identities, &semantics, &digests)
         .unwrap()
 }

@@ -65,12 +65,6 @@ fn joins_unit_storage_callable_and_digest_relations() {
             .role(),
         DefinitionAtomRole::AddressTakenConstant
     );
-    assert_eq!(
-        node(&fixture.digests, plan.registration_fingerprint_node())
-            .direct_inputs()
-            .len(),
-        3
-    );
 }
 
 #[test]
@@ -88,12 +82,6 @@ fn lazy_unit_has_no_gateway_input_or_patch() {
         &StrongInitializationRegistrationSchedulePlanV1::LazyAccess
     );
     assert_eq!(plan.schedule().gateway(), None);
-    assert_eq!(
-        node(&fixture.digests, plan.registration_fingerprint_node())
-            .direct_inputs()
-            .len(),
-        2
-    );
 }
 
 #[test]
@@ -150,27 +138,7 @@ fn requires_cell_registration_and_diagnostic_definition_surfaces() {
             ..
         }) if actual.is_empty()
     ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_object: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongInitializationUnitRegistrationPlanBuildError::MissingDigestNode(_))
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            cell_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(
-            StrongInitializationUnitRegistrationPlanBuildError::ObjectLeafInputs {
-                leaf: InitializationObjectLeafV1::Cell,
-                ..
-            }
-        )
-    ));
+
     assert!(matches!(
         Fixture::new(Options {
             omit_diagnostic_atom: true,
@@ -185,23 +153,7 @@ fn requires_cell_registration_and_diagnostic_definition_surfaces() {
 }
 
 #[test]
-fn requires_exact_inputs_and_schedule_specific_patch_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_cell_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongInitializationUnitRegistrationPlanBuildError::DirectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongInitializationUnitRegistrationPlanBuildError::PatchSet { .. })
-    ));
+fn requires_schedule_specific_patch_writers() {
     assert!(matches!(
         Fixture::new(Options {
             omit_gateway_patch: true,

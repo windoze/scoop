@@ -34,17 +34,6 @@ fn joins_every_callable_to_its_entry_definition_and_digest_writers() {
             plan.entry_symbol().key(),
             PersistentSymbolKey::CallableBody(plan.body())
         );
-        let registration = fixture
-            .digests
-            .nodes()
-            .iter()
-            .find(|node| node.id() == plan.registration_fingerprint_node())
-            .unwrap();
-        assert_eq!(registration.direct_inputs().len(), 2);
-        assert_eq!(
-            registration.patch_intents()[0].id(),
-            plan.registration_definition_patch()
-        );
         let body = fixture
             .digests
             .nodes()
@@ -102,77 +91,20 @@ fn requires_both_strong_symbols_and_primary_atoms() {
 }
 
 #[test]
-fn requires_registration_object_and_both_definition_nodes() {
-    for (options, expected_registration_object) in [
-        (
-            Options {
-                omit_registration_object: true,
-                ..Options::default()
-            },
-            true,
-        ),
-        (
-            Options {
-                omit_body_object: true,
-                ..Options::default()
-            },
-            false,
-        ),
-    ] {
-        let fixture = Fixture::new(options);
-        let expected_atom = if expected_registration_object {
-            fixture.registrations[0].registration_primary.id()
-        } else {
-            fixture.registrations[0].body_primary.id()
-        };
-        let error = fixture.build().unwrap_err();
-        assert!(matches!(
-            error,
-            StrongCallableRegistrationPlanBuildError::MissingDigestNode(key)
-                if key.owner_and_role()
-                    == scoop_identity::DigestOwnerAndRoleKey::ObjectDefinition(expected_atom)
-        ));
-    }
+fn requires_the_callable_body_definition_node() {
+    let fixture = Fixture::new(Options {
+        omit_body_object: true,
+        ..Options::default()
+    });
+    let expected_atom = fixture.registrations[0].body_primary.id();
+    assert!(
+        matches!(fixture.build(), Err(StrongCallableRegistrationPlanBuildError::MissingDigestNode(key))
+        if key.owner_and_role() == scoop_identity::DigestOwnerAndRoleKey::ObjectDefinition(expected_atom))
+    );
 }
 
 #[test]
-fn requires_a_leaf_registration_object_definition() {
-    assert!(matches!(
-        Fixture::new(Options {
-            registration_object_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongCallableRegistrationPlanBuildError::RegistrationObjectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            registration_object_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongCallableRegistrationPlanBuildError::RegistrationObjectPatches { .. })
-    ));
-}
-
-#[test]
-fn requires_exact_registration_inputs_and_digest_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_body_input: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongCallableRegistrationPlanBuildError::DirectInputs { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_registration_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongCallableRegistrationPlanBuildError::PatchSet { .. })
-    ));
+fn requires_the_body_digest_writer() {
     assert!(matches!(
         Fixture::new(Options {
             omit_body_patch: true,
@@ -189,12 +121,9 @@ struct Options {
     omit_entry_symbol: bool,
     omit_registration_symbol: bool,
     omit_registration_primary: bool,
-    omit_registration_object: bool,
+
     omit_body_object: bool,
-    registration_object_input: bool,
-    registration_object_patch: bool,
-    omit_body_input: bool,
-    omit_registration_patch: bool,
+
     omit_body_patch: bool,
 }
 
@@ -303,8 +232,7 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
         let digests = digest_plan(&foundation, &registrations, options);
-        let identities =
-            RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
+        let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         Self {
             foundation,
             identities,
@@ -396,14 +324,6 @@ fn digest_plan(
 ) -> DigestFinalizationPlanV1 {
     let mut nodes = Vec::new();
     let mut image_inputs = Vec::new();
-    let registration_object_input = options.registration_object_input.then(|| {
-        DigestNodeV1::new(
-            DigestNodeKey::source_signature(registrations[0].body.id()),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap()
-    });
     for (index, registration) in registrations.iter().enumerate() {
         let body_key = DigestNodeKey::object_definition(registration.body_primary.id());
         let body_source = DigestNodeId::from_key(&body_key).unwrap();
@@ -429,75 +349,11 @@ fn digest_plan(
             .unwrap()
         });
 
-        if options.omit_last_registration && index == 1 {
-            nodes.push(body.unwrap());
-            continue;
-        }
-        let object_key = DigestNodeKey::object_definition(registration.registration_primary.id());
-        let object_source = DigestNodeId::from_key(&object_key).unwrap();
-        let object = ((!options.omit_registration_object || index != 0)
-            && (!options.omit_registration_primary || index != 0))
-            .then(|| {
-                DigestNodeV1::new(
-                    object_key,
-                    if options.registration_object_input && index == 0 {
-                        vec![DigestInputRefV1::from_node(
-                            registration_object_input.as_ref().unwrap(),
-                        )]
-                    } else {
-                        Vec::new()
-                    },
-                    if options.registration_object_patch && index == 0 {
-                        vec![DigestPatchIntentKey::new(
-                            object_source,
-                            registration.registration_definition.id(),
-                            DefinitionAtomRole::Primary,
-                            DigestSemanticFieldRole::DescriptorDefinition,
-                        )]
-                    } else {
-                        Vec::new()
-                    },
-                )
-                .unwrap()
-            });
-        let strong_key =
-            DigestNodeKey::strong_registration(registration.registration_definition.id());
-        let strong_source = DigestNodeId::from_key(&strong_key).unwrap();
-        let mut inputs = Vec::new();
-        if let Some(object) = &object {
-            inputs.push(DigestInputRefV1::from_node(object));
-        }
-        if !options.omit_body_input || index != 0 {
-            if let Some(body) = &body {
-                inputs.push(DigestInputRefV1::from_node(body));
-            }
-        }
-        let strong = DigestNodeV1::new(
-            strong_key,
-            inputs,
-            if (options.omit_registration_patch || options.omit_registration_primary) && index == 0
-            {
-                Vec::new()
-            } else {
-                vec![DigestPatchIntentKey::new(
-                    strong_source,
-                    registration.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::RegistrationDefinition,
-                )]
-            },
-        )
-        .unwrap();
-        image_inputs.push(DigestInputRefV1::from_node(&strong));
         if let Some(body) = body {
+            image_inputs.push(DigestInputRefV1::from_node(&body));
             nodes.push(body);
         }
-        if let Some(object) = object {
-            nodes.push(object);
-        }
-        nodes.push(strong);
     }
-    nodes.extend(registration_object_input);
     nodes.push(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),

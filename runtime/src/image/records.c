@@ -49,9 +49,8 @@ static RecordSpan record_span(const ScoopImageDescriptorV1 *image,
 
 static void check_identity(const ScoopMetadataCheck *check) {
     const ScoopRegistrationIdentityV1 *identity = check->identity;
-    if (identity->reserved_zero != 0 || scoop_digest_zero(&identity->semantic_id) ||
-        scoop_digest_zero(&identity->definition_fingerprint)) {
-        scoop_metadata_fatal(check, "reserved field or empty identity/fingerprint");
+    if (identity->reserved_zero != 0 || scoop_digest_zero(&identity->semantic_id)) {
+        scoop_metadata_fatal(check, "reserved field or empty identity");
     }
     bool group_zero = scoop_digest_zero(&identity->odr_group_id);
     bool member_zero = scoop_digest_zero(&identity->odr_member_id);

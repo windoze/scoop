@@ -13,12 +13,11 @@ struct DecodedOdrMemberEntry {
     member: DecodedPersistentId<OdrMemberId>,
     role: OdrMemberRole,
     abi: DecodedFixedBytesV1<OdrAbiFingerprintV1>,
-    definition: DecodedFixedBytesV1<OdrDefinitionFingerprintV1>,
 }
 
 impl WireDecode for DecodedOdrMemberEntry {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(3)?;
         Ok(Self {
             member: decoder.field(1, DecodedPersistentId::decode)?,
             role: decoder.field(2, |decoder| {
@@ -29,22 +28,19 @@ impl WireDecode for DecodedOdrMemberEntry {
                 Ok(role)
             })?,
             abi: decoder.field(3, DecodedFixedBytesV1::decode)?,
-            definition: decoder.field(4, DecodedFixedBytesV1::decode)?,
         })
     }
 }
 
 impl WireEncode for DecodedOdrMemberEntry {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.member.encode(encoder)?;
         encoder.field(2)?;
         self.role.encode(encoder)?;
         encoder.field(3)?;
-        self.abi.encode(encoder)?;
-        encoder.field(4)?;
-        self.definition.encode(encoder)
+        self.abi.encode(encoder)
     }
 }
 
@@ -155,11 +151,6 @@ impl DecodedCanonicalOdrMemberDirectoryV1 {
                 }
                 if !actual.abi.matches(expected.abi.as_array()) {
                     return Err(OdrMemberDirectoryValidationError::AbiMismatch(
-                        expected.member,
-                    ));
-                }
-                if !actual.definition.matches(expected.definition.as_array()) {
-                    return Err(OdrMemberDirectoryValidationError::DefinitionMismatch(
                         expected.member,
                     ));
                 }

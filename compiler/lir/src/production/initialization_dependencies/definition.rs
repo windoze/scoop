@@ -1,6 +1,4 @@
-use scoop_identity::{
-    DigestNodeId, ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest,
-};
+use scoop_identity::{ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentSymbolRequest};
 
 use super::*;
 use crate::StrongInitializationUnitRegistrationPlanSet;
@@ -35,7 +33,6 @@ pub struct StrongInitializationUnitDefinitionRefV2 {
     unit: PersistentInitializationUnitId,
     cell: StrongInitializationArtifactRefV2,
     registration: StrongInitializationArtifactRefV2,
-    registration_fingerprint: DigestNodeId,
 }
 
 impl StrongInitializationUnitDefinitionRefV2 {
@@ -61,7 +58,6 @@ impl StrongInitializationUnitDefinitionRefV2 {
                 plan: plan.registration_definition_plan(),
                 primary: plan.registration_primary_atom(),
             },
-            registration_fingerprint: plan.registration_fingerprint_node(),
         })
     }
 
@@ -76,8 +72,5 @@ impl StrongInitializationUnitDefinitionRefV2 {
     }
     pub const fn registration(&self) -> &StrongInitializationArtifactRefV2 {
         &self.registration
-    }
-    pub const fn registration_fingerprint(&self) -> DigestNodeId {
-        self.registration_fingerprint
     }
 }

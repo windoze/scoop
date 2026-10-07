@@ -55,19 +55,19 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
 
     pub const fn immortal_object_registration_objects(
         &self,
-    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
         &self.immortal_object_registration_objects
     }
 
     pub const fn static_storage_registration_objects(
         &self,
-    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
         &self.static_storage_registration_objects
     }
 
     pub const fn initialization_registration_objects(
         &self,
-    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registration_objects
     }
 
@@ -228,19 +228,19 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
 
     pub const fn immortal_object_registration_objects(
         &self,
-    ) -> &VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
         &self.immortal_object_registration_objects
     }
 
     pub const fn static_storage_registration_objects(
         &self,
-    ) -> &VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongStaticStorageRegistrationSetV1 {
         &self.static_storage_registration_objects
     }
 
     pub const fn initialization_registration_objects(
         &self,
-    ) -> &VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongInitializationRegistrationSetV1 {
         &self.initialization_registration_objects
     }
 
@@ -295,25 +295,14 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::Types)?;
 
-        let immortal_object_definitions =
-            crate::compute_strong_immortal_object_definition_fingerprints_v1(
-                immortal_object_registration_objects,
-                undefined_symbols.clone(),
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationDependencyFingerprintError::ImmortalObjectDefinitions)?;
+        let immortal_object_definitions = immortal_object_registration_objects;
         let immortal_objects = crate::compute_strong_immortal_object_fingerprints_v1(
             immortal_object_definitions,
             production.lir().canonical_shape_definitions(),
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::ImmortalObjects)?;
 
-        let static_storage_definitions =
-            crate::compute_strong_static_storage_definition_fingerprints_v1(
-                static_storage_registration_objects,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorageDefinitions)?;
+        let static_storage_definitions = static_storage_registration_objects;
         let static_storage_shapes =
             crate::compute_strong_static_storage_shape_fingerprints_v1(static_storage_definitions)
                 .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorageShapes)?;
@@ -323,12 +312,7 @@ impl<'input> LinkSymbolCheckedSingleConeLinkSections<'input> {
         )
         .map_err(StrongLinkRegistrationDependencyFingerprintError::StaticStorages)?;
 
-        let initialization_definitions =
-            crate::compute_strong_initialization_definition_fingerprints_v1(
-                initialization_registration_objects,
-                &scoop_candidates,
-            )
-            .map_err(StrongLinkRegistrationDependencyFingerprintError::InitializationDefinitions)?;
+        let initialization_definitions = initialization_registration_objects;
         let initializations = crate::compute_strong_initialization_fingerprints_v1(
             initialization_definitions,
             callables.body_objects(),

@@ -11,11 +11,10 @@ use scoop_lir::{
 use super::{RuntimeMetadataV1Types, registration_identity_value};
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 4;
+const METADATA_ABI_VERSION: u64 = 5;
 const SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
-const SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE: u64 = 232;
-const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 200;
+const SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE: u64 = 200;
+const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 168;
 const DIGEST_SIZE: u64 = 32;
 
 /// One graph-managed digest slot in an emitted safepoint registration.
@@ -59,7 +58,7 @@ impl<'ctx> SafepointRegistrationPatchSiteV1<'ctx> {
 pub struct EmittedStrongSafepointRegistrationV1<'ctx> {
     site: PersistentSafepointSiteId,
     descriptor: GlobalValue<'ctx>,
-    registration_definition_patch: SafepointRegistrationPatchSiteV1<'ctx>,
+
     normalized_stackmap_patch: SafepointRegistrationPatchSiteV1<'ctx>,
 }
 
@@ -70,10 +69,6 @@ impl<'ctx> EmittedStrongSafepointRegistrationV1<'ctx> {
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn registration_definition_patch(self) -> SafepointRegistrationPatchSiteV1<'ctx> {
-        self.registration_definition_patch
     }
 
     pub const fn normalized_stackmap_patch(self) -> SafepointRegistrationPatchSiteV1<'ctx> {
@@ -191,13 +186,7 @@ fn emit_registration<'ctx>(
     Ok(EmittedStrongSafepointRegistrationV1 {
         site: plan.site(),
         descriptor,
-        registration_definition_patch: SafepointRegistrationPatchSiteV1 {
-            intent: plan.registration_definition_patch(),
-            definition: plan.definition_plan(),
-            atom: plan.primary_atom(),
-            owner: descriptor,
-            byte_offset: REGISTRATION_DEFINITION_FINGERPRINT_OFFSET,
-        },
+
         normalized_stackmap_patch: SafepointRegistrationPatchSiteV1 {
             intent: plan.normalized_stackmap_patch(),
             definition: plan.definition_plan(),
