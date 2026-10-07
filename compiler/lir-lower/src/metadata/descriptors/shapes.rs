@@ -152,14 +152,7 @@ pub(crate) fn class_type_descriptor(
     external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
 ) -> StorageResult<lir::TypeDescriptor> {
     let def = &module.classes[id];
-    let descriptor_type = if matches!(
-        def.representation,
-        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
-    ) {
-        mir::Type::String
-    } else {
-        mir::Type::Class(id)
-    };
+    let descriptor_type = def.physical_type(id);
     let runtime_type = runtime_type(module, &descriptor_type);
     let root = identity_roots.for_type(&descriptor_type);
     let identity = lir::TypeDescriptorIdentity::new(runtime_type, root.clone())
@@ -171,6 +164,12 @@ pub(crate) fn class_type_descriptor(
     )
     .expect("validated class exact type must derive its instance layout identity");
     let (instance_shape, inline_scan) = match &def.representation {
+        mir::ClassRepresentation::Intrinsic(
+            mir::IntrinsicTypeRepresentation::Any | mir::IntrinsicTypeRepresentation::Nothing,
+        ) => (
+            lir::TypeInstanceShapeV1::abstract_ref(),
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
         mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => (
             lir::TypeInstanceShapeV1::inline_bytes(context.target_profile())?,
             lir::TypeDescriptorInlineScanV1::Null,
@@ -279,7 +278,14 @@ pub(crate) fn class_type_descriptor(
                     .id(),
             },
         },
-        relations: Default::default(),
+        relations: if matches!(
+            def.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)
+        ) {
+            lir::TypeDescriptorRelations::Bottom
+        } else {
+            lir::TypeDescriptorRelations::Absent
+        },
         diagnostic_name: def.name.clone(),
         identity,
         instance_layout,

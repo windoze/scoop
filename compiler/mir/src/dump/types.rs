@@ -22,7 +22,11 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                 element,
             }) => format!("MutableArray<{}>", type_name(module, element)),
             ClassRepresentation::Declared { .. }
-            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => nominal_name(
+            | ClassRepresentation::Intrinsic(
+                IntrinsicTypeRepresentation::String
+                | IntrinsicTypeRepresentation::Any
+                | IntrinsicTypeRepresentation::Nothing,
+            ) => nominal_name(
                 module,
                 &module.classes[*id].name,
                 &module.classes[*id].type_arguments,

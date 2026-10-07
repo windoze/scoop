@@ -97,110 +97,168 @@ impl<Target: Ord> FromIterator<ControlOutcome<Target>> for ControlOutcomes<Targe
 
 pub(crate) type HirControlOutcomes = ControlOutcomes<hir::LoopId>;
 
-/// Analyze a statement list. Once no fallthrough remains, later statements
-/// are unreachable and cannot add outcomes back to the list.
-pub(crate) fn statements_control_outcomes(statements: &[hir::Statement]) -> HirControlOutcomes {
-    let mut outcomes = HirControlOutcomes::fallthrough();
-    for statement in statements {
-        if !outcomes.can_fall_through() {
-            break;
+mod expressions;
+
+impl Lowerer {
+    pub(crate) fn statements_control_outcomes(
+        &self,
+        statements: &[hir::Statement],
+    ) -> HirControlOutcomes {
+        Flow {
+            is_nothing: &|ty| self.is_nothing_ty(ty),
         }
-        outcomes = outcomes.then(statement_control_outcomes(statement));
+        .statements(statements)
     }
-    outcomes
-}
 
-fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes {
-    match &statement.kind {
-        hir::StatementKind::ContextScope { body, .. } => statements_control_outcomes(body),
-        hir::StatementKind::Return { .. } => HirControlOutcomes::singleton(ControlOutcome::Return),
-        hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
-        hir::StatementKind::Break { target } => {
-            HirControlOutcomes::singleton(ControlOutcome::Break(*target))
+    pub(crate) fn expression_can_complete(&self, expression: &hir::Expr) -> bool {
+        Flow {
+            is_nothing: &|ty| self.is_nothing_ty(ty),
         }
-        hir::StatementKind::Continue { target } => {
-            HirControlOutcomes::singleton(ControlOutcome::Continue(*target))
-        }
-        hir::StatementKind::If {
-            then_body,
-            else_body,
-            ..
-        } => statements_control_outcomes(then_body).union(
-            else_body
-                .as_deref()
-                .map_or_else(HirControlOutcomes::fallthrough, statements_control_outcomes),
-        ),
-        hir::StatementKind::When(when) => when_control_outcomes(when),
-        hir::StatementKind::Try(try_) => {
-            let mut incoming = statements_control_outcomes(&try_.body);
-            for catch in &try_.catches {
-                incoming = incoming.union(statements_control_outcomes(&catch.body));
-            }
-            match try_.finally_body.as_deref() {
-                Some(body) => incoming.apply_finally(statements_control_outcomes(body)),
-                None => incoming,
-            }
-        }
-        hir::StatementKind::While {
-            target,
-            condition_setup,
-            body,
-            ..
-        } => {
-            let mut setup = statements_control_outcomes(condition_setup);
-            let reaches_condition = setup.values.remove(&ControlOutcome::Fallthrough);
-            let setup_breaks = setup.consume_loop_jumps(*target);
-
-            let mut result = setup;
-            if setup_breaks {
-                result.values.insert(ControlOutcome::Fallthrough);
-            }
-
-            if reaches_condition {
-                // A completed condition may be false before the first
-                // iteration, so the loop conservatively falls through. Body
-                // fallthrough and continue are backedges; a matching break is
-                // another path to the same exit.
-                result.values.insert(ControlOutcome::Fallthrough);
-                let mut body_outcomes = statements_control_outcomes(body);
-                body_outcomes.values.remove(&ControlOutcome::Fallthrough);
-                body_outcomes.consume_loop_jumps(*target);
-                result = result.union(body_outcomes);
-            }
-            result
-        }
-        hir::StatementKind::Expr(_)
-        | hir::StatementKind::InitializationEnsure(_)
-        | hir::StatementKind::GenericDelegateEnsure(_)
-        | hir::StatementKind::LocalFunction(_)
-        | hir::StatementKind::ValDecl { .. }
-        | hir::StatementKind::Assign { .. } => HirControlOutcomes::fallthrough(),
+        .expression_can_complete(expression)
     }
 }
 
-/// Fold ordered `when` arms from the fallback edge. This mirrors MIR's
-/// first-match lowering: an unguarded irrefutable pattern cuts off later arms,
-/// while a guard's setup must complete before either the body or next arm is
-/// reachable.
-fn when_control_outcomes(when: &hir::When) -> HirControlOutcomes {
-    let mut next = match &when.fallback {
-        hir::WhenFallback::Else(body) => statements_control_outcomes(body),
-        hir::WhenFallback::Impossible(_) => HirControlOutcomes::empty(),
-    };
+struct Flow<'a> {
+    is_nothing: &'a dyn Fn(TypeId) -> bool,
+}
 
-    for arm in when.arms.iter().rev() {
-        let body = statements_control_outcomes(&arm.body);
-        let matched = match &arm.guard {
-            Some(guard) => statements_control_outcomes(&guard.setup).then(body.union(next.clone())),
-            None => body,
-        };
-        next = if crate::patterns::is_irrefutable(&arm.pattern) {
-            matched
+impl Flow<'_> {
+    /// Later statements cannot restore an already terminated normal path.
+    fn statements(&self, statements: &[hir::Statement]) -> HirControlOutcomes {
+        let mut outcomes = HirControlOutcomes::fallthrough();
+        for statement in statements {
+            if !outcomes.can_fall_through() {
+                break;
+            }
+            outcomes = outcomes.then(self.statement(statement));
+        }
+        outcomes
+    }
+
+    fn expression(&self, expression: &hir::Expr) -> HirControlOutcomes {
+        if self.expression_can_complete(expression) {
+            HirControlOutcomes::fallthrough()
         } else {
-            matched.union(next)
-        };
+            // Nothing may throw or diverge. Only the exceptional exit can
+            // enter a catch/finally region; there is no normal result.
+            HirControlOutcomes::singleton(ControlOutcome::Throw)
+        }
     }
-    next
+
+    fn statement(&self, statement: &hir::Statement) -> HirControlOutcomes {
+        match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                self.expression(value).then(self.statements(body))
+            }
+            hir::StatementKind::Return { value } => value
+                .as_ref()
+                .map_or_else(HirControlOutcomes::fallthrough, |value| {
+                    self.expression(value)
+                })
+                .then(HirControlOutcomes::singleton(ControlOutcome::Return)),
+            hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
+            hir::StatementKind::Break { target } => {
+                HirControlOutcomes::singleton(ControlOutcome::Break(*target))
+            }
+            hir::StatementKind::Continue { target } => {
+                HirControlOutcomes::singleton(ControlOutcome::Continue(*target))
+            }
+            hir::StatementKind::If {
+                cond,
+                then_body,
+                else_body,
+            } => self.expression(cond).then(
+                self.statements(then_body).union(
+                    else_body
+                        .as_deref()
+                        .map_or_else(HirControlOutcomes::fallthrough, |body| {
+                            self.statements(body)
+                        }),
+                ),
+            ),
+            hir::StatementKind::When(when) => self.expression(&when.subject).then(self.when(when)),
+            hir::StatementKind::Try(try_) => {
+                let mut incoming = self.statements(&try_.body);
+                for catch in &try_.catches {
+                    incoming = incoming.union(self.statements(&catch.body));
+                }
+                match try_.finally_body.as_deref() {
+                    Some(body) => incoming.apply_finally(self.statements(body)),
+                    None => incoming,
+                }
+            }
+            hir::StatementKind::While {
+                target,
+                condition_setup,
+                cond,
+                body,
+            } => {
+                let mut setup = self.statements(condition_setup).then(self.expression(cond));
+                let reaches_condition = setup.values.remove(&ControlOutcome::Fallthrough);
+                let setup_breaks = setup.consume_loop_jumps(*target);
+                let mut result = setup;
+                if setup_breaks {
+                    result.values.insert(ControlOutcome::Fallthrough);
+                }
+                if reaches_condition {
+                    let mut body_outcomes = self.statements(body);
+                    body_outcomes.values.remove(&ControlOutcome::Fallthrough);
+                    let body_breaks = body_outcomes.consume_loop_jumps(*target);
+                    if body_breaks || !matches!(cond.kind, hir::ExprKind::BoolLiteral(true)) {
+                        result.values.insert(ControlOutcome::Fallthrough);
+                    }
+                    result = result.union(body_outcomes);
+                }
+                result
+            }
+            hir::StatementKind::Expr(value) | hir::StatementKind::ValDecl { init: value, .. } => {
+                self.expression(value)
+            }
+            hir::StatementKind::Assign { target, value } => {
+                let receiver = match target {
+                    hir::AssignTarget::Index { array, index } => {
+                        self.expression(array).then(self.expression(index))
+                    }
+                    hir::AssignTarget::Field { receiver, .. } => self.expression(receiver),
+                    hir::AssignTarget::Local(_)
+                    | hir::AssignTarget::Global(_)
+                    | hir::AssignTarget::GenericDelegateStorage(_)
+                    | hir::AssignTarget::SingletonPublishedRoot(_)
+                    | hir::AssignTarget::InitializingClassField { .. } => {
+                        HirControlOutcomes::fallthrough()
+                    }
+                };
+                receiver.then(self.expression(value))
+            }
+            hir::StatementKind::InitializationEnsure(_)
+            | hir::StatementKind::GenericDelegateEnsure(_)
+            | hir::StatementKind::LocalFunction(_) => HirControlOutcomes::fallthrough(),
+        }
+    }
+
+    /// Ordered first-match arms preserve guard evaluation and fallback edges.
+    fn when(&self, when: &hir::When) -> HirControlOutcomes {
+        let mut next = match &when.fallback {
+            hir::WhenFallback::Else(body) => self.statements(body),
+            hir::WhenFallback::Impossible(_) => HirControlOutcomes::empty(),
+        };
+        for arm in when.arms.iter().rev() {
+            let body = self.statements(&arm.body);
+            let matched = match &arm.guard {
+                Some(guard) => self
+                    .statements(&guard.setup)
+                    .then(self.expression(&guard.condition))
+                    .then(body.union(next.clone())),
+                None => body,
+            };
+            next = if crate::patterns::is_irrefutable(&arm.pattern) {
+                matched
+            } else {
+                matched.union(next)
+            };
+        }
+        next
+    }
 }
 
 #[cfg(test)]
@@ -251,7 +309,10 @@ mod tests {
         expected: impl IntoIterator<Item = ControlOutcome<hir::LoopId>>,
     ) {
         assert_eq!(
-            statements_control_outcomes(statements),
+            Flow {
+                is_nothing: &|_| false
+            }
+            .statements(statements),
             expected.into_iter().collect()
         );
     }

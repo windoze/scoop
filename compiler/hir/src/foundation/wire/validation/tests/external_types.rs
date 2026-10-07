@@ -16,7 +16,7 @@ fn external_nominal_references_round_trip_for_core_and_ordinary_consumers() {
         );
         let validated = decoded.validate(&coordinate, &mut identities).unwrap();
         assert_eq!(encode(&validated).unwrap(), encode(&canonical).unwrap());
-        assert_eq!(validated.counts().types, 2);
+        assert_eq!(validated.counts().types, 1);
         assert_eq!(validated.counts().generic_types, 0);
         assert_eq!(validated.counts().external_source_types, 1);
         assert_eq!(validated.counts().external_generic_types, 1);
@@ -79,7 +79,6 @@ fn every_consumer_rejects_local_nominals_in_the_external_reference_table() {
                 canonical
                     .set_types(vec![
                         CoreBuiltinNominal::Unit.identity_record(),
-                        CoreBuiltinNominal::Any.identity_record(),
                         source.clone(),
                     ])
                     .unwrap();
@@ -142,10 +141,7 @@ fn external_nominals(
     .unwrap();
     let mut canonical = CanonicalHirFoundation::empty();
     canonical
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record()])
         .unwrap();
     canonical
         .set_exact_types(vec![unit, source_exact, generic_exact])

@@ -17,6 +17,13 @@ fn validate(
         fixture.target,
         fixture.metadata(),
         fixture.metadata().identities,
+        |owner| {
+            fixture
+                .metadata()
+                .public
+                .nominal_interfaces()
+                .get(crate::SourceNominalId::Concrete(owner))
+        },
     )
     .map(|_| ())
 }

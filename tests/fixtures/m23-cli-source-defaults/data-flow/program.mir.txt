@@ -133,9 +133,7 @@ Module
         Type Int
         Local $call.1
     bb4 while.cond.4 <loop-header-poll>
-      branch bb6 bb5
-        Type Boolean
-        BoolLiteral true
+      goto bb6
     bb5 while.exit.5
       branch bb7 bb8
         Type Boolean

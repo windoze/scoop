@@ -78,13 +78,25 @@ impl Lowerer {
             } else {
                 None
             };
-            let value = if statements_control_outcomes(&statements).can_fall_through() {
-                Some(value.unwrap_or(hir::Expr {
+            let value = if self
+                .statements_control_outcomes(&statements)
+                .can_fall_through()
+            {
+                let value = value.unwrap_or(hir::Expr {
                     kind: hir::ExprKind::UnitLiteral,
                     ty: self.unit,
                     span: block.span,
                     origin: self.expression_origin(block.span),
-                }))
+                });
+                if self.expression_can_complete(&value) {
+                    Some(value)
+                } else {
+                    statements.push(hir::Statement {
+                        span: value.span,
+                        kind: hir::StatementKind::Expr(value),
+                    });
+                    None
+                }
             } else {
                 None
             };
@@ -119,13 +131,11 @@ impl Lowerer {
             .iter()
             .filter_map(|block| block.value.as_ref().map(|value| value.ty))
             .collect();
-        let result_ty = expected.unwrap_or_else(|| {
-            if value_types.is_empty() {
-                self.unit
-            } else {
-                self.least_upper_bound(&value_types)
-            }
-        });
+        let result_ty = if value_types.is_empty() {
+            self.nothing_type()
+        } else {
+            expected.unwrap_or_else(|| self.least_upper_bound(&value_types))
+        };
         for block in blocks.iter() {
             if let Some(value) = &block.value
                 && !self.is_subtype(value.ty, result_ty)

@@ -50,7 +50,6 @@ pub(in crate::cross_cone_compile_decode::tests) fn enum_variant_callable_surface
     foundation
         .set_types(vec![
             CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
             nominal.clone(),
         ])
         .unwrap();

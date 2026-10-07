@@ -65,11 +65,11 @@ fn strong_graph_decodes_all_link_sections_atomically() {
     let _ = sections.link_identity_closure_wire();
     let _ = sections.production_manifest_wire();
     let checked = sections.validate_identities().unwrap();
-    assert_eq!(checked.identity_count(), 19);
-    assert_eq!(checked.declared_identity_count(), 17);
+    assert_eq!(checked.identity_count(), 18);
+    assert_eq!(checked.declared_identity_count(), 16);
     let odr_free = checked.validate_foundation_structure().unwrap();
     assert_eq!(odr_free.identity(), cone().identity());
-    assert_eq!(odr_free.declared_identity_count(), 17);
+    assert_eq!(odr_free.declared_identity_count(), 16);
     assert_eq!(odr_free.hir_foundation().counts().odr_groups, 0);
     assert_eq!(odr_free.mir_foundation().counts().odr_groups, 0);
     assert_eq!(

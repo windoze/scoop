@@ -8,7 +8,11 @@ impl Harness {
     }
 
     pub(in crate::tests) fn any(&mut self) -> hir::TypeId {
-        self.types.alloc(hir::Type::Any)
+        let existing = self
+            .types
+            .iter()
+            .find_map(|(id, ty)| matches!(ty, hir::Type::Any).then_some(id));
+        existing.unwrap_or_else(|| self.types.alloc(hir::Type::Any))
     }
 
     pub(in crate::tests) fn class_ty(&mut self, id: hir::ClassId) -> hir::TypeId {

@@ -105,6 +105,10 @@ impl Concretizer<'_> {
                 self.source.nominal_identities[protocols.fundamental_types.string].declaration_id(),
                 Vec::new(),
             )],
+            any: self.class_by_key[&(
+                self.source.nominal_identities[protocols.fundamental_types.any].declaration_id(),
+                Vec::new(),
+            )],
         };
 
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {

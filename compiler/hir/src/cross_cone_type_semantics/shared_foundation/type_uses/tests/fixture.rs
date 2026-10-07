@@ -24,10 +24,14 @@ pub(super) struct Loaded {
 
 impl Artifact {
     pub fn new(coordinate: ConeCoordinate) -> Self {
-        Self {
+        let mut artifact = Self {
             coordinate,
             nominals: Vec::new(),
+        };
+        if artifact.coordinate.identity().unwrap() == ConeIdentity::CORE {
+            artifact.nominal("Any", SourceNominalKind::Class, &[]);
         }
+        artifact
     }
 
     pub fn load(self, dependencies: &[&Loaded]) -> Loaded {
@@ -48,10 +52,7 @@ impl Artifact {
         )
         .unwrap();
         let mut canonical = CanonicalHirFoundation::empty();
-        let mut types = vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-        ];
+        let mut types = vec![CoreBuiltinNominal::Unit.identity_record()];
         types.extend(self.nominals.iter().map(|(identity, _)| identity.clone()));
         canonical.set_types(types).unwrap();
         canonical
@@ -72,16 +73,12 @@ impl Artifact {
                     .map(|(identity, _)| {
                         CborIdentityRecord::from_key(ExactTypeKey::Nominal(identity.id())).unwrap()
                     })
-                    .chain(
-                        [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
-                            .into_iter()
-                            .map(|builtin| {
-                                CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-                                    builtin.identity_record().id(),
-                                ))
-                                .unwrap()
-                            }),
-                    )
+                    .chain([CoreBuiltinNominal::Unit].into_iter().map(|builtin| {
+                        CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+                            builtin.identity_record().id(),
+                        ))
+                        .unwrap()
+                    }))
                     .collect(),
             )
             .unwrap();

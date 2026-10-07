@@ -294,6 +294,7 @@ impl Lowerer {
                     },
                     signature.return_type.clone(),
                     &self.enums.defs,
+                    &self.classes,
                 ),
             );
             self.functions[function].params = params;

@@ -59,19 +59,59 @@ impl Lowerer {
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let representation = match checked.intrinsic {
             Some(spec) => {
-                self.validate_intrinsic_type_source_shape(
+                if !self.validate_intrinsic_type_source_shape(
                     spec,
                     &decl.name,
                     &decl.type_params,
                     decl.where_clause.as_ref(),
                     decl.constructor.is_omitted(),
                     decl.span,
-                );
-                if modifier != hir::ClassModifier::Final {
+                ) {
+                    return None;
+                }
+                let required_modifier = if spec.kind == hir::IntrinsicTypeKind::Any {
+                    hir::ClassModifier::Abstract
+                } else {
+                    hir::ClassModifier::Final
+                };
+                if modifier != required_modifier {
                     self.error(
                         decl.span,
-                        "an intrinsic class declaration must be final".to_string(),
+                        if spec.kind == hir::IntrinsicTypeKind::Any {
+                            "intrinsic type `core_any` must be abstract".to_string()
+                        } else {
+                            "an intrinsic class declaration must be final".to_string()
+                        },
                     );
+                }
+                if matches!(
+                    spec.kind,
+                    hir::IntrinsicTypeKind::Any | hir::IntrinsicTypeKind::Nothing
+                ) {
+                    if !decl.supertypes.is_empty() {
+                        self.error(
+                            decl.span,
+                            "a root intrinsic type cannot declare supertypes".to_string(),
+                        );
+                    }
+                    for member in &decl.members {
+                        self.error(
+                            member.span(),
+                            "a root intrinsic type cannot declare members".to_string(),
+                        );
+                    }
+                    if !matches!(
+                        decl.visibility,
+                        ast::VisibilitySyntax::Explicit {
+                            visibility: ast::DeclaredVisibility::Public,
+                            ..
+                        }
+                    ) {
+                        self.error(
+                            decl.name.span,
+                            "a root intrinsic type must be public".to_string(),
+                        );
+                    }
                 }
                 if decl
                     .supertypes

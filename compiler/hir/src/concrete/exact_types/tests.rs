@@ -24,6 +24,7 @@ fn empty_tuple_cannot_enter_the_exact_type_relation() {
         .expect("the synthetic integer owner ids are distinct"),
         boolean: StructId::from_raw(0_u32.into()),
         string: ClassId::from_raw(0_u32.into()),
+        any: ClassId::from_raw(1_u32.into()),
     };
 
     let error = ExactTypeIdentities::from_types(ExactTypeIdentityInputs {

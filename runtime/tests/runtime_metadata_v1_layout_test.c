@@ -12,7 +12,7 @@ int main(void) {
     };
 
     if (prefix.magic != UINT64_C(0x53434f4f50494d47) ||
-        prefix.abi_version != 5 || prefix.struct_size != 240) {
+        prefix.abi_version != 6 || prefix.struct_size != 240) {
         return 2;
     }
     if (SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1 != UINT64_C(0x53434f4f50454e54) ||

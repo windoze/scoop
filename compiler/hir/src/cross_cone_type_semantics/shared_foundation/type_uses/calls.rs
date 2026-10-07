@@ -32,6 +32,18 @@ impl Graph<'_> {
                         reference.target(),
                         metadata,
                         self.current.identities,
+                        |owner| {
+                            let owner = SourceNominalId::Concrete(owner);
+                            self.current
+                                .public
+                                .nominal_interfaces()
+                                .get(owner)
+                                .or_else(|| {
+                                    self.providers.values().find_map(|provider| {
+                                        provider.metadata.public.nominal_interfaces().get(owner)
+                                    })
+                                })
+                        },
                     )
                     .map_err(|source| Error::CallSignature {
                         position: call.position(),

@@ -1,0 +1,2 @@
+fun <T> fail(): T { throw IllegalStateException() }
+fun main() { val value = fail() }

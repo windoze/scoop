@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::CoreBuiltinNominal;
-
 use super::{HirNativeBoundaryTypeDefinitionError, HirNativeBoundaryTypeDefinitionInputs};
 use crate::{
     ClassId, EnumId, HirNominalIdentity, HirSourceNominalIdentity, InterfaceId,
@@ -10,7 +8,7 @@ use crate::{
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum LocalNominalDeclaration {
-    CoreBuiltin(CoreBuiltinNominal),
+    Unit,
     Struct(StructId),
     Enum(EnumId),
     Class(ClassId),
@@ -64,13 +62,11 @@ impl LocalNominalDeclarations {
                 LocalNominalDeclaration::Object(id),
             )?;
         }
-        for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-            declarations
-                .entry(NativeBoundaryNominalOwner::Concrete(
-                    inputs.nominal_identities.core_builtin(builtin).id(),
-                ))
-                .or_insert(LocalNominalDeclaration::CoreBuiltin(builtin));
-        }
+        declarations
+            .entry(NativeBoundaryNominalOwner::Concrete(
+                inputs.nominal_identities.unit().id(),
+            ))
+            .or_insert(LocalNominalDeclaration::Unit);
         Ok(Self { declarations })
     }
 

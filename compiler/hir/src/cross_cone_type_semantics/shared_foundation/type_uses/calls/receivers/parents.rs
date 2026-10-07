@@ -13,13 +13,6 @@ impl Graph<'_> {
         if matches!(key.as_ref(), ExactTypeKey::Tuple(_)) {
             return Ok(Vec::new());
         }
-        // Any has no source declaration; Unit members use its ordinary core declaration.
-        if let ExactTypeKey::Nominal(owner) = key.as_ref() {
-            self.resolve_nominal(*owner)?;
-            if CoreBuiltinNominal::Any.identity_record().id() == *owner {
-                return Ok(Vec::new());
-            }
-        }
         let dependencies = self.providers.values().map(|provider| provider.metadata);
         let application = self.current.applied_nominal(receiver, dependencies)?;
         let bindings = application.bindings();

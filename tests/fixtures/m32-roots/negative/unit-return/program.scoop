@@ -1,0 +1,2 @@
+fun bad(): Nothing = Unit
+fun main() {}

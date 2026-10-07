@@ -336,6 +336,7 @@ impl Lowerer {
             },
             return_ty.clone(),
             &self.enums.defs,
+            &self.classes,
         );
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,

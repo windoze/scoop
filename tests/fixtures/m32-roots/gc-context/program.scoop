@@ -1,0 +1,37 @@
+class Node(val value: Long)
+struct Pair(val first: Node, val second: Node)
+enum Item { Value(Node), Empty }
+
+context(node: Node)
+fun current(): Long = node.value
+
+fun fail(): Nothing {
+    context(Node(99L)) {
+        gcCollect()
+        throw IllegalStateException()
+    }
+}
+
+@Unsafe fun main() {
+    val node = Node(20L)
+    val pair: Any = Pair(node, Node(22L))
+    val tuple: Any = (node, Node(22L))
+    val reference: Any = node
+    val scalar: Any = 42
+    val unit: Any = Unit
+    val variant: Any = Item.Value(node)
+    context(Node(7L)) {
+        try { fail() }
+        catch (error: IllegalStateException) { println(current()) }
+        finally { println(current()) }
+        gcCollect()
+        println(reference === node)
+        val retained = pair as Pair
+        println(retained.first.value + retained.second.value)
+        val (first, second) = tuple as (Node, Node)
+        println(first.value + second.value)
+        println(scalar as Int)
+        println(unit is Unit)
+        println(when (variant as Item) { Item.Value(value) -> value.value; Item.Empty -> 0L })
+    }
+}

@@ -86,13 +86,18 @@ impl Concretizer<'_> {
             | concrete::ClassRepresentation::Intrinsic {
                 application:
                     concrete::IntrinsicTypeRepresentation::Array { .. }
-                    | concrete::IntrinsicTypeRepresentation::MutableArray { .. },
+                    | concrete::IntrinsicTypeRepresentation::MutableArray { .. }
+                    | concrete::IntrinsicTypeRepresentation::Nothing,
                 ..
             } => concrete::TypeKind::Class(id),
             concrete::ClassRepresentation::Intrinsic {
                 application: concrete::IntrinsicTypeRepresentation::String,
                 ..
             } => concrete::TypeKind::String,
+            concrete::ClassRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Any,
+                ..
+            } => concrete::TypeKind::Any,
             _ => unreachable!("the registry fixes intrinsic class representations"),
         };
         let ty = self.intern_type(kind, false);

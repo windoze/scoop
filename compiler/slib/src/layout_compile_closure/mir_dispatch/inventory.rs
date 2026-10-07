@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
+use scoop_identity::SignatureTypeKey;
 
 pub(super) fn validate(
     source: hir::CheckedSharedTypeFoundationV1<'_>,
@@ -35,22 +35,6 @@ pub(super) fn validate(
             replay.record(nominal, false, get(dispatch, backing)?)?;
             insert(&mut required, backing)?;
         }
-    }
-    let any = source
-        .metadata()
-        .signature_exact_type(&SignatureTypeKey::Nominal(
-            CoreBuiltinNominal::Any.identity_record().id(),
-        ))?;
-
-    if source.facts().get(any).is_some() {
-        let record = get(dispatch, any)?;
-        Error::schema(
-            any,
-            Component::Tables,
-            matches!(record.slots(), mir::MirDispatchSlotsV1::ClassVtable(entries) if entries.is_empty())
-                && record.itables().is_empty(),
-        )?;
-        insert(&mut required, any)?;
     }
     for record in dispatch.records() {
         if !required.contains(&record.owner()) {

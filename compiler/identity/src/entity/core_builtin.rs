@@ -16,8 +16,8 @@ pub enum CoreImportedCallableKind {
     InitializationCycleThrower,
 }
 
-/// Compiler-owned nominal types that have no ordinary source declaration
-/// arena entry. Their source-shaped keys are fixed by trusted core authority.
+/// Canonical keys for established core declarations. These keys do not supply
+/// declarations or type representations: Any requires its actual source record.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CoreBuiltinNominal {
     Unit,

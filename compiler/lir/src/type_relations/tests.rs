@@ -19,6 +19,7 @@ fn relations_wire_preserves_any_effect_and_ordered_operands() {
     };
     for relation in [
         TypeDescriptorRelations::Absent,
+        TypeDescriptorRelations::Bottom,
         TypeDescriptorRelations::Signature {
             is_suspend: false,
             parameters: Vec::new(),
@@ -47,7 +48,8 @@ fn relations_wire_preserves_any_effect_and_ordered_operands() {
 #[test]
 fn relations_reject_incomplete_unknown_and_out_of_range_payloads() {
     for bytes in [
-        &[0xa1, 0, 4][..],
+        &[0xa1, 0, 5][..],
+        &[0xa2, 0, 4, 1, 0x80],
         &[0xa1, 0, 1],
         &[0xa3, 0, 0, 1, 0x80, 2, 0xa2, 0, 1, 1, 0],
         &[0xa3, 0, 1, 1, 0x80],

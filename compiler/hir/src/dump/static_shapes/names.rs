@@ -1,7 +1,5 @@
 use super::*;
-use scoop_identity::{
-    CoreBuiltinNominal, DeclarationName, DefinitionOwnerAtom, Effect, SourceDeclarationKey,
-};
+use scoop_identity::{DeclarationName, DefinitionOwnerAtom, Effect, SourceDeclarationKey};
 
 impl<'a> ShapeDump<'a, '_> {
     pub(super) fn type_name(&self, ty: &SignatureTypeKey, parameters: &[TypeParamDecl]) -> String {
@@ -77,11 +75,9 @@ impl<'a> ShapeDump<'a, '_> {
     }
 
     fn declaration(&self, owner: SourceNominalId) -> &'a SourceDeclarationKey {
-        for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-            let record = self.module.nominal_identities.core_builtin(builtin);
-            if owner == SourceNominalId::Concrete(record.id()) {
-                return record.key();
-            }
+        let record = self.module.nominal_identities.unit();
+        if owner == SourceNominalId::Concrete(record.id()) {
+            return record.key();
         }
         if let Some(local) = self.module.nominal_identities.declaration(owner) {
             let identity = match local {

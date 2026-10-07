@@ -53,6 +53,22 @@ pub(super) fn replay(
         &initialization_definitions,
     )?;
     super::initialization::validate(&strong, parts.identities)?;
-    super::functions::validate(&strong, parts.identities)?;
+    super::functions::validate(&strong, parts.identities, |owner| {
+        let owner = scoop_hir::SourceNominalId::Concrete(owner);
+        parts
+            .hir_interface
+            .nominal_interfaces()
+            .get(owner)
+            .or_else(|| {
+                dependencies.iter().find_map(|dependency| {
+                    dependency
+                        .prepared
+                        .shared_metadata()
+                        .public
+                        .nominal_interfaces()
+                        .get(owner)
+                })
+            })
+    })?;
     Ok(strong)
 }

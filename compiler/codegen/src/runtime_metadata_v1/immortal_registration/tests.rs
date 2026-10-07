@@ -39,7 +39,7 @@ fn emits_closed_strong_descriptor_without_digest_patch_sites() {
         .unwrap()
         .into_struct_value();
     assert_eq!(constant_u64(prefix, 0), IMMORTAL_OBJECT_DESCRIPTOR_MAGIC);
-    assert_eq!(constant_u64(prefix, 1), 5);
+    assert_eq!(constant_u64(prefix, 1), 6);
     assert_eq!(constant_u64(prefix, 2), IMMORTAL_OBJECT_DESCRIPTOR_SIZE);
     let identity = initializer
         .get_field_at_index(1)

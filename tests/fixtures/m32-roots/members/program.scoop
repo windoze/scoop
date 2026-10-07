@@ -1,0 +1,35 @@
+fun fail(): Nothing { throw IllegalStateException() }
+
+interface FailedSource { fun read(): Nothing }
+
+class Stop() : FailedSource {
+    public override fun read(): Nothing = fail()
+    val missing: Nothing
+        get() = fail()
+}
+
+class Box(val missing: Nothing)
+struct Cell(val missing: Nothing)
+enum Envelope { Value(Nothing), Empty }
+
+fun forward(source: FailedSource): Int = source.read()
+fun <T: ref> empty(): T? = None
+
+fun main() {
+    val stop = Stop()
+    val source: FailedSource = stop
+    try { forward(source) }
+    catch (error: IllegalStateException) { println("interface") }
+    try { stop.read() }
+    catch (error: IllegalStateException) { println("method") }
+    try { val value: Int = stop.missing }
+    catch (error: IllegalStateException) { println("getter") }
+    try { val value = Box(fail()) }
+    catch (error: IllegalStateException) { println("class") }
+    try { val value = Cell(fail()) }
+    catch (error: IllegalStateException) { println("struct") }
+    try { val value = Envelope.Value(fail()) }
+    catch (error: IllegalStateException) { println("enum") }
+    val absent = empty<Nothing>()
+    println(when (absent) { None -> true; Some(value) -> false })
+}

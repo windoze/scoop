@@ -3,6 +3,13 @@
 use super::*;
 
 impl ImportedCoreFundamentalTypeProtocol {
+    pub fn any(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 18)
+    }
+
+    pub fn nothing(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 19)
+    }
     pub fn floating(&self, kind: crate::FloatKind) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(
             &self.0,

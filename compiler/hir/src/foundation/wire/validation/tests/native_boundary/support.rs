@@ -101,10 +101,7 @@ impl Fixture {
     pub(super) fn input(&self) -> CanonicalHirFoundation {
         let mut input = CanonicalHirFoundation::empty();
         input
-            .set_types(vec![
-                CoreBuiltinNominal::Unit.identity_record(),
-                CoreBuiltinNominal::Any.identity_record(),
-            ])
+            .set_types(vec![CoreBuiltinNominal::Unit.identity_record()])
             .unwrap();
         let unit = ExactTypeRecord::from_key(ExactTypeKey::Nominal(
             CoreBuiltinNominal::Unit.identity_record().id(),

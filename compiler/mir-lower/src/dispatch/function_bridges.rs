@@ -113,6 +113,7 @@ impl Lowerer {
             },
             target_signature.return_type.clone(),
             &self.enums.defs,
+            &self.classes,
         );
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,

@@ -174,14 +174,13 @@ impl Concretizer<'_> {
 
     pub(super) fn lower_method_call(
         &mut self,
-        receiver: &export::Expr,
+        receiver: concrete::Expr,
         callee: export::MethodCallee,
         args: &[export::Expr],
         direct_super: bool,
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::ExprKind {
-        let receiver = self.lower_expr(receiver, substitution, locals);
         let static_type = receiver.ty;
         let (callee, target) = self.lower_method_callee(callee, static_type, substitution);
         let receiver = self.adapt_method_receiver(receiver, target);

@@ -378,14 +378,32 @@ impl Concretizer<'_> {
                 receiver,
                 callee,
                 args,
-            } => self.lower_method_call(receiver, *callee, args, false, substitution, locals),
-            export::ExprKind::DirectSuperMethodCall {
+            }
+            | export::ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,
-            } => self.lower_method_call(receiver, *callee, args, true, substitution, locals),
+            } => {
+                let receiver = self.lower_expr(receiver, substitution, locals);
+                if self.is_nothing_type(receiver.ty) {
+                    // Substitution may make a bound receiver uninhabited. Its
+                    // evaluation ends before member selection or argument evaluation.
+                    return receiver;
+                }
+                self.lower_method_call(
+                    receiver,
+                    *callee,
+                    args,
+                    matches!(source.kind, export::ExprKind::DirectSuperMethodCall { .. }),
+                    substitution,
+                    locals,
+                )
+            }
             export::ExprKind::Box(value) => {
                 let value = self.lower_expr(value, substitution, locals);
+                if self.is_nothing_type(value.ty) {
+                    return value;
+                }
                 self.ensure_box_source(value.ty);
                 if self.is_value_representation(value.ty) {
                     concrete::ExprKind::Box(Box::new(value))
@@ -405,9 +423,13 @@ impl Concretizer<'_> {
                     concrete::ExprKind::ReferenceUpcast(Box::new(value))
                 }
             }
-            export::ExprKind::ReferenceUpcast(value) => concrete::ExprKind::ReferenceUpcast(
-                Box::new(self.lower_expr(value, substitution, locals)),
-            ),
+            export::ExprKind::ReferenceUpcast(value) => {
+                let value = self.lower_expr(value, substitution, locals);
+                if self.is_nothing_type(value.ty) {
+                    return value;
+                }
+                concrete::ExprKind::ReferenceUpcast(Box::new(value))
+            }
             export::ExprKind::IsInstance { operand, check_ty } => concrete::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
                 check_ty: self.lower_type(*check_ty, substitution),

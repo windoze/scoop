@@ -18,7 +18,7 @@ impl Lowerer {
                     mir::ImmortalObjectOwner::Callable(hook.materialization),
                 )
                 .lower_release_hook(source_id);
-            let lowered = cfg::lower(body, mir::Type::Unit, &self.enums.defs);
+            let lowered = cfg::lower(body, mir::Type::Unit, &self.enums.defs, &self.classes);
             self.local_values
                 .record_generated(id, hook.materialization, &lowered.generated_values);
             let owner = self.class_map[&hook.owner];

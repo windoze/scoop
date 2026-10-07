@@ -86,7 +86,14 @@ fn lower(module: &hir::Module, ty: hir::TypeId) -> SourceExactTypeOrigin {
 fn provider(module: &hir::Module, ty: hir::TypeId) -> ConeIdentity {
     let source = match &module.types[ty].kind {
         hir::TypeKind::Unit => return CoreBuiltinNominal::Unit.declaration_key().origin(),
-        hir::TypeKind::Any => return CoreBuiltinNominal::Any.declaration_key().origin(),
+        hir::TypeKind::Any => match &module.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                &module.classes[protocols.fundamental_types.any].origin
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => {
+                return protocols.fundamental_types().any().provider();
+            }
+        },
         hir::TypeKind::Integer(kind) => match &module.core_protocols {
             hir::ConcreteCoreProtocols::Defined(protocols) => {
                 &module.structs[protocols.fundamental_types.integers.owner(*kind)].origin

@@ -1,8 +1,8 @@
 //! Representation joins use the same declarations as ordinary HIR lookup.
 
 use scoop_identity::{
-    CoreBuiltinNominal, ExactTypeKey, GeneratedNominalKey, OptionalSignatureType, PersistentTypeId,
-    SignatureTypeKey, SourceDeclarationKind,
+    ExactTypeKey, GeneratedNominalKey, OptionalSignatureType, PersistentTypeId,
+    SourceDeclarationKind,
 };
 use scoop_wire::WirePath;
 
@@ -133,16 +133,10 @@ fn validate_base(
 ) -> Result<(), Error> {
     let mut expected = None;
     for parent in declaration.exact_supertypes().values() {
-        let kind = if matches!(parent, SignatureTypeKey::Nominal(owner)
-            if *owner == CoreBuiltinNominal::Any.identity_record().id())
-        {
-            PublicNominalKindV1::Class
-        } else {
-            types
-                .applied_nominal(types.exact(parent)?)?
-                .declaration
-                .kind()
-        };
+        let kind = types
+            .applied_nominal(types.exact(parent)?)?
+            .declaration
+            .kind();
         match kind {
             PublicNominalKindV1::Class => {
                 if expected.replace(parent).is_some() {

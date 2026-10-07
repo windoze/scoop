@@ -44,6 +44,8 @@ pub(super) fn install_with_intrinsics_at(
         builder.concrete_nominal(SourceNominalKind::Struct),
         builder.concrete_nominal(SourceNominalKind::Struct),
         builder.concrete_nominal(SourceNominalKind::Struct),
+        builder.concrete_nominal(SourceNominalKind::Class),
+        builder.concrete_nominal(SourceNominalKind::Class),
     ]));
 
     let option_protocol = CoreOptionProtocolV1(product([

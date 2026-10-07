@@ -66,6 +66,8 @@ pub(crate) fn struct_layout(
                 )
             }
             mir::IntrinsicTypeRepresentation::String
+            | mir::IntrinsicTypeRepresentation::Any
+            | mir::IntrinsicTypeRepresentation::Nothing
             | mir::IntrinsicTypeRepresentation::Array { .. }
             | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
                 unreachable!("the registry fixes intrinsic declaration targets")

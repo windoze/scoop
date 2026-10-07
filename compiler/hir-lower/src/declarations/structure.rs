@@ -67,14 +67,16 @@ impl Lowerer {
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
         let representation = match checked.intrinsic {
             Some(spec) => {
-                self.validate_intrinsic_type_source_shape(
+                if !self.validate_intrinsic_type_source_shape(
                     spec,
                     &decl.name,
                     &decl.type_params,
                     decl.where_clause.as_ref(),
                     decl.fields.is_omitted(),
                     decl.span,
-                );
+                ) {
+                    return None;
+                }
                 hir::StructRepresentation::Intrinsic(spec.kind)
             }
             None => hir::StructRepresentation::Declared(Vec::new()),

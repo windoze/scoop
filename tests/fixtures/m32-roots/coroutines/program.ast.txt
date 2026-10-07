@@ -1,0 +1,83 @@
+SourceFile
+  RootPackage
+  class Gate(), SuspendRegistration<Nothing>
+    var waiter: Continuation<Nothing>? =
+      Var None
+    public fun register
+    fun reject
+  class Completion(), Continuation<Int>
+    var calls: Int =
+      IntLiteral 0
+    var value: Int =
+      IntLiteral 0
+    var failed: Boolean =
+      BoolLiteral false
+    public fun resume
+    public fun resumeWithException
+  suspend fun wait(gate: Gate): Nothing
+    =
+      Call suspendCoroutine
+        Var gate
+  class Task(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+    @Unsafe
+  fun main()
+    val gate
+      Call Gate
+    val completion
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Var gate
+      Var completion
+    Call println
+      FieldAccess calls
+        Var completion
+    Call gcCollect
+    MethodCall reject
+      Var gate
+    Call println
+      FieldAccess calls
+        Var completion
+    Call println
+      FieldAccess value
+        Var completion
+    val second
+      Call Gate
+    val never: suspend () -> Nothing
+      Lambda 0 suspend=true
+        parameters omitted
+        Call wait
+          Var second
+    val widened: suspend () -> Int
+      Var never
+    val erased: Any
+      Var never
+    Call println
+      Is suspend () -> Int false
+        Var erased
+    Call println
+      Is suspend () -> Nothing false
+        Var erased
+    val dynamic
+      Cast suspend () -> Int optional=false
+        Var erased
+    val failure
+      Call Completion
+    Call startCoroutine
+      Lambda 1 suspend=true
+        parameters omitted
+        Call dynamic
+      Var failure
+    Call println
+      FieldAccess calls
+        Var failure
+    Call gcCollect
+    MethodCall reject
+      Var second
+    Call println
+      FieldAccess calls
+        Var failure
+    Call println
+      FieldAccess failed
+        Var failure

@@ -55,7 +55,7 @@ fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
         .unwrap()
         .into_struct_value();
     assert_eq!(constant_u64(prefix, 0), TYPE_REGISTRATION_DESCRIPTOR_MAGIC);
-    assert_eq!(constant_u64(prefix, 1), 5);
+    assert_eq!(constant_u64(prefix, 1), 6);
     assert_eq!(constant_u64(prefix, 2), TYPE_REGISTRATION_DESCRIPTOR_SIZE);
     let identity = initializer
         .get_field_at_index(1)

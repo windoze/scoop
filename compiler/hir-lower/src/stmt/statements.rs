@@ -353,7 +353,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let cond = self.lower_expr(cond, sink, None)?;
-        if cond.ty != self.boolean {
+        if !self.is_subtype(cond.ty, self.boolean) {
             let found = self.type_name(cond.ty);
             self.error(
                 cond.span,

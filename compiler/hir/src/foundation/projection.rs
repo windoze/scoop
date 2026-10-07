@@ -91,16 +91,11 @@ fn project_nominals(
     let mut generic_types = Vec::new();
     let mut generated_types = BTreeMap::new();
 
-    for builtin in [
-        scoop_identity::CoreBuiltinNominal::Unit,
-        scoop_identity::CoreBuiltinNominal::Any,
-    ] {
-        insert_identity(
-            &mut types,
-            export.nominal_identities.core_builtin(builtin),
-            HirFoundationTable::Type,
-        )?;
-    }
+    insert_identity(
+        &mut types,
+        export.nominal_identities.unit(),
+        HirFoundationTable::Type,
+    )?;
 
     for identity in export
         .structs

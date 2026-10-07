@@ -153,6 +153,12 @@ static bool type_is_subtype(const ScoopTypeDescriptor *source,
     if (source == NULL) {
         return false;
     }
+    if (source->relation_kind == 4) {
+        return true;
+    }
+    if (target->relation_kind == 4) {
+        return false;
+    }
     if (target->relation_kind == 1 || target->relation_kind == 2) {
         while (source != NULL && source->relation_kind != 1 &&
                source->relation_kind != 2) {

@@ -12,23 +12,13 @@ pub(super) fn targets(
     };
     let module = context.input.module();
     let mut targets = reserve(schema.slots().len())?;
-    if *ty == mir::Type::Any && schema.slots().is_empty() {
-        return Ok(targets);
-    }
     let class = match ty {
         mir::Type::Class(id) => &module.classes[*id],
-        mir::Type::String => {
+        mir::Type::String | mir::Type::Any => {
             module
                 .classes
                 .iter()
-                .find(|(_, class)| {
-                    matches!(
-                        class.representation,
-                        mir::ClassRepresentation::Intrinsic(
-                            mir::IntrinsicTypeRepresentation::String
-                        )
-                    )
-                })
+                .find(|(id, class)| class.physical_type(*id) == *ty)
                 .ok_or_else(mismatch)?
                 .1
         }

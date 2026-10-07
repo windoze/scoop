@@ -119,9 +119,6 @@ impl Replay<'_, '_> {
         if owner == SourceNominalId::Concrete(CoreBuiltinNominal::Unit.identity_record().id()) {
             return Ok(Shape::Unit);
         }
-        if owner == SourceNominalId::Concrete(CoreBuiltinNominal::Any.identity_record().id()) {
-            return Ok(Shape::Reference);
-        }
         let nominal = self.types.nominal_declaration(owner)?;
         match nominal.source_shape() {
             NominalSourceShapeV1::Struct(source) => {
@@ -145,6 +142,8 @@ impl Replay<'_, '_> {
                 | IntrinsicTypeKind::Char
                 | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
                 IntrinsicTypeKind::String
+                | IntrinsicTypeKind::Any
+                | IntrinsicTypeKind::Nothing
                 | IntrinsicTypeKind::Array
                 | IntrinsicTypeKind::MutableArray => Ok(Shape::Reference),
                 IntrinsicTypeKind::Ptr | IntrinsicTypeKind::FunPtr => Ok(Shape::Pointer),

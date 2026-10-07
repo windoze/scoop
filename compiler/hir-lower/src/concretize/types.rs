@@ -1,6 +1,13 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn is_nothing_type(&self, ty: concrete::TypeId) -> bool {
+        matches!(self.types[ty].kind, concrete::TypeKind::Class(class)
+            if matches!(self.classes[class].representation,
+                concrete::ClassRepresentation::Intrinsic {
+                    application: concrete::IntrinsicTypeRepresentation::Nothing, .. } ))
+    }
+
     pub(super) fn is_value_representation(&self, ty: concrete::TypeId) -> bool {
         matches!(
             self.types[ty].kind,
@@ -102,6 +109,10 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::IntrinsicTypeRepresentation {
         match representation {
+            export::IntrinsicTypeRepresentation::Any => concrete::IntrinsicTypeRepresentation::Any,
+            export::IntrinsicTypeRepresentation::Nothing => {
+                concrete::IntrinsicTypeRepresentation::Nothing
+            }
             export::IntrinsicTypeRepresentation::Unit => {
                 concrete::IntrinsicTypeRepresentation::Unit
             }

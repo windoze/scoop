@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use scoop_identity::{
-    CallingConvention, CoreBuiltinNominal, Effect, NonEmptyVec, SignatureTypeKey,
-};
+use scoop_identity::{CallingConvention, Effect, NonEmptyVec, SignatureTypeKey};
 
 use super::HirTypeIdentityInputs;
 use crate::{HirNominalIdentity, HirSourceNominalIdentity, ObjectId, Type, TypeId, TypeParamId};
@@ -72,12 +70,7 @@ impl<'a> HirSignatureTypeMapper<'a> {
             return Err(HirSignatureTypeMappingError::RecursiveType(raw_index(ty)));
         }
         let key = match &self.inputs.types[ty] {
-            Type::Unit => SignatureTypeKey::Nominal(
-                self.inputs
-                    .nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Unit)
-                    .id(),
-            ),
+            Type::Unit => SignatureTypeKey::Nominal(self.inputs.nominal_identities.unit().id()),
             Type::Integer(kind) => match self.inputs.core_types {
                 super::HirCoreTypeIdentityAuthority::Defined(core) => {
                     self.map_struct(core.integers.owner(*kind), &[], binders, visiting)?
@@ -183,12 +176,14 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     visiting,
                 )?
             }
-            Type::Any => SignatureTypeKey::Nominal(
-                self.inputs
-                    .nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Any)
-                    .id(),
-            ),
+            Type::Any => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    self.map_class(core.any, &[], binders, visiting)?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    SignatureTypeKey::Nominal(core.any().persistent())
+                }
+            },
             Type::Tuple(elements) => SignatureTypeKey::Tuple(
                 NonEmptyVec::new(self.map_all(elements, binders, visiting)?)
                     .map_err(|_| HirSignatureTypeMappingError::EmptyTuple)?,

@@ -91,7 +91,11 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 `parent`、itable 和相关类型引用必须解析到实际登记的 TypeDescriptor。空 vtable 为 null；空接口仍保留以其真实 TD 为键的 itable entry，slot table 可以为 null。slot 与 callable ABI 由产物合同确定。
 
-`relation_kind` 为 0 时 related count 为 0、function result 为 null；1 和 2 分别表示普通与 suspend 函数类型，related types 按参数顺序保存、result 保存结果；该关系中 null TD 表示 Any。3 表示 interface，related types 按 exact identity 排序保存直接父接口，result 为 null。其他 tag 非法。
+`relation_kind` 为 0 时 related count 为 0、function result 为 null；1 和 2 分别表示普通与 suspend 函数类型，related types 按参数顺序保存、result 保存结果；该关系中 null TD 表示 Any。3 表示 interface，related types 按 exact identity 排序保存直接父接口，result 为 null。4 表示源码 intrinsic Nothing 的底类型关系，related count 为 0、result 为 null，实例形状必须为 AbstractRef；它是所有类型的子类型，其他类型不能成为它的子类型。其他 tag 非法。
+
+`Any` 与 `Nothing` 的类型身份来自 core 的实际源码声明（语言规范 11.1）。二者的 TD 使用不可分配的 AbstractRef 形状；`Nothing` 不存在对象、box 或合法的非空值。底类型关系在函数参数逆变／结果协变检查中必须保留，不能把 `Nothing` 与 `Any` 或普通空 class 合并。Any 的值仍指向实际动态类型对象，移动 GC、原类型 TD 和装箱协议不变。
+
+普通结果为 `Nothing` 的调用没有正常继续路径，但仍可能抛出异常或进入 GC；异常边及其根、finally 和 Context 清理照常保留。其逻辑结果保留实际底类型身份，物理引用结果即使保留在调用签名中也不能被作为一个成功结果使用。挂起函数的 `CoroutineStep<Nothing>` 可以返回 Suspended，不得把源码底类型误用为整个挂起 ABI 的 `noreturn` 属性。
 
 ### 2.3 值类型与装箱
 
@@ -141,7 +145,7 @@ unit 由 `PersistentInitializationUnitId` 标识；diagnostic path 只用于显�
 
 ### 2.8 多 image 登记与启动 ABI
 
-runtime ABI contract 为 **9**，metadata ABI 为 **5**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 5`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。
+runtime ABI contract 为 **10**，metadata ABI 为 **6**。带 prefix 的 descriptor 以 `{ u64 magic; u32 abi_version; u32 struct_size; }` 开头，`abi_version == 6`，size 与本节布局精确一致，reserved fields 为 0。公共 C 声明见 [scoop_runtime_metadata_v1.h](../../runtime/include/scoop_runtime_metadata_v1.h)。
 
 | descriptor | magic | size（bytes） |
 | --- | --- | --- |

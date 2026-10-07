@@ -58,11 +58,7 @@ fn fixture_at(coordinate: ConeCoordinate, include_origin: bool, include_points: 
     let mut canonical = CanonicalHirFoundation::empty();
     canonical.set_sources(vec![source_record]).unwrap();
     canonical
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-            record,
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record(), record])
         .unwrap();
     canonical.set_source_contexts(vec![context]).unwrap();
     if include_origin {
@@ -158,7 +154,7 @@ fn validates_the_complete_hir_foundation_atomically() {
 
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(validated.artifact(), fixture.coordinate.identity().unwrap());
-    assert_eq!(validated.counts().types, 3);
+    assert_eq!(validated.counts().types, 2);
     assert_eq!(validated.counts().definition_origins, 1);
     assert_eq!(validated.counts().native_boundary_types, 1);
 }
@@ -181,10 +177,7 @@ fn dependency_source_mode_resolves_an_external_source_identity() {
     .unwrap();
     let mut canonical = CanonicalHirFoundation::empty();
     canonical
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record()])
         .unwrap();
     canonical
         .set_sources(vec![
@@ -297,11 +290,7 @@ fn rejects_a_foreign_source_declaration_in_the_artifact_delta() {
     let identity = *record.id().as_array();
     let mut canonical = CanonicalHirFoundation::empty();
     canonical
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-            record,
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record(), record])
         .unwrap();
     let decoded = decode(&canonical);
     let mut identities = validate_identities(

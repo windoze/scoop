@@ -498,7 +498,6 @@ fn aliases_share_the_type_namespace_with_aliases_and_nominals() {
             "duplicate type `Taken` (already declared as a struct)",
             "duplicate type `Reserved` (already declared as a typealias)",
             "duplicate type `Unit` (already declared as a built-in type)",
-            "duplicate type `Any` (already declared as a built-in type)",
         ]
     );
 }

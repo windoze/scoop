@@ -1,0 +1,8 @@
+import roots.definition.Any as ActualAny
+import roots.definition.Nothing as ActualNothing
+
+public typealias Any = ActualAny
+public typealias Nothing = ActualNothing
+
+public typealias RootTop = Any
+public typealias RootBottom = Nothing

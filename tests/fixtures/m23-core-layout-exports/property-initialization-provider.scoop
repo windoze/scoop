@@ -1,5 +1,7 @@
 package dependency.api
 
+import Any
+
 public fun seedValue(): Int = 7
 public var runtimeValue: Int = seedValue()
 public val otherValue: Int = seedValue()

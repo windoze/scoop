@@ -67,19 +67,6 @@ pub fn lower_dispatch_schemas(
         )?);
     }
 
-    if let Some(builtin) = input.module().meta.source_exact_types.get(&mir::Type::Any) {
-        let exact = builtin.identity_record().id();
-
-        if local_types.get(exact).is_some() {
-            scoop_wire::allocation::try_reserve(&mut records, 1, &WirePath::root())?;
-            records.push(mir::ParamFreeMirDispatchSchemaV1::try_new(
-                authority,
-                exact,
-                mir::MirDispatchSlotsV1::ClassVtable(vec![]),
-                vec![],
-            )?);
-        }
-    }
     Ok(
         mir::CanonicalMirDispatchSchemasV1::try_new_with_dependencies(
             authority,

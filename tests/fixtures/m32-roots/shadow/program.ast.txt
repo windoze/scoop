@@ -1,0 +1,39 @@
+SourceFile
+  QualifiedPackage roots.shadow
+  ImportExact Local Any as RootAny
+  ImportExact Local Nothing as RootNothing
+  class Any(val value: Int)
+  class Nothing(val value: Int)
+  typealias Never = RootNothing
+  fun local(): Nothing
+    =
+      Call Nothing
+        IntLiteral 22
+  fun fail(): Never
+    throw
+      Call IllegalStateException
+  fun main()
+    val first: RootAny
+      Call Any
+        IntLiteral 11
+    val second: RootAny
+      Call local
+    Call println
+      FieldAccess value
+        Cast Any optional=false
+          Var first
+    Call println
+      FieldAccess value
+        Cast Nothing optional=false
+          Var second
+    Call println
+      Is Nothing false
+        Var second
+    Call println
+      Is RootNothing false
+        Var second
+    try
+      Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "root"

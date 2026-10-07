@@ -1,6 +1,5 @@
 use scoop_identity::{
-    CoreBuiltinNominal, Effect, NonEmptyVec, PersistentGenericTypeId, SignatureCallableShape,
-    SignatureTypeKey,
+    Effect, NonEmptyVec, PersistentGenericTypeId, SignatureCallableShape, SignatureTypeKey,
 };
 
 use super::*;
@@ -105,7 +104,7 @@ pub(super) fn expected_operation_signature(
             (
                 Effect::Ordinary,
                 vec![
-                    SignatureTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
+                    signature_concrete(fundamental, 18),
                     long.clone(),
                     signature_concrete(callback, 1),
                 ],

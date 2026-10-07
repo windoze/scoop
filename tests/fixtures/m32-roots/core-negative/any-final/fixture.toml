@@ -1,0 +1,23 @@
+schema = 1
+name = "m32-roots-reject-core-any-final"
+inputs = ["roots.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m32", "roots", "core", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
+  {copy = {from = "${fixture}/roots.scoop", to = "${work}/core-source/src/roots.scoop"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

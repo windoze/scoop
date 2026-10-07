@@ -74,8 +74,6 @@ impl LocalShapeSupportPlan {
             let source = requirement.source();
             let declaration = if source == CoreBuiltinNominal::Unit.identity_record().id() {
                 CoreBuiltinNominal::Unit.identity_record().key().clone()
-            } else if source == CoreBuiltinNominal::Any.identity_record().id() {
-                CoreBuiltinNominal::Any.identity_record().key().clone()
             } else {
                 let mut declarations = module
                     .structs

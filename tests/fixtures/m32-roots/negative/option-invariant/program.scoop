@@ -1,0 +1,2 @@
+fun bad(value: Nothing?): Int? = value
+fun main() {}

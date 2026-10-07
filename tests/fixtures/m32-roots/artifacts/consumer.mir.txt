@@ -1,0 +1,723 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Nothing>
+    Some(_0: Nothing)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ListIterator<Nothing> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface List<Nothing> : Iterable<Nothing>
+  interface Iterable<Nothing>
+  interface Iterator<Nothing>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  closure cc0 $Closure$dynamic_adapter$() -> Int type=function_type0 invoke=@fn12 captures=1
+    bridge function_type1 -> @fn13 id=4a2748a20b70bbea9fd310c4e906f03efffcd94b9973906dc1b55359673ebcf8
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=closure0 nominal_id=76195277dca3e8c227377c2746e480e4eede40d7d43eb1061677f5476cea3511 exact_id=d1da81a72ea0cd3e20a0d6a89e56dc97493eccab29c97541703f3ceaf1c6f6dc
+  generated_exact_type get5 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn12 id=29b0f62952391fb00004036bafbd97d012f112057fb06d82b537aa8599fd186d
+  generated_callable gc1 function=@fn13 id=4a2748a20b70bbea9fd310c4e906f03efffcd94b9973906dc1b55359673ebcf8
+  dynamic_adapter da0 class=cc0 target=function_type0
+  fun main @fn0() -> Unit
+    bb0 entry
+      val boxed: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external10 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local $ub.2
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $call.2: Array<Nothing> = external0 direct
+      call $dependency.argument.0: Long = @fn4 direct
+        Type Array<Nothing>
+        Local $call.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb10
+    bb3 try.unwind.3
+      landing_pad cleanup=false
+      goto bb4
+    bb4 try.dispatch.4
+      begin_catch
+      branch bb11 bb12
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb5 try.handler_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.handler_cleanup.6
+      end_catch
+      resume
+    bb7 try.exit_pad.7
+      landing_pad cleanup=true
+      goto bb8
+    bb8 try.exit_cleanup.8
+      end_catch
+      resume
+    bb9 try.end.9
+      goto bb22
+    bb10 try.body.10 unwind bb3
+      call $call.3: Nothing = external1 direct
+      unreachable
+    bb11 try.catch.11
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.4
+      goto bb13
+    bb12 try.next.12
+      rethrow unwind bb7
+    bb13 scope.13 unwind bb5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb14
+    bb14 scope.14
+      goto bb9
+    bb15 try.unwind.15
+      landing_pad cleanup=false
+      goto bb16
+    bb16 try.dispatch.16
+      begin_catch
+      branch bb23 bb24
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb17 try.handler_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.handler_cleanup.18
+      end_catch
+      resume
+    bb19 try.exit_pad.19
+      landing_pad cleanup=true
+      goto bb20
+    bb20 try.exit_cleanup.20
+      end_catch
+      resume
+    bb21 try.end.21
+      call value: () -> Int = external3 direct
+      goto bb34
+    bb22 try.body.22 unwind bb15
+      call $call.5: Int = external2 direct
+      goto bb21
+    bb23 try.catch.23
+      call $catch.6: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.6
+      goto bb25
+    bb24 try.next.24
+      rethrow unwind bb19
+    bb25 scope.25 unwind bb17
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb26
+    bb26 scope.26
+      goto bb21
+    bb27 try.unwind.27
+      landing_pad cleanup=false
+      goto bb28
+    bb28 try.dispatch.28
+      begin_catch
+      branch bb35 bb36
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb29 try.handler_pad.29
+      landing_pad cleanup=true
+      goto bb30
+    bb30 try.handler_cleanup.30
+      end_catch
+      resume
+    bb31 try.exit_pad.31
+      landing_pad cleanup=true
+      goto bb32
+    bb32 try.exit_cleanup.32
+      end_catch
+      resume
+    bb33 try.end.33
+      call $call.9: () -> Nothing = external4 direct
+      val dynamic: Any
+        Type Any
+        Retype Any
+          Type () -> Nothing
+          Local $call.9
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance () -> Nothing
+          Type Any
+          Local dynamic
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      goto bb46
+    bb34 try.body.34 unwind bb27
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local value
+      goto bb33
+    bb35 try.catch.35
+      call $catch.8: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.8
+      goto bb37
+    bb36 try.next.36
+      rethrow unwind bb31
+    bb37 scope.37 unwind bb29
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb38
+    bb38 scope.38
+      goto bb33
+    bb39 try.unwind.39
+      landing_pad cleanup=false
+      goto bb40
+    bb40 try.dispatch.40
+      begin_catch
+      branch bb49 bb50
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb41 try.handler_pad.41
+      landing_pad cleanup=true
+      goto bb42
+    bb42 try.handler_cleanup.42
+      end_catch
+      resume
+    bb43 try.exit_pad.43
+      landing_pad cleanup=true
+      goto bb44
+    bb44 try.exit_cleanup.44
+      end_catch
+      resume
+    bb45 try.end.45
+      call @scoop_rt_gc_collect direct
+      val $cast.4: Any
+        Type Any
+        Local boxed
+      branch bb53 bb54
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.4
+    bb46 try.body.46 unwind bb39
+      val $cast.3: Any
+        Type Any
+        Local dynamic
+      branch bb47 bb48
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance () -> Int
+            Type Any
+            Local $cast.3
+    bb47 if.then.47 unwind bb39
+      assign $new.10
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external10 direct
+        Type ClassCastException
+        Local $new.10
+      throw unwind bb39
+        Type ClassCastException
+        Local $new.10
+    bb48 if.merge.48 unwind bb39
+      val converted: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$dynamic_adapter$() -> Int
+          CaptureInit field=0
+            Type Any
+            Local $cast.3
+      call $call.11: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local converted
+      goto bb45
+    bb49 try.catch.49
+      call $catch.12: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.12
+      goto bb51
+    bb50 try.next.50
+      rethrow unwind bb43
+    bb51 scope.51 unwind bb41
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb52
+    bb52 scope.52
+      goto bb45
+    bb53 if.then.53
+      assign $new.13
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external10 direct
+        Type ClassCastException
+        Local $new.13
+      throw
+        Type ClassCastException
+        Local $new.13
+    bb54 if.merge.54
+      val $ub.5: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local $ub.5
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun iterator @fn2(this: Array<Nothing>) -> Iterator<Nothing>
+    bb0 entry
+      val $dependency.local.1: List<Nothing>
+        Type List<Nothing>
+        Retype List<Nothing>
+          Type Array<Nothing>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Nothing>
+        Type List<Nothing>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Nothing>
+        ClassAlloc ListIterator<Nothing>
+      call @fn11 direct
+        Type ListIterator<Nothing>
+        Local $new.1
+        Type List<Nothing>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Nothing>
+        Retype Iterator<Nothing>
+          Type ListIterator<Nothing>
+          Local $new.1
+  fun get @fn3(this: Array<Nothing>, index: Long) -> Nothing
+    bb0 entry
+      val $dependency.local.2: Array<Nothing>
+        Type Array<Nothing>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Nothing>
+        Type Array<Nothing>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Nothing>
+            Type Array<Nothing>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external11 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      Type Nothing
+      ArrayGet Array<Nothing>
+        Type Array<Nothing>
+        Local $arr.1
+        Type Long
+        Local $idx.2
+      unreachable
+  fun size @fn4(this: Array<Nothing>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Nothing>
+        Type Array<Nothing>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Nothing>
+          Type Array<Nothing>
+          Local $dependency.local.1
+  fun println @fn5(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external8 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external9 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external9 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn8(this: ListIterator<Nothing>) -> Option<Nothing>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Nothing>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Nothing>
+        VariantConstruct Option<Nothing> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Nothing>
+          Local this
+      call $dependency.local.3: Long = @fn9 interface List<Nothing>[2]
+        Type List<Nothing>
+        FieldAccess 0
+          Type ListIterator<Nothing>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Nothing>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Nothing>
+        VariantConstruct Option<Nothing> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Nothing>
+        Type List<Nothing>
+        FieldAccess 0
+          Type ListIterator<Nothing>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Nothing>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Nothing = @fn10 interface List<Nothing>[1]
+        Type List<Nothing>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      unreachable
+  fun List.$get$size @fn9(this: List<Nothing>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn10(this: List<Nothing>, index: Long) -> Nothing
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.ListIterator.$c0 @fn11(this: ListIterator<Nothing>, source: List<Nothing>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Nothing>
+        Local this
+        Type List<Nothing>
+        Local source
+      field_set 1
+        Type ListIterator<Nothing>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Nothing>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun $dynamic_adapter.() -> Int @fn12($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Unbox
+          Type Any
+          Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$() -> Int.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- iterator
+  instance mi2 function=@fn3 <- get
+  instance mi3 function=@fn4 <- size
+  instance mi4 function=@fn5 <- println
+  instance mi5 function=@fn6 <- println
+  instance mi6 function=@fn7 <- println
+  instance mi7 function=@fn8 <- next
+  instance mi8 function=@fn9 <- List.$get$size
+  instance mi9 function=@fn10 <- List.get
+  str @str0 "generic"
+  str @str1 "default"
+  str @str2 "adapter"
+  str @str3 "dynamic"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  output executable @fn0

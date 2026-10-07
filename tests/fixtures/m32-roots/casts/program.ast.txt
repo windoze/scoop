@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  fun operand(): Any
+    Call println
+      StringLiteral "operand"
+    return
+      IntLiteral 42
+  fun main()
+    Call println
+      Is Nothing false
+        Call operand
+    Call println
+      Is Nothing true
+        Call operand
+    val empty: Nothing?
+      Cast Nothing optional=true
+        Call operand
+    Call println
+      WhenExpression
+        Var empty
+        arm None
+          BoolLiteral true
+        arm Some(value)
+          BoolLiteral false
+    try
+      val impossible
+        Cast Nothing optional=false
+          Call operand
+    catch error: ClassCastException
+      Call println
+        StringLiteral "cast"

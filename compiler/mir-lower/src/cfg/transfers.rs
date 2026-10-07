@@ -42,21 +42,21 @@ impl<'a> CfgLowerer<'a> {
         &mut self,
         value: Option<&smir::Expr>,
         span: Span,
-    ) -> ReturnPayload {
+    ) -> Option<ReturnPayload> {
         if self.return_ty == mir::Type::Unit {
             assert!(
                 value.is_none(),
                 "Unit returns are bare before MIR CFG lowering"
             );
-            return ReturnPayload::Unit;
+            return Some(ReturnPayload::Unit);
         }
 
         let value = self.lower_expr(
             value.expect("non-Unit returns carry a value before MIR CFG lowering"),
             span,
-        );
+        )?;
         if self.normal_cleanups.is_empty() {
-            return ReturnPayload::Value(value);
+            return Some(ReturnPayload::Value(value));
         }
         let local = self.new_hidden(
             "return",
@@ -65,10 +65,10 @@ impl<'a> CfgLowerer<'a> {
             self.return_ty.clone(),
         );
         self.push(mir::StatementKind::ValDecl { local, init: value }, span);
-        ReturnPayload::Value(mir::Expr::new(
+        Some(ReturnPayload::Value(mir::Expr::new(
             self.return_ty.clone(),
             mir::ExprKind::Local(local),
-        ))
+        )))
     }
 
     /// Route one normal transfer through exactly the cleanup suffix between

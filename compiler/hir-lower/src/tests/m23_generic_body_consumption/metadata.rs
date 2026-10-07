@@ -74,8 +74,18 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                         foundation: &provider_types,
                         public: provider_interface,
                     };
-                    site.validate_source_signature(reference.target(), metadata, &identities)
-                        .unwrap();
+                    let nominal_source = |owner| {
+                        provider_interface
+                            .nominal_interfaces()
+                            .get(hir::SourceNominalId::Concrete(owner))
+                    };
+                    site.validate_source_signature(
+                        reference.target(),
+                        metadata,
+                        &identities,
+                        nominal_source,
+                    )
+                    .unwrap();
                     let actual = calls
                         .iter()
                         .find(|call| call.position() == site.position())
@@ -116,7 +126,12 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                     )
                     .unwrap();
                     assert!(matches!(
-                        direct.validate_source_signature(reference.target(), metadata, &identities),
+                        direct.validate_source_signature(
+                            reference.target(),
+                            metadata,
+                            &identities,
+                            nominal_source
+                        ),
                         Err(hir::HirDependencyCallSignatureError::GenericDeclaration(_))
                     ));
                     let other = calls
@@ -134,7 +149,12 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                     )
                     .unwrap();
                     assert!(matches!(
-                        wrong.validate_source_signature(reference.target(), metadata, &identities),
+                        wrong.validate_source_signature(
+                            reference.target(),
+                            metadata,
+                            &identities,
+                            nominal_source
+                        ),
                         Err(hir::HirDependencyCallSignatureError::ApplicationOrigin { .. })
                     ));
                     observed += 1;

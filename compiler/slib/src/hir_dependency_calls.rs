@@ -130,9 +130,30 @@ pub(crate) fn validate_executable_hir_calls(
                 .into_option()
                 .into_iter()
                 .chain(signature.parameters().iter().copied());
-            if !arguments.eq(site.arguments().iter().copied())
-                || site.result() != signature.result()
-            {
+            let matching_arguments = arguments.clone().count() == site.arguments().len()
+                && arguments.zip(site.arguments()).all(|(expected, &actual)| {
+                    expected == actual
+                        || lowered.is_some_and(|(local, dependencies)| {
+                            local
+                                .exports()
+                                .types()
+                                .get(actual)
+                                .or_else(|| {
+                                    dependencies
+                                        .iter()
+                                        .find_map(|view| view.exports().types().get(actual))
+                                })
+                                .is_some_and(|record| {
+                                    matches!(
+                                        record.representation(),
+                                        scoop_mir::MirTypeRepresentationV1::Intrinsic(
+                                            scoop_mir::MirParamFreeIntrinsicV1::Nothing
+                                        )
+                                    )
+                                })
+                        })
+                });
+            if !matching_arguments || site.result() != signature.result() {
                 return Err(Error::CallSignature {
                     position: Box::new(position),
                     provider,

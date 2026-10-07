@@ -51,14 +51,7 @@ pub fn replay_shared_mir_descriptors(
 
         interfaces.sort_unstable_by_key(|reference| reference.exact_type());
         let interface_parents =
-            if matches!(ty.representation(), mir::MirTypeRepresentationV1::Interface)
-                && diagnostics.exact_type_key(ty.exact())
-                    != Some(&scoop_identity::ExactTypeKey::Nominal(
-                        scoop_identity::CoreBuiltinNominal::Any
-                            .identity_record()
-                            .id(),
-                    ))
-            {
+            if matches!(ty.representation(), mir::MirTypeRepresentationV1::Interface) {
                 Some(
                     ty.base_and_interfaces()
                         .interfaces
@@ -73,6 +66,10 @@ pub fn replay_shared_mir_descriptors(
             target,
             lir::ExactDescriptorSourceInputV1 {
                 exact: ty.exact(),
+                is_bottom: matches!(
+                    ty.representation(),
+                    mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Nothing)
+                ),
                 release_policy: match ty.representation().release_policy() {
                     mir::MirClassReleasePolicyV1::None => lir::ReleasePolicy::None,
                     mir::MirClassReleasePolicyV1::SynchronousGcFree { owner } => {

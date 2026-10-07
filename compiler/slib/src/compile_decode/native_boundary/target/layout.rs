@@ -16,7 +16,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             CLayout,
             Unsupported,
         }
-        if self.is_unit(exact) || self.is_any(exact) {
+        if self.is_unit(exact) {
             return Err(NativeBoundaryTargetError::NotCAbiSafe { exact }.into());
         }
         if let Some(family) = self.intrinsic(exact)? {
@@ -45,6 +45,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                     Err(NativeBoundaryTargetError::InvalidSignatureShape.into())
                 }
                 scoop_hir::IntrinsicTypeKind::Unit
+                | scoop_hir::IntrinsicTypeKind::Any
+                | scoop_hir::IntrinsicTypeKind::Nothing
                 | scoop_hir::IntrinsicTypeKind::String
                 | scoop_hir::IntrinsicTypeKind::Array
                 | scoop_hir::IntrinsicTypeKind::MutableArray => {
@@ -238,22 +240,10 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 
     pub(super) fn is_unit(&self, exact: PersistentExactTypeId) -> bool {
-        self.is_builtin(exact, scoop_identity::CoreBuiltinNominal::Unit)
-    }
-
-    fn is_any(&self, exact: PersistentExactTypeId) -> bool {
-        self.is_builtin(exact, scoop_identity::CoreBuiltinNominal::Any)
-    }
-
-    fn is_builtin(
-        &self,
-        exact: PersistentExactTypeId,
-        builtin: scoop_identity::CoreBuiltinNominal,
-    ) -> bool {
         matches!(
             self.exact_types.get(&exact).map(Arc::as_ref),
             Some(ExactTypeKey::Nominal(owner))
-                if *owner == builtin.identity_record().id()
+                if *owner == scoop_identity::CoreBuiltinNominal::Unit.identity_record().id()
         )
     }
 }

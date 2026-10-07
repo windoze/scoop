@@ -8,6 +8,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 pub enum TypeDescriptorRelations<T> {
     #[default]
     Absent,
+    Bottom,
     Signature {
         is_suspend: bool,
         parameters: Vec<T>,
@@ -22,6 +23,7 @@ impl<T> TypeDescriptorRelations<T> {
     pub const fn runtime_kind(&self) -> u32 {
         match self {
             Self::Absent => 0,
+            Self::Bottom => 4,
             Self::Signature {
                 is_suspend: false, ..
             } => 1,
@@ -34,7 +36,7 @@ impl<T> TypeDescriptorRelations<T> {
 
     pub fn related_types(&self) -> &[T] {
         match self {
-            Self::Absent => &[],
+            Self::Absent | Self::Bottom => &[],
             Self::Signature { parameters, .. } => parameters,
             Self::Interface { parents } => parents,
         }
@@ -42,7 +44,7 @@ impl<T> TypeDescriptorRelations<T> {
 
     pub const fn result(&self) -> Option<&T> {
         match self {
-            Self::Absent | Self::Interface { .. } => None,
+            Self::Absent | Self::Bottom | Self::Interface { .. } => None,
             Self::Signature { result, .. } => Some(result),
         }
     }
@@ -57,6 +59,7 @@ impl<T> TypeDescriptorRelations<T> {
     ) -> Result<TypeDescriptorRelations<R>, E> {
         Ok(match self {
             Self::Absent => TypeDescriptorRelations::Absent,
+            Self::Bottom => TypeDescriptorRelations::Bottom,
             Self::Interface { parents } => TypeDescriptorRelations::Interface {
                 parents: parents
                     .into_iter()
@@ -84,13 +87,13 @@ impl<T> TypeDescriptorRelations<T> {
         mut encode_type: impl FnMut(&T, &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError>,
     ) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(match self {
-            Self::Absent => 1,
+            Self::Absent | Self::Bottom => 1,
             Self::Signature { .. } => 3,
             Self::Interface { .. } => 2,
         })?;
         encoder.field(0)?;
         encoder.unsigned(u64::from(self.runtime_kind()))?;
-        if !matches!(self, Self::Absent) {
+        if !matches!(self, Self::Absent | Self::Bottom) {
             encoder.field(1)?;
             encoder.array(self.related_types().len() as u64)?;
             for parameter in self.related_types() {
@@ -116,7 +119,7 @@ impl<T: WireDecode> WireDecode for TypeDescriptorRelations<T> {
         let actual = decoder.map()?;
         let kind = decoder.field(0, Decoder::unsigned)?;
         let expected = match kind {
-            0 => 1,
+            0 | 4 => 1,
             1 | 2 => 3,
             3 => 2,
             tag => {
@@ -136,6 +139,9 @@ impl<T: WireDecode> WireDecode for TypeDescriptorRelations<T> {
         }
         if kind == 0 {
             return Ok(Self::Absent);
+        }
+        if kind == 4 {
+            return Ok(Self::Bottom);
         }
         let parameters = decoder.field(1, |decoder| {
             let count = decoder.array()?;

@@ -1,5 +1,4 @@
 use la_arena::Idx;
-use scoop_identity::CoreBuiltinNominal;
 
 use super::declarations::LocalNominalDeclaration;
 use super::{HirNativeBoundaryTypeDefinitionError, HirNativeBoundaryTypeDefinitionInputs};
@@ -17,7 +16,7 @@ pub(super) fn build(
     mapper: &HirSignatureTypeMapper<'_>,
 ) -> Result<NativeBoundaryTypeDefinitionRecord, HirNativeBoundaryTypeDefinitionError> {
     match declaration {
-        LocalNominalDeclaration::CoreBuiltin(builtin) => core_builtin(builtin, inputs),
+        LocalNominalDeclaration::Unit => unit(inputs),
         LocalNominalDeclaration::Struct(id) => {
             let structure = &inputs.structs[id];
             let source = source_nominal(&inputs.nominal_identities[id])?;
@@ -141,22 +140,14 @@ pub(super) fn build(
     }
 }
 
-fn core_builtin(
-    builtin: CoreBuiltinNominal,
+fn unit(
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
 ) -> Result<NativeBoundaryTypeDefinitionRecord, HirNativeBoundaryTypeDefinitionError> {
-    let shape = match builtin {
-        CoreBuiltinNominal::Unit => NativeBoundaryNominalShape::Intrinsic(
-            NominalIntrinsicRepresentationV1::new(crate::IntrinsicTypeKind::Unit),
-        ),
-        CoreBuiltinNominal::Any => NativeBoundaryNominalShape::Reference,
-    };
-    NativeBoundaryTypeDefinitionRecord::new(
-        inputs.nominal_identities.core_builtin(builtin).key(),
-        &[0],
-        shape,
-    )
-    .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition)
+    let shape = NativeBoundaryNominalShape::Intrinsic(NominalIntrinsicRepresentationV1::new(
+        crate::IntrinsicTypeKind::Unit,
+    ));
+    NativeBoundaryTypeDefinitionRecord::new(inputs.nominal_identities.unit().key(), &[0], shape)
+        .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition)
 }
 
 fn reference(

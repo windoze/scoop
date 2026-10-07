@@ -488,6 +488,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 分六批实施：配置/基线、ODR/物理选择、首批优化、分配/屏障、nursery 闭环、总验收/性能。完成门为三 target 的 debug/release、正式 CLI 与 artifact-only 混合优化、minor/full moving、FFI/多 mutator/Context/release 组合，以及可复跑的运行/编译/代码大小/GC 性能报告。
 - 自动跨函数内联、通用去虚拟化、循环边界检查优化、LTO/PGO、逃逸分析、协程 frame elision、survivor、并行/并发 collector、arena 扩容及编译速度优化留待后续。2026-10-07 实现与本阶段验收完成：Darwin 全部 2552 项适用 fixture 通过，另 7 项不适用；GNU/musl 的 127 项定向选择分别为 112/115 项普通通过，其余按平台不适用，NUC 另完成重点组合原生复验。运行效率、机器代码大小、GC 收益及回退见[性能报告](milestone31/PERFORMANCE.md)，实际测试范围与分批提交见[验收记录](milestone31/ACCEPTANCE.md)和[实施记录](milestone31/PROGRESS.md)。
 
+### M32 Any / Nothing 的源码定义与顶底类型闭环（已完成，[设计](milestone32/DESIGN.md)，[验收](milestone32/ACCEPTANCE.md)）
+
+- core 正式声明 `@Intrinsic("core_any") public abstract class Any {}` 与 `@Intrinsic("core_nothing") public final class Nothing {}`，提供普通 public binding、nominal identity 和跨产物声明；删除 Any 在缺少源码声明时的兜底。
+- 保留 Any 的顶类型、装箱与无成员语义；补齐 Nothing 的底类型关系、结果合并、无正常返回调用、检查／转换，以及异常／finally 和挂起的正确边界。
+- 复用现有 intrinsic、IR/meta、runtime 类型关系及普通依赖通道，完成函数值、泛型、Option/数组、A→B→C 再次发布和 artifact-only 链接运行；按实际编码迁移受影响版本与缓存。
+- 分四批完成源码根、底类型求值、组合与产物、正式回归。以真实 core 构建、独立／组合／negative／golden、正式 CLI 与 GC/debug/release 验收为完成门。
+- 2026-10-07 实现与验收完成：Rust 工作区 5,328 项测试覆盖在首轮及定向复验后闭合，44 项公共 runner 测试通过；Darwin 全部 2,594 项适用 fixture 普通通过，另 7 项不适用。NUC 上 GNU/musl 各 67 项定向 fixture 普通通过，其中三个 target 的 M32 专项各 42 项；实际范围和去重后的报告见验收记录。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
@@ -535,7 +543,8 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - struct字段默认值与命名参数调用 → M17；次构造函数 → M19；
 - struct副本更新表达式 `s.{ f: v }`（spec 4.5）→ M22；
 - 不带标签的`break`/`continue` jump statement、`for`循环与区间 → M22；`do-while`与带标签的控制流仍待后续；
-- 源码可命名的底类型`Nothing`（含signature、generic application与cast）及一般jump expression（例如`value ?: break`、argument/initializer中的jump）→ 后续里程碑；M22只以`ControlOutcome`表达jump路径的semantic bottom，不物化`Nothing` expression/type；
+- 源码可命名的底类型`Nothing`（含signature、generic application与cast）→ M32（已完成）；
+- 一般jump expression（例如`value ?: break`、argument/initializer中的jump）仍待后续；M22以`ControlOutcome`表达jump路径的semantic bottom，M32补齐可命名的源码底类型，不扩展一般jump expression语法；
 - 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；M22修订为`Int`/`UInt`固定i32、`Long`/`ULong`固定i64）→ M22；
 - 整数溢出语义 → M22（spec 11.2已固定wrapping、除法与shift边界）；
 - 内建 print 重载 → M7 转为 core 普通重载（设计已含）。
@@ -588,7 +597,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）→ M19；
 - ~~class 字段按 8 字节槽索引的约定与连续 sub-8 字段布局冲突~~（已修复：LIR `HeapLoad` / `HeapStore` 携带自然布局的字节偏移，连续 `Boolean` 不再被错误扩为槽）；
 - ~~泛型成员函数~~（M14 已补齐class/struct/enum的non-virtual generic method、两组typed argument identity、bound/推导/callable reference与单态化闭包；interface method-level generic在定义处拒绝，未来动态分派ABI另列backlog）；
-- `Any` 的 core 库形态（spec 11.1；当前编译器内建）。
+- `Any` 的 core 库形态与 `Nothing` 的源码定义及编译器闭环 → M32（已完成，[设计](milestone32/DESIGN.md)，[验收](milestone32/ACCEPTANCE.md)）。
 
 ### 来自 M7
 

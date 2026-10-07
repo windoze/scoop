@@ -64,9 +64,11 @@ pub(super) fn validate_runtime_type_metadata(module: &Module) -> Result<(), MirV
         let location = MirRuntimeTypeLocation::Class(id);
         if matches!(
             class.representation,
-            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String)
+            ClassRepresentation::Intrinsic(
+                IntrinsicTypeRepresentation::String | IntrinsicTypeRepresentation::Any
+            )
         ) {
-            require_source(module, location, Type::String)?;
+            require_source(module, location, class.physical_type(id))?;
             continue;
         }
         let has_source = module

@@ -7,7 +7,7 @@ Module
   enum Never tagged size=8 align=8 variants=
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$71f184c57e8934bee13142797975e4ae17d934feea02b004efdc4642fee5b8e4(indirect<enum3 size=8 align=8 scan=none>) -> i32
-    local %0 $result.0: i32
+    local %0 $result.0: ptr<managed>
     local %1 $when.1: enum3
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

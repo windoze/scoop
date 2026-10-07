@@ -61,6 +61,8 @@ impl Fixture {
         let class_applications = Arena::new();
         let interface_applications = Arena::new();
         let intrinsic_core = IntrinsicTypeCore {
+            any: crate::ClassId::from_raw(3_u32.into()),
+            nothing: crate::ClassId::from_raw(4_u32.into()),
             unit: crate::StructId::from_raw(12_u32.into()),
             character: crate::StructId::from_raw(11_u32.into()),
             float: crate::StructId::from_raw(13_u32.into()),

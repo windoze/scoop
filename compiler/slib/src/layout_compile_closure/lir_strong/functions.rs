@@ -1,17 +1,18 @@
 //! Bind runtime function signature operands to their exact type identities.
 
 use scoop_identity::{
-    CoreBuiltinNominal, Effect, ExactTypeDiagnosticCatalog, ExactTypeDiagnosticGraph, ExactTypeKey,
-    GeneratedNominalKey, PersistentExactTypeId, SourceDeclarationKey, SourceDeclarationKind,
-    ValidatedIdentityGraph,
+    Effect, ExactTypeDiagnosticCatalog, ExactTypeDiagnosticGraph, ExactTypeKey,
+    GeneratedNominalKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+    SourceDeclarationKind, ValidatedIdentityGraph,
 };
 use scoop_lir::{ConeProductionSectionV2, StrongTypeDescriptorRefV2, TypeDescriptorRelations};
 
 use super::SharedLirStrongProductionError as Error;
 
-pub(super) fn validate(
+pub(super) fn validate<'a>(
     production: &ConeProductionSectionV2,
     graph: &ValidatedIdentityGraph,
+    nominal_source: impl Fn(PersistentTypeId) -> Option<&'a scoop_hir::NominalInterfaceRecordV1>,
 ) -> Result<(), Error> {
     let operands = ExactTypeDiagnosticCatalog::try_new(graph, &[])?;
     for registration in production.type_registrations().registrations() {
@@ -59,20 +60,25 @@ pub(super) fn validate(
                     .zip(actual_parameters)
                     .chain(std::iter::once((result, actual_result)))
                 {
-                    if !operand_matches(&operands, *expected, *actual)? {
+                    if !operand_matches(&operands, *expected, *actual, &nominal_source)? {
                         return Err(invalid(exact, "signature_operand"));
                     }
                 }
             }
-            (ExactTypeKey::Function { .. }, TypeDescriptorRelations::Absent)
+            (
+                ExactTypeKey::Function { .. },
+                TypeDescriptorRelations::Absent | TypeDescriptorRelations::Bottom,
+            )
             | (_, TypeDescriptorRelations::Signature { .. })
             | (_, TypeDescriptorRelations::Interface { .. }) => {
                 return Err(invalid(exact, "kind"));
             }
-            (_, TypeDescriptorRelations::Absent) if is_interface => {
+            (_, TypeDescriptorRelations::Absent | TypeDescriptorRelations::Bottom)
+                if is_interface =>
+            {
                 return Err(invalid(exact, "kind"));
             }
-            (_, TypeDescriptorRelations::Absent) => {}
+            (_, TypeDescriptorRelations::Absent | TypeDescriptorRelations::Bottom) => {}
         }
     }
     Ok(())
@@ -91,15 +97,19 @@ fn interface_type(graph: &impl ExactTypeDiagnosticGraph, key: &ExactTypeKey) -> 
     })
 }
 
-fn operand_matches(
+fn operand_matches<'a>(
     graph: &impl ExactTypeDiagnosticGraph,
     expected: PersistentExactTypeId,
     actual: Option<StrongTypeDescriptorRefV2>,
+    nominal_source: &impl Fn(PersistentTypeId) -> Option<&'a scoop_hir::NominalInterfaceRecordV1>,
 ) -> Result<bool, Error> {
     let key = graph
         .exact_type_key(expected)
         .ok_or_else(|| invalid(expected, "operand_type"))?;
-    if *key == ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()) {
+    if let ExactTypeKey::Nominal(owner) = key && nominal_source(*owner).is_some_and(|nominal| {
+        matches!(nominal.source_shape(), scoop_hir::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == scoop_hir::IntrinsicTypeKind::Any)
+    }) {
         return Ok(actual.is_none());
     }
     let Some(actual) = actual else {

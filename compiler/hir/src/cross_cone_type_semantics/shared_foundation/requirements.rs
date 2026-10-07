@@ -66,11 +66,9 @@ pub(super) fn project(
             }
         }
     }
-    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-        let declaration = builtin.identity_record();
-        if declaration.key().origin() == types.current.provider {
-            replay.visit(types.nominal_exact(declaration.id())?)?;
-        }
+    let declaration = CoreBuiltinNominal::Unit.identity_record();
+    if declaration.key().origin() == types.current.provider {
+        replay.visit(types.nominal_exact(declaration.id())?)?;
     }
     Ok(())
 }

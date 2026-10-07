@@ -1,0 +1,39 @@
+fun fail(): Nothing { throw IllegalStateException() }
+fun mark(value: Int): Int { println(value); return value }
+class Node() { fun read(value: Int): Int = value }
+
+fun condition(): Nothing { if (fail()) { println("unreachable") } }
+fun loopCondition(): Nothing { while (fail()) {} }
+fun missingNode(): Node = fail()
+fun receiver() { missingNode().read(mark(9)) }
+
+fun guarded(value: Int): Int = when (value) {
+    1 if (fail()) -> 1
+    2 -> 2
+    else -> 3
+}
+
+fun main() {
+    println(false && fail())
+    println(true || fail())
+    try { println(true && fail()) }
+    catch (error: IllegalStateException) { println("short") }
+    try { condition() }
+    catch (error: IllegalStateException) { println("condition") }
+    try { loopCondition() }
+    catch (error: IllegalStateException) { println("loop") }
+    try { receiver() }
+    catch (error: IllegalStateException) { println("receiver") }
+    try { guarded(1) }
+    catch (error: IllegalStateException) { println("guard") }
+    println(guarded(2))
+    println(guarded(3))
+    try { val values: Array<Int> = [fail(), mark(8)] }
+    catch (error: IllegalStateException) { println("array") }
+    try { val values = [fail(), 1] }
+    catch (error: IllegalStateException) { println("inferred first") }
+    try { val values = [mark(5), fail()] }
+    catch (error: IllegalStateException) { println("inferred last") }
+    try { val pair: (Int, Int) = (mark(4), fail()) }
+    catch (error: IllegalStateException) { println("tuple") }
+}

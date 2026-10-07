@@ -1,0 +1,106 @@
+SourceFile
+  RootPackage
+  fun fail(): Nothing
+    throw
+      Call IllegalStateException
+  fun number(): Int
+    =
+      IntLiteral 42
+  fun ignore(value: Any): Int
+    =
+      IntLiteral 42
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun render<T : ToString>(value: T): String
+    =
+      MethodCall toString
+        Var value
+  fun main()
+    val never: () -> Nothing
+      CallableReference 0 fail
+    val scalar: () -> Int
+      Var never
+    val discarded: () -> Unit
+      Var never
+    val erased: Any
+      Var never
+    Call println
+      Is () -> Nothing false
+        Var erased
+    Call println
+      Is () -> Int false
+        Var erased
+    val ordinary: () -> Int
+      CallableReference 1 number
+    val other: Any
+      Var ordinary
+    Call println
+      Is () -> Nothing false
+        Var other
+    try
+      Call scalar
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "static"
+    try
+      Call discarded
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "unit"
+    try
+      val dynamic
+        Cast () -> Int optional=false
+          Var erased
+      Call dynamic
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "dynamic"
+    val acceptsAny: (Any) -> Int
+      CallableReference 2 ignore
+    val acceptsBottom: (Nothing) -> Int
+      Var acceptsAny
+    try
+      Call acceptsBottom
+        Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "parameter"
+    try
+      Call render<Nothing>
+        Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "bound"
+    try
+      val value: Int
+        Call identity<Nothing>
+          Call fail
+      Call println
+        Var value
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "generic"
+    val empty: Nothing?
+      Var None
+    Call println
+      WhenExpression
+        Var empty
+        arm None
+          BoolLiteral true
+        arm Some(value)
+          BoolLiteral false
+    val values: Array<Nothing>
+      ArrayLiteral
+    Call println
+      FieldAccess size
+        Var values
+    val generated
+      Call Array<Nothing>
+        IntLiteral 0L
+        Lambda 0 suspend=false
+          param _: _
+          Call fail
+    Call println
+      FieldAccess size
+        Var generated

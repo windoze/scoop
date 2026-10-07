@@ -56,8 +56,6 @@ impl NativeBoundaryNormalizer<'_> {
                 shape: ScoopAbiValueShape::Aggregate,
                 gc_free: true,
             }
-        } else if self.is_any(exact) {
-            pointer(self.target, scoop_lir::PointerKind::Managed, false)
         } else if matches!(
             self.exact(exact)?,
             ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
@@ -204,9 +202,6 @@ impl NativeBoundaryNormalizer<'_> {
         &self,
         exact: PersistentExactTypeId,
     ) -> Option<scoop_lir::PointerKind> {
-        if self.is_any(exact) {
-            return Some(scoop_lir::PointerKind::Managed);
-        }
         match self.exact_types.get(&exact).map(Arc::as_ref) {
             Some(ExactTypeKey::Function { .. }) => Some(scoop_lir::PointerKind::Managed),
             Some(ExactTypeKey::RawPointer(_)) => Some(scoop_lir::PointerKind::Raw),

@@ -317,6 +317,8 @@ pub(crate) fn lower_intrinsic_type_representation(
         mir::IntrinsicTypeRepresentation::Unit => lir::IntrinsicTypeRepresentation::Unit,
         mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
         mir::IntrinsicTypeRepresentation::String => lir::IntrinsicTypeRepresentation::String,
+        mir::IntrinsicTypeRepresentation::Any => lir::IntrinsicTypeRepresentation::Any,
+        mir::IntrinsicTypeRepresentation::Nothing => lir::IntrinsicTypeRepresentation::Nothing,
         mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
             lir::IntrinsicTypeRepresentation::Ptr {
                 pointee: compiler_data_pointee(module, pointee),

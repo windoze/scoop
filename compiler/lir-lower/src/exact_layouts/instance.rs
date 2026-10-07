@@ -10,11 +10,6 @@ impl Projection<'_> {
     ) -> Result<lir::ExactInstanceLayoutV1> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.output.foundation();
-        if self.physical_type(source.exact())? == mir::Type::Any {
-            return Ok(lir::ExactInstanceLayoutV1::abstract_reference(
-                identity, foundation,
-            )?);
-        }
         Ok(match source.representation() {
             Kind::Intrinsic(Intrinsic::String) => {
                 lir::ExactInstanceLayoutV1::inline_bytes(identity, foundation)?
@@ -23,7 +18,7 @@ impl Projection<'_> {
                 let element = self.value_dependency(*element)?;
                 lir::ExactInstanceLayoutV1::inline_array(identity, &element, foundation)?
             }
-            Kind::Interface => {
+            Kind::Interface | Kind::Intrinsic(Intrinsic::Any | Intrinsic::Nothing) => {
                 lir::ExactInstanceLayoutV1::abstract_reference(identity, foundation)?
             }
             Kind::Class {

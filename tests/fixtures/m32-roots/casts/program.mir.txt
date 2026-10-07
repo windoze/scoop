@@ -1,0 +1,269 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<Nothing>
+    Some(_0: Nothing)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun operand @fn0() -> Any
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: Any = @fn0 direct
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Nothing
+          Type Any
+          Local $call.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $call.2: Any = @fn0 direct
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Nothing
+            Type Any
+            Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $cast.1: Any = @fn0 direct
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Nothing
+          Type Any
+          Local $cast.1
+    bb1 if.then.1
+      Type Nothing
+      Retype Nothing
+        Type Any
+        Local $cast.1
+      unreachable
+    bb2 if.else.2
+      assign $cast.2
+        Type Option<Nothing>
+        VariantConstruct Option<Nothing> v1
+      goto bb3
+    bb3 if.merge.3
+      val empty: Option<Nothing>
+        Type Option<Nothing>
+        Local $cast.2
+      val $when.3: Option<Nothing>
+        Type Option<Nothing>
+        Local empty
+      val $pattern.subject.4: Option<Nothing>
+        Type Option<Nothing>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Nothing> v1
+          Type Option<Nothing>
+          Local $pattern.subject.4
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.5: Option<Nothing>
+        Type Option<Nothing>
+        Local $when.3
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Nothing> v0
+          Type Option<Nothing>
+          Local $pattern.subject.5
+    bb6 pattern.merge.6
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $result.0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      goto bb17
+    bb7 pattern.pass.7
+      val value: Nothing
+        Type Nothing
+        VariantPayloadProject Option<Nothing> v0 f0
+          Type Option<Nothing>
+          Local $pattern.subject.5
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 try.unwind.10
+      landing_pad cleanup=false
+      goto bb11
+    bb11 try.dispatch.11
+      begin_catch
+      branch bb20 bb21
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb12 try.handler_pad.12
+      landing_pad cleanup=true
+      goto bb13
+    bb13 try.handler_cleanup.13
+      end_catch
+      resume
+    bb14 try.exit_pad.14
+      landing_pad cleanup=true
+      goto bb15
+    bb15 try.exit_cleanup.15
+      end_catch
+      resume
+    bb16 try.end.16
+      return
+    bb17 try.body.17 unwind bb10
+      call $cast.6: Any = @fn0 direct
+      branch bb18 bb19
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Nothing
+            Type Any
+            Local $cast.6
+    bb18 if.then.18 unwind bb10
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.3
+      throw unwind bb10
+        Type ClassCastException
+        Local $new.3
+    bb19 if.merge.19 unwind bb10
+      Type Nothing
+      Retype Nothing
+        Type Any
+        Local $cast.6
+      unreachable
+    bb20 try.catch.20
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.4
+      goto bb22
+    bb21 try.next.21
+      rethrow unwind bb14
+    bb22 scope.22 unwind bb12
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb23
+    bb23 scope.23
+      goto bb16
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn2 <- println
+  instance mi1 function=@fn3 <- println
+  str @str0 "operand"
+  str @str1 "cast"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn1

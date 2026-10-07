@@ -329,7 +329,7 @@ impl Lowerer {
         } else {
             "||"
         };
-        if lhs.ty != self.boolean || rhs.ty != self.boolean {
+        if !self.is_subtype(lhs.ty, self.boolean) || !self.is_subtype(rhs.ty, self.boolean) {
             let lhs_ty = self.type_name(lhs.ty);
             let rhs_ty = self.type_name(rhs.ty);
             self.error(

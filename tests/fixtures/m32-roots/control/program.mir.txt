@@ -1,0 +1,543 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun fail @fn0() -> Nothing
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun forward @fn1() -> Int
+    bb0 entry
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+  fun choose @fn2(flag: Boolean) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      goto bb3
+    bb2 if.else.2
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun inferred @fn3(flag: Boolean) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      goto bb3
+    bb2 if.else.2
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+    bb3 if.merge.3
+      val value: Int
+        Type Int
+        Local $result.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun both @fn4(flag: Boolean) -> Nothing
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+    bb2 if.else.2
+      call $call.2: Nothing = @fn0 direct
+      unreachable
+    bb3 if.merge.3
+      unreachable
+  fun loopForever @fn5() -> Nothing
+    bb0 entry
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      goto bb3
+    bb2 while.exit.2
+      unreachable
+    bb3 while.body.3
+      goto bb1
+  fun mark @fn6(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local value
+  fun consume @fn7(first: Int, second: Int, third: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        Local second
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local third
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun defaultValue @fn8(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun cleanup @fn9() -> Int
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      call $call.1: Nothing = @fn0 direct
+      unreachable
+    bb7 scope.7 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      val $return.2: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      end_catch
+      goto bb8
+    bb8 scope.8
+      return
+        Type Int
+        Local $return.2
+  fun main @fn10() -> Unit
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Boolean
+        Local $parameter.flag
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $parameter.flag
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      goto bb20
+    bb8 try.body.8 unwind bb1
+      call value: Int = @fn1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+    bb13 try.unwind.13
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.dispatch.14
+      begin_catch
+      branch bb21 bb22
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb15 try.handler_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.handler_cleanup.16
+      end_catch
+      resume
+    bb17 try.exit_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.exit_cleanup.18
+      end_catch
+      resume
+    bb19 try.end.19
+      goto bb32
+    bb20 try.body.20 unwind bb13
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Int = @fn6 direct
+        Type Int
+        Local $parameter.value
+      call $argument.1: Nothing = @fn0 direct
+      unreachable
+    bb21 try.catch.21
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.2
+      goto bb23
+    bb22 try.next.22
+      rethrow unwind bb17
+    bb23 scope.23 unwind bb15
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb24
+    bb24 scope.24
+      goto bb19
+    bb25 try.unwind.25
+      landing_pad cleanup=false
+      goto bb26
+    bb26 try.dispatch.26
+      begin_catch
+      branch bb33 bb34
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb27 try.handler_pad.27
+      landing_pad cleanup=true
+      goto bb28
+    bb28 try.handler_cleanup.28
+      end_catch
+      resume
+    bb29 try.exit_pad.29
+      landing_pad cleanup=true
+      goto bb30
+    bb30 try.exit_cleanup.30
+      end_catch
+      resume
+    bb31 try.end.31
+      goto bb44
+    bb32 try.body.32 unwind bb25
+      call $parameter.value: Nothing = @fn0 direct
+      unreachable
+    bb33 try.catch.33
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.3
+      goto bb35
+    bb34 try.next.34
+      rethrow unwind bb29
+    bb35 scope.35 unwind bb27
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb36
+    bb36 scope.36
+      goto bb31
+    bb37 try.unwind.37
+      landing_pad cleanup=false
+      goto bb38
+    bb38 try.dispatch.38
+      begin_catch
+      branch bb45 bb46
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb39 try.handler_pad.39
+      landing_pad cleanup=true
+      goto bb40
+    bb40 try.handler_cleanup.40
+      end_catch
+      resume
+    bb41 try.exit_pad.41
+      landing_pad cleanup=true
+      goto bb42
+    bb42 try.exit_cleanup.42
+      end_catch
+      resume
+    bb43 try.end.43
+      call $dependency.argument.0: Int = @fn9 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+    bb44 try.body.44 unwind bb37
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.4: Nothing = @fn4 direct
+        Type Boolean
+        Local $parameter.flag
+      unreachable
+    bb45 try.catch.45
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.5
+      goto bb47
+    bb46 try.next.46
+      rethrow unwind bb41
+    bb47 scope.47 unwind bb39
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb48
+    bb48 scope.48
+      goto bb43
+  fun println @fn11(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn12(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn11 <- println
+  instance mi1 function=@fn12 <- println
+  str @str0 "fail"
+  str @str1 "illegal state"
+  str @str2 "finally"
+  str @str3 "caught"
+  str @str4 "arguments"
+  str @str5 "default"
+  str @str6 "branches"
+  str @str7 "\n"
+  str @str8 "\n"
+  output executable @fn10

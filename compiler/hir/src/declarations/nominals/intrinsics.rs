@@ -13,6 +13,8 @@ pub enum IntrinsicTypeKind {
     MutableArray,
     Ptr,
     FunPtr,
+    Any,
+    Nothing,
 }
 
 impl IntrinsicTypeKind {
@@ -28,6 +30,8 @@ impl IntrinsicTypeKind {
             Self::MutableArray => "core_mutable_array",
             Self::Ptr => "core_ptr",
             Self::FunPtr => "core_fun_ptr",
+            Self::Any => "core_any",
+            Self::Nothing => "core_nothing",
         }
     }
 
@@ -43,6 +47,8 @@ impl IntrinsicTypeKind {
             Self::MutableArray => "MutableArray",
             Self::Ptr => "Ptr",
             Self::FunPtr => "FunPtr",
+            Self::Any => "Any",
+            Self::Nothing => "Nothing",
         }
     }
 
@@ -55,7 +61,9 @@ impl IntrinsicTypeKind {
             | Self::Char
             | Self::Ptr
             | Self::FunPtr => IntrinsicTypeTarget::Struct,
-            Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
+            Self::String | Self::Array | Self::MutableArray | Self::Any | Self::Nothing => {
+                IntrinsicTypeTarget::Class
+            }
         }
     }
 
@@ -66,7 +74,9 @@ impl IntrinsicTypeKind {
             | Self::Boolean
             | Self::Float(_)
             | Self::Char
-            | Self::String => IntrinsicTypeParameters::None,
+            | Self::String
+            | Self::Any
+            | Self::Nothing => IntrinsicTypeParameters::None,
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
             Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
             Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
@@ -81,6 +91,8 @@ impl IntrinsicTypeKind {
             (Self::Char, []) => IntrinsicTypeRepresentation::Char,
             (Self::Float(kind), []) => IntrinsicTypeRepresentation::Float(kind),
             (Self::String, []) => IntrinsicTypeRepresentation::String,
+            (Self::Any, []) => IntrinsicTypeRepresentation::Any,
+            (Self::Nothing, []) => IntrinsicTypeRepresentation::Nothing,
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
             (Self::MutableArray, [element]) => {
                 IntrinsicTypeRepresentation::MutableArray { element: *element }
@@ -108,4 +120,6 @@ pub enum IntrinsicTypeRepresentation {
     MutableArray { element: TypeId },
     Ptr { pointee: TypeId },
     FunPtr { function: TypeId },
+    Any,
+    Nothing,
 }

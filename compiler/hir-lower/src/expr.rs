@@ -51,7 +51,6 @@ use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
 use crate::scope::Scopes;
-use crate::stmt::statements_control_outcomes;
 use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,

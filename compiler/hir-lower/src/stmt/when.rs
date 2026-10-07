@@ -287,9 +287,10 @@ impl Lowerer {
         probe.pop_scope();
         match head {
             Some((pattern, guard)) => {
-                let guard_setup_falls_through = guard
-                    .as_ref()
-                    .map(|guard| statements_control_outcomes(&guard.setup).can_fall_through());
+                let guard_setup_falls_through = guard.as_ref().map(|guard| {
+                    self.statements_control_outcomes(&guard.setup)
+                        .can_fall_through()
+                });
                 (
                     true,
                     requires_expected,
@@ -364,7 +365,7 @@ impl Lowerer {
             Some(guard) => {
                 let mut sink = Vec::new();
                 let guard_expr = self.lower_expr(guard, &mut sink, None)?;
-                if guard_expr.ty != self.boolean {
+                if !self.is_subtype(guard_expr.ty, self.boolean) {
                     let found = self.type_name(guard_expr.ty);
                     self.error(
                         guard.span(),

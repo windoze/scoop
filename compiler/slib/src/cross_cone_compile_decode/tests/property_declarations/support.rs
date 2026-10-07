@@ -68,7 +68,6 @@ impl Fixture {
         foundation
             .set_types(vec![
                 CoreBuiltinNominal::Unit.identity_record(),
-                CoreBuiltinNominal::Any.identity_record(),
                 nominal.clone(),
             ])
             .unwrap();

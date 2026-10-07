@@ -63,19 +63,19 @@ fn with_types(
         gc_free: false,
     });
     cases.push((string, roles.string().persistent(), provider));
-    for (kind, nominal) in [
-        (TypeKind::Unit, CoreBuiltinNominal::Unit),
-        (TypeKind::Any, CoreBuiltinNominal::Any),
+    for (kind, nominal, origin) in [
+        (
+            TypeKind::Unit,
+            CoreBuiltinNominal::Unit.identity_record().id(),
+            ConeIdentity::CORE,
+        ),
+        (TypeKind::Any, roles.any().persistent(), provider),
     ] {
         let ty = types.alloc(Type {
             gc_free: matches!(kind, TypeKind::Unit),
             kind,
         });
-        cases.push((
-            ty,
-            nominal.identity_record().id(),
-            nominal.declaration_key().origin(),
-        ));
+        cases.push((ty, nominal, origin));
     }
     let tuple = types.alloc(Type {
         kind: TypeKind::Tuple(vec![boolean, string]),

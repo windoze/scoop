@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "intrinsic type `core_any` has an invalid type-parameter declaration",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 54,
+      "kind": "source",
+      "path": "src/roots.scoop",
+      "start": 23
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "scoop.core must define exactly one `core_any` intrinsic type",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 3036,
+      "kind": "source",
+      "path": "src/array_list.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Any`",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 406,
+      "kind": "source",
+      "path": "src/foreign_callback.scoop",
+      "start": 403
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "intrinsic `foreign_callback_register` has an invalid core signature",
+    "notes": [],
+    "origin": {
+      "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
+      "end": 483,
+      "kind": "source",
+      "path": "src/foreign_callback.scoop",
+      "start": 309
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,5 @@
+@Intrinsic("core_any")
+public abstract class Any {}
+
+@Intrinsic("core_nothing")
+public final class Nothing { companion object {} }

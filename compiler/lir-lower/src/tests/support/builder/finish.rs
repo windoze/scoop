@@ -64,6 +64,8 @@ impl Builder {
                         mir::Type::FunPtr(*signature)
                     }
                     mir::IntrinsicTypeRepresentation::String
+                    | mir::IntrinsicTypeRepresentation::Any
+                    | mir::IntrinsicTypeRepresentation::Nothing
                     | mir::IntrinsicTypeRepresentation::Array { .. }
                     | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
                         unreachable!("the test registry fixes intrinsic declaration targets")

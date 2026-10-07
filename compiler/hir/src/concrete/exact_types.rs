@@ -249,7 +249,23 @@ impl<'a> ExactTypeIdentityBuilder<'a> {
                     ExactTypeKey::Nominal(core.string().persistent())
                 }
             },
-            TypeKind::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
+            TypeKind::Any => match self.inputs.core_types {
+                ConcreteCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.any;
+                    self.require_class(Some(ty), ExactTypeRelation::IntrinsicNominalOwner, owner)?;
+                    let declaration = &self.inputs.classes[owner];
+                    self.require_canonical_nominal(
+                        ty,
+                        declaration.canonical_type,
+                        ExactTypeRelation::IntrinsicNominalOwner,
+                    )?;
+                    let identity = declaration.origin.clone();
+                    self.nominal_key(ty, identity, &[])?
+                }
+                ConcreteCoreTypeIdentityAuthority::Imported(core) => {
+                    ExactTypeKey::Nominal(core.any().persistent())
+                }
+            },
             TypeKind::Struct(id) => {
                 self.require_struct(Some(ty), ExactTypeRelation::Struct, id)?;
                 let declaration = &self.inputs.structs[id];

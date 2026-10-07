@@ -175,6 +175,7 @@ impl Fixture {
         ExactDescriptorExportV1::replay_from_constituents(
             TARGET,
             ExactDescriptorSourceInputV1 {
+                is_bottom: false,
                 release_policy: Default::default(),
                 exact: self.exact(),
                 parent: None,

@@ -41,10 +41,7 @@ pub(super) fn declaration_front(
 pub(super) fn base_hir_foundation() -> CanonicalHirFoundation {
     let mut foundation = CanonicalHirFoundation::empty();
     foundation
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record()])
         .unwrap();
     foundation
 }

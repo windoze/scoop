@@ -72,7 +72,7 @@ impl Lowerer {
     /// target in `Expr::ty`); a reference crossing to a supertype is a
     /// zero-cost retype. Equal types pass through unchanged.
     pub(crate) fn adapt_to(&mut self, expr: hir::Expr, target: TypeId) -> hir::Expr {
-        if self.types_equal(expr.ty, target) {
+        if self.types_equal(expr.ty, target) || self.is_nothing_ty(expr.ty) {
             return expr;
         }
         let span = expr.span;

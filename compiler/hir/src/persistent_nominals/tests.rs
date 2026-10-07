@@ -77,7 +77,7 @@ fn aligned_tables_reject_missing_identities_before_indexing() {
 }
 
 #[test]
-fn empty_arena_tables_still_carry_both_core_builtin_nominals() {
+fn empty_arenas_do_not_invent_any_source_declaration() {
     let identities = HirNominalIdentities::checked(
         &Arena::new(),
         Vec::new(),
@@ -92,7 +92,15 @@ fn empty_arena_tables_still_carry_both_core_builtin_nominals() {
     )
     .unwrap();
 
-    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-        assert_eq!(identities.core_builtin(builtin), &builtin.identity_record());
-    }
+    assert_eq!(
+        identities.unit(),
+        &CoreBuiltinNominal::Unit.identity_record()
+    );
+    assert!(
+        identities
+            .declaration(crate::SourceNominalId::Concrete(
+                CoreBuiltinNominal::Any.identity_record().id()
+            ))
+            .is_none()
+    );
 }

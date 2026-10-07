@@ -55,6 +55,10 @@ HIR 完成名称解析、类型检查、重载与泛型实参选择、可见性�
 
 默认值、泛型正文及词法 callable 保存定义处绑定、完整 binder、局部值和 capture 身份。再次消费只替换实际类型与求值上下文，不重新选择名称、重载、字段或接口默认实现。局部函数和 closure 的捕获引用原绑定，不能改为消费方的同名局部变量。
 
+默认模板分别保存提供方参数的预期类型和正文表达式的实际类型。前端按子类型规则检查默认值；`Nothing` 正文可以满足任意参数类型，产物投影、读取及实例化必须保留这两个类型，不能要求它们逐字相同或把底类型调用改写为参数类型的成功返回。模板契约仍校验预期类型与原提供方参数一致；通用格式构造器不重复进行依赖源码类型表示的子类型判断。
+
+源码调用记录的实参保留实际表达式类型。通常实参已由前端适配为参数类型；Nothing 实参保留底类型，在 HIR 源码签名和 MIR 实现签名连接时通过实际 nominal 的 intrinsic 表示识别。两处均保留参数个数和位置检查；调用结果仍须与被调用声明的完整结果类型相同，不能因上下文需要而改写。
+
 nominal application 保存原声明与完整实参；struct、enum、class、interface 各有独立 typed identity。alias 透明展开；字段、variant、构造与 property accessor 保存各自原身份。按值循环、继承环、泛型约束、GC-free 和 ZST 属性在所属语义边界确定。
 
 property 具有完整类型、读写能力、getter/setter、访问域与互斥的 stored/accessor/delegated/const/extern 表示。required accessor 有 Body 或 AbstractSlot 的明确类别；普通缺失初始化不能靠空正文、late-init flag 或可空类型补齐。
@@ -194,9 +198,9 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/5` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/11`、`cross-cone-interface/60`、`cross-cone-type-semantics/22` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/15` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/6`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/10`、`cross-cone-layout-link-closure/5`、`cone-production/10`、`link-identity-closure/15`、`link-support/1` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/12`、`cross-cone-interface/61`、`cross-cone-type-semantics/23` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/16` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/6`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/11`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -387,13 +391,17 @@ symbol 只表示已存在的 typed entity，不能反向补声明或决定 ABI�
 
 core 是普通 library Cone，可修改和重建，使用相同声明、可见性、泛型、产物、ABI 与链接规则。sysroot 只提供默认 locator，不改变实体归属或来源资格。
 
-只有编译器主动构造或调用的语言角色需要独立的 typed protocol 引用，例如 Unit/Any、整数/Char/Float/Double 表示、Option/Iterator、编译器异常、初始化循环、协程和 callback。引用必须解析到实际声明及完整签名，缺失、重复或形状错误在相应边界报告。
+只有编译器主动构造或调用的语言角色需要独立的 typed protocol 引用，例如 Unit/Any/Nothing、整数/Char/Float/Double 表示、Option/Iterator、编译器异常、初始化循环、协程和 callback。引用必须解析到实际声明及完整签名，缺失、重复或形状错误在相应边界报告。Any/Nothing 必须具有语言规范 11.1 的源码声明和普通 public binding；内部顶／底类型表示只引用这些声明，不能用固定名字补建缺失的名义声明。
 
 Option protocol 保存同一个实际 owner、Some payload 与 None variant；Integer protocol 完整覆盖八种整数 kind。compiler exception protocol 包含实际 Throwable、UnwrapException、ClassCastException、ArithmeticException、IndexOutOfBoundsException、IllegalStateException 与 IllegalArgumentException 及所需调用目标。
 
 ToString、Hash、普通 operator、print/println、容器和 codec 通过普通声明与接口分派使用。新增普通 core 成员不要求新增编译器角色表；intrinsic 表示不自动赋予未声明的 conformance。
 
 core prelude 从普通 public bindings 提供最低优先级名称，direct/support 依赖与 re-export 保留原身份。普通调用、默认值、模板与 native 引用使用同一 Export/MIR/LIR 合同；String 的 layout、TD、registration 与 alias 也来自实际声明。
+
+Any/Nothing 的 intrinsic kind、原声明、完整 application 与静态描述经过同一 HIR/MIR/LIR metadata 通道。别名和再次发布保留原身份；实际 core 源码声明必须可通过普通依赖查询取得。Any 可以保留内部的顶类型分类，Nothing 可以使用带底类型表示的普通 class application，但分类不替代源码声明。
+
+HIR 将 Nothing 参与的子类型、结果合并和调用完成性质在源码边界确定。向其他类型适配只保留原求值，不生成目标值。MIR 将无正常返回的求值结束为明确的不可达正常边，保留原有异常出口；后续调用实参、字段写入和正常 return 不能越过该终止点。LIR/codegen 复用已确定的控制流和调用签名，不根据函数名称猜测 noreturn，也不把它当成 Unit/ZST。
 
 ### 2.13 跨 Cone 模板与 ODR
 
@@ -419,7 +427,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 5、runtime ABI contract 9 的字段与启动协议由运行时规范 2.7、2.8 定义。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 6、runtime ABI contract 10 的字段与启动协议由运行时规范 2.7、2.8 定义。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 

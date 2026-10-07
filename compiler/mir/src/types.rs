@@ -272,6 +272,8 @@ impl StructDef {
                 }
                 IntrinsicTypeRepresentation::FunPtr { signature } => Type::FunPtr(*signature),
                 IntrinsicTypeRepresentation::String
+                | IntrinsicTypeRepresentation::Any
+                | IntrinsicTypeRepresentation::Nothing
                 | IntrinsicTypeRepresentation::Array { .. }
                 | IntrinsicTypeRepresentation::MutableArray { .. } => {
                     unreachable!("the MIR intrinsic registry fixes physical declaration kinds")
@@ -394,6 +396,14 @@ pub enum ClassRepresentation {
 }
 
 impl ClassDef {
+    pub fn physical_type(&self, id: ClassId) -> Type {
+        match self.representation {
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Any) => Type::Any,
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => Type::String,
+            _ => Type::Class(id),
+        }
+    }
+
     pub fn declared_fields(&self) -> &[Field] {
         match &self.representation {
             ClassRepresentation::Declared { fields, .. } => fields,
@@ -424,6 +434,8 @@ impl ClassDef {
 /// specialized nominal type. Family variants carry their MIR element type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntrinsicTypeRepresentation {
+    Any,
+    Nothing,
     Unit,
     Integer(IntegerKind),
     Boolean,
@@ -466,7 +478,11 @@ pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a T
             Some((ArrayKind::Mutable, element))
         }
         ClassRepresentation::Declared { .. }
-        | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => None,
+        | ClassRepresentation::Intrinsic(
+            IntrinsicTypeRepresentation::String
+            | IntrinsicTypeRepresentation::Any
+            | IntrinsicTypeRepresentation::Nothing,
+        ) => None,
         ClassRepresentation::Intrinsic(_) => {
             unreachable!("the intrinsic registry fixes declaration targets")
         }

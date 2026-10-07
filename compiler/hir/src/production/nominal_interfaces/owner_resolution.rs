@@ -7,9 +7,8 @@ pub(in crate::production) fn from_type(
     let ty = super::arena_get(&export.types, ty)?;
     let identity = match ty {
         crate::Type::Unit => {
-            return Some(core_builtin_owner(
-                export,
-                scoop_identity::CoreBuiltinNominal::Unit,
+            return Some(NominalDeclarationOwner::Concrete(
+                export.nominal_identities.unit().id(),
             ));
         }
         crate::Type::Integer(kind) => {
@@ -22,10 +21,7 @@ pub(in crate::production) fn from_type(
             return intrinsic_concrete_owner(export, IntrinsicConcreteType::String);
         }
         crate::Type::Any => {
-            return Some(core_builtin_owner(
-                export,
-                scoop_identity::CoreBuiltinNominal::Any,
-            ));
+            return intrinsic_concrete_owner(export, IntrinsicConcreteType::Any);
         }
         crate::Type::Struct(application) => {
             return Some(super::arena_get(&export.struct_applications, *application)?.template);
@@ -84,13 +80,6 @@ fn class_or_object_identity(
     }
 }
 
-fn core_builtin_owner(
-    export: &crate::ExportHir,
-    builtin: scoop_identity::CoreBuiltinNominal,
-) -> NominalDeclarationOwner {
-    NominalDeclarationOwner::Concrete(export.nominal_identities.core_builtin(builtin).id())
-}
-
 #[derive(Clone, Copy)]
 enum IntrinsicGenericType {
     Pointer,
@@ -128,6 +117,7 @@ enum IntrinsicConcreteType {
     Integer(crate::IntegerKind),
     Boolean,
     String,
+    Any,
 }
 
 fn intrinsic_concrete_owner(
@@ -146,6 +136,9 @@ fn intrinsic_concrete_owner(
                 IntrinsicConcreteType::String => export
                     .nominal_identities
                     .get_class(protocols.fundamental_types.string),
+                IntrinsicConcreteType::Any => export
+                    .nominal_identities
+                    .get_class(protocols.fundamental_types.any),
             }?;
             identity.source()?.concrete_id()?
         }
@@ -155,6 +148,7 @@ fn intrinsic_concrete_owner(
             }
             IntrinsicConcreteType::Boolean => protocols.fundamental_types().boolean().persistent(),
             IntrinsicConcreteType::String => protocols.fundamental_types().string().persistent(),
+            IntrinsicConcreteType::Any => protocols.fundamental_types().any().persistent(),
         },
     };
     Some(NominalDeclarationOwner::Concrete(persistent))

@@ -32,6 +32,8 @@ impl Lowerer {
                 | hir::IntrinsicTypeKind::Char
                 | hir::IntrinsicTypeKind::Boolean
                 | hir::IntrinsicTypeKind::String
+                | hir::IntrinsicTypeKind::Any
+                | hir::IntrinsicTypeKind::Nothing
                 | hir::IntrinsicTypeKind::Ptr
                 | hir::IntrinsicTypeKind::FunPtr,
             ) => None,

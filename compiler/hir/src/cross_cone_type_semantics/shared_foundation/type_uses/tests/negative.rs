@@ -82,18 +82,13 @@ fn shared_type_uses_do_not_treat_a_value_or_builtin_as_an_inheritance_target() {
         matches!(consumer.uses(&[&provider]), Err(Error::InheritanceEdges(actual)) if actual == exact(derived))
     );
     let builtins = Artifact::new(ConeCoordinate::reserved_core()).load(&[]);
-    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-        let mut source = Artifact::new(coordinate("consumer"));
-        source.nominal(
-            "Derived",
-            SourceNominalKind::Class,
-            &[builtin.identity_record().id()],
-        );
-        let consumer = source.load(&[&builtins]);
-        assert!(
-            matches!(consumer.uses(&[&builtins]), Err(Error::MissingNominal(actual)) if actual == builtin.identity_record().id())
-        );
-    }
+    let mut source = Artifact::new(coordinate("consumer"));
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    source.nominal("Derived", SourceNominalKind::Class, &[unit]);
+    let consumer = source.load(&[&builtins]);
+    assert!(
+        matches!(consumer.uses(&[&builtins]), Err(Error::MissingNominal(actual)) if actual == unit)
+    );
 }
 
 fn reject(consumer: &Loaded, provider: &Loaded, records: Vec<SelectedExternalTypeUseV1>) {

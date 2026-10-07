@@ -32,6 +32,8 @@ pub enum MirTypeCLayoutPolicyV1 {
 /// separately supported exact-application path and cannot masquerade as one.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MirParamFreeIntrinsicV1 {
+    Any,
+    Nothing,
     Unit,
     Integer(IntegerKind),
     Boolean,

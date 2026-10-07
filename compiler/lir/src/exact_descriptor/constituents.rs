@@ -19,6 +19,7 @@ mod tables;
 pub struct ExactDescriptorSourceInputV1<'a> {
     pub exact: PersistentExactTypeId,
     pub release_policy: crate::ReleasePolicy,
+    pub is_bottom: bool,
     pub parent: Option<StrongTypeDescriptorRefV2>,
     pub interfaces: &'a [StrongTypeDescriptorRefV2],
     pub interface_parents: Option<&'a [StrongTypeDescriptorRefV2]>,
@@ -70,13 +71,17 @@ impl ExactDescriptorExportV1 {
             source.parent,
             vtable,
             itables,
-            source
-                .interface_parents
-                .map_or(crate::TypeDescriptorRelations::Absent, |parents| {
-                    crate::TypeDescriptorRelations::Interface {
-                        parents: parents.iter().copied().map(Some).collect(),
-                    }
-                }),
+            if source.is_bottom {
+                crate::TypeDescriptorRelations::Bottom
+            } else {
+                source
+                    .interface_parents
+                    .map_or(crate::TypeDescriptorRelations::Absent, |parents| {
+                        crate::TypeDescriptorRelations::Interface {
+                            parents: parents.iter().copied().map(Some).collect(),
+                        }
+                    })
+            },
             source.release_policy,
         );
         let physical = StrongShapeDefinitionRefV1::from_foundation(

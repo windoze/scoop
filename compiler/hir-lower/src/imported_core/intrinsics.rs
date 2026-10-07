@@ -44,6 +44,7 @@ impl Lowerer {
             hir::Type::Unit => hir::IntrinsicTypeKind::Unit,
             hir::Type::Boolean => hir::IntrinsicTypeKind::Boolean,
             hir::Type::String => hir::IntrinsicTypeKind::String,
+            hir::Type::Any => hir::IntrinsicTypeKind::Any,
             _ => return Ok(()),
         };
         self.resolve_imported_intrinsic_type(kind)
@@ -78,6 +79,8 @@ impl Lowerer {
             hir::IntrinsicTypeKind::Unit => fundamental.unit().persistent(),
             hir::IntrinsicTypeKind::Boolean => fundamental.boolean().persistent(),
             hir::IntrinsicTypeKind::String => fundamental.string().persistent(),
+            hir::IntrinsicTypeKind::Any => fundamental.any().persistent(),
+            hir::IntrinsicTypeKind::Nothing => fundamental.nothing().persistent(),
             hir::IntrinsicTypeKind::Float(_)
             | hir::IntrinsicTypeKind::Char
             | hir::IntrinsicTypeKind::Array
@@ -132,6 +135,7 @@ impl Lowerer {
             hir::IntrinsicTypeKind::Unit => self.unit,
             hir::IntrinsicTypeKind::Boolean => self.boolean,
             hir::IntrinsicTypeKind::String => self.intern_type(hir::Type::String),
+            hir::IntrinsicTypeKind::Any => self.any,
             _ => unreachable!("non-generic intrinsic declarations are scalar types"),
         };
         let implementations =

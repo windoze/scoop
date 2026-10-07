@@ -283,6 +283,8 @@ impl ForeignCallbackFailureResult {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IntrinsicTypeCore {
+    pub any: ClassId,
+    pub nothing: ClassId,
     pub unit: StructId,
     pub character: StructId,
     pub float: StructId,

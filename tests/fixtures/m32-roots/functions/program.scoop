@@ -1,0 +1,39 @@
+fun fail(): Nothing { throw IllegalStateException() }
+fun number(): Int = 42
+fun ignore(value: Any): Int = 42
+fun <T> identity(value: T): T = value
+fun <T: ToString> render(value: T): String = value.toString()
+
+fun main() {
+    val never: () -> Nothing = ::fail
+    val scalar: () -> Int = never
+    val discarded: () -> Unit = never
+    val erased: Any = never
+    println(erased is () -> Nothing)
+    println(erased is () -> Int)
+    val ordinary: () -> Int = ::number
+    val other: Any = ordinary
+    println(other is () -> Nothing)
+    try { scalar() }
+    catch (error: IllegalStateException) { println("static") }
+    try { discarded() }
+    catch (error: IllegalStateException) { println("unit") }
+    try {
+        val dynamic = erased as () -> Int
+        dynamic()
+    } catch (error: IllegalStateException) { println("dynamic") }
+    val acceptsAny: (Any) -> Int = ::ignore
+    val acceptsBottom: (Nothing) -> Int = acceptsAny
+    try { acceptsBottom(fail()) }
+    catch (error: IllegalStateException) { println("parameter") }
+    try { render<Nothing>(fail()) }
+    catch (error: IllegalStateException) { println("bound") }
+    try { val value: Int = identity<Nothing>(fail()); println(value) }
+    catch (error: IllegalStateException) { println("generic") }
+    val empty: Nothing? = None
+    println(when (empty) { None -> true; Some(value) -> false })
+    val values: Array<Nothing> = []
+    println(values.size)
+    val generated = Array<Nothing>(0L) { _ -> fail() }
+    println(generated.size)
+}

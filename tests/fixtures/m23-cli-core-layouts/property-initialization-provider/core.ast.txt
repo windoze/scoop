@@ -774,6 +774,7 @@ SourceFile
     public fun next
 SourceFile
   QualifiedPackage dependency.api
+  ImportExact Local Any
   public fun seedValue(): Int
     =
       IntLiteral 7
@@ -874,6 +875,12 @@ SourceFile
     public operator fun contains
   internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
     public fun next
+SourceFile
+  RootPackage
+    @Intrinsic("core_any")
+  public abstract class Any()
+    @Intrinsic("core_nothing")
+  public class Nothing()
 SourceFile
   RootPackage
   internal fun decodeSequence<T>(decoder: Decoder, element: Decodable<T>): ArrayList<T>

@@ -68,9 +68,11 @@ pub(super) fn intrinsic_layout(
             target.scalar_layout(scoop_lir::BackendScalarKind::I1),
             true,
         )),
-        IntrinsicTypeKind::String | IntrinsicTypeKind::Array | IntrinsicTypeKind::MutableArray => {
-            Ok(pointer(target, scoop_lir::PointerKind::Managed, false))
-        }
+        IntrinsicTypeKind::String
+        | IntrinsicTypeKind::Array
+        | IntrinsicTypeKind::MutableArray
+        | IntrinsicTypeKind::Any
+        | IntrinsicTypeKind::Nothing => Ok(pointer(target, scoop_lir::PointerKind::Managed, false)),
         IntrinsicTypeKind::Ptr | IntrinsicTypeKind::FunPtr => {
             Err(NativeBoundaryTargetError::InvalidSignatureShape.into())
         }
