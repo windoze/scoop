@@ -651,6 +651,7 @@ impl std::error::Error for MirVariantExprError {}
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Context(ContextOperation<Expr>),
+    DataBorrow(DataBorrowOperation<Expr>),
     StringConst(StringConstId),
     IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),

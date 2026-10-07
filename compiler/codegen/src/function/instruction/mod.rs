@@ -5,6 +5,7 @@ mod aggregates;
 mod arrays;
 mod boxing;
 mod callbacks;
+mod data_borrow;
 mod enums;
 mod exceptions;
 mod floating;
@@ -16,6 +17,11 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
+            Instruction::PushPinFrame { .. }
+            | Instruction::PopPinFrame { .. }
+            | Instruction::ArrayDataPointer { .. }
+            | Instruction::StringDataPointer { .. }
+            | Instruction::BorrowDataLength { .. } => self.emit_data_borrow(instruction),
             Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
                 self.emit_boxing(instruction)
             }

@@ -110,6 +110,7 @@ pub(super) fn fixture_operation_owner(
         | IntrinsicFunctionKind::ForeignCallbackRelease
         | IntrinsicFunctionKind::ForeignCallbackState
         | IntrinsicFunctionKind::ForeignCallbackFailure
+        | IntrinsicFunctionKind::DataBorrow(_)
         | IntrinsicFunctionKind::Pointer(_) => None,
     }
 }

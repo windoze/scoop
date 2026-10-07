@@ -104,10 +104,14 @@ pub enum RuntimeAbiSymbolV1 {
     CallbackFailure,
     CallbackState,
     CallbackInvoke,
+    PushPinFrame,
+    PopPinFrame,
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 60] = [
+    pub const ALL: [Self; 62] = [
+        Self::PushPinFrame,
+        Self::PopPinFrame,
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::ContextPush,
         )),
@@ -306,6 +310,8 @@ impl RuntimeAbiSymbolV1 {
             Self::BeginCatch => "scoop_rt_begin_catch",
             Self::EndCatch => "scoop_rt_end_catch",
             Self::PushCallerRoots => "scoop_rt_push_caller_roots",
+            Self::PushPinFrame => "scoop_rt_push_pin_frame",
+            Self::PopPinFrame => "scoop_rt_pop_pin_frame",
             Self::PopCallerRoots => "scoop_rt_pop_caller_roots",
             Self::PushCompilerRoots => "scoop_rt_push_compiler_roots",
             Self::PopCompilerRoots => "scoop_rt_pop_compiler_roots",
@@ -351,6 +357,8 @@ impl RuntimeAbiSymbolV1 {
             Self::CallbackState => 24,
             Self::CallbackInvoke => 25,
             Self::WriteBarrier => 26,
+            Self::PushPinFrame => 27,
+            Self::PopPinFrame => 28,
         }
     }
 }

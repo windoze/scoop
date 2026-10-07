@@ -18,18 +18,15 @@ typedef struct ScoopAllocationContext {
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 
-void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td,
-                                     size_t size);
+void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td, size_t size);
 
 /* ManagedEntry functions. The target-specific entry stub captures the direct
  * managed caller before branching to the corresponding RuntimeInternal
  * implementation declared in managed_entries.h. */
 void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
 void scoop_rt_safepoint(void);
-const ScoopString *scoop_rt_string_concat(const ScoopString *left,
-                                          const ScoopString *right);
-const void *scoop_rt_array_clone(const void *object,
-                                 const ScoopTypeDescriptor *source_td,
+const ScoopString *scoop_rt_string_concat(const ScoopString *left, const ScoopString *right);
+const void *scoop_rt_array_clone(const void *object, const ScoopTypeDescriptor *source_td,
                                  const ScoopTypeDescriptor *target_td);
 void *scoop_rt_box_zst(const ScoopTypeDescriptor *td);
 void *scoop_rt_box_value(const ScoopTypeDescriptor *td, const void *source);
@@ -45,15 +42,12 @@ void *scoop_rt_begin_catch(void *raw_exception);
 void scoop_rt_end_catch(void);
 uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptorV1 *unit);
 void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptorV1 *unit);
-void scoop_rt_init_fail(const ScoopInitializationUnitDescriptorV1 *unit,
-                        void *exception);
+void scoop_rt_init_fail(const ScoopInitializationUnitDescriptorV1 *unit, void *exception);
 void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptorV1 *unit);
-const ScoopString *
-scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptorV1 *unit);
+const ScoopString *scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptorV1 *unit);
 
 void *scoop_rt_context_try_get(const uint64_t *cell);
-void *scoop_rt_context_push(const uint64_t *cell, void *value,
-                           const ScoopTypeDescriptor *node_td);
+void *scoop_rt_context_push(const uint64_t *cell, void *value, const ScoopTypeDescriptor *node_td);
 void scoop_rt_context_restore(void *owner, void *previous_root);
 void *scoop_rt_context_snapshot(void);
 void *scoop_rt_context_current(void);
@@ -83,6 +77,15 @@ typedef struct ScoopCompilerRootFrame {
     uint64_t count;
 } ScoopCompilerRootFrame;
 
+/* Stack-owned scoped borrow. The collector fixes the object before moving. */
+typedef struct ScoopPinFrame {
+    struct ScoopPinFrame *previous;
+    void *object;
+} ScoopPinFrame;
+
+void scoop_rt_push_pin_frame(ScoopPinFrame *frame, void *object);
+void scoop_rt_pop_pin_frame(ScoopPinFrame *frame);
+
 /* Stack-owned outbound transition record. Generated code treats every field
  * as opaque while the transition is active. */
 typedef struct ScoopThreadTransition {
@@ -97,18 +100,16 @@ typedef struct ScoopThreadTransition {
     uint32_t native_mode;
 } ScoopThreadTransition;
 
-void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
-                                ScoopCallerRootEntry *entries, uint64_t count);
+void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, ScoopCallerRootEntry *entries,
+                                uint64_t count);
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
-void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
-                                  ScoopCallerRootEntry *entries, uint64_t count);
+void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame, ScoopCallerRootEntry *entries,
+                                  uint64_t count);
 void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
 void scoop_rt_pop_top_compiler_roots(void);
-void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
-                                uintptr_t managed_stack_low);
+void scoop_rt_enter_native_safe(ScoopThreadTransition *transition, uintptr_t managed_stack_low);
 void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
-void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
-                                    uintptr_t managed_stack_low);
+void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition, uintptr_t managed_stack_low);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
 /* Generated write barriers mark this pre-biased card table after heap stores. */

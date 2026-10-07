@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "../thread.h"
 #include "gc_internal.h"
 #include "scoop_rt.h"
 
@@ -224,5 +225,20 @@ void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor) {
     }
     for (size_t index = 0; index < pinned_len; index++) {
         visitor.visit_slot(&pinned[index].object, visitor.context);
+    }
+}
+
+void scoop_gc_set_pin_frames_locked(bool pinned_now) {
+    for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
+         thread = thread->registry_next) {
+        for (ScoopPinFrame *frame = thread->pin_frames; frame != NULL; frame = frame->previous) {
+            if (scoop_gc_is_object_start_locked(frame->object)) {
+                if (pinned_now || pin_index(frame->object) == 0) {
+                    (void)scoop_gc_update_pin_locked(frame->object, pinned_now);
+                }
+            } else if (pinned_now && !scoop_gc_is_immortal_object_locked(frame->object)) {
+                scoop_gc_roots_fatal("pin frame does not reference a managed object");
+            }
+        }
     }
 }

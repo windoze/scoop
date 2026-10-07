@@ -1,4 +1,6 @@
 use super::*;
+mod data_borrow;
+pub use data_borrow::*;
 mod registry;
 #[cfg(test)]
 mod tests;
@@ -35,6 +37,7 @@ pub enum IntrinsicFunctionKind {
     Char(CharIntrinsic),
     Float(FloatIntrinsicKind),
     Pointer(PointerIntrinsic),
+    DataBorrow(DataBorrowIntrinsic),
 }
 
 impl IntrinsicFunctionKind {
@@ -85,6 +88,7 @@ impl IntrinsicFunctionKind {
             Self::Char(kind) => kind.name().to_string(),
             Self::Float(kind) => kind.name(),
             Self::Pointer(kind) => kind.name().to_string(),
+            Self::DataBorrow(kind) => kind.name().to_string(),
         }
     }
 

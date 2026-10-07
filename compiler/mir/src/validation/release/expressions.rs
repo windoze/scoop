@@ -17,6 +17,7 @@ pub(in crate::validation) fn validate_expression(
     }
     match &expression.kind {
         ExprKind::Context(_) => Err(invalid("task context is not release-safe")),
+        ExprKind::DataBorrow(_) => Err(invalid("scoped data borrow is not release-safe")),
         ExprKind::ReleaseFieldLoad { class, index } => {
             if *class != module.release_hooks[hook].owner {
                 return Err(invalid("release field read must use its own exact owner"));

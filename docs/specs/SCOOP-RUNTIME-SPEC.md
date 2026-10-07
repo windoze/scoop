@@ -312,6 +312,10 @@ pin 为摊还 O(1)、unpin 为 O(1) 操作。同一对象的显式 pin 共用一
 
 GC handle 是 GC-free opaque 64-bit 值，引用一个当前 live slot 与 generation。slot 复用时 generation 改变；非法、stale 或已释放 handle 是 fatal ABI error。handle 保活对象但不固定地址；解析后跨 safepoint 使用时仍须 root/reload，或显式 pin。
 
+语言规范 13.11 的作用域借用使用 caller 栈上的 `ScoopPinFrame { previous, object }`，按 LIFO 登记在线程状态中。push/pop 是 NoGC、nounwind 的本线程操作，不取锁、不分配；pop 必须匹配当前帧。帧不得跨线程迁移，线程 detach 时不得残留帧。进入 NativeSafe 时帧链随该线程的其他根冻结，collector 只在所有线程停稳后读取。
+
+collector 在移动规划之前固定全部活动帧引用的 GC 对象，并把每个对象作为根；immortal 对象本已地址固定，不修改其只读对象头。一次 collection 结束后清除帧带来的临时固定标记，保留显式 pin 的固定标记；下一轮 collection 按仍活动的帧重新固定，因此 pop 不需要访问全局 pin registry。多个帧／线程引用同一对象天然保留到最后一个借用结束，nursery 中固定对象沿既有 `PINNED_PARTIAL` block 处理。帧本身不提供 payload 同步，也不改变显式 pin 的计数。
+
 ### 3.5 线程与握手
 
 每个参与 managed 执行的线程都有已登记的 thread state。原子 mode 明确区分 `MANAGED`、`MANAGED_PENDING`、`NATIVE_SAFE`、`NATIVE_SAFE_RETURNING`、`NATIVE_BORROWED`、`PARKED` 与 `COLLECTOR`；这些是 runtime 内部状态，不新增语言可见状态或改变已有公开状态码。根的发布与恢复具有 release/acquire 同步，NativeSafe 无锁返回与 collector 停顿请求之间还须满足下述 seq_cst 握手，不能丢失 collection 请求。

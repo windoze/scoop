@@ -339,3 +339,5 @@ attributes #0 = {{ "disable-tail-calls"="true" "frame-pointer"="all" }}
     verify_rewritten(&module, &manifest(None))
         .expect("a compiler-emitted typed boundary witness is accepted");
 }
+#[path = "statepoint_tests/data_borrow.rs"]
+mod data_borrow;

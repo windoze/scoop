@@ -126,6 +126,10 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
+        | Instruction::PushPinFrame { out, .. }
+        | Instruction::ArrayDataPointer { out, .. }
+        | Instruction::StringDataPointer { out, .. }
+        | Instruction::BorrowDataLength { out, .. }
         | Instruction::ArrayLen { out, .. }
         | Instruction::ArrayGet { out, .. }
         | Instruction::ArrayClone { out, .. }
@@ -149,6 +153,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::AtomicStore { .. }
         | Instruction::RawStore { .. }
         | Instruction::ManagedPoll { .. }
+        | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
         | Instruction::Throw { .. }
         | Instruction::ArraySet { .. } => None,

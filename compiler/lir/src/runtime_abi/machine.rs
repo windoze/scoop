@@ -96,6 +96,8 @@ impl RuntimeAbiSymbolV1 {
             Self::AllocateSlow => managed(&[P, I(64)], P),
             Self::WriteBarrier => leaf(&[P, I(64)], V),
             Self::ArrayClone => managed(&[P, P, P], P),
+            Self::PushPinFrame => leaf(&[P, P], V),
+            Self::PopPinFrame => leaf(&[P], V),
             Self::FinishTlabAllocation | Self::PushCallerRoots | Self::PushCompilerRoots => {
                 leaf(&[P, P, I(64)], V)
             }

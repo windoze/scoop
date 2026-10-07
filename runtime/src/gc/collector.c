@@ -187,6 +187,7 @@ static bool collect(bool minor) {
     uint64_t started = monotonic_ns();
     scoop_gc_heap_lock();
     scoop_gc_roots_lock();
+    scoop_gc_set_pin_frames_locked(true);
     for (ScoopThreadState *thread = scoop_thread_collection_registry_head(); thread != NULL;
          thread = thread->registry_next) {
         thread->allocation.cursor = NULL;
@@ -246,6 +247,7 @@ static bool collect(bool minor) {
     }
     work_len = work_scanned = 0;
     scoop_gc_heap_finish_collection_locked(marked_count, minor);
+    scoop_gc_set_pin_frames_locked(false);
     uint64_t elapsed = monotonic_ns() - started;
     scoop_gc_heap_state.metrics.pause_ns += elapsed;
     if (elapsed > scoop_gc_heap_state.metrics.maximum_pause_ns) {

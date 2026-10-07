@@ -7,6 +7,9 @@
 
 static void scan_thread(const ScoopThreadState *thread, ScoopGcRootVisitor visitor) {
     visitor.visit_slot((void **)&thread->current_task_context, visitor.context);
+    for (ScoopPinFrame *frame = thread->pin_frames; frame != NULL; frame = frame->previous) {
+        visitor.visit_slot(&frame->object, visitor.context);
+    }
     ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
     bool pending = mode == SCOOP_THREAD_MANAGED_PENDING;
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {

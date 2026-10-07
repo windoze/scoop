@@ -1,7 +1,6 @@
 #include "internal.h"
 
-void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
-                                ScoopCallerRootEntry *entries,
+void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, ScoopCallerRootEntry *entries,
                                 uint64_t count) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
@@ -40,8 +39,7 @@ void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame) {
     frame->count = 0;
 }
 
-void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
-                                  ScoopCallerRootEntry *entries,
+void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame, ScoopCallerRootEntry *entries,
                                   uint64_t count) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
@@ -84,4 +82,26 @@ void scoop_rt_pop_top_compiler_roots(void) {
         scoop_thread_fatal("unwind has no active compiler root frame");
     }
     scoop_rt_pop_compiler_roots(state->compiler_roots);
+}
+
+void scoop_rt_push_pin_frame(ScoopPinFrame *frame, void *object) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (frame == NULL || object == NULL) {
+        scoop_thread_fatal("invalid pin frame");
+    }
+    frame->previous = state->pin_frames;
+    frame->object = object;
+    state->pin_frames = frame;
+}
+
+void scoop_rt_pop_pin_frame(ScoopPinFrame *frame) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (frame == NULL || state->pin_frames != frame) {
+        scoop_thread_fatal("pin frames must be popped in LIFO order");
+    }
+    state->pin_frames = frame->previous;
+    frame->previous = NULL;
+    frame->object = NULL;
 }

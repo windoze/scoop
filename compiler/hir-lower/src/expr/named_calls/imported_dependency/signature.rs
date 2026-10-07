@@ -53,7 +53,7 @@ impl Lowerer {
                         | hir::IntrinsicFunctionKind::CurrentSourceLocation
                 )
             )
-            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call())
+            || matches!(interface.effects().implementation(), hir::CallableImplementationV1::Intrinsic(kind) if kind.is_runtime_gc_call() || matches!(kind, hir::IntrinsicFunctionKind::DataBorrow(_)))
             || (interface.modality() == hir::CallableModalityV1::Abstract
                 && matches!(
                     interface.owner(),

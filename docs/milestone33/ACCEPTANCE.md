@@ -7,7 +7,7 @@
 | 批次 | 能力 | 状态 |
 | --- | --- | --- |
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
-| M33-2 | 作用域数据借用、计数 pin | 计数 pin 完成；作用域数据借用待实现 |
+| M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 待实现 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
 | M33-5 | errno 捕获 | 待实现 |
@@ -86,3 +86,20 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - GNU / clang 22.1 TSan 的 full/minor 两个进程通过，四个 mutator 与 collector 并发操作同一对象，未使用 suppression。
 - Darwin/GNU/musl 各 4 项 CLI fixture、7 个变体、43 个进程、22 份 golden 通过。新增两项在非更新模式下各复验 4 个变体、26 个进程、12 份 golden；debug/release 均运行 normal/moving/minor。
 - 4 份公共 HIR/MIR 在三平台一致，8 份 Linux LIR 单独保存。旧 roots/handles fixture 的 LIR 同步已有 DirectC 调用表示。复用已构建的 core 与 CLI，只运行 pin、handle、release 和相关 FFI 回归。
+
+## M33-2b：作用域数据借用
+
+- core 提供 Array / MutableArray 的 `withDataPointer` 和 String 的 `withUtf8Bytes`。元素遵守既有 GC-free Ptr 约束；回调是普通非 suspend 函数，可以分配、调用 C 或抛异常。receiver / block 各求值一次，返回值保留完整类型；长度分别为元素数和 UTF-8 字节数，空数据仍提供非零地址。
+- 三个内部 intrinsic 经普通 core 声明、HIR metadata 和泛型物化传递，MIR 展开为 typed pin 帧、数据地址／长度、closure 调用和普通 finally cleanup。LIR 使用实际数组／String layout，codegen 在 caller 栈上分配帧，并发射明确的 AS1→AS0 数据借用转换。没有增加逃逸检测或并发访问授权机制。
+- push/pop 只更新线程局部帧链，不分配、不取锁。collector 停稳后把帧对象作为根并临时固定，收集完成后仅清除没有显式 pin 的临时状态；支持嵌套、跨线程同时借用、immortal 字符串和显式 pin 交叠。退出最后一个借用后对象可再次移动。
+- 新增实现模块最长 132 行。复用既有 closure、EH、根扫描和数组 layout，没有平行的调用或 GC 实现。
+
+已完成的验证：
+
+- Rust fmt、workspace clippy 及后续受影响 crate 的 clippy 通过；C 格式化和严格警告检查通过。新增 intrinsic 编码／非法 tag、六类 core 签名错误，以及四种 LLVM 地址空间边界测试通过。
+- Darwin 的 21 项 runtime collector 回归通过。新增 scoped pin C 用例覆盖 O0/O2 × full/minor，检查嵌套、显式 pin、内部引用、最后一帧退出后的真实移动，以及四个 mutator 与 collector 并发。
+- GNU / clang 22.1 TSan 的 full/minor 两个进程通过，无 suppression；线程局部帧操作与 collector 扫描未报告数据竞争。
+- Darwin/GNU/musl 各 8 项正式 CLI、11 个变体、47 个进程、24 份 golden 在非更新模式下通过。三项正例覆盖普通／零长度／ZST 数组、静态和动态 String、嵌套、异常 cleanup、泛型与 aggregate 返回、NativeSafe / GCLeaf、foreign-thread 并发，以及删除 provider/consumer 源码后的独立链接。debug/release 均执行 normal/moving/minor。
+- 五项 negative fixture 固定 unsafe、reference／含引用值元素、缺失 value bound、suspend callback 与 NoGC 的完整诊断和源码位置。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。
+- Darwin 另有 4 项 pin、handle、release 与裸指针回归，6 个变体、33 个进程、20 份 golden 通过。四份旧 HIR 的差异经检查仅为新增 core 声明导致的导入 arena 索引变化；裸指针用例在 GNU/musl 也分别通过，并同步三个 target 已有的 DirectC LIR 表示。复用热缓存，没有执行无关全量语言测试。
+- 清理 182 个已链接的 Rust 中间对象，共 1.67 GiB，保留编译库、CLI 和 fixture 缓存。

@@ -48,6 +48,19 @@ pub(super) fn instruction_uses(
         | lir::Instruction::BeginCatch { raw: operand, .. }
         | lir::Instruction::Throw { exception: operand }
         | lir::Instruction::ArrayAllocDynamic { count: operand, .. }
+        | lir::Instruction::PushPinFrame {
+            object: operand, ..
+        }
+        | lir::Instruction::PopPinFrame { frame: operand }
+        | lir::Instruction::ArrayDataPointer {
+            object: operand, ..
+        }
+        | lir::Instruction::StringDataPointer {
+            object: operand, ..
+        }
+        | lir::Instruction::BorrowDataLength {
+            object: operand, ..
+        }
         | lir::Instruction::ArrayLen { operand, .. }
         | lir::Instruction::ArrayClone { operand, .. }
         | lir::Instruction::EnumTag { operand, .. }
@@ -171,6 +184,10 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ArrayAllocDynamic { out, .. }
         | lir::Instruction::ArrayAlloc { out, .. }
         | lir::Instruction::ArrayAssembly { out, .. }
+        | lir::Instruction::PushPinFrame { out, .. }
+        | lir::Instruction::ArrayDataPointer { out, .. }
+        | lir::Instruction::StringDataPointer { out, .. }
+        | lir::Instruction::BorrowDataLength { out, .. }
         | lir::Instruction::ArrayLen { out, .. }
         | lir::Instruction::ArrayGet { out, .. }
         | lir::Instruction::ArrayClone { out, .. }
@@ -197,6 +214,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::RawStore { .. }
         | lir::Instruction::ArraySet { .. }
         | lir::Instruction::ManagedPoll { .. }
+        | lir::Instruction::PopPinFrame { .. }
         | lir::Instruction::EndCatch
         | lir::Instruction::Throw { .. } => None,
     };

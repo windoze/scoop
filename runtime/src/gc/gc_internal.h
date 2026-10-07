@@ -55,6 +55,7 @@ bool scoop_gc_is_immortal_object_locked(const void *object);
 bool scoop_gc_is_external_object_locked(const void *object);
 bool scoop_gc_is_published_object(const void *object);
 void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
+void scoop_gc_set_pin_frames_locked(bool pinned_now);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 
 /* Startup publishes the complete, already resolved loaded-image index. */

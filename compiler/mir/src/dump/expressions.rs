@@ -11,6 +11,10 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
+        ExprKind::DataBorrow(operation) => {
+            out.push_str(&format!("{pad}{}\n", operation.kind.name()));
+            dump_expr(module, locals, &operation.operand, indent + 1, out);
+        }
         ExprKind::FloatUnary {
             kind,
             operation,

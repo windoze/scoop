@@ -2533,6 +2533,24 @@ fun caller() {
 
 ---
 
+### 13.11 有作用域的数据指针借用
+
+core 提供以下普通、非 suspend 的 unsafe 扩展函数：
+
+```scoop
+@Unsafe public fun <T : value, R> MutableArray<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R
+@Unsafe public fun <T : value, R> Array<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R
+@Unsafe public fun <R> String.withUtf8Bytes(block: (Ptr<UInt8>, Long) -> R): R
+```
+
+`T` 必须满足 `Ptr<T>` 的 GC-free 值类型约束。receiver 与 block 按普通调用规则各求值一次，随后同步调用 block，传入连续元素区指针及元素数量；String 传入 UTF-8 字节区及字节数，不包含终止零字节，也不保证字节区后存在零字节。返回值是 block 的完整返回值，异常沿普通异常路径传播。
+
+对象在 block 执行期间保活且地址固定，包括 block 内部发生 GC 或进入 NativeSafe 的期间；正常返回或抛异常均结束借用。不同线程、嵌套调用可借用同一对象，各次借用独立结束。指针只在对应 block 内有效，保存并在借用结束后使用属于 unsafe 契约违规，不做额外的运行期逃逸检查。不可变 Array 与 String 的指针只能读取。借用不提供独占访问或数据同步，并发访问仍须遵守普通线程规则。零长度借用也返回非零、可比较但不可解引用的指针；零大小元素沿普通 `Ptr<T>` 规则操作。
+
+数据区位置由实际目标布局确定，不允许库代码从对象地址加硬编码偏移。实现使用运行时规范 3.4 的线程局部 pin 帧，包含 immortal String literal；它与 14.1 的显式计数 pin 各自配对。
+
+core 内部的三个 top-level borrow intrinsic 分别接收对应对象和上述 callback，必须标注 `@Unsafe`；由于 callback 可以分配和抛异常，不得标注 `@NoGC`。公开扩展函数通过普通 core 正文调用这些 intrinsic，不改变 13.1 的 annotation target 规则。
+
 ## 14. Scoop ABI FFI
 
 Scoop ABI（见 13.8）供能识别 Scoop 类型信息并与 GC 交互的外部函数使用，主要消费者是 runtime 与核心库的实现者。

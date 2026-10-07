@@ -12,6 +12,7 @@ mod characters;
 mod common;
 mod context;
 mod coroutines;
+mod data_borrow;
 mod exceptions;
 mod ffi;
 mod floating;

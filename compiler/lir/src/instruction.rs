@@ -56,6 +56,29 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    /// Caller-stack pin frames for synchronous scoped borrows.
+    PushPinFrame {
+        out: TempId,
+        object: Value,
+    },
+    PopPinFrame {
+        frame: Value,
+    },
+    ArrayDataPointer {
+        out: TempId,
+        object: Value,
+        array_type: ArrayTypeId,
+    },
+    StringDataPointer {
+        out: TempId,
+        object: Value,
+        byte_offset: u64,
+    },
+    BorrowDataLength {
+        out: TempId,
+        object: Value,
+        byte_offset: u64,
+    },
     FloatUnary {
         out: TempId,
         kind: FloatKind,

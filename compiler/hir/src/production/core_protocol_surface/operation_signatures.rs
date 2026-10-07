@@ -183,6 +183,32 @@ pub(super) fn expected_operation_signature(
                 signature_application(fundamental, result, binder),
             )
         }
+        IntrinsicFunctionKind::DataBorrow(kind) => {
+            let (source, element) = match kind {
+                crate::DataBorrowIntrinsic::Array => (
+                    signature_application(fundamental, 11, binder.clone()),
+                    binder,
+                ),
+                crate::DataBorrowIntrinsic::MutableArray => (
+                    signature_application(fundamental, 12, binder.clone()),
+                    binder,
+                ),
+                crate::DataBorrowIntrinsic::String => (
+                    string,
+                    signature_integer(fundamental, crate::IntegerKind::UNSIGNED_8),
+                ),
+            };
+            let result = SignatureTypeKey::Binder {
+                depth: 0,
+                index: kind.type_parameter_count() - 1,
+            };
+            let callback = SignatureTypeKey::Function {
+                effect: Effect::Ordinary,
+                parameters: vec![SignatureTypeKey::RawPointer(Box::new(element)), long],
+                result: Box::new(result.clone()),
+            };
+            (Effect::Ordinary, vec![source, callback], result)
+        }
         IntrinsicFunctionKind::Pointer(kind) => expected_pointer_signature(fundamental, kind),
     };
     SignatureCallableShape::new(effect, None, parameters, result)
@@ -265,6 +291,7 @@ fn expected_pointer_signature(
 
 pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) -> u32 {
     match kind {
+        IntrinsicFunctionKind::DataBorrow(kind) => kind.type_parameter_count(),
         IntrinsicFunctionKind::GcPinRaw
         | IntrinsicFunctionKind::GcUnpinRaw
         | IntrinsicFunctionKind::GcGetHandleRaw

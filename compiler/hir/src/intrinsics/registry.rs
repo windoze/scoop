@@ -145,6 +145,27 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
+        name: "array_with_data_pointer",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::DataBorrow(DataBorrowIntrinsic::Array),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "mutable_array_with_data_pointer",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::DataBorrow(DataBorrowIntrinsic::MutableArray),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "string_with_utf8_bytes",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::DataBorrow(DataBorrowIntrinsic::String),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
         name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicFunctionKind::GcPinRaw,

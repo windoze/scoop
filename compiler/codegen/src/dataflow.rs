@@ -89,6 +89,19 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         | Instruction::BeginCatch { raw: operand, .. }
         | Instruction::Throw { exception: operand }
         | Instruction::ArrayAllocDynamic { count: operand, .. }
+        | Instruction::PushPinFrame {
+            object: operand, ..
+        }
+        | Instruction::PopPinFrame { frame: operand }
+        | Instruction::ArrayDataPointer {
+            object: operand, ..
+        }
+        | Instruction::StringDataPointer {
+            object: operand, ..
+        }
+        | Instruction::BorrowDataLength {
+            object: operand, ..
+        }
         | Instruction::ArrayLen { operand, .. }
         | Instruction::ArrayClone { operand, .. }
         | Instruction::EnumTag { operand, .. }
@@ -213,6 +226,10 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
+        | Instruction::PushPinFrame { out, .. }
+        | Instruction::ArrayDataPointer { out, .. }
+        | Instruction::StringDataPointer { out, .. }
+        | Instruction::BorrowDataLength { out, .. }
         | Instruction::ArrayLen { out, .. }
         | Instruction::ArrayGet { out, .. }
         | Instruction::ArrayClone { out, .. }
@@ -238,6 +255,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::RawStore { .. }
         | Instruction::ArraySet { .. }
         | Instruction::ManagedPoll { .. }
+        | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
         | Instruction::Throw { .. } => None,
     };

@@ -7,6 +7,44 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::PushPinFrame { out, object } => buf.push_str(&format!(
+            "    t{} = push_pin_frame {}\n",
+            out.into_raw(),
+            value_name(*object)
+        )),
+        Instruction::PopPinFrame { frame } => {
+            buf.push_str(&format!("    pop_pin_frame {}\n", value_name(*frame)))
+        }
+        Instruction::ArrayDataPointer {
+            out,
+            object,
+            array_type,
+        } => buf.push_str(&format!(
+            "    t{} = array_data_pointer {} array{}\n",
+            out.into_raw(),
+            value_name(*object),
+            array_type.into_raw()
+        )),
+        Instruction::StringDataPointer {
+            out,
+            object,
+            byte_offset,
+        } => buf.push_str(&format!(
+            "    t{} = string_data_pointer {} +{}\n",
+            out.into_raw(),
+            value_name(*object),
+            byte_offset
+        )),
+        Instruction::BorrowDataLength {
+            out,
+            object,
+            byte_offset,
+        } => buf.push_str(&format!(
+            "    t{} = borrow_data_length {} +{}\n",
+            out.into_raw(),
+            value_name(*object),
+            byte_offset
+        )),
         Instruction::FloatUnary {
             out,
             kind,

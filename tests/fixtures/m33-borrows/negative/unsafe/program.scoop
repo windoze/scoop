@@ -1,0 +1,4 @@
+fun main() {
+    Array<Int>(1L) { _ -> 3 }.withDataPointer() { pointer: Ptr<Int>, count: Long -> count }
+    "text".withUtf8Bytes() { pointer: Ptr<UInt8>, count: Long -> count }
+}

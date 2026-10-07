@@ -1,0 +1,125 @@
+Module
+  extern ef0 sumBytes @sum_bytes(ptr<raw>, i64) -> i64 <c exact=(data-ptr<UInt8,direct>,Long)->Long direct-c=(ptr<raw>,i64)->i64 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  fun @scoop$1$cb$4f58897b74e6a7feb2f6f078e12b96f3c881e92b4b7632e3851906701d179b70(ptr<raw>, i64) -> i64 <no-gc>
+    local %0 $call.1: i64
+  block entry
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 (ptr<raw>, i64) -> i64 extern0(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$c0be273674fc609be6b04eace5139824cdf3f0ea7b67ef17bfdfce77ee640785(ptr<managed>) -> i64
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: ptr<managed>
+    local %2 $dependency.parameter.block: ptr<managed>
+    local %3 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
+    t1 = function_address @scoop$1$cb$3a884b2ec20916c9a7b7e91ea2d02879564dde90fb79451fcba0f7df618aa9b3 : ptr
+    heap_store t0 +16 t1
+    store t0 -> local1
+    store local1 -> local2
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> i64 local-fn3(local0, local2)
+    store t2 -> local3
+    ret local3
+  fun @scoop$1$cb$3a884b2ec20916c9a7b7e91ea2d02879564dde90fb79451fcba0f7df618aa9b3(ptr<managed>, ptr<raw>, i64) -> i64
+    local %0 $argument.0: ptr<raw>
+    local %1 $argument.1: i64
+    local %2 $parameter.data: ptr<raw>
+    local %3 $parameter.count: i64
+    local %4 $call.1: i64
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
+    t0 = aggregate () : {}
+    store param1 -> local0
+    store param2 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call native-gc-leaf-direct-target0 t1 = sig=direct0 (ptr<raw>, i64) -> i64 extern0(local2, local3)
+    store t1 -> local4
+    ret local4
+  fun @scoop$1$cb$b1d93e160fd901a041053936f5efb81b676ceff01f6fb85618857c7ee1d8e0c2(ptr<managed>, ptr<managed>) -> i64
+    local %0 $dependency.local.2: ptr<managed>
+    local %1 $dependency.local.3: ptr<managed>
+    local %2 $dependency.local.4: ptr<managed>
+    local %3 $dependency.local.5: ptr<managed>
+    local %4 $borrow_object.1: ptr<managed>
+    local %5 $borrow_block.2: ptr<managed>
+    local %6 $pin_frame.3: ptr<raw>
+    local %7 $borrow_result.4: i64
+    local %8 $sc.1: exception_record
+    local %9 $sc.2: ptr<raw>
+    local %10 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    store local2 -> local4
+    store local3 -> local5
+    t0 = push_pin_frame local4
+    store t0 -> local6
+    br @try.body.6
+  block try.unwind.1
+    (t1, t2) = landingpad : (exception_record, ptr<raw>)
+    store t1 -> local8
+    store t2 -> local9
+    br @try.dispatch.2
+  block try.dispatch.2
+    t3 = begin_catch local9 : ptr<managed>
+    store t3 -> local10
+    br @scope.8
+  block try.exit_pad.3
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
+    store t4 -> local8
+    store t5 -> local9
+    br @try.exit_cleanup.4
+  block try.exit_cleanup.4
+    end_catch
+    resume local8
+  block try.end.5
+    ret local7
+  block try.body.6
+    t6 = string_data_pointer local4 +24
+    t7 = borrow_data_length local4 +16
+    invoke managed-direct-target0 sp<managed-invoke:0> roots=[local5:argument] t8 = sig=direct0 (ptr<managed>, ptr<raw>, i64) -> i64 dispatch[Closure:2] local5(local5, t6, t7) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block scope.7
+    pop_pin_frame local6
+    t9 = aggregate () : {}
+    br @try.end.5
+  block scope.8
+    pop_pin_frame local6
+    t10 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void0 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
+    br @rethrow.normal.2
+  block invoke.normal.1
+    store t8 -> local7
+    br @scope.7
+  block rethrow.normal.2
+    unreachable
+  fun @scoop$1$cb$d3dc6b4ea0ed74f0501181668d440450b83ff1d89b3bc5afe7a9dc2e73041e35(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i64
+    local %1 $box.1: ptr<raw>
+    local %2 $box.2: i64
+    local %3 $box.3: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
+    unbox_value td0, param1 -> local1
+    unbox_value external-td5, param2 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<raw>, i64) -> i64 dispatch[Closure:2] param0(param0, local1, local2)
+    store t0 -> local0
+    store local0 -> local3
+    t1 = box_value external-td5, local3 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 g(r=00000006;i=e4ec7d6b35190924acf349c23aa85b835331b1cde257b59a1cf209a4f577efb6) @scoop$1$td$acbd9a5050cdf37dd5a6fad9850d5d4669abd0b71fdf840928443f44fe027453 type-id=4995921351475284515 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 f(o;[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=UInt8)),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)) @scoop$1$td$4f5e6b7e3982407f7b017a61f57158d2f57fb19c0ceb680bab1ce4b9bef9ac39 type-id=18236249324230198300 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(td0, external-td5)->external-td5
+  td td2 g(r=00000001;i=23368405167fc728cb5ca14e9b54728335e5261caf57695effa17b0afa8e0252) @scoop$1$td$db6a5b1c021aed2b683b4b59db4a1345ed6aab95571b0407b7eef329d484c142 type-id=84097283446746512 shape=FixedObject minimum-size=24 align=8 parent=td1 vtable=[local-fn4] itables=[]
+  layout box<Ptr<UInt8>> value size=8 align=8 refs=[0]
+  layout box<Ptr<UInt8>> size=24 align=8 refs=[]
+  layout $Closure$anonymous0 value size=8 align=8 refs=[0]
+  layout $Closure$anonymous0 size=24 align=8 refs=[]
+  layout Ptr<UInt8> size=8 align=8 refs=[]
+  output library

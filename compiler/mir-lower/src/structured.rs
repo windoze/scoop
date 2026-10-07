@@ -346,6 +346,7 @@ impl Expr {
 #[derive(Debug, Clone)]
 pub(crate) enum ExprKind {
     Context(mir::ContextOperation<Expr>),
+    DataBorrow(mir::DataBorrowOperation<Expr>),
     StringConst(mir::StringConstId),
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
