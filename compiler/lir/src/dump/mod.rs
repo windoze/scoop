@@ -167,7 +167,11 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let (params, return_type, kind) = match &extern_.kind {
-            ExternFunctionKind::C { bridge, signature } => (
+            ExternFunctionKind::C {
+                bridge,
+                signature,
+                call_mode,
+            } => (
                 signature
                     .storage_params()
                     .iter()
@@ -176,9 +180,14 @@ pub fn dump(module: &Module) -> String {
                     .join(", "),
                 signature.storage_return_type().dump(),
                 format!(
-                    "c exact={} bridge=@{} gc-leaf nounwind",
+                    "c exact={} bridge=@{} gc-leaf nounwind{}",
                     signature.dump(),
-                    bridge.symbol()
+                    bridge.symbol(),
+                    if *call_mode == CAbiCallMode::GcLeaf {
+                        " mode=gc-leaf"
+                    } else {
+                        ""
+                    },
                 ),
             ),
             ExternFunctionKind::Scoop {

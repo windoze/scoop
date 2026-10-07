@@ -240,6 +240,7 @@ fn append_instruction_scans(
             CallSite::Managed(_)
             | CallSite::NoGc(_)
             | CallSite::ReleaseScoop(_)
+            | CallSite::NativeGcLeaf(_)
             | CallSite::ReleaseNativeLeaf(_) => {}
         },
         Instruction::Invoke {

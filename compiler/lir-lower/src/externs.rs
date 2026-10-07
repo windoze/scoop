@@ -28,8 +28,9 @@ pub(super) fn lower_extern_functions(
             },
         };
         let reference = match extern_.abi {
-            mir::ExternAbi::C => LoweredExternFunctionRef::C(
+            mir::ExternAbi::C(call_mode) => LoweredExternFunctionRef::C(
                 functions.alloc_c(lir::CExternFunction {
+                    call_mode,
                     identity: identity(),
                     bridge: lir::GeneratedBridgeEntryIdentity::new(
                         module.cone,

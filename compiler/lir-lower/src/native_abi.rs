@@ -131,7 +131,7 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         let symbol_key = self.target_symbol(symbol);
         let library = self.library_binding(source_library);
         let contract = match external.abi {
-            mir::ExternAbi::C => identity::NativeExternalContract::c_function(
+            mir::ExternAbi::C(_) => identity::NativeExternalContract::c_function(
                 library,
                 self.add_signature(&external.params, &external.return_type)?,
             ),

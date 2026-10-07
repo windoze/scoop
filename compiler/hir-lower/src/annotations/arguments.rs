@@ -208,7 +208,7 @@ impl Lowerer {
             );
         }
         let abi = match abi.as_deref().unwrap_or("c") {
-            "c" => hir::ExternAbi::C,
+            "c" => hir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
             "scoop" => hir::ExternAbi::Scoop,
             value => {
                 self.error(
@@ -238,6 +238,7 @@ pub(crate) fn is_core_annotation(name: &str) -> bool {
         "Intrinsic"
             | "Extern"
             | "NoGC"
+            | "GCLeaf"
             | "Unsafe"
             | "Safe"
             | "CLayout"

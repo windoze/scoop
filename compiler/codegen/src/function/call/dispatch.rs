@@ -32,8 +32,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
                 targets.typed_call_view(
                     &site.call,
-                    &targets.native_safe_targets,
-                    scoop_lir::NativeSafeCallDestination::view,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
                 ),
                 CallProtocol::NativeSafe {
                     safepoint: self.safepoint_id(site.safepoint),
@@ -44,10 +44,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallSite::ReleaseNativeLeaf(site) => self.emit_typed_call(
                 targets.typed_call_view(
                     &site.call,
-                    &targets.native_safe_targets,
-                    scoop_lir::NativeSafeCallDestination::view,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
                 ),
                 CallProtocol::ReleaseNativeLeaf,
+                None,
+            ),
+            scoop_lir::CallSite::NativeGcLeaf(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
+                ),
+                CallProtocol::NativeGcLeaf,
                 None,
             ),
             scoop_lir::CallSite::NativeBorrowed(site) => {

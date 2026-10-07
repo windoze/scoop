@@ -210,6 +210,7 @@ fn validate_call_plan(
         }
         scoop_lir::CallSite::NoGc(_)
         | scoop_lir::CallSite::ReleaseScoop(_)
+        | scoop_lir::CallSite::NativeGcLeaf(_)
         | scoop_lir::CallSite::ReleaseNativeLeaf(_) => Ok(()),
         scoop_lir::CallSite::NativeSafe(site) => validate_caller_roots(
             module,

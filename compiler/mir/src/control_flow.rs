@@ -31,8 +31,14 @@ pub struct ExternFunction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExternAbi {
-    C,
+    C(CAbiCallMode),
     Scoop,
+}
+
+impl ExternAbi {
+    pub const fn is_c(self) -> bool {
+        matches!(self, Self::C(_))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

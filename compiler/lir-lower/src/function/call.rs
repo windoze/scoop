@@ -27,8 +27,14 @@ impl<'a> FunctionLowerer<'a> {
                     .collect::<StorageResult<Vec<_>>>()?;
                 match self.extern_function_refs[&id] {
                     LoweredExternFunctionRef::C(function) => {
-                        let destination = NativeCallDestination::Safe(
-                            lir::NativeSafeCallDestination::extern_function(function),
+                        let lir::ExternFunctionKind::C { call_mode, .. } =
+                            self.extern_functions[function.declaration()].kind
+                        else {
+                            unreachable!("C extern reference names a C declaration")
+                        };
+                        let destination = NativeCallDestination::C(
+                            lir::CCallDestination::extern_function(function),
+                            call_mode,
                         );
                         let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {

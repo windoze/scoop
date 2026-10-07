@@ -16,6 +16,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             protocol,
             CallProtocol::NativeSafe { .. }
                 | CallProtocol::NativeBorrowed { .. }
+                | CallProtocol::NativeGcLeaf
                 | CallProtocol::ReleaseNativeLeaf
         );
         if is_native && has_invoke {
@@ -113,6 +114,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
                     CallProtocol::NativeSafe { .. }
                     | CallProtocol::NativeBorrowed { .. }
+                    | CallProtocol::NativeGcLeaf
                     | CallProtocol::ReleaseNativeLeaf => {
                         return Err(CodegenError(format!(
                             "typed local call @{} cannot use a native transition protocol",
@@ -152,6 +154,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
                     CallProtocol::NativeSafe { .. }
                     | CallProtocol::NativeBorrowed { .. }
+                    | CallProtocol::NativeGcLeaf
                     | CallProtocol::ReleaseNativeLeaf => {
                         return Err(CodegenError(format!(
                             "typed external call @{} cannot use a native transition protocol",
@@ -235,7 +238,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             },
                             matches!(
                                 protocol,
-                                CallProtocol::NativeSafe { .. } | CallProtocol::ReleaseNativeLeaf
+                                CallProtocol::NativeSafe { .. }
+                                    | CallProtocol::NativeGcLeaf
+                                    | CallProtocol::ReleaseNativeLeaf
                             ),
                         )
                     }

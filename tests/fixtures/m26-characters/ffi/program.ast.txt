@@ -5,13 +5,10 @@ SourceFile
     field prefix: Byte
     field character: Char
     field tail: Long
-    @NoGC
     @Extern(lib = "fixture_native", name = "round_character")
   fun roundCharacter(value: Char): Char
-    @NoGC
     @Extern(lib = "fixture_native", name = "round_packet")
   fun roundPacket(value: Packet): Packet
-    @NoGC
     @Extern(lib = "fixture_native", name = "replace_character")
   fun replaceCharacter(value: Ptr<Char>): Unit
     @Unsafe

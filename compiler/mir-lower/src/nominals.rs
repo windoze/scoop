@@ -388,7 +388,10 @@ impl Lowerer {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
         let id = self.functions.alloc(mir::Function {
-            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(_)) {
+            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(id)
+                if !matches!(module.extern_functions[id].abi,
+                    hir::ExternAbi::C(scoop_identity::CAbiCallMode::GcLeaf)))
+            {
                 mir::GcEffect::Managed
             } else {
                 lower_gc_effect(function.attributes.gc_effect)

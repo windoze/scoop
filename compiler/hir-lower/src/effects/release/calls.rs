@@ -13,7 +13,7 @@ impl Lowerer {
                 let function = self.callable_function_id(callable);
                 if facts.release_block
                     && let hir::FunctionKind::Extern(external) = self.functions[function].kind
-                    && self.extern_functions[external].abi == hir::ExternAbi::C
+                    && self.extern_functions[external].abi.is_c()
                 {
                     return;
                 }
@@ -62,9 +62,7 @@ impl Lowerer {
                     .resolve_callable(dependency.reference())
                     .expect("a selected dependency callable is present");
                 let effect = declaration.interface().effects();
-                if facts.release_block
-                    && effect.implementation() == hir::CallableImplementationV1::SourceExternC
-                {
+                if facts.release_block && effect.implementation().is_c_extern() {
                     return;
                 }
                 if !matches!(effect.release_callability(),

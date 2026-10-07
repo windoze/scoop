@@ -1,8 +1,8 @@
-@NoGC @Extern(lib = "fixture_native", name = "environment_ready")
+@Extern(lib = "fixture_native", name = "environment_ready")
 fun environmentReady(): Int
-@NoGC @Extern(lib = "fixture_native", name = "single_seed")
+@Extern(lib = "fixture_native", name = "single_seed")
 fun singleSeed(kind: Int): Float
-@NoGC @Extern(lib = "fixture_native", name = "double_seed")
+@Extern(lib = "fixture_native", name = "double_seed")
 fun doubleSeed(kind: Int): Double
 @Extern(lib = "fixture_native", name = "run_foreign")
 fun runForeign(callback: FunPtr<(Float, Double, Ptr<Unit>) -> Double>, context: Ptr<Unit>): Double

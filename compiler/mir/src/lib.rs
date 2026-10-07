@@ -11,7 +11,8 @@
 //! cannot contain a call.
 
 pub use scoop_identity::{
-    FloatBinaryOperator, FloatConstant as MirFloatConstant, FloatKind, FloatUnaryOperator,
+    CAbiCallMode, FloatBinaryOperator, FloatConstant as MirFloatConstant, FloatKind,
+    FloatUnaryOperator,
 };
 
 use la_arena::{Arena, Idx};

@@ -518,9 +518,10 @@ impl Instruction {
                 CallSite::NativeBorrowed(site) => {
                     Some((SafepointSiteRole::NativeBorrowedTransition, site.safepoint))
                 }
-                CallSite::NoGc(_) | CallSite::ReleaseScoop(_) | CallSite::ReleaseNativeLeaf(_) => {
-                    None
-                }
+                CallSite::NoGc(_)
+                | CallSite::ReleaseScoop(_)
+                | CallSite::NativeGcLeaf(_)
+                | CallSite::ReleaseNativeLeaf(_) => None,
             },
             Self::ManagedPoll { site } => Some((SafepointSiteRole::ManagedPoll, site.safepoint)),
             Self::Invoke {

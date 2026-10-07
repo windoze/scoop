@@ -95,7 +95,8 @@ pub(super) fn dump_function(module: &Module, function: &Function, out: &mut Stri
         FunctionKind::Extern(id) => {
             let extern_ = &module.extern_functions[*id];
             let abi = match extern_.abi {
-                ExternAbi::C => "c",
+                ExternAbi::C(CAbiCallMode::NativeSafe) => "c",
+                ExternAbi::C(CAbiCallMode::GcLeaf) => "c gc-leaf",
                 ExternAbi::Scoop => "scoop",
             };
             let library = if extern_.library.is_empty() {

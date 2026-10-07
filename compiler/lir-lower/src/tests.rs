@@ -119,7 +119,7 @@ fn test_source_native_contract(
         Vec::new(),
     );
     let abi = match abi {
-        mir::ExternAbi::C => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+        mir::ExternAbi::C(_) => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
             Vec::new(),
             SourceCAbiReturn::Void,
         )),
@@ -1020,11 +1020,15 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .into_iter()
         .collect::<Vec<_>>();
     let integers = builder.extern_functions.alloc(mir::ExternFunction {
-        source_contract: test_source_native_contract("integers", "integers", mir::ExternAbi::C),
+        source_contract: test_source_native_contract(
+            "integers",
+            "integers",
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
+        ),
         source_name: "integers".to_string(),
         native_symbol: "integers".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: params.clone(),
@@ -1355,12 +1359,12 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
         source_contract: test_source_native_contract(
             "nullablePointers",
             "nullable_pointers",
-            mir::ExternAbi::C,
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         ),
         source_name: "nullablePointers".to_string(),
         native_symbol: "nullable_pointers".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: vec![
@@ -1433,11 +1437,15 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         ],
     });
     builder.extern_functions.alloc(mir::ExternFunction {
-        source_contract: test_source_native_contract("lookalike", "lookalike", mir::ExternAbi::C),
+        source_contract: test_source_native_contract(
+            "lookalike",
+            "lookalike",
+            mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
+        ),
         source_name: "lookalike".to_string(),
         native_symbol: "lookalike".to_string(),
         library: String::new(),
-        abi: mir::ExternAbi::C,
+        abi: mir::ExternAbi::C(scoop_identity::CAbiCallMode::NativeSafe),
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: vec![mir::Type::Enum(lookalike, vec![payload])],

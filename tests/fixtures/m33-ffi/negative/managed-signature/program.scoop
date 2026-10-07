@@ -1,0 +1,4 @@
+@GCLeaf @Extern(name = "native_string")
+fun nativeString(value: String)
+
+fun main() {}

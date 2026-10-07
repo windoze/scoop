@@ -162,6 +162,7 @@ fn bridge_module(count: u8) -> Module {
     for seed in 1..=count {
         install_test_native_function_contract(&mut module, seed);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+            call_mode: scoop_identity::CAbiCallMode::NativeSafe,
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("bridge{seed}"),
                 native_symbol: format!("native_bridge_{seed}"),

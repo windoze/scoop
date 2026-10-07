@@ -71,7 +71,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
         Effect::Ordinary,
         CallableSafetyV1::Unsafe,
         GcEffect::NoGc,
-        CallableImplementationV1::SourceExternC,
+        CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
         CallableOperatorRoleV1::Language(CallableOperatorV1::Component {
             index: NonZeroU32::new(3).unwrap(),
         }),
@@ -80,7 +80,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     .unwrap();
     assert_eq!(
         encode(&effects).unwrap(),
-        hex("a701010202030204a1000405a2000201a20018180103060207a10001")
+        hex("a701010202030204a20004010105a2000201a20018180103060207a10001")
     );
     assert_eq!(
         decode_canonical::<DecodedCallableSourceEffectsV1>(&encode(&effects).unwrap())
@@ -139,7 +139,7 @@ fn callable_effects_reject_impossible_semantic_combinations() {
             Effect::Ordinary,
             CallableSafetyV1::Safe,
             GcEffect::NoGc,
-            CallableImplementationV1::SourceExternC,
+            CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
             ordinary_role,
             CallableInfixV1::Ordinary,
         ),
@@ -150,7 +150,7 @@ fn callable_effects_reject_impossible_semantic_combinations() {
             Effect::Ordinary,
             CallableSafetyV1::Unsafe,
             GcEffect::Managed,
-            CallableImplementationV1::SourceExternC,
+            CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
             ordinary_role,
             CallableInfixV1::Ordinary,
         ),

@@ -1,15 +1,15 @@
 use super::{
     AbiArgument, AbiCallArgument, AbiNonZeroLayout, AbiReturn, AbiValue, AbiZeroSizedLayout,
-    AbiZst, CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
-    CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, ElidedZstCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr,
-    EnumVariantRepr, ExternFunctionIdentity, ExternFunctions, ForeignCallbackFailureResult,
-    ForeignCallbackModes, ForeignCallbackStates, ForeignCallbackStatus, GcEffect,
-    IndirectResultCallSignature, IndirectResultConvention, InitializationOutcome,
-    InternalPointerCarrier, LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind,
-    MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
-    NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
-    NativeSafeCallDestination, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
+    AbiZst, CCallDestination, CExternFunction, CExternFunctionRef, CallDestination, CallTarget,
+    CallTargets, CallingConvention, CoroutineAdapterState, CoroutineFrameState,
+    CoroutineSuspendStateId, DirectCallSignature, ElidedZstCallSignature, EnumDef, EnumDefs,
+    EnumFieldRepr, EnumRepr, EnumVariantRepr, ExternFunctionIdentity, ExternFunctions,
+    ForeignCallbackFailureResult, ForeignCallbackModes, ForeignCallbackStates,
+    ForeignCallbackStatus, GcEffect, IndirectResultCallSignature, IndirectResultConvention,
+    InitializationOutcome, InternalPointerCarrier, LirTargetProfile, LirType,
+    LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
+    ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
+    NativeBorrowedResultRoot, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
     RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
@@ -729,6 +729,7 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     )
     .unwrap();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: ExternFunctionIdentity {
             source_name: "c".to_string(),
             native_symbol: "c".to_string(),
@@ -771,7 +772,7 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
         super::ExternFunctionKind::Scoop { .. }
     ));
     assert_eq!(
-        NativeSafeCallDestination::extern_function(c_ref).view(),
+        CCallDestination::extern_function(c_ref).view(),
         CallDestination::Extern(c)
     );
     assert_eq!(

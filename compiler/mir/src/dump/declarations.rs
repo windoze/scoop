@@ -77,7 +77,8 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let abi = match extern_.abi {
-            ExternAbi::C => "c",
+            ExternAbi::C(CAbiCallMode::NativeSafe) => "c",
+            ExternAbi::C(CAbiCallMode::GcLeaf) => "c gc-leaf",
             ExternAbi::Scoop => "scoop",
         };
         let params = extern_

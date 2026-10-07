@@ -44,7 +44,7 @@ impl HirDependencyCallSiteV1 {
             .declaration(declaration)
             .ok_or(Error::Declaration(declaration))?;
         if self.instantiation() == crate::HirDependencyCallInstantiationV1::NativeLeaf
-            && (source.effects().implementation() != crate::CallableImplementationV1::SourceExternC
+            && (!source.effects().implementation().is_c_extern()
                 || !matches!(
                     self.position().root.template(),
                     scoop_identity::CallableTemplateOwner::ReleaseHook(_)

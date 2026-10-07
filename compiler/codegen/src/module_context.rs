@@ -59,6 +59,7 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                     }
                     scoop_lir::CallSite::NoGc(_)
                     | scoop_lir::CallSite::ReleaseScoop(_)
+                    | scoop_lir::CallSite::NativeGcLeaf(_)
                     | scoop_lir::CallSite::ReleaseNativeLeaf(_) => {}
                 },
                 Instruction::Invoke {

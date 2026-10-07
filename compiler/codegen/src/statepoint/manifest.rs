@@ -148,6 +148,7 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                         )),
                         scoop_lir::CallSite::NoGc(_)
                         | scoop_lir::CallSite::ReleaseScoop(_)
+                        | scoop_lir::CallSite::NativeGcLeaf(_)
                         | scoop_lir::CallSite::ReleaseNativeLeaf(_) => None,
                     },
                     scoop_lir::Instruction::Invoke { site } => match site {

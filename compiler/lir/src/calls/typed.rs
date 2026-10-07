@@ -25,7 +25,7 @@ pub enum TypedCall<Destination> {
 
 pub type ManagedTypedCall = TypedCall<ManagedCallDestination>;
 pub type NoGcTypedCall = TypedCall<NoGcCallDestination>;
-pub type NativeSafeTypedCall = TypedCall<NativeSafeCallDestination>;
+pub type CTypedCall = TypedCall<CCallDestination>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypedCallResult {

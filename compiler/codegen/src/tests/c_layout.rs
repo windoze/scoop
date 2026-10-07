@@ -632,6 +632,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     install_test_native_function_contract_with_signature(&mut module, 1, &outer_signature);
     let outbound = outbound_bridge_with_signature(1, &outer_signature);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "swap".to_string(),
             native_symbol: "native_swap".to_string(),
@@ -864,6 +865,7 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
     let mut module = values_module();
     install_test_native_function_contract(&mut module, 3);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "machineSize".to_string(),
             native_symbol: "machine_size".to_string(),
@@ -896,6 +898,7 @@ fn append_c_void_call(
 ) {
     install_test_native_function_contract(module, 4);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "consume".to_string(),
             native_symbol: "native_consume".to_string(),
@@ -914,7 +917,7 @@ fn append_c_void_call(
         &mut caller.call_targets,
         TestCallProtocol::NativeSafe {
             safepoint: 99,
-            destination: scoop_lir::NativeSafeCallDestination::extern_function(function),
+            destination: scoop_lir::CCallDestination::extern_function(function),
         },
         vec![RAW_PTR],
         vec![argument(storage)],
@@ -1425,6 +1428,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         let function_seed = u8::try_from(module.extern_functions.iter().count() + 10).unwrap();
         install_test_native_function_contract(&mut module, function_seed);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+            call_mode: scoop_identity::CAbiCallMode::NativeSafe,
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("roundtrip{name}"),
                 native_symbol: format!("roundtrip_{name}"),

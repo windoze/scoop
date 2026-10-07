@@ -157,7 +157,7 @@ impl Lowerer {
                 native_symbol: extern_.native_symbol.clone(),
                 library: extern_.library.clone(),
                 abi: match extern_.abi {
-                    hir::ExternAbi::C => mir::ExternAbi::C,
+                    hir::ExternAbi::C(mode) => mir::ExternAbi::C(mode),
                     hir::ExternAbi::Scoop => mir::ExternAbi::Scoop,
                 },
                 calling_convention: match extern_.calling_convention {

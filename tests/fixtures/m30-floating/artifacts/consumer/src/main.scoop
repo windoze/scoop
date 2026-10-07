@@ -21,13 +21,13 @@ import bridge.wideRemainder
 @Measure(ZERO, NAN)
 struct Annotated(val value: Scalar)
 
-@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+@Extern(lib = "fixture_native", name = "float_from_bits")
 fun fromFloatBits(value: UInt): Scalar
-@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+@Extern(lib = "fixture_native", name = "double_from_bits")
 fun fromDoubleBits(value: ULong): Wide
-@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+@Extern(lib = "fixture_native", name = "float_bits")
 fun floatBits(value: Scalar): UInt
-@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+@Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Wide): ULong
 
 fun check(value: Boolean) {

@@ -95,7 +95,9 @@ fn render_unit(
                 .extern_functions
                 .iter()
                 .find_map(|(_, function)| match &function.kind {
-                    ExternFunctionKind::C { bridge, signature } if bridge.unit() == plan.unit() => {
+                    ExternFunctionKind::C {
+                        bridge, signature, ..
+                    } if bridge.unit() == plan.unit() => {
                         Some((function, bridge.as_ref(), signature))
                     }
                     ExternFunctionKind::C { .. } | ExternFunctionKind::Scoop { .. } => None,

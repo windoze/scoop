@@ -12,7 +12,7 @@ pub(in crate::tests) enum TestCallProtocol {
     },
     NativeSafe {
         safepoint: u64,
-        destination: scoop_lir::NativeSafeCallDestination,
+        destination: scoop_lir::CCallDestination,
     },
     NativeBorrowed {
         safepoint: u64,
@@ -185,7 +185,7 @@ pub(in crate::tests) fn protocol_site(
             safepoint,
             destination,
         } => CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
-            call: bind_test_call(&mut targets.native_safe_targets, destination, call),
+            call: bind_test_call(&mut targets.c_targets, destination, call),
             safepoint: test_safepoint(safepoint),
             roots: scoop_lir::NativeSafeRootSet::default(),
         }),

@@ -189,6 +189,7 @@ fn fixture(target: TargetProfileId) -> (Module, String) {
     ));
     install_test_c_signature_record(&mut module, outbound_signature);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "transform".into(),
             native_symbol: "native_transform".into(),

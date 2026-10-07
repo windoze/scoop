@@ -1,0 +1,20 @@
+package m33.leaf
+
+@CLayout
+public struct Pair(val number: Int, val fraction: Double)
+
+@Extern(lib = "fixture_native", name = "m33_observe")
+public fun safeObserve(mode: Int, value: Int): Int
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_observe")
+public fun leafObserve(mode: Int, value: Int): Int
+
+@GCLeaf @Extern(lib = "fixture_native", name = "m33_pair")
+public fun leafPair(value: Pair): Pair
+
+public fun <T> throughGeneric(value: T, number: Int): T {
+    @Unsafe {
+        if (leafObserve(1, number) != number) { throw IllegalStateException() }
+    }
+    return value
+}

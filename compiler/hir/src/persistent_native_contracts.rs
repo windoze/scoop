@@ -123,7 +123,7 @@ impl HirSourceNativeContracts {
                 .copied()
                 .enumerate()
                 .map(|(index, ty)| {
-                    if extern_.abi == ExternAbi::C && ty == inputs.unit {
+                    if extern_.abi.is_c() && ty == inputs.unit {
                         return Err(HirSourceNativeContractError::UnitCParameter {
                             function: function_id,
                             parameter: index,
@@ -144,7 +144,7 @@ impl HirSourceNativeContracts {
                 }
             })?;
             let abi = match extern_.abi {
-                ExternAbi::C => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+                ExternAbi::C(_) => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
                     parameters,
                     if extern_.return_type == inputs.unit {
                         SourceCAbiReturn::Void

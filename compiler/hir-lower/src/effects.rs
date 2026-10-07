@@ -45,7 +45,7 @@ impl Lowerer {
             let mut requirements = HashSet::new();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();
-                if extern_.abi == hir::ExternAbi::C {
+                if extern_.abi.is_c() {
                     // The C-FFI-safe classifier is the stronger signature
                     // check and already proves every boundary value GC-free.
                     continue;

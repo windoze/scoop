@@ -12,9 +12,15 @@ pub(super) struct ImportedCallableTarget {
 pub(super) enum ImportedCallableEntry {
     Scoop {
         callable: mir::ExternalCallableUseId,
-        native_contract: Option<scoop_identity::SourceNativeExternalContractRecord>,
+        native_c: Option<ImportedCFunction>,
     },
-    ReleaseNative(scoop_identity::SourceNativeExternalContractRecord),
+    ReleaseNative(ImportedCFunction),
+}
+
+#[derive(Clone)]
+pub(super) struct ImportedCFunction {
+    pub(super) contract: scoop_identity::SourceNativeExternalContractRecord,
+    pub(super) call_mode: scoop_identity::CAbiCallMode,
 }
 
 impl ImportedCallableTarget {
@@ -30,13 +36,9 @@ impl ImportedCallableTarget {
             .expect("an ordinary use retains its Scoop entry")
     }
 
-    pub(super) fn native_contract(
-        &self,
-    ) -> Option<&scoop_identity::SourceNativeExternalContractRecord> {
+    pub(super) fn native_c(&self) -> Option<&ImportedCFunction> {
         match &self.entry {
-            ImportedCallableEntry::Scoop {
-                native_contract, ..
-            } => native_contract.as_ref(),
+            ImportedCallableEntry::Scoop { native_c, .. } => native_c.as_ref(),
             ImportedCallableEntry::ReleaseNative(contract) => Some(contract),
         }
     }

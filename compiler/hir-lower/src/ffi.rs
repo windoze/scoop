@@ -175,7 +175,7 @@ impl Lowerer {
             self.current_file = self.function_files[function_id];
             let function = self.functions[*function_id].clone();
             let extern_ = self.extern_functions[*extern_id].clone();
-            if extern_.abi == hir::ExternAbi::C
+            if extern_.abi.is_c()
                 && self.signatures[function_id].params.iter().any(|parameter| {
                     matches!(parameter.calling, crate::FnParamCalling::Vararg { .. })
                 })
@@ -191,7 +191,7 @@ impl Lowerer {
             for (index, parameter) in extern_.params.iter().copied().enumerate() {
                 let path = vec![function.name.clone(), format!("parameter{}", index + 1)];
                 let result = match extern_.abi {
-                    hir::ExternAbi::C => {
+                    hir::ExternAbi::C(_) => {
                         let mut visiting = HashSet::new();
                         self.classify_c_ffi_type(parameter, &[], false, path, &mut visiting)
                             .map(|_| ())
@@ -207,7 +207,7 @@ impl Lowerer {
             }
             let path = vec![function.name.clone(), "return".to_string()];
             let result = match extern_.abi {
-                hir::ExternAbi::C => {
+                hir::ExternAbi::C(_) => {
                     let mut visiting = HashSet::new();
                     self.classify_c_ffi_type(extern_.return_type, &[], true, path, &mut visiting)
                         .map(|_| ())
@@ -239,7 +239,7 @@ impl Lowerer {
                         .all(|(&left, &right)| self.types_equal(left, right))
                     && self.types_equal(previous.return_type, current.return_type);
                 if previous.library != current.library
-                    || previous.abi != current.abi
+                    || previous.abi.is_c() != current.abi.is_c()
                     || previous.calling_convention != current.calling_convention
                     || previous.gc_effect != current.gc_effect
                     || previous.safety != current.safety

@@ -1,0 +1,4 @@
+@GCLeaf @Extern(name = "native_value")
+fun nativeValue(): Int
+
+fun main() { nativeValue() }

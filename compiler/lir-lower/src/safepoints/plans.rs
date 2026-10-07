@@ -185,6 +185,7 @@ pub(super) fn annotate_root_plans(
                     }
                     lir::CallSite::NoGc(_)
                     | lir::CallSite::ReleaseScoop(_)
+                    | lir::CallSite::NativeGcLeaf(_)
                     | lir::CallSite::ReleaseNativeLeaf(_) => RootPlan::None,
                     lir::CallSite::NativeSafe(_) => {
                         RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(

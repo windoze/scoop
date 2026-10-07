@@ -180,22 +180,28 @@ fn lower_dependency_callables(
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
         };
-        let native_contract = selected.native_contract().cloned();
-        let entry =
-            match native_contract {
-                Some(contract)
-                    if release_only.contains(&source_id)
-                        && selected.interface().effects().implementation()
-                            == scoop_hir::CallableImplementationV1::SourceExternC =>
-                {
-                    native_entries.insert(definition);
-                    ImportedCallableEntry::ReleaseNative(contract)
+        let native_c = selected.native_contract().and_then(|contract| {
+            match selected.interface().effects().implementation() {
+                scoop_hir::CallableImplementationV1::SourceExternC(call_mode) => {
+                    Some(crate::imported_callables::ImportedCFunction {
+                        contract: contract.clone(),
+                        call_mode,
+                    })
                 }
-                native_contract => ImportedCallableEntry::Scoop {
+                _ => None,
+            }
+        });
+        let entry =
+            match native_c {
+                Some(native) if release_only.contains(&source_id) => {
+                    native_entries.insert(definition);
+                    ImportedCallableEntry::ReleaseNative(native)
+                }
+                native_c => ImportedCallableEntry::Scoop {
                     callable: callables.alloc(imported.callable_use(id, effect).expect(
                         "a selected dependency MIR callable has a complete typed reference",
                     )),
-                    native_contract,
+                    native_c,
                 },
             };
         let target = ImportedCallableTarget {

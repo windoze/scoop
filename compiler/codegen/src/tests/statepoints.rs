@@ -138,6 +138,7 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
 fn native_calls_publish_roots_transition_and_reload() {
     let mut extern_functions = scoop_lir::ExternFunctions::default();
     let c_call = extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "wait".to_string(),
             native_symbol: "native_wait".to_string(),
@@ -166,7 +167,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         &mut safe_targets,
         TestCallProtocol::NativeSafe {
             safepoint: 1,
-            destination: scoop_lir::NativeSafeCallDestination::extern_function(c_call),
+            destination: scoop_lir::CCallDestination::extern_function(c_call),
         },
         Vec::new(),
         Vec::new(),

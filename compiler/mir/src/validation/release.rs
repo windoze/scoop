@@ -104,8 +104,9 @@ pub(super) fn validate_statement(
                         .is_some_and(|f| f.gc_effect == GcEffect::NoGc),
                     Callee::External(id) => arena_get(&module.meta.external_callables, id)
                         .is_some_and(|f| f.gc_effect() == GcEffect::NoGc),
-                    Callee::Extern(id) => arena_get(&module.extern_functions, id)
-                        .is_some_and(|f| f.abi == ExternAbi::C),
+                    Callee::Extern(id) => {
+                        arena_get(&module.extern_functions, id).is_some_and(|f| f.abi.is_c())
+                    }
                     Callee::CoroutineSuspend { .. }
                     | Callee::Closure(_)
                     | Callee::FunctionBridge(_)

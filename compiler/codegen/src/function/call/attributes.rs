@@ -9,7 +9,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     ) {
         if matches!(
             protocol,
-            CallProtocol::NoGc | CallProtocol::ReleaseNativeLeaf
+            CallProtocol::NoGc | CallProtocol::NativeGcLeaf | CallProtocol::ReleaseNativeLeaf
         ) {
             call.add_attribute(
                 AttributeLoc::Function,
@@ -20,6 +20,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             protocol,
             CallProtocol::NativeSafe { .. }
                 | CallProtocol::NativeBorrowed { .. }
+                | CallProtocol::NativeGcLeaf
                 | CallProtocol::ReleaseNativeLeaf
         ) {
             self.apply_nounwind(call);

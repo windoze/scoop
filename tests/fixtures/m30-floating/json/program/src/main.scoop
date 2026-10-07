@@ -4,15 +4,15 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException(Some("floating JSON assertion failed")) }
 }
 
-@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+@Extern(lib = "fixture_native", name = "float_from_bits")
 fun fromFloatBits(value: UInt): Float
-@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+@Extern(lib = "fixture_native", name = "double_from_bits")
 fun fromDoubleBits(value: ULong): Double
-@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+@Extern(lib = "fixture_native", name = "float_bits")
 fun floatBits(value: Float): UInt
-@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+@Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): ULong
-@NoGC @Extern(lib = "fixture_native", name = "select_numeric_locale")
+@Extern(lib = "fixture_native", name = "select_numeric_locale")
 fun selectNumericLocale(): Unit
 
 @Unsafe fun main() {

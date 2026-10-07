@@ -1,0 +1,746 @@
+Module
+  extern ef0 safeObserve @m33_observe(Int, Int) -> Int <abi=c no-gc lib=fixture_native>
+  extern ef1 leafObserve @m33_observe(Int, Int) -> Int <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef2 leafPair @m33_pair(Pair) -> Pair <abi=c gc-leaf no-gc lib=fixture_native>
+  extern ef3 leafCalls @m33_calls() -> Int <abi=c gc-leaf no-gc lib=fixture_native>
+  callback cb0 @fn7 -> @fn13 function_type0 id=a72809607613ea9c3a4fc9c0fd1999b5ad6268cd910d080f1b9332ce07e6de5d
+  struct Pair (number: Int, fraction: Double) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Cell vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn13 id=a72809607613ea9c3a4fc9c0fd1999b5ad6268cd910d080f1b9332ce07e6de5d
+  fun safeObserve @fn0(arg0: Int, arg1: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @m33_observe direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type Int
+        Local $call.1
+  fun leafObserve @fn1(arg0: Int, arg1: Int) -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern1 @m33_observe direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+        Type Int
+        Local $call.1
+  fun leafPair @fn2(arg0: Pair) -> Pair <no-gc>
+    bb0 entry
+      call $call.1: Pair = extern2 @m33_pair direct
+        Type Pair
+        Local arg0
+      return
+        Type Pair
+        Local $call.1
+  fun leafCalls @fn3() -> Int <no-gc>
+    bb0 entry
+      call $call.1: Int = extern3 @m33_calls direct
+      return
+        Type Int
+        Local $call.1
+  fun expect @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun argument @fn5(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn11 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val cell: Cell
+        Type Cell
+        Local $new.1
+      call @scoop_rt_gc_collect direct
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local cell
+  fun failArgument @fn6() -> Int
+    bb0 entry
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external1 direct
+        Type IllegalArgumentException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalArgumentException
+        Local $new.1
+  fun noGcCaller @fn7(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        Local value
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = extern1 @m33_observe direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun main @fn8() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn11 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val cell: Cell
+        Type Cell
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.receiver: Int = extern0 @m33_observe direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $parameter.value: Int = @fn5 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.receiver: Int = extern1 @m33_observe direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = @fn7 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $argument.1: Double
+        Type Double
+        FloatLiteral f64(0x3ff4000000000000)
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      val $parameter.fraction: Double
+        Type Double
+        Local $argument.1
+      call $argument.0: Pair = @fn12 direct
+        Type Int
+        Local $parameter.number
+        Type Double
+        Local $parameter.fraction
+      val $parameter.value: Pair
+        Type Pair
+        Local $argument.0
+      call pair: Pair = extern2 @m33_pair direct
+        Type Pair
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Pair
+          Local pair
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Double
+        Type Double
+        FieldAccess 1
+          Type Pair
+          Local pair
+      val $dependency.argument.0: Double
+        Type Double
+        FloatLiteral f64(0x3ffc000000000000)
+      val $dependency.parameter.other: Double
+        Type Double
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        FloatBinary F64 Equal
+          Type Double
+          Local $dependency.receiver
+          Type Double
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      call calls: Int = extern3 @m33_calls direct
+      var caught: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb11
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb12 bb13
+        Type Boolean
+        IsInstance IllegalArgumentException
+          Type Any
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      branch bb16 bb17
+        Type Boolean
+        Local caught
+    bb11 try.body.11 unwind bb4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $argument.1: Int = @fn6 direct
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $call.2: Int = extern1 @m33_observe direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      goto bb10
+    bb12 try.catch.12
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalArgumentException
+        Type IllegalArgumentException
+        Retype IllegalArgumentException
+          Type Any
+          Local $catch.3
+      goto bb14
+    bb13 try.next.13
+      rethrow unwind bb8
+    bb14 scope.14 unwind bb6
+      assign caught
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb15
+    bb15 scope.15
+      goto bb10
+    bb16 if.then.16
+      call $dependency.receiver: Int = extern3 @m33_calls direct
+      val $dependency.argument.0: Int
+        Type Int
+        Local calls
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      var index: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb19
+    bb19 while.cond.19 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local index
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=64 bits=0x00000040
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb21 bb20
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb20 while.exit.20
+      val $argument.0: Cell
+        Type Cell
+        Local cell
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.value: Cell
+        Type Cell
+        Local $argument.0
+      val $parameter.number: Int
+        Type Int
+        Local $argument.1
+      call $call.4: Cell = @fn9 direct
+        Type Cell
+        Local $parameter.value
+        Type Int
+        Local $parameter.number
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cell
+          Local $call.4
+          Type Cell
+          Local cell
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb21 while.body.21
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: Int
+        Type Int
+        Local index
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.1: Int = @fn5 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.receiver: Int = extern1 @m33_observe direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local index
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      val $old.2: Int
+        Type Int
+        Local index
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign index
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb19
+  fun genericCaller @fn9(value: Cell, number: Int) -> Cell
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        Local number
+      val $parameter.mode: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn1 direct
+        Type Int
+        Local $parameter.mode
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local number
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Cell
+        Local value
+  fun println @fn10(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Cell.$c0 @fn11(this: Cell, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Pair.$c0 @fn12(number: Int, fraction: Double) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Int
+          Local number
+          Type Double
+          Local fraction
+  fun callback bridge for noGcCaller @fn13($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn7 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  instance mi0 function=@fn9 <- genericCaller
+  instance mi1 function=@fn10 <- println
+  str @str0 "illegal state"
+  str @str1 "illegal argument"
+  str @str2 "gc-leaf-ok"
+  str @str3 "\n"
+  output executable @fn8
