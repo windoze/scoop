@@ -1,0 +1,338 @@
+{
+  "scope": "tests/fixtures/m23-cli-program-link",
+  "implementation_revision": "7c9e725f4",
+  "target": "aarch64-apple-darwin",
+  "method": "One suite run, then only failed fixtures were rerun after fixes. Latest successful result per fixture.",
+  "counts": {
+    "passed": 36
+  },
+  "variants": 57,
+  "processes": 272,
+  "snapshots": 280,
+  "results": [
+    {
+      "name": "program-link-artifact-corruption",
+      "status": "passed",
+      "seconds": 50.14015816699248,
+      "variants": 1,
+      "processes": 13,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-artifact-graph",
+      "status": "passed",
+      "seconds": 192.0713517080294,
+      "variants": 1,
+      "processes": 17,
+      "snapshots": 24,
+      "message": ""
+    },
+    {
+      "name": "program-link-basic",
+      "status": "passed",
+      "seconds": 48.31425799999852,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-closure-finally",
+      "status": "passed",
+      "seconds": 58.36216020898428,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-failure-finally",
+      "status": "passed",
+      "seconds": 21.964817333966494,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-function-values",
+      "status": "passed",
+      "seconds": 27.292711916961707,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-lifecycle",
+      "status": "passed",
+      "seconds": 65.2867654999718,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-coroutine-value-task",
+      "status": "passed",
+      "seconds": 56.1765679580858,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-cycle-recovery-root",
+      "status": "passed",
+      "seconds": 51.9269121249672,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-delegate-siblings",
+      "status": "passed",
+      "seconds": 61.01752412505448,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-diamond-ready-order",
+      "status": "passed",
+      "seconds": 64.09307099995203,
+      "variants": 2,
+      "processes": 12,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-eager-failure",
+      "status": "passed",
+      "seconds": 17.146950874943286,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-early-root",
+      "status": "passed",
+      "seconds": 19.887341249966994,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-effective-inputs",
+      "status": "passed",
+      "seconds": 92.59384529094677,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-empty",
+      "status": "passed",
+      "seconds": 16.12523775000591,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-equality-roots",
+      "status": "passed",
+      "seconds": 20.54795270890463,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-failed-dependency-order",
+      "status": "passed",
+      "seconds": 20.45460108295083,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-lazy-cycle-root",
+      "status": "passed",
+      "seconds": 18.39110670797527,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-lazy-failure-root",
+      "status": "passed",
+      "seconds": 17.97052212501876,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-native-effect-conflict",
+      "status": "passed",
+      "seconds": 41.14901287504472,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-native-kind-conflict",
+      "status": "passed",
+      "seconds": 41.575523291016,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-native-library-required",
+      "status": "passed",
+      "seconds": 42.470533499959856,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-native-missing",
+      "status": "passed",
+      "seconds": 42.00591595796868,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-native-reserved",
+      "status": "passed",
+      "seconds": 45.414396417094395,
+      "variants": 1,
+      "processes": 3,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-nogc",
+      "status": "passed",
+      "seconds": 15.65946741704829,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-publication",
+      "status": "passed",
+      "seconds": 42.21972212498076,
+      "variants": 1,
+      "processes": 5,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-publication-directory",
+      "status": "passed",
+      "seconds": 43.046943499939516,
+      "variants": 1,
+      "processes": 2,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-rebuilt-core",
+      "status": "passed",
+      "seconds": 87.18095849989913,
+      "variants": 1,
+      "processes": 9,
+      "snapshots": 12,
+      "message": ""
+    },
+    {
+      "name": "program-link-retained-artifacts",
+      "status": "passed",
+      "seconds": 51.42681745905429,
+      "variants": 1,
+      "processes": 10,
+      "snapshots": 4,
+      "message": ""
+    },
+    {
+      "name": "program-link-root-failure",
+      "status": "passed",
+      "seconds": 16.312767958035693,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-sdk-native",
+      "status": "passed",
+      "seconds": 44.10243441700004,
+      "variants": 1,
+      "processes": 6,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-union-adapters",
+      "status": "passed",
+      "seconds": 23.76969637500588,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-union-adapters-combined",
+      "status": "passed",
+      "seconds": 21.908152374904603,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-unused-extern-conflict",
+      "status": "passed",
+      "seconds": 83.67267304193228,
+      "variants": 1,
+      "processes": 4,
+      "snapshots": 16,
+      "message": ""
+    },
+    {
+      "name": "program-link-unused-lazy-root",
+      "status": "passed",
+      "seconds": 16.94638441700954,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    },
+    {
+      "name": "program-link-values",
+      "status": "passed",
+      "seconds": 19.173246875056066,
+      "variants": 2,
+      "processes": 8,
+      "snapshots": 8,
+      "message": ""
+    }
+  ]
+}

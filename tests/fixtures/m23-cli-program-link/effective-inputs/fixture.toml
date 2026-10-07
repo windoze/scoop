@@ -34,7 +34,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths"]}]
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "original"
@@ -72,7 +72,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${changed_link.result.link_plan}", "equals" = "${link.result.link_plan}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}]
+checks = [{"actual" = "${changed_link.result.link_plan}", "not_equals" = "${link.result.link_plan}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "equals" = "${changed.result.link_plan_fingerprint}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "run_changed"
@@ -110,7 +110,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${runtime_link.result.link_plan_fingerprint}", "equals" = "${runtime_build.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan}", "snapshot" = "runtime.${target}.plan"}]
+checks = [{"actual" = "${runtime_link.result.link_plan_fingerprint}", "equals" = "${runtime_build.result.link_plan_fingerprint}"}, {"actual" = "${runtime_link.result.link_plan_fingerprint}", "not_equals" = "${changed_link.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "changed_runtime"

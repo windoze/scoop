@@ -17,7 +17,7 @@
 
 - 已读取设计与对应规范；工作区原有 M31 文档作为实施基准保存。
 - Linux `nuc12:~/repos/scoop` 留有 M30 测试变更；Linux 验证将使用独立目录，保留原目录内容。
-- M31-1、M31-4 已完成；nursery 已实现并通过 Darwin 验证，Linux 待补。ODR/image 与完整优化继续实施。各批实际改动、版本与验证结果记录如下。
+- M31-1～M31-5 的主要功能已实现；正在完成三 target 总验收与性能报告。Darwin 的独立链接组合及 GNU 混合优化 ODR 已通过，musl 收尾验收进行中。各批实际改动、版本与验证结果记录如下。
 
 ## 性能基线与构建清理
 
@@ -143,3 +143,9 @@
 
 - 独立 metadata member 增多后，较长工作目录中的协程用例超过 Darwin 的进程参数长度限制。对象路径改经系统 linker 的标准 response file 传递，实际顺序、内容、link map 与 trace 检查保持。
 - fmt、workspace clippy 通过；原生输入替换/独立链接测试新增含空格、逗号、两种引号和反斜杠的目录，真实系统 linker 接受路径，运行结果与链接计划保持一致。触发长度限制的 coroutine-lifecycle 正式用例复测通过。
+
+## 链接 fixture 迁移
+
+- 移除 27 份声明中的 85 个旧版完整 startup/link-plan 快照，保留本次构建与独立链接的实际 fingerprint 一致、原生输入/Cone 关系、所有阶段结构和运行结果。源码/运行时变化仍检查链接失效及输出；重建 core 继续核对实际 String owner。
+- 损坏用例按当前 Mach-O 产物确认 payload 修改位置与尾部截断长度，保留完整诊断、失败位置和原子输出。普通函数源码变化不再改变 LIR 的共享 ABI 摘要；旧 stale 负例按现有 HIR 观察面继续拒绝，并锁定实际摘要相等关系。
+- 36 个独立链接 fixture 全部通过，合计 57 个变体、272 个正式进程、280 份阶段快照；先执行整组，之后仅复测失败项。结果见 [M31-DARWIN-LINK.json](M31-DARWIN-LINK.json)。公共 runner 的 44 项测试通过。

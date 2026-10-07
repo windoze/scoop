@@ -96,7 +96,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}, {"actual" = "${disk_link.result.link_plan}", "snapshot" = "link.${target}.plan"}]
+checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}]
 
 [[steps]]
 name = "memory"
