@@ -19,8 +19,9 @@ pub(super) fn link(
         stubs.insert(path, namespace.providers.providers[id].install_name.clone());
     }
     let mut command = profile.command(&sdk, candidate, link_map).map_err(error)?;
+    let response = object_response_file(directory, paths)?;
     command
-        .args(paths)
+        .arg(response)
         .arg("-alias")
         .arg(&inputs.string_target)
         .arg("_scoop_td_String");
@@ -58,4 +59,26 @@ pub(super) fn link(
     crate::final_image::verify(&bytes, inputs, startup, profile, &map)
         .map_err(|err| error(format!("final Mach-O validation: {err}")))?;
     Ok(())
+}
+
+fn object_response_file(
+    directory: &Path,
+    paths: &[PathBuf],
+) -> Result<std::ffi::OsString, LinkError> {
+    let mut contents = Vec::new();
+    for path in paths {
+        contents.push(b'"');
+        for byte in path.as_os_str().as_encoded_bytes() {
+            if matches!(byte, b'\\' | b'"') {
+                contents.push(b'\\');
+            }
+            contents.push(*byte);
+        }
+        contents.extend_from_slice(b"\"\n");
+    }
+    let path = directory.join("objects.rsp");
+    write_new(&path, &contents)?;
+    let mut argument = std::ffi::OsString::from("@");
+    argument.push(path);
+    Ok(argument)
 }

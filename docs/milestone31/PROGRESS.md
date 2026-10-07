@@ -138,3 +138,8 @@
 - ELF 可把没有重定位的全零空哨兵放入独立只读节；对象读取接受这种填充，继续拒绝未归属的非零数据和可写/代码节。空 span 保留元素范围、alignment、只读权限及不与实际 atom 重叠的检查。
 - 删除不同记录必须使用同一 sentinel 地址、不同 sentinel 必须有不同地址的额外检查。空数组没有语言身份，不同物理成员可各自携带全零数据；修复泛型 delegate 的多个独立 storage 分区被误拒绝的问题。
 - fmt 与 Darwin/Linux workspace clippy 通过；符号/填充 6 项、静态存储 15 项通过。Linux 三个真实 ELF 测试均覆盖 GNU/musl 的静态初值、独立全零节、前缀和损坏数据；修正旧测试 helper 在多 member 下未按 intent 排序 patch site 的假设。Darwin delegate-siblings 的正式独立链接与运行复测通过。
+
+## Darwin 大量对象的链接参数
+
+- 独立 metadata member 增多后，较长工作目录中的协程用例超过 Darwin 的进程参数长度限制。对象路径改经系统 linker 的标准 response file 传递，实际顺序、内容、link map 与 trace 检查保持。
+- fmt、workspace clippy 通过；原生输入替换/独立链接测试新增含空格、逗号、两种引号和反斜杠的目录，真实系统 linker 接受路径，运行结果与链接计划保持一致。触发长度限制的 coroutine-lifecycle 正式用例复测通过。
