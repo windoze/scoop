@@ -496,6 +496,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 分四批完成源码根、底类型求值、组合与产物、正式回归。以真实 core 构建、独立／组合／negative／golden、正式 CLI 与 GC/debug/release 验收为完成门。
 - 2026-10-07 实现与验收完成：Rust 工作区 5,328 项测试覆盖在首轮及定向复验后闭合，44 项公共 runner 测试通过；Darwin 全部 2,594 项适用 fixture 普通通过，另 7 项不适用。NUC 上 GNU/musl 各 67 项定向 fixture 普通通过，其中三个 target 的 M32 专项各 42 项；实际范围和去重后的报告见验收记录。
 
+### M33 平台库的编译器、driver 与 runtime 前置能力（实施中，[设计](milestone33/DESIGN.md)，[验收](milestone33/ACCEPTANCE.md)）
+
+- 提供平台库需要的编译器与 runtime 能力：NativeSafe 握手、GCLeaf 与标量直接 C ABI、作用域数据借用、计数 pin、受检 UTF-8 与 C 字符串、四种 main／argv／退出码、NativeSafe 输出及 errno 捕获。
+- 完成 Cone 内 C/C++ 源码、目标条件源码选择、native 系统库、sysroot 中已声明 scoop 依赖的默认定位；C++ 支持 Darwin/GNU，musl 明确拒绝。
+- 用实际 core `Equality<T>` 统一相等、派生与泛型 bound，提供五种内存序的原子类型及线程退出诊断；不扩大为平台库公开 API 或新的通用框架。
+- 按设计第 12 节拆分功能提交，先规范后实现，控制文件长度；开发阶段运行受影响的 crate／fixture，里程碑收尾完成必要回归与三个 target 的闭环验收。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
