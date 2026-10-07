@@ -6,7 +6,7 @@
 
 | 批次 | 能力 | 状态 |
 | --- | --- | --- |
-| M33-1 | NativeSafe/collector、GCLeaf、DirectC | NativeSafe 完成并通过三平台验收；GCLeaf、DirectC 待实现 |
+| M33-1 | NativeSafe/collector、GCLeaf、DirectC | NativeSafe 完成并通过三平台验收；GCLeaf 实现完成、验证中；DirectC 待实现 |
 | M33-2 | 作用域数据借用、计数 pin | 待实现 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 待实现 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
@@ -39,3 +39,9 @@ Linux 使用 `nuc12`。其 `~/repos/scoop` 有既存未提交变更，M33 测试
 - fixture runner 的 44 项公共规则测试通过。没有运行与本批 runtime 变化无关的全量语言 fixture。
 
 性能使用 `runtime/tests/native_transition_benchmark.c` 和独立编译的 `native_transition_leaf.c`，同一 native 操作比较直接 C、NativeSafe、NativeBorrowed。GC 测量通过只在测试构建中存在的同步点区分 STOPPING→停稳与 STOPPING→RUNNING；production 无测试回调。完整条件、原始样本、吞吐与等待分布见 [PERFORMANCE.md](PERFORMANCE.md)：常见调用的全局争用显著减少，但超时复查使部分 GC 等待尾部增加，未把吞吐提升报告为所有 GC 延迟改善。
+
+## Nursery 分配竞争修复
+
+GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配重试问题：其他 mutator 可以在收集结束后抢先占用单块 nursery，旧逻辑以尝试一次 minor、一次 full 的次数上限误报 arena OOM。nursery 容量竞争现在继续收集和重试，只有实际完成 full 后仍无法取得物理块才报告耗尽。内部 full 请求区分自己完成收集与加入另一轮收集，避免把加入 minor 当成已完成 full；完整收集后的尝试也不再受软 threshold 阻挡。公共 runtime ABI 不变。
+
+验证覆盖真实双线程分配和 GC：测试在收集后连续三次安排另一线程抢先占用 nursery，再确认等待方成功分配；旧实现的临时副本在 O0/O2 均稳定复现原 OOM，修复后 O0/O2 均通过。其余 18 项 runtime collector 测试通过。Linux GNU / clang 22.1 TSan 的原 7 个进程与新增竞争测试均通过，未使用 suppression。C 格式化、严格编译检查及 `scoop-codegen` clippy 通过。GCLeaf 的真实 CLI 并发 fixture 在 debug/release × normal/moving/minor 下均通过。

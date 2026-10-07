@@ -42,8 +42,7 @@ bool scoop_gc_claim_object_scan_locked(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
 bool scoop_gc_is_forwarded_old_locked(const void *object);
 bool scoop_gc_is_current_live_object_locked(const void *object);
-void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor,
-                                           void *context);
+void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context);
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects, bool minor);
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 
@@ -64,22 +63,21 @@ void scoop_gc_stackmaps_init(const ScoopStackMapIndex *index);
 const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc);
 void scoop_gc_visit_managed_stack(const struct ScoopThreadState *thread,
                                   ScoopGcRootVisitor visitor);
-void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread,
-                                    uintptr_t return_pc, uintptr_t stack_pointer,
-                                    uintptr_t frame_pointer, uintptr_t managed_boundary,
-                                    ScoopGcRootVisitor visitor);
-void scoop_gc_collect_internal(void);
+void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread, uintptr_t return_pc,
+                                    uintptr_t stack_pointer, uintptr_t frame_pointer,
+                                    uintptr_t managed_boundary, ScoopGcRootVisitor visitor);
+/* True when this request performed a full collection, false when it joined
+ * another collector. A joined collection may have been minor. */
+bool scoop_gc_collect_internal(void);
 void scoop_gc_collect_minor_internal(void);
 void scoop_gc_report_metrics(void);
 
 /* Shared exact scans. Partial heap scans use a half-open card range. */
 void scoop_gc_scan_roots(ScoopGcRootVisitor visitor);
-void scoop_gc_scan_descriptor(void *base, const uint64_t *scan,
-                              ScoopGcSlotVisitor visitor, void *context,
-                              uintptr_t begin, uintptr_t end);
-typedef void (*ScoopGcObjectRangeVisitor)(void *object, uintptr_t begin,
-                                        uintptr_t end, void *context);
-void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context,
-                              bool count_cards);
+void scoop_gc_scan_descriptor(void *base, const uint64_t *scan, ScoopGcSlotVisitor visitor,
+                              void *context, uintptr_t begin, uintptr_t end);
+typedef void (*ScoopGcObjectRangeVisitor)(void *object, uintptr_t begin, uintptr_t end,
+                                          void *context);
+void scoop_gc_scan_remembered(ScoopGcObjectRangeVisitor visitor, void *context, bool count_cards);
 
 #endif

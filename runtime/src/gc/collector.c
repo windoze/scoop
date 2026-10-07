@@ -180,9 +180,9 @@ static uint64_t monotonic_ns(void) {
     return (uint64_t)time.tv_sec * UINT64_C(1000000000) + (uint64_t)time.tv_nsec;
 }
 
-static void collect(bool minor) {
+static bool collect(bool minor) {
     if (!scoop_thread_begin_collection()) {
-        return;
+        return false;
     }
     uint64_t started = monotonic_ns();
     scoop_gc_heap_lock();
@@ -256,8 +256,7 @@ static void collect(bool minor) {
     } else {
         scoop_gc_heap_state.full_pause_ns += elapsed;
     }
-    static const uint64_t bounds[] = {10000, 50000, 100000, 500000,
-                                      1000000, 5000000, 10000000};
+    static const uint64_t bounds[] = {10000, 50000, 100000, 500000, 1000000, 5000000, 10000000};
     size_t bucket = 0;
     while (bucket < 7 && elapsed > bounds[bucket]) {
         bucket++;
@@ -266,9 +265,10 @@ static void collect(bool minor) {
     scoop_gc_roots_unlock();
     scoop_gc_heap_unlock();
     scoop_thread_end_collection();
+    return true;
 }
 
-void scoop_gc_collect_internal(void) { collect(false); }
+bool scoop_gc_collect_internal(void) { return collect(false); }
 
 void scoop_gc_collect_minor_internal(void) {
     collect(!scoop_gc_stress_move_enabled() && !scoop_gc_heap_state.full_only);

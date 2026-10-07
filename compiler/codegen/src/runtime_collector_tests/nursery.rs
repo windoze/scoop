@@ -1,4 +1,26 @@
-use super::{compile_and_run, workspace_root};
+use super::{compile_and_run, compile_and_run_with_flags, workspace_root};
+
+#[test]
+fn nursery_refill_retries_when_other_mutators_claim_the_capacity() {
+    for optimization in ["-O0", "-O2"] {
+        let output = compile_and_run_with_flags(
+            &workspace_root(),
+            "nursery_refill_contention_test",
+            "runtime/tests/nursery_refill_contention_test.c",
+            true,
+            &["-DSCOOP_THREAD_TESTING", optimization],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"nursery contention retries without false arena exhaustion\n"
+        );
+    }
+}
 
 #[test]
 fn full_only_diagnostic_keeps_the_same_nursery_allocation_path() {
