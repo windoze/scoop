@@ -71,7 +71,7 @@ pub(super) fn check(
 
     assert_eq!(
         reread.link_summary().link_object_count(),
-        if name == "combined" { 32 } else { 6 }
+        artifact.summary().link_summary().link_object_count()
     );
     rejections::check(&destination, public, provider, artifact, profile);
 }

@@ -154,3 +154,8 @@
 
 - collector 在所有系统头之前声明 `_POSIX_C_SOURCE=200809L`，使正式 runtime 的严格 C11 编译可以使用 `clock_gettime(CLOCK_MONOTONIC)`。此前单元测试命令已有该宏，正式 musl 构建暴露了缺项；计时语义、公开结构和 ABI 不变。
 - Darwin cc 与 musl-gcc 均在不额外传入 feature macro 的情况下通过 `-std=c11 -Wall -Wextra -Werror` 语法检查。musl 九个 M31 fixture 的实际构建、链接与运行全部通过，23 个变体、73 个进程；本轮同时生成目标快照，普通模式复验与平台组合随后继续。
+
+## Rust workspace 总验收
+
+- 完整执行 `cargo test --workspace --no-fail-fast`，共 5325 项，5321 项首次通过、4 项旧断言失败，无忽略项。新增 mode/backend 字段的两个固定向量、诊断中的 cone-production major，以及物理分区后的旧对象数量假设分别迁移；保留受控编码向量，物理对象改为核对 LLVM dump/实际对象的完整 typed unit 集合，以及写入时/重新读取后的实际成员数量。
+- fmt 与 Darwin/Linux workspace clippy 通过。仅定向复测失败项：runtime ABI 向量 1 项、依赖诊断 1 项、core/layout 端到端 2 项均通过；最后两项 396.62 秒。当前全部 5325 项均有有效通过结果，不再重跑已通过的 workspace。

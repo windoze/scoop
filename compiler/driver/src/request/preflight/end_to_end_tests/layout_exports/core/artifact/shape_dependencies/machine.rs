@@ -199,6 +199,16 @@ fn emit(
     }
     let objects =
         scoop_codegen::emit_object_set_v2(output, production, directory, profile).unwrap();
-    assert_eq!(objects.members().len(), output.module().functions.len() + 1);
+    assert_eq!(
+        objects
+            .members()
+            .iter()
+            .map(|member| member.units())
+            .collect::<Vec<_>>(),
+        rendered
+            .iter()
+            .map(|member| member.units())
+            .collect::<Vec<_>>()
+    );
     objects
 }
