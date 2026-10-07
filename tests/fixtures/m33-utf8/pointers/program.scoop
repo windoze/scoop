@@ -1,0 +1,52 @@
+@GCLeaf @Extern(lib = "fixture_native", name = "native_bytes")
+fun nativeBytes(kind: Int): Ptr<UInt8>
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    @Unsafe {
+        val source = nativeBytes(0)
+        val text = String.fromUtf8(source, 6L)
+        gcCollect()
+        expect(text == "A界\u0000B" && text.byteLength == 6L)
+        expect(String.fromUtf8(Ptr<UInt8>(1UL), 0L) == "")
+        var negativeLength = false
+        try {
+            val unexpected = String.fromUtf8(Ptr<UInt8>(1UL), -1L)
+            expect(unexpected.length < 0L)
+        } catch (error: IllegalArgumentException) { negativeLength = true }
+        expect(negativeLength)
+
+        var invalid = false
+        try {
+            val unexpected = String.fromUtf8(nativeBytes(1), 3L)
+            expect(unexpected.length < 0L)
+        } catch (error: CharacterCodingException) {
+            gcCollect()
+            expect(error.byteOffset == 1L)
+            invalid = true
+        }
+        expect(invalid)
+
+        val values = MutableArray<UInt8>(3L) { index -> (65L + index).toUInt8() }
+        val copy = values.withDataPointer(fun(pointer: Ptr<UInt8>, length: Long): String {
+            @Unsafe {
+                val result = String.fromUtf8(pointer, length)
+                gcCollect()
+                expect(pointer.load() == 65u)
+                pointer.store(90u)
+                return result
+            }
+        })
+        values[1L] = 89u
+        gcCollect()
+        expect(copy == "ABC" && values[0L] == 90u && values[1L] == 89u)
+        copy.withUtf8Bytes() { pointer: Ptr<UInt8>, length: Long ->
+            @Unsafe {
+                expect(String.fromUtf8(pointer, length) == copy)
+                gcCollect()
+            }
+        }
+    }
+    println("utf8-pointers-ok")
+}

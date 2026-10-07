@@ -67,6 +67,7 @@ mod scoop_abi;
 mod smoke;
 mod statepoints;
 mod strong_shapes;
+mod utf8;
 mod validation_boundaries;
 mod zst_places;
 

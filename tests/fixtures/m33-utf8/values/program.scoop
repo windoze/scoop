@@ -1,0 +1,54 @@
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun valid(bytes: Array<UInt8>, text: String, scalars: Long) {
+    val strict = String.fromUtf8(bytes)
+    val optional = String.fromUtf8OrNone(bytes)
+    val replaced = String.fromUtf8Lossy(bytes)
+    gcCollect()
+    expect(strict == text && optional == Some(text) && replaced == text)
+    expect(strict.length == scalars && strict.byteLength == bytes.size)
+    expect(replaced.byteLength == bytes.size)
+}
+
+fun invalid(bytes: Array<UInt8>, offset: Long, text: String) {
+    var caught = false
+    try {
+        val unexpected = String.fromUtf8(bytes)
+        expect(unexpected.byteLength < 0L)
+    } catch (error: CharacterCodingException) {
+        gcCollect()
+        expect(error.byteOffset == offset)
+        caught = true
+    }
+    expect(caught && String.fromUtf8OrNone(bytes) == None)
+    val replaced = String.fromUtf8Lossy(bytes)
+    gcCollect()
+    expect(replaced == text && replaced.byteLength == text.byteLength)
+}
+
+fun main() {
+    valid([], "", 0L)
+    valid([65u, 0u, 66u], "A\u0000B", 3L)
+    valid([194u, 128u, 223u, 191u], "\u0080\u07FF", 2L)
+    valid([224u, 160u, 128u, 237u, 159u, 191u, 238u, 128u, 128u], "\u0800\uD7FF\uE000", 3L)
+    valid([240u, 144u, 128u, 128u, 244u, 143u, 191u, 191u], "\u{10000}\u{10FFFF}", 2L)
+    valid([239u, 191u, 189u, 101u, 204u, 129u], "�e\u0301", 3L)
+    expect(String.fromUtf8([101u, 204u, 129u]) != "é")
+
+    invalid([65u, 128u, 66u], 1L, "A�B")
+    invalid([128u, 128u], 0L, "��")
+    invalid([192u, 175u], 0L, "��")
+    invalid([224u, 159u, 191u], 0L, "���")
+    invalid([237u, 160u, 128u], 0L, "���")
+    invalid([240u, 143u, 191u, 191u], 0L, "����")
+    invalid([244u, 144u, 128u, 128u], 0L, "����")
+    invalid([245u, 128u, 128u, 128u], 0L, "����")
+    invalid([255u, 65u], 0L, "�A")
+    invalid([194u], 0L, "�")
+    invalid([225u, 128u], 0L, "�")
+    invalid([240u, 144u, 128u], 0L, "�")
+    invalid([225u, 128u, 65u], 0L, "�A")
+    invalid([241u, 128u, 128u, 65u], 0L, "�A")
+    invalid([194u, 162u, 0u, 225u, 128u, 65u, 239u, 191u, 189u], 3L, "¢\u0000�A�")
+    println("utf8-values-ok")
+}

@@ -63,6 +63,7 @@ const COMMON: &[&str] = &[
     "runtime/third_party/ryu/ryu/f2s.c",
     "runtime/third_party/ryu/ryu/d2s.c",
     "runtime/src/strings.c",
+    "runtime/src/string_decode.c",
     "runtime/src/string_parts.c",
     "runtime/src/utf8.c",
     "runtime/src/startup.c",

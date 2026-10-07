@@ -525,6 +525,8 @@ String 后备提供创建、拼接、内容比较/hash、UTF-8 长度、标量�
 
 解码和复制只读取给定长度，输入属于 managed 对象时遵守 root/pin/relocation 契约；原生指针的可读性、稳定性和生命周期由 unsafe 调用者保证。结果复制到 String 自有存储，发布前完成全部初始化。实际输出长度、临时存储与分配的溢出按既有分配失败处理，不伪装为 UTF-8 错误或 None。实现复用现有 UTF-8 后备及已验证的不变内容。
 
+严格解码后备接受非零字节指针和非负 Long 长度，返回普通 `(String?, Long)`：成功为 `(Some(string), -1L)`，失败为 `(None, byteOffset)`。该 tuple 的 storage 为 16 bytes、alignment 8，Option<String> 使用 nullable managed pointer niche，字段 offsets 为 0/8；按目标的 Scoop 间接返回 ABI 传递。core 的安全 Array 重载通过 3.4 的作用域借用调用同一后备，pointer 重载在进入后备前检查负长度；不为这些函数增加编译器异常角色。lossy 后备复用有边界的单步解码器，先计算实际输出长度，再分配和转换，整个过程保持输入稳定。
+
 Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset 8；Option<(Long, Long)> 为 24 bytes、alignment 8，tag offset 0、Long offsets 8/16。实际 core 的 Some/None tag 为 0/1。结果使用 Scoop 间接返回：Darwin/AArch64 经 x8；Linux/amd64 经 RDI，并在 RAX 返回同一地址。
 
 数组后备使用显式目标 TD 分配和浅复制，保持新对象头、logical size 和 canonical padding。ZST 不复制 payload；不能从来源名称或布局猜测目标 exact type。源码 bounds check 与异常构造由 managed 代码承担，受检 helper 收到越界 index 属于内部 invariant error。

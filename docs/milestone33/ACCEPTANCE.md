@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M33-1 | NativeSafe/collector、GCLeaf、DirectC | 完成并通过三平台验收；errno bridge 组合在 M33-5 补验 |
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
-| M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 待实现 |
+| M33-3 | 严格／可空／lossy UTF-8、C 字符串 | UTF-8 完成；C 字符串待实现 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 待实现 |
 | M33-5 | errno 捕获 | 待实现 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
@@ -103,3 +103,17 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 五项 negative fixture 固定 unsafe、reference／含引用值元素、缺失 value bound、suspend callback 与 NoGC 的完整诊断和源码位置。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。
 - Darwin 另有 4 项 pin、handle、release 与裸指针回归，6 个变体、33 个进程、20 份 golden 通过。四份旧 HIR 的差异经检查仅为新增 core 声明导致的导入 arena 索引变化；裸指针用例在 GNU/musl 也分别通过，并同步三个 target 已有的 DirectC LIR 表示。复用热缓存，没有执行无关全量语言测试。
 - 清理 182 个已链接的 Rust 中间对象，共 1.67 GiB，保留编译库、CLI 和 fixture 缓存。
+
+## M33-3a：受检 UTF-8
+
+- String 提供 Array<UInt8> 的严格、Option 和 lossy 转换，以及 unsafe 指针／Long 长度重载；CharacterCodingException 是普通 core 异常，公开首个非法子序列的零基 `byteOffset`。
+- runtime 扩充现有 UTF-8 模块，严格与 lossy 共用有边界的单步解码器。非法起始字节、截断、过长编码、代理项和超出 Unicode 范围均按规范处理；lossy 消费 maximal subpart，保留失配位置之后的合法输入、U+0000 和原有 U+FFFD，不做 normalization。
+- 严格后备通过普通 16-byte `(String?, Long)` Scoop 间接返回传递结果，core 只选择抛异常或返回 None，不再验证同一内容。Array 入口复用作用域 pin；指针入口先检查负长度，零长度不读地址。结果存入独立 String；lossy 先计算实际长度，再分配和转换，溢出与分配失败不转换成编码错误。
+- 新增 runtime 解码存储模块 61 行、core helper 30 行；既有 UTF-8 模块扩充至 83 行，没有增加编译器 intrinsic 或异常角色。
+
+已完成的验证：
+
+- Rust fmt、受影响 toolchain/codegen clippy 与 C 严格警告检查通过。Darwin/GNU 的 C 测试均在 O0/O2 下遍历全部 1,112,064 个 Unicode 标量及其截断前缀；保护页用例检查真实内存末尾不会被读越界。GNU 的 ASan/UBSan 同组通过，原有 amd64 String sret／真实 LLVM frame 测试通过。
+- Darwin/GNU/musl 各 6 项正式 CLI、9 个变体、35 个进程、24 份 golden 在非更新模式下通过。覆盖边界标量、全部错误类别、精确 byteOffset/maximal subpart、NUL、空输入、原生静态内存、借用的可写数组和存储独立性；debug/release 均运行 normal/moving/minor。
+- 跨 Cone 泛型回调返回含 String 的 aggregate，provider/consumer 源码删除后独立链接并运行。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。三个 negative fixture 固定 unsafe、数组元素／容器类型与长度类型诊断。
+- Darwin 的两项旧 String／unchecked 转换回归通过，2 个变体、6 个进程、8 份 golden。旧 HIR 只同步导入 arena 索引与扩充 String companion 后的源码范围，MIR/LIR 未变化。复用上一批缓存，新增 core 每个 target/profile 只构建一次；没有重复全量语言测试。
