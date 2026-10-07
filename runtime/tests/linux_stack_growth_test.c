@@ -29,6 +29,15 @@ __attribute__((noinline)) static void descend(unsigned remaining,
     volatile unsigned char padding[8192];
     padding[0] = (unsigned char)remaining;
     padding[sizeof padding - 1] = (unsigned char)(remaining + 1);
+    if (remaining == 128) {
+        /* Seed a valid narrow snapshot so every publication must refresh it,
+         * even on hosts that map the entire main stack eagerly. */
+        ScoopPlatformStackBounds actual = scoop_platform_stack_bounds();
+        uintptr_t low = (uintptr_t)&padding[0];
+        assert((uintptr_t)actual.low <= low);
+        assert(low + sizeof padding <= (uintptr_t)actual.high);
+        scoop_thread_current_required()->stack_low = (const char *)low;
+    }
     if (remaining == 0) {
         action();
     } else {
@@ -90,10 +99,7 @@ int main(void) {
     scoop_thread_attach_main();
     descend(128, managed_entry);
     assert(touched != 0);
-#ifndef __GLIBC__
-    /* musl reports the currently mapped main stack, which grows on demand. */
     assert(refreshed == 4);
-#endif
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

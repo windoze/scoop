@@ -159,3 +159,10 @@
 
 - 完整执行 `cargo test --workspace --no-fail-fast`，共 5325 项，5321 项首次通过、4 项旧断言失败，无忽略项。新增 mode/backend 字段的两个固定向量、诊断中的 cone-production major，以及物理分区后的旧对象数量假设分别迁移；保留受控编码向量，物理对象改为核对 LLVM dump/实际对象的完整 typed unit 集合，以及写入时/重新读取后的实际成员数量。
 - fmt 与 Darwin/Linux workspace clippy 通过。仅定向复测失败项：runtime ABI 向量 1 项、依赖诊断 1 项、core/layout 端到端 2 项均通过；最后两项 396.62 秒。当前全部 5325 项均有有效通过结果，不再重跑已通过的 workspace。
+
+## Linux 栈边界与完整 codegen 验收
+
+- Linux 完整 codegen 运行 351 项，350 项通过；旧栈增长测试独立链接 thread.c 时漏了 M30 浮点环境入口。测试现链接真实 floating.c 与 libm，并用函数节回收去掉此独立 probe 不使用的格式化/分配函数，没有补空实现。
+- 模拟环境的 musl 在 attach 时已给出整段主线程栈范围，原先假定自然增长必然刷新四次的断言失败，实际观察刷新次数为零。probe 现在每段深递归前以实际 OS 范围内的地址设置窄缓存，强制 managed entry、managed anchor、native transition、callback 四条发布路径重新查询真实范围；四次刷新要求也适用于 glibc。
+- C 严格告警与 workspace clippy 通过；该测试的 GNU PIE、musl static/PIE × O0/O2 六种组合全部通过，18.32 秒。保留其余 350 项结果，Linux codegen 351 项验收闭合。
+- Rust 验收闭合后按包清理闲置 HIR/HIR lowering/parser 的 debug 产物 19.7 GiB，保留活跃的正式 release 工具、fixture 缓存与报告。
