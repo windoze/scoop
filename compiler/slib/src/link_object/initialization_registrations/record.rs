@@ -3,7 +3,7 @@ use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValidationError};
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+pub(in crate::link_object) const ABI_VERSION: u32 = 6;
 const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: usize = 280;
 const DIGEST_WIDTH: usize = 32;
 pub(super) const CELL_SIZE: usize = 16;

@@ -66,7 +66,7 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
             hir::ClassRepresentation::Declared => continue,
         }
     }
-    assert_eq!(expected.len(), 18);
+    assert_eq!(expected.len(), 20);
 
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();
@@ -80,6 +80,8 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
         let kind = match family {
             hir::IntrinsicTypeKind::Array
             | hir::IntrinsicTypeKind::MutableArray
+            | hir::IntrinsicTypeKind::Any
+            | hir::IntrinsicTypeKind::Nothing
             | hir::IntrinsicTypeKind::String => hir::PublicNominalKindV1::Class,
             _ => hir::PublicNominalKindV1::Struct,
         };

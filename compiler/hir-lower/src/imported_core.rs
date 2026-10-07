@@ -60,9 +60,7 @@ impl Lowerer {
             hir::Type::Integer(kind) => fundamental.integer(kind).persistent(),
             hir::Type::Boolean => fundamental.boolean().persistent(),
             hir::Type::String => fundamental.string().persistent(),
-            hir::Type::Any => scoop_identity::CoreBuiltinNominal::Any
-                .identity_record()
-                .id(),
+            hir::Type::Any => fundamental.any().persistent(),
             hir::Type::Struct(_)
             | hir::Type::Class(_)
             | hir::Type::Interface(_)
@@ -99,15 +97,12 @@ impl Lowerer {
                 {
                     return Ok(self.unit);
                 }
-                if *identity
-                    == scoop_identity::CoreBuiltinNominal::Any
-                        .identity_record()
-                        .id()
-                {
-                    return Ok(self.any);
-                }
                 if let CoreLoweringAuthority::Imported(authority) = &self.core {
                     let fundamental = authority.fundamental_types();
+                    if *identity == fundamental.any().persistent() {
+                        self.resolve_imported_intrinsic_type(hir::IntrinsicTypeKind::Any)?;
+                        return Ok(self.any);
+                    }
                     if let Some(kind) = hir::IntegerKind::ALL
                         .into_iter()
                         .find(|kind| *identity == fundamental.integer(*kind).persistent())

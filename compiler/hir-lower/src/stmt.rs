@@ -55,5 +55,3 @@ mod local_functions;
 mod places;
 mod statements;
 mod when;
-
-pub(crate) use flow::statements_control_outcomes;

@@ -75,7 +75,11 @@ Scoop 的类型分为两大类：
 ### 3.1 顶层与底层类型
 
 - `Any`：所有类型（引用类型与值类型）的根类型。值类型向上转型为引用类型时发生**装箱**（见 4.4.4）。`Any` **没有任何成员方法**：值相等走 `==` 的运算符决议（见 11.11），字符串化与哈希是独立的接口（`ToString` / `Hash`，见 11.11）。
-- `Nothing`：所有类型的子类型，无实例。值类型可以向下转型到 `Nothing`（实际上不可达，仅类型系统规则）。
+- `Nothing`：所有类型的子类型，无实例。结果类型为 `Nothing` 的表达式没有正常完成路径；它不是 `Unit`，也不产生可供装箱、复制或返回的值。`Nothing` 与 `Any` 均由 11.1 的真实 core intrinsic class 声明提供，名称查找、alias、可见性与依赖消费遵守普通声明规则。
+- `Any` 使用 managed reference 表示；`Nothing` 的名义类别也是引用类型，满足 `ref` kind，但不存在合法的非空引用。两者没有源码构造入口、字段或成员，也不接受类型实参或显式继承／implements 列表。所有类型到 `Any`、`Nothing` 到所有类型的关系由对应 intrinsic 的顶／底类型语义产生，不要求或允许在普通声明的继承列表中写出这两个根类型。
+- 从 `Nothing` 到任意目标类型的适配只保留原求值及其控制转移，不生成装箱、引用转换、目标值或正常返回。要求 Boolean 的条件、guard 和短路运算数同样接受 Nothing；短路分支仍遵守原求值规则。`LUB(Nothing, T) = T`；只有不正常完成的分支时，控制表达式的类型为 `Nothing`。类型名或同形普通 class 不会获得这些规则。
+- 元组字面量具有预期元组类型时，`Nothing` 元素可占据对应的预期槽位；元素表达式仍保留 `Nothing` 类型和原求值，整个构造没有成功完成路径。这不使已存在的元组或不变泛型类型获得协变。
+- `e is Nothing` 在 `e` 正常求值后为 `false`，`e !is Nothing` 为 `true`；`e as Nothing` 在求值后抛出 `ClassCastException`，`e as? Nothing` 为 `None`，不省略 `e` 的副作用。`Nothing` 可用于普通签名与泛型实参，例如 `() -> Nothing`、`Option<Nothing>`；不变泛型仍不因其底类型实参产生协变。`Nothing` 不提供可调用的成员或新的 C ABI storage 类型。
 
 ### 3.2 泛型
 
@@ -291,7 +295,7 @@ struct Point(val x: Int, val y: Int) : Describable {
 - 装箱后的对象具有 identity（可用 `===` 比较）且immutable。装箱不额外赋予相等能力：`==`始终按装箱后表达式的**静态引用类型**查找成员operator equals；`Any`没有该成员，未声明equals的interface也不能比较。经`as`/模式匹配取回原value后才重新使用value type的结构相等规则。
 - **auto-boxing 只发生在 O(1) 场景**：单个值的转换（赋值/初始化、函数实参、返回值等单点转换）允许自动装箱；数组字面量的元素位置等批量场景不做自动装箱，需要显式 `as`（见 10.3）。
 - `is` / `as` / `as?` 可用于判断与取回装箱前的值类型；`as?` 失败时返回 `None`（见第 7 章）。
-- 值类型在类型系统上也是 `Nothing` 的父类型（可向下转型，语义不可达）。
+- 值类型在类型系统上也是 `Nothing` 的父类型；向 `Nothing` 的检查与转换遵守 3.1，不会成功产生一个底类型值。
 
 ### 4.5 副本更新表达式
 
@@ -587,6 +591,7 @@ tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及
 函数语法整体与 Kotlin 一致：默认参数、命名参数、`vararg`、扩展函数、中缀调用、运算符重载、lambda 与尾随 lambda、函数类型 `(A, B) -> R` 等。
 
 - 非 `Unit` 函数的所有可达正常完成路径必须返回一个可赋给结果类型的值；抛出异常也可终止路径。无法静态确定时是编译错误。
+- 显式结果为 `Nothing` 的函数不能正常落空、执行裸 `return` 或返回一个可正常产生的值；可通过 `throw`、另一个 `Nothing` 调用或可静态确定不结束的控制流终止。调用的无正常返回性质来自已解析的实际结果类型，同样适用于成员、依赖函数、函数值、默认值和泛型实例。它不蕴含 `@NoGC`、不抛异常或不挂起；`suspend () -> Nothing` 可以挂起，但不能成功完成并产生结果。
 - `break` 与 `continue` 只改变其目标循环的控制流，不视为函数返回；循环按可能正常结束处理，除非可以静态确定不会结束。
 - `finally` 正常结束时恢复进入前的正常继续、返回、异常或循环跳转。实际离开当前 `finally` 的新控制转移替换原动作；在 `finally` 内部已由循环或 catch 处理的转移不替换原动作。
 
@@ -1252,7 +1257,7 @@ val m: MutableArray<Int> = [1, 2, 3]    // MutableArray<Int>
 ### 10.3 数组字面量的类型推导与检查
 
 - **无显式类型上下文**（如 `val v = [v1, v2, v3]`）：
-  - 若任意元素是值类型，则其余所有元素的类型必须与之**完全相同**，否则是编译错误（值类型元素之间不做隐式向上合流，以保证 10.1 的内存布局保证成立）。
+  - 若任意元素是值类型，则其余能正常产生值的元素类型必须与之**完全相同**，否则是编译错误（值类型元素之间不做隐式向上合流，以保证 10.1 的内存布局保证成立）。`Nothing` 元素不限制其他元素的推断，不为缺少上下文的泛型表达式提供默认类型；所有元素均为 `Nothing` 时元素类型为 `Nothing`。这些元素仍按源码顺序求值，遇到无正常结果的元素后不构造数组或求值后续元素。
   - 若所有元素都是引用类型，则元素类型取全部元素类型的**最小上界（LOB）**，数组类型为 `Array<LOB>`；当前类型系统没有交叉类型，若存在多个互不可比较的最小共同上界，则 LOB 取 `Any`。当 LOB 为 `Any` 时编译器应给出警告。
 - **有显式类型上下文**：每个元素的类型必须是上下文元素类型的子类型。
 
@@ -1317,8 +1322,19 @@ MutableArray<T>(size: Long, init: (Long) -> T)
 
 ### 11.1 类型层级根
 
-- `Any`：所有类型的根。**没有任何成员方法**（见 3.1 与 11.11）。
-- `Nothing`：所有类型的子类型，无实例。
+core 源码正式声明以下两个类型；声明与 13.1 的 intrinsic 表示共同构成类型定义：
+
+```scoop
+@Intrinsic("core_any")
+public abstract class Any {}
+
+@Intrinsic("core_nothing")
+public final class Nothing {}
+```
+
+`Any` 是所有类型的根，`Nothing` 是所有类型的子类型且无实例（3.1）。二者均没有成员、字段、构造器、父类型、companion 或 release block；不能把无字段声明视为可分配的空 class。`Any` 的 abstract 和 `Nothing` 的 final 是登记形状的一部分，顶／底关系不由普通 class 继承产生。`Any` 不提供 `equals`、`toString`、`hash` 或固定 vtable 槽（11.11）。
+
+两个声明必须各存在一次，具有普通的源码位置、public binding 和 nominal identity，并随 core 产物发布。缺失或错误的声明在 core 编译／依赖消费边界报错，编译器不能在缺失时补建类型。普通同名声明仍按名称查找处理；仅有拼写 `Any`／`Nothing` 不赋予 intrinsic 语义。core 的源码位置或载入路径不是额外来源资格。
 
 ### 11.2 基本类型
 
@@ -2038,7 +2054,7 @@ internal fun coreLongHash(value: Long): Long
 ```
 
 - intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；用户可调用constructor或转换来自显式声明或 registry 封闭规定的入口：10.4 的数组转换、10.6 的数组按长度初始化与 13.10 的 `Ptr<T>(raw: ULong)` unsafe construction entry；
-- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、 Char、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
+- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；11.1 的两个无成员根类型遵守该节的封闭声明形状。单个成员也可像上例一样另用function intrinsic提供实现。intrinsic type覆盖八种canonical integer representation、Boolean、Char、Float/Double、String、`Any`/`Nothing`、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type 可以是 generic，但登记项必须完整规定 declaration kind、类型参数数量、bound 及表示；所有参数按 3.2 固定为 invariant。`Array<T>` 与 `MutableArray<T>` 各要求一个无 bound 参数，每个完整 application 是具有唯一类型身份的普通 generic class application，其元素表示遵守第 10 章；
 - intrinsic 声明的 name、target、shape、signature 及唯一性必须满足登记项。
 

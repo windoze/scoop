@@ -64,7 +64,7 @@ impl Lowerer {
                 .contains_key(&(owner, name.to_owned()))
                 .then_some("an annotation class");
         }
-        if matches!(name, "Unit" | "Any") {
+        if name == "Unit" {
             Some("a built-in type")
         } else {
             self.top_level_namespaces

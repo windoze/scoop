@@ -29,9 +29,20 @@ impl Lowerer {
             lowered.push(self.lower_expr(element, &mut setup, hint)?);
             element_sinks.push(setup);
         }
-        let ty = self.intern_type(Type::Tuple(
-            lowered.iter().map(|element| element.ty).collect(),
-        ));
+        let slots = lowered
+            .iter()
+            .enumerate()
+            .map(|(index, element)| {
+                if self.is_nothing_ty(element.ty)
+                    && let Some(expected) = &expected_elements
+                {
+                    expected[index]
+                } else {
+                    element.ty
+                }
+            })
+            .collect();
+        let ty = self.intern_type(Type::Tuple(slots));
         let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
         Some(hir::Expr {
             kind: ExprKind::TupleLiteral(lowered),
@@ -148,10 +159,14 @@ impl Lowerer {
             .into_iter()
             .map(|element| element.expect("every array element was lowered"))
             .collect::<Vec<_>>();
-        let first_ty = lowered[0].ty;
+        let first_ty = lowered
+            .iter()
+            .find(|element| !self.is_nothing_ty(element.ty))
+            .unwrap_or(&lowered[0])
+            .ty;
         if lowered.iter().any(|element| self.is_value_ty(element.ty)) {
-            for element in &lowered[1..] {
-                if self.types_equal(first_ty, element.ty) {
+            for element in &lowered {
+                if self.is_nothing_ty(element.ty) || self.types_equal(first_ty, element.ty) {
                     continue;
                 }
                 let first = self.type_name(first_ty);
@@ -214,6 +229,7 @@ impl Lowerer {
         let types = elements
             .iter()
             .filter_map(|element| element.as_ref().map(|element| element.ty))
+            .filter(|ty| !self.is_nothing_ty(*ty))
             .collect::<Vec<_>>();
         let &first = types.first()?;
         if types.iter().any(|ty| self.is_value_ty(*ty)) {

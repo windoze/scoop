@@ -365,7 +365,6 @@ impl AliasSurface {
         foundation
             .set_types(vec![
                 scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
-                scoop_identity::CoreBuiltinNominal::Any.identity_record(),
                 nominal.clone(),
             ])
             .unwrap();

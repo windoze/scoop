@@ -30,9 +30,7 @@ impl<'a> Graph<'a> {
         owner: PersistentTypeId,
     ) -> Result<(ConeIdentity, PersistentExactTypeId), Error> {
         let terminal = self.provider_for(owner)?;
-        let builtin = [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
-            .iter()
-            .any(|builtin| builtin.identity_record().id() == owner);
+        let builtin = CoreBuiltinNominal::Unit.identity_record().id() == owner;
         if !builtin {
             self.nominal(owner)?;
 

@@ -96,7 +96,7 @@ impl Fixture {
             exact: application.id(),
             scalar: scalar_record.id(),
             unit: unit_record.id(),
-            records: vec![wrapper, scalar],
+            records: vec![wrapper, scalar, super::builtins::any_definition()],
             exact_types: [application, scalar_record, argument_record, unit_record]
                 .into_iter()
                 .map(|record| (record.id(), record.into_shared_key()))

@@ -47,7 +47,6 @@ use requirements::OriginRequirements;
 fn type_requires_definition_origin(record: &TypeRecord) -> bool {
     let id = record.id();
     id != CoreBuiltinNominal::Unit.identity_record().id()
-        && id != CoreBuiltinNominal::Any.identity_record().id()
 }
 
 #[allow(clippy::too_many_arguments)]

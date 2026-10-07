@@ -34,15 +34,13 @@ impl Graph<'_> {
             .current
             .identities
             .canonical_key::<_, ExactTypeKey>(target)?;
-        let result = if source == target {
+        let result = if source == target
+            || self.is_root_intrinsic(&source_key, crate::IntrinsicTypeKind::Nothing)?
+            || self.is_root_intrinsic(&target_key, crate::IntrinsicTypeKind::Any)?
+        {
             true
         } else {
             match (source_key.as_ref(), target_key.as_ref()) {
-                (_, ExactTypeKey::Nominal(owner))
-                    if *owner == CoreBuiltinNominal::Any.identity_record().id() =>
-                {
-                    true
-                }
                 (
                     ExactTypeKey::Nominal(_)
                     | ExactTypeKey::NominalApplication { .. }
@@ -86,5 +84,21 @@ impl Graph<'_> {
 
         known.insert((source, target), result);
         Ok(result)
+    }
+
+    fn is_root_intrinsic(
+        &self,
+        key: &ExactTypeKey,
+        family: crate::IntrinsicTypeKind,
+    ) -> Result<bool, Error> {
+        let ExactTypeKey::Nominal(owner) = key else {
+            return Ok(false);
+        };
+        if *owner == CoreBuiltinNominal::Unit.identity_record().id() {
+            return Ok(false);
+        }
+        Ok(matches!(self.nominal(*owner)?.source_shape(),
+            crate::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == family))
     }
 }

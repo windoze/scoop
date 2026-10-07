@@ -50,7 +50,11 @@ impl BodyLowerer<'_> {
         target: &mir::Type,
         span: Span,
     ) -> smir::Expr {
-        if source == target {
+        if source == target
+            || matches!(source, mir::Type::Class(id)
+                if matches!(self.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+        {
             return value;
         }
         if let (mir::Type::Function(source), mir::Type::Function(target)) = (source, target) {
@@ -234,6 +238,7 @@ impl BodyLowerer<'_> {
                 },
                 target_signature.return_type,
                 &self.enums.defs,
+                self.classes,
             ),
         );
         self.functions[function].body = body;

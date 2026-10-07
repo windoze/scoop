@@ -171,7 +171,6 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
     foundation
         .set_types(vec![
             CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
             nominal.clone(),
         ])
         .unwrap();

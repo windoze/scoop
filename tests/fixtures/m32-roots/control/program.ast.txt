@@ -1,0 +1,98 @@
+SourceFile
+  RootPackage
+  typealias Never = Nothing
+  fun fail(): Never
+    Call println
+      StringLiteral "fail"
+    throw
+      Call IllegalStateException
+  fun forward(): Int
+    =
+      Call fail
+  fun choose(flag: Boolean): Int
+    =
+      IfExpression
+        Var flag
+        IntLiteral 7
+        else
+        Call fail
+  fun inferred(flag: Boolean)
+    val value
+      IfExpression
+        Var flag
+        IntLiteral 8
+        else
+        Call fail
+    Call println
+      Var value
+  fun both(flag: Boolean): Nothing
+    =
+      IfExpression
+        Var flag
+        Call fail
+        else
+        Call fail
+  fun loopForever(): Nothing
+    while
+      BoolLiteral true
+  fun mark(value: Int): Int
+    Call println
+      Var value
+    return
+      Var value
+  fun consume(first: Int, second: Int, third: Int): Int
+    =
+      Binary Add
+        Binary Add
+          Var first
+          Var second
+        Var third
+  fun defaultValue(value: Int = <expr>): Int
+    =
+      Var value
+  fun cleanup(): Int
+    try
+      return
+        Call fail
+    finally
+      Call println
+        StringLiteral "finally"
+      return
+        IntLiteral 9
+  fun main()
+    Call println
+      Call choose
+        BoolLiteral true
+    Call inferred
+      BoolLiteral true
+    try
+      val value: Int
+        Call forward
+      Call println
+        Var value
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "caught"
+    try
+      Call consume
+        Call mark
+          IntLiteral 1
+        Call fail
+        Call mark
+          IntLiteral 2
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "arguments"
+    try
+      Call defaultValue
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "default"
+    try
+      Call both
+        BoolLiteral false
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "branches"
+    Call println
+      Call cleanup

@@ -34,7 +34,7 @@ pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
 
-pub(crate) const FUNDAMENTAL_TYPE_COUNT: usize = 18;
+pub(crate) const FUNDAMENTAL_TYPE_COUNT: usize = 20;
 pub(crate) const OPTION_PROTOCOL_COUNT: usize = 4;
 pub(crate) const ITERATION_PROTOCOL_COUNT: usize = 3;
 pub(crate) const EXCEPTION_PROTOCOL_COUNT: usize = 17;
@@ -148,6 +148,8 @@ impl CoreCompilerProtocolSurfaceV1 {
             )?)?,
             concrete(struct_nominal(export, protocols.fundamental_types.float)?)?,
             concrete(struct_nominal(export, protocols.fundamental_types.double)?)?,
+            concrete(class_nominal(export, protocols.fundamental_types.any)?)?,
+            concrete(class_nominal(export, protocols.fundamental_types.nothing)?)?,
         ]));
 
         let option = protocols.option;

@@ -408,6 +408,7 @@ pub struct IntrinsicTypeCore {
     pub integers: IntegerTypeCore<StructId>,
     pub boolean: StructId,
     pub string: ClassId,
+    pub any: ClassId,
 }
 
 #[derive(Debug, Clone)]

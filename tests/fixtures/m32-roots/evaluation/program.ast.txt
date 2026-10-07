@@ -1,0 +1,117 @@
+SourceFile
+  RootPackage
+  fun fail(): Nothing
+    throw
+      Call IllegalStateException
+  fun mark(value: Int): Int
+    Call println
+      Var value
+    return
+      Var value
+  class Node()
+    fun read
+  fun condition(): Nothing
+    if
+      Call fail
+      Call println
+        StringLiteral "unreachable"
+  fun loopCondition(): Nothing
+    while
+      Call fail
+  fun missingNode(): Node
+    =
+      Call fail
+  fun receiver()
+    MethodCall read
+      Call missingNode
+      Call mark
+        IntLiteral 9
+  fun guarded(value: Int): Int
+    =
+      WhenExpression
+        Var value
+        arm 1 if <guard>
+          IntLiteral 1
+        arm 2
+          IntLiteral 2
+        else
+          IntLiteral 3
+  fun main()
+    Call println
+      Binary And
+        BoolLiteral false
+        Call fail
+    Call println
+      Binary Or
+        BoolLiteral true
+        Call fail
+    try
+      Call println
+        Binary And
+          BoolLiteral true
+          Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "short"
+    try
+      Call condition
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "condition"
+    try
+      Call loopCondition
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "loop"
+    try
+      Call receiver
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "receiver"
+    try
+      Call guarded
+        IntLiteral 1
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "guard"
+    Call println
+      Call guarded
+        IntLiteral 2
+    Call println
+      Call guarded
+        IntLiteral 3
+    try
+      val values: Array<Int>
+        ArrayLiteral
+          Call fail
+          Call mark
+            IntLiteral 8
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "array"
+    try
+      val values
+        ArrayLiteral
+          Call fail
+          IntLiteral 1
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "inferred first"
+    try
+      val values
+        ArrayLiteral
+          Call mark
+            IntLiteral 5
+          Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "inferred last"
+    try
+      val pair: (Int, Int)
+        TupleLiteral
+          Call mark
+            IntLiteral 4
+          Call fail
+    catch error: IllegalStateException
+      Call println
+        StringLiteral "tuple"

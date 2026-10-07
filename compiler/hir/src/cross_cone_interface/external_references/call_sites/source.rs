@@ -1,4 +1,6 @@
-use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId, SignatureTypeKey};
+use scoop_identity::{
+    CallableTemplateOrigin, ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
+};
 use scoop_wire::WireError;
 
 use super::HirDependencyCallSiteV1;
@@ -22,6 +24,7 @@ impl HirDependencyCallSiteV1 {
         target: ExternalHirTargetV1,
         metadata: SharedTypeMetadataV1<'a>,
         identities: &'a scoop_identity::ValidatedIdentityGraph,
+        nominal_source: impl Fn(PersistentTypeId) -> Option<&'a crate::NominalInterfaceRecordV1>,
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
 
@@ -103,12 +106,24 @@ impl HirDependencyCallSiteV1 {
             });
         }
         if let Some(expected) = receiver {
-            argument(0, self.arguments()[0], expected)?;
+            argument(
+                0,
+                self.arguments()[0],
+                expected,
+                identities,
+                &nominal_source,
+            )?;
         }
         let offset = usize::from(receiver.is_some());
         for (index, parameter) in parameters.iter().enumerate() {
             let expected = exact(parameter.value_type())?;
-            argument(index + offset, self.arguments()[index + offset], expected)?;
+            argument(
+                index + offset,
+                self.arguments()[index + offset],
+                expected,
+                identities,
+                &nominal_source,
+            )?;
         }
         let expected = exact(source.result())?;
 
@@ -122,12 +137,28 @@ impl HirDependencyCallSiteV1 {
     }
 }
 
-fn argument(
+fn argument<'a>(
     index: usize,
     actual: PersistentExactTypeId,
     expected: PersistentExactTypeId,
+    identities: &scoop_identity::ValidatedIdentityGraph,
+    nominal_source: &impl Fn(PersistentTypeId) -> Option<&'a crate::NominalInterfaceRecordV1>,
 ) -> Result<(), HirDependencyCallSignatureError> {
     if actual != expected {
+        let key = identities
+            .canonical_key::<_, ExactTypeKey>(actual)
+            .map_err(SharedTypeMetadataError::from)?;
+        if let ExactTypeKey::Nominal(owner) = key.as_ref()
+            && nominal_source(*owner).is_some_and(|nominal| {
+                matches!(
+                    nominal.source_shape(),
+                    crate::NominalSourceShapeV1::Intrinsic(representation)
+                        if representation.family() == crate::IntrinsicTypeKind::Nothing
+                )
+            })
+        {
+            return Ok(());
+        }
         return Err(HirDependencyCallSignatureError::Argument {
             index,
             expected,

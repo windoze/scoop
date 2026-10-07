@@ -114,6 +114,8 @@ fn scalar_abi_uses_intrinsic_family_from_either_provider() {
 #[test]
 fn intrinsic_reference_layout_and_niches_preserve_managed_storage() {
     for family in [
+        IntrinsicTypeKind::Any,
+        IntrinsicTypeKind::Nothing,
         IntrinsicTypeKind::String,
         IntrinsicTypeKind::Array,
         IntrinsicTypeKind::MutableArray,

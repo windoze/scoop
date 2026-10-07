@@ -39,6 +39,7 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
             .join(", ");
         let function = match &td.relations {
             TypeDescriptorRelations::Absent => String::new(),
+            TypeDescriptorRelations::Bottom => " bottom".to_string(),
             TypeDescriptorRelations::Interface { parents } => format!(
                 " parents=[{}]",
                 parents
@@ -139,6 +140,14 @@ pub(super) fn dump_metadata(module: &Module, out: &mut String) {
         }))
     {
         match &layout.kind {
+            LayoutKind::Intrinsic(
+                IntrinsicTypeRepresentation::Any | IntrinsicTypeRepresentation::Nothing,
+            ) => {
+                out.push_str(&format!(
+                    "  layout {} size={} align={} abstract-ref\n",
+                    layout.name, layout.size, layout.align
+                ));
+            }
             LayoutKind::Plain { scan } => match scan {
                 RefScan::None => out.push_str(&format!(
                     "  layout {} size={} align={} refs=[]\n",

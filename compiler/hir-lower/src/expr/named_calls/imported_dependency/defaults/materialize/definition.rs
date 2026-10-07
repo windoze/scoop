@@ -86,6 +86,8 @@ impl Lowerer {
                 .collect::<Result<Vec<_>, _>>()?;
             let value = self
                 .materialize_imported_default_expression(template.body().value(), &mut context)?;
+            let result_type =
+                self.materialize_imported_default_type(template.result(), &context)?;
             let receiver = template.receiver().receiver().map(|receiver| {
                 let local = selectors[receiver.local()];
                 hir::ExportDefaultReceiver {
@@ -102,14 +104,14 @@ impl Lowerer {
                     local: selectors[parameter.local()],
                 })
                 .collect();
-            Ok((statements, value, receiver, value_parameters))
+            Ok((statements, value, result_type, receiver, value_parameters))
         })();
         let locals = std::mem::replace(&mut self.locals, saved_locals);
         self.type_params_in_scope = saved_parameters;
-        let (statements, value, receiver, value_parameters) = result?;
+        let (statements, value, result_type, receiver, value_parameters) = result?;
         Ok(hir::DefaultExpression {
             body: hir::Body { locals, statements },
-            result_type: value.ty,
+            result_type,
             value,
             type_parameters,
             receiver,

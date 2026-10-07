@@ -266,6 +266,7 @@ impl Lowerer {
                     },
                     signature.return_type.clone(),
                     &self.enums.defs,
+                    &self.classes,
                 ),
             );
             if signature.is_suspend {

@@ -1,0 +1,844 @@
+Module
+  struct Pair (first: Node, second: Node)
+  enum Item
+    Value(_1: Node)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Node>
+    Completed(value: Node)
+    Suspended()
+  enum CoroutineSlot<Node>
+    Empty()
+    Value(value: Node)
+  class Node vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  class box<(Node, Node)> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Item> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Node>
+  interface SuspendTask<Node>
+  interface SuspendRegistration<Node>
+  generated_exact_type get0 location=enum3 nominal_id=8acc2d18c02ed1d11986f7cdcc6367a6f64dc11b79fe26c1bf339fec8797ebaf exact_id=017212fda02d7a6fe3161cf59db8e5f70eceac9246af471cc0a1e17c3bbb4695
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=class11 nominal_id=714a5f22ba2641592a996e5ea6b92c67204b302ae554fd8f9be8927ef758bf85 exact_id=1a4a42ab9f8ac1a73c6641dd08bce1c4a505a664c1fa0ae1cac3631e3f47c84d
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=class7 nominal_id=8860921f90e52188ee80329d1644a62144e15f7f9183c4326604fe67967de2ad exact_id=39057afbaa97dedc70bf36850a90ae3ea81fe43fe8078d3dc995a072935ece25
+  generated_exact_type get5 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get6 location=enum2 nominal_id=4c11f1b9edee91471449c0e901d4b80952dc7785a1e2c1fb23d3dab35a618916 exact_id=459852cd3b39addb80b38839dccfbf5a967250f899592367fb909347fcfa6904
+  generated_exact_type get7 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get8 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get9 location=class8 nominal_id=fac9b4edeff2c4467b6a65deec0efda5b2305d67c82a10df9f7e32f776daf97b exact_id=c2fc5a576e7c4f06c1d538aab3ed7bd81e276e5c7254eff5305ad7d000ec67b2
+  generated_exact_type get10 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get11 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn12 id=7716e09d018f9b6381f6346085c242c704dcc84fc70ae128e2fe6a9783b645aa
+  fun current @fn0() -> Long
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7cd58eee51e8ebae7d0ccc2db6ff6a7686829c87e2fecdd9d32e46965c4938c3
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external5 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str0
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val node: Node
+        Type Node
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local node
+  fun fail @fn1() -> Nothing
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=99 bits=0x0000000000000063
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      call @fn10 direct
+        Type Node
+        Local $new.1
+        Type Long
+        Local $parameter.value
+      val $context_mark.1: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 7cd58eee51e8ebae7d0ccc2db6ff6a7686829c87e2fecdd9d32e46965c4938c3
+          Type Node
+          Local $new.1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb7
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      call @scoop_rt_gc_collect direct
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw unwind bb1
+        Type IllegalStateException
+        Local $new.2
+    bb7 scope.7 unwind bb3
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      rethrow unwind bb3
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      call @fn10 direct
+        Type Node
+        Local $new.1
+        Type Long
+        Local $parameter.value
+      val node: Node
+        Type Node
+        Local $new.1
+      val $argument.0: Node
+        Type Node
+        Local node
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=22 bits=0x0000000000000016
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.2
+        Type Node
+        ClassAlloc Node
+      call @fn10 direct
+        Type Node
+        Local $new.2
+        Type Long
+        Local $parameter.value
+      val $argument.1: Node
+        Type Node
+        Local $new.2
+      val $parameter.first: Node
+        Type Node
+        Local $argument.0
+      val $parameter.second: Node
+        Type Node
+        Local $argument.1
+      call $call.3: Pair = @fn11 direct
+        Type Node
+        Local $parameter.first
+        Type Node
+        Local $parameter.second
+      val pair: Any
+        Type Any
+        Box
+          Type Pair
+          Local $call.3
+      val $aggregate.0: Node
+        Type Node
+        Local node
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=22 bits=0x0000000000000016
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.4
+        Type Node
+        ClassAlloc Node
+      call @fn10 direct
+        Type Node
+        Local $new.4
+        Type Long
+        Local $parameter.value
+      val $aggregate.1: Node
+        Type Node
+        Local $new.4
+      val tuple: Any
+        Type Any
+        Box
+          Type (Node, Node)
+          TupleLiteral
+            Type Node
+            Local $aggregate.0
+            Type Node
+            Local $aggregate.1
+      val reference: Any
+        Type Any
+        Retype Any
+          Type Node
+          Local node
+      val scalar: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val unit: Any
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+      val $argument.0: Node
+        Type Node
+        Local node
+      val $parameter._1: Node
+        Type Node
+        Local $argument.0
+      val variant: Any
+        Type Any
+        Box
+          Type Item
+          VariantConstruct Item v0
+            Type Node
+            Local $parameter._1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.5
+        Type Node
+        ClassAlloc Node
+      call @fn10 direct
+        Type Node
+        Local $new.5
+        Type Long
+        Local $parameter.value
+      val $context_mark.1: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 7cd58eee51e8ebae7d0ccc2db6ff6a7686829c87e2fecdd9d32e46965c4938c3
+          Type Node
+          Local $new.5
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb34
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      return
+    bb6 try.body.6 unwind bb1
+      goto bb14
+    bb7 try.unwind.7 unwind bb1
+      landing_pad cleanup=false
+      goto bb8
+    bb8 try.dispatch.8 unwind bb1
+      begin_catch
+      branch bb15 bb16
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb9 try.handler_pad.9 unwind bb1
+      landing_pad cleanup=false
+      goto bb10
+    bb10 try.handler_cleanup.10 unwind bb1
+      end_catch
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb2
+    bb11 try.exit_pad.11 unwind bb1
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.exit_cleanup.12 unwind bb1
+      end_catch
+      goto bb2
+    bb13 try.end.13 unwind bb1
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Any
+          Local reference
+          Type Node
+          Local node
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.2: Any
+        Type Any
+        Local pair
+      branch bb19 bb20
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Pair
+            Type Any
+            Local $cast.2
+    bb14 try.body.14 unwind bb7
+      call $call.6: Nothing = @fn1 direct
+      unreachable
+    bb15 try.catch.15 unwind bb1
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.7
+      goto bb17
+    bb16 try.next.16 unwind bb11
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      rethrow unwind bb11
+    bb17 scope.17 unwind bb9
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      end_catch
+      goto bb18
+    bb18 scope.18 unwind bb1
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb13
+    bb19 if.then.19 unwind bb1
+      assign $new.8
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external6 direct
+        Type ClassCastException
+        Local $new.8
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.8
+    bb20 if.merge.20 unwind bb1
+      val $ub.3: Pair
+        Type Pair
+        Unbox
+          Type Any
+          Local $cast.2
+      val retained: Pair
+        Type Pair
+        Local $ub.3
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          FieldAccess 0
+            Type Pair
+            Local retained
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          FieldAccess 1
+            Type Pair
+            Local retained
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $cast.4: Any
+        Type Any
+        Local tuple
+      branch bb21 bb22
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Node, Node)
+            Type Any
+            Local $cast.4
+    bb21 if.then.21 unwind bb1
+      assign $new.9
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external6 direct
+        Type ClassCastException
+        Local $new.9
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.9
+    bb22 if.merge.22 unwind bb1
+      val $ub.5: (Node, Node)
+        Type (Node, Node)
+        Unbox
+          Type Any
+          Local $cast.4
+      val $binding.subject.1: (Node, Node)
+        Type (Node, Node)
+        Local $ub.5
+      val $binding.projection.2: Node
+        Type Node
+        FieldAccess 0
+          Type (Node, Node)
+          Local $binding.subject.1
+      val first: Node
+        Type Node
+        Local $binding.projection.2
+      val $binding.projection.3: Node
+        Type Node
+        FieldAccess 1
+          Type (Node, Node)
+          Local $binding.subject.1
+      val second: Node
+        Type Node
+        Local $binding.projection.3
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local first
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local second
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $cast.6: Any
+        Type Any
+        Local scalar
+      branch bb23 bb24
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.6
+    bb23 if.then.23 unwind bb1
+      assign $new.10
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external6 direct
+        Type ClassCastException
+        Local $new.10
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.10
+    bb24 if.merge.24 unwind bb1
+      val $ub.7: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.6
+      val $dependency.argument.0: Int
+        Type Int
+        Local $ub.7
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Unit
+          Type Any
+          Local unit
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.8: Any
+        Type Any
+        Local variant
+      branch bb25 bb26
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Item
+            Type Any
+            Local $cast.8
+    bb25 if.then.25 unwind bb1
+      assign $new.11
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external6 direct
+        Type ClassCastException
+        Local $new.11
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.11
+    bb26 if.merge.26 unwind bb1
+      val $ub.9: Item
+        Type Item
+        Unbox
+          Type Any
+          Local $cast.8
+      val $when.10: Item
+        Type Item
+        Local $ub.9
+      val $pattern.subject.11: Item
+        Type Item
+        Local $when.10
+      branch bb27 bb28
+        Type Boolean
+        VariantTest Item v0
+          Type Item
+          Local $pattern.subject.11
+    bb27 pattern.pass.27 unwind bb1
+      val value: Node
+        Type Node
+        VariantPayloadProject Item v0 f0
+          Type Item
+          Local $pattern.subject.11
+      assign $result.4
+        Type Long
+        FieldAccess 0
+          Type Node
+          Local value
+      goto bb29
+    bb28 pattern.else.28 unwind bb1
+      val $pattern.subject.12: Item
+        Type Item
+        Local $when.10
+      branch bb30 bb31
+        Type Boolean
+        VariantTest Item v1
+          Type Item
+          Local $pattern.subject.12
+    bb29 pattern.merge.29 unwind bb1
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.4
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb33
+    bb30 pattern.pass.30 unwind bb1
+      assign $result.4
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb32
+    bb31 pattern.else.31 unwind bb1
+      unreachable
+    bb32 pattern.merge.32 unwind bb1
+      goto bb29
+    bb33 scope.33
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      goto bb5
+    bb34 scope.34 unwind bb3
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      rethrow unwind bb3
+  fun println @fn3(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn6(this: Continuation<Node>, value: Node) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Node>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Node.$c0 @fn10(this: Node, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node
+        Local this
+        Type Long
+        Local value
+      return
+  fun ctor.Pair.$c0 @fn11(first: Node, second: Node) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Node
+          Local first
+          Type Node
+          Local second
+  fun startCoroutine<Node> @fn12(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn6 interface Continuation<Node>[0]
+        Type Continuation<Node>
+        Local completion
+        Type Node
+        EnumField v0 f0
+          Type CoroutineStep<Node>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn7 interface Continuation<Node>[1]
+        Type Continuation<Node>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Node> = @fn8 interface SuspendTask<Node>[0]
+        Type SuspendTask<Node>
+        Local task
+        Type Continuation<Node>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Node>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<Node> result=Node
+  coroutine_slot cl0 CoroutineSlot<Node> value=Node
+  coroutine_start ct0 result=Node function=fn12
+  coroutine_fn cf0 @fn8 source_return=Node step=cs0 immediate
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- Continuation.resume
+  instance mi4 function=@fn7 <- Continuation.resumeWithException
+  instance mi5 function=@fn8 <- SuspendTask.run
+  instance mi6 function=@fn9 <- SuspendRegistration.register
+  str @str0 "missing context current.node: Node"
+  str @str1 "illegal state"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  output executable @fn2

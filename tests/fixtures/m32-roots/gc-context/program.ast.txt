@@ -1,0 +1,99 @@
+SourceFile
+  RootPackage
+  class Node(val value: Long)
+  struct Pair
+    field first: Node
+    field second: Node
+  enum Item
+    Value(Node)
+    Empty
+    context(
+      node: Node
+    )
+  fun current(): Long
+    =
+      FieldAccess value
+        Var node
+  fun fail(): Nothing
+    ContextScope
+      Call Node
+        IntLiteral 99L
+      Call gcCollect
+      throw
+        Call IllegalStateException
+    @Unsafe
+  fun main()
+    val node
+      Call Node
+        IntLiteral 20L
+    val pair: Any
+      Call Pair
+        Var node
+        Call Node
+          IntLiteral 22L
+    val tuple: Any
+      TupleLiteral
+        Var node
+        Call Node
+          IntLiteral 22L
+    val reference: Any
+      Var node
+    val scalar: Any
+      IntLiteral 42
+    val unit: Any
+      UnitLiteral
+    val variant: Any
+      MethodCall Value
+        Var Item
+        Var node
+    ContextScope
+      Call Node
+        IntLiteral 7L
+      try
+        Call fail
+      catch error: IllegalStateException
+        Call println
+          Call current
+      finally
+        Call println
+          Call current
+      Call gcCollect
+      Call println
+        Binary RefEq
+          Var reference
+          Var node
+      val retained
+        Cast Pair optional=false
+          Var pair
+      Call println
+        Binary Add
+          FieldAccess value
+            FieldAccess first
+              Var retained
+          FieldAccess value
+            FieldAccess second
+              Var retained
+      val (first, second)
+        Cast (Node, Node) optional=false
+          Var tuple
+      Call println
+        Binary Add
+          FieldAccess value
+            Var first
+          FieldAccess value
+            Var second
+      Call println
+        Cast Int optional=false
+          Var scalar
+      Call println
+        Is Unit false
+          Var unit
+      Call println
+        WhenExpression
+          Cast Item optional=false
+            Var variant
+          arm Item.Value(value)
+            FieldAccess value
+              Var value
+          arm Item.Empty()
+            IntLiteral 0L

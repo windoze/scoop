@@ -214,11 +214,7 @@ pub(crate) fn type_descriptors(
             def.representation,
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
         );
-        let descriptor_type = if is_string {
-            mir::Type::String
-        } else {
-            mir::Type::Class(id)
-        };
+        let descriptor_type = def.physical_type(id);
         if imported.contains(&descriptor_type) || refs.classes.contains_key(&id) {
             continue;
         }

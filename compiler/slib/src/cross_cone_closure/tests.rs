@@ -452,7 +452,7 @@ fn identity_registration_resolves_reexport_targets_from_the_provider_closure() {
     .unwrap();
 
     let (_, facade_identities) = closure.artifact(facade_identity).unwrap();
-    assert_eq!(facade_identities.declared_identity_count(), 18);
+    assert_eq!(facade_identities.declared_identity_count(), 17);
     assert_eq!(closure.dependency_first().count(), 3);
 }
 
@@ -542,7 +542,7 @@ fn closure_foundations_validate_in_dependency_order() {
             .artifact(provider_identity)
             .unwrap()
             .declared_identity_count(),
-        17
+        16
     );
 }
 
@@ -691,10 +691,7 @@ fn artifact_with_foundation(
 fn base_hir_foundation() -> CanonicalHirFoundation {
     let mut foundation = CanonicalHirFoundation::empty();
     foundation
-        .set_types(vec![
-            CoreBuiltinNominal::Unit.identity_record(),
-            CoreBuiltinNominal::Any.identity_record(),
-        ])
+        .set_types(vec![CoreBuiltinNominal::Unit.identity_record()])
         .unwrap();
     foundation
 }

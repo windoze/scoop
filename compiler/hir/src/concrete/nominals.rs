@@ -463,6 +463,8 @@ pub enum IntrinsicTypeRepresentation {
     MutableArray { element: TypeId },
     Ptr { pointee: TypeId },
     FunPtr { signature: FunctionTypeId },
+    Any,
+    Nothing,
 }
 
 #[derive(Debug, Clone)]

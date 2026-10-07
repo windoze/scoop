@@ -2,7 +2,7 @@ use scoop_lir::ExecutableEntryPlanV1;
 
 pub(super) const ROOT_ENTRY_DESCRIPTOR_SIZE: usize = 192;
 const ROOT_ENTRY_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5045_4e54;
-const METADATA_ABI_VERSION: u32 = 5;
+const METADATA_ABI_VERSION: u32 = 6;
 
 pub(super) fn expected_root_entry_record(
     plan: &ExecutableEntryPlanV1,

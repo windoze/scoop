@@ -85,7 +85,9 @@ impl<'a> CfgLowerer<'a> {
             }),
             smir::StatementKind::Expr(expr) => {
                 let is_call = matches!(expr.kind, smir::ExprKind::Call(_));
-                let expr = self.lower_expr(expr, span);
+                let Some(expr) = self.lower_expr(expr, span) else {
+                    return;
+                };
                 if !is_call && !matches!(expr.kind, mir::ExprKind::UnitLiteral) {
                     self.push(mir::StatementKind::Expr(expr), span);
                 }
@@ -94,11 +96,14 @@ impl<'a> CfgLowerer<'a> {
                 if let smir::ExprKind::Call(call) = &init.kind
                     && call.return_ty != mir::Type::Unit
                     && call.return_ty == init.ty
+                    && self.locals[*local].ty == call.return_ty
                 {
                     self.lower_call(call, Some(*local), span);
                     return;
                 }
-                let init = self.lower_expr(init, span);
+                let Some(init) = self.lower_expr(init, span) else {
+                    return;
+                };
                 self.push(
                     mir::StatementKind::ValDecl {
                         local: *local,
@@ -108,7 +113,9 @@ impl<'a> CfgLowerer<'a> {
                 );
             }
             smir::StatementKind::Assign { local, value } => {
-                let value = self.lower_expr(value, span);
+                let Some(value) = self.lower_expr(value, span) else {
+                    return;
+                };
                 self.push(
                     mir::StatementKind::Assign {
                         local: *local,
@@ -118,7 +125,9 @@ impl<'a> CfgLowerer<'a> {
                 );
             }
             smir::StatementKind::GlobalAssign { global, value } => {
-                let value = self.lower_expr(value, statement.span);
+                let Some(value) = self.lower_expr(value, statement.span) else {
+                    return;
+                };
                 self.push(
                     mir::StatementKind::GlobalAssign {
                         global: *global,
@@ -133,9 +142,15 @@ impl<'a> CfgLowerer<'a> {
                 index,
                 value,
             } => {
-                let array = self.lower_expr(array, span);
-                let index = self.lower_expr(index, span);
-                let value = self.lower_expr(value, span);
+                let Some(array) = self.lower_expr(array, span) else {
+                    return;
+                };
+                let Some(index) = self.lower_expr(index, span) else {
+                    return;
+                };
+                let Some(value) = self.lower_expr(value, span) else {
+                    return;
+                };
                 self.push(
                     mir::StatementKind::ArraySet {
                         array_type: *array_type,
@@ -151,8 +166,12 @@ impl<'a> CfgLowerer<'a> {
                 index,
                 value,
             } => {
-                let object = self.lower_expr(object, span);
-                let value = self.lower_expr(value, span);
+                let Some(object) = self.lower_expr(object, span) else {
+                    return;
+                };
+                let Some(value) = self.lower_expr(value, span) else {
+                    return;
+                };
                 self.push(
                     mir::StatementKind::FieldSet {
                         object,
@@ -181,7 +200,9 @@ impl<'a> CfgLowerer<'a> {
             } => self.lower_while(*target, condition_setup, cond, body, span),
             smir::StatementKind::Try(try_) => self.lower_try(try_),
             smir::StatementKind::Throw(exception) => {
-                let exception = self.lower_expr(exception, span);
+                let Some(exception) = self.lower_expr(exception, span) else {
+                    return;
+                };
                 let unwind = self.active_unwind();
                 self.seal(mir::Terminator::Throw { exception, unwind });
             }
@@ -189,7 +210,9 @@ impl<'a> CfgLowerer<'a> {
     }
 
     pub(super) fn lower_return(&mut self, value: Option<&smir::Expr>, span: Span) {
-        let payload = self.prepare_return(value, span);
+        let Some(payload) = self.prepare_return(value, span) else {
+            return;
+        };
         self.route_transfer(PendingTransfer::Return(payload));
     }
 
@@ -200,7 +223,9 @@ impl<'a> CfgLowerer<'a> {
         else_body: Option<&'a [smir::Statement]>,
         span: Span,
     ) {
-        let cond = self.lower_expr(cond, span);
+        let Some(cond) = self.lower_expr(cond, span) else {
+            return;
+        };
         let then_block = self.new_block("if.then");
         let else_block = else_body.map(|_| self.new_block("if.else"));
         let merge_block = self.new_block("if.merge");
@@ -251,19 +276,33 @@ impl<'a> CfgLowerer<'a> {
             }
             return;
         }
-        let cond = self.lower_expr(cond, span);
+        let Some(cond) = self.lower_expr(cond, span) else {
+            let target = self.pop_loop_target(target);
+            if target.break_reachable {
+                self.enter(exit_block);
+            }
+            return;
+        };
         let body_block = self.new_block("while.body");
-        self.seal(mir::Terminator::Branch {
-            cond,
-            then_block: body_block,
-            else_block: exit_block,
-        });
+        let always = matches!(cond.kind, mir::ExprKind::BoolLiteral(true));
+        if always {
+            self.seal(mir::Terminator::Goto(body_block));
+        } else {
+            self.seal(mir::Terminator::Branch {
+                cond,
+                then_block: body_block,
+                else_block: exit_block,
+            });
+        }
         self.enter(body_block);
         self.lower_statements(body);
         if !self.current_sealed {
             self.lower_continue(target);
         }
-        self.pop_loop_target(target);
+        let target = self.pop_loop_target(target);
         self.enter(exit_block);
+        if always && !target.break_reachable {
+            self.seal(mir::Terminator::Unreachable);
+        }
     }
 }

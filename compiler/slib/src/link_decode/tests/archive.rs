@@ -12,7 +12,6 @@ pub(in super::super) fn complete_artifact(corrupt_final_image_digest: bool) -> V
     hir_foundation
         .set_types(vec![
             scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
-            scoop_identity::CoreBuiltinNominal::Any.identity_record(),
         ])
         .unwrap();
     let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
@@ -224,7 +223,6 @@ pub(super) fn build_artifact(
     hir_foundation
         .set_types(vec![
             scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
-            scoop_identity::CoreBuiltinNominal::Any.identity_record(),
         ])
         .unwrap();
     let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();

@@ -57,13 +57,8 @@ impl ExportDefaultTemplateV1 {
         references: ExportDefaultReferenceSetV1,
         definition_origin: ExportDefinitionSourceV1,
     ) -> Result<Self, ExportDefaultTemplateBuildError> {
-        if body.value().result_type() != &result {
-            return Err(ExportDefaultTemplateBuildError::ResultType {
-                declared: result,
-                body: body.value().result_type().clone(),
-            });
-        }
-
+        // The parameter contract and actual expression type are independent:
+        // a checked Nothing expression can initialize any parameter type.
         let mut local_index = locals.clone();
         body.index_locals(&mut local_index)
             .map_err(ExportDefaultTemplateBuildError::BodyLocal)?;
@@ -359,10 +354,6 @@ impl WireDecode for DecodedExportDefaultTemplateV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExportDefaultTemplateBuildError {
-    ResultType {
-        declared: SignatureTypeKey,
-        body: SignatureTypeKey,
-    },
     BodyLocal(ExportDefaultBodyIndexError<TemplateLocalLookupError>),
     ReceiverLocal(TemplateReceiverIndexError<TemplateLocalLookupError>),
     ValueParameterLocal(TemplateValueParameterListIndexError<TemplateLocalLookupError>),
@@ -371,10 +362,6 @@ pub enum ExportDefaultTemplateBuildError {
 impl fmt::Display for ExportDefaultTemplateBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ResultType { declared, body } => write!(
-                formatter,
-                "default-template result type {declared:?} differs from body result {body:?}"
-            ),
             Self::BodyLocal(error) => write!(formatter, "invalid default body local: {error}"),
             Self::ReceiverLocal(error) => {
                 write!(formatter, "invalid default receiver local: {error}")

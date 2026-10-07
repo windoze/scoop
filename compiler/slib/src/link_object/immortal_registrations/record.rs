@@ -3,7 +3,7 @@ use scoop_lir::StrongImmortalObjectRegistrationPlanV1;
 use super::StrongImmortalObjectRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
-pub(in crate::link_object) const ABI_VERSION: u32 = 5;
+pub(in crate::link_object) const ABI_VERSION: u32 = 6;
 pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 152;
 
 pub(super) fn validate_record_bytes(

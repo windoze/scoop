@@ -451,12 +451,12 @@ Module
     bb33 try.end.33 unwind bb1
       unreachable
     bb34 try.body.34 unwind bb29
-      val $old.0: Long
+      val $old.2: Long
         Type Long
         Local index
       val $dependency.receiver: Long
         Type Long
-        Local $old.0
+        Local $old.2
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
@@ -631,7 +631,7 @@ Module
     bb62 try.end.62 unwind bb1
       val result: String
         Type String
-        Local $result.2
+        Local $result.5
       call @scoop_rt_gc_collect direct
       val $dependency.argument.0: String
         Type String
@@ -665,9 +665,9 @@ Module
       end_catch
       goto bb59
     bb68 try.end.68 unwind bb58
-      assign $result.2
+      assign $result.5
         Type String
-        Local $result.1
+        Local $result.4
       goto bb72
     bb69 try.body.69 unwind bb64
       val $dependency.receiver: String
@@ -685,7 +685,7 @@ Module
         Local $dependency.receiver
         Type String
         Local $dependency.parameter.other
-      assign $result.1
+      assign $result.4
         Type String
         Local $call.9
       goto bb70

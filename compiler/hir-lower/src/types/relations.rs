@@ -6,7 +6,7 @@ impl Lowerer {
     /// Subtyping follows the complete parent applications shared by source
     /// checking and inference. Function types retain their structural variance.
     pub(crate) fn is_subtype(&mut self, a: TypeId, b: TypeId) -> bool {
-        if self.types_equal(a, b) || matches!(self.types[b], Type::Any) {
+        if self.types_equal(a, b) || self.is_nothing_ty(a) || matches!(self.types[b], Type::Any) {
             return true;
         }
         if let (Type::Function(source), Type::Function(target)) =
@@ -38,6 +38,30 @@ impl Lowerer {
             pending.extend(self.direct_nominal_supertypes(ty));
         }
         false
+    }
+
+    pub(crate) fn is_nothing_ty(&self, ty: TypeId) -> bool {
+        matches!(self.types[ty], Type::Class(application)
+            if matches!(self.class_applications[application].representation,
+                hir::ClassApplicationRepresentation::Intrinsic(hir::IntrinsicTypeRepresentation::Nothing)))
+    }
+
+    pub(crate) fn nothing_type(&mut self) -> TypeId {
+        match &self.core {
+            crate::CoreLoweringAuthority::Defined => {
+                let (IntrinsicTypeOwner::Class(owner), _) =
+                    self.intrinsic_type_owners[&hir::IntrinsicTypeKind::Nothing]
+                else {
+                    unreachable!("the core contract requires an intrinsic Nothing class")
+                };
+                self.class_application(owner, Vec::new())
+            }
+            crate::CoreLoweringAuthority::Imported(core) => {
+                let owner = core.fundamental_types().nothing().persistent();
+                self.imported_nominal_application(hir::SourceNominalId::Concrete(owner), Vec::new())
+                    .expect("the imported core contract provides its Nothing declaration")
+            }
+        }
     }
 
     /// Every reachable interface application, including the subject itself

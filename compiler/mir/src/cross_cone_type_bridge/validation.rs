@@ -157,7 +157,11 @@ impl MirTypeBridgeAuthority<'_> {
                         )
                     ) | (
                         SourceDeclarationKind::Class,
-                        MirTypeRepresentationV1::Intrinsic(MirParamFreeIntrinsicV1::String)
+                        MirTypeRepresentationV1::Intrinsic(
+                            MirParamFreeIntrinsicV1::String
+                                | MirParamFreeIntrinsicV1::Any
+                                | MirParamFreeIntrinsicV1::Nothing
+                        )
                     )
                 );
                 if !shape_matches {
@@ -254,7 +258,11 @@ impl MirTypeBridgeAuthority<'_> {
                 | MirParamFreeIntrinsicV1::Char
                 | MirParamFreeIntrinsicV1::Boolean,
             ) => facts.kind() == Kind::NonZeroValue && facts.gc() == MirGcKindV1::GcFree,
-            Repr::Intrinsic(MirParamFreeIntrinsicV1::String)
+            Repr::Intrinsic(
+                MirParamFreeIntrinsicV1::String
+                | MirParamFreeIntrinsicV1::Any
+                | MirParamFreeIntrinsicV1::Nothing,
+            )
             | Repr::Class { .. }
             | Repr::InlineArray { .. }
             | Repr::Interface

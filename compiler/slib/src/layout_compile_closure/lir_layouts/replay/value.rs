@@ -34,7 +34,7 @@ impl Replay<'_> {
                 lir::ScalarRepresentationKindV1::Boolean,
                 foundation,
             )?,
-            Kind::Intrinsic(Intrinsic::String)
+            Kind::Intrinsic(Intrinsic::String | Intrinsic::Any | Intrinsic::Nothing)
             | Kind::Class { .. }
             | Kind::InlineArray { .. }
             | Kind::Interface

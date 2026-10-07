@@ -49,7 +49,8 @@ pub fn validate_shared_mir_type_exports(
             super::applications::validate(&mut comparison, dependencies, key.as_ref())?;
         }
     }
-    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+    {
+        let builtin = CoreBuiltinNominal::Unit;
         if builtin.declaration_key().origin() == source.provider()
             && source
                 .representations()
@@ -170,21 +171,13 @@ impl<'s> Comparison<'s, '_> {
             record.origin() == &mir::MirTypeOriginV1::SourceNominal(nominal),
         )?;
         self.facts(exact, record)?;
-        let matches = match (builtin, record.representation()) {
+        let matches = matches!(
+            (builtin, record.representation()),
             (
                 CoreBuiltinNominal::Unit,
-                mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit),
-            ) => true,
-            (
-                CoreBuiltinNominal::Any,
-                mir::MirTypeRepresentationV1::Class {
-                    release_policy: mir::MirClassReleasePolicyV1::None,
-                    kind: mir::MirClassKindV1::Abstract,
-                    declared_fields,
-                },
-            ) => declared_fields.is_empty(),
-            _ => false,
-        };
+                mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit)
+            )
+        );
         Error::require(exact, Component::Representation, matches)?;
         Error::require(
             exact,

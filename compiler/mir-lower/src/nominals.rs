@@ -76,6 +76,8 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::String
+                        | hir::IntrinsicTypeRepresentation::Any
+                        | hir::IntrinsicTypeRepresentation::Nothing
                         | hir::IntrinsicTypeRepresentation::Array { .. }
                         | hir::IntrinsicTypeRepresentation::MutableArray { .. } => {
                             unreachable!("the registry fixes intrinsic declaration targets")
@@ -276,6 +278,12 @@ impl Lowerer {
                         class_map: &self.class_map,
                     };
                     mir::ClassRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::Any => {
+                            mir::IntrinsicTypeRepresentation::Any
+                        }
+                        hir::IntrinsicTypeRepresentation::Nothing => {
+                            mir::IntrinsicTypeRepresentation::Nothing
+                        }
                         hir::IntrinsicTypeRepresentation::String => {
                             mir::IntrinsicTypeRepresentation::String
                         }

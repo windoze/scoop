@@ -276,7 +276,8 @@ impl RelationReducer<'_> {
         right_ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
-        if matches!(self.lowerer.types[right_ty], Type::Any) {
+        if self.lowerer.is_nothing_ty(left_ty) || matches!(self.lowerer.types[right_ty], Type::Any)
+        {
             return Ok(());
         }
         if let Some(target) = self.lowerer.nominal_application(right_ty) {

@@ -204,6 +204,16 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&spec.ty) else {
                 continue;
             };
+            if matches!(self.types[ty], Type::Any) || self.is_nothing_ty(ty) {
+                self.error(
+                    spec.ty.span,
+                    format!(
+                        "root type `{}` cannot be explicitly inherited",
+                        self.type_name(ty)
+                    ),
+                );
+                continue;
+            }
             match self.types[ty] {
                 Type::Class(application) => {
                     if base.is_some() {

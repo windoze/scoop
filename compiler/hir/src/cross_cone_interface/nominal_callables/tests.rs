@@ -44,13 +44,15 @@ fn only_known_nominal_leaves_are_classified() {
 }
 
 #[test]
-fn builtin_any_retains_its_exact_identity_without_a_nominal_sidecar() {
+fn source_any_requires_its_nominal_declaration() {
     let (classifier, _, unit) = classifier();
     let any = CoreBuiltinNominal::Any.identity_record().id();
     let exact =
         scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(any)).unwrap();
     assert_ne!(exact, unit);
     let signature = SignatureTypeKey::Nominal(any);
+    let empty = NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap();
+    assert_eq!(empty.classify(&signature).unwrap(), None);
     assert_eq!(classifier.classify(&signature).unwrap(), Some(exact));
     let function = callable(
         signature,
@@ -152,6 +154,23 @@ fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
 }
 
 fn nominal(declaration: crate::SourceNominalId) -> crate::NominalInterfaceRecordV1 {
+    if declaration
+        == crate::SourceNominalId::Concrete(CoreBuiltinNominal::Any.identity_record().id())
+    {
+        return crate::nominal_interface_fixture::public_record(
+            declaration,
+            crate::PublicNominalKindV1::Class,
+            CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+            crate::CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+            crate::CanonicalPersistentIdsV1::empty(),
+            crate::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
+            crate::CanonicalPersistentIdsV1::empty(),
+            crate::NominalSourceShapeV1::Intrinsic(crate::NominalIntrinsicRepresentationV1::new(
+                crate::IntrinsicTypeKind::Any,
+            )),
+        )
+        .unwrap();
+    }
     let binders = match declaration {
         crate::SourceNominalId::Concrete(_) => Vec::new(),
         crate::SourceNominalId::GenericTemplate(_) => vec![crate::TypeParameterBinderV1::new(
@@ -271,7 +290,10 @@ fn classifier() -> (
     let exact = scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
         .expect("core Unit exact identity is valid");
     (
-        NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap(),
+        NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[nominal(
+            crate::SourceNominalId::Concrete(CoreBuiltinNominal::Any.identity_record().id()),
+        )])
+        .unwrap(),
         unit,
         exact,
     )

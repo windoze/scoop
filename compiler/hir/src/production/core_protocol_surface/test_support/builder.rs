@@ -27,10 +27,7 @@ impl FixtureBuilder {
             origin,
             existing,
             next_name: 0,
-            types: vec![
-                CoreBuiltinNominal::Unit.identity_record(),
-                CoreBuiltinNominal::Any.identity_record(),
-            ],
+            types: vec![CoreBuiltinNominal::Unit.identity_record()],
             generic_types: Vec::new(),
             functions: Vec::new(),
             generic_functions: Vec::new(),

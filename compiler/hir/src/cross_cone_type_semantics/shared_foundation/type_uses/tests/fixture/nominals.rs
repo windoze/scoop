@@ -23,6 +23,13 @@ impl Artifact {
         let identity = CborIdentityRecord::from_key(key).unwrap();
         let owner = identity.id();
         let (kind, shape, modality) = match kind {
+            SourceNominalKind::Class if provider == ConeIdentity::CORE && name == "Any" => (
+                PublicNominalKindV1::Class,
+                NominalSourceShapeV1::Intrinsic(NominalIntrinsicRepresentationV1::new(
+                    IntrinsicTypeKind::Any,
+                )),
+                NominalInheritanceModalityV1::Abstract,
+            ),
             SourceNominalKind::Class => (
                 PublicNominalKindV1::Class,
                 NominalSourceShapeV1::Class(Default::default()),

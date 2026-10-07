@@ -109,9 +109,6 @@ fn shape_support_sources_are_derived_from_param_free_source_nominals() {
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
             .id(),
-        scoop_identity::CoreBuiltinNominal::Any
-            .identity_record()
-            .id(),
     ];
     expected.sort_unstable();
     assert_eq!(
@@ -129,7 +126,7 @@ fn imported_core_inputs_expose_compiler_protocols() {
     let imported = imported_foundation(&fixture.foundation);
 
     let core = imported.import_core_inputs(&fixture.interface).unwrap();
-    assert_eq!(core.protocols().fixed_subject_count(), 91);
+    assert_eq!(core.protocols().fixed_subject_count(), 93);
     let protocols = core.protocols().clone();
     assert_eq!(
         protocols.fundamental_types().unit().persistent(),

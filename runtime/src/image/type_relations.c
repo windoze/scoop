@@ -20,11 +20,16 @@ static void check_relations(const ScoopImageRegistry *registry, size_t index) {
     ScoopMetadataCheck check = scoop_record_check(registry, SCOOP_RECORD_TYPE, index);
     const ScoopTypeRegistrationDescriptorV1 *type = types->entries[index].record;
     const ScoopTypeDescriptor *td = type->descriptor;
-    if (td->relation_kind > 3 ||
-        (td->relation_kind == 0 && td->related_type_count != 0) ||
-        ((td->relation_kind == 0 || td->relation_kind == 3) &&
+    if (td->relation_kind > 4 ||
+        ((td->relation_kind == 0 || td->relation_kind == 4) && td->related_type_count != 0) ||
+        ((td->relation_kind == 0 || td->relation_kind == 3 || td->relation_kind == 4) &&
          td->function_result != NULL)) {
         scoop_metadata_fatal(&check, "relation kind, count or function result");
+    }
+    if (td->relation_kind == 4 &&
+        (td->instance_shape.instance_kind != SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1 ||
+         td->parent != NULL || td->itable_count != 0)) {
+        scoop_metadata_fatal(&check, "bottom type must be an abstract reference without parent or itables");
     }
     if (td->parent != NULL) {
         registered_type(registry, &check, td->parent);

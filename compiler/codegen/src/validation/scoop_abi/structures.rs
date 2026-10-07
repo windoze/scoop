@@ -145,9 +145,11 @@ impl AbiMetadataValidator<'_> {
                     scoop_lir::IntrinsicTypeRepresentation::FunPtr { .. } => {
                         scalar(profile.pointer_layout(PointerKind::Code))
                     }
-                    scoop_lir::IntrinsicTypeRepresentation::String => {
+                    scoop_lir::IntrinsicTypeRepresentation::String
+                    | scoop_lir::IntrinsicTypeRepresentation::Any
+                    | scoop_lir::IntrinsicTypeRepresentation::Nothing => {
                         return Err(CodegenError(format!(
-                            "{owner} uses intrinsic String declaration `{name}` as value storage"
+                            "{owner} uses intrinsic reference declaration `{name}` as struct value storage"
                         )));
                     }
                 }

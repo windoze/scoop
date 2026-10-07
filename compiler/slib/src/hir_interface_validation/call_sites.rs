@@ -33,6 +33,14 @@ impl HirInterfaceValidationInput<'_> {
                         public: provider.interface,
                     },
                     self.identities,
+                    |owner| {
+                        let owner = scoop_hir::SourceNominalId::Concrete(owner);
+                        self.interface.nominal_interfaces().get(owner).or_else(|| {
+                            dependencies.iter().find_map(|provider| {
+                                provider.interface.nominal_interfaces().get(owner)
+                            })
+                        })
+                    },
                 )
                 .map_err(|source| CrossConeHirCallSiteOriginError::Signature {
                     position: site.position(),

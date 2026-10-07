@@ -1,5 +1,6 @@
 SourceFile
   QualifiedPackage dependency.api
+  ImportExact Local Any
   public fun seedValue(): Int
     =
       IntLiteral 7

@@ -786,12 +786,8 @@ fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
     let mir::Terminator::Goto(inner_header) = &catch_body.terminator else {
         panic!("the catch body enters its nested loop")
     };
-    let mir::Terminator::Branch {
-        then_block: inner_body,
-        ..
-    } = &body.blocks[*inner_header].terminator
-    else {
-        panic!("the nested loop has a conditional header")
+    let mir::Terminator::Goto(inner_body) = &body.blocks[*inner_header].terminator else {
+        panic!("the literal true condition directly enters the nested loop body")
     };
     let mir::Terminator::Goto(inner_exit) = &body.blocks[*inner_body].terminator else {
         panic!("the nested break targets its own exit")

@@ -16,14 +16,6 @@ pub(super) fn project(
             CoreBuiltinNominal::Unit,
             mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit),
         ),
-        mir::Type::Any => (
-            CoreBuiltinNominal::Any,
-            mir::MirTypeRepresentationV1::Class {
-                release_policy: Default::default(),
-                kind: mir::MirClassKindV1::Abstract,
-                declared_fields: vec![],
-            },
-        ),
         _ => return Ok(None),
     };
 

@@ -20,7 +20,7 @@ use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 use crate::target::ValidatedBackendProfile;
 
-const METADATA_ABI_VERSION: u64 = 5;
+const METADATA_ABI_VERSION: u64 = 6;
 const INITIALIZATION_UNIT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
 const INITIALIZATION_UNIT_DESCRIPTOR_SIZE: u64 = 320;
 const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 280;

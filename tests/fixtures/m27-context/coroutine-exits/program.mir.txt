@@ -100,52 +100,52 @@ Module
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn15 captures=1
     bridge function_type1 -> @fn37 id=f2f92ec122da17232df508d2f10606f4cfe9273d2d7881e0eb31caba989590d5
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=class32 nominal_id=d88b816ab785d34300bea3e89dc1ab7beb0c8adfd891325a191f736e9d838a9c exact_id=10bbd3372733802feb8f9277e31bdcf3c44a05e5ce5d5ecf004d9bee35e5cef0
+  generated_exact_type get1 location=class33 nominal_id=d88b816ab785d34300bea3e89dc1ab7beb0c8adfd891325a191f736e9d838a9c exact_id=10bbd3372733802feb8f9277e31bdcf3c44a05e5ce5d5ecf004d9bee35e5cef0
   generated_exact_type get2 location=enum4 nominal_id=3c34830c44321eb976fb31b6bbf6e7a0222b90ee010bf779399e461e9a9d5aeb exact_id=1688adcf6e166acedae423161edead9147833836aab9d1bfe55e5df454463f04
   generated_exact_type get3 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
-  generated_exact_type get4 location=class24 nominal_id=d129e8afeb22b3d24175e800cd255a4bb9620deec3d7173dc19c16758ac7e9d7 exact_id=2399274c41c06d44f7f0d428e2703cbab7833832c1619197ca51246c27b2c99e
-  generated_exact_type get5 location=class22 nominal_id=a4a91baf45112089c6579551cdf49b2a3eec2416c6c6befb2aac16504ca9a523 exact_id=23efdd69b6d5bf9f767d7330bb8fabb47eb3dc363286f5a96ad03f945d56ce89
+  generated_exact_type get4 location=class25 nominal_id=d129e8afeb22b3d24175e800cd255a4bb9620deec3d7173dc19c16758ac7e9d7 exact_id=2399274c41c06d44f7f0d428e2703cbab7833832c1619197ca51246c27b2c99e
+  generated_exact_type get5 location=class23 nominal_id=a4a91baf45112089c6579551cdf49b2a3eec2416c6c6befb2aac16504ca9a523 exact_id=23efdd69b6d5bf9f767d7330bb8fabb47eb3dc363286f5a96ad03f945d56ce89
   generated_exact_type get6 location=enum3 nominal_id=2c1591b3f4f937e2808a33694c3a123c6f0a353375a94692897fadb8a5743067 exact_id=2443bb3dd9ec71acd7e3b3023b468ff15b346b17e1bf8fd8f85d42057972e632
   generated_exact_type get7 location=enum9 nominal_id=33251289c52c3da49a9afcb34853e2374bd21d464c8570cd34eba02f216358a9 exact_id=2ed8d8fce42e51489fa325cde4b48166447471f1b32e6d155b1d4cb7bf1eebd2
   generated_exact_type get8 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get9 location=class10 nominal_id=6bc8d52d21b55287594746cba4b8af5bd8f80c19614a64acead3bc3e50f2febd exact_id=4a97d368e214e7d5dc432dcd89870e7834df0a09ef1d1936a77671670916a216
-  generated_exact_type get10 location=class20 nominal_id=508db95184922448ec0a5119a8af527304300feae4e1b17d457d989836e1e073 exact_id=4f96e9d79f9c591cd922ec47afaff8ecc4c5cdec7aaa6a41a3f63ef505cee77a
+  generated_exact_type get9 location=class11 nominal_id=6bc8d52d21b55287594746cba4b8af5bd8f80c19614a64acead3bc3e50f2febd exact_id=4a97d368e214e7d5dc432dcd89870e7834df0a09ef1d1936a77671670916a216
+  generated_exact_type get10 location=class21 nominal_id=508db95184922448ec0a5119a8af527304300feae4e1b17d457d989836e1e073 exact_id=4f96e9d79f9c591cd922ec47afaff8ecc4c5cdec7aaa6a41a3f63ef505cee77a
   generated_exact_type get11 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get12 location=class11 nominal_id=b0a1e508397453d7171f504fb493d9972ee79fa40ed55bd75e5ca9e0fc406275 exact_id=54d3d51c0c5aebd6f74b8a67f45b015e2b6c34b08a065dcd54a302b1a40a8bb3
-  generated_exact_type get13 location=class17 nominal_id=99f5c781f707ef26dd951af4155da07a5478afa4c78c73be752ee0f823628cf6 exact_id=58c3b4321ff0db60cf596aa8632f393a950f3c685c0a7218894d951dd588217e
+  generated_exact_type get12 location=class12 nominal_id=b0a1e508397453d7171f504fb493d9972ee79fa40ed55bd75e5ca9e0fc406275 exact_id=54d3d51c0c5aebd6f74b8a67f45b015e2b6c34b08a065dcd54a302b1a40a8bb3
+  generated_exact_type get13 location=class18 nominal_id=99f5c781f707ef26dd951af4155da07a5478afa4c78c73be752ee0f823628cf6 exact_id=58c3b4321ff0db60cf596aa8632f393a950f3c685c0a7218894d951dd588217e
   generated_exact_type get14 location=enum14 nominal_id=774a5517cc42b227b4f3d8823a6022047c83b1e9f11584342f7a922d5191f9b6 exact_id=5bcac56db1558e3d16ccf7824131e1ffee7b61ebafadf5e137f6929a7327722c
   generated_exact_type get15 location=enum11 nominal_id=16723bb6fab0135b45d2877ee0ee8eee12a3ca9e8416d06e2bfe7f572f38f500 exact_id=60ffd3f0db0ab1bac882a32e410c66f1f9cd9739bced5fb887ca2053a3d87d4a
-  generated_exact_type get16 location=class14 nominal_id=ce05de01403c45eaccbdf801e9c3f31c2a86caa563d5abcbc35fa39c55c61c3e exact_id=62e36f6004f753c0bc5265662f934e59a52506dcb029bb96a9d60257323e5a92
+  generated_exact_type get16 location=class15 nominal_id=ce05de01403c45eaccbdf801e9c3f31c2a86caa563d5abcbc35fa39c55c61c3e exact_id=62e36f6004f753c0bc5265662f934e59a52506dcb029bb96a9d60257323e5a92
   generated_exact_type get17 location=enum12 nominal_id=e510fe6d5351ab32bb1e15f7de507a4c86a8dd85750c5508e55ba7dc86f2d062 exact_id=64b940aa7a8e91cfea85302ca4ce6e712f478582848641bfd7fb175f3c14309f
-  generated_exact_type get18 location=class13 nominal_id=e6ded912c144b15ce55a342fb7df4fc0836e10da2600d759ecaa48491baeac51 exact_id=6a510900896632bee937d7d578b3dfcd900a2911e7cad7351198e1ffef941a4b
-  generated_exact_type get19 location=class21 nominal_id=d8d8b402c7e2210b4e02ec074c4c14b91f44b38e814506b711223cbdafa9b1ce exact_id=7ab1025c37e43a5c51e7185cbb4c52a56b887f01c663d23d4f530a35f26ca89c
+  generated_exact_type get18 location=class14 nominal_id=e6ded912c144b15ce55a342fb7df4fc0836e10da2600d759ecaa48491baeac51 exact_id=6a510900896632bee937d7d578b3dfcd900a2911e7cad7351198e1ffef941a4b
+  generated_exact_type get19 location=class22 nominal_id=d8d8b402c7e2210b4e02ec074c4c14b91f44b38e814506b711223cbdafa9b1ce exact_id=7ab1025c37e43a5c51e7185cbb4c52a56b887f01c663d23d4f530a35f26ca89c
   generated_exact_type get20 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
-  generated_exact_type get21 location=class30 nominal_id=f95ac3c1ec50d597b68a6d58ca57afbb59f1609cce6eeb385b649f42a284444e exact_id=7ffe8de80c98ed3c29a6340aac22809bc0a89c14129ab50a5002fe99efd6c0fe
+  generated_exact_type get21 location=class31 nominal_id=f95ac3c1ec50d597b68a6d58ca57afbb59f1609cce6eeb385b649f42a284444e exact_id=7ffe8de80c98ed3c29a6340aac22809bc0a89c14129ab50a5002fe99efd6c0fe
   generated_exact_type get22 location=enum7 nominal_id=076290d45cc28336714511354c81d5d458873c79659e9d77c1fd4386d23807ea exact_id=8089df81b3a19cd0ebbe2fb696d7f8d23c17f62db1d0c4b987e006c78b80bdea
-  generated_exact_type get23 location=class29 nominal_id=7c994ab9f3612b249887677bb81e121afc17be24805e9d14c18782861ea96212 exact_id=80958388b0bed8b93524e2e37b83fd23618e48844ce44e850b1746df45c9187a
+  generated_exact_type get23 location=class30 nominal_id=7c994ab9f3612b249887677bb81e121afc17be24805e9d14c18782861ea96212 exact_id=80958388b0bed8b93524e2e37b83fd23618e48844ce44e850b1746df45c9187a
   generated_exact_type get24 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get25 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
-  generated_exact_type get26 location=class33 nominal_id=5d2353fe25da5cae8138fd68bdf2cb82406e0860c3addfb1554a5a14d1357da4 exact_id=8edff702067d1b8edbbed70314d6892b7f97961a001ddf1cbe80c0de26ba8d05
-  generated_exact_type get27 location=class27 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
-  generated_exact_type get28 location=class28 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
-  generated_exact_type get29 location=class15 nominal_id=d7cbdbbd1b6fa42db4fe66e468240baebdc51d1a5c17cc3bc05234d667019f2e exact_id=a63856309c0ca890cacbed9a345c1f77d4ddd0fde36f903e72eda2b17fc6d43a
+  generated_exact_type get26 location=class34 nominal_id=5d2353fe25da5cae8138fd68bdf2cb82406e0860c3addfb1554a5a14d1357da4 exact_id=8edff702067d1b8edbbed70314d6892b7f97961a001ddf1cbe80c0de26ba8d05
+  generated_exact_type get27 location=class28 nominal_id=3522fbb6d77ea6b1af16654f91116edc1370533495f6b2c521642e469258fdd7 exact_id=a198fc1529cf07780101355a0e9127fae083a3f8727010855dd3c11a0c0add9e
+  generated_exact_type get28 location=class29 nominal_id=fd1032567d950d751e721be717b89a00c0f13125049d3080dbfe497cb180e1d6 exact_id=a62d9ed48ebeafe7fe902bbf13b68eae1ff91fe8eb008ada84456885e76f8a6d
+  generated_exact_type get29 location=class16 nominal_id=d7cbdbbd1b6fa42db4fe66e468240baebdc51d1a5c17cc3bc05234d667019f2e exact_id=a63856309c0ca890cacbed9a345c1f77d4ddd0fde36f903e72eda2b17fc6d43a
   generated_exact_type get30 location=enum6 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
-  generated_exact_type get31 location=class31 nominal_id=46c8683a4f72acb6ceb5771e99a4500b5e9318874bb350f6c4ebfcc9b12d93cc exact_id=af8cb24a94adfc5a01f11e78322de7a87848e9027123a1601782448c33cebeda
-  generated_exact_type get32 location=class19 nominal_id=396d994e11a9cdf0e4c92279d57b52af365389e4cc38110af93e5fe7ec19ae07 exact_id=b64c7235d8f2b23f0edc4eda30f9a5bc460634e4d5688294de29095948a5310b
-  generated_exact_type get33 location=class23 nominal_id=3396bab546517fc0af3738509801b764dedfb7b0a0de125825745a8fb28f8349 exact_id=b853a916ccd2858132b8863013d8e8680edd402e9bc4facf0039bf233364bde8
+  generated_exact_type get31 location=class32 nominal_id=46c8683a4f72acb6ceb5771e99a4500b5e9318874bb350f6c4ebfcc9b12d93cc exact_id=af8cb24a94adfc5a01f11e78322de7a87848e9027123a1601782448c33cebeda
+  generated_exact_type get32 location=class20 nominal_id=396d994e11a9cdf0e4c92279d57b52af365389e4cc38110af93e5fe7ec19ae07 exact_id=b64c7235d8f2b23f0edc4eda30f9a5bc460634e4d5688294de29095948a5310b
+  generated_exact_type get33 location=class24 nominal_id=3396bab546517fc0af3738509801b764dedfb7b0a0de125825745a8fb28f8349 exact_id=b853a916ccd2858132b8863013d8e8680edd402e9bc4facf0039bf233364bde8
   generated_exact_type get34 location=enum5 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
-  generated_exact_type get35 location=class34 nominal_id=8ab2261515425b02f9f299390015207d11c82b7d05acd5dc8f016eb521db1fd0 exact_id=bf97e2a081d15b163f7919080131b45506eb61cf3f86dc85a21b4c03f7242f47
+  generated_exact_type get35 location=class35 nominal_id=8ab2261515425b02f9f299390015207d11c82b7d05acd5dc8f016eb521db1fd0 exact_id=bf97e2a081d15b163f7919080131b45506eb61cf3f86dc85a21b4c03f7242f47
   generated_exact_type get36 location=enum10 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
-  generated_exact_type get37 location=class16 nominal_id=3bd58268f2ebb694a200d24879057494b604da8781e057376c912c564098d021 exact_id=c1644675a7503745c9c37ea52acef8174c33e51224580bc6ee3e59ac3eb592b3
+  generated_exact_type get37 location=class17 nominal_id=3bd58268f2ebb694a200d24879057494b604da8781e057376c912c564098d021 exact_id=c1644675a7503745c9c37ea52acef8174c33e51224580bc6ee3e59ac3eb592b3
   generated_exact_type get38 location=enum8 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
-  generated_exact_type get39 location=class12 nominal_id=082c2453accd458da06e53ba4c219aa3bbcaa5f535cc67fb6e40a990f6f1aa86 exact_id=d60c445d8ed6fe014a3577689ca2f72a33db168d4dfa7b82554417c54426965c
+  generated_exact_type get39 location=class13 nominal_id=082c2453accd458da06e53ba4c219aa3bbcaa5f535cc67fb6e40a990f6f1aa86 exact_id=d60c445d8ed6fe014a3577689ca2f72a33db168d4dfa7b82554417c54426965c
   generated_exact_type get40 location=enum13 nominal_id=3d5494158ba24c26695a4bf429263aafd2fd88ebb52652acc0022882b3679022 exact_id=d62122b6c3aaaf4c723de73b5d4c000cbb0543745c791464c10d9af6fa4d8e51
-  generated_exact_type get41 location=class25 nominal_id=659270577ab04547df1dbb20894a9fa076c07eed39dae5990baf34c0c366eda9 exact_id=de29598daceb9c80a94bc1b2256590169589b551b39426d338d7324443aa6aa3
-  generated_exact_type get42 location=class18 nominal_id=90113e7fef3c3f71076b0c0652d4c5eb9e4549095de81abb5b357956965c0056 exact_id=de6ecc2e8c2ec617ef515b86b6458c245aac440af7cb05a6cba28fc0e4fc606b
-  generated_exact_type get43 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get44 location=class26 nominal_id=1787c9d7fa3bb6445e668878e34b654c9e8bf790f22884aea989c2b4a917d405 exact_id=e9eee86713ffc2d7224203041e485c50e681d13240dddd04a6f8ad4a7627c376
+  generated_exact_type get41 location=class26 nominal_id=659270577ab04547df1dbb20894a9fa076c07eed39dae5990baf34c0c366eda9 exact_id=de29598daceb9c80a94bc1b2256590169589b551b39426d338d7324443aa6aa3
+  generated_exact_type get42 location=class19 nominal_id=90113e7fef3c3f71076b0c0652d4c5eb9e4549095de81abb5b357956965c0056 exact_id=de6ecc2e8c2ec617ef515b86b6458c245aac440af7cb05a6cba28fc0e4fc606b
+  generated_exact_type get43 location=class10 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get44 location=class27 nominal_id=1787c9d7fa3bb6445e668878e34b654c9e8bf790f22884aea989c2b4a917d405 exact_id=e9eee86713ffc2d7224203041e485c50e681d13240dddd04a6f8ad4a7627c376
   generated_exact_type get45 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get46 location=class8 nominal_id=c31e2d1f92bdc016e906c2efd9e8fa445998b6a353c749838f6b2e01eafd60d8 exact_id=f3222765f422bad37405a7d17700626b5abc92c4baf5f238dc224a9b75b5e602
+  generated_exact_type get46 location=class9 nominal_id=c31e2d1f92bdc016e906c2efd9e8fa445998b6a353c749838f6b2e01eafd60d8 exact_id=f3222765f422bad37405a7d17700626b5abc92c4baf5f238dc224a9b75b5e602
   generated_callable gc0 function=@fn64 id=0dc5d0fcecd31f21c2057b3adefda3f5aa242ac44d7d7519a63cc8322487fbac
   generated_callable gc1 function=@fn59 id=17430e52fefbaa1482f3e1014bf24dfa27e40f5a5502a7b4d5f51e9327bb3ad0
   generated_callable gc2 function=@fn55 id=1c56cd62fb22fed6eea2bc6460ab5a2aadd1c055dee456a0f8661de2916de8e1
@@ -683,7 +683,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.4: Boolean
+      val $shortCircuit.5: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -692,14 +692,14 @@ Module
           Local $dependency.parameter.other
       goto bb3
     bb2 if.else.2
-      val $shortCircuit.4: Boolean
+      val $shortCircuit.5: Boolean
         Type Boolean
         BoolLiteral false
       goto bb3
     bb3 if.merge.3
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.4
+        Local $shortCircuit.5
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -801,7 +801,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.5: Boolean
+      val $shortCircuit.6: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -810,14 +810,14 @@ Module
           Local $dependency.parameter.other
       goto bb12
     bb11 if.else.11 unwind bb4
-      val $shortCircuit.5: Boolean
+      val $shortCircuit.6: Boolean
         Type Boolean
         BoolLiteral false
       goto bb12
     bb12 if.merge.12 unwind bb4
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.5
+        Local $shortCircuit.6
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -912,7 +912,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.7: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -921,14 +921,14 @@ Module
           Local $dependency.parameter.other
       goto bb23
     bb22 if.else.22 unwind bb15
-      val $shortCircuit.6: Boolean
+      val $shortCircuit.7: Boolean
         Type Boolean
         BoolLiteral false
       goto bb23
     bb23 if.merge.23 unwind bb15
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.6
+        Local $shortCircuit.7
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1081,7 +1081,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.7: Boolean
+      val $shortCircuit.8: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -1090,14 +1090,14 @@ Module
           Local $dependency.parameter.other
       goto bb9
     bb8 if.else.8 unwind bb1
-      val $shortCircuit.7: Boolean
+      val $shortCircuit.8: Boolean
         Type Boolean
         BoolLiteral false
       goto bb9
     bb9 if.merge.9 unwind bb1
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.7
+        Local $shortCircuit.8
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1191,7 +1191,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      val $shortCircuit.8: Boolean
+      val $shortCircuit.9: Boolean
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
@@ -1200,14 +1200,14 @@ Module
           Local $dependency.parameter.other
       goto bb12
     bb11 if.else.11 unwind bb1
-      val $shortCircuit.8: Boolean
+      val $shortCircuit.9: Boolean
         Type Boolean
         BoolLiteral false
       goto bb12
     bb12 if.merge.12 unwind bb1
       val $argument.0: Boolean
         Type Boolean
-        Local $shortCircuit.8
+        Local $shortCircuit.9
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -4541,7 +4541,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.1
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4554,7 +4554,7 @@ Module
         Type CoroutineStep<Int>
         VariantConstruct CoroutineStep<Int> v0
           Type Int
-          Local $result.1
+          Local $result.2
     bb4 try.body.4 unwind bb1
       var count: Int
         Type Int
@@ -4602,7 +4602,7 @@ Module
       call @fn5 direct
         Type Boolean
         Local $parameter.value
-      assign $result.1
+      assign $result.2
         Type Int
         Local count
       goto bb14
@@ -4660,7 +4660,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4693,14 +4693,14 @@ Module
         VariantConstruct CoroutineSlot<Int> v1
           Type Int
           Local count
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
         VariantConstruct CoroutineSlot<internal<context-mark>> v1
           Type internal<context-mark>
           Local $context_mark.1
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4741,7 +4741,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4752,7 +4752,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
-      field_set 4
+      field_set 6
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -4763,7 +4763,7 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.1
-      field_set 6
+      field_set 4
         Type CoroutineFrame<loopExits>
         Local $frame
         Type CoroutineSlot<internal<context-mark>>
@@ -5076,14 +5076,14 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 4
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 4
+          FieldAccess 6
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $call.5
@@ -5113,14 +5113,14 @@ Module
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 6
+          FieldAccess 4
             Type CoroutineFrame<loopExits>
             Local $frame
       assign $context_mark.2
         Type internal<context-mark>
         EnumField v1 f0
           Type CoroutineSlot<internal<context-mark>>
-          FieldAccess 4
+          FieldAccess 6
             Type CoroutineFrame<loopExits>
             Local $frame
       throw unwind bb8

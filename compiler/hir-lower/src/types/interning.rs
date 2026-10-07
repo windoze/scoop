@@ -224,11 +224,15 @@ impl Lowerer {
             });
         let canonical_type = match &representation {
             hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Any,
+            ) => self.any,
+            hir::ClassApplicationRepresentation::Intrinsic(
                 hir::IntrinsicTypeRepresentation::String,
             ) => self.string,
             hir::ClassApplicationRepresentation::Intrinsic(
                 hir::IntrinsicTypeRepresentation::Array { .. }
-                | hir::IntrinsicTypeRepresentation::MutableArray { .. },
+                | hir::IntrinsicTypeRepresentation::MutableArray { .. }
+                | hir::IntrinsicTypeRepresentation::Nothing,
             )
             | hir::ClassApplicationRepresentation::Declared => {
                 hir::TypeId::from_raw((self.types.len() as u32).into())
@@ -246,7 +250,7 @@ impl Lowerer {
         let allocate_type = !matches!(
             self.class_applications[application].representation,
             hir::ClassApplicationRepresentation::Intrinsic(
-                hir::IntrinsicTypeRepresentation::String
+                hir::IntrinsicTypeRepresentation::String | hir::IntrinsicTypeRepresentation::Any
             )
         );
         if allocate_type {

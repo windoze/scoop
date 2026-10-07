@@ -858,6 +858,12 @@ SourceFile
     public fun next
 SourceFile
   RootPackage
+    @Intrinsic("core_any")
+  public abstract class Any()
+    @Intrinsic("core_nothing")
+  public class Nothing()
+SourceFile
+  RootPackage
   internal fun decodeSequence<T>(decoder: Decoder, element: Decodable<T>): ArrayList<T>
     val elements
       MethodCall unkeyed

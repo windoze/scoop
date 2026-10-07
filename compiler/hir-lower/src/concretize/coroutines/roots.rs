@@ -159,21 +159,13 @@ impl Concretizer<'_> {
             })
             .collect::<Vec<_>>();
         self.coroutine_results.extend(results);
-        for (builtin, kind) in [
-            (
-                scoop_identity::CoreBuiltinNominal::Unit,
-                concrete::TypeKind::Unit,
-            ),
-            (
-                scoop_identity::CoreBuiltinNominal::Any,
-                concrete::TypeKind::Any,
-            ),
-        ] {
-            if sources.contains(&builtin.identity_record().id()) {
-                let gc_free = matches!(kind, concrete::TypeKind::Unit);
-                let ty = self.intern_type(kind, gc_free);
-                self.coroutine_results.insert(ty);
-            }
+        if sources.contains(
+            &scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id(),
+        ) {
+            let ty = self.intern_type(concrete::TypeKind::Unit, true);
+            self.coroutine_results.insert(ty);
         }
     }
 

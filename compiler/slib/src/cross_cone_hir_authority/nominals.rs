@@ -41,12 +41,10 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             .declaration(declaration)
             .is_none()
             && let SourceNominalId::Concrete(id) = declaration
-            && [
-                scoop_identity::CoreBuiltinNominal::Unit,
-                scoop_identity::CoreBuiltinNominal::Any,
-            ]
-            .iter()
-            .any(|builtin| builtin.identity_record().id() == id)
+            && scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id()
+                == id
         {
             return Ok(PublicNominalShapeV1::new(expected_kind, expected_arity));
         }

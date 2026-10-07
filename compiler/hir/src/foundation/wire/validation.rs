@@ -417,10 +417,7 @@ fn validate_declaration_ownership(
     type_aliases: &[TypeAliasRecord],
     annotations: &[AnnotationRecord],
 ) -> Result<(), HirFoundationValidationError> {
-    let core = [
-        CoreBuiltinNominal::Unit.identity_record(),
-        CoreBuiltinNominal::Any.identity_record(),
-    ];
+    let core = [CoreBuiltinNominal::Unit.identity_record()];
     for builtin in &core {
         if !types.iter().any(|record| record == builtin) {
             return Err(HirFoundationValidationError::MissingCoreBuiltin {

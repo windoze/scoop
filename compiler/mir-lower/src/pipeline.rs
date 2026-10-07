@@ -204,7 +204,7 @@ impl Lowerer {
                 &mut self.coroutines,
                 mir_id,
                 module.functions[hir_id].materialization,
-                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+                cfg::lower(body, return_ty.clone(), &self.enums.defs, &self.classes),
             );
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
@@ -230,7 +230,7 @@ impl Lowerer {
                 &mut self.coroutines,
                 mir_id,
                 module.class_constructors[constructor_id].materialization,
-                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+                cfg::lower(body, return_ty.clone(), &self.enums.defs, &self.classes),
             );
             let function = &mut self.functions[mir_id];
             function.params = params;
@@ -244,7 +244,7 @@ impl Lowerer {
                 &mut self.coroutines,
                 mir_id,
                 module.struct_constructors[constructor_id].materialization,
-                cfg::lower(body, return_ty.clone(), &self.enums.defs),
+                cfg::lower(body, return_ty.clone(), &self.enums.defs, &self.classes),
             );
             let function = &mut self.functions[mir_id];
             function.params = params;

@@ -63,14 +63,7 @@ pub(crate) fn layouts(
         ));
     }
     for (id, def) in module.classes.iter() {
-        let ty = if matches!(
-            def.representation,
-            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
-        ) {
-            mir::Type::String
-        } else {
-            mir::Type::Class(id)
-        };
+        let ty = def.physical_type(id);
         if matches!(ty, mir::Type::String) && !emit_runtime_string {
             continue;
         }
@@ -93,7 +86,9 @@ pub(crate) fn layouts(
                 )?);
             }
             mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::Array { .. }
+                mir::IntrinsicTypeRepresentation::Any
+                | mir::IntrinsicTypeRepresentation::Nothing
+                | mir::IntrinsicTypeRepresentation::Array { .. }
                 | mir::IntrinsicTypeRepresentation::MutableArray { .. },
             ) => {}
             _ => {

@@ -1,5 +1,3 @@
-use scoop_identity::CoreBuiltinNominal;
-
 use super::*;
 
 mod classes;
@@ -31,14 +29,6 @@ impl<'a> Projection<'a> {
             self.validate_location(&ty, exact)?;
             return Ok(ty);
         }
-        if exact
-            == PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-                CoreBuiltinNominal::Any.identity_record().id(),
-            ))?
-        {
-            return Ok(mir::Type::Any);
-        }
-
         let ty = match self
             .module
             .meta
@@ -77,11 +67,6 @@ impl<'a> Projection<'a> {
             let exact = record.identity_record().id();
             self.validate_location(ty, exact)?;
             return Ok(exact);
-        }
-        if matches!(ty, mir::Type::Any) {
-            return Ok(PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-                CoreBuiltinNominal::Any.identity_record().id(),
-            ))?);
         }
         let location = match ty {
             mir::Type::Context(storage) => mir::GeneratedExactTypeLocation::Context(*storage),
@@ -142,9 +127,18 @@ impl<'a> Projection<'a> {
                 Ok(())
             }
             (Kind::Intrinsic(Intrinsic::Unit), mir::Type::Unit)
+            | (Kind::Intrinsic(Intrinsic::Any), mir::Type::Any)
             | (Kind::Intrinsic(Intrinsic::Boolean), mir::Type::Boolean)
             | (Kind::Intrinsic(Intrinsic::String), mir::Type::String)
             | (Kind::Interface, mir::Type::Interface(_)) => Ok(()),
+            (Kind::Intrinsic(Intrinsic::Nothing), mir::Type::Class(id))
+                if matches!(
+                    self.module.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)
+                ) =>
+            {
+                Ok(())
+            }
             (Kind::Intrinsic(Intrinsic::Integer(expected)), mir::Type::Integer(actual))
                 if expected == actual =>
             {
@@ -225,16 +219,6 @@ impl<'a> Projection<'a> {
                 },
                 mir::Type::Class(id),
             ) => self.validate_class(source, *id, declared_fields, Some(*kind)),
-            (
-                Kind::Class {
-                    declared_fields, ..
-                },
-                mir::Type::Any,
-            ) if declared_fields.is_empty()
-                && source.base_and_interfaces().base == mir::MirBaseClassV1::None =>
-            {
-                Ok(())
-            }
             (Kind::Object { backing }, mir::Type::Class(id)) => {
                 self.validate_object(source, *backing, *id)
             }

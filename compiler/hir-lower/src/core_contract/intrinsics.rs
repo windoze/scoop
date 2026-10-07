@@ -33,8 +33,9 @@ impl Lowerer {
         where_clause: Option<&ast::WhereClause>,
         representation_omitted: bool,
         span: Span,
-    ) {
-        if name.text != spec.kind.source_name() {
+    ) -> bool {
+        let valid_name = name.text == spec.kind.source_name();
+        if !valid_name {
             self.error(
                 name.span,
                 format!(
@@ -76,6 +77,7 @@ impl Lowerer {
                 ),
             );
         }
+        valid_name && representation_omitted && valid_parameters
     }
 
     pub(crate) fn register_intrinsic_type(
@@ -130,6 +132,8 @@ impl Lowerer {
             integer_owners.push(owner);
         }
         let unit = require(self, hir::IntrinsicTypeKind::Unit)?;
+        let any = require(self, hir::IntrinsicTypeKind::Any)?;
+        let nothing = require(self, hir::IntrinsicTypeKind::Nothing)?;
         let character = require(self, hir::IntrinsicTypeKind::Char)?;
         let float = require(self, hir::IntrinsicTypeKind::Float(hir::FloatKind::F32))?;
         let double = require(self, hir::IntrinsicTypeKind::Float(hir::FloatKind::F64))?;
@@ -143,6 +147,8 @@ impl Lowerer {
             return None;
         }
         let (
+            IntrinsicTypeOwner::Class(any),
+            IntrinsicTypeOwner::Class(nothing),
             IntrinsicTypeOwner::Struct(unit),
             IntrinsicTypeOwner::Struct(character),
             IntrinsicTypeOwner::Struct(float),
@@ -154,6 +160,8 @@ impl Lowerer {
             IntrinsicTypeOwner::Struct(ptr),
             IntrinsicTypeOwner::Struct(fun_ptr),
         ) = (
+            any,
+            nothing,
             unit,
             character,
             float,
@@ -175,6 +183,8 @@ impl Lowerer {
         )
         .expect("one declaration cannot provide two intrinsic integer identities");
         Some(hir::IntrinsicTypeCore {
+            any,
+            nothing,
             unit,
             character,
             float,

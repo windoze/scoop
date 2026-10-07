@@ -151,14 +151,13 @@ impl std::error::Error for HirNominalIdentityError {}
 
 /// Arena-aligned persistent identities for every export HIR nominal kind.
 ///
-/// The compiler-owned Unit and Any identities are stored alongside the five
+/// The compiler-owned Unit identity is stored alongside the five
 /// source/generated arena tables. Construction checks every table length
 /// against its authoritative arena; indexing therefore cannot observe a
 /// missing identity for a valid local id.
 #[derive(Clone, Debug)]
 pub struct HirNominalIdentities {
     unit: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
-    any: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>,
     structs: Vec<HirNominalIdentity>,
     enums: Vec<HirNominalIdentity>,
     classes: Vec<HirNominalIdentity>,
@@ -231,7 +230,6 @@ impl HirNominalIdentities {
         }
         Ok(Self {
             unit: CoreBuiltinNominal::Unit.identity_record(),
-            any: CoreBuiltinNominal::Any.identity_record(),
             structs: struct_identities,
             enums: enum_identities,
             classes: class_identities,
@@ -273,14 +271,8 @@ impl HirNominalIdentities {
         }
     }
 
-    pub const fn core_builtin(
-        &self,
-        builtin: CoreBuiltinNominal,
-    ) -> &CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
-        match builtin {
-            CoreBuiltinNominal::Unit => &self.unit,
-            CoreBuiltinNominal::Any => &self.any,
-        }
+    pub const fn unit(&self) -> &CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
+        &self.unit
     }
 
     pub(crate) fn get_struct(&self, id: StructId) -> Option<&HirNominalIdentity> {

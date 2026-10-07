@@ -1,4 +1,4 @@
-use scoop_identity::{CoreBuiltinNominal, GeneratedNominalKey, PersistentTypeId};
+use scoop_identity::{GeneratedNominalKey, PersistentTypeId};
 
 use super::*;
 
@@ -10,13 +10,6 @@ impl Replay<'_> {
     ) -> Result<lir::ExactInstanceLayoutV1> {
         use mir::{MirParamFreeIntrinsicV1 as Intrinsic, MirTypeRepresentationV1 as Kind};
         let foundation = self.foundation;
-        if identity.exact_key()
-            == &ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id())
-        {
-            return Ok(lir::ExactInstanceLayoutV1::abstract_reference(
-                identity, foundation,
-            )?);
-        }
         Ok(match source.representation() {
             Kind::Intrinsic(Intrinsic::String) => {
                 lir::ExactInstanceLayoutV1::inline_bytes(identity, foundation)?
@@ -25,7 +18,7 @@ impl Replay<'_> {
                 let element = self.value_dependency(*element)?;
                 lir::ExactInstanceLayoutV1::inline_array(identity, &element, foundation)?
             }
-            Kind::Interface => {
+            Kind::Interface | Kind::Intrinsic(Intrinsic::Any | Intrinsic::Nothing) => {
                 lir::ExactInstanceLayoutV1::abstract_reference(identity, foundation)?
             }
             Kind::Class {

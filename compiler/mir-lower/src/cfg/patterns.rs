@@ -32,7 +32,9 @@ impl<'a> CfgLowerer<'a> {
                         !matches!(init.kind, smir::ExprKind::Call(_)),
                         "pattern materialization does not defer a call"
                     );
-                    let init = self.lower_expr(init, span);
+                    let Some(init) = self.lower_expr(init, span) else {
+                        return;
+                    };
                     self.push(
                         mir::StatementKind::ValDecl {
                             local: *local,
@@ -42,7 +44,9 @@ impl<'a> CfgLowerer<'a> {
                     );
                 }
                 smir::PatternDecisionStep::Test(test) => {
-                    let test = self.lower_expr(test, span);
+                    let Some(test) = self.lower_expr(test, span) else {
+                        return;
+                    };
                     assert_eq!(test.ty, mir::Type::Boolean, "pattern tests are Boolean");
                     let pass_block = pass_blocks
                         .next()

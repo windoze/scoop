@@ -588,7 +588,7 @@ impl Lowerer {
                 }
                 match name.text.as_str() {
                     _ if matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
-                        && !matches!(name.text.as_str(), "Unit" | "Any") =>
+                        && name.text != "Unit" =>
                     {
                         self.error(name.span, format!("unknown type `{}`", name.text));
                         None
@@ -604,9 +604,6 @@ impl Lowerer {
                     "ULong" => Some(self.integer_type(hir::IntegerKind::UNSIGNED_64)),
                     "Boolean" => Some(self.boolean),
                     "String" => Some(self.string),
-                    // `Any` is a compiler built-in (milestone6 DESIGN.md
-                    // 5.5); the core library shape arrives with M7/core.
-                    "Any" => Some(self.any),
                     _ => {
                         self.error(name.span, format!("unknown type `{}`", name.text));
                         None

@@ -26,25 +26,22 @@ fn template_has_exact_indexed_wire_and_round_trips() {
 }
 
 #[test]
-fn template_rejects_result_type_mismatch() {
+fn template_preserves_actual_expression_and_parameter_types_separately() {
     let fixture = Fixture::new();
     let body_type = fixture.value_type();
     let declared = SignatureTypeKey::Binder { depth: 0, index: 1 };
 
-    assert_eq!(
-        build_template(
-            &fixture,
-            unit_body(&fixture, body_type.clone()),
-            declared.clone(),
-            empty_locals(),
-            empty_value_parameters(),
-            ExportDefaultReferenceSetV1::default(),
-        ),
-        Err(ExportDefaultTemplateBuildError::ResultType {
-            declared,
-            body: body_type,
-        })
-    );
+    let template = build_template(
+        &fixture,
+        unit_body(&fixture, body_type.clone()),
+        declared.clone(),
+        empty_locals(),
+        empty_value_parameters(),
+        ExportDefaultReferenceSetV1::default(),
+    )
+    .unwrap();
+    assert_eq!(template.result(), &declared);
+    assert_eq!(template.body().value().result_type(), &body_type);
 }
 
 #[test]
@@ -81,7 +78,7 @@ fn template_rejects_body_locals_absent_from_canonical_table() {
 }
 
 #[test]
-fn reader_replays_template_record_invariants() {
+fn reader_preserves_actual_expression_and_parameter_types_separately() {
     let fixture = Fixture::new();
     let template = template_with_parameter(&fixture);
     let declared = SignatureTypeKey::Binder { depth: 0, index: 1 };
@@ -92,15 +89,9 @@ fn reader_replays_template_record_invariants() {
     .unwrap();
     let decoded: DecodedExportDefaultTemplateV1 = decode_canonical(&bytes).unwrap();
 
-    assert!(matches!(
-        decoded.resolve(&mut fixture.resolver()),
-        Err(ExportDefaultTemplateResolutionError::Record(
-            ExportDefaultTemplateBuildError::ResultType {
-                declared: actual_declared,
-                body,
-            },
-        )) if actual_declared == declared && body == fixture.value_type()
-    ));
+    let decoded = decoded.resolve(&mut fixture.resolver()).unwrap();
+    assert_eq!(decoded.result(), &declared);
+    assert_eq!(decoded.body().value().result_type(), &fixture.value_type());
 }
 
 #[test]

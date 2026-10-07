@@ -18,8 +18,7 @@ use crate::{
 mod materialization;
 mod shared;
 
-const LANGUAGE_BUILTINS: [CoreBuiltinNominal; 2] =
-    [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any];
+const LANGUAGE_BUILTINS: [CoreBuiltinNominal; 1] = [CoreBuiltinNominal::Unit];
 
 pub use materialization::{
     NominalMaterializationClosure, NominalMaterializationClosureError,

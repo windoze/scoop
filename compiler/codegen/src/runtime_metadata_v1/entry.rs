@@ -10,7 +10,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 5;
+const METADATA_ABI_VERSION: u64 = 6;
 const ROOT_ENTRY_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5045_4e54;
 const ROOT_ENTRY_DESCRIPTOR_SIZE: u64 = 192;
 const SOURCE_SIGNATURE_FINGERPRINT_OFFSET: u64 = 80;

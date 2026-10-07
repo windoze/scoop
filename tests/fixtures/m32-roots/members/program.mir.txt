@@ -1,0 +1,552 @@
+Module
+  struct Cell (missing: Nothing)
+  enum Envelope
+    Value(_1: Nothing)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<Nothing>
+    Some(_0: Nothing)
+    None()
+  class Stop vtable=0 itables=1
+  class Box vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface FailedSource
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun Stop.read @fn0(this: Stop) -> Nothing
+    bb0 entry
+      call $call.1: Nothing = @fn2 direct
+      unreachable
+  fun Stop.$get$missing @fn1(this: Stop) -> Nothing
+    bb0 entry
+      call $call.1: Nothing = @fn2 direct
+      unreachable
+  fun fail @fn2() -> Nothing
+    bb0 entry
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+  fun forward @fn3(source: FailedSource) -> Int
+    bb0 entry
+      val $receiver: FailedSource
+        Type FailedSource
+        Local source
+      call $call.1: Nothing = @fn8 interface FailedSource[0]
+        Type FailedSource
+        Local $receiver
+      unreachable
+  fun main @fn4() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Stop
+        ClassAlloc Stop
+      call @fn9 direct
+        Type Stop
+        Local $new.1
+      val stop: Stop
+        Type Stop
+        Local $new.1
+      val source: FailedSource
+        Type FailedSource
+        Retype FailedSource
+          Type Stop
+          Local stop
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      goto bb20
+    bb8 try.body.8 unwind bb1
+      val $argument.0: FailedSource
+        Type FailedSource
+        Local source
+      val $parameter.source: FailedSource
+        Type FailedSource
+        Local $argument.0
+      call $call.2: Int = @fn3 direct
+        Type FailedSource
+        Local $parameter.source
+      goto bb7
+    bb9 try.catch.9
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.3
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+    bb13 try.unwind.13
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.dispatch.14
+      begin_catch
+      branch bb21 bb22
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb15 try.handler_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.handler_cleanup.16
+      end_catch
+      resume
+    bb17 try.exit_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.exit_cleanup.18
+      end_catch
+      resume
+    bb19 try.end.19
+      goto bb32
+    bb20 try.body.20 unwind bb13
+      val $receiver: Stop
+        Type Stop
+        Local stop
+      call $call.4: Nothing = @fn0 direct
+        Type Stop
+        Local $receiver
+      unreachable
+    bb21 try.catch.21
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.5
+      goto bb23
+    bb22 try.next.22
+      rethrow unwind bb17
+    bb23 scope.23 unwind bb15
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb24
+    bb24 scope.24
+      goto bb19
+    bb25 try.unwind.25
+      landing_pad cleanup=false
+      goto bb26
+    bb26 try.dispatch.26
+      begin_catch
+      branch bb33 bb34
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb27 try.handler_pad.27
+      landing_pad cleanup=true
+      goto bb28
+    bb28 try.handler_cleanup.28
+      end_catch
+      resume
+    bb29 try.exit_pad.29
+      landing_pad cleanup=true
+      goto bb30
+    bb30 try.exit_cleanup.30
+      end_catch
+      resume
+    bb31 try.end.31
+      goto bb44
+    bb32 try.body.32 unwind bb25
+      call $call.6: Nothing = @fn1 direct
+        Type Stop
+        Local stop
+      unreachable
+    bb33 try.catch.33
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.7
+      goto bb35
+    bb34 try.next.34
+      rethrow unwind bb29
+    bb35 scope.35 unwind bb27
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb36
+    bb36 scope.36
+      goto bb31
+    bb37 try.unwind.37
+      landing_pad cleanup=false
+      goto bb38
+    bb38 try.dispatch.38
+      begin_catch
+      branch bb45 bb46
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb39 try.handler_pad.39
+      landing_pad cleanup=true
+      goto bb40
+    bb40 try.handler_cleanup.40
+      end_catch
+      resume
+    bb41 try.exit_pad.41
+      landing_pad cleanup=true
+      goto bb42
+    bb42 try.exit_cleanup.42
+      end_catch
+      resume
+    bb43 try.end.43
+      goto bb56
+    bb44 try.body.44 unwind bb37
+      call $argument.0: Nothing = @fn2 direct
+      unreachable
+    bb45 try.catch.45
+      call $catch.8: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.8
+      goto bb47
+    bb46 try.next.46
+      rethrow unwind bb41
+    bb47 scope.47 unwind bb39
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb48
+    bb48 scope.48
+      goto bb43
+    bb49 try.unwind.49
+      landing_pad cleanup=false
+      goto bb50
+    bb50 try.dispatch.50
+      begin_catch
+      branch bb57 bb58
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb51 try.handler_pad.51
+      landing_pad cleanup=true
+      goto bb52
+    bb52 try.handler_cleanup.52
+      end_catch
+      resume
+    bb53 try.exit_pad.53
+      landing_pad cleanup=true
+      goto bb54
+    bb54 try.exit_cleanup.54
+      end_catch
+      resume
+    bb55 try.end.55
+      goto bb68
+    bb56 try.body.56 unwind bb49
+      call $argument.0: Nothing = @fn2 direct
+      unreachable
+    bb57 try.catch.57
+      call $catch.9: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.9
+      goto bb59
+    bb58 try.next.58
+      rethrow unwind bb53
+    bb59 scope.59 unwind bb51
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb60
+    bb60 scope.60
+      goto bb55
+    bb61 try.unwind.61
+      landing_pad cleanup=false
+      goto bb62
+    bb62 try.dispatch.62
+      begin_catch
+      branch bb69 bb70
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb63 try.handler_pad.63
+      landing_pad cleanup=true
+      goto bb64
+    bb64 try.handler_cleanup.64
+      end_catch
+      resume
+    bb65 try.exit_pad.65
+      landing_pad cleanup=true
+      goto bb66
+    bb66 try.exit_cleanup.66
+      end_catch
+      resume
+    bb67 try.end.67
+      call absent: Option<Nothing> = @fn6 direct
+      val $when.1: Option<Nothing>
+        Type Option<Nothing>
+        Local absent
+      val $pattern.subject.2: Option<Nothing>
+        Type Option<Nothing>
+        Local $when.1
+      branch bb73 bb74
+        Type Boolean
+        VariantTest Option<Nothing> v1
+          Type Option<Nothing>
+          Local $pattern.subject.2
+    bb68 try.body.68 unwind bb61
+      call $argument.0: Nothing = @fn2 direct
+      unreachable
+    bb69 try.catch.69
+      call $catch.10: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.10
+      goto bb71
+    bb70 try.next.70
+      rethrow unwind bb65
+    bb71 scope.71 unwind bb63
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb72
+    bb72 scope.72
+      goto bb67
+    bb73 pattern.pass.73
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb75
+    bb74 pattern.else.74
+      val $pattern.subject.3: Option<Nothing>
+        Type Option<Nothing>
+        Local $when.1
+      branch bb76 bb77
+        Type Boolean
+        VariantTest Option<Nothing> v0
+          Type Option<Nothing>
+          Local $pattern.subject.3
+    bb75 pattern.merge.75
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Local $result.0
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+    bb76 pattern.pass.76
+      val value: Nothing
+        Type Nothing
+        VariantPayloadProject Option<Nothing> v0 f0
+          Type Option<Nothing>
+          Local $pattern.subject.3
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb78
+    bb77 pattern.else.77
+      unreachable
+    bb78 pattern.merge.78
+      goto bb75
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun empty @fn6() -> Option<Nothing>
+    bb0 entry
+      return
+        Type Option<Nothing>
+        VariantConstruct Option<Nothing> v1
+  fun println @fn7(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun FailedSource.read @fn8(this: FailedSource) -> Nothing
+    bb0 entry
+      trap "call to abstract method `FailedSource.read`"
+  fun init.Stop.$c0 @fn9(this: Stop) -> Unit
+    bb0 entry
+      return
+  fun init.Box.$c1 @fn10(this: Box, missing: Nothing) -> Unit
+    bb0 entry
+      Type Nothing
+      Local missing
+      unreachable
+  fun ctor.Cell.$c0 @fn11(missing: Nothing) -> Cell <no-gc>
+    bb0 entry
+      Type Nothing
+      Local missing
+      unreachable
+  instance mi0 function=@fn5 <- println
+  instance mi1 function=@fn6 <- empty
+  instance mi2 function=@fn7 <- println
+  str @str0 "illegal state"
+  str @str1 "interface"
+  str @str2 "method"
+  str @str3 "getter"
+  str @str4 "class"
+  str @str5 "struct"
+  str @str6 "enum"
+  str @str7 "\n"
+  str @str8 "\n"
+  output executable @fn4

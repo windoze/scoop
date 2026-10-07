@@ -457,8 +457,14 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     if let Decl::Struct(declaration) = &mut unit {
         declaration.supertypes.clear();
     }
+    let mut any = class("Any", "core_any", Vec::new());
+    if let Decl::Class(declaration) = &mut any {
+        declaration.modifier = ast::ClassModifier::Abstract;
+    }
     declarations.extend([
         unit,
+        any,
+        class("Nothing", "core_nothing", Vec::new()),
         strukt(
             "Boolean",
             "core_boolean",

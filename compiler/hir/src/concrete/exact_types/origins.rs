@@ -7,7 +7,12 @@ impl ExactTypeIdentityInputs<'_> {
     pub(crate) fn source_nominal_provider(&self, ty: TypeId) -> Option<ConeIdentity> {
         let source = match self.types[ty].kind {
             TypeKind::Unit => return Some(CoreBuiltinNominal::Unit.declaration_key().origin()),
-            TypeKind::Any => return Some(CoreBuiltinNominal::Any.declaration_key().origin()),
+            TypeKind::Any => match self.core_types {
+                ConcreteCoreTypeIdentityAuthority::Defined(core) => &self.classes[core.any].origin,
+                ConcreteCoreTypeIdentityAuthority::Imported(core) => {
+                    return Some(core.any().provider());
+                }
+            },
             TypeKind::Integer(kind) => match self.core_types {
                 ConcreteCoreTypeIdentityAuthority::Defined(core) => {
                     &self.structs[core.integers.owner(kind)].origin

@@ -1,0 +1,57 @@
+class Gate() : SuspendRegistration<Nothing> {
+    var waiter: Continuation<Nothing>? = None
+    public override fun register(continuation: Continuation<Nothing>) {
+        this.waiter = Some(continuation)
+    }
+    fun reject() {
+        val continuation = this.waiter!!
+        this.waiter = None
+        continuation.resumeWithException(IllegalStateException())
+    }
+}
+
+class Completion() : Continuation<Int> {
+    var calls: Int = 0
+    var value: Int = 0
+    var failed: Boolean = false
+    public override fun resume(value: Int) { this.calls += 1; this.value = value }
+    public override fun resumeWithException(exception: Throwable) {
+        this.calls += 1
+        this.failed = exception is IllegalStateException
+    }
+}
+
+suspend fun wait(gate: Gate): Nothing = suspendCoroutine(gate)
+
+class Task(val gate: Gate) : SuspendTask<Int> {
+    public override suspend fun run(): Int {
+        try { return wait(this.gate) }
+        catch (error: IllegalStateException) { return 42 }
+        finally { println("cleanup") }
+    }
+}
+
+@Unsafe fun main() {
+    val gate = Gate()
+    val completion = Completion()
+    startCoroutine(Task(gate), completion)
+    println(completion.calls)
+    gcCollect()
+    gate.reject()
+    println(completion.calls)
+    println(completion.value)
+    val second = Gate()
+    val never: suspend () -> Nothing = suspend { wait(second) }
+    val widened: suspend () -> Int = never
+    val erased: Any = never
+    println(erased is suspend () -> Int)
+    println(erased is suspend () -> Nothing)
+    val dynamic = erased as suspend () -> Int
+    val failure = Completion()
+    startCoroutine(suspend { dynamic() }, failure)
+    println(failure.calls)
+    gcCollect()
+    second.reject()
+    println(failure.calls)
+    println(failure.failed)
+}

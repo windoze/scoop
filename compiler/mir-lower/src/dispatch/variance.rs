@@ -9,7 +9,11 @@ impl Lowerer {
         source_identity: hir::PersistentExactTypeId,
         target: &mir::Type,
     ) -> smir::Expr {
-        if source == target {
+        if source == target
+            || matches!(source, mir::Type::Class(id)
+                if matches!(self.classes[*id].representation,
+                    mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+        {
             return value;
         }
         if let (mir::Type::Function(source), mir::Type::Function(target_type)) = (source, target) {
@@ -194,6 +198,7 @@ impl Lowerer {
                 },
                 target_signature.return_type.clone(),
                 &self.enums.defs,
+                &self.classes,
             ),
         );
         self.functions[function].body = body;

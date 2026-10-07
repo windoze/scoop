@@ -116,7 +116,10 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Intrinsic(representation)
                 if matches!(
                     representation.family(),
-                    hir::IntrinsicTypeKind::Array | hir::IntrinsicTypeKind::MutableArray
+                    hir::IntrinsicTypeKind::Array
+                        | hir::IntrinsicTypeKind::MutableArray
+                        | hir::IntrinsicTypeKind::Any
+                        | hir::IntrinsicTypeKind::Nothing
                 ) =>
             {
                 self.imported_class_type(declaration, arguments)

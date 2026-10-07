@@ -175,6 +175,8 @@ impl ShapeProjection<'_> {
                         kind.encode(e)
                     }
                     IntrinsicTypeRepresentation::String => tagged(e, 3, 1),
+                    IntrinsicTypeRepresentation::Any => tagged(e, 9, 1),
+                    IntrinsicTypeRepresentation::Nothing => tagged(e, 10, 1),
                     IntrinsicTypeRepresentation::Ptr { pointee } => {
                         tagged(e, 4, 2)?;
                         e.field(1)?;

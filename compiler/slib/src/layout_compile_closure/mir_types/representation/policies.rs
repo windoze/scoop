@@ -47,6 +47,8 @@ pub(super) fn intrinsic(source: hir::IntrinsicTypeKind) -> Option<mir::MirParamF
         hir::IntrinsicTypeKind::Char => mir::MirParamFreeIntrinsicV1::Char,
         hir::IntrinsicTypeKind::Boolean => mir::MirParamFreeIntrinsicV1::Boolean,
         hir::IntrinsicTypeKind::String => mir::MirParamFreeIntrinsicV1::String,
+        hir::IntrinsicTypeKind::Any => mir::MirParamFreeIntrinsicV1::Any,
+        hir::IntrinsicTypeKind::Nothing => mir::MirParamFreeIntrinsicV1::Nothing,
         hir::IntrinsicTypeKind::Array
         | hir::IntrinsicTypeKind::MutableArray
         | hir::IntrinsicTypeKind::Ptr

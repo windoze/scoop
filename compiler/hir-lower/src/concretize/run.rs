@@ -30,10 +30,7 @@ impl Concretizer<'_> {
         } = prepared;
         let coroutine_protocols = self.build_coroutine_protocols();
         if !self.initialization_requests.is_empty()
-            || self.source.cone
-                == scoop_identity::CoreBuiltinNominal::Any
-                    .declaration_key()
-                    .origin()
+            || matches!(core_protocols, concrete::ConcreteCoreProtocols::Defined(_))
         {
             self.intern_type(concrete::TypeKind::Any, false);
         }

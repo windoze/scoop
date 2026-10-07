@@ -12,7 +12,6 @@ pub(super) fn hir_foundation_and_production(
     foundation
         .set_types(vec![
             scoop_identity::CoreBuiltinNominal::Unit.identity_record(),
-            scoop_identity::CoreBuiltinNominal::Any.identity_record(),
         ])
         .unwrap();
     let foundation = OdrFreeHirFoundation::try_new(foundation).unwrap();

@@ -210,6 +210,7 @@ pub(crate) fn lower(
     body: smir::Body,
     return_ty: mir::Type,
     enums: &Arena<mir::EnumDef>,
+    classes: &Arena<mir::ClassDef>,
 ) -> LoweredBody {
     let smir::Body {
         locals,
@@ -242,6 +243,7 @@ pub(crate) fn lower(
         active_pending: CoroutinePendingContext::default(),
         coroutine_eh,
         enums,
+        classes,
     };
     lowerer.lower_statements(&statements);
     if !lowerer.current_sealed {
@@ -290,6 +292,15 @@ struct CfgLowerer<'a> {
     active_pending: CoroutinePendingContext,
     coroutine_eh: Option<smir::CoroutineEhMode>,
     enums: &'a Arena<mir::EnumDef>,
+    classes: &'a Arena<mir::ClassDef>,
+}
+
+impl CfgLowerer<'_> {
+    fn is_nothing(&self, ty: &mir::Type) -> bool {
+        matches!(ty, mir::Type::Class(id) if matches!(
+            self.classes[*id].representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Nothing)))
+    }
 }
 
 mod control;

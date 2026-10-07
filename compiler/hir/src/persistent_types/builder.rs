@@ -2,8 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use la_arena::Idx;
 use scoop_identity::{
-    CallingConvention, CborIdentityRecord, CoreBuiltinNominal, Effect, ExactTypeKey, NonEmptyVec,
-    PersistentExactTypeId,
+    CallingConvention, CborIdentityRecord, Effect, ExactTypeKey, NonEmptyVec, PersistentExactTypeId,
 };
 
 use crate::{
@@ -92,13 +91,7 @@ impl<'a> TypeIdentityBuilder<'a> {
 
         let value = self.inputs.types[ty].clone();
         let identity = match value {
-            Type::Unit => self.nominal_exact(
-                ty,
-                self.inputs
-                    .nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Unit)
-                    .id(),
-            )?,
+            Type::Unit => self.nominal_exact(ty, self.inputs.nominal_identities.unit().id())?,
             Type::Integer(kind) => match self.inputs.core_types {
                 super::HirCoreTypeIdentityAuthority::Defined(core) => {
                     let owner = core.integers.owner(kind);
@@ -129,13 +122,16 @@ impl<'a> TypeIdentityBuilder<'a> {
                     self.nominal_exact(ty, core.string().persistent())?
                 }
             },
-            Type::Any => self.nominal_exact(
-                ty,
-                self.inputs
-                    .nominal_identities
-                    .core_builtin(CoreBuiltinNominal::Any)
-                    .id(),
-            )?,
+            Type::Any => match self.inputs.core_types {
+                super::HirCoreTypeIdentityAuthority::Defined(core) => {
+                    let owner = core.any;
+                    self.require_class(ty, owner)?;
+                    self.source_nominal_exact(ty, self.inputs.nominal_identities[owner].clone())?
+                }
+                super::HirCoreTypeIdentityAuthority::Imported(core) => {
+                    self.nominal_exact(ty, core.any().persistent())?
+                }
+            },
             Type::Struct(application) => self.struct_application(ty, application)?,
             Type::Enum(application) => self.enum_application(ty, application)?,
             Type::Class(application) => self.class_application(ty, application)?,

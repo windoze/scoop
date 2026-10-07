@@ -142,7 +142,26 @@ impl Harness {
         );
         let intrinsic_unit =
             self.declare_fixed_intrinsic_struct("Unit", hir::IntrinsicTypeKind::Unit, self.unit);
+        let any_type = self.any();
         let intrinsic_type_core = hir::IntrinsicTypeCore {
+            any: {
+                let any = self.declare_intrinsic_class(
+                    "Any",
+                    hir::IntrinsicTypeKind::Any,
+                    Vec::new(),
+                    Vec::new(),
+                    CanonicalTypePlan::Existing(any_type),
+                );
+                self.classes[any].modifier = hir::ClassModifier::Abstract;
+                any
+            },
+            nothing: self.declare_intrinsic_class(
+                "Nothing",
+                hir::IntrinsicTypeKind::Nothing,
+                Vec::new(),
+                Vec::new(),
+                CanonicalTypePlan::Allocate,
+            ),
             unit: intrinsic_unit,
             character,
             float,

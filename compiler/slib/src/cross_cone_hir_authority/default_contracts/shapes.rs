@@ -33,18 +33,12 @@ impl<'g> DefaultNominalShapes<'g> {
                     PublicNominalShapeV1::new(record.kind(), record.type_parameters().len_u32()),
                 )?;
             }
-            for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
-                let record = builtin.identity_record();
-                if provider == record.key().origin() {
-                    let kind = match builtin {
-                        CoreBuiltinNominal::Unit => PublicNominalKindV1::Struct,
-                        CoreBuiltinNominal::Any => PublicNominalKindV1::Class,
-                    };
-                    result
-                        .shapes
-                        .entry(SourceNominalId::Concrete(record.id()))
-                        .or_insert(PublicNominalShapeV1::new(kind, 0));
-                }
+            let record = CoreBuiltinNominal::Unit.identity_record();
+            if provider == record.key().origin() {
+                result
+                    .shapes
+                    .entry(SourceNominalId::Concrete(record.id()))
+                    .or_insert(PublicNominalShapeV1::new(PublicNominalKindV1::Struct, 0));
             }
         }
         Ok(result)
