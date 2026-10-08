@@ -113,7 +113,7 @@ GcHandle 的保活对象、显式 pin 与 scoped pin frame 同样只保存 objec
 
 第一批分析采用函数内数据流：不可达、未知、已知实际类型；构造、已知 box/closure 和 final class 提供事实，局部复制和合法引用转换传播事实，分支合流只有类型一致时保留，循环求不动点。对可变字段、未知返回值、取址后的可变 local 保守处理；不能跨未知写入保留过期的内存事实。
 
-构造事实来自最派生对象的实际 allocation TD 或完整构造结果；base/this initializer 不分配新对象，不能把其 receiver 的运行时类型收窄成 initializer 所属的基类。构造期间的虚方法调用仍按实际最派生 TD 选择目标。
+构造事实来自最派生对象的实际 allocation TD 或完整构造结果；base/this initializer 不分配新对象，不能把其 receiver 的运行时类型收窄成 initializer 所属的基类。initializing receiver 的使用继续遵守语言规范的构造限制；本优化不放宽其逸出或调用规则，构造链也不覆盖最派生分配产生的类型事实。
 
 对 virtual/interface call，按实际类型和原 typed slot 取得既有表项，把调用种类与 callee 一起改为 Direct，同时完成 receiver 适配。不得重新按函数名解析，也不能仅修改 CallKind 而保留接口声明／基类声明作为 callee。
 

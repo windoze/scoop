@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | M34-1 规范与基线 | 已完成 | 三份规范先行修订；两地 M33 基线、混合 AS1／metadata 返回及目标 C ABI 实验完成，详见下文。 |
 | M34-2 双字接口 | 已完成 | 表示、slot receiver、niche、GC、AtomicRef、native、closure／coroutine、跨 Cone；三 target 的六组 CLI fixture 通过。 |
-| M34-3 MIR 优化 | 待实施 | 实际类型传播、去虚拟化、三档调用点内联与累计增长控制。 |
+| M34-3 MIR 优化 | 进行中 | 先实现实际类型传播与去虚拟化并单独提交，再实现三档调用点内联与累计增长控制。 |
 | M34-4 poll 与分配 | 待实施 | 条件 poll、pending 激活、线程局部统计及汇总。 |
 | M34-5 小值与 DirectC | 待实施 | DirectParts 与两套目标 C aggregate ABI。 |
 | M34-6 多 region | 待实施 | 稀疏地址索引、扩容、large mapping、cards。 |
@@ -56,3 +56,16 @@ AtomicRef 的原子槽保持单 object，load／exchange／CAS 结果在 NoGC �
 受影响 IR、ABI、codegen、metadata 与 native 边界的定向回归已通过；最近的 HIR→MIR 生产路径 26 项、协程 lowering 10 项均通过。另运行原有接口 default／super／属性 helper 和函数变型／移动 GC 文件 fixture，3 variants、6 processes、12 stage goldens 通过。新实现按 interface lowering、ABI parts、receiver adapter 和身份记录分文件，未将新逻辑继续堆入已有大型测试文件。
 
 本批两次清理中间对象与 incremental：本机共 38,752,299,448 bytes，Linux 共 2,075,523,097 bytes（按删除文件的逻辑大小记录）。最近一次分别删除 19,386 项与 119 项；有效库、CLI、测试程序及 M33 基线保留。记录在两地 `tmp/m34/batch2-target-cleanup*.json`。
+
+
+## M34-3a：实际类型传播与去虚拟化
+
+独立优化模块在完整 MIR 形成后、现有输出验证前执行，由 driver 显式传入 debug／release 配置。分析从 allocation、box、closure 和 final 参数取得事实，沿局部复制、引用转换、正常及异常边传播并求 CFG 不动点。合流有不同实际类型时退回未知；可变字段、未知返回、取址 local 不提供过期事实。构造测试继续遵守初始化 receiver 不可提前调用的语言规则，检查完整构造链后保留最派生类型。
+
+virtual／interface／closure／function bridge 调用从已有 typed slot 或 invoke 条目选择实际目标，同时改写 callee 和 receiver 类型；完整签名不一致或表项不可用时保留动态派发。普通外部类的 vtable 可以引用已经选中的 external callable；不为优化重建依赖类的 itable 或 adapter。原调用 effect、GC、EH 和 Context 路径不变。
+
+新增三组正式 CLI fixture，覆盖 final／open 参数、未知返回、同类型与冲突分支、稳定与变化循环、异常合流、可变字段、构造链、默认方法与菱形继承、重载 slot、装箱、函数变型和跨库继承。三 target 的 debug／release 与普通／full-moving／minor-stress 运行均通过；跨库用例删除源码后重新链接。每个 target 的新 fixture 为 6 variants、28 processes、24 stage goldens，两地 33 份共用 HIR／MIR 快照一致。
+
+接口 fixture 的 MIR golden 按 profile 分开；debug 的七份逐字保持上一提交内容，release 锁定真实优化结果。本机 HIR→MIR 生产路径 26 项及六组接口 CLI 回归通过，Linux GNU／musl 的六组接口回归亦通过，各为 12 variants、60 processes、42 stage goldens。实现拆为优化入口、数据流和目标解析三个文件，分别为 114／210／117 行。
+
+本机清理 1,805 项已链接中间对象及 incremental，回收逻辑大小 3,590,215,643 bytes；Linux 清理 224 项、1,216,699,824 bytes。两地均保留有效库、测试程序与 CLI，并保存仅去虚拟化的工具用于内联性能对照。

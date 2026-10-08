@@ -1,0 +1,2752 @@
+Module
+  struct Small (number: Int)
+  struct Zero ()
+  struct Pair (first: Measure, second: Measure)
+  enum Envelope
+    Full(_1: Measure, _2: Int)
+    Empty()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Measure>
+    Some(_0: Measure)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum Option<Option<Measure>>
+    Some(_0: Option<Measure>)
+    None()
+  enum Option<Empty>
+    Some(_0: Empty)
+    None()
+  enum CoroutineStep<Measure>
+    Completed(value: Measure)
+    Suspended()
+  enum CoroutineSlot<Measure>
+    Empty()
+    Value(value: Measure)
+  enum CoroutineStep<Empty>
+    Completed(value: Empty)
+    Suspended()
+  enum CoroutineSlot<Empty>
+    Empty()
+    Value(value: Empty)
+  enum CoroutineStep<Parent>
+    Completed(value: Parent)
+    Suspended()
+  enum CoroutineSlot<Parent>
+    Empty()
+    Value(value: Parent)
+  class Item vtable=2 itables=4
+  class Leaf vtable=2 itables=4
+  class EchoUser vtable=0 itables=1
+  class Holder vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class IllegalArgumentException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ListIterator<Measure> vtable=0 itables=1
+  class box<Small> vtable=0 itables=2
+  class box<Zero> vtable=0 itables=2
+  class box<Int> vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  interface Measure : Parent
+  interface Parent
+  interface Label
+  interface Empty
+  interface Cell
+  interface Echo<Measure>
+  interface List<Measure> : Iterable<Measure>
+  interface Iterable<Measure>
+  interface Iterator<Measure>
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  interface Continuation<Measure>
+  interface SuspendTask<Measure>
+  interface SuspendRegistration<Measure>
+  interface Continuation<Parent>
+  interface SuspendTask<Parent>
+  interface SuspendRegistration<Parent>
+  interface Continuation<Empty>
+  interface SuspendTask<Empty>
+  interface SuspendRegistration<Empty>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=2
+    bridge function_type1 -> @fn66 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn17 captures=1
+    bridge function_type3 -> @fn67 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn68 id=e45f7c0e3a2d3558fc161b253b5737b285c27d6bf68dfd6a362f856e37787d68
+  closure cc3 $Closure$reference0 type=function_type4 invoke=@fn44 captures=1
+    bridge function_type3 -> @fn69 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc4 $Closure$adapter$(Any) -> Measure$(Measure) -> Any type=function_type6 invoke=@fn53 captures=1
+    bridge function_type1 -> @fn70 id=d80678d5bd5a108eb039f4be4fcadc2be45e04bc46a273a034df1fb2e267e02a
+  closure cc5 $Closure$dynamic_adapter$(Measure) -> Measure type=function_type7 invoke=@fn54 captures=1
+    bridge function_type1 -> @fn71 id=f378aec3bdcc2274e8c0bd6abecbd2df87fdcfbabfb4ac8dc421cad37271af26
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=class14 nominal_id=21619dac217a969634da92158e23f466d1f457484e69752e05617fb700395dc1 exact_id=2cc6e30f2c8a782cbe2f9b535d9a81bb5f8c421d82fee157bfd4ba657c068428
+  generated_exact_type get3 location=enum9 nominal_id=8445010f6e3b5bb8d6bb33d90373dbac107245d14e1bacf114dfb0577ff6f5d0 exact_id=313edd95cc703c2ba616f6827ad69e00e65b54181737a602833de4af735b0e88
+  generated_exact_type get4 location=closure4 nominal_id=3a07bccef4ff083744084b57c53f4db26221414b0f466746a29b7d05633a92ba exact_id=340e7d5ce03312769ab806c3b92e00a13694d47cf8b3870467ca4e0b2f8ba04c
+  generated_exact_type get5 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get6 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get7 location=closure5 nominal_id=6e5ec74c297e0adace9dcd427bdd7d9934c1b94f592b3bf059dc5d9c3713739b exact_id=6a60c7599d58a330dfd4b2208c2e5f1b24742ed94dc2d7c9131203853e326fb6
+  generated_exact_type get8 location=enum7 nominal_id=cb424c18686f9e1eba8b5c9cb2b6f19fc9c71f14f47fb9c076025ff28675f03b exact_id=74d5688faa3f8e2f9050e085f2dac5294a36631b6a45ae0a241eab5891732c76
+  generated_exact_type get9 location=closure1 nominal_id=4448086172d49813e9faf5f5f4482caeaf80ecd2eb94fc8b4e14e73f95c92706 exact_id=7f5f6914f0e48750cf712e99871e6a5837c62f0449c43604a094cca816ea92b8
+  generated_exact_type get10 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get11 location=enum10 nominal_id=506095f1ba7ea14dc416034c5d5a4436721e57c9ef691617120effb246f02f24 exact_id=8cc48fb492f8250d81b98b1d92b9b858e5be6d4a53ae27768cd1683ff02d866a
+  generated_exact_type get12 location=closure2 nominal_id=9d01c256549e39c8bee1aa8e63315830d35fd0d8bca156722967aa0bc59cd9c3 exact_id=8de0c17c7f336529fe49a7537238c16d8d225f8457e97a5ed0fdd4983469231f
+  generated_exact_type get13 location=enum8 nominal_id=18a651f7812d7329925c7e21f779d6010a65fa94c3302b07813c425f5933a08b exact_id=9e5aa21c2b148c927fb597be6fd2c37ba517cc9a735b5bf041534e8fc1458579
+  generated_exact_type get14 location=enum11 nominal_id=ae90163477834ee006a0cb5f285224ddca23960e55af50602dd290f8a289e364 exact_id=c890f7d8d7dd65341d676ad0e0d7b2f02ea337e22b53be779d74ae19669444ef
+  generated_exact_type get15 location=closure3 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get16 location=class15 nominal_id=d3e73eeef140af14375ee7da78799e4028e079bc0524bf27db194e0538d87d82 exact_id=e15a056fbbc6ca398c29edb734db851153043b6d4b7bdc2cc5aa5102406fe0de
+  generated_exact_type get17 location=class16 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get18 location=enum6 nominal_id=89dc8c949659dc57cd2ee14ebbe9e6c40c20a83eca46860a14efa8bbf5d5c9f9 exact_id=edf182ca61d2dd151315afd5f497ed10b780733d280267f9f14fa3fba140bc99
+  generated_exact_type get19 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get20 location=class17 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn57 id=04927992f156fe7659f1b11daef7eb4ffdeee5a96ba234f5ce38530acd20490d
+  generated_callable gc1 function=@fn55 id=0c149a7d2da9b5d23c0615b06b0d4f45600f4801337e51f1d57531bc73378ada
+  generated_callable gc2 function=@fn66 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc3 function=@fn43 id=48673941a76003f1e0b4bd1cebfeeaee5d565084530f4ecc12bb16c1f49036a1
+  generated_callable gc4 function=@fn63 id=5ce896c65f6430bc570be5fde514b97de7237d02f42624e6ee2ce1877a35f396
+  generated_callable gc5 function=@fn58 id=700f54ec8a0b4dfe6385e1d9c2bca1aedc4e6c1b1f8a3af8b6b1fe87ba6dd350
+  generated_callable gc6 function=@fn62 id=85c4282bc728855a28fb6b522b7210416e749a4bb7b10b4229239005aafc79e6
+  generated_callable gc7 function=@fn69 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_callable gc8 function=@fn54 id=ac9d68248ae88c371985c04ea3ebc40877bacafdc1afe770a02b04c53b6b23e8
+  generated_callable gc9 function=@fn60 id=b3d66f6055132cc4012ef07788d887582ae54dfab2a7339000823c03f4d7888f
+  generated_callable gc10 function=@fn56 id=c5366d82fdbfd9072a376bf62bfd74c8f44c029e40be8777bf94a443bbfc7043
+  generated_callable gc11 function=@fn67 id=d5f76c971302aa1f82ebcd2302429519827c8e82c613d3085d837528f51d2ae7
+  generated_callable gc12 function=@fn70 id=d80678d5bd5a108eb039f4be4fcadc2be45e04bc46a273a034df1fb2e267e02a
+  generated_callable gc13 function=@fn41 id=e09545e371db718977e873ecbd1ab6e7f3d72a7f1f7f0cc61d24affffdbe02a9
+  generated_callable gc14 function=@fn68 id=e45f7c0e3a2d3558fc161b253b5737b285c27d6bf68dfd6a362f856e37787d68
+  generated_callable gc15 function=@fn61 id=e7bd3d1923594c4b54083709f57b5959453c08042132f4e9e75d0583cdc08c99
+  generated_callable gc16 function=@fn65 id=eb841f9886dc51ae9b80f4143faf914f75655b1b1b80efeec8733852ed4dd50d
+  generated_callable gc17 function=@fn71 id=f378aec3bdcc2274e8c0bd6abecbd2df87fdcfbabfb4ac8dc421cad37271af26
+  generated_callable gc18 function=@fn42 id=f82377cead34a0c7f4e44931424fc7d0318eaa6b2dbf3a5b6172878dffe89ca9
+  generated_callable gc19 function=@fn64 id=f89e7cf1d0129398c9d90e87128eeced2c8f335bd7d8d048af2b14cc3a9d854b
+  generated_callable gc20 function=@fn53 id=faa3b0cb0fe1b0e1a5ba4f5faec9e3827a4be28c4715e60abfefa4c4c2f7faab
+  generated_callable gc21 function=@fn59 id=fdcb49bff4f8d002d638ca04bb41dd317f2ee9e1a64337a318a54d3aa78dff4b
+  adapter ca0 class=cc4 source=function_type5 target=function_type6
+  dynamic_adapter da0 class=cc5 target=function_type7
+  fun Small.value @fn0(this: Small) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Small
+          Local this
+  fun Zero.value @fn1(this: Zero) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Item.value @fn2(this: Item) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Item
+          Local this
+  fun Item.label @fn3(this: Item) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Holder.$get$item @fn4(this: Holder) -> Measure
+    bb0 entry
+      return
+        Type Measure
+        FieldAccess 0
+          Type Holder
+          Local this
+  fun Holder.$set$item @fn5(this: Holder, value: Measure) -> Unit
+    bb0 entry
+      field_set 0
+        Type Holder
+        Local this
+        Type Measure
+        Local value
+      return
+  fun check @fn6(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun keep @fn7(value: Measure) -> Measure
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Measure
+        Local value
+  fun fromAny @fn8(value: Any) -> Measure
+    bb0 entry
+      val $cast.1: Any
+        Type Any
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Measure
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external5 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      return
+        Type Measure
+        Retype Measure
+          Type Any
+          Local $cast.1
+  fun optional @fn9(value: Option<Measure>) -> Option<Measure>
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type Option<Measure>
+        Local value
+  fun invoke @fn10(value: Measure) -> Int
+    bb0 entry
+      val $receiver: Measure
+        Type Measure
+        Local value
+      call $call.1: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun current @fn11() -> Measure
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 6c0c3274d357e0e3349626a9f48a7c7c97df4e7a430aede6f55e1ef9baa8b54f
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str2
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val value: Measure
+        Type Measure
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type Measure
+        Local value
+  fun main @fn12() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Leaf
+        ClassAlloc Leaf
+      call @fn46 direct
+        Type Leaf
+        Local $new.1
+      val instance: Leaf
+        Type Leaf
+        Local $new.1
+      val view: Measure
+        Type Measure
+        Retype Measure
+          Type Leaf
+          Local instance
+      val label: Label
+        Type Label
+        Retype Label
+          Type Leaf
+          Local instance
+      val empty: Empty
+        Type Empty
+        Retype Empty
+          Type Leaf
+          Local instance
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local view
+          Type Label
+          Local label
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Empty
+          Local empty
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $dependency.receiver: Int = @fn10 direct
+        Type Measure
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Label
+        Type Label
+        Local label
+      call $dependency.receiver: String = @fn3 direct
+        Type Item
+        Retype Item
+          Type Label
+          Local $receiver
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $call.2: Measure = @fn7 direct
+        Type Measure
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.2
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Measure
+          Local view
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $receiver: Measure = @fn8 direct
+        Type Any
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.3
+        Type EchoUser
+        ClassAlloc EchoUser
+      call @fn47 direct
+        Type EchoUser
+        Local $new.3
+      val $receiver: EchoUser
+        Type EchoUser
+        Local $new.3
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $call.4: Measure = @fn42 direct
+        Type EchoUser
+        Retype EchoUser
+          Type Echo<Measure>
+          Retype Echo<Measure>
+            Type EchoUser
+            Local $receiver
+        Type Measure
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.4
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.5: Small = @fn50 direct
+        Type Int
+        Local $parameter.number
+      val boxed: Measure
+        Type Measure
+        Box
+          Type Small
+          Local $call.5
+      val $receiver: Measure
+        Type Measure
+        Local boxed
+      call $dependency.receiver: Int = @fn61 direct
+        Type box<Small>
+        Retype box<Small>
+          Type Parent
+          Retype Parent
+            Type Measure
+            Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.6: Zero = @fn51 direct
+      val zero: Measure
+        Type Measure
+        Box
+          Type Zero
+          Local $call.6
+      val $receiver: Measure
+        Type Measure
+        Local zero
+      call $dependency.receiver: Int = @fn65 direct
+        Type box<Zero>
+        Retype box<Zero>
+          Type Parent
+          Retype Parent
+            Type Measure
+            Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $argument.1: Measure
+        Type Measure
+        Local boxed
+      val $parameter.first: Measure
+        Type Measure
+        Local $argument.0
+      val $parameter.second: Measure
+        Type Measure
+        Local $argument.1
+      call $argument.1: Pair = @fn52 direct
+        Type Measure
+        Local $parameter.first
+        Type Measure
+        Local $parameter.second
+      val $parameter.item: Measure
+        Type Measure
+        Local $argument.0
+      val $parameter.pair: Pair
+        Type Pair
+        Local $argument.1
+      assign $new.7
+        Type Holder
+        ClassAlloc Holder
+      call @fn48 direct
+        Type Holder
+        Local $new.7
+        Type Measure
+        Local $parameter.item
+        Type Pair
+        Local $parameter.pair
+      val holder: Holder
+        Type Holder
+        Local $new.7
+      val cell: Cell
+        Type Cell
+        Retype Cell
+          Type Holder
+          Local holder
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.1: (Long) -> Measure
+        Type (Long) -> Measure
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Measure
+            Local view
+          CaptureInit field=1
+            Type Measure
+            Local boxed
+      val $parameter.size: Long
+        Type Long
+        Local $argument.0
+      val $parameter.init: (Long) -> Measure
+        Type (Long) -> Measure
+        Local $argument.1
+      val $array_size.1: Long
+        Type Long
+        Local $parameter.size
+      val $array_init.2: (Long) -> Measure
+        Type (Long) -> Measure
+        Local $parameter.init
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_size.1
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      assign $new.8
+        Type IllegalArgumentException
+        ClassAlloc IllegalArgumentException
+      call external7 direct
+        Type IllegalArgumentException
+        Local $new.8
+      throw
+        Type IllegalArgumentException
+        Local $new.8
+    bb2 if.merge.2
+      val $array.3: MutableArray<Measure>
+        Type MutableArray<Measure>
+        ArrayAllocate MutableArray<Measure>
+          Type Long
+          Local $array_size.1
+      var $array_index.4: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 while.cond.3 <loop-header-poll>
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $array_index.4
+          Type Long
+          Local $array_size.1
+    bb4 while.exit.4
+      val values: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $array.3
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter._1: Measure
+        Type Measure
+        Local $argument.0
+      val $parameter._2: Int
+        Type Int
+        Local $argument.1
+      val envelope: Envelope
+        Type Envelope
+        VariantConstruct Envelope v0
+          Type Measure
+          Local $parameter._1
+          Type Int
+          Local $parameter._2
+      val $dependency.argument.0: Option<Measure>
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v1
+      val $dependency.parameter._1: Option<Measure>
+        Type Option<Measure>
+        Local $dependency.argument.0
+      val nested: Option<Option<Measure>>
+        Type Option<Option<Measure>>
+        VariantConstruct Option<Option<Measure>> v0
+          Type Option<Measure>
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Empty
+        Type Empty
+        Local empty
+      val $dependency.parameter._1: Empty
+        Type Empty
+        Local $dependency.argument.0
+      val emptyOption: Option<Empty>
+        Type Option<Empty>
+        VariantConstruct Option<Empty> v0
+          Type Empty
+          Local $dependency.parameter._1
+      call @scoop_rt_gc_collect direct
+      call @fn5 direct
+        Type Holder
+        Retype Holder
+          Type Cell
+          Local cell
+        Type Measure
+        Local boxed
+      call $receiver: Measure = @fn4 direct
+        Type Holder
+        Retype Holder
+          Type Cell
+          Local cell
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.0: Measure
+        Type Measure
+        Local view
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $dependency.argument.1: Measure = @fn7 direct
+        Type Measure
+        Local $parameter.value
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Measure
+        Type Measure
+        Local $dependency.argument.1
+      val $arr.6: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+      val $idx.7: Long
+        Type Long
+        Local $dependency.parameter.index
+      val $value.8: Measure
+        Type Measure
+        Local $dependency.parameter.value
+      branch bb7 bb6
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb5 while.body.5
+      call $array_value.5: Measure = @fn16 direct
+        Type (Long) -> Measure
+        Local $array_init.2
+        Type Long
+        Local $array_index.4
+      array_set MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $array.3
+        Type Long
+        Local $array_index.4
+        Type Measure
+        Local $array_value.5
+      assign $array_index.4
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $array_index.4
+          Type Long
+          IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+    bb6 logic.rhs.6
+      assign $logic.9
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.7
+          Type Long
+          ArrayLen MutableArray<Measure>
+            Type MutableArray<Measure>
+            Local $arr.6
+      goto bb8
+    bb7 logic.short.7
+      assign $logic.9
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb8 logic.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $logic.9
+    bb9 if.then.9
+      assign $new.10
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external8 direct
+        Type IndexOutOfBoundsException
+        Local $new.10
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.10
+    bb10 if.merge.10
+      array_set MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $arr.6
+        Type Long
+        Local $idx.7
+        Type Measure
+        Local $value.8
+      call $receiver: Measure = @fn4 direct
+        Type Holder
+        Local holder
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $receiver: Measure
+        Type Measure
+        FieldAccess 0
+          Type Pair
+          FieldAccess 1
+            Type Holder
+            Local holder
+      call $dependency.receiver: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $receiver: Measure
+        Type Measure
+        FieldAccess 1
+          Type Pair
+          FieldAccess 1
+            Type Holder
+            Local holder
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $receiver: Measure = @fn14 direct
+        Type MutableArray<Measure>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      call $dependency.argument.0: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=51 bits=0x00000033
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $when.9: Envelope
+        Type Envelope
+        Local envelope
+      val $pattern.subject.10: Envelope
+        Type Envelope
+        Local $when.9
+      branch bb11 bb12
+        Type Boolean
+        VariantTest Envelope v0
+          Type Envelope
+          Local $pattern.subject.10
+    bb11 pattern.pass.11
+      val value: Measure
+        Type Measure
+        VariantPayloadProject Envelope v0 f0
+          Type Envelope
+          Local $pattern.subject.10
+      val n: Int
+        Type Int
+        VariantPayloadProject Envelope v0 f1
+          Type Envelope
+          Local $pattern.subject.10
+      val $receiver: Measure
+        Type Measure
+        Local value
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb13
+    bb12 pattern.else.12
+      val $pattern.subject.11: Envelope
+        Type Envelope
+        Local $when.9
+      branch bb14 bb15
+        Type Boolean
+        VariantTest Envelope v1
+          Type Envelope
+          Local $pattern.subject.11
+    bb13 pattern.merge.13
+      val $dependency.receiver: Int
+        Type Int
+        Local $result.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=24 bits=0x00000018
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Measure
+        Type Measure
+        Local view
+      val $dependency.parameter._1: Measure
+        Type Measure
+        Local $dependency.argument.0
+      val $argument.0: Option<Measure>
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v0
+          Type Measure
+          Local $dependency.parameter._1
+      val $parameter.value: Option<Measure>
+        Type Option<Measure>
+        Local $argument.0
+      call $opt.12: Option<Measure> = @fn9 direct
+        Type Option<Measure>
+        Local $parameter.value
+      branch bb17 bb18
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $opt.12
+    bb14 pattern.pass.14
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb16
+    bb15 pattern.else.15
+      unreachable
+    bb16 pattern.merge.16
+      goto bb13
+    bb17 if.then.17
+      val $uw.13: Measure
+        Type Measure
+        VariantPayloadProject Option<Measure> v0 f0
+          Type Option<Measure>
+          Local $opt.12
+      goto bb19
+    bb18 if.else.18
+      assign $new.11
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external6 direct
+        Type UnwrapException
+        Local $new.11
+      throw
+        Type UnwrapException
+        Local $new.11
+    bb19 if.merge.19
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $uw.13
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Option<Measure>
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v1
+      val $parameter.value: Option<Measure>
+        Type Option<Measure>
+        Local $argument.0
+      call $when.14: Option<Measure> = @fn9 direct
+        Type Option<Measure>
+        Local $parameter.value
+      val $pattern.subject.15: Option<Measure>
+        Type Option<Measure>
+        Local $when.14
+      branch bb20 bb21
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $pattern.subject.15
+    bb20 pattern.pass.20
+      assign $result.2
+        Type Boolean
+        BoolLiteral false
+      goto bb22
+    bb21 pattern.else.21
+      val $pattern.subject.16: Option<Measure>
+        Type Option<Measure>
+        Local $when.14
+      branch bb23 bb24
+        Type Boolean
+        VariantTest Option<Measure> v1
+          Type Option<Measure>
+          Local $pattern.subject.16
+    bb22 pattern.merge.22
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $when.17: Option<Option<Measure>>
+        Type Option<Option<Measure>>
+        Local nested
+      val $pattern.subject.18: Option<Option<Measure>>
+        Type Option<Option<Measure>>
+        Local $when.17
+      branch bb26 bb28
+        Type Boolean
+        VariantTest Option<Option<Measure>> v0
+          Type Option<Option<Measure>>
+          Local $pattern.subject.18
+    bb23 pattern.pass.23
+      assign $result.2
+        Type Boolean
+        BoolLiteral true
+      goto bb25
+    bb24 pattern.else.24
+      unreachable
+    bb25 pattern.merge.25
+      goto bb22
+    bb26 pattern.pass.26
+      val $pattern.19: Option<Measure>
+        Type Option<Measure>
+        VariantPayloadProject Option<Option<Measure>> v0 f0
+          Type Option<Option<Measure>>
+          Local $pattern.subject.18
+      branch bb27 bb28
+        Type Boolean
+        VariantTest Option<Measure> v1
+          Type Option<Measure>
+          Local $pattern.19
+    bb27 pattern.pass.27
+      assign $result.3
+        Type Boolean
+        BoolLiteral true
+      goto bb29
+    bb28 pattern.else.28
+      val $pattern.subject.20: Option<Option<Measure>>
+        Type Option<Option<Measure>>
+        Local $when.17
+      branch bb30 bb32
+        Type Boolean
+        VariantTest Option<Option<Measure>> v0
+          Type Option<Option<Measure>>
+          Local $pattern.subject.20
+    bb29 pattern.merge.29
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $opt.23: Option<Empty>
+        Type Option<Empty>
+        Local emptyOption
+      branch bb37 bb38
+        Type Boolean
+        VariantTest Option<Empty> v0
+          Type Option<Empty>
+          Local $opt.23
+    bb30 pattern.pass.30
+      val $pattern.21: Option<Measure>
+        Type Option<Measure>
+        VariantPayloadProject Option<Option<Measure>> v0 f0
+          Type Option<Option<Measure>>
+          Local $pattern.subject.20
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $pattern.21
+    bb31 pattern.pass.31
+      assign $result.3
+        Type Boolean
+        BoolLiteral false
+      goto bb33
+    bb32 pattern.else.32
+      val $pattern.subject.22: Option<Option<Measure>>
+        Type Option<Option<Measure>>
+        Local $when.17
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Option<Option<Measure>> v1
+          Type Option<Option<Measure>>
+          Local $pattern.subject.22
+    bb33 pattern.merge.33
+      goto bb29
+    bb34 pattern.pass.34
+      assign $result.3
+        Type Boolean
+        BoolLiteral false
+      goto bb36
+    bb35 pattern.else.35
+      unreachable
+    bb36 pattern.merge.36
+      goto bb33
+    bb37 if.then.37
+      val $uw.24: Empty
+        Type Empty
+        VariantPayloadProject Option<Empty> v0 f0
+          Type Option<Empty>
+          Local $opt.23
+      goto bb39
+    bb38 if.else.38
+      assign $new.12
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external6 direct
+        Type UnwrapException
+        Local $new.12
+      throw
+        Type UnwrapException
+        Local $new.12
+    bb39 if.merge.39
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Empty
+          Local $uw.24
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $cast.25: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str4
+      branch bb40 bb41
+        Type Boolean
+        IsInstance Measure
+          Type Any
+          Local $cast.25
+    bb40 if.then.40
+      assign $cast.26
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v0
+          Type Measure
+          Retype Measure
+            Type Any
+            Local $cast.25
+      goto bb42
+    bb41 if.else.41
+      assign $cast.26
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v1
+      goto bb42
+    bb42 if.merge.42
+      val $when.27: Option<Measure>
+        Type Option<Measure>
+        Local $cast.26
+      val $pattern.subject.28: Option<Measure>
+        Type Option<Measure>
+        Local $when.27
+      branch bb43 bb44
+        Type Boolean
+        VariantTest Option<Measure> v0
+          Type Option<Measure>
+          Local $pattern.subject.28
+    bb43 pattern.pass.43
+      assign $result.4
+        Type Boolean
+        BoolLiteral false
+      goto bb45
+    bb44 pattern.else.44
+      val $pattern.subject.29: Option<Measure>
+        Type Option<Measure>
+        Local $when.27
+      branch bb46 bb47
+        Type Boolean
+        VariantTest Option<Measure> v1
+          Type Option<Measure>
+          Local $pattern.subject.29
+    bb45 pattern.merge.45
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val captured: () -> Measure
+        Type () -> Measure
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Measure
+            Local view
+      call $receiver: Measure = @fn17 direct
+        Type () -> Measure
+        Local captured
+      call $dependency.receiver: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val bound: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$reference0
+          CaptureInit field=0
+            Type Parent
+            Retype Parent
+              Type Measure
+              Local view
+      val exact: (Any) -> Measure
+        Type (Any) -> Measure
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Measure
+            Local view
+      val widened: (Measure) -> Any
+        Type (Measure) -> Any
+        ClosureAlloc cc4 $Closure$adapter$(Any) -> Measure$(Measure) -> Any
+          CaptureInit field=0
+            Type (Any) -> Measure
+            Local exact
+      val erased: Any
+        Type Any
+        Retype Any
+          Type (Any) -> Measure
+          Local exact
+      val $cast.30: Any
+        Type Any
+        Local erased
+      branch bb49 bb50
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Measure) -> Measure
+            Type Any
+            Local $cast.30
+    bb46 pattern.pass.46
+      assign $result.4
+        Type Boolean
+        BoolLiteral true
+      goto bb48
+    bb47 pattern.else.47
+      unreachable
+    bb48 pattern.merge.48
+      goto bb45
+    bb49 if.then.49
+      assign $new.13
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external5 direct
+        Type ClassCastException
+        Local $new.13
+      throw
+        Type ClassCastException
+        Local $new.13
+    bb50 if.merge.50
+      val dynamic: (Measure) -> Measure
+        Type (Measure) -> Measure
+        ClosureAlloc cc5 $Closure$dynamic_adapter$(Measure) -> Measure
+          CaptureInit field=0
+            Type Any
+            Local $cast.30
+      call @scoop_rt_gc_collect direct
+      call $dependency.receiver: Int = @fn44 direct
+        Type () -> Int
+        Local bound
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.14: Any = @fn53 direct
+        Type (Measure) -> Any
+        Local widened
+        Type Measure
+        Local view
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Any
+          Local $call.14
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.15: Measure = @fn54 direct
+        Type (Measure) -> Measure
+        Local dynamic
+        Type Measure
+        Local view
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.15
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb58
+    bb51 try.unwind.51
+      landing_pad cleanup=false
+      goto bb52
+    bb52 try.dispatch.52
+      begin_catch
+      branch bb59 bb60
+        Type Boolean
+        IsInstance IllegalStateException
+          Type Any
+          CaughtException
+    bb53 try.handler_pad.53
+      landing_pad cleanup=true
+      goto bb54
+    bb54 try.handler_cleanup.54
+      end_catch
+      resume
+    bb55 try.exit_pad.55
+      landing_pad cleanup=true
+      goto bb56
+    bb56 try.exit_cleanup.56
+      end_catch
+      resume
+    bb57 try.end.57
+      val returned: Measure
+        Type Measure
+        Local $result.5
+      call @scoop_rt_gc_collect direct
+      val $receiver: Measure
+        Type Measure
+        Local returned
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $context_mark.31: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 6c0c3274d357e0e3349626a9f48a7c7c97df4e7a430aede6f55e1ef9baa8b54f
+          Type Measure
+          Local view
+      goto bb68
+    bb58 try.body.58 unwind bb51
+      val $argument.0: Measure
+        Type Measure
+        Local boxed
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $call.16: Measure = @fn7 direct
+        Type Measure
+        Local $parameter.value
+      assign $result.5
+        Type Measure
+        Local $call.16
+      goto bb57
+    bb59 try.catch.59
+      call $catch.17: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: IllegalStateException
+        Type IllegalStateException
+        Retype IllegalStateException
+          Type Any
+          Local $catch.17
+      goto bb61
+    bb60 try.next.60
+      rethrow unwind bb55
+    bb61 scope.61 unwind bb53
+      assign $result.5
+        Type Measure
+        Local view
+      end_catch
+      goto bb62
+    bb62 scope.62
+      goto bb57
+    bb63 try.unwind.63
+      landing_pad cleanup=false
+      goto bb64
+    bb64 try.dispatch.64
+      begin_catch
+      goto bb78
+    bb65 try.exit_pad.65
+      landing_pad cleanup=true
+      goto bb66
+    bb66 try.exit_cleanup.66
+      end_catch
+      resume
+    bb67 try.end.67
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb68 try.body.68 unwind bb63
+      call @scoop_rt_gc_collect direct
+      call $receiver: Measure = @fn11 direct
+      call $dependency.receiver: Int = @fn36 interface Parent[1]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      val $context_mark.32: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush 6c0c3274d357e0e3349626a9f48a7c7c97df4e7a430aede6f55e1ef9baa8b54f
+          Type Measure
+          Local boxed
+      goto bb74
+    bb69 try.unwind.69 unwind bb63
+      landing_pad cleanup=false
+      goto bb70
+    bb70 try.dispatch.70 unwind bb63
+      begin_catch
+      goto bb76
+    bb71 try.exit_pad.71 unwind bb63
+      landing_pad cleanup=false
+      goto bb72
+    bb72 try.exit_cleanup.72 unwind bb63
+      end_catch
+      goto bb64
+    bb73 try.end.73 unwind bb63
+      call $call.18: Measure = @fn11 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Measure
+          Local $call.18
+          Type Measure
+          Local view
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb77
+    bb74 try.body.74 unwind bb69
+      call $receiver: Measure = @fn11 direct
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Retype Parent
+          Type Measure
+          Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $parameter.value
+      goto bb75
+    bb75 scope.75 unwind bb63
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.32
+      goto bb73
+    bb76 scope.76 unwind bb71
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.32
+      rethrow unwind bb71
+    bb77 scope.77
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.31
+      goto bb67
+    bb78 scope.78 unwind bb65
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.31
+      rethrow unwind bb65
+  fun iterator @fn13(this: MutableArray<Measure>) -> Iterator<Measure>
+    bb0 entry
+      val $dependency.local.1: List<Measure>
+        Type List<Measure>
+        Retype List<Measure>
+          Type MutableArray<Measure>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Measure>
+        Type List<Measure>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Measure>
+        ClassAlloc ListIterator<Measure>
+      call @fn49 direct
+        Type ListIterator<Measure>
+        Local $new.1
+        Type List<Measure>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Measure>
+        Retype Iterator<Measure>
+          Type ListIterator<Measure>
+          Local $new.1
+  fun get @fn14(this: MutableArray<Measure>, index: Long) -> Measure
+    bb0 entry
+      val $dependency.local.2: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Measure>
+            Type MutableArray<Measure>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external8 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Measure
+        ArrayGet MutableArray<Measure>
+          Type MutableArray<Measure>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn15(this: MutableArray<Measure>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Measure>
+        Type MutableArray<Measure>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Measure>
+          Type MutableArray<Measure>
+          Local $dependency.local.1
+  fun $lambda.0 @fn16($closure: (Long) -> Measure, i: Long) -> Measure
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local i
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.0
+        Type Measure
+        ClosureCapture cc0 0
+          Type (Long) -> Measure
+          Local $closure
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Measure
+        ClosureCapture cc0 1
+          Type (Long) -> Measure
+          Local $closure
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Measure
+        Local $result.0
+  fun $lambda.1 @fn17($closure: () -> Measure) -> Measure
+    bb0 entry
+      val $argument.0: Measure
+        Type Measure
+        ClosureCapture cc1 0
+          Type () -> Measure
+          Local $closure
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $call.1: Measure = @fn7 direct
+        Type Measure
+        Local $parameter.value
+      return
+        Type Measure
+        Local $call.1
+  fun $lambda.2 @fn18($closure: (Any) -> Measure, $arg.0: Any) -> Measure
+    bb0 entry
+      val $argument.0: Measure
+        Type Measure
+        ClosureCapture cc2 0
+          Type (Any) -> Measure
+          Local $closure
+      val $parameter.value: Measure
+        Type Measure
+        Local $argument.0
+      call $call.1: Measure = @fn7 direct
+        Type Measure
+        Local $parameter.value
+      return
+        Type Measure
+        Local $call.1
+  fun println @fn19(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun next @fn20(this: ListIterator<Measure>) -> Option<Measure>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Measure>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Measure>
+          Local this
+      call $dependency.local.3: Long = @fn21 interface List<Measure>[2]
+        Type List<Measure>
+        FieldAccess 0
+          Type ListIterator<Measure>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Measure>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Measure>
+        Type List<Measure>
+        FieldAccess 0
+          Type ListIterator<Measure>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Measure>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Measure = @fn22 interface List<Measure>[1]
+        Type List<Measure>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Measure>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Measure>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Measure
+        Type Measure
+        Local $dependency.local.1
+      val $dependency.local.12: Measure
+        Type Measure
+        Local $dependency.local.11
+      return
+        Type Option<Measure>
+        VariantConstruct Option<Measure> v0
+          Type Measure
+          Local $dependency.local.12
+  fun List.$get$size @fn21(this: List<Measure>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn22(this: List<Measure>, index: Long) -> Measure
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun Continuation.resume @fn23(this: Continuation<Measure>, value: Measure) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<Measure>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<Measure>, $completion: Continuation<Measure>) -> CoroutineStep<Measure>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Measure>, continuation: Continuation<Measure>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<Parent>, value: Parent) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Parent>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Parent>, $completion: Continuation<Parent>) -> CoroutineStep<Parent>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Parent>, continuation: Continuation<Parent>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn31(this: Continuation<Empty>, value: Empty) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn32(this: Continuation<Empty>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn33(this: SuspendTask<Empty>, $completion: Continuation<Empty>) -> CoroutineStep<Empty>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Empty>, continuation: Continuation<Empty>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Parent.value @fn35(this: Parent) -> Int
+    bb0 entry
+      trap "call to abstract method `Parent.value`"
+  fun Parent.doubled @fn36(this: Parent) -> Int
+    bb0 entry
+      val $receiver: Parent
+        Type Parent
+        Local this
+      call $dependency.receiver: Int = @fn35 interface Parent[0]
+        Type Parent
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Label.label @fn37(this: Label) -> String
+    bb0 entry
+      trap "call to abstract method `Label.label`"
+  fun Cell.$get$item @fn38(this: Cell) -> Measure
+    bb0 entry
+      trap "call to abstract method `Cell.$get$item`"
+  fun Cell.$set$item @fn39(this: Cell, value: Measure) -> Unit
+    bb0 entry
+      trap "call to abstract method `Cell.$set$item`"
+  fun Echo.echo @fn40(this: Echo<Measure>, value: Measure) -> Measure
+    bb0 entry
+      return
+        Type Measure
+        Local value
+  fun receiver<Item> Measure.doubled @fn41(this: Item) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type Item
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun receiver<EchoUser> Echo.echo @fn42(this: EchoUser, value: Measure) -> Measure
+    bb0 entry
+      call $call.1: Measure = @fn40 direct
+        Type Echo<Measure>
+        Retype Echo<Measure>
+          Type EchoUser
+          Local this
+        Type Measure
+        Local value
+      return
+        Type Measure
+        Local $call.1
+  fun receiver<Leaf> Measure.doubled @fn43(this: Leaf) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type Leaf
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn44($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 interface Parent[1]
+        Type Parent
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Item.$c0 @fn45(this: Item, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Item
+        Local this
+        Type Int
+        Local number
+      return
+  fun init.Leaf.$c1 @fn46(this: Leaf) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call @fn45 direct
+        Type Item
+        Retype Item
+          Type Leaf
+          Local this
+        Type Int
+        Local $parameter.number
+      return
+  fun init.EchoUser.$c2 @fn47(this: EchoUser) -> Unit
+    bb0 entry
+      return
+  fun init.Holder.$c3 @fn48(this: Holder, item: Measure, pair: Pair) -> Unit
+    bb0 entry
+      field_set 0
+        Type Holder
+        Local this
+        Type Measure
+        Local item
+      field_set 1
+        Type Holder
+        Local this
+        Type Pair
+        Local pair
+      return
+  fun init.ListIterator.$c0 @fn49(this: ListIterator<Measure>, source: List<Measure>, index: Long, exhausted: Boolean) -> Unit
+    bb0 entry
+      field_set 0
+        Type ListIterator<Measure>
+        Local this
+        Type List<Measure>
+        Local source
+      field_set 1
+        Type ListIterator<Measure>
+        Local this
+        Type Long
+        Local index
+      field_set 2
+        Type ListIterator<Measure>
+        Local this
+        Type Boolean
+        Local exhausted
+      return
+  fun ctor.Small.$c0 @fn50(number: Int) -> Small <no-gc>
+    bb0 entry
+      return
+        Type Small
+        StructInit Small
+          Type Int
+          Local number
+  fun ctor.Zero.$c1 @fn51() -> Zero <no-gc>
+    bb0 entry
+      return
+        Type Zero
+        StructInit Zero
+  fun ctor.Pair.$c2 @fn52(first: Measure, second: Measure) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Measure
+          Local first
+          Type Measure
+          Local second
+  fun $adapter.(Any) -> Measure.(Measure) -> Any @fn53($closure: (Measure) -> Any, arg0: Measure) -> Any
+    bb0 entry
+      call $call.1: Measure = <closure:function_type5> closure[function_type5]
+        Type (Any) -> Measure
+        ClosureCapture cc4 0
+          Type (Measure) -> Any
+          Local $closure
+        Type Any
+        Retype Any
+          Type Measure
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Measure
+          Local $call.1
+  fun $dynamic_adapter.(Measure) -> Measure @fn54($closure: (Measure) -> Measure, arg0: Measure) -> Measure
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc5 0
+          Type (Measure) -> Measure
+          Local $closure
+        Type Any
+        Retype Any
+          Type Measure
+          Local arg0
+      return
+        Type Measure
+        Retype Measure
+          Type Any
+          Local $call.1
+  fun startCoroutine<Measure> @fn55(task: SuspendTask<Measure>, completion: Continuation<Measure>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn23 interface Continuation<Measure>[0]
+        Type Continuation<Measure>
+        Local completion
+        Type Measure
+        EnumField v0 f0
+          Type CoroutineStep<Measure>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn24 interface Continuation<Measure>[1]
+        Type Continuation<Measure>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Measure> = @fn25 interface SuspendTask<Measure>[0]
+        Type SuspendTask<Measure>
+        Local task
+        Type Continuation<Measure>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Measure>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Empty> @fn56(task: SuspendTask<Empty>, completion: Continuation<Empty>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn31 interface Continuation<Empty>[0]
+        Type Continuation<Empty>
+        Local completion
+        Type Empty
+        EnumField v0 f0
+          Type CoroutineStep<Empty>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn32 interface Continuation<Empty>[1]
+        Type Continuation<Empty>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Empty> = @fn33 interface SuspendTask<Empty>[0]
+        Type SuspendTask<Empty>
+        Local task
+        Type Continuation<Empty>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Empty>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Parent> @fn57(task: SuspendTask<Parent>, completion: Continuation<Parent>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn27 interface Continuation<Parent>[0]
+        Type Continuation<Parent>
+        Local completion
+        Type Parent
+        EnumField v0 f0
+          Type CoroutineStep<Parent>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn28 interface Continuation<Parent>[1]
+        Type Continuation<Parent>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Parent> = @fn29 interface SuspendTask<Parent>[0]
+        Type SuspendTask<Parent>
+        Local task
+        Type Continuation<Parent>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Parent>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun thunk<Small> Measure.value() @fn58(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Measure.doubled() @fn59(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Parent.value() @fn60(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Small
+        Unbox
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Small> Parent.doubled() @fn61(this: box<Small>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type box<Small>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Zero> Measure.value() @fn62(this: box<Zero>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Zero
+        Unbox
+          Type box<Zero>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Zero> Measure.doubled() @fn63(this: box<Zero>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type box<Zero>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Zero> Parent.value() @fn64(this: box<Zero>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Zero
+        Unbox
+          Type box<Zero>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Zero> Parent.doubled() @fn65(this: box<Zero>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn36 direct
+        Type Parent
+        Retype Parent
+          Type box<Zero>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn66($source: (Long) -> Measure, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Measure = <closure:function_type0> closure[function_type0]
+        Type (Long) -> Measure
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Measure
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn67($source: () -> Measure) -> Any
+    bb0 entry
+      call $call.1: Measure = <closure:function_type2> closure[function_type2]
+        Type () -> Measure
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Measure
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn68($source: (Any) -> Measure, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Measure = <closure:function_type5> closure[function_type5]
+        Type (Any) -> Measure
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Measure
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn69($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Measure$(Measure) -> Any.(Any) -> Any @fn70($source: (Measure) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type6> closure[function_type6]
+        Type (Measure) -> Any
+        Local $source
+        Type Measure
+        Retype Measure
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$(Measure) -> Measure.(Any) -> Any @fn71($source: (Measure) -> Measure, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Measure = <closure:function_type7> closure[function_type7]
+        Type (Measure) -> Measure
+        Local $source
+        Type Measure
+        Retype Measure
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Measure
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Measure> result=Measure
+  coroutine_step cs1 CoroutineStep<Empty> result=Empty
+  coroutine_step cs2 CoroutineStep<Parent> result=Parent
+  coroutine_slot cl0 CoroutineSlot<Measure> value=Measure
+  coroutine_slot cl1 CoroutineSlot<Empty> value=Empty
+  coroutine_slot cl2 CoroutineSlot<Parent> value=Parent
+  coroutine_start ct0 result=Measure function=fn55
+  coroutine_start ct1 result=Empty function=fn56
+  coroutine_start ct2 result=Parent function=fn57
+  coroutine_fn cf0 @fn25 source_return=Measure step=cs0 immediate
+  coroutine_fn cf1 @fn29 source_return=Parent step=cs2 immediate
+  coroutine_fn cf2 @fn33 source_return=Empty step=cs1 immediate
+  instance mi0 function=@fn13 <- iterator
+  instance mi1 function=@fn14 <- get
+  instance mi2 function=@fn15 <- size
+  instance mi3 function=@fn19 <- println
+  instance mi4 function=@fn20 <- next
+  instance mi5 function=@fn21 <- List.$get$size
+  instance mi6 function=@fn22 <- List.get
+  instance mi7 function=@fn23 <- Continuation.resume
+  instance mi8 function=@fn24 <- Continuation.resumeWithException
+  instance mi9 function=@fn25 <- SuspendTask.run
+  instance mi10 function=@fn26 <- SuspendRegistration.register
+  instance mi11 function=@fn27 <- Continuation.resume
+  instance mi12 function=@fn28 <- Continuation.resumeWithException
+  instance mi13 function=@fn29 <- SuspendTask.run
+  instance mi14 function=@fn30 <- SuspendRegistration.register
+  instance mi15 function=@fn31 <- Continuation.resume
+  instance mi16 function=@fn32 <- Continuation.resumeWithException
+  instance mi17 function=@fn33 <- SuspendTask.run
+  instance mi18 function=@fn34 <- SuspendRegistration.register
+  instance mi19 function=@fn40 <- Echo.echo
+  str @str0 "item"
+  str @str1 "illegal state"
+  str @str2 "missing context current.value: Measure"
+  str @str3 "item"
+  str @str4 "wrong"
+  str @str5 "interface values"
+  str @str6 "\n"
+  output executable @fn12

@@ -169,9 +169,10 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     .len();
     let real_mir = output
         .machine_input()
-        .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(
-            scoop_identity::ConeIdentity::CORE,
-        ))
+        .lower_selected_mir(
+            scoop_mir::SelectedExternalMirSet::empty(scoop_identity::ConeIdentity::CORE),
+            Default::default(),
+        )
         .unwrap();
     assert_eq!(
         real_mir.strong.module().cone,

@@ -141,6 +141,8 @@ mod local_values;
 mod lowering_support;
 mod members;
 mod nominals;
+mod optimization;
+pub use optimization::MirOptimizationOptions;
 mod pipeline;
 mod production;
 mod singletons;

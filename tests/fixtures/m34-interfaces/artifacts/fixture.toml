@@ -27,7 +27,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {file = "${work}/dump/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
-  {file = "${work}/dump/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
+  {file = "${work}/dump/${provider.result.root.identity}/mir.txt", snapshot = "provider.${provider_profile}.mir.txt"},
   {file = "${work}/dump/${provider.result.root.identity}/lir.txt", snapshot = "provider.${provider_profile}.${target}.lir.txt"},
 ]
 
@@ -46,7 +46,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {file = "${work}/dump/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
-  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/dump/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.${profile}.mir.txt"},
   {file = "${work}/dump/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.${profile}.${target}.lir.txt"},
 ]
 

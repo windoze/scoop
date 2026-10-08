@@ -61,7 +61,8 @@ fn with_production<R>(
         );
         let selected =
             scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, records).unwrap();
-        let mir_output = scoop_mir_lower::lower_current_cone(output, selected).unwrap();
+        let mir_output =
+            scoop_mir_lower::lower_current_cone(output, selected, Default::default()).unwrap();
         let module = mir_output.module();
         let foundation = mir_output.foundation();
         let production = scoop_mir_lower::lower_production_section(

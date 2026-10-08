@@ -36,7 +36,10 @@ fn with_production<R>(
         scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap();
     let hir_foundation: scoop_hir::DecodedHirFoundation = decoded(&source_foundation);
     let mir = input
-        .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
+        .lower_selected_mir(
+            scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE),
+            Default::default(),
+        )
         .unwrap();
     let mir_foundation: scoop_mir::DecodedMirFoundation = decoded(mir.strong.foundation());
     let mut pending = PendingIdentityValidation::new();

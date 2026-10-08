@@ -19,9 +19,11 @@ impl CurrentConeMachineHir<'_> {
     pub fn lower_selected_mir(
         self,
         selected_callables: scoop_mir::SelectedExternalMirSet,
+        optimization: scoop_mir_lower::MirOptimizationOptions,
     ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
-        let mir = scoop_mir_lower::lower_current_cone(self.output, selected_callables)
-            .map_err(CurrentConeMirStageError::Lowering)?;
+        let mir =
+            scoop_mir_lower::lower_current_cone(self.output, selected_callables, optimization)
+                .map_err(CurrentConeMirStageError::Lowering)?;
         let foundation = mir.foundation();
         let production = scoop_mir_lower::lower_production_section(
             mir.module().cone,
