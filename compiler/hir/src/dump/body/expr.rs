@@ -582,6 +582,10 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}ArrayClone : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::AtomicNew(operand) => {
+            out.push_str(&format!("{pad}AtomicNew : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
 
         ExprKind::ConstructorReceiver => {
             out.push_str(&format!("{pad}ConstructorReceiver : {ty}\n"))

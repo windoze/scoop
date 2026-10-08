@@ -189,6 +189,7 @@ impl Lowerer {
             }
             | ExprKind::ArrayLen(source)
             | ExprKind::ArrayClone(source)
+            | ExprKind::AtomicNew(source)
             | ExprKind::Unary {
                 operand: source, ..
             }

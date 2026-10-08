@@ -383,6 +383,9 @@ impl DecodedDefaultExpressionKindV1 {
             Self::ArrayClone(operand) => DefaultExpressionKindV1::ArrayClone(resolve_child(
                 operand, resolver, locals, 43, 1,
             )?),
+            Self::AtomicNew(operand) => {
+                DefaultExpressionKindV1::AtomicNew(resolve_child(operand, resolver, locals, 71, 1)?)
+            }
             Self::Call {
                 callee,
                 arguments,

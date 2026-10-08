@@ -246,13 +246,15 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             trap_on_none: CanonicalBooleanV1::True,
         },
         DefaultExpressionKindV1::ReferenceUpcast(Box::new(unit(&fixture))),
+        DefaultExpressionKindV1::AtomicNew(Box::new(unit(&fixture))),
     ];
 
-    assert_eq!(cases.len(), 57);
+    assert_eq!(cases.len(), 58);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
             56 => 58,
+            57 => 71,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);

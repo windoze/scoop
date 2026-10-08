@@ -1,0 +1,27 @@
+import atomicconstruction.*
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+fun main() {
+    val i: Any = integer(17)
+    val l: Any = wide(23L)
+    val b: Any = flag(false)
+    check(i is AtomicInt)
+    check(l is AtomicLong)
+    check(b is AtomicBoolean)
+    val value = Payload("cross cone")
+    val cell: Any = make(value)
+    check(cell is AtomicRef<Payload>)
+    check(!(cell is AtomicRef<String>))
+    val first: Any = text("default")
+    val second: Any = defaultCell(value)
+    check(first is TextCell)
+    check(second is AtomicRef<Payload>)
+    val held = holder(value)
+    val alias = held.cell
+    gcCollect()
+    check(alias === held.cell)
+    check((cell as AtomicRef<Payload>) !== (second as AtomicRef<Payload>))
+    println("atomic construction artifacts")
+}

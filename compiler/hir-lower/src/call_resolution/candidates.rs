@@ -9,6 +9,7 @@ use crate::{
 };
 
 mod arrays;
+mod atomics;
 mod parameters;
 pub(crate) use parameters::{
     DeclarationSignature, ValueParameter, ValueParameterCalling, VarargOmission,
@@ -54,6 +55,8 @@ pub(crate) enum NominalConstructorSource {
     ArrayGenerate(hir::ClassId),
     ImportedArray(hir::SourceNominalId),
     ImportedArrayGenerate(hir::SourceNominalId),
+    Atomic(hir::ClassId),
+    ImportedAtomic(hir::SourceNominalId),
     Variant(hir::EnumVariantRef),
 }
 
@@ -259,6 +262,17 @@ impl Lowerer {
             NominalConstructorSource::ImportedArray(owner)
             | NominalConstructorSource::ImportedArrayGenerate(owner) => {
                 self.imported_array_constructor_view(target, owner, span)
+            }
+            NominalConstructorSource::Atomic(class) => {
+                let declaration = &self.classes[class];
+                self.atomic_constructor_view(
+                    target,
+                    declaration.type_params.clone(),
+                    self.class_applications[declaration.self_application].canonical_type,
+                )
+            }
+            NominalConstructorSource::ImportedAtomic(owner) => {
+                self.imported_atomic_constructor_view(target, owner, span)
             }
             NominalConstructorSource::Variant(variant) => {
                 let enumeration = variant.enumeration();

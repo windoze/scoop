@@ -844,6 +844,7 @@ pub enum ExprKind {
         target_type: ClassId,
         operand: Box<Expr>,
     },
+    AtomicNew(Box<Expr>),
     Binary {
         op: BinOp,
         lhs: Box<Expr>,

@@ -1,5 +1,8 @@
 use crate::{AtomicValueKind, LirType, MANAGED_PTR, Value};
 
+mod layout;
+pub use layout::*;
+
 /// The hidden value field of a source atomic object. The address is formed
 /// only while emitting the operation and never crosses a safepoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

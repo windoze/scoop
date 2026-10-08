@@ -47,6 +47,7 @@ impl FactProjector<'_> {
                                 ExactTypeFactShapeV1::Pointer
                             }
                             concrete::IntrinsicTypeRepresentation::String
+                            | concrete::IntrinsicTypeRepresentation::Atomic(_)
                             | concrete::IntrinsicTypeRepresentation::Any
                             | concrete::IntrinsicTypeRepresentation::Nothing
                             | concrete::IntrinsicTypeRepresentation::Array { .. }

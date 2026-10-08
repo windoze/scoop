@@ -365,6 +365,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         }
         | ExprKind::ArrayLen(source)
         | ExprKind::ArrayClone(source)
+        | ExprKind::AtomicNew(source)
         | ExprKind::PrimitiveUnary {
             operand: source, ..
         }

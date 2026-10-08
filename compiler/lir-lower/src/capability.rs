@@ -209,6 +209,9 @@ fn expression_requirement(
         mir::ExprKind::ClassAlloc { class_id } => {
             unavailable_descriptor(module, roots, dependencies, &mir::Type::Class(*class_id))
         }
+        mir::ExprKind::AtomicNew(_) => {
+            unavailable_descriptor(module, roots, dependencies, &expression.ty)
+        }
         mir::ExprKind::Box(operand) => {
             unavailable_descriptor(module, roots, dependencies, &operand.ty)
         }

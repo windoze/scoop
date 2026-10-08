@@ -147,6 +147,7 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::Cast { operand, .. }
             | DefaultExpressionKindV1::ArrayLen(operand)
             | DefaultExpressionKindV1::ArrayClone(operand)
+            | DefaultExpressionKindV1::AtomicNew(operand)
             | DefaultExpressionKindV1::PrimitiveUnary { operand, .. }
             | DefaultExpressionKindV1::IntegerConversion { operand, .. }
             | DefaultExpressionKindV1::FloatUnary { operand, .. }

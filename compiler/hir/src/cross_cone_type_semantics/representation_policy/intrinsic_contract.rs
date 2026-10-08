@@ -17,6 +17,7 @@ impl NominalIntrinsicRepresentationV1 {
                 Some(TypeParameterBoundsV1::Unconstrained)
             }
             IntrinsicTypeParameters::OneInvariantValue => Some(TypeParameterBoundsV1::Value),
+            IntrinsicTypeParameters::OneInvariantRef => Some(TypeParameterBoundsV1::Ref),
         };
         let expected = u32::from(expected_bounds.is_some());
         let actual = binders.len_u32();

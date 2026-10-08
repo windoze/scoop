@@ -324,6 +324,9 @@ impl Lowerer {
             hir::ExprKind::ArrayClone(value) => {
                 hir::ExprKind::ArrayClone(Box::new(self.instantiate_default_expr(value, context)))
             }
+            hir::ExprKind::AtomicNew(value) => {
+                hir::ExprKind::AtomicNew(Box::new(self.instantiate_default_expr(value, context)))
+            }
             hir::ExprKind::Call {
                 callee,
                 binding,

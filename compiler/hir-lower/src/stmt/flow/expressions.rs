@@ -56,6 +56,7 @@ impl Flow<'_> {
             | E::ReferenceUpcast(operand)
             | E::ArrayLen(operand)
             | E::ArrayClone(operand)
+            | E::AtomicNew(operand)
             | E::SomeWrap(operand)
             | E::IsSome(operand) => complete(operand),
             E::FunctionCoercion { source, .. } => complete(source),

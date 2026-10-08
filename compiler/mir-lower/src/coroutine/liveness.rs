@@ -409,6 +409,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::ExprKind::ArrayAllocate { count: operand, .. }
         | mir::ExprKind::ArrayLen { operand, .. }
         | mir::ExprKind::ArrayClone { operand, .. }
+        | mir::ExprKind::AtomicNew(operand)
         | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
         | mir::ExprKind::CharCode(operand)
         | mir::ExprKind::CharFromCodeUnchecked(operand)

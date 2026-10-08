@@ -117,6 +117,7 @@ impl Lowerer {
                 if matches!(
                     representation.family(),
                     hir::IntrinsicTypeKind::Array
+                        | hir::IntrinsicTypeKind::Atomic(_)
                         | hir::IntrinsicTypeKind::MutableArray
                         | hir::IntrinsicTypeKind::Any
                         | hir::IntrinsicTypeKind::Nothing

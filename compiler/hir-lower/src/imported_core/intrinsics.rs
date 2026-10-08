@@ -86,6 +86,7 @@ impl Lowerer {
             hir::IntrinsicTypeKind::Any => fundamental.any().persistent(),
             hir::IntrinsicTypeKind::Nothing => fundamental.nothing().persistent(),
             hir::IntrinsicTypeKind::Float(_)
+            | hir::IntrinsicTypeKind::Atomic(_)
             | hir::IntrinsicTypeKind::Char
             | hir::IntrinsicTypeKind::Array
             | hir::IntrinsicTypeKind::MutableArray

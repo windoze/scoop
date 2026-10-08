@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v64_retains_derived_equality_targets() {
+fn source_interface_v65_retains_atomic_construction() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        64,
+        65,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,20 +14,20 @@ fn source_interface_v64_retains_derived_equality_targets() {
 }
 
 #[test]
-fn type_semantics_v24_retains_derived_equality_targets() {
+fn type_semantics_v25_retains_atomic_type_families() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        24,
+        25,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v16_retains_root_representation() {
+fn mir_type_bridge_v17_retains_atomic_reference_arguments() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        16,
+        17,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,10 +48,10 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v11_retains_root_references() {
+fn lir_layout_abi_v12_retains_atomic_object_storage() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        11,
+        12,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

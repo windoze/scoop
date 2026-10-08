@@ -1,6 +1,7 @@
 use super::*;
 
 mod arrays;
+mod atomics;
 mod boxing;
 mod c_storage;
 mod call;

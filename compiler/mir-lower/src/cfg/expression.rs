@@ -333,6 +333,9 @@ impl<'a> CfgLowerer<'a> {
                 target_type: *target_type,
                 operand: Box::new(self.lower_expr(operand, span)?),
             },
+            smir::ExprKind::AtomicNew(initial) => {
+                mir::ExprKind::AtomicNew(Box::new(self.lower_expr(initial, span)?))
+            }
             smir::ExprKind::ShortCircuit {
                 op: smir::LogicOp::And,
                 lhs,

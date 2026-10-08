@@ -164,6 +164,18 @@ pub(crate) fn class_type_descriptor(
     )
     .expect("validated class exact type must derive its instance layout identity");
     let (instance_shape, inline_scan) = match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(storage)) => {
+            let layout = atomic_object_layout(context, storage.kind())?;
+            (
+                lir::TypeInstanceShapeV1::fixed_object(
+                    context.target_profile(),
+                    layout.size,
+                    layout.align,
+                    layout.scan,
+                )?,
+                lir::TypeDescriptorInlineScanV1::Null,
+            )
+        }
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicTypeRepresentation::Any | mir::IntrinsicTypeRepresentation::Nothing,
         ) => (

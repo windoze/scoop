@@ -174,6 +174,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     ArrayLen(Box<IndexedDefaultExpressionV1<'a>>),
     ArrayClone(Box<IndexedDefaultExpressionV1<'a>>),
+    AtomicNew(Box<IndexedDefaultExpressionV1<'a>>),
     Call {
         callee: &'a DefaultCallableRefV1,
         arguments: Vec<IndexedDefaultExpressionV1<'a>>,
@@ -574,6 +575,9 @@ impl DefaultExpressionV1 {
             }
             DefaultExpressionKindV1::ArrayClone(operand) => {
                 IndexedDefaultExpressionKindV1::ArrayClone(index_child(operand, resolver, 43, 1)?)
+            }
+            DefaultExpressionKindV1::AtomicNew(operand) => {
+                IndexedDefaultExpressionKindV1::AtomicNew(index_child(operand, resolver, 71, 1)?)
             }
             DefaultExpressionKindV1::Call {
                 callee,

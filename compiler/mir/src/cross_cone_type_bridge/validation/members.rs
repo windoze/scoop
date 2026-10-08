@@ -9,7 +9,9 @@ impl MirTypeBridgeAuthority<'_> {
         record: &ParamFreeMirTypeExportV1,
     ) -> Result<(), MirTypeBridgeError> {
         let owner = record.origin().owner();
-        if let MirTypeRepresentationV1::InlineArray { element } = record.representation() {
+        if let MirTypeRepresentationV1::InlineArray { element }
+        | MirTypeRepresentationV1::AtomicReference { value: element } = record.representation()
+        {
             let key = self
                 .identities
                 .canonical_key::<_, ExactTypeKey>(record.exact())?;

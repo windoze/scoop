@@ -216,6 +216,7 @@ pub enum DefaultExpressionKindV1 {
     },
     ArrayLen(Box<DefaultExpressionV1>),
     ArrayClone(Box<DefaultExpressionV1>),
+    AtomicNew(Box<DefaultExpressionV1>),
     Call {
         callee: DefaultCallableRefV1,
         arguments: Vec<DefaultExpressionV1>,
@@ -519,6 +520,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::ArraySet { .. }
         | DefaultExpressionKindV1::ArrayLen(_)
         | DefaultExpressionKindV1::ArrayClone(_)
+        | DefaultExpressionKindV1::AtomicNew(_)
         | DefaultExpressionKindV1::PrimitiveBinary { .. }
         | DefaultExpressionKindV1::PrimitiveUnary { .. }
         | DefaultExpressionKindV1::IntegerOperation { .. }

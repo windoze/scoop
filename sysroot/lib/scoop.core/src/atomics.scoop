@@ -1,0 +1,11 @@
+@Intrinsic("core_atomic_int")
+public class AtomicInt {}
+
+@Intrinsic("core_atomic_long")
+public class AtomicLong {}
+
+@Intrinsic("core_atomic_boolean")
+public class AtomicBoolean {}
+
+@Intrinsic("core_atomic_ref")
+public class AtomicRef<T : ref> {}

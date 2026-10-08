@@ -167,6 +167,7 @@ where
             | DefaultExpressionKindV1::ReferenceUpcast(operand)
             | DefaultExpressionKindV1::ArrayLen(operand)
             | DefaultExpressionKindV1::ArrayClone(operand)
+            | DefaultExpressionKindV1::AtomicNew(operand)
             | DefaultExpressionKindV1::PrimitiveUnary { operand, .. }
             | DefaultExpressionKindV1::Unary { operand, .. }
             | DefaultExpressionKindV1::SomeWrap(operand)

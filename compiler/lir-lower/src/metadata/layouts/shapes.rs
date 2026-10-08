@@ -75,6 +75,7 @@ pub(crate) fn struct_shape(
             }
             mir::StructRepresentation::Intrinsic(
                 mir::IntrinsicTypeRepresentation::String
+                | mir::IntrinsicTypeRepresentation::Atomic(_)
                 | mir::IntrinsicTypeRepresentation::Any
                 | mir::IntrinsicTypeRepresentation::Nothing
                 | mir::IntrinsicTypeRepresentation::Array { .. }

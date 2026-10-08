@@ -9,6 +9,9 @@ impl LayoutReader<'_> {
         raw: &RawInstance,
     ) -> Result<ExactInstanceLayoutV1, LinkDataError> {
         let result = match raw {
+            RawInstance::Atomic(kind) => {
+                ExactInstanceLayoutV1::atomic(identity, *kind, self.foundation)
+            }
             RawInstance::InlineBytes => {
                 ExactInstanceLayoutV1::inline_bytes(identity, self.foundation)
             }

@@ -320,6 +320,13 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
+            ExprKind::AtomicNew(initial) => {
+                out.push((
+                    expr.span,
+                    "atomic allocation is not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(initial, out, requirements);
+            }
             ExprKind::Call { callee, args, .. } => {
                 self.check_no_gc_call_target(*callee, expr.span, out);
                 for arg in args {

@@ -64,6 +64,7 @@ impl Builder {
                         mir::Type::FunPtr(*signature)
                     }
                     mir::IntrinsicTypeRepresentation::String
+                    | mir::IntrinsicTypeRepresentation::Atomic(_)
                     | mir::IntrinsicTypeRepresentation::Any
                     | mir::IntrinsicTypeRepresentation::Nothing
                     | mir::IntrinsicTypeRepresentation::Array { .. }

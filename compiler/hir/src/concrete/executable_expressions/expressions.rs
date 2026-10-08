@@ -40,6 +40,7 @@ impl<'a> Traversal<'a> {
             | ExprKind::Cast { operand, .. }
             | ExprKind::ArrayLen(operand)
             | ExprKind::ArrayClone(operand)
+            | ExprKind::AtomicNew(operand)
             | ExprKind::PrimitiveUnary { operand, .. }
             | ExprKind::IntegerConversion { operand, .. }
             | ExprKind::FloatUnary { operand, .. }

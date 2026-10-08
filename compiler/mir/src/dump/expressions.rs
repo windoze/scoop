@@ -365,6 +365,10 @@ pub(super) fn dump_expr(
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::AtomicNew(initial) => {
+            out.push_str(&format!("{pad}AtomicNew {}\n", type_name(module, &expr.ty)));
+            dump_expr(module, locals, initial, indent + 1, out);
+        }
         ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));
             dump_expr(module, locals, lhs, indent + 1, out);

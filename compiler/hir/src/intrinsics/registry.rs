@@ -7,6 +7,22 @@ use super::*;
 /// nominal declaration contract emitted as typed HIR.
 pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
+        name: "core_atomic_int",
+        kind: IntrinsicTypeKind::Atomic(AtomicValueKind::Int),
+    },
+    IntrinsicTypeSpec {
+        name: "core_atomic_long",
+        kind: IntrinsicTypeKind::Atomic(AtomicValueKind::Long),
+    },
+    IntrinsicTypeSpec {
+        name: "core_atomic_boolean",
+        kind: IntrinsicTypeKind::Atomic(AtomicValueKind::Boolean),
+    },
+    IntrinsicTypeSpec {
+        name: "core_atomic_ref",
+        kind: IntrinsicTypeKind::Atomic(AtomicValueKind::Reference),
+    },
+    IntrinsicTypeSpec {
         name: "core_any",
         kind: IntrinsicTypeKind::Any,
     },
@@ -104,6 +120,7 @@ pub enum IntrinsicTypeParameters {
     None,
     OneInvariantUnconstrained,
     OneInvariantValue,
+    OneInvariantRef,
 }
 
 pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {

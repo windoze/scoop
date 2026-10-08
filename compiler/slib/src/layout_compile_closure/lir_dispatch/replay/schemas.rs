@@ -38,6 +38,7 @@ pub(super) fn for_owner<'a>(
         | Representation::Intrinsic(Intrinsic::String)
         | Representation::BoxedValue { .. } => source(types, schemas, ty),
         Representation::Intrinsic(_)
+        | Representation::AtomicReference { .. }
         | Representation::Struct { .. }
         | Representation::Enum { .. }
         | Representation::Interface

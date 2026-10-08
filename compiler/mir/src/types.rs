@@ -272,6 +272,7 @@ impl StructDef {
                 }
                 IntrinsicTypeRepresentation::FunPtr { signature } => Type::FunPtr(*signature),
                 IntrinsicTypeRepresentation::String
+                | IntrinsicTypeRepresentation::Atomic(_)
                 | IntrinsicTypeRepresentation::Any
                 | IntrinsicTypeRepresentation::Nothing
                 | IntrinsicTypeRepresentation::Array { .. }
@@ -434,6 +435,7 @@ impl ClassDef {
 /// specialized nominal type. Family variants carry their MIR element type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntrinsicTypeRepresentation {
+    Atomic(scoop_identity::AtomicStorage<Type>),
     Any,
     Nothing,
     Unit,
@@ -480,6 +482,7 @@ pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a T
         ClassRepresentation::Declared { .. }
         | ClassRepresentation::Intrinsic(
             IntrinsicTypeRepresentation::String
+            | IntrinsicTypeRepresentation::Atomic(_)
             | IntrinsicTypeRepresentation::Any
             | IntrinsicTypeRepresentation::Nothing,
         ) => None,

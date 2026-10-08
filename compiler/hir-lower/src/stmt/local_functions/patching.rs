@@ -266,6 +266,7 @@ impl LocalFunctionCallPatcher<'_> {
             }
             | hir::ExprKind::ArrayLen(receiver)
             | hir::ExprKind::ArrayClone(receiver)
+            | hir::ExprKind::AtomicNew(receiver)
             | hir::ExprKind::Unary {
                 operand: receiver, ..
             }

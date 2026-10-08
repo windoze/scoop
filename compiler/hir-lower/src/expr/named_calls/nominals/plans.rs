@@ -158,6 +158,22 @@ impl Lowerer {
                     .collect::<Vec<_>>()
             }
             crate::NominalTarget::Class(id) => {
+                if matches!(
+                    self.classes[id].representation,
+                    hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeKind::Atomic(_))
+                ) {
+                    return Ok(PreparedNominalPlans::Nominal(
+                        vec![NominalPlan {
+                            view: self.nominal_constructor_view(
+                                NominalConstructorSource::Atomic(id),
+                                call.span,
+                            ),
+                            expected,
+                            fixed_alias,
+                        }],
+                        None,
+                    ));
+                }
                 if self.array_class_kind(id).is_some() {
                     let view = self.nominal_constructor_view(
                         NominalConstructorSource::IntrinsicClass(id),
@@ -255,6 +271,22 @@ impl Lowerer {
             .as_ref()
             .and_then(|dependencies| dependencies.nominal_declaration(owner))
             .expect("a resolved dependency type retains its declaration");
+        if matches!(declaration.interface.source_shape(), hir::NominalSourceShapeV1::Intrinsic(representation)
+            if matches!(representation.family(), hir::IntrinsicTypeKind::Atomic(_)))
+        {
+            return PreparedNominalPlans::Nominal(
+                vec![NominalPlan {
+                    view: self.nominal_constructor_view(
+                        NominalConstructorSource::ImportedAtomic(owner),
+                        call.span,
+                    ),
+                    expected,
+                    fixed_alias: fixed_alias
+                        && matches!(owner, hir::SourceNominalId::GenericTemplate(_)),
+                }],
+                None,
+            );
+        }
         if matches!(
             declaration.interface.source_shape(),
             hir::NominalSourceShapeV1::Intrinsic(representation)
@@ -395,6 +427,24 @@ impl Lowerer {
                     .try_into()
                     .expect("array conversion has one materialized argument");
                 (ExprKind::ArrayClone(Box::new(argument)), ty)
+            }
+            NominalConstructorSource::Atomic(class) => {
+                let ty = self.class_application(class, resolved.type_args);
+                let [initial]: [hir::Expr; 1] = resolved
+                    .args
+                    .try_into()
+                    .expect("an atomic constructor has one initial value");
+                (ExprKind::AtomicNew(Box::new(initial)), ty)
+            }
+            NominalConstructorSource::ImportedAtomic(owner) => {
+                let ty = self
+                    .imported_nominal_application(owner, resolved.type_args)
+                    .expect("a solved atomic constructor retains its complete application");
+                let [initial]: [hir::Expr; 1] = resolved
+                    .args
+                    .try_into()
+                    .expect("an atomic constructor has one initial value");
+                (ExprKind::AtomicNew(Box::new(initial)), ty)
             }
             NominalConstructorSource::ImportedArray(owner) => {
                 let ty = self

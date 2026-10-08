@@ -29,7 +29,13 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                 IntrinsicTypeKind::MutableArray,
                 IntrinsicTypeKind::Ptr,
                 IntrinsicTypeKind::FunPtr,
-            ]);
+            ])
+            .chain(
+                scoop_hir::AtomicValueKind::ALL
+                    .iter()
+                    .copied()
+                    .map(IntrinsicTypeKind::Atomic),
+            );
         let providers = families
             .enumerate()
             .map(|(index, family)| {
@@ -55,6 +61,18 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
         );
         for provider in &providers {
             match provider.family {
+                IntrinsicTypeKind::Atomic(
+                    scoop_hir::AtomicValueKind::Int
+                    | scoop_hir::AtomicValueKind::Long
+                    | scoop_hir::AtomicValueKind::Boolean,
+                ) => assert!(
+                    authority
+                        .validate_const_value_type(
+                            concrete(provider.owner),
+                            CanonicalConstValueKindV1::Boolean
+                        )
+                        .is_err()
+                ),
                 IntrinsicTypeKind::Unit | IntrinsicTypeKind::Any | IntrinsicTypeKind::Nothing => {
                     assert!(
                         authority
@@ -99,6 +117,7 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                     .validate_array_type(generic(provider.owner))
                     .unwrap(),
                 actual @ (IntrinsicTypeKind::MutableArray
+                | IntrinsicTypeKind::Atomic(scoop_hir::AtomicValueKind::Reference)
                 | IntrinsicTypeKind::Ptr
                 | IntrinsicTypeKind::FunPtr) => {
                     let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =

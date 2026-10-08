@@ -13,7 +13,7 @@
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
-| M33-8 | 原子类型、内存序与 GC | LLVM 技术验证及 typed LIR／codegen 完成；core、HIR／MIR 与实际 GC 验收待继续 |
+| M33-8 | 原子类型、内存序与 GC | LLVM、typed LIR／codegen，以及四类原子对象的类型、构造与跨 Cone 产物完成；操作 API、并发与完整 GC 验收待继续 |
 | M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
@@ -346,3 +346,14 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 每个目标均通过 4 项、8 个 debug／release 变体、62 个进程、24 次 golden 检查，包含普通／moving／minor GC；先删除源码再独立链接。诊断与输出逐字断言，正常退出执行 atexit，失败／显式退出不执行。captured struct、String、argv 和 OneShot／Reusable 回调组合验证实际根保活。
 - GNU／musl 的普通模式均使用最终实现通过全部四项。Darwin 先完整通过四项，调整 callback detach 顺序后仅重跑受影响的两项，普通模式通过 4 个变体、34 个进程和 12 次 golden 检查，其余两项复用先前结果。8 份公共 HIR／MIR golden 在三目标间一致。
 - workspace fmt／all-targets clippy 和 Darwin／GNU／musl 的 C 严格警告检查通过；现有 NativeSafe 返回与发布握手回归通过 O0／O2 × full／minor 四种配置。报告位于 `tmp/m33/shutdown-darwin-*-report.json` 与 `tmp/m33/shutdown-linux-reports/`。本批没有重跑无关全量测试；M33-7 泛型／tuple Equality、M33-8 原子语言实现及最终组合验收仍未完成。
+
+## M33-8c：原子对象的类型、构造与产物
+
+- core 声明 AtomicInt、AtomicLong、AtomicBoolean 和 invariant AtomicRef<T : ref>，沿普通 nominal constructor 候选推导初值。直接构造、typealias、具名实参、泛型与默认参数使用同一条路径；HIR／MIR 的 AtomicNew 保存实际 application 和初值，不生成虚构的源码函数或字段身份。
+- AtomicRef 的 HIR、MIR 与跨 Cone 类型桥接保留实际 T。固定对象使用普通 header、自然对齐的隐藏值槽及现有 RefScan；三个目标均为 size 24、align 8、槽偏移 16，AtomicRef 的槽参与扫描。LIR 复用普通固定对象布局及已有 typed AtomicStore，以 Relaxed 初始化；初值在分配前求值，跨分配的引用沿普通根和 relocation 链保活。
+- `.slib` 保存原子类型、引用实参、构造表达式及准确的实例布局。cross-cone-interface、cross-cone-type-semantics、MIR type bridge、LIR layout ABI 分别升为 65／25／17／12；固定编码、旧版本拒绝和 profile 指纹同步。
+- 两项正式正例覆盖四种类型、引用身份、Any/is/as、别名、函数引用实参、MutableArray、GC，以及泛型 provider、默认参数、公开泛型字段。产物用例先删除 provider，再消费其 `.slib`，随后删除 consumer 源码并独立链接。debug／release 均运行普通、moving、minor GC。
+- 九项 negative fixture 固定完整诊断及位置：显式／推导的 ref 约束、invariance、初值类型、缺失初值、继承 final 类型、访问隐藏槽、Equality 和 NoGC 分配。Darwin／GNU／musl 每个目标均通过 11 项、13 个变体、29 个进程；两个正例另以非更新模式复验 18 次 HIR／MIR／LIR golden，六份公共 HIR／MIR 在三个目标间一致。
+- Rust fmt、workspace all-targets clippy 及 54 项定向测试通过，覆盖类型合同、导入的 binder、默认表达式 wire、真实源码到 MIR、三目标布局与产物 profile；没有重跑无关全量测试。新实现模块最长 65 行，测试模块最长 120 行；清理 201 个 Rust 中间对象，释放 1,558,605,536 字节。报告保存在 `tmp/m33/atomics-types-*-report.json` 与 Linux 隔离副本的同名目录。
+
+本批只完成对象构造。load／store／fetch／CAS 的源码 API、内存序诊断、普通库组合 Atomic<T>、并发和完整 AtomicRef GC 验收仍在后续批次完成。

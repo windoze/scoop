@@ -66,6 +66,9 @@ fn decode_alignment(decoder: &mut Decoder<'_>) -> Result<MirCLayoutValue, WireEr
 impl WireEncode for MirParamFreeIntrinsicV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::AtomicInt => tag(encoder, 1, 9),
+            Self::AtomicLong => tag(encoder, 1, 10),
+            Self::AtomicBoolean => tag(encoder, 1, 11),
             Self::Unit => tag(encoder, 1, 1),
             Self::Boolean => tag(encoder, 1, 3),
             Self::String => tag(encoder, 1, 4),
@@ -109,6 +112,9 @@ impl WireDecode for MirParamFreeIntrinsicV1 {
             },
         )?;
         match kind {
+            9 => Ok(Self::AtomicInt),
+            10 => Ok(Self::AtomicLong),
+            11 => Ok(Self::AtomicBoolean),
             1 => Ok(Self::Unit),
             3 => Ok(Self::Boolean),
             4 => Ok(Self::String),

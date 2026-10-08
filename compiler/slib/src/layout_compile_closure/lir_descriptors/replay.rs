@@ -109,6 +109,7 @@ fn parent(ty: &mir::ParamFreeMirTypeExportV1) -> mir::MirBaseClassV1 {
         | Representation::Intrinsic(Intrinsic::String)
         | Representation::BoxedValue { .. } => ty.base_and_interfaces().base,
         Representation::Intrinsic(_)
+        | Representation::AtomicReference { .. }
         | Representation::InlineArray { .. }
         | Representation::Struct { .. }
         | Representation::Enum { .. }

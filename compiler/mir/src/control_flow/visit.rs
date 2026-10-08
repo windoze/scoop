@@ -70,6 +70,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
+        | ExprKind::AtomicNew(operand)
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }
@@ -223,6 +224,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
+        | ExprKind::AtomicNew(operand)
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }

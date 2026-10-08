@@ -340,6 +340,9 @@ impl Lowerer {
             Kind::ArrayClone(array) => hir::ExprKind::ArrayClone(Box::new(
                 self.materialize_imported_default_expression(array, context)?,
             )),
+            Kind::AtomicNew(initial) => hir::ExprKind::AtomicNew(Box::new(
+                self.materialize_imported_default_expression(initial, context)?,
+            )),
             Kind::StructConstruct { fields, .. } => {
                 let hir::Type::Struct(application) = self.types[ty] else {
                     return Err(ImportedDefaultMaterializationError::Plan(

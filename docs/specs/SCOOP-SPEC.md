@@ -1942,6 +1942,8 @@ AtomicInt/AtomicLong 另提供 `fetchAdd`、`fetchSub`、`fetchAnd`、`fetchOr`�
 
 内存序必须是编译期常量，非法操作／内存序组合为编译错误，规则与 C11 对应操作一致：
 
+这里的常量是静态解析到的 `MemoryOrder` 无 payload variant，或方法声明中的这类默认值；括号及同一类型的 alias 限定名不改变结果。普通局部变量、属性读取、函数参数和函数调用不属于此类常量。带内存序参数的原子 intrinsic 方法不能取可调用引用；需要间接调用时，可在普通 lambda 中固定内存序再调用该方法。内建原子方法为 `@NoGC`，参数求值仍遵守普通 GC 规则；构造原子对象会分配。
+
 | 操作 | 允许的内存序 |
 | --- | --- |
 | load | Relaxed、Acquire、SeqCst |

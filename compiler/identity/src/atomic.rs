@@ -2,6 +2,36 @@
 
 mod wire;
 
+/// Complete storage shape of an atomic nominal application. Only the
+/// reference family has a source type argument.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AtomicStorage<T> {
+    Int,
+    Long,
+    Boolean,
+    Reference(T),
+}
+
+impl<T> AtomicStorage<T> {
+    pub const fn kind(&self) -> AtomicValueKind {
+        match self {
+            Self::Int => AtomicValueKind::Int,
+            Self::Long => AtomicValueKind::Long,
+            Self::Boolean => AtomicValueKind::Boolean,
+            Self::Reference(_) => AtomicValueKind::Reference,
+        }
+    }
+
+    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> AtomicStorage<U> {
+        match self {
+            Self::Int => AtomicStorage::Int,
+            Self::Long => AtomicStorage::Long,
+            Self::Boolean => AtomicStorage::Boolean,
+            Self::Reference(value) => AtomicStorage::Reference(map(value)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AtomicValueKind {
     Int,

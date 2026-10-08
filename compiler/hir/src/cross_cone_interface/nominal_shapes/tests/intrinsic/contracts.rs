@@ -14,6 +14,7 @@ fn all_intrinsic_families_use_shared_source_contract_and_binder_validation() {
                 vec![TypeParameterBoundsV1::Unconstrained]
             }
             IntrinsicTypeParameters::OneInvariantValue => vec![TypeParameterBoundsV1::Value],
+            IntrinsicTypeParameters::OneInvariantRef => vec![TypeParameterBoundsV1::Ref],
         };
         check_builders(family, &expected, true);
         let mut extra = expected.clone();
@@ -21,7 +22,9 @@ fn all_intrinsic_families_use_shared_source_contract_and_binder_validation() {
         check_builders(family, &extra, false);
         if !expected.is_empty() {
             check_builders(family, &[], false);
-            check_builders(family, &[TypeParameterBoundsV1::Ref], false);
+            if expected[0] != TypeParameterBoundsV1::Ref {
+                check_builders(family, &[TypeParameterBoundsV1::Ref], false);
+            }
             let other = if expected[0] == TypeParameterBoundsV1::Value {
                 TypeParameterBoundsV1::Unconstrained
             } else {

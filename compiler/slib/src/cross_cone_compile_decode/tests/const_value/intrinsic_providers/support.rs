@@ -27,6 +27,7 @@ impl Provider {
                 vec![TypeParameterBoundsV1::Unconstrained]
             }
             IntrinsicTypeParameters::OneInvariantValue => vec![TypeParameterBoundsV1::Value],
+            IntrinsicTypeParameters::OneInvariantRef => vec![TypeParameterBoundsV1::Ref],
         };
         let key = SourceDeclarationKey::nominal(
             SourceDeclarationSite::new(

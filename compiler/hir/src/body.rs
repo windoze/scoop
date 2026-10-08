@@ -423,6 +423,7 @@ pub enum ExprKind {
     /// of the other array kind with the same element type. The target
     /// kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
+    AtomicNew(Box<Expr>),
     Call {
         callee: CallableTarget,
         /// Namespace lookup routes when this occurrence used an import.

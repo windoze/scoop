@@ -247,11 +247,13 @@ impl Lowerer {
             NominalConstructorSource::Class(constructor) => {
                 &self.class_constructors[constructor].access.lookup.0
             }
-            NominalConstructorSource::IntrinsicClass(class)
+            NominalConstructorSource::Atomic(class)
+            | NominalConstructorSource::IntrinsicClass(class)
             | NominalConstructorSource::ArrayGenerate(class) => {
                 &self.classes[class].access.lookup.0
             }
-            NominalConstructorSource::ImportedArray(owner)
+            NominalConstructorSource::ImportedAtomic(owner)
+            | NominalConstructorSource::ImportedArray(owner)
             | NominalConstructorSource::ImportedArrayGenerate(owner) => {
                 let declaration = self
                     .dependencies

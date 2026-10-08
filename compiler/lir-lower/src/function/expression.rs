@@ -118,6 +118,7 @@ impl<'a> FunctionLowerer<'a> {
                 target_type,
                 operand,
             } => self.lower_array_clone(ty, source_type, target_type, operand)?,
+            mir::ExprKind::AtomicNew(initial) => self.lower_atomic_new(ty, initial)?,
             mir::ExprKind::Local(local) => self.local_value(*local),
             mir::ExprKind::GlobalRead(global) => self.lower_global_read(ty, *global),
             mir::ExprKind::InitializationUnitAddress(unit) => {

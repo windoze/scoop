@@ -11,8 +11,8 @@
 //! concrete id domains; an executable entry is never optional.
 
 pub use scoop_identity::{
-    CAbiCallMode, FloatBinaryOperator, FloatConstant as HirFloatConstant, FloatKind,
-    FloatUnaryOperator,
+    AtomicStorage, AtomicValueKind, CAbiCallMode, FloatBinaryOperator,
+    FloatConstant as HirFloatConstant, FloatKind, FloatUnaryOperator,
 };
 
 use la_arena::{Arena, Idx};

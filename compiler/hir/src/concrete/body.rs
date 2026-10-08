@@ -336,6 +336,7 @@ pub enum ExprKind {
     },
     ArrayLen(Box<Expr>),
     ArrayClone(Box<Expr>),
+    AtomicNew(Box<Expr>),
     Call {
         callee: CallableTarget,
         /// Original namespace binding, when this use selected an imported name.

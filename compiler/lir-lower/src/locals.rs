@@ -66,6 +66,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::ArrayAllocate { count: operand, .. }
             | mir::ExprKind::ArrayLen { operand, .. }
             | mir::ExprKind::ArrayClone { operand, .. }
+            | mir::ExprKind::AtomicNew(operand)
             | mir::ExprKind::Unary { operand, .. }
             | mir::ExprKind::IntegerUnary { operand, .. }
             | mir::ExprKind::IntegerConversion { operand, .. }

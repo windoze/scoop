@@ -190,6 +190,7 @@ impl Lowerer {
             | E::ArraySet { .. }
             | E::ArrayLen(_)
             | E::ArrayClone(_)
+            | E::AtomicNew(_)
             | E::CallableCall { .. } => facts.requirements = None,
         }
         if facts.requirements.is_none() {
