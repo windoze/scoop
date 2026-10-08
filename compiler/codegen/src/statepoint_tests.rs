@@ -15,6 +15,8 @@ use crate::{CodegenError, ValidatedBackendProfile};
 mod atomic_refs;
 #[path = "statepoint_tests/call_frame.rs"]
 mod call_frame;
+#[path = "statepoint_tests/interface_parts.rs"]
+mod interface_parts;
 #[path = "statepoint_tests/no_gc.rs"]
 mod no_gc;
 #[path = "statepoint_tests/optimized.rs"]

@@ -79,7 +79,7 @@ Scoop 不提供类似 Swift / Rust 的并发安全保障，不通过类型系统
 
 Scoop 的类型分为两大类：
 
-- **引用类型（reference type）**：`class`、`interface`、`object`、函数类型、数组类型（第 10 章）等。其值是指向堆对象的 managed **ref value**；对象具有 identity，复制 ref value 只复制引用而不复制对象。
+- **引用类型（reference type）**：`class`、`interface`、`object`、函数类型、数组类型（第 10 章）等。其值是指向堆对象的 managed **ref value**；对象具有 identity，复制 ref value 只复制引用而不复制对象。interface 的 ref value 同时携带对象指针和静态 exact interface 的只读派发表指针；其余引用类型仍使用单个对象指针。接口视图的转换不改变对象 identity。
 - **值类型（value type）**：`struct`、`enum`、`tuple`。无 identity，immutable，复制时复制完整值。
 
 ### 3.1 顶层与底层类型
@@ -276,6 +276,8 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - 相等判断一律使用 `==`（结构相等）。
 
 值类型装箱为引用类型后，其装箱结果按引用类型规则处理（见 4.4.4）。
+
+引用的 `===` / `!==` 只比较所指对象的 identity；同一对象的不同接口视图相等，不比较接口派发表。`MaybeUninit<T>` 始终是无 identity 的值类型，即使 T 为引用类型（11.15）。
 
 #### 4.4.3 实现 interface
 
@@ -586,12 +588,14 @@ enum Option<T> {
 
 对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None`编码为该空位，`Some(v)`与`v`的表示相同。空位按定义不是合法的裸`T`值；所有安全构造、compiler-generated值与声明为返回裸`T`的FFI边界都必须维持该不变量，unsafe代码破坏它后行为未定义。这是语言的固定特性，而非可选优化。适用类型：
 
-- **引用类型**：空位是全 0 的机器字（GC 不会产生该引用值）；
+- **引用类型**：空位是全零的引用表示。普通单字引用为零指针；interface 的 None 为 `{null, null}`，Some 保留完整的 object／itab 双字值，判断空值只检查 object。空接口的合法 itab 可以为 null，不能用 itab 判断引用是否为空；
 - **`Ptr<U>` 与 `FunPtr<F>`**：空位是内部raw pointer carrier的全0位模式；裸`Ptr`/`FunPtr`值必须非零，null pointer只编码为对应`Option`的`None`。
 
 因此`Option<FunPtr<F>>`在`F`满足C ABI规则时可以直接表示可空函数指针；`Option<Ptr<T>>`只有在`T`本身有本章定义的portable C pointee representation，或`T == Unit`作为opaque `void *`例外时，才能直接出现在C ABI边界。`Option`的niche不绕过C-FFI-safe classifier，尤其`Option<Ptr<其他ZST>>`仍被拒绝。`Option`包裹的引用类型与裸引用布局相同，但引用类型本身仍不能进入C ABI。对其他类型`Option<T>`带tag，具体布局不保证。
 
 niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
+
+`MaybeUninit<T>` 的全零表示是合法 wrapper，不能继承 T 的 niche；`Option<MaybeUninit<T>>` 使用普通 tagged 表示。`MaybeUninit<Option<T>>` 则与该 Option 的存储等大，已初始化的 None 是合法 payload；嵌套 Option 仍逐层保持不同状态。
 
 tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及若干**ref-bearing独占连续slot**组成。递归检查后完全不含managed ref的多个variant可以复用同一块共享payload空间；每个直接或间接包含managed ref的variant则必须拥有自己的连续slot，不能与其他variant重叠。共享区或独占slot都按对应variant字段的正常值布局保存其全部字段。构造tagged enum时必须先把整个值（包括共享区、所有inactive ref-bearing slot和padding）清零，再写入tag及当前variant所用的payload；复制按完整值复制。GC只需无条件检查所有ref-bearing独占slot中的固定ref位置，全0 inactive slot不形成引用，扫描不读取tag、不选择variant。`Ptr` / `FunPtr`不是managed ref；在未采用niche的tagged enum中，包含它们但不含managed ref的variant仍属于pure-value共享区。
 
@@ -886,6 +890,7 @@ context list 不参与 overload applicability、MSC、泛型推断、普通或 s
 - 类与成员方法默认均为 `final`。只有 `open` / `abstract` 类可以被继承；类可被继承不代表其方法自动可覆写，普通基类方法必须显式声明为 `open fun` 才能首次被覆写。
 - `abstract fun` 隐含 `open` 且没有函数体，只能声明在 `abstract class` 或interface中。interface function有body时是default implementation。覆写class/interface member必须写`override`；`override`默认继续open，可用`final override`终止。
 - final 方法不得被覆写。静态接收者上已知的 final 方法调用使用直接分派；open / abstract 类方法调用使用 vtable 分派，interface 方法调用使用 itable 分派。final override 仍替换继承来的 vtable 槽，以保证经基类引用调用时到达该实现。
+- 编译器可在证明调用点的实际类型与唯一表项目标后改为直接调用，保持 receiver 适配、求值顺序、异常、GC、Context 与挂起行为。静态 open class 类型、`is Base` 检查或当前 Cone 仅有一个实现，均不单独构成唯一实际类型的证明；base initializer 也不改变最派生对象的实际类型。
 - `sealed`：`sealed class` / `sealed interface` 保留（引用类型的受限继承）；值类型的等价物直接使用 `enum`。
 
 #### 9.1.1 对象与属性初始化
@@ -1320,6 +1325,7 @@ MutableArray<T>(size: Long, init: (Long) -> T)
 - initializer 是 ordinary 函数值，依次以 `0L` 到 `size - 1L` 调用，每个索引恰好一次；支持分配与抛异常，不支持在 initializer 内挂起。返回值必须可赋给 exact `T`，使用普通函数返回规则。
 - 只有全部元素成功初始化后，完整数组才能成为构造结果；initializer 不接收正在构造的数组。第 i 次调用抛出时传播该异常，不调用后续索引，不返回半初始化数组，也不回滚已经发生的外部副作用。
 - 每个可被普通代码访问的元素都必须是合法的 `T`。未填充的内部存储不是可读的 `T`，不能把清零当作任意 `T` 的默认构造。初始化期间的 GC 规则见 运行时规范 2.4。
+- `MutableArray<MaybeUninit<T>>(capacity) { _ -> MaybeUninit<T>.uninit() }` 使用同一初始化规则：每项为合法 wrapper，数组 logical size 是 capacity；这不意味着每项已经是可读的 T，也不增加未初始化数组入口。
 - 对象大小的乘加、对齐与目标地址范围均沿现有 checked allocation 规则；溢出、对象过大或资源耗尽沿现有 fatal allocation failure，不发生整数 wrapping。
 - 此 API 不引入数组原地 resize、公开未初始化数组或原始元素指针；`ArrayList` 通过替换自己持有的数组实现增长。
 
@@ -1508,6 +1514,8 @@ build 返回当前所有 parts 按顺序连接的 String 内容快照，空 buil
 
 `build` 的时间复杂度为 O(partCount + totalByteLength)。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
 
+实现复用普通 `ArrayList<String>` 保存 parts 和扩容；拼接后备仅消费 backing 中由列表保证已初始化的前缀，不另建容量管理或复制临时 String 数组。
+
 ### 11.7 异常
 
 - `Throwable`（引用类型，可被 `throw` / `catch`）及其最小子类：
@@ -1670,7 +1678,7 @@ public interface MutableList<T> : List<T> {
 
 `public final class ArrayList<T> : MutableList<T>` 是普通可实例化 generic class，具有公开构造形式 `ArrayList<T>(initialCapacity: Long = 0L)`。负 initialCapacity 抛 `IllegalArgumentException`；初始 size 总为零，预留容量不产生列表元素。所有接口成员显式以 public override 实现，size 只读。容量及 backing array 不属于公开表面。
 
-移除或 clear 后，容器不继续保活已移除的引用。值类型元素内联存储，不因容器或 `List<T>` 分派而装箱；不保证容器内部的元素 stride 与 `sizeOf<T>()` 相同。
+移除或 clear 后，容器不继续保活已移除的引用。值类型元素内联存储，不因容器或 `List<T>` 分派而装箱。backing 使用普通 `MutableArray<MaybeUninit<T>>`，非 ZST 元素 stride 为 T 的 exact size；有效元素数之外的存储全零。GC 按 backing 的 capacity 扫描引用槽，不能把减小 size 当成清除旧引用；removeAt 和 clear 必须重置退出有效范围的槽。
 
 索引读写为 O(1)，追加摊还 O(1)，插入、删除及 clear 为 O(size)。逻辑 size 不超过 `INT64_MAX`，容量与实际分配遵守 10.6 的溢出和失败规则，不设其他固定元素数上限。操作不回滚用户实参的副作用，也不提供并发同步。
 
@@ -1963,6 +1971,22 @@ core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段
 
 无符号宽度包装也可由普通库组合既有原子类型实现；上述组合不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
 
+`AtomicRef<I>` 对 interface I 仍原子地保存一个 object pointer，store／CAS 提取对象分量，返回引用的操作根据静态 I 重建完整接口视图。重建不分配、不执行 safepoint；不把双字接口拆成两个可独立观察的原子字段，也不要求 128-bit CAS。
+
+### 11.15 `MaybeUninit<T>`
+
+core 提供公开 intrinsic struct `MaybeUninit<T>`，恰有一个 invariant、无 kind bound 的类型参数，无源码字段或普通构造入口。每个 application 有独立完整类型身份；size、alignment 与 T 相同，按值复制全部存储，T 为 ZST 时同样为 ZST。它不隐式转换为 T，也不从 T 派生字段、相等、字符串化或其他读取 payload 的操作。
+
+| 操作 | 合同 |
+| --- | --- |
+| `MaybeUninit<T>.uninit()` | safe，整个存储及 padding 清零，产生合法 wrapper；不调用 T 的构造器、不要求 Default。 |
+| `MaybeUninit<T>.initialized(value: T)` | safe，实参求值一次，复制完整合法的 T。 |
+| `value.assumeInit(): T` | `@Unsafe`；调用者保证 wrapper 已包含合法 T，按值复制返回，不移动、不清空原值。 |
+
+这三个操作是封闭 typed intrinsic，本身只零化、复制或取值，不分配和回调。实参求值仍可有副作用、异常和 safepoint；NoGC 代码继续要求实际使用的完整表示为 GC-free。assumeInit 违反动态前提属于 unsafe 契约违反，不增加初始化位、运行期检查、异常或 `isInitialized`：合法 T 本身也可能全零。
+
+wrapper 的 managed 槽始终为 null 或有效引用，复用 T 的精确 value scan；GC-free 当且仅当 T GC-free。普通赋值、字段或数组 setter 写入新的 wrapper；写入 uninit 即清除旧引用，不另设 reset/write intrinsic。合法 wrapper 不表示合法 T，不能施加 T 的 nonnull、enum tag 或 niche 假设，也不能使用 LLVM undef/poison 代替零化。布局相同不授予 C-FFI-safe 资格或相同的调用 ABI；物理分类见实现规范 2.4。
+
 ---
 
 ## 12. Cone模块、package与库
@@ -2233,6 +2257,8 @@ internal fun coreLongHash(value: Long): Long
 - intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；11.1 的两个无成员根类型遵守该节的封闭声明形状。单个成员也可像上例一样另用function intrinsic提供实现。intrinsic type覆盖八种canonical integer representation、Boolean、Char、Float/Double、String、`Any`/`Nothing`、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type 可以是 generic，但登记项必须完整规定 declaration kind、类型参数数量、bound 及表示；所有参数按 3.2 固定为 invariant。`Array<T>` 与 `MutableArray<T>` 各要求一个无 bound 参数，每个完整 application 是具有唯一类型身份的普通 generic class application，其元素表示遵守第 10 章；
 - intrinsic 声明的 name、target、shape、signature 及唯一性必须满足登记项。
+
+- 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
 - 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。 Char code/相等/比较和 core 内部 unchecked code-point 构造均为 NoGC scalar operation，其中 unchecked 构造还必须标注 `@Unsafe`；公开 `Int.toChar` 在普通 core body 中先检查范围再调用。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
 - `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。阶段契约见编译器与产物规范 2.10。
@@ -2616,13 +2642,15 @@ Scoop ABI extern 调用是同步借用边界：
 - 调用点不要求 unsafe context，除非声明显式带 `@Unsafe`；
 - native callee 不得把 Scoop 异常展开回 managed caller；违反时终止进程。源码可见失败由 managed wrapper 在 native 返回后抛出。
 
-Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge：ref value 是直接 managed pointer；aggregate/value return沿用普通 Scoop 函数的 typed return storage规则。Darwin/AArch64 与 Linux/amd64 profile 中，scalar、ref/raw pointer/function pointer 与 niche enum 直接传递；所有非空 tuple、ordinary struct、tagged enum 与异常记录都通过 caller-owned、按 exact layout 对齐的间接 storage 传递，间接返回 storage 位于所有源码参数之前；Unit 返回为 machine void，其他 ZST 参数/结果只保留 typed identity而不传payload。被调方必须按同一 physical signature 实现该 ABI，不能把同形 C struct 的按值参数/返回直接用作 shim，也不能假设 C 编译器会为它选择与 Scoop value ABI 相同的寄存器或栈位置。
+Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge。普通引用仍为单个 managed pointer；interface 及其 niche enum 按 object、itab 两个分量传参和返回，只有 object 是 managed root。size 不超过 16 bytes、alignment 不超过 8 的 GC-free struct／tuple／tagged enum 按实现规范 2.4 的目标分类使用 DirectParts；其余非空 aggregate 与异常记录继续使用 caller-owned exact storage。间接返回 storage 位于源码参数之前；Unit 返回 machine void，其他 ZST 只保留求值和 typed identity，不传 payload。native shim 必须按实际 carrier 和 physical signature 实现，不能假定同形 C struct 自动兼容。
 
 这里的 Scoop ABI 仍是普通、单次进入并在返回前完成的 FFI 调用约定，不是 8.2 所述挂起函数的 hidden continuation ABI。`abi = "scoop"` 不放宽 `@Extern` 与 `suspend` 的互斥规则，也不提供自动 continuation / callback wrapper。
 
 ### 14.3 direct ref、native root 与 safepoint
 
 本节的 root、pin、handle 和 safepoint 规则适用于 minor 与 full GC。Scoop ABI native 实现向 managed heap 写入引用时，必须遵守运行时规范 3.6 的写屏障；登记 native root 或 pin 不能替代代间引用记录。普通 C ABI 不接收 managed ref；显式 `gc.collect()` 请求 full collection。
+
+接口参数／结果保留完整双字值，native 跨 safepoint 保存时登记 object slot 或覆盖该 slot 的 RecursiveRegion，并在返回后重读 object；itab 为只读 metadata，不参与扫描或移动。pin、handle 的保活与 identity 只针对 object；解析为接口时重建目标 exact interface 的表。
 
 - Scoop ABI FFI 函数的机器码中**没有 safepoint poll**（它可能是用其他语言写的）。传入的 direct ref 是调用期间的借用 managed value：在被调方尚未执行可能触发 GC 的 runtime 调用或回调 Scoop 代码前，可以直接读取，无需 pin；不得写入长期存储或在返回后继续使用。
 - 若被调方需要让某个 direct ref 跨越可能触发 GC 的操作，必须先把它写入可寻址的 **native root slot** 并把对应 root frame登记到当前线程。含managed leaf的内联aggregate/value place不能被拆成登记后仍从旧aggregate读取的临时ref；它使用`RecursiveRegion { stable base, byte extent, NonEmptyRefScan }` frame，由collector以与TypeDescriptor相同的递归slot visitor原地更新。登记/移除两种root frame本身都不得分配或触发GC；操作返回后，被调方必须从slot或region base重新读取，不能继续使用登记前保存的裸指针/aggregate副本。
