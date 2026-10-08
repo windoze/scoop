@@ -101,7 +101,10 @@ pub(super) fn check<'a, 'p>(
     )
     .unwrap();
     let production = registration.validate_layout_abi(&section).unwrap();
-    assert!(production.type_registrations().registrations().is_empty());
+    assert_eq!(
+        production.type_registrations().registrations().len(),
+        output.module().meta.type_descriptors.len()
+    );
     assert_eq!(
         production.callable_registrations().registrations().len(),
         output.module().functions.len()

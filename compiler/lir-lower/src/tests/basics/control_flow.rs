@@ -91,13 +91,14 @@ fn if_else_becomes_basic_blocks() {
         br @if.merge.3
       block if.merge.3
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -221,13 +222,14 @@ fn while_becomes_basic_blocks() {
         br @while.cond.1
       block while.exit.3
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -363,13 +365,14 @@ fn and_short_circuits_through_blocks() {
         br @logic.merge.3
       block logic.merge.3
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -483,13 +486,14 @@ fn or_short_circuits_through_blocks() {
         br @logic.merge.3
       block logic.merge.3
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)

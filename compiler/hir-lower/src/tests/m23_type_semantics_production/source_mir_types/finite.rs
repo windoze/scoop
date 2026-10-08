@@ -5,8 +5,7 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-mir-boxing-production");
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
-    with_production(&source, |output, input, _, graph, sources| {
-        let owners = source_dispatch::owners(output);
+    with_production(&source, |_, input, _, graph, sources| {
         let finite =
             CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(input, sources, graph)
                 .unwrap();
@@ -26,9 +25,8 @@ fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamon
             );
             let actual = &input.module().classes[class].interfaces;
             if actual.len() > source.base_and_interfaces().interfaces.len() {
-                let equality = usize::from(root.shape().exact() == owners["Choice"]);
-                assert_eq!(actual.len(), 4 + equality);
-                assert_eq!(source.base_and_interfaces().interfaces.len(), 1 + equality);
+                assert_eq!(actual.len(), 4);
+                assert_eq!(source.base_and_interfaces().interfaces.len(), 1);
                 diamonds += 1;
             }
         }

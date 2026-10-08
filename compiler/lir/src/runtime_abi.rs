@@ -766,10 +766,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_regular_allocation_and_barriers() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010a02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010b02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "6c09728dbccb1cb654bed42e07d93f0d9fd0c0476ea79ccb8a8751a49d235cff"
+            "8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583"
         );
     }
 
@@ -843,7 +843,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "9aaf3a9bce9801c47e563cce3f25fc74813602dadca4348c16fabf96c9e02694"
+            "6ca04e73635c291e2dd1c31e8684f7c24008f83be12460f1ac2fb5e5b9738ce2"
         );
         assert!(
             registry
@@ -899,7 +899,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "2006fff54410dc8f58e4e03fca73d9761ee033b58f0184138cd812b88c358855"
+            "dba99561f14b1e29b1182e43ab531fa9bef5f851f99771082ccc0af090e78dc7"
         );
     }
 

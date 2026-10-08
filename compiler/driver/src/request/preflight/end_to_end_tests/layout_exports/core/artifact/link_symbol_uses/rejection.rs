@@ -101,8 +101,10 @@ fn reject(
             ) | (
                 Failure::ShapeMissing | Failure::ShapeDuplicate | Failure::ShapeIndex,
                 Error::Shape(slib::LayoutLinkClosureError::RequirementsMismatch)
-            ) | (Failure::UnknownRuntime, Error::Unclassified(_))
-                | (Failure::WrongNativeSymbol, Error::Generated(_))
+            ) | (
+                Failure::UnknownRuntime | Failure::WrongNativeSymbol,
+                Error::Unclassified(_)
+            )
         ),
         "wrong error for {failure:?}: {source:?}"
     );

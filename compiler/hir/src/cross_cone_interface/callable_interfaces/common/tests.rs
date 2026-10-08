@@ -83,7 +83,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     .unwrap();
     assert_eq!(
         encode(&effects).unwrap(),
-        hex("a701010202030204a20004010105a2000201a20018180103060207a10001")
+        hex("a701010202030204a300040101020105a2000201a20018180103060207a10001")
     );
     assert_eq!(
         decode_canonical::<DecodedCallableSourceEffectsV1>(&encode(&effects).unwrap())

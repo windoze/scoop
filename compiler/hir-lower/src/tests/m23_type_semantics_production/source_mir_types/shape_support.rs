@@ -37,7 +37,7 @@ fn actual_mir_shape_families_replay_and_match_bound_materializations() {
             if name == "combined" {
                 assertions::hidden_box(input, &families);
             }
-            assertions::source_families(output, &families, &types, usize::from(name == "combined"));
+            assertions::source_families(output, &families, &types);
             encode(&families).unwrap()
         });
         with_production(

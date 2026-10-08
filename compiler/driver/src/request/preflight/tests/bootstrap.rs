@@ -320,8 +320,8 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             assert_eq!(boxed.type_descriptor(), boxed.exact());
         }
     }
-    // String snapshots and parts storage use three structural function signatures.
-    assert_eq!(real_lir.foundation().as_canonical().counts().odr_groups, 3);
+    // String iteration, argv and byte borrows use seven structural function signatures.
+    assert_eq!(real_lir.foundation().as_canonical().counts().odr_groups, 7);
     application_shapes::check(
         &output.hir,
         &output.foundation,

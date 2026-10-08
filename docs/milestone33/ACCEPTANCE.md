@@ -434,3 +434,11 @@ M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M3
 ## 收尾回归：恢复本地 nominal 物化根
 
 对照 `23cbfb7de` 确认 `e46302c5b` 曾把具体化入口从当前 Cone 的声明闭包改成发布声明闭包，导致未发布的本地非泛型类型缺失，并在部分既有迭代／enum 用例中触发 shape 缺失。先修订实现规范 2.2，区分本地物化与发布职责，再恢复原有根集合并删除新增的专用入口；发布闭包及其缓存保持自身用途，没有增加比较模板或产物格式。格式化、HIR-lower all-targets clippy 后，两个 dispatch、NoGC 值类型、嵌套类型、generic iteration 和 enum 路径共 6 项既有回归均通过。完整 fixture 验收在修复后的配套 CLI 上继续。
+
+## 收尾回归：IR、core 与产物测试预期
+
+- 旧测试同步 M33 的普通 Equality 接口、argv／字节借用所需 core 实例、完整 root gateway，以及现有 runtime ABI 11／metadata ABI 7 和 C 调用适配编码。保留实例集合、布局、ODR、符号与产物损坏的精确断言；本地泛型接口实例通过既有普通物化路径产生。
+- 物理 C bridge 损坏测试改用显式 captureErrno 保留 StorageBridge，组合源码同时保留标量 DirectC；真实 native symbol 的错误归类同步直接调用路径。没有为测试恢复已无用途的生产桥接。
+- 23 份较大的 HIR 预期移到相邻 snapshots 目录，以 include_str! 读取，Rust 测试文件减少约 2,900 行内联数据。LIR 预期保留完整入口参数及退出码槽写入，固定 wire 向量按实际格式更新。
+- fmt 和 workspace all-targets clippy 通过。工作区首轮覆盖 5,394 项测试，其中 5,283 项通过；修正后只复验受影响测试。HIR-lower 全部 1,391 项、slib 全部 567 项及其余失败项通过，最后两项较重的 driver 产物测试使用 release 优化构建，551 秒完成。按测试身份合并首轮与复验记录，5,394 项全部闭合，没有重复运行整套 workspace。
+- 原始日志为 tmp/m33/final-workspace-{tests,remaining}.log、final-recheck-*.log、final-driver-release-*.log；逐项成功来源保存在 tmp/m33/final-workspace-coverage-audit.json。公共 fixture runner 的 44 项规则测试通过，其实现未变，结果继续复用。
