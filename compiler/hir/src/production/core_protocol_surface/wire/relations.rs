@@ -137,14 +137,6 @@ fn validate_nominal_relations(
         1,
         foundation,
     )?;
-    validate_nominal_shape(
-        CoreProtocolProductKindV1::Equality,
-        surface.equality_protocol.entries(),
-        0,
-        SourceDeclarationKind::Interface,
-        1,
-        foundation,
-    )?;
     for index in [0, 2, 4, 6, 8, 10, 13] {
         validate_nominal_shape(
             CoreProtocolProductKindV1::Exception,
@@ -240,16 +232,6 @@ fn validate_protocol_callable_owners(
         1,
         DefinitionOwnerAtom::GenericType(generic_nominal_id(
             surface.iteration_protocol.entries(),
-            0,
-        )),
-        foundation,
-    )?;
-    validate_callable_owner(
-        CoreProtocolProductKindV1::Equality,
-        surface.equality_protocol.entries(),
-        1,
-        DefinitionOwnerAtom::GenericType(generic_nominal_id(
-            surface.equality_protocol.entries(),
             0,
         )),
         foundation,
@@ -437,13 +419,6 @@ fn validate_interface_dispatch_relations(
     validate_interface_dispatch(
         CoreProtocolProductKindV1::Iteration,
         surface.iteration_protocol.entries(),
-        1,
-        2,
-        foundation,
-    )?;
-    validate_interface_dispatch(
-        CoreProtocolProductKindV1::Equality,
-        surface.equality_protocol.entries(),
         1,
         2,
         foundation,

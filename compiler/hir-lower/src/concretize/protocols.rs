@@ -87,30 +87,32 @@ impl Concretizer<'_> {
         .expect("foreign callback failure remains the exact Option<Throwable> specialization");
 
         let fundamental_types = concrete::IntrinsicTypeCore {
-            unit: self.struct_by_key[&(
-                self.source.nominal_identities[protocols.fundamental_types.unit].declaration_id(),
-                Vec::new(),
-            )],
+            unit: self.lower_struct_application(
+                self.source.structs[protocols.fundamental_types.unit].self_application,
+                &[],
+            ),
             integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
                 let declaration = protocols.fundamental_types.integers.owner(kind);
-                let origin = self.source.nominal_identities[declaration].declaration_id();
-                self.struct_by_key[&(origin, Vec::new())]
+                self.lower_struct_application(
+                    self.source.structs[declaration].self_application,
+                    &[],
+                )
             }))
             .expect("validated integer owners remain distinct after concretization"),
-            boolean: self.struct_by_key[&(
-                self.source.nominal_identities[protocols.fundamental_types.boolean]
-                    .declaration_id(),
-                Vec::new(),
-            )],
-            string: self.class_by_key[&(
-                self.source.nominal_identities[protocols.fundamental_types.string].declaration_id(),
-                Vec::new(),
-            )],
-            any: self.class_by_key[&(
-                self.source.nominal_identities[protocols.fundamental_types.any].declaration_id(),
-                Vec::new(),
-            )],
+            boolean: self.lower_struct_application(
+                self.source.structs[protocols.fundamental_types.boolean].self_application,
+                &[],
+            ),
+            string: self.lower_class_application(
+                self.source.classes[protocols.fundamental_types.string].self_application,
+                &[],
+            ),
+            any: self.lower_class_application(
+                self.source.classes[protocols.fundamental_types.any].self_application,
+                &[],
+            ),
         };
+        self.drain_pending_callables();
 
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
             constructor: {

@@ -4,35 +4,29 @@ Module
   struct Declared (value: Int)
   struct Multiple (value: Int)
   struct Incomparable (value: Opaque)
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum Choice
     Empty()
     Value(_0: Record)
     Number(_0: Long)
-  enum Option<String>
-    Some(_0: String)
-    None()
   enum Option<Char>
     Some(_0: Char)
     None()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Secret vtable=0 itables=1
+  class Secret vtable=0 itables=0
   class Opaque vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class box<Point> vtable=0 itables=0
-  class box<Multiple> vtable=0 itables=0
-  class box<Incomparable> vtable=0 itables=0
   class box<Record> vtable=0 itables=0
-  class box<Choice> vtable=0 itables=0
+  class box<Incomparable> vtable=0 itables=0
   class box<Declared> vtable=0 itables=0
-  interface Equality<Point>
-  interface Equality<Secret>
-  interface Equality<Record>
-  interface Equality<Choice>
   interface Equality<Declared>
-  interface Equality<Int>
-  interface Equality<Multiple>
+  interface Equality<Point>
+  interface Equality<Record>
   interface Equality<Incomparable>
   interface ToString
   interface Hash
@@ -40,17 +34,15 @@ Module
   interface Iterable<Char>
   interface Iterator<Char>
   interface Equality<String>
-  generated_exact_type get0 location=class9 nominal_id=062f6bf534928ff63001c1c2f2522ba789e61e14daccf8be504acc5646532696 exact_id=05fa1b88cacb2c9e5e55c4e975d528fa11c59168c681ea274f2e34c6193973bd
+  generated_exact_type get0 location=class7 nominal_id=062f6bf534928ff63001c1c2f2522ba789e61e14daccf8be504acc5646532696 exact_id=05fa1b88cacb2c9e5e55c4e975d528fa11c59168c681ea274f2e34c6193973bd
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=class8 nominal_id=2d5686899185e138cb5e95a5490bb4922b1d481957392f70b1db60bf7a8c8c52 exact_id=952db7ef85b8071d0521e2ed96292fac2a6647934b6ed435f51cb1c1aaad2d98
-  generated_exact_type get6 location=class10 nominal_id=13af68af782b16ec1c90fd58849e99356360fd611ab67799c5f0c5eda707583c exact_id=a499a6c69f000a9700ace3d61941c95269e7ac0d5020ad3bbe3cdfee0e1e3c1b
-  generated_exact_type get7 location=class11 nominal_id=567d9261e7d694708b39c57c44304cd773a736dcd816533b36391a573b72ee41 exact_id=b16f57bac81821ae2cc2f0650b0cdb2bf3b40907572ee98089b66cfb0cb76cec
-  generated_exact_type get8 location=class7 nominal_id=b3ae88b0e44fe01f3318ae998f3651f41776ed6d0623beaaff052b27ecba7a38 exact_id=b4479ccf585857b2961901048d50ce9810701fa91d850e47530e40dfcf954fa1
-  generated_exact_type get9 location=class6 nominal_id=8d042d0fb494ee38f866e9551013fc35b3574c591ad9a573cbdeeb99ebf3234e exact_id=b60c15b348901cda09d115a438fb09d992d20cc45acab16b39d0598880cfd602
-  generated_exact_type get10 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get6 location=class9 nominal_id=567d9261e7d694708b39c57c44304cd773a736dcd816533b36391a573b72ee41 exact_id=b16f57bac81821ae2cc2f0650b0cdb2bf3b40907572ee98089b66cfb0cb76cec
+  generated_exact_type get7 location=class6 nominal_id=8d042d0fb494ee38f866e9551013fc35b3574c591ad9a573cbdeeb99ebf3234e exact_id=b60c15b348901cda09d115a438fb09d992d20cc45acab16b39d0598880cfd602
+  generated_exact_type get8 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -105,7 +97,7 @@ Module
         Local $dependency.parameter.x
         Type Int
         Local $dependency.parameter.y
-      val $argument.0: Point
+      val $equality.lhs: Point
         Type Point
         Local point
       val $dependency.argument.0: Int
@@ -120,31 +112,23 @@ Module
       val $dependency.parameter.y: Int
         Type Int
         Local $dependency.argument.1
-      call $argument.1: Point = external2 direct
+      call $call.1: Point = external2 direct
         Type Int
         Local $dependency.parameter.x
         Type Int
         Local $dependency.parameter.y
-      val $argument.2: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.left: Point
+      call $argument.0: Boolean = external19 direct
         Type Point
+        Local $equality.lhs
+        Type Point
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Point
-        Type Point
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn2 direct
-        Type Point
-        Local $parameter.left
-        Type Point
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
-      val $argument.0: Point
+        Local $parameter.value
+      val $equality.lhs: Point
         Type Point
         Local point
       val $dependency.argument.0: Int
@@ -159,60 +143,21 @@ Module
       val $dependency.parameter.y: Int
         Type Int
         Local $dependency.argument.1
-      call $argument.1: Point = external2 direct
+      call $call.2: Point = external2 direct
         Type Int
         Local $dependency.parameter.x
         Type Int
         Local $dependency.parameter.y
-      val $argument.2: Boolean
+      call $call.3: Boolean = external19 direct
+        Type Point
+        Local $equality.lhs
+        Type Point
+        Local $call.2
+      val $argument.0: Boolean
         Type Boolean
-        BoolLiteral false
-      val $parameter.left: Point
-        Type Point
-        Local $argument.0
-      val $parameter.right: Point
-        Type Point
-        Local $argument.1
-      val $parameter.expected: Boolean
-        Type Boolean
-        Local $argument.2
-      call @fn2 direct
-        Type Point
-        Local $parameter.left
-        Type Point
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
-      val $dependency.receiver: Equality<Point>
-        Type Equality<Point>
-        Box
-          Type Point
-          Local point
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.argument.1: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      val $dependency.parameter.x: Int
-        Type Int
-        Local $dependency.argument.0
-      val $dependency.parameter.y: Int
-        Type Int
-        Local $dependency.argument.1
-      call $dependency.argument.0: Point = external2 direct
-        Type Int
-        Local $dependency.parameter.x
-        Type Int
-        Local $dependency.parameter.y
-      val $dependency.parameter.other: Point
-        Type Point
-        Local $dependency.argument.0
-      call $argument.0: Boolean = @fn3 interface Equality<Point>[0]
-        Type Equality<Point>
-        Local $dependency.receiver
-        Type Point
-        Local $dependency.parameter.other
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -234,16 +179,16 @@ Module
       val $dependency.parameter.y: Int
         Type Int
         Local $dependency.argument.1
-      call $call.1: Point = external2 direct
+      call $call.4: Point = external2 direct
         Type Int
         Local $dependency.parameter.x
         Type Int
         Local $dependency.parameter.y
-      call $argument.0: Boolean = external18 direct
+      call $argument.0: Boolean = external19 direct
         Type Point
         Local $equality.lhs
         Type Point
-        Local $call.1
+        Local $call.4
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -256,19 +201,106 @@ Module
       val $dependency.parameter.point: Point
         Type Point
         Local $dependency.argument.0
-      call $dependency.receiver: Equality<Point> = external3 direct
+      call pointBox: Any = external3 direct
         Type Point
         Local $dependency.parameter.point
-      val $dependency.argument.0: Point
+      val $dependency.receiver: Boolean
+        Type Boolean
+        IsInstance Equality<Point>
+          Type Any
+          Local pointBox
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $cast.1: Any
+        Type Any
+        Local pointBox
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Point
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external16 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb2 if.merge.2
+      val $ub.2: Point
+        Type Point
+        Unbox
+          Type Any
+          Local $cast.1
+      call $argument.0: Boolean = external19 direct
+        Type Point
+        Local $ub.2
         Type Point
         Local point
-      val $dependency.parameter.other: Point
-        Type Point
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.key: Int
+        Type Int
         Local $dependency.argument.0
-      call $argument.0: Boolean = @fn3 interface Equality<Point>[0]
-        Type Equality<Point>
+      assign $new.6
+        Type Secret
+        ClassAlloc Secret
+      call external4 direct
+        Type Secret
+        Local $new.6
+        Type Int
+        Local $dependency.parameter.key
+      val $equality.lhs: Secret
+        Type Secret
+        Local $new.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.key: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Secret
+        Type Secret
+        Local $equality.lhs
+      assign $new.7
+        Type Secret
+        ClassAlloc Secret
+      call external4 direct
+        Type Secret
+        Local $new.7
+        Type Int
+        Local $dependency.parameter.key
+      val $dependency.argument.0: Secret
+        Type Secret
+        Local $new.7
+      val $dependency.parameter.other: Secret
+        Type Secret
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external5 direct
+        Type Secret
         Local $dependency.receiver
-        Type Point
+        Type Secret
         Local $dependency.parameter.other
       val $parameter.value: Boolean
         Type Boolean
@@ -282,123 +314,73 @@ Module
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.2
+      assign $new.8
         Type Secret
         ClassAlloc Secret
-      call external5 direct
+      call external4 direct
         Type Secret
-        Local $new.2
+        Local $new.8
         Type Int
         Local $dependency.parameter.key
-      val $argument.0: Secret
+      val $equality.lhs: Secret
         Type Secret
-        Local $new.2
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.parameter.key: Int
-        Type Int
-        Local $dependency.argument.0
-      assign $new.3
-        Type Secret
-        ClassAlloc Secret
-      call external5 direct
-        Type Secret
-        Local $new.3
-        Type Int
-        Local $dependency.parameter.key
-      val $argument.1: Secret
-        Type Secret
-        Local $new.3
-      val $argument.2: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.left: Secret
-        Type Secret
-        Local $argument.0
-      val $parameter.right: Secret
-        Type Secret
-        Local $argument.1
-      val $parameter.expected: Boolean
-        Type Boolean
-        Local $argument.2
-      call @fn4 direct
-        Type Secret
-        Local $parameter.left
-        Type Secret
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-      val $dependency.parameter.key: Int
-        Type Int
-        Local $dependency.argument.0
-      assign $new.4
-        Type Secret
-        ClassAlloc Secret
-      call external5 direct
-        Type Secret
-        Local $new.4
-        Type Int
-        Local $dependency.parameter.key
-      val $argument.0: Secret
-        Type Secret
-        Local $new.4
+        Local $new.8
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.5
+      val $dependency.receiver: Secret
+        Type Secret
+        Local $equality.lhs
+      assign $new.9
         Type Secret
         ClassAlloc Secret
-      call external5 direct
+      call external4 direct
         Type Secret
-        Local $new.5
+        Local $new.9
         Type Int
         Local $dependency.parameter.key
-      val $argument.1: Secret
+      val $dependency.argument.0: Secret
         Type Secret
-        Local $new.5
-      val $argument.2: Boolean
+        Local $new.9
+      val $dependency.parameter.other: Secret
+        Type Secret
+        Local $dependency.argument.0
+      call $call.10: Boolean = external5 direct
+        Type Secret
+        Local $dependency.receiver
+        Type Secret
+        Local $dependency.parameter.other
+      val $argument.0: Boolean
         Type Boolean
-        BoolLiteral false
-      val $parameter.left: Secret
-        Type Secret
+        Unary BoolNot
+          Type Boolean
+          Local $call.10
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Secret
-        Type Secret
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn4 direct
-        Type Secret
-        Local $parameter.left
-        Type Secret
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
+        Local $parameter.value
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.6
+      assign $new.11
         Type Secret
         ClassAlloc Secret
-      call external5 direct
+      call external4 direct
         Type Secret
-        Local $new.6
+        Local $new.11
         Type Int
         Local $dependency.parameter.key
       val $dependency.argument.0: Secret
         Type Secret
-        Local $new.6
+        Local $new.11
       val $dependency.argument.1: String
         Type String
         StringConst @str1
@@ -413,7 +395,7 @@ Module
         Local $dependency.parameter.secret
         Type String
         Local $dependency.parameter.label
-      val $argument.0: Record
+      val $equality.lhs: Record
         Type Record
         Local record
       val $dependency.argument.0: Int
@@ -422,17 +404,17 @@ Module
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.7
+      assign $new.12
         Type Secret
         ClassAlloc Secret
-      call external5 direct
+      call external4 direct
         Type Secret
-        Local $new.7
+        Local $new.12
         Type Int
         Local $dependency.parameter.key
       val $dependency.argument.0: Secret
         Type Secret
-        Local $new.7
+        Local $new.12
       val $dependency.argument.1: String
         Type String
         StringConst @str2
@@ -442,31 +424,23 @@ Module
       val $dependency.parameter.label: String
         Type String
         Local $dependency.argument.1
-      call $argument.1: Record = external6 direct
+      call $call.13: Record = external6 direct
         Type Secret
         Local $dependency.parameter.secret
         Type String
         Local $dependency.parameter.label
-      val $argument.2: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.left: Record
+      call $argument.0: Boolean = external20 direct
         Type Record
+        Local $equality.lhs
+        Type Record
+        Local $call.13
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Record
-        Type Record
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn5 direct
-        Type Record
-        Local $parameter.left
-        Type Record
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
-      val $argument.0: Record
+        Local $parameter.value
+      val $equality.lhs: Record
         Type Record
         Local record
       val $dependency.argument.0: Int
@@ -475,17 +449,17 @@ Module
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.8
+      assign $new.14
         Type Secret
         ClassAlloc Secret
-      call external5 direct
+      call external4 direct
         Type Secret
-        Local $new.8
+        Local $new.14
         Type Int
         Local $dependency.parameter.key
       val $dependency.argument.0: Secret
         Type Secret
-        Local $new.8
+        Local $new.14
       val $dependency.argument.1: String
         Type String
         StringConst @str3
@@ -495,30 +469,27 @@ Module
       val $dependency.parameter.label: String
         Type String
         Local $dependency.argument.1
-      call $argument.1: Record = external6 direct
+      call $call.15: Record = external6 direct
         Type Secret
         Local $dependency.parameter.secret
         Type String
         Local $dependency.parameter.label
-      val $argument.2: Boolean
-        Type Boolean
-        BoolLiteral false
-      val $parameter.left: Record
+      call $call.16: Boolean = external20 direct
         Type Record
+        Local $equality.lhs
+        Type Record
+        Local $call.15
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.16
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Record
-        Type Record
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn5 direct
-        Type Record
-        Local $parameter.left
-        Type Record
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
+        Local $parameter.value
       val $dependency.argument.0: Record
         Type Record
         Local record
@@ -528,92 +499,77 @@ Module
       call boxed: Any = external7 direct
         Type Record
         Local $dependency.parameter.record
-      val $argument.0: Boolean
+      val $dependency.receiver: Boolean
         Type Boolean
         IsInstance Equality<Record>
           Type Any
           Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
+      val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          IsInstance Equality<Record>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.9
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.9
-      throw
-        Type ClassCastException
-        Local $new.9
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Record>
-        Type Equality<Record>
-        Retype Equality<Record>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Record
-        Type Record
-        Local record
-      val $dependency.parameter.other: Record
-        Type Record
-        Local $dependency.argument.0
-      call $argument.0: Boolean = @fn6 interface Equality<Record>[0]
-        Type Equality<Record>
-        Local $dependency.receiver
-        Type Record
-        Local $dependency.parameter.other
+          Local $dependency.receiver
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Choice
-        Type Choice
-        VariantConstruct Choice v0
-      val $argument.1: Choice
-        Type Choice
-        VariantConstruct Choice v0
-      val $argument.2: Boolean
+      val $cast.3: Any
+        Type Any
+        Local boxed
+      branch bb3 bb4
         Type Boolean
-        BoolLiteral true
-      val $parameter.left: Choice
-        Type Choice
+        Unary BoolNot
+          Type Boolean
+          IsInstance Record
+            Type Any
+            Local $cast.3
+    bb3 if.then.3
+      assign $new.17
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external16 direct
+        Type ClassCastException
+        Local $new.17
+      throw
+        Type ClassCastException
+        Local $new.17
+    bb4 if.merge.4
+      val $ub.4: Record
+        Type Record
+        Unbox
+          Type Any
+          Local $cast.3
+      call $argument.0: Boolean = external20 direct
+        Type Record
+        Local $ub.4
+        Type Record
+        Local record
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Choice
-        Type Choice
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn7 direct
+        Local $parameter.value
+      call $argument.0: Boolean = external18 direct
         Type Choice
-        Local $parameter.left
+        VariantConstruct Choice v0
         Type Choice
-        Local $parameter.right
+        VariantConstruct Choice v0
+      val $parameter.value: Boolean
         Type Boolean
-        Local $parameter.expected
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
       val $dependency.argument.0: Record
         Type Record
         Local record
       val $dependency.parameter._1: Record
         Type Record
         Local $dependency.argument.0
-      val $argument.0: Choice
+      val $equality.lhs: Choice
         Type Choice
         VariantConstruct Choice v1
           Type Record
@@ -624,37 +580,26 @@ Module
       val $dependency.parameter._1: Record
         Type Record
         Local $dependency.argument.0
-      val $argument.1: Choice
+      call $argument.0: Boolean = external18 direct
+        Type Choice
+        Local $equality.lhs
         Type Choice
         VariantConstruct Choice v1
           Type Record
           Local $dependency.parameter._1
-      val $argument.2: Boolean
+      val $parameter.value: Boolean
         Type Boolean
-        BoolLiteral true
-      val $parameter.left: Choice
-        Type Choice
         Local $argument.0
-      val $parameter.right: Choice
-        Type Choice
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn7 direct
-        Type Choice
-        Local $parameter.left
-        Type Choice
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
+        Local $parameter.value
       val $dependency.argument.0: Record
         Type Record
         Local record
       val $dependency.parameter._1: Record
         Type Record
         Local $dependency.argument.0
-      val $argument.0: Choice
+      val $equality.lhs: Choice
         Type Choice
         VariantConstruct Choice v1
           Type Record
@@ -665,37 +610,31 @@ Module
       val $dependency.parameter._1: Long
         Type Long
         Local $dependency.argument.0
-      val $argument.1: Choice
+      call $call.18: Boolean = external18 direct
+        Type Choice
+        Local $equality.lhs
         Type Choice
         VariantConstruct Choice v2
           Type Long
           Local $dependency.parameter._1
-      val $argument.2: Boolean
+      val $argument.0: Boolean
         Type Boolean
-        BoolLiteral false
-      val $parameter.left: Choice
-        Type Choice
+        Unary BoolNot
+          Type Boolean
+          Local $call.18
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Choice
-        Type Choice
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn7 direct
-        Type Choice
-        Local $parameter.left
-        Type Choice
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
+        Local $parameter.value
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=9 bits=0x00000009
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Declared = external8 direct
+      call $argument.0: Declared = external9 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -704,7 +643,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.1: Declared = external8 direct
+      call $argument.1: Declared = external9 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.2: Boolean
@@ -719,7 +658,7 @@ Module
       val $parameter.expected: Boolean
         Type Boolean
         Local $argument.2
-      call @fn8 direct
+      call @fn2 direct
         Type Declared
         Local $parameter.left
         Type Declared
@@ -732,7 +671,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Declared = external8 direct
+      call $argument.0: Declared = external9 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -741,7 +680,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.1: Declared = external8 direct
+      call $argument.1: Declared = external9 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.2: Boolean
@@ -756,7 +695,7 @@ Module
       val $parameter.expected: Boolean
         Type Boolean
         Local $argument.2
-      call @fn8 direct
+      call @fn2 direct
         Type Declared
         Local $parameter.left
         Type Declared
@@ -769,7 +708,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Multiple = external10 direct
+      call $equality.lhs: Multiple = external10 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -778,28 +717,20 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.1: Multiple = external10 direct
+      call $call.19: Multiple = external10 direct
         Type Int
         Local $dependency.parameter.value
-      val $argument.2: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.left: Multiple
+      call $argument.0: Boolean = external17 direct
         Type Multiple
+        Local $equality.lhs
+        Type Multiple
+        Local $call.19
+      val $parameter.value: Boolean
+        Type Boolean
         Local $argument.0
-      val $parameter.right: Multiple
-        Type Multiple
-        Local $argument.1
-      val $parameter.expected: Boolean
+      call @fn0 direct
         Type Boolean
-        Local $argument.2
-      call @fn9 direct
-        Type Multiple
-        Local $parameter.left
-        Type Multiple
-        Local $parameter.right
-        Type Boolean
-        Local $parameter.expected
+        Local $parameter.value
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
@@ -818,7 +749,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Boolean = external9 direct
+      call $argument.0: Boolean = external11 direct
         Type Multiple
         Local $dependency.receiver
         Type Int
@@ -829,28 +760,23 @@ Module
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val $dependency.receiver: Equality<Multiple>
-        Type Equality<Multiple>
-        Box
-          Type Multiple
-          Local multiple
+      val $equality.lhs: Multiple
+        Type Multiple
+        Local multiple
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Multiple = external10 direct
+      call $call.20: Multiple = external10 direct
         Type Int
         Local $dependency.parameter.value
-      val $dependency.parameter.other: Multiple
+      call $argument.0: Boolean = external17 direct
         Type Multiple
-        Local $dependency.argument.0
-      call $argument.0: Boolean = @fn10 interface Equality<Multiple>[0]
-        Type Equality<Multiple>
-        Local $dependency.receiver
+        Local $equality.lhs
         Type Multiple
-        Local $dependency.parameter.other
+        Local $call.20
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -863,28 +789,28 @@ Module
       val $dependency.parameter.key: Int
         Type Int
         Local $dependency.argument.0
-      assign $new.10
+      assign $new.21
         Type Opaque
         ClassAlloc Opaque
-      call external11 direct
+      call external12 direct
         Type Opaque
-        Local $new.10
+        Local $new.21
         Type Int
         Local $dependency.parameter.key
       val $dependency.argument.0: Opaque
         Type Opaque
-        Local $new.10
+        Local $new.21
       val $dependency.parameter.value: Opaque
         Type Opaque
         Local $dependency.argument.0
-      call $call.11: Incomparable = external12 direct
+      call $call.22: Incomparable = external13 direct
         Type Opaque
         Local $dependency.parameter.value
       val opaque: Any
         Type Any
         Box
           Type Incomparable
-          Local $call.11
+          Local $call.22
       val $dependency.receiver: Boolean
         Type Boolean
         IsInstance Equality<Incomparable>
@@ -907,589 +833,11 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn3 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun verify @fn2(left: Point, right: Point, expected: Boolean) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Point
-        Type Point
-        Local left
-      val $dependency.argument.1: Point
-        Type Point
-        Local right
-      val $dependency.parameter.left: Point
-        Type Point
-        Local $dependency.argument.0
-      val $dependency.parameter.right: Point
-        Type Point
-        Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn12 direct
-        Type Point
-        Local $dependency.parameter.left
-        Type Point
-        Local $dependency.parameter.right
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val view: Equality<Point>
-        Type Equality<Point>
-        Box
-          Type Point
-          Local left
-      val $dependency.receiver: Equality<Point>
-        Type Equality<Point>
-        Local view
-      val $dependency.argument.0: Point
-        Type Point
-        Local right
-      val $dependency.parameter.other: Point
-        Type Point
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn3 interface Equality<Point>[0]
-        Type Equality<Point>
-        Local $dependency.receiver
-        Type Point
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val boxed: Any
-        Type Any
-        Box
-          Type Point
-          Local left
-      val $argument.0: Boolean
-        Type Boolean
-        IsInstance Equality<Point>
-          Type Any
-          Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Equality<Point>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.1
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.1
-      throw
-        Type ClassCastException
-        Local $new.1
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Point>
-        Type Equality<Point>
-        Retype Equality<Point>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Point
-        Type Point
-        Local right
-      val $dependency.parameter.other: Point
-        Type Point
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn3 interface Equality<Point>[0]
-        Type Equality<Point>
-        Local $dependency.receiver
-        Type Point
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      return
-  fun Equality.equals @fn3(this: Equality<Point>, other: Point) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun verify @fn4(left: Secret, right: Secret, expected: Boolean) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Secret
-        Type Secret
-        Local left
-      val $dependency.argument.1: Secret
-        Type Secret
-        Local right
-      val $dependency.parameter.left: Secret
-        Type Secret
-        Local $dependency.argument.0
-      val $dependency.parameter.right: Secret
-        Type Secret
-        Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn13 direct
-        Type Secret
-        Local $dependency.parameter.left
-        Type Secret
-        Local $dependency.parameter.right
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val view: Equality<Secret>
-        Type Equality<Secret>
-        Retype Equality<Secret>
-          Type Secret
-          Local left
-      val $dependency.receiver: Equality<Secret>
-        Type Equality<Secret>
-        Local view
-      val $dependency.argument.0: Secret
-        Type Secret
-        Local right
-      val $dependency.parameter.other: Secret
-        Type Secret
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn14 interface Equality<Secret>[0]
-        Type Equality<Secret>
-        Local $dependency.receiver
-        Type Secret
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val boxed: Any
-        Type Any
-        Retype Any
-          Type Secret
-          Local left
-      val $argument.0: Boolean
-        Type Boolean
-        IsInstance Equality<Secret>
-          Type Any
-          Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Equality<Secret>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.1
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.1
-      throw
-        Type ClassCastException
-        Local $new.1
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Secret>
-        Type Equality<Secret>
-        Retype Equality<Secret>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Secret
-        Type Secret
-        Local right
-      val $dependency.parameter.other: Secret
-        Type Secret
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn14 interface Equality<Secret>[0]
-        Type Equality<Secret>
-        Local $dependency.receiver
-        Type Secret
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      return
-  fun verify @fn5(left: Record, right: Record, expected: Boolean) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Record
-        Type Record
-        Local left
-      val $dependency.argument.1: Record
-        Type Record
-        Local right
-      val $dependency.parameter.left: Record
-        Type Record
-        Local $dependency.argument.0
-      val $dependency.parameter.right: Record
-        Type Record
-        Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn15 direct
-        Type Record
-        Local $dependency.parameter.left
-        Type Record
-        Local $dependency.parameter.right
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val view: Equality<Record>
-        Type Equality<Record>
-        Box
-          Type Record
-          Local left
-      val $dependency.receiver: Equality<Record>
-        Type Equality<Record>
-        Local view
-      val $dependency.argument.0: Record
-        Type Record
-        Local right
-      val $dependency.parameter.other: Record
-        Type Record
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn6 interface Equality<Record>[0]
-        Type Equality<Record>
-        Local $dependency.receiver
-        Type Record
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val boxed: Any
-        Type Any
-        Box
-          Type Record
-          Local left
-      val $argument.0: Boolean
-        Type Boolean
-        IsInstance Equality<Record>
-          Type Any
-          Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Equality<Record>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.1
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.1
-      throw
-        Type ClassCastException
-        Local $new.1
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Record>
-        Type Equality<Record>
-        Retype Equality<Record>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Record
-        Type Record
-        Local right
-      val $dependency.parameter.other: Record
-        Type Record
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn6 interface Equality<Record>[0]
-        Type Equality<Record>
-        Local $dependency.receiver
-        Type Record
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      return
-  fun Equality.equals @fn6(this: Equality<Record>, other: Record) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun verify @fn7(left: Choice, right: Choice, expected: Boolean) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Choice
-        Type Choice
-        Local left
-      val $dependency.argument.1: Choice
-        Type Choice
-        Local right
-      val $dependency.parameter.left: Choice
-        Type Choice
-        Local $dependency.argument.0
-      val $dependency.parameter.right: Choice
-        Type Choice
-        Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn16 direct
-        Type Choice
-        Local $dependency.parameter.left
-        Type Choice
-        Local $dependency.parameter.right
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val view: Equality<Choice>
-        Type Equality<Choice>
-        Box
-          Type Choice
-          Local left
-      val $dependency.receiver: Equality<Choice>
-        Type Equality<Choice>
-        Local view
-      val $dependency.argument.0: Choice
-        Type Choice
-        Local right
-      val $dependency.parameter.other: Choice
-        Type Choice
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn17 interface Equality<Choice>[0]
-        Type Equality<Choice>
-        Local $dependency.receiver
-        Type Choice
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val boxed: Any
-        Type Any
-        Box
-          Type Choice
-          Local left
-      val $argument.0: Boolean
-        Type Boolean
-        IsInstance Equality<Choice>
-          Type Any
-          Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Equality<Choice>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.1
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.1
-      throw
-        Type ClassCastException
-        Local $new.1
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Choice>
-        Type Equality<Choice>
-        Retype Equality<Choice>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Choice
-        Type Choice
-        Local right
-      val $dependency.parameter.other: Choice
-        Type Choice
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn17 interface Equality<Choice>[0]
-        Type Equality<Choice>
-        Local $dependency.receiver
-        Type Choice
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      return
-  fun verify @fn8(left: Declared, right: Declared, expected: Boolean) -> Unit
+  fun verify @fn2(left: Declared, right: Declared, expected: Boolean) -> Unit
     bb0 entry
       val $dependency.argument.0: Declared
         Type Declared
@@ -1503,7 +851,7 @@ Module
       val $dependency.parameter.right: Declared
         Type Declared
         Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn18 direct
+      call $dependency.receiver: Boolean = @fn4 direct
         Type Declared
         Local $dependency.parameter.left
         Type Declared
@@ -1539,7 +887,7 @@ Module
       val $dependency.parameter.other: Declared
         Type Declared
         Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn19 interface Equality<Declared>[0]
+      call $dependency.receiver: Boolean = @fn5 interface Equality<Declared>[0]
         Type Equality<Declared>
         Local $dependency.receiver
         Type Declared
@@ -1591,7 +939,7 @@ Module
       assign $new.1
         Type ClassCastException
         ClassAlloc ClassCastException
-      call external15 direct
+      call external16 direct
         Type ClassCastException
         Local $new.1
       throw
@@ -1609,7 +957,7 @@ Module
       val $dependency.parameter.other: Declared
         Type Declared
         Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn19 interface Equality<Declared>[0]
+      call $dependency.receiver: Boolean = @fn5 interface Equality<Declared>[0]
         Type Equality<Declared>
         Local $dependency.receiver
         Type Declared
@@ -1632,164 +980,18 @@ Module
         Type Boolean
         Local $parameter.value
       return
-  fun verify @fn9(left: Multiple, right: Multiple, expected: Boolean) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Multiple
-        Type Multiple
-        Local left
-      val $dependency.argument.1: Multiple
-        Type Multiple
-        Local right
-      val $dependency.parameter.left: Multiple
-        Type Multiple
-        Local $dependency.argument.0
-      val $dependency.parameter.right: Multiple
-        Type Multiple
-        Local $dependency.argument.1
-      call $dependency.receiver: Boolean = @fn20 direct
-        Type Multiple
-        Local $dependency.parameter.left
-        Type Multiple
-        Local $dependency.parameter.right
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val view: Equality<Multiple>
-        Type Equality<Multiple>
-        Box
-          Type Multiple
-          Local left
-      val $dependency.receiver: Equality<Multiple>
-        Type Equality<Multiple>
-        Local view
-      val $dependency.argument.0: Multiple
-        Type Multiple
-        Local right
-      val $dependency.parameter.other: Multiple
-        Type Multiple
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn10 interface Equality<Multiple>[0]
-        Type Equality<Multiple>
-        Local $dependency.receiver
-        Type Multiple
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val boxed: Any
-        Type Any
-        Box
-          Type Multiple
-          Local left
-      val $argument.0: Boolean
-        Type Boolean
-        IsInstance Equality<Multiple>
-          Type Any
-          Local boxed
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      val $cast.1: Any
-        Type Any
-        Local boxed
-      branch bb1 bb2
-        Type Boolean
-        Unary BoolNot
-          Type Boolean
-          IsInstance Equality<Multiple>
-            Type Any
-            Local $cast.1
-    bb1 if.then.1
-      assign $new.1
-        Type ClassCastException
-        ClassAlloc ClassCastException
-      call external15 direct
-        Type ClassCastException
-        Local $new.1
-      throw
-        Type ClassCastException
-        Local $new.1
-    bb2 if.merge.2
-      val $dependency.receiver: Equality<Multiple>
-        Type Equality<Multiple>
-        Retype Equality<Multiple>
-          Type Any
-          Local $cast.1
-      val $dependency.argument.0: Multiple
-        Type Multiple
-        Local right
-      val $dependency.parameter.other: Multiple
-        Type Multiple
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = @fn10 interface Equality<Multiple>[0]
-        Type Equality<Multiple>
-        Local $dependency.receiver
-        Type Multiple
-        Local $dependency.parameter.other
-      val $dependency.argument.0: Boolean
-        Type Boolean
-        Local expected
-      val $dependency.parameter.other: Boolean
-        Type Boolean
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Boolean
-        Local $dependency.receiver
-        Type Boolean
-        Local $dependency.parameter.other
-      val $parameter.value: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn0 direct
-        Type Boolean
-        Local $parameter.value
-      return
-  fun Equality.equals @fn10(this: Equality<Multiple>, other: Multiple) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun println @fn11(value: String) -> Unit
+  fun println @fn3(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external13 direct
+      call $dependency.local.2: String = external14 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external14 direct
+      call external15 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -1798,93 +1000,11 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external14 direct
+      call external15 direct
         Type String
         Local $dependency.local.5
       return
-  fun compare @fn12(left: Point, right: Point) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Point
-        Type Point
-        Local left
-      val $dependency.local.3: Point
-        Type Point
-        Local right
-      val $dependency.local.4: Point
-        Type Point
-        Local $dependency.local.3
-      call $call.1: Boolean = external18 direct
-        Type Point
-        Local $dependency.local.2
-        Type Point
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
-  fun compare @fn13(left: Secret, right: Secret) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Secret
-        Type Secret
-        Local left
-      val $dependency.local.3: Secret
-        Type Secret
-        Local right
-      val $dependency.local.4: Secret
-        Type Secret
-        Local $dependency.local.3
-      call $call.1: Boolean = external4 direct
-        Type Secret
-        Local $dependency.local.2
-        Type Secret
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
-  fun Equality.equals @fn14(this: Equality<Secret>, other: Secret) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun compare @fn15(left: Record, right: Record) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Record
-        Type Record
-        Local left
-      val $dependency.local.3: Record
-        Type Record
-        Local right
-      val $dependency.local.4: Record
-        Type Record
-        Local $dependency.local.3
-      call $call.1: Boolean = external20 direct
-        Type Record
-        Local $dependency.local.2
-        Type Record
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
-  fun compare @fn16(left: Choice, right: Choice) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Choice
-        Type Choice
-        Local left
-      val $dependency.local.3: Choice
-        Type Choice
-        Local right
-      val $dependency.local.4: Choice
-        Type Choice
-        Local $dependency.local.3
-      call $call.1: Boolean = external17 direct
-        Type Choice
-        Local $dependency.local.2
-        Type Choice
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
-  fun Equality.equals @fn17(this: Equality<Choice>, other: Choice) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun compare @fn18(left: Declared, right: Declared) -> Boolean
+  fun compare @fn4(left: Declared, right: Declared) -> Boolean
     bb0 entry
       val $dependency.local.2: Declared
         Type Declared
@@ -1895,7 +1015,7 @@ Module
       val $dependency.local.4: Declared
         Type Declared
         Local $dependency.local.3
-      call $call.1: Boolean = external19 direct
+      call $call.1: Boolean = external8 direct
         Type Declared
         Local $dependency.local.2
         Type Declared
@@ -1903,47 +1023,13 @@ Module
       return
         Type Boolean
         Local $call.1
-  fun Equality.equals @fn19(this: Equality<Declared>, other: Declared) -> Boolean
+  fun Equality.equalTo @fn5(this: Equality<Declared>, other: Declared) -> Boolean
     bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun compare @fn20(left: Multiple, right: Multiple) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Multiple
-        Type Multiple
-        Local left
-      val $dependency.local.3: Multiple
-        Type Multiple
-        Local right
-      val $dependency.local.4: Multiple
-        Type Multiple
-        Local $dependency.local.3
-      call $call.1: Boolean = external16 direct
-        Type Multiple
-        Local $dependency.local.2
-        Type Multiple
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
+      trap "call to abstract method `Equality.equalTo`"
   instance mi0 function=@fn2 <- verify
-  instance mi1 function=@fn3 <- Equality.equals
-  instance mi2 function=@fn4 <- verify
-  instance mi3 function=@fn5 <- verify
-  instance mi4 function=@fn6 <- Equality.equals
-  instance mi5 function=@fn7 <- verify
-  instance mi6 function=@fn8 <- verify
-  instance mi7 function=@fn9 <- verify
-  instance mi8 function=@fn10 <- Equality.equals
-  instance mi9 function=@fn11 <- println
-  instance mi10 function=@fn12 <- compare
-  instance mi11 function=@fn13 <- compare
-  instance mi12 function=@fn14 <- Equality.equals
-  instance mi13 function=@fn15 <- compare
-  instance mi14 function=@fn16 <- compare
-  instance mi15 function=@fn17 <- Equality.equals
-  instance mi16 function=@fn18 <- compare
-  instance mi17 function=@fn19 <- Equality.equals
-  instance mi18 function=@fn20 <- compare
+  instance mi1 function=@fn3 <- println
+  instance mi2 function=@fn4 <- compare
+  instance mi3 function=@fn5 <- Equality.equalTo
   str @str0 "illegal state"
   str @str1 "stored"
   str @str2 "stored"

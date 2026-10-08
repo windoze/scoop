@@ -1,5 +1,7 @@
 struct Point(val x: Int, val y: Int)
-struct Declared(val value: Int) : Equality<Declared>
+struct Declared(val value: Int) : Equality<Declared> {
+    public override fun equalTo(other: Declared): Boolean = this.equals(other)
+}
 struct Empty()
 struct Record(val label: String, val point: Point)
 struct Floating(val single: Float, val double: Double)
@@ -11,39 +13,31 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException() }
 }
 
-fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
-
-fun <T : Equality<T>> verify(left: T, right: T, expected: Boolean) {
-    check(same(left, right) == expected)
-    val view: Equality<T> = left
-    check(view.equals(right) == expected)
-    val boxed: Any = left
-    check(boxed is Equality<T>)
-    check((boxed as Equality<T>).equals(right) == expected)
-}
-
 fun main() {
     val point = Point(1, 2)
-    verify(point, Point(1, 2), true)
-    verify(point, Point(2, 1), false)
-    check(point.equals(Point(1, 2)))
-    check(!point.equals(Point(2, 1)))
     check(point == Point(1, 2))
     check(point != Point(2, 1))
-    verify(Declared(7), Declared(7), true)
-    verify(Declared(7), Declared(8), false)
-    verify(Empty(), Empty(), true)
+    check(point.equals(Point(1, 2)))
+    check(!point.equals(Point(2, 1)))
+    val pointBox: Any = point
+    check(!(pointBox is Equality<Point>))
+    check(Declared(7) == Declared(7))
+    check(Declared(7) != Declared(8))
+    val declared: Equality<Declared> = Declared(7)
+    check(declared.equalTo(Declared(7)))
+    check(!declared.equalTo(Declared(8)))
+    check(Empty() == Empty())
     val record = Record("value", point)
-    verify(record, Record("value", Point(1, 2)), true)
-    verify(record, Record("other", point), false)
-    verify(Choice.Empty, Choice.Empty, true)
-    verify(Choice.Value(record), Choice.Value(Record("value", point)), true)
-    verify(Choice.Value(record), Choice.Number(3L), false)
-    verify(Choice.Number(3L), Choice.Number(4L), false)
+    check(record == Record("value", Point(1, 2)))
+    check(record != Record("other", point))
+    check(Choice.Empty == Choice.Empty)
+    check(Choice.Value(record) == Choice.Value(Record("value", point)))
+    check(Choice.Value(record) != Choice.Number(3L))
+    check(Choice.Number(3L) != Choice.Number(4L))
     check(Choice.Empty.equals(Choice.Empty))
-    verify(Floating(Float.NaN, 1.0), Floating(Float.NaN, 1.0), false)
-    verify(Floating(1f, Double.NaN), Floating(1f, Double.NaN), false)
-    verify(Floating(0f, -0.0), Floating(-0f, 0.0), true)
+    check(Floating(Float.NaN, 1.0) != Floating(Float.NaN, 1.0))
+    check(Floating(1f, Double.NaN) != Floating(1f, Double.NaN))
+    check(Floating(0f, -0.0) == Floating(-0f, 0.0))
     val opaque: Any = Incomparable(Opaque(3))
     check(!(opaque is Equality<Incomparable>))
     println("derived nominal equality")

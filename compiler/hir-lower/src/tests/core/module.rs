@@ -14,14 +14,17 @@ use super::{
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(iteration_core_declarations());
-    let mut equals = bodyless_method(
+    let equal_to = bodyless_method(
         false,
-        "equals",
+        "equalTo",
         vec![("other", ty_named("T"))],
         Some(ty_named("Boolean")),
     );
-    equals.operator = Some(ast::OperatorModifier { span: sp() });
-    declarations.push(generic_interface_decl("Equality", vec!["T"], vec![equals]));
+    declarations.push(generic_interface_decl(
+        "Equality",
+        vec!["T"],
+        vec![equal_to],
+    ));
     declarations.extend(intrinsic_type_declarations());
     declarations.extend(super::floating::floating_declarations());
     declarations.extend([

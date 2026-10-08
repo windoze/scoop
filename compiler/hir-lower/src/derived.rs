@@ -12,9 +12,9 @@ use crate::{
 };
 
 mod body;
-mod conformances;
 mod declarations;
 mod imported;
+mod published;
 
 pub(crate) enum DerivedEqualityCandidate {
     Imported(hir::ImportedDerivedEquality),
@@ -45,12 +45,7 @@ impl Lowerer {
         ty: hir::TypeId,
         span: ast::Span,
     ) -> Result<Option<DerivedEqualityCandidate>, String> {
-        if matches!(self.types[ty], Type::Unit)
-            && self
-                .type_interfaces(ty)
-                .into_iter()
-                .any(|interface| self.is_equality_interface(interface))
-        {
+        if matches!(self.types[ty], Type::Unit) {
             return Ok(None);
         }
         let nominal = match self.types[ty].clone() {

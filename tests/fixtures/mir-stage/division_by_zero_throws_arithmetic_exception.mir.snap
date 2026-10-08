@@ -10,36 +10,48 @@ Module
   enum Option<String>
     Some(_1: String)
     None()
-  enum CoroutineStep<_ThrowableProtocol>
-    Completed(value: _ThrowableProtocol)
+  enum CoroutineStep<ArithmeticException>
+    Completed(value: ArithmeticException)
     Suspended()
-  enum CoroutineSlot<_ThrowableProtocol>
+  enum CoroutineSlot<ArithmeticException>
     Empty()
-    Value(value: _ThrowableProtocol)
+    Value(value: ArithmeticException)
   enum CoroutineStep<String>
     Completed(value: String)
     Suspended()
   enum CoroutineSlot<String>
     Empty()
     Value(value: String)
+  enum CoroutineStep<_ThrowableProtocol>
+    Completed(value: _ThrowableProtocol)
+    Suspended()
+  enum CoroutineSlot<_ThrowableProtocol>
+    Empty()
+    Value(value: _ThrowableProtocol)
   class ArithmeticException vtable=0 itables=0
   interface Continuation<String>
   interface SuspendTask<String>
   interface SuspendRegistration<String>
+  interface Continuation<ArithmeticException>
+  interface SuspendTask<ArithmeticException>
+  interface SuspendRegistration<ArithmeticException>
   interface Continuation<_ThrowableProtocol>
   interface SuspendTask<_ThrowableProtocol>
   interface SuspendRegistration<_ThrowableProtocol>
-  generated_exact_type get0 location=enum5 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get1 location=enum4 nominal_id=4d17f6190dfc97d89ac45e897ad3be51791c0a741a87aaf624ebc7bb5388a0aa exact_id=7b6e2fdce3886a253f07171e848f7b62dcf0bf1b49fc4776e43293440949328f
-  generated_exact_type get2 location=context-binding-ref nominal_id=f5d827b4565b93354072c694f8b1295ba7973e509d69075e4d880b27883b4899 exact_id=7d427e894b91cc7d43ca11888501888c19d9b87f0f86a07f5dd774e995d2de06
-  generated_exact_type get3 location=context-node nominal_id=3b9b3b1e05266c8315f9d0f02eb0883aa27f2236e6764335b9f820e894567982 exact_id=86ecc4f02f38d1662050953f9be8f94ad77cd35e936cc32a0f7ce7e68ef4b9fa
-  generated_exact_type get4 location=context-switch-guard nominal_id=34d8eb1ca246a303ebe091783a83515e84de6669f083ef6340ae44dc7c7124aa exact_id=b8e7b6d50fdc365fbd58aef3cef72811a1ad0e064558983e0cec2186c02137e0
-  generated_exact_type get5 location=enum3 nominal_id=8e87ab1c9f058e3887edda4f3cde4d268fef049633fba16135d0005daf2c41ee exact_id=c0236e13108a9f5c89384a703596acaa990c03af369ff70ae9e62fd31d66196c
-  generated_exact_type get6 location=enum6 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  generated_exact_type get7 location=task-context nominal_id=259c379163c9a86aac052f66b50058dc359c14e1ee7bfefea423c610a78d26dc exact_id=db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac
-  generated_exact_type get8 location=context-mark nominal_id=5c08956e18efa8fa7031d47ec248313976fd154d359179297587d02a451d0dcc exact_id=ff39c39747251707f739c6e67cb86f7e8a52c92ba8f30fc4e2285dada92a0c65
-  generated_callable gc0 function=@fn18 id=a020ce69f3231d812b6b787bad8fb55b72f0db205594f6525ff0f35a32343007
-  generated_callable gc1 function=@fn17 id=a7223b689e3d129b2b28885c5db00a54d772296885947e86eb5f4695b1d8e9e2
+  generated_exact_type get0 location=enum6 nominal_id=0a9131411258753158e3ac8473ccbbb64c4154e6ac590b808e0467b121596e11 exact_id=161559ee0315d7202713d924365d93ffddd8144e5fb353c8d64abde312b58331
+  generated_exact_type get1 location=enum8 nominal_id=64e1e834d28616aa9d93305d52ad9b28a0859af5294b2199a43ce6c8c67eee19 exact_id=2c6248723eeaa4c040876e9de6c0faa458e6c6e1b05a69e7b292a1d7bfecb9ce
+  generated_exact_type get2 location=enum7 nominal_id=02a469637e26726a1a61ad93a3c9d957a62847b249602c309df556c1e775369f exact_id=4934cd4d826b13a16f9abfea3de4fe2b06111f4df0f7b74e0675b522cee5a55f
+  generated_exact_type get3 location=enum3 nominal_id=0a85f09303e267bcdad0f0c4d658b7029743185fc30c3da9ba4351f444d3c968 exact_id=5087747910a6840ad401fda554236b5f486433be881de20da7558786d8456b32
+  generated_exact_type get4 location=context-binding-ref nominal_id=f5d827b4565b93354072c694f8b1295ba7973e509d69075e4d880b27883b4899 exact_id=7d427e894b91cc7d43ca11888501888c19d9b87f0f86a07f5dd774e995d2de06
+  generated_exact_type get5 location=enum5 nominal_id=ca4efd187e93700e267181e00d2ddc0748056b387470341c8b512a57e64a94fd exact_id=7ebf548d899a815ef1b26d3129df9ce47819ea2c2526009b0f9ba5ce43fba073
+  generated_exact_type get6 location=enum4 nominal_id=b5308a442a4e12585134cb305ecd6374fe9be3b45b2c39421939518fb3b90e61 exact_id=80682278c2208b459c61c610a3e206fc7ac44f644682c139f424e853f2491751
+  generated_exact_type get7 location=context-node nominal_id=3b9b3b1e05266c8315f9d0f02eb0883aa27f2236e6764335b9f820e894567982 exact_id=86ecc4f02f38d1662050953f9be8f94ad77cd35e936cc32a0f7ce7e68ef4b9fa
+  generated_exact_type get8 location=context-switch-guard nominal_id=34d8eb1ca246a303ebe091783a83515e84de6669f083ef6340ae44dc7c7124aa exact_id=b8e7b6d50fdc365fbd58aef3cef72811a1ad0e064558983e0cec2186c02137e0
+  generated_exact_type get9 location=task-context nominal_id=259c379163c9a86aac052f66b50058dc359c14e1ee7bfefea423c610a78d26dc exact_id=db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac
+  generated_exact_type get10 location=context-mark nominal_id=5c08956e18efa8fa7031d47ec248313976fd154d359179297587d02a451d0dcc exact_id=ff39c39747251707f739c6e67cb86f7e8a52c92ba8f30fc4e2285dada92a0c65
+  generated_callable gc0 function=@fn21 id=4518067f292f28b4cccf413a1cdc16efab2a25034baf0dd63b852f8055cf35cc
+  generated_callable gc1 function=@fn22 id=7187059c51e873581e1e87f2a78c5a71395e56930ab6ba73b603cf28358f6cad
+  generated_callable gc2 function=@fn23 id=a59bacfa8489e9be4753511ecb754439c74c9b094604f472ccdcd6c251e4223c
   fun main @fn0() -> Unit
     bb0 entry
       val $div.1: Int
@@ -59,7 +71,7 @@ Module
       assign $new.1
         Type ArithmeticException
         ClassAlloc ArithmeticException
-      call @fn9 direct
+      call @fn13 direct
         Type ArithmeticException
         Local $new.1
       throw
@@ -122,22 +134,34 @@ Module
   fun SuspendRegistration.register @fn4(this: SuspendRegistration<String>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn5(this: Continuation<_ThrowableProtocol>, value: _ThrowableProtocol) -> Unit
+  fun Continuation.resume @fn5(this: Continuation<ArithmeticException>, value: ArithmeticException) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn6(this: Continuation<_ThrowableProtocol>, exception: _ThrowableProtocol) -> Unit
+  fun Continuation.resumeWithException @fn6(this: Continuation<ArithmeticException>, exception: _ThrowableProtocol) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn7(this: SuspendTask<_ThrowableProtocol>, $completion: Continuation<_ThrowableProtocol>) -> CoroutineStep<_ThrowableProtocol>
+  fun SuspendTask.run @fn7(this: SuspendTask<ArithmeticException>, $completion: Continuation<ArithmeticException>) -> CoroutineStep<ArithmeticException>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn8(this: SuspendRegistration<_ThrowableProtocol>) -> Unit
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<ArithmeticException>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.ArithmeticException.$c0 @fn9(this: ArithmeticException) -> Unit
+  fun Continuation.resume @fn9(this: Continuation<_ThrowableProtocol>, value: _ThrowableProtocol) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<_ThrowableProtocol>, exception: _ThrowableProtocol) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<_ThrowableProtocol>, $completion: Continuation<_ThrowableProtocol>) -> CoroutineStep<_ThrowableProtocol>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<_ThrowableProtocol>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ArithmeticException.$c0 @fn13(this: ArithmeticException) -> Unit
     bb0 entry
       return
-  fun startCoroutine<_ThrowableProtocol> @fn17(task: SuspendTask<_ThrowableProtocol>, completion: Continuation<_ThrowableProtocol>) -> Unit
+  fun startCoroutine<ArithmeticException> @fn21(task: SuspendTask<ArithmeticException>, completion: Continuation<ArithmeticException>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -160,12 +184,12 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn5 interface Continuation<_ThrowableProtocol>[0]
-        Type Continuation<_ThrowableProtocol>
+      call @fn5 interface Continuation<ArithmeticException>[0]
+        Type Continuation<ArithmeticException>
         Local completion
-        Type _ThrowableProtocol
+        Type ArithmeticException
         EnumField v0 f0
-          Type CoroutineStep<_ThrowableProtocol>
+          Type CoroutineStep<ArithmeticException>
           Local $step
       Type Unit
       ContextLeave
@@ -173,8 +197,8 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn6 interface Continuation<_ThrowableProtocol>[1]
-        Type Continuation<_ThrowableProtocol>
+      call @fn6 interface Continuation<ArithmeticException>[1]
+        Type Continuation<ArithmeticException>
         Local completion
         Type _ThrowableProtocol
         Local $exception
@@ -192,17 +216,17 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<_ThrowableProtocol> = @fn7 interface SuspendTask<_ThrowableProtocol>[0]
-        Type SuspendTask<_ThrowableProtocol>
+      call $step: CoroutineStep<ArithmeticException> = @fn7 interface SuspendTask<ArithmeticException>[0]
+        Type SuspendTask<ArithmeticException>
         Local task
-        Type Continuation<_ThrowableProtocol>
+        Type Continuation<ArithmeticException>
         Local completion
       branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
           EnumTag
-            Type CoroutineStep<_ThrowableProtocol>
+            Type CoroutineStep<ArithmeticException>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -218,7 +242,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<String> @fn18(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
+  fun startCoroutine<String> @fn22(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -299,14 +323,99 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  coroutine_step cs0 CoroutineStep<_ThrowableProtocol> result=_ThrowableProtocol
+  fun startCoroutine<_ThrowableProtocol> @fn23(task: SuspendTask<_ThrowableProtocol>, completion: Continuation<_ThrowableProtocol>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn9 interface Continuation<_ThrowableProtocol>[0]
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+        Type _ThrowableProtocol
+        EnumField v0 f0
+          Type CoroutineStep<_ThrowableProtocol>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn10 interface Continuation<_ThrowableProtocol>[1]
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+        Type _ThrowableProtocol
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: _ThrowableProtocol = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<_ThrowableProtocol> = @fn11 interface SuspendTask<_ThrowableProtocol>[0]
+        Type SuspendTask<_ThrowableProtocol>
+        Local task
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<_ThrowableProtocol>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  coroutine_step cs0 CoroutineStep<ArithmeticException> result=ArithmeticException
   coroutine_step cs1 CoroutineStep<String> result=String
-  coroutine_slot cl0 CoroutineSlot<_ThrowableProtocol> value=_ThrowableProtocol
+  coroutine_step cs2 CoroutineStep<_ThrowableProtocol> result=_ThrowableProtocol
+  coroutine_slot cl0 CoroutineSlot<ArithmeticException> value=ArithmeticException
   coroutine_slot cl1 CoroutineSlot<String> value=String
-  coroutine_start ct0 result=_ThrowableProtocol function=fn17
-  coroutine_start ct1 result=String function=fn18
+  coroutine_slot cl2 CoroutineSlot<_ThrowableProtocol> value=_ThrowableProtocol
+  coroutine_start ct0 result=ArithmeticException function=fn21
+  coroutine_start ct1 result=String function=fn22
+  coroutine_start ct2 result=_ThrowableProtocol function=fn23
   coroutine_fn cf0 @fn3 source_return=String step=cs1 immediate
-  coroutine_fn cf1 @fn7 source_return=_ThrowableProtocol step=cs0 immediate
+  coroutine_fn cf1 @fn7 source_return=ArithmeticException step=cs0 immediate
+  coroutine_fn cf2 @fn11 source_return=_ThrowableProtocol step=cs2 immediate
   instance mi0 function=@fn1 <- Continuation.resume
   instance mi1 function=@fn2 <- Continuation.resumeWithException
   instance mi2 function=@fn3 <- SuspendTask.run
@@ -315,4 +424,8 @@ Module
   instance mi5 function=@fn6 <- Continuation.resumeWithException
   instance mi6 function=@fn7 <- SuspendTask.run
   instance mi7 function=@fn8 <- SuspendRegistration.register
+  instance mi8 function=@fn9 <- Continuation.resume
+  instance mi9 function=@fn10 <- Continuation.resumeWithException
+  instance mi10 function=@fn11 <- SuspendTask.run
+  instance mi11 function=@fn12 <- SuspendRegistration.register
   output executable @fn0

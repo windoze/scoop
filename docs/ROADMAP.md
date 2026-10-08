@@ -500,7 +500,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 提供平台库需要的编译器与 runtime 能力：NativeSafe 握手、GCLeaf 与标量直接 C ABI、作用域数据借用、计数 pin、受检 UTF-8 与 C 字符串、四种 main／argv／退出码、NativeSafe 输出及 errno 捕获。
 - 完成 Cone 内 C/C++ 源码、目标条件源码选择、native 系统库、sysroot 中已声明 scoop 依赖的默认定位；C++ 支持 Darwin/GNU，musl 明确拒绝。
-- 用实际 core `Equality<T>` 统一相等、派生与泛型 bound，提供五种内存序的原子类型及线程退出诊断；不扩大为平台库公开 API 或新的通用框架。
+- `==` / `!=` 使用普通成员 `operator fun equals`，Map 的 key 比较使用独立的普通 `Equality<T>.equalTo` 接口；结构比较不派生接口，两项能力分别显式提供。后续有序 Map 的比较接口保持独立库设计；M33 提供五种内存序的原子类型及线程退出诊断，不扩大为平台库公开 API 或新的通用框架。
 - 按设计第 12 节拆分功能提交，先规范后实现，控制文件长度；开发阶段运行受影响的 crate／fixture，里程碑收尾完成必要回归与三个 target 的闭环验收。
 
 ## 3. 备注

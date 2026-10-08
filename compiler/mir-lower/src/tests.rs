@@ -304,20 +304,6 @@ fn dump(module: &mir::Module) -> String {
         .collect()
 }
 
-fn visible_class_count(module: &mir::Module) -> usize {
-    module
-        .classes
-        .iter()
-        .filter(|(_, class)| {
-            !class.name.ends_with("Protocol")
-                && matches!(
-                    class.representation,
-                    mir::ClassRepresentation::Declared { .. }
-                )
-        })
-        .count()
-}
-
 fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
     module
         .classes

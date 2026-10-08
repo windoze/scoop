@@ -12,10 +12,10 @@ SourceFile
   public struct Envelope
     field packet: Packet
     field flag: Flag
-  public struct Manual : Equality<Manual>
+  public struct Manual
     field number: Int
     public operator fun equals
-  public struct Overloaded : Equality<Int>
+  public struct Overloaded
     field number: Int
     public operator fun equals
   public class Missing()

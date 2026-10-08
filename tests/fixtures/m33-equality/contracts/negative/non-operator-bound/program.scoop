@@ -1,0 +1,5 @@
+interface Similar<T> {
+    public fun equals(other: T): Boolean
+}
+fun <T : Similar<T>> same(left: T, right: T): Boolean = left == right
+fun main() {}

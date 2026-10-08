@@ -2,6 +2,8 @@ use super::*;
 use crate::NominalTarget;
 
 mod delegate_roles;
+mod equality;
+pub(crate) use equality::ImportedDerivedEqualityProbe;
 mod explicit_calls;
 mod extension_calls;
 mod extensions;

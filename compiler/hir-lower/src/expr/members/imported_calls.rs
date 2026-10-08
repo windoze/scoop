@@ -104,12 +104,7 @@ impl Lowerer {
                 expected,
                 required.operator == Some(hir::OperatorKind::Set),
             ) {
-                Ok(mut probe) => {
-                    if required.operator == Some(hir::OperatorKind::Equals)
-                        && !probe.matches_equality_contract()
-                    {
-                        continue;
-                    }
+                Ok(probe) => {
                     probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)))
                 }
                 Err(failure) => {

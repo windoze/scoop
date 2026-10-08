@@ -2,7 +2,7 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException() }
 }
 
-fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
 
 @Unsafe
 fun verifyPointer(pointer: Ptr<UInt8>, length: Long) {
@@ -11,10 +11,10 @@ fun verifyPointer(pointer: Ptr<UInt8>, length: Long) {
     val next = pointer + 1L
     check(!same(pointer, next))
     val view: Equality<Ptr<UInt8>> = pointer
-    check(view.equals(pointer))
+    check(view.equalTo(pointer))
     val boxed: Any = pointer
     check(boxed is Equality<Ptr<UInt8>>)
-    check((boxed as Equality<Ptr<UInt8>>).equals(pointer))
+    check((boxed as Equality<Ptr<UInt8>>).equalTo(pointer))
 }
 
 fun main() {

@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "dependency function `equals`: Equality<Int> is not a subtype of Int",
+    "message": "type `Equality<Int>` has no applicable member operator `equals` for `==`",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
       "end": 105,
       "kind": "source",
       "path": "main.scoop",
-      "start": 100
+      "start": 92
     },
     "severity": "error"
   }

@@ -8,7 +8,10 @@ public struct Long : Equality<Long>, ToString, Hash {
 
     @NoGC
     @Intrinsic("long_equals")
-    public override operator fun equals(other: Long): Boolean
+    public operator fun equals(other: Long): Boolean
+
+    @NoGC
+    public override fun equalTo(other: Long): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("long_unary_plus")

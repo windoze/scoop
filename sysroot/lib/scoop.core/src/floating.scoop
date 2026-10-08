@@ -43,7 +43,10 @@ public struct Float : Equality<Float>, ToString {
     public operator fun rem(other: Float): Float
 
     @NoGC @Intrinsic("float_equals")
-    public override operator fun equals(other: Float): Boolean
+    public operator fun equals(other: Float): Boolean
+
+    @NoGC
+    public override fun equalTo(other: Float): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("float_is_nan")
     public fun isNaN(): Boolean
@@ -135,7 +138,10 @@ public struct Double : Equality<Double>, ToString {
     public operator fun rem(other: Double): Double
 
     @NoGC @Intrinsic("double_equals")
-    public override operator fun equals(other: Double): Boolean
+    public operator fun equals(other: Double): Boolean
+
+    @NoGC
+    public override fun equalTo(other: Double): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("double_is_nan")
     public fun isNaN(): Boolean

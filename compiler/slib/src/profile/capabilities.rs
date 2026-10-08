@@ -25,12 +25,12 @@ pub fn manifest_single_cone_production_capability() -> CapabilityId {
 }
 
 pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 13)
+    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 14)
         .expect("built-in capability id is valid")
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 66)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 67)
         .expect("built-in capability id is valid")
 }
 

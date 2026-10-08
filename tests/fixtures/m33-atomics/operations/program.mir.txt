@@ -4,18 +4,18 @@ Module
   global2 comparisons: Int managed initial=encoded(Int:0x0)
   global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   init0 top-level:shared eager global1 initializer=@fn13 ensure=@fn14 failure=3 deps=[]
-  enum MemoryOrder
-    Relaxed()
-    Acquire()
-    Release()
-    AcqRel()
-    SeqCst()
   enum Option<String>
     Some(_0: String)
     None()
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
@@ -28,7 +28,6 @@ Module
   class Payload vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   interface Equality<Payload>
-  interface Equality<MemoryOrder>
   interface ToString
   interface Hash
   interface Equality<Char>
@@ -39,11 +38,11 @@ Module
   interface SuspendTask<Payload>
   interface SuspendRegistration<Payload>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn22 captures=0
-    bridge function_type1 -> @fn32 id=efb5019b8110f6e791c8206efedb5ee0452832d14cf95cbc50001ead8f69f3a3
+    bridge function_type1 -> @fn33 id=efb5019b8110f6e791c8206efedb5ee0452832d14cf95cbc50001ead8f69f3a3
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn23 captures=0
-    bridge function_type1 -> @fn33 id=16cc25ca1e2b03610c1485358a67750ee3083ac9329fa526cc0418a467cac8ba
+    bridge function_type1 -> @fn34 id=16cc25ca1e2b03610c1485358a67750ee3083ac9329fa526cc0418a467cac8ba
   closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn25 captures=1
-    bridge function_type1 -> @fn34 id=b03707968922e107525c5d6a3c2e3421ccedda37b599c4cf12b4ca3450b99d0d
+    bridge function_type1 -> @fn35 id=b03707968922e107525c5d6a3c2e3421ccedda37b599c4cf12b4ca3450b99d0d
   generated_exact_type get0 location=closure0 nominal_id=d136c2cf0db1df12073bb68d9b4ffd090e9e5f427d70bd22f17134d2be4f5fa7 exact_id=0602704c285a447f333bc24200ed607d8e8c6443b9194f788a383c2e1adb89d9
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=closure2 nominal_id=4531e4b4137eed7bb73847aa7884db7fe427c972d25f2688273699b66547ff3c exact_id=2c125a74b41bb0d67ad89234aa47cf7a2b92e111c94234e3cc0b8b789422d3d2
@@ -55,10 +54,10 @@ Module
   generated_exact_type get8 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get10 location=closure1 nominal_id=ec6c186c619bb609dfad52e6067a7aec7d78adcd1767491eb4b9b8af92cf385d exact_id=f825a1168f9aa0663d36e1807fc0cfea463d27bcb9cccb7839f4228b3da1c713
-  generated_callable gc0 function=@fn33 id=16cc25ca1e2b03610c1485358a67750ee3083ac9329fa526cc0418a467cac8ba
-  generated_callable gc1 function=@fn31 id=17c7c31efe838ced07ffdcda860f52cfae0a49461c8b0b8134ba2b7b845be3bb
-  generated_callable gc2 function=@fn34 id=b03707968922e107525c5d6a3c2e3421ccedda37b599c4cf12b4ca3450b99d0d
-  generated_callable gc3 function=@fn32 id=efb5019b8110f6e791c8206efedb5ee0452832d14cf95cbc50001ead8f69f3a3
+  generated_callable gc0 function=@fn34 id=16cc25ca1e2b03610c1485358a67750ee3083ac9329fa526cc0418a467cac8ba
+  generated_callable gc1 function=@fn32 id=17c7c31efe838ced07ffdcda860f52cfae0a49461c8b0b8134ba2b7b845be3bb
+  generated_callable gc2 function=@fn35 id=b03707968922e107525c5d6a3c2e3421ccedda37b599c4cf12b4ca3450b99d0d
+  generated_callable gc3 function=@fn33 id=efb5019b8110f6e791c8206efedb5ee0452832d14cf95cbc50001ead8f69f3a3
   fun receiver @fn0() -> AtomicInt
     bb0 entry
       call $dependency.receiver: Int = @fn11 direct
@@ -415,7 +414,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn30 direct
+      call @fn31 direct
         Type Payload
         Local $new.1
         Type Int
@@ -432,7 +431,7 @@ Module
       assign $new.2
         Type Payload
         ClassAlloc Payload
-      call @fn30 direct
+      call @fn31 direct
         Type Payload
         Local $new.2
         Type Int
@@ -449,7 +448,7 @@ Module
       assign $new.3
         Type Payload
         ClassAlloc Payload
-      call @fn30 direct
+      call @fn31 direct
         Type Payload
         Local $new.3
         Type Int
@@ -2958,42 +2957,25 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Payload.equals @fn19(this: Payload, other: Payload) -> Boolean
+  fun Payload.equalTo @fn19(this: Payload, other: Payload) -> Boolean
     bb0 entry
-      call $dependency.receiver: Int = @fn16 direct
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      call @fn17 direct
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Payload
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Payload
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
+      val $receiver: Payload
+        Type Payload
+        Local this
+      val $argument.0: Payload
+        Type Payload
+        Local other
+      val $parameter.other: Payload
+        Type Payload
+        Local $argument.0
+      call $call.1: Boolean = @fn26 direct
+        Type Payload
+        Local $receiver
+        Type Payload
+        Local $parameter.other
       return
         Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
+        Local $call.1
   fun observed @fn20(cell: AtomicRef<Payload>, expected: Payload, value: Payload) -> Payload
     bb0 entry
       val $dependency.receiver: AtomicRef<Payload>
@@ -3109,19 +3091,55 @@ Module
         AtomicLoad Relaxed Int
           Type AtomicInt
           Local $dependency.receiver
-  fun Continuation.resume @fn26(this: Continuation<Payload>, value: Payload) -> Unit
+  fun Payload.equals @fn26(this: Payload, other: Payload) -> Boolean
+    bb0 entry
+      call $dependency.receiver: Int = @fn16 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Continuation.resume @fn27(this: Continuation<Payload>, value: Payload) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn27(this: Continuation<Payload>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn28(this: Continuation<Payload>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn28(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+  fun SuspendTask.run @fn29(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Payload.$c0 @fn30(this: Payload, key: Int) -> Unit
+  fun init.Payload.$c0 @fn31(this: Payload, key: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -3129,7 +3147,7 @@ Module
         Type Int
         Local key
       return
-  fun startCoroutine<Payload> @fn31(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+  fun startCoroutine<Payload> @fn32(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -3152,7 +3170,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn26 interface Continuation<Payload>[0]
+      call @fn27 interface Continuation<Payload>[0]
         Type Continuation<Payload>
         Local completion
         Type Payload
@@ -3165,7 +3183,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn27 interface Continuation<Payload>[1]
+      call @fn28 interface Continuation<Payload>[1]
         Type Continuation<Payload>
         Local completion
         Type Throwable
@@ -3184,7 +3202,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Payload> = @fn28 interface SuspendTask<Payload>[0]
+      call $step: CoroutineStep<Payload> = @fn29 interface SuspendTask<Payload>[0]
         Type SuspendTask<Payload>
         Local task
         Type Continuation<Payload>
@@ -3210,7 +3228,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.() -> Any @fn32($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn33($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -3220,7 +3238,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.() -> Any @fn33($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda1.() -> Any @fn34($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -3230,7 +3248,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.() -> Any @fn34($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda2.() -> Any @fn35($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
@@ -3242,16 +3260,16 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Payload> result=Payload
   coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
-  coroutine_start ct0 result=Payload function=fn31
-  coroutine_fn cf0 @fn28 source_return=Payload step=cs0 immediate
+  coroutine_start ct0 result=Payload function=fn32
+  coroutine_fn cf0 @fn29 source_return=Payload step=cs0 immediate
   instance mi0 function=@fn18 <- println
   instance mi1 function=@fn20 <- observed
   instance mi2 function=@fn21 <- boundReference
   instance mi3 function=@fn24 <- classBound
-  instance mi4 function=@fn26 <- Continuation.resume
-  instance mi5 function=@fn27 <- Continuation.resumeWithException
-  instance mi6 function=@fn28 <- SuspendTask.run
-  instance mi7 function=@fn29 <- SuspendRegistration.register
+  instance mi4 function=@fn27 <- Continuation.resume
+  instance mi5 function=@fn28 <- Continuation.resumeWithException
+  instance mi6 function=@fn29 <- SuspendTask.run
+  instance mi7 function=@fn30 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "atomic operations"

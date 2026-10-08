@@ -11,7 +11,6 @@ impl CoreCompilerProtocolSurfaceV1 {
             self.fundamental_types.entries().as_slice(),
             self.option_protocol.entries().as_slice(),
             self.iteration_protocol.entries().as_slice(),
-            self.equality_protocol.entries().as_slice(),
             self.exception_protocol.entries().as_slice(),
             self.coroutine_protocol.entries().as_slice(),
             self.ffi_protocol.entries().as_slice(),
@@ -27,11 +26,6 @@ impl CoreCompilerProtocolSurfaceV1 {
         require_source_callables(
             CoreProtocolProductKindV1::Iteration,
             self.iteration_protocol.entries(),
-            &[1],
-        )?;
-        require_source_callables(
-            CoreProtocolProductKindV1::Equality,
-            self.equality_protocol.entries(),
             &[1],
         )?;
         require_constructor_callables(
@@ -251,7 +245,6 @@ pub enum CoreProtocolProductKindV1 {
     Fundamental,
     Option,
     Iteration,
-    Equality,
     Exception,
     Coroutine,
     Ffi,

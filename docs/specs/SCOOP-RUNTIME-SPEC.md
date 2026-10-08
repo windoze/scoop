@@ -101,7 +101,7 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。提升到 Any 或 interface 时，值存入带原 exact TypeDescriptor 的 managed box；值类型 receiver 使用独立的方法局部副本，不能取得调用方 place 或 box payload 的别名。
 
-语言规范 11.11 派生的 `Equality<完整 value 类型>` 使用普通 interface TD、itable 与 callable。只有该 exact application 满足派生条件时才有对应表项，bound、装箱后的接口调用与 `is` / `as` 消费同一关系。NoGc 值方法实现 Managed Equality slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接比较仍调用原 NoGc 实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
+语言规范 11.11 的显式 `Equality<T>.equalTo` 实现使用普通 interface TD、itable 与 callable。表项只来自实际声明或继承的 conformance；结构 operator equals 不增加接口。NoGc 值方法实现 Managed interface slot 时，itable 使用符合 slot ABI 的 Managed value/interface adapter，具体值的直接 operator 比较仍调用原实现；runtime 不按类型名、对象地址或内存字节另行判断相等。
 
 `Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。
 
@@ -537,7 +537,7 @@ Option<Char> 的 storage 为 16 bytes、alignment 8，tag offset 0、Char offset
 
 `scoop_rt_allocation_overflow()` 为无参数、NoGC 后备，在 Long 容量运算溢出时进入 fatal allocation failure，不分配、不回调、不引入新的源码异常。
 
-integer Hash 与 compareTo 返回 Long。各类型的相等按实际 Equality conformance 与 equals 实现执行，字符串化／哈希按实际 ToString／Hash 声明执行，不提供按 Any 或地址兜底。Equality 本身不增加 runtime 比较入口；浮点继续使用 IEEE 比较，结构相等使用 compiler 生成的逐字段／variant 正文。Iterator、Range、List、ArrayList 和 StringBuilder 的公开行为由普通 core 接口规定，不增加容器专用 runtime ABI。
+integer Hash 与 compareTo 返回 Long。`==` / `!=` 执行编译器已选定的 operator equals；库相等执行普通 `Equality<T>.equalTo` 调用，字符串化／哈希按实际 ToString／Hash 声明执行，不提供按 Any 或地址兜底。Equality 不增加 runtime 比较入口，也不与 operator 分派绑定；浮点的两种相等均保持 IEEE 语义，结构 operator 使用 compiler 生成的逐字段／variant 正文。Iterator、Range、List、ArrayList 和 StringBuilder 的公开行为由普通 core 接口规定，不增加容器专用 runtime ABI。
 
 ### 6.1 Float / Double
 

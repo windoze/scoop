@@ -39,11 +39,6 @@ pub(super) const OPTION_LAYOUT: [ProtocolEntryKind; OPTION_PROTOCOL_COUNT] = [
     ProtocolEntryKind::EnumVariantField,
     ProtocolEntryKind::EnumVariant,
 ];
-pub(super) const EQUALITY_LAYOUT: [ProtocolEntryKind; EQUALITY_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-];
 pub(super) const ITERATION_LAYOUT: [ProtocolEntryKind; ITERATION_PROTOCOL_COUNT] = [
     ProtocolEntryKind::GenericType,
     ProtocolEntryKind::Callable,

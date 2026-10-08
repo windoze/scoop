@@ -8,7 +8,10 @@ public struct Int8 : Equality<Int8>, ToString, Hash {
 
     @NoGC
     @Intrinsic("int8_equals")
-    public override operator fun equals(other: Int8): Boolean
+    public operator fun equals(other: Int8): Boolean
+
+    @NoGC
+    public override fun equalTo(other: Int8): Boolean = this.equals(other)
 
     @NoGC
     @Intrinsic("int8_unary_plus")

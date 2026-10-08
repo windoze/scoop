@@ -1,4 +1,6 @@
 @Intrinsic("core_unit")
 public struct Unit : Equality<Unit> {
-    public override operator fun equals(other: Unit): Boolean = true
+    public operator fun equals(other: Unit): Boolean = true
+
+    public override fun equalTo(other: Unit): Boolean = true
 }

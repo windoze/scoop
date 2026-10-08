@@ -4,7 +4,6 @@ mod coding;
 mod context;
 mod decoding;
 mod encoding;
-mod equality;
 mod imported;
 mod interfaces;
 mod order;
@@ -110,10 +109,6 @@ impl Lowerer {
             self.current_file = file_index;
             self.current_owner = Some(owner);
             let diagnostics_before = self.diagnostics.len();
-            if !self.check_equality_declaration(id, decl, owner) {
-                self.invalid_override_methods.insert(id);
-                continue;
-            }
             self.check_member_access_contract(id, decl, owner);
             self.check_override_rules(id, decl, owner);
             if decl.is_override && self.diagnostics.len() != diagnostics_before {
@@ -143,12 +138,6 @@ impl Lowerer {
                 source.span(),
                 &format!("{} `{}`", source.description(), self.objects[object].name),
             );
-        }
-        for &(id, decl, file_index) in pending_structs {
-            self.prepare_value_equality_conformance(Owner::Struct(id), decl.span, file_index);
-        }
-        for &(id, decl, file_index) in pending_enums {
-            self.prepare_value_equality_conformance(Owner::Enum(id), decl.span, file_index);
         }
         for &(id, decl, file_index) in pending_structs {
             self.current_file = file_index;

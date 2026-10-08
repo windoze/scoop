@@ -1,9 +1,10 @@
 var comparisons: Int = 0
 class Payload(val key: Int) : Equality<Payload> {
-    public override operator fun equals(other: Payload): Boolean {
+    public operator fun equals(other: Payload): Boolean {
         comparisons = comparisons + 1
         return key == other.key
     }
+    public override fun equalTo(other: Payload): Boolean = this.equals(other)
 }
 
 fun <T : ref> observed(cell: AtomicRef<T>, expected: T, value: T): T =

@@ -5,11 +5,11 @@ public enum Packet {
     Named { value: String, flag: Flag }
 }
 public struct Envelope(val packet: Packet, val flag: Flag)
-public struct Manual(val number: Int) : Equality<Manual> {
-    public override operator fun equals(other: Manual): Boolean = true
+public struct Manual(val number: Int) {
+    public operator fun equals(other: Manual): Boolean = true
 }
-public struct Overloaded(val number: Int) : Equality<Int> {
-    public override operator fun equals(other: Int): Boolean = this.number == other
+public struct Overloaded(val number: Int) {
+    public operator fun equals(other: Int): Boolean = this.number == other
 }
 public class Missing public constructor()
 public enum Broken { Empty, Value(Missing) }

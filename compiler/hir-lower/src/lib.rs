@@ -773,7 +773,6 @@ pub(crate) struct Lowerer {
     /// Complete typed source-iteration contract, established after interface
     /// method signatures and the canonical Option relation are available.
     pub(crate) iteration_core: Option<hir::IterationCore>,
-    pub(crate) equality_core: Option<hir::EqualityCore>,
     /// Ordinary core-prelude variant bindings. Contextual enum lookup is a
     /// separate, lower-priority layer and never populates this table.
     pub(crate) core_prelude_variants: CorePreludeVariantBindings,

@@ -71,15 +71,13 @@ class 构造输出明确区分 allocation、同 receiver 的 initializer、this/
 
 singleton、runtime property 与 generic delegated application 保存完整初始化单元及 cycle throw target。constant 已完成依赖环检查与求值，没有 runtime unit。interface/default/virtual 选择在 HIR 唯一确定，qualified super 保存 direct target。
 
-相等能力按语言规范 11.11 解析到实际 core `Equality<T>` 及其 equals slot。普通继承与类型信息齐备后，先建立值类型派生 Equality 的签名、字段条件和 conformance 关系，再完成相关 interface obligation、override、bound 与正文检查；不能在接口实现检查已经失败后才追加一个不关联 slot 的 equals 候选。仅有同名方法不能补齐 conformance，intrinsic 类型由实际 core 声明显式实现。
+`==` / `!=` 按语言规范 9.3、11.11 从普通成员中选择 operator equals，保存实际 callable 或普通接口 bound target；不要求 core Equality conformance。`Equality<T>.equalTo` 按普通 interface 声明、override 和 bound call 处理，不进入 core operator／protocol 身份表，也不为同形方法或结构比较补齐接口。
 
-判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 `operator` 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会获得 Equality；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
+判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 operator 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会成为 operator；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
 
-Equality 与 Iterator 一样，在 core 声明检查边界解析并记录普通 interface、equals callable 与 dispatch slot 的实际 typed identity，随既有 core protocol 数据导出和导入。它不增加 intrinsic annotation；后续候选查找按这些身份及普通接口继承关系工作，不能按 `Equality` 或 `equals` 的名称补建协议。
+结构比较的字段／payload 调用使用既有 typed 派生与泛型模板表示。generic body 已选定的成员和 bound callable 随 ExportHir 保存，具体化只替换类型、连接实现并产生完整普通正文，不重新做源码重载决议。未存储的形参不产生比较条件；字段的比较需求与 nominal 构造条件分开，仅构造或装箱不要求生成比较正文，也不产生条件 Equality conformance。LocalConcreteHir 对实际使用的比较给出完整 typed 调用与短路控制流，MIR 不再求解字段是否可比较。
 
-generic value 的 Equality 条件只包含实际字段／payload 的比较需求；开放字段保存原类型表达式与实际 Equality 协议身份，已有 bound 足以决议的成员保留其已绑定契约，未存储的形参不产生条件。ExportHir 保存这些条件和成员身份，HIR 具体化时按语言规定完成派生，LocalConcreteHir 对每个需要的 exact application 给出确定的接口闭包、slot implementation 与完整正文，不能把“接口是否存在”留为后续 stage 猜测。该派生不允许用户 generic body 越过已声明的 bound 使用能力。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，其他签名、访问、ordinary/suspend 与安全性规则照常检查。
-
-派生 Equality 的 safe 方法合同来自已确定的接口 slot，生成入口不再作为手写 safe 函数重复执行 InteriorMutable 签名暴露检查。实际值的构造、读取、传递和比较仍执行语言规范 13.7 的 unsafe 类型使用检查；普通源码函数和 extern 的检查保持原规则。
+派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equalTo` 及其他普通接口方法；独立的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
 
 extern 声明产生完整 `SourceNativeExternalContract`：symbol bytes、逻辑 library/default namespace、function/data/TLS、mutability、C/Scoop ABI、calling convention、完整的 native 签名、GC effect 与定义位置。Scoop callable 另保留完整源码签名；启用 errno 捕获时，两者按语言规范 13.4.2 建立明确的结果适配关系。普通／suspend 效果与 GC effect 独立，后续不得由 symbol 或参数类型反推。
 
@@ -91,7 +89,11 @@ C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不�
 
 实际依赖分为 lookup observations 与 committed uses。前者包括空查找、不适用候选、star surface 和 re-export；后者才形成 MIR/LIR 的 callable、类型、布局与 native 需求。未展开默认值和未物化模板不产生机器调用。
 
-正式 Cone 的初始 nominal 物化根来自已收集的发布声明闭包；正文调用、存储及其他实际类型用途继续扩展具体化闭包。未使用且不在发布闭包中的私有类型不因可以派生 Equality 而先物化其接口 application，再反向成为发布根。其语言层 conformance 仍存在，实际使用时按同一规则生成完整表示和实现。
+正式 Cone 的初始 nominal 物化根来自已收集的发布声明闭包；正文调用、存储及其他实际类型用途继续扩展具体化闭包。未使用且不在发布闭包中的私有类型不因可能派生 operator equals 而反向成为发布根。比较实现按实际调用与发布需求生成；类型的接口集合始终来自普通声明和继承关系。
+
+定义 core 时，输出协议所引用的基本类型主体也通过同一物化请求入口补齐；它们不依赖某个普通接口或无关源码调用间接触发物化。已物化的主体复用原结果。
+
+公开非泛型值类型的可用派生 operator 正文由定义 Cone 发布，消费者引用该生成 callable；字段不可比较时不发布该正文，也不因此拒绝类型声明或构造。普通 `.equals` 调用与 `==` 使用同一派生成员签名；需要实现显式用户接口中的 operator slot 时，定义处即检查并生成对应正文。
 
 ### 2.3 MIR
 
@@ -105,9 +107,9 @@ MIR 控制流显式表示普通边、异常边、循环目标和 cleanup。Retur
 
 所有调用已确定 direct、virtual 或 interface target。super 不重新进入动态分派；方法 receiver 为完整值参数，value receiver 的可观察存储属于本次方法调用。
 
-`==` / `!=` 保存选中的 Equality application、slot 与实际 implementation；派生结构比较降为普通 typed 成员调用和短路控制流。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
+`==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equality<T>.equalTo` 是独立的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals 或 equalTo。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
 
-tuple 与 Ptr 等使用结构表示的值，其装箱接口闭包来自 LocalConcreteHir 的实际 conformance，并由 MIR 的实际表项写入产物。产物读写检查接口引用、slot、callable 与签名的一致性，不因 exact type 使用结构表示就强制接口集合为空，也不在后续 stage 重放字段相等或源码 implements 的决议。
+使用结构表示的值，其装箱接口闭包来自 LocalConcreteHir 的实际声明／继承关系，并由 MIR 的实际表项写入产物。tuple 的结构比较不增加 Equality 表项；Ptr 的显式接口仍按普通规则保留。产物读写检查接口引用、slot、callable 与签名的一致性，不因 exact type 使用结构表示就强制接口集合为空，也不在后续 stage 重放字段相等或源码 implements 的决议。
 
 class allocation 只分配最派生对象一次，使用实际 exact TD；base/this initializer 不分配、不修改 TD。receiver 在可能 GC 的操作间保活并重读，只有完整构造成功后发布 release-ready 与结果。构造失败没有可用结果。
 
@@ -246,7 +248,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/13`、`cross-cone-interface/66`、`cross-cone-type-semantics/25` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/67`、`cross-cone-type-semantics/25` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/17` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/12`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
@@ -258,13 +260,13 @@ production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR �
 
 executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M33 的 runtime ABI contract 11、metadata ABI 7 同时进入兼容检查、runtime 与启动对象的构建输入；旧 gateway 或旧产物不能按缺省 `main(): Unit` 解释，也不能与新的 runtime 混用。
 
-Equality 的显式／派生 conformance、generic 字段条件、原接口 slot、实际派生／手写实现及必要的分派适配随普通 interface、callable 与 exact-type metadata 保存，进入相应 semantic／ABI fingerprints 和 section profiles。相同 value application 跨 Cone 的派生 body、boxing adapter 与 itable 仍按既有身份和 ODR 规则唯一；artifact-only 链接只消费已闭合的实现，不重新扫描字段或按方法名称推导相等能力。旧 core 或产物缺少所需 Equality 合同时按兼容规则重建或拒绝。
+operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-派生 Equality 在 nominal 的 slot selection 中使用独立的 `DerivedEquality(原 nominal declaration)` 目标种类；它引用真实宿主身份，不占用普通 SourceFunctionId，也不创建第二个接口 slot。exact 实现继续使用 `GeneratedCallableKey::DerivedEquality { exact_owner }`。源接口 slot 的签名、所选宿主和生成 callable 的引用在各自边界连接；派生目标没有普通源码函数声明，不能为了复用普通函数查询而伪造一条声明。产物读取验证保存的 slot、receiver、签名和生成目标关系，不重做字段的重载决议。
+`core-bootstrap-interface/14` 删除旧 Equality protocol 字段；`cross-cone-interface/67` 按独立的 operator 与普通 `equalTo` 成员解释调用和接口关系。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。
 
-装箱适配器可直接引用同一宿主的派生 Equality callable。MIR 先登记实际实现的绑定，再据此生成和连接适配器绑定；目标的生成身份、完整签名和 GC effect 与普通实现一样参与调用检查，不增加一条虚构源码函数作为中转。
+派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
-导入的派生方法依已保存的 conformance 提供完整重载候选签名，与宿主的其他 `equals` 重载共同参与普通成员决议。候选使用实际 Equality application 的原接口函数声明，保留完整参数替换，经普通接口分派到定义方生成 callable；不建立虚构源码函数，也不重新生成定义方正文。不同 Equality application 共用根 slot 时，候选选择须保留各自完整的宿主与参数类型。
+接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；旧的 Equality equals slot 不能作为 equalTo 消费。不因这次库接口拆分增加 runtime 比较 ABI。
 
 `single-cone-production/6` 的 field 4 为完整 typed registration projection，field 6 为 RuntimeImage fingerprint，field 11 为物理 ODR member 目录，field 12 为 OptimizationMode；field 5 保留不用。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。
 
@@ -280,7 +282,7 @@ C extern 的 NativeSafe/GcLeaf 模式作为声明及调用的语义字段进入�
 
 `captureErrno`、完整 Scoop 结果类型、native 返回投影及 bridge 结果适配进入对应声明、调用与 bridge 的 HIR/MIR/LIR metadata、语义/Code 指纹和缓存。编译消费方按已保存的结果适配生成 `(R, Int)`，链接消费方保留实际 bridge 及 native requirements；不按合并后的 native symbol 重新决定捕获，也不将旧的单结果 bridge 当作捕获 bridge。必需字段与 recipe key 的变化按既有 metadata/schema 兼容规则演进，旧产物不能缺字段后静默当作不捕获。
 
-HIR `cross-cone-interface/66` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
+HIR `cross-cone-interface/67` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
 
 DirectC/StorageBridge 及其完整物理调用计划进入相应 LIR metadata 与既有语义/Code 指纹和缓存投影，不加入 source native symbol 的 ABI 冲突键。DirectC 保留真实 native undefined reference、contract 与 library requirement；没有实际桥接用途时，不生成 outbound bridge recipe、物理定义或 member 要求。跨 Cone 与泛型消费按当前 target 得到同一完整计划；artifact-only 链接只消费产物记录，不重做 ABI lowering，也不为直接调用重新插入 bridge。
 
@@ -428,7 +430,7 @@ interface 槽序按直接父接口声明序继承，再追加当前声明；相�
 
 itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。generic receiver 始终是完整 exact application，只沿声明中的 exact base/interface 关系分派。
 
-派生 `Equality<完整 value 类型>` 是普通 conformance；有界泛型调用、interface 调用、装箱、`is` / `as` 看到相同的实际接口闭包。已知 concrete value 的调用可直接使用派生或 intrinsic body，不因采用 interface bound 就强制装箱或运行期查表。
+值类型只有显式声明或继承的普通 interface conformance；有界泛型调用、interface 调用、装箱与 `is` / `as` 消费同一实际接口闭包。结构 operator equals 不产生 Equality conformance。显式 `Equality<T>.equalTo` 与其他接口方法使用相同的调用规则；已知 concrete value 的直接调用不因另有接口实现而强制装箱或运行期查表。
 
 按语言规范 13.2，NoGc value method 可以实现 Managed interface slot。源级实现兼容性允许这种 effect 收紧，但实际 itable entry 仍须符合 slot 的完整 Managed ABI：由普通 value/interface adapter 完成 receiver 适配，并以 NoGc 合同调用实际实现；adapter 保留自身的 Managed effect、入口 poll 与必要 roots。具体类型直接调用原 NoGc 方法不经过该 adapter。签名与产物分别记录 slot、adapter 和实现，不能用强制转换或抹去 GC effect 代替适配；不引入新的 runtime 分派机制。
 

@@ -64,15 +64,14 @@ Module
   class Throwable vtable=0 itables=0
   class box<Envelope> vtable=0 itables=0
   class box<Broken> vtable=0 itables=0
-  class box<Manual> vtable=0 itables=1
-  class box<Overloaded> vtable=0 itables=1
+  class box<Manual> vtable=0 itables=0
+  class box<Overloaded> vtable=0 itables=0
   class box<Packet> vtable=0 itables=0
   class box<Flag> vtable=0 itables=0
-  interface Equality<Manual>
-  interface Equality<Int>
   interface ToString
   interface Hash
   interface Equality<Boolean>
+  interface Equality<Int>
   interface Continuation<Envelope>
   interface SuspendTask<Envelope>
   interface SuspendRegistration<Envelope>
@@ -119,15 +118,13 @@ Module
   generated_exact_type get22 location=enum5 nominal_id=874a463892b8567145ab675c1959281ad97c3ee70f35f1541cdd3440d663d3c6 exact_id=d5e309ab0d7e5e76d413b877b8a7167596a2eee805c3e13cbe8f74ee013a99ca
   generated_exact_type get23 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get24 location=class5 nominal_id=bf78e48c64705c578709b6237d30ce9e15676b8645dc96ceccafa08aa492a140 exact_id=f5aa0cde6bd8e38c504e8b24145b2c31e26457d8c31341326ba0877cad2b6f2d
-  generated_callable gc0 function=@fn52 id=180c3c9121a4962161ff5f0680ff63f6d1a4004340f95942abcb2ee6eff4940a
-  generated_callable gc1 function=@fn44 id=289ecfdb3d4fadb9e528c5eae4c81f0c4acde2b2f5b0b3f797f54e6a1b28768c
-  generated_callable gc2 function=@fn48 id=461465d6cafd9a0178c5c2ea2dc9565e471b8b4df79b2f8c8b9c5bf1ab12758a
-  generated_callable gc3 function=@fn45 id=5153a2509dc1823b1e2f23257cf8e123b1c273c91cb765e62f8ef81aab3e8f9f
-  generated_callable gc4 function=@fn46 id=660fe4f511e8af6503675e5feb5a39046f62d6d2f80a4f0de2ea3d1b2201a1dc
-  generated_callable gc5 function=@fn49 id=92cb2c6cfd4fb3f33ccb0a4d894ae83923a0d37ee89038101d45afaac79e54b7
-  generated_callable gc6 function=@fn51 id=c8e97001fc2850689f4336f314828996bf90830edaf9dd90887663d09071cdbf
-  generated_callable gc7 function=@fn50 id=c93ac828f42221e27906f10fa20b05aca0dbbde9bd06dfef348431adeb8437cb
-  generated_callable gc8 function=@fn47 id=e5e0ba07e4ec7dcfd11fc84fea56dd4f6e402d3d1bf60d2e00e85b0ef1f0a367
+  generated_callable gc0 function=@fn44 id=289ecfdb3d4fadb9e528c5eae4c81f0c4acde2b2f5b0b3f797f54e6a1b28768c
+  generated_callable gc1 function=@fn48 id=461465d6cafd9a0178c5c2ea2dc9565e471b8b4df79b2f8c8b9c5bf1ab12758a
+  generated_callable gc2 function=@fn45 id=5153a2509dc1823b1e2f23257cf8e123b1c273c91cb765e62f8ef81aab3e8f9f
+  generated_callable gc3 function=@fn46 id=660fe4f511e8af6503675e5feb5a39046f62d6d2f80a4f0de2ea3d1b2201a1dc
+  generated_callable gc4 function=@fn49 id=92cb2c6cfd4fb3f33ccb0a4d894ae83923a0d37ee89038101d45afaac79e54b7
+  generated_callable gc5 function=@fn50 id=c93ac828f42221e27906f10fa20b05aca0dbbde9bd06dfef348431adeb8437cb
+  generated_callable gc6 function=@fn47 id=e5e0ba07e4ec7dcfd11fc84fea56dd4f6e402d3d1bf60d2e00e85b0ef1f0a367
   fun Envelope.equals @fn0(this: Envelope, other: Envelope) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn1 direct
@@ -1622,30 +1619,6 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Manual> Equality.equals(Manual) @fn51(this: Equality<Manual>, other: Manual) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn3 direct
-        Type Manual
-        Unbox
-          Type Equality<Manual>
-          Local this
-        Type Manual
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Overloaded> Equality.equals(Int) @fn52(this: Equality<Int>, other: Int) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn4 direct
-        Type Overloaded
-        Unbox
-          Type Equality<Int>
-          Local this
-        Type Int
-        Local other
-      return
-        Type Boolean
-        Local $call.1
   coroutine_step cs0 CoroutineStep<Envelope> result=Envelope
   coroutine_step cs1 CoroutineStep<Broken> result=Broken
   coroutine_step cs2 CoroutineStep<Manual> result=Manual

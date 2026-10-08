@@ -8,10 +8,11 @@ SourceFile
     public fun toString
     public fun hash
     fun label
-  class User(val id: Int), ToString, Hash
+  class User(val id: Int), ToString, Hash, Equality<User>
     public fun toString
     public fun hash
-    operator fun equals
+    public operator fun equals
+    public fun equalTo
   class RenderBox<T : ToString>(val value: T), ToString
     public fun toString
   struct RenderPair<T : ToString> : ToString

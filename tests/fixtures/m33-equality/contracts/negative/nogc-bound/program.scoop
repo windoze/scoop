@@ -1,3 +1,3 @@
 @NoGC
-fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+fun <T : Equality<T>> same(left: T, right: T): Boolean = left.equalTo(right)
 fun main() { println(same(1, 1)) }

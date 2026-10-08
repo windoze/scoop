@@ -14,173 +14,25 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
-  enum CoroutineStep<Multiple>
-    Completed(value: Multiple)
-    Suspended()
-  enum CoroutineSlot<Multiple>
-    Empty()
-    Value(value: Multiple)
-  enum CoroutineStep<Trace>
-    Completed(value: Trace)
-    Suspended()
-  enum CoroutineSlot<Trace>
-    Empty()
-    Value(value: Trace)
-  enum CoroutineStep<Pair>
-    Completed(value: Pair)
-    Suspended()
-  enum CoroutineSlot<Pair>
-    Empty()
-    Value(value: Pair)
-  enum CoroutineStep<Child>
-    Completed(value: Child)
-    Suspended()
-  enum CoroutineSlot<Child>
-    Empty()
-    Value(value: Child)
-  enum CoroutineStep<Tagged>
-    Completed(value: Tagged)
-    Suspended()
-  enum CoroutineSlot<Tagged>
-    Empty()
-    Value(value: Tagged)
-  enum CoroutineStep<Inherited>
-    Completed(value: Inherited)
-    Suspended()
-  enum CoroutineSlot<Inherited>
-    Empty()
-    Value(value: Inherited)
-  enum CoroutineStep<NativeWord>
-    Completed(value: NativeWord)
-    Suspended()
-  enum CoroutineSlot<NativeWord>
-    Empty()
-    Value(value: NativeWord)
-  enum CoroutineStep<Traced>
-    Completed(value: Traced)
-    Suspended()
-  enum CoroutineSlot<Traced>
-    Empty()
-    Value(value: Traced)
-  enum CoroutineStep<Base>
-    Completed(value: Base)
-    Suspended()
-  enum CoroutineSlot<Base>
-    Empty()
-    Value(value: Base)
-  enum CoroutineStep<Raw>
-    Completed(value: Raw)
-    Suspended()
-  enum CoroutineSlot<Raw>
-    Empty()
-    Value(value: Raw)
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Child vtable=1 itables=1
-  class Base vtable=1 itables=1
+  class Child vtable=0 itables=0
+  class Base vtable=0 itables=0
   class Trace vtable=0 itables=0
-  class Traced vtable=0 itables=1
-  class box<Raw> vtable=0 itables=1
-  class box<NativeWord> vtable=0 itables=1
-  class box<Multiple> vtable=0 itables=2
-  class box<Pair> vtable=0 itables=1
-  class box<Tagged> vtable=0 itables=1
-  class box<Inherited> vtable=0 itables=1
-  interface Equality<Base>
-  interface Equality<Inherited>
-  interface Equality<Traced>
-  interface Equality<Pair>
-  interface Equality<Tagged>
-  interface Equality<Int>
-  interface Equality<Multiple>
+  class Traced vtable=0 itables=0
   interface Equality<Ptr<UInt8>>
-  interface Equality<Raw>
-  interface Equality<NativeWord>
   interface ToString
   interface Hash
   interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
   interface Equality<String>
-  interface Continuation<Child>
-  interface SuspendTask<Child>
-  interface SuspendRegistration<Child>
-  interface Continuation<Base>
-  interface SuspendTask<Base>
-  interface SuspendRegistration<Base>
-  interface Continuation<Inherited>
-  interface SuspendTask<Inherited>
-  interface SuspendRegistration<Inherited>
-  interface Continuation<Trace>
-  interface SuspendTask<Trace>
-  interface SuspendRegistration<Trace>
-  interface Continuation<Traced>
-  interface SuspendTask<Traced>
-  interface SuspendRegistration<Traced>
-  interface Continuation<Pair>
-  interface SuspendTask<Pair>
-  interface SuspendRegistration<Pair>
-  interface Continuation<Tagged>
-  interface SuspendTask<Tagged>
-  interface SuspendRegistration<Tagged>
-  interface Continuation<Multiple>
-  interface SuspendTask<Multiple>
-  interface SuspendRegistration<Multiple>
-  interface Continuation<Raw>
-  interface SuspendTask<Raw>
-  interface SuspendRegistration<Raw>
-  interface Continuation<NativeWord>
-  interface SuspendTask<NativeWord>
-  interface SuspendRegistration<NativeWord>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get1 location=enum15 nominal_id=b5b4c29f387cf4faa8e22349b68b83df3bea1642fdd8372b0c1b330c54c102db exact_id=188993f99e205928eac4782b4ce0a8746708b5f9f9e1d6dc53c8806838e30e7c
-  generated_exact_type get2 location=enum4 nominal_id=dfeda94a75cbcc294a9ac34a8f22f1da1f6f01bee496d4832b3c00b6aed75021 exact_id=207f6be49cddef899552b35dbd7c5dae6512af59b5f8d5d3615572e199b2bddb
-  generated_exact_type get3 location=class11 nominal_id=18b674079c1d4fe01cf04e3ef805e9f1e978b7c364739ee9f1229daa650e6705 exact_id=2eefe6868bf7f4bc9180290f258b3d300125dce2d569977bb5288a3872e48936
-  generated_exact_type get4 location=enum10 nominal_id=468b5742e899b10ed13f207afd717ef192b49c5ffff7080787f7fd7c7d56fbae exact_id=2f36903aab46f67378093d1807d4c00aa3c8914dc48b36bdf47dea5474f11857
-  generated_exact_type get5 location=class12 nominal_id=c653a48b1cf6d7d320ce7f5b6e97bce87038dd07a440e1a388efd9ec7e9d686e exact_id=3020844e271cec63253b3206a374dc55851437d6ce5fd57bdc587136642f87f2
-  generated_exact_type get6 location=enum19 nominal_id=c9c7dbad7d7747877a8554d7ede10018519263b4deb0c62c87b004fabb388dfc exact_id=30c3d47b616de282df650ecba12903184d6225bb5fbbbccb9d295004b3e8c3cd
-  generated_exact_type get7 location=class7 nominal_id=50d74fbf0077697703f4b8df94c16666f7e0f52a0e952d3db3e9de907f948f40 exact_id=365379fffc27c6182817e7edf932b262aa07f0efd0b73dd571e4b673d4a59f1b
-  generated_exact_type get8 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get9 location=class10 nominal_id=8860921f90e52188ee80329d1644a62144e15f7f9183c4326604fe67967de2ad exact_id=39057afbaa97dedc70bf36850a90ae3ea81fe43fe8078d3dc995a072935ece25
-  generated_exact_type get10 location=enum9 nominal_id=03904f1e0d23f8abded4c25297b80cca8b6e887db36c9467c35a9215f7928889 exact_id=46b83200f46c0b649a0e21aa7a760abea8c4f0c5e62e256d12460963c974ddcf
-  generated_exact_type get11 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get12 location=enum12 nominal_id=4c5c0e29c36aaccfd2e5508d34eed9a92685403dca7665dfd08eac11b41ecb24 exact_id=68e314986bc67d8f9bb98ead37f4c6e6dc8c817cf8c5017398b1f4abe28446fd
-  generated_exact_type get13 location=enum20 nominal_id=ba805e188ccfedc6d5b380c7fe7053669a82b2dd08cdc02c396618d3ff59b1fe exact_id=7f532af6fcab75a03f96398dc4021b51437cec08029044f5a950968a2cff1dcf
-  generated_exact_type get14 location=enum21 nominal_id=a6849c190dada094a54bfa302409464d6d33872deae48c5ff60a692af73fa9c3 exact_id=85b11bb2e4535cefc861776e9e7ca54c8d5da4b5b7b4a46a3f3c450a2c7e1c6d
-  generated_exact_type get15 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get16 location=enum7 nominal_id=b1987253eb3caa042fce343aea2063386371f895f4231a386b6d01aa0a09d19c exact_id=8d4075a91959151b29544d1d83ac0769bf763bb23cc82dd405abfef37e925abf
-  generated_exact_type get17 location=enum22 nominal_id=29421ed4b5d81f84f2f2b808946c79081b63cb8d284eda05ce8eadbb3cdbc41a exact_id=96f858e8965668fa78177743a32aa5ad2f33e673ba19ec26fdc8b2d9ca8d8abe
-  generated_exact_type get18 location=enum14 nominal_id=b4368440de66bcbc775b3223c94ceafe25c603f8b571c62b8ec0d3a208752003 exact_id=b4473adcce17a287f0cd0f7b246099d5efd3e42ec8b1f25220f89a8d69d9055d
-  generated_exact_type get19 location=enum16 nominal_id=19f7a16f57c61cc5e0391e694e99baecc922f5db36b2c3ac46f29c1daff8b48c exact_id=caae61db10c5eeab0d91eebd9f1773c728ab2492e3db35c27e19874217c7f99f
-  generated_exact_type get20 location=class8 nominal_id=e364177b6c3cefe5443dd35d246cd24e43a8bf479071aae5c2cf55a716665f43 exact_id=d12496a82b9203c0ee304634dbc5584e9029f33b57e8e161614669efb63c378c
-  generated_exact_type get21 location=enum17 nominal_id=6c21ccb1f7a2fab6b5a65f15753a2671284173c7d37a7598fc8902617e0d7518 exact_id=d4483c2f80396364679cef1e80bbc483b0fe4cd56c5cd02261d29bcf7448d3d3
-  generated_exact_type get22 location=enum6 nominal_id=fd690db00a3de40ec227ed23e57ec3703fab6875d75f9a5f9a72c69656e087f3 exact_id=e011b571acd56b35db2a1156819916d644ff3a9453ace19e65bb9ed2e15417d5
-  generated_exact_type get23 location=enum13 nominal_id=99598913d24e53ee37b8d4c6708c08771cba15cc363448cba04924d739fe851a exact_id=e83b3c5818872c068f9ba214c832860cc3a078c1cc62b922bb9109e007e3e4e2
-  generated_exact_type get24 location=enum5 nominal_id=12696771b65d44bbaf079942400314c71b28d459ac2c35f3df859f58d0175fa6 exact_id=eddad18e1b42edefcba0922236ffdaddd145da66558f9660ad710fb45e20c50c
-  generated_exact_type get25 location=enum3 nominal_id=ad2cec3275b791eae8d738f987e48239b8bfd2c8f220d980cb0c1d395a4fd26c exact_id=ef2cac81b3bace7271c8bc5a7b3150efb551df070e2d637ea58d12768cc34d2e
-  generated_exact_type get26 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_exact_type get27 location=enum11 nominal_id=d82466a9501d1dbc844df6199ecbfa97ff1fe83a70393a3040dc067fcae531f6 exact_id=f32fdfa2c9dffcfc139b7fca0ff186a41328656e8a6080b21d27ada1fae4905e
-  generated_exact_type get28 location=enum18 nominal_id=302ea3949d6fe9181dbf0d6d2b27abb017f6c0c59d99e4311b8e8f8423872053 exact_id=f333b8d132470fc129797e4ec65b7103da22e1d1d9759f022034b49862d8e7bf
-  generated_exact_type get29 location=enum8 nominal_id=2b4495abd433ad551adff98dce3a3aad6d36c0ed8e90cf36608e3a62405dcc1c exact_id=f57e9d4cdb36ca978900e94760f67f3acaf549d271a2e8ee8a8df8cbb5737c88
-  generated_exact_type get30 location=class9 nominal_id=ae78d1fff021f7c060c2167365aaff72c6498c068251087fd4b5c97dfb5c8a64 exact_id=f939e45c60975bda075a6f63c89396f3709031edf7ccd47bb34dd1080537a425
-  generated_callable gc0 function=@fn74 id=0fb463cdc0974b9879a2124e4fd7aa46034d1cb856ae21f570639a60758055a6
-  generated_callable gc1 function=@fn70 id=1168a9239d7cff6fd469953cf5a82977cce10e73799accf8c94ab4669655a218
-  generated_callable gc2 function=@fn83 id=150f702a7cb81b3eaf7f2da143b47737bfb344739402eff842b06bbbd620ece1
-  generated_callable gc3 function=@fn79 id=267a2529adbe49511cfc8508d53063515c59053ca751c1854855475288cbe7e3
-  generated_callable gc4 function=@fn81 id=3562f1443287ef496f65d5f81118a3253d798adcc3f3f13ea31b5aa077f5ded2
-  generated_callable gc5 function=@fn72 id=4786c723dfaf0770fc987a257cee03949bee04493e51c5eabed219d2db43aafd
-  generated_callable gc6 function=@fn71 id=4fff6a4df55cd14d0310c47aa5e146c055a02e07576e7df1eab6ae6ac4bf51b3
-  generated_callable gc7 function=@fn76 id=5889d51273b1e9b9833525060ffd2fddec5b19bce3ccac181f689c45cdeb4e29
-  generated_callable gc8 function=@fn73 id=5c25e6ecc976b5b9b74b934d10f7534a53a5c7126cf41000ae33d270280932f2
-  generated_callable gc9 function=@fn82 id=689339d03409f773aebb6056bf0cf2fd4116bf3ed63fbd4bfd6df2895706441e
-  generated_callable gc10 function=@fn80 id=792c0e46633725623d90d99fd9bd1de8b0526c849008648068bd9ce3ef5e960d
-  generated_callable gc11 function=@fn85 id=7e888e85143787c4853a4af50213b095459fa420c45efb9169cf4928315a96f3
-  generated_callable gc12 function=@fn84 id=915795485e5868119c9ab31751b9ab74fe8cb573b8a147dda359d2109ae167f7
-  generated_callable gc13 function=@fn78 id=d8002b9e710692d5f7e5d87d31d8f50724f2781b8ebd129176f3b12b760a0eae
-  generated_callable gc14 function=@fn69 id=db981a670b65a9ab0403cd689b2bd26fb752dbad8b4401ddeb9cc063d6336de3
-  generated_callable gc15 function=@fn77 id=e009b5f433d4749d5ce8c5f4891f4d06f1de56418be9484607411a432d413ce5
-  generated_callable gc16 function=@fn75 id=e06d811e48aebb4cf00752da001f348d11e23da818177706991f493909792df3
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -233,7 +85,7 @@ Module
       assign $new.1
         Type Child
         ClassAlloc Child
-      call @fn61 direct
+      call @fn15 direct
         Type Child
         Local $new.1
         Type Int
@@ -246,7 +98,7 @@ Module
       val $parameter.child: Child
         Type Child
         Local $argument.0
-      call $argument.0: Inherited = @fn64 direct
+      call $equality.lhs: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
       val $argument.0: Int
@@ -264,7 +116,7 @@ Module
       assign $new.2
         Type Child
         ClassAlloc Child
-      call @fn61 direct
+      call @fn15 direct
         Type Child
         Local $new.2
         Type Int
@@ -277,20 +129,14 @@ Module
       val $parameter.child: Child
         Type Child
         Local $argument.0
-      call $argument.1: Inherited = @fn64 direct
+      call $call.3: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
-      val $parameter.left: Inherited
+      call $argument.0: Boolean = @fn3 direct
         Type Inherited
-        Local $argument.0
-      val $parameter.right: Inherited
+        Local $equality.lhs
         Type Inherited
-        Local $argument.1
-      call $argument.0: Boolean = @fn12 direct
-        Type Inherited
-        Local $parameter.left
-        Type Inherited
-        Local $parameter.right
+        Local $call.3
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -309,23 +155,23 @@ Module
       val $parameter.key: Int
         Type Int
         Local $argument.1
-      assign $new.3
+      assign $new.4
         Type Child
         ClassAlloc Child
-      call @fn61 direct
+      call @fn15 direct
         Type Child
-        Local $new.3
+        Local $new.4
         Type Int
         Local $parameter.detail
         Type Int
         Local $parameter.key
       val $argument.0: Child
         Type Child
-        Local $new.3
+        Local $new.4
       val $parameter.child: Child
         Type Child
         Local $argument.0
-      call $argument.0: Inherited = @fn64 direct
+      call $equality.lhs: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
       val $argument.0: Int
@@ -340,41 +186,35 @@ Module
       val $parameter.key: Int
         Type Int
         Local $argument.1
-      assign $new.4
+      assign $new.5
         Type Child
         ClassAlloc Child
-      call @fn61 direct
+      call @fn15 direct
         Type Child
-        Local $new.4
+        Local $new.5
         Type Int
         Local $parameter.detail
         Type Int
         Local $parameter.key
       val $argument.0: Child
         Type Child
-        Local $new.4
+        Local $new.5
       val $parameter.child: Child
         Type Child
         Local $argument.0
-      call $argument.1: Inherited = @fn64 direct
+      call $call.6: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
-      val $parameter.left: Inherited
+      call $call.7: Boolean = @fn3 direct
         Type Inherited
-        Local $argument.0
-      val $parameter.right: Inherited
+        Local $equality.lhs
         Type Inherited
-        Local $argument.1
-      call $dependency.receiver: Boolean = @fn12 direct
-        Type Inherited
-        Local $parameter.left
-        Type Inherited
-        Local $parameter.right
+        Local $call.6
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local $call.7
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -387,17 +227,17 @@ Module
       val $parameter.order: Int
         Type Int
         Local $argument.0
-      assign $new.5
+      assign $new.8
         Type Trace
         ClassAlloc Trace
-      call @fn62 direct
+      call @fn16 direct
         Type Trace
-        Local $new.5
+        Local $new.8
         Type Int
         Local $parameter.order
       val trace: Trace
         Type Trace
-        Local $new.5
+        Local $new.8
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -416,12 +256,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.6
+      assign $new.9
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.6
+        Local $new.9
         Type Int
         Local $parameter.value
         Type Int
@@ -430,7 +270,7 @@ Module
         Local $parameter.trace
       val $argument.0: Traced
         Type Traced
-        Local $new.6
+        Local $new.9
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -449,12 +289,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.7
+      assign $new.10
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.7
+        Local $new.10
         Type Int
         Local $parameter.value
         Type Int
@@ -463,19 +303,19 @@ Module
         Local $parameter.trace
       val $argument.1: Traced
         Type Traced
-        Local $new.7
+        Local $new.10
       val $parameter.first: Traced
         Type Traced
         Local $argument.0
       val $parameter.second: Traced
         Type Traced
         Local $argument.1
-      call left: Pair = @fn65 direct
+      call left: Pair = @fn19 direct
         Type Traced
         Local $parameter.first
         Type Traced
         Local $parameter.second
-      val $argument.0: Pair
+      val $equality.lhs: Pair
         Type Pair
         Local left
       val $argument.0: Int
@@ -496,12 +336,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.8
+      assign $new.11
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.8
+        Local $new.11
         Type Int
         Local $parameter.value
         Type Int
@@ -510,7 +350,7 @@ Module
         Local $parameter.trace
       val $argument.0: Traced
         Type Traced
-        Local $new.8
+        Local $new.11
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -529,12 +369,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.9
+      assign $new.12
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.9
+        Local $new.12
         Type Int
         Local $parameter.value
         Type Int
@@ -543,29 +383,23 @@ Module
         Local $parameter.trace
       val $argument.1: Traced
         Type Traced
-        Local $new.9
+        Local $new.12
       val $parameter.first: Traced
         Type Traced
         Local $argument.0
       val $parameter.second: Traced
         Type Traced
         Local $argument.1
-      call $argument.1: Pair = @fn65 direct
+      call $call.13: Pair = @fn19 direct
         Type Traced
         Local $parameter.first
         Type Traced
         Local $parameter.second
-      val $parameter.left: Pair
+      call $argument.0: Boolean = @fn5 direct
         Type Pair
-        Local $argument.0
-      val $parameter.right: Pair
+        Local $equality.lhs
         Type Pair
-        Local $argument.1
-      call $argument.0: Boolean = @fn13 direct
-        Type Pair
-        Local $parameter.left
-        Type Pair
-        Local $parameter.right
+        Local $call.13
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -601,7 +435,7 @@ Module
         Local trace
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $argument.0: Pair
+      val $equality.lhs: Pair
         Type Pair
         Local left
       val $argument.0: Int
@@ -622,12 +456,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.10
+      assign $new.14
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.10
+        Local $new.14
         Type Int
         Local $parameter.value
         Type Int
@@ -636,7 +470,7 @@ Module
         Local $parameter.trace
       val $argument.0: Traced
         Type Traced
-        Local $new.10
+        Local $new.14
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -655,12 +489,12 @@ Module
       val $parameter.trace: Trace
         Type Trace
         Local $argument.2
-      assign $new.11
+      assign $new.15
         Type Traced
         ClassAlloc Traced
-      call @fn63 direct
+      call @fn17 direct
         Type Traced
-        Local $new.11
+        Local $new.15
         Type Int
         Local $parameter.value
         Type Int
@@ -669,34 +503,28 @@ Module
         Local $parameter.trace
       val $argument.1: Traced
         Type Traced
-        Local $new.11
+        Local $new.15
       val $parameter.first: Traced
         Type Traced
         Local $argument.0
       val $parameter.second: Traced
         Type Traced
         Local $argument.1
-      call $argument.1: Pair = @fn65 direct
+      call $call.16: Pair = @fn19 direct
         Type Traced
         Local $parameter.first
         Type Traced
         Local $parameter.second
-      val $parameter.left: Pair
+      call $call.17: Boolean = @fn5 direct
         Type Pair
-        Local $argument.0
-      val $parameter.right: Pair
+        Local $equality.lhs
         Type Pair
-        Local $argument.1
-      call $dependency.receiver: Boolean = @fn13 direct
-        Type Pair
-        Local $parameter.left
-        Type Pair
-        Local $parameter.right
+        Local $call.16
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local $call.17
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -738,7 +566,7 @@ Module
       val $parameter._1: Pair
         Type Pair
         Local $argument.0
-      val $argument.0: Tagged
+      val $equality.lhs: Tagged
         Type Tagged
         VariantConstruct Tagged v0
           Type Pair
@@ -751,27 +579,18 @@ Module
       val $parameter._1: Traced
         Type Traced
         Local $argument.0
-      val $argument.1: Tagged
+      call $call.18: Boolean = @fn7 direct
+        Type Tagged
+        Local $equality.lhs
         Type Tagged
         VariantConstruct Tagged v1
           Type Traced
           Local $parameter._1
-      val $parameter.left: Tagged
-        Type Tagged
-        Local $argument.0
-      val $parameter.right: Tagged
-        Type Tagged
-        Local $argument.1
-      call $dependency.receiver: Boolean = @fn14 direct
-        Type Tagged
-        Local $parameter.left
-        Type Tagged
-        Local $parameter.right
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local $call.18
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -808,7 +627,7 @@ Module
       val $parameter._1: Pair
         Type Pair
         Local $argument.0
-      val $argument.0: Tagged
+      val $equality.lhs: Tagged
         Type Tagged
         VariantConstruct Tagged v0
           Type Pair
@@ -819,22 +638,13 @@ Module
       val $parameter._1: Pair
         Type Pair
         Local $argument.0
-      val $argument.1: Tagged
+      call $argument.0: Boolean = @fn7 direct
+        Type Tagged
+        Local $equality.lhs
         Type Tagged
         VariantConstruct Tagged v0
           Type Pair
           Local $parameter._1
-      val $parameter.left: Tagged
-        Type Tagged
-        Local $argument.0
-      val $parameter.right: Tagged
-        Type Tagged
-        Local $argument.1
-      call $argument.0: Boolean = @fn14 direct
-        Type Tagged
-        Local $parameter.left
-        Type Tagged
-        Local $parameter.right
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -871,10 +681,10 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call multiple: Multiple = @fn66 direct
+      call multiple: Multiple = @fn20 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Boolean = @fn7 direct
+      call $argument.0: Boolean = @fn8 direct
         Type Multiple
         Local multiple
         Type Int
@@ -894,14 +704,14 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.12: Multiple = @fn66 direct
+      call $call.19: Multiple = @fn20 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Boolean = @fn8 direct
+      call $argument.0: Boolean = @fn9 direct
         Type Multiple
         Local $equality.lhs
         Type Multiple
-        Local $call.12
+        Local $call.19
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -917,7 +727,7 @@ Module
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      call $argument.0: Boolean = @fn7 direct
+      call $argument.0: Boolean = @fn8 direct
         Type Multiple
         Local $receiver
         Type Int
@@ -937,13 +747,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Multiple = @fn66 direct
+      call $argument.0: Multiple = @fn20 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Multiple
         Type Multiple
         Local $argument.0
-      call $argument.0: Boolean = @fn8 direct
+      call $argument.0: Boolean = @fn9 direct
         Type Multiple
         Local $receiver
         Type Multiple
@@ -962,33 +772,21 @@ Module
       val $parameter.pointer: Ptr<UInt8>
         Type Ptr<UInt8>
         Local $argument.0
-      call raw: Raw = @fn67 direct
+      call raw: Raw = @fn21 direct
         Type Ptr<UInt8>
         Local $parameter.pointer
-      val $argument.0: Raw
+      call $argument.0: Boolean = @fn10 direct
         Type Raw
         Local raw
-      val $argument.1: Raw
         Type Raw
         Local raw
-      val $parameter.left: Raw
-        Type Raw
-        Local $argument.0
-      val $parameter.right: Raw
-        Type Raw
-        Local $argument.1
-      call $argument.0: Boolean = @fn15 direct
-        Type Raw
-        Local $parameter.left
-        Type Raw
-        Local $parameter.right
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: Raw
+      val $equality.lhs: Raw
         Type Raw
         Local raw
       val $argument.0: Ptr<UInt8>
@@ -999,50 +797,39 @@ Module
       val $parameter.pointer: Ptr<UInt8>
         Type Ptr<UInt8>
         Local $argument.0
-      call $argument.1: Raw = @fn67 direct
+      call $call.20: Raw = @fn21 direct
         Type Ptr<UInt8>
         Local $parameter.pointer
-      val $parameter.left: Raw
+      call $call.21: Boolean = @fn10 direct
         Type Raw
-        Local $argument.0
-      val $parameter.right: Raw
+        Local $equality.lhs
         Type Raw
-        Local $argument.1
-      call $dependency.receiver: Boolean = @fn15 direct
-        Type Raw
-        Local $parameter.left
-        Type Raw
-        Local $parameter.right
+        Local $call.20
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local $call.21
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val view: Equality<Raw>
-        Type Equality<Raw>
-        Box
-          Type Raw
-          Local raw
-      val $dependency.receiver: Equality<Raw>
-        Type Equality<Raw>
-        Local view
-      val $dependency.argument.0: Raw
+      val $receiver: Raw
         Type Raw
         Local raw
-      val $dependency.parameter.other: Raw
+      val $argument.0: Raw
         Type Raw
-        Local $dependency.argument.0
-      call $argument.0: Boolean = @fn16 interface Equality<Raw>[0]
-        Type Equality<Raw>
-        Local $dependency.receiver
+        Local raw
+      val $parameter.other: Raw
         Type Raw
-        Local $dependency.parameter.other
+        Local $argument.0
+      call $argument.0: Boolean = @fn10 direct
+        Type Raw
+        Local $receiver
+        Type Raw
+        Local $parameter.other
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1055,10 +842,10 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call word: NativeWord = @fn68 direct
+      call word: NativeWord = @fn22 direct
         Type Int
         Local $parameter.value
-      val $argument.0: NativeWord
+      val $equality.lhs: NativeWord
         Type NativeWord
         Local word
       val $argument.0: Int
@@ -1067,27 +854,21 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.1: NativeWord = @fn68 direct
+      call $call.22: NativeWord = @fn22 direct
         Type Int
         Local $parameter.value
-      val $parameter.left: NativeWord
+      call $argument.0: Boolean = @fn12 direct
         Type NativeWord
-        Local $argument.0
-      val $parameter.right: NativeWord
+        Local $equality.lhs
         Type NativeWord
-        Local $argument.1
-      call $argument.0: Boolean = @fn17 direct
-        Type NativeWord
-        Local $parameter.left
-        Type NativeWord
-        Local $parameter.right
+        Local $call.22
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val $argument.0: NativeWord
+      val $equality.lhs: NativeWord
         Type NativeWord
         Local word
       val $argument.0: Int
@@ -1096,50 +877,39 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.1: NativeWord = @fn68 direct
+      call $call.23: NativeWord = @fn22 direct
         Type Int
         Local $parameter.value
-      val $parameter.left: NativeWord
+      call $call.24: Boolean = @fn12 direct
         Type NativeWord
-        Local $argument.0
-      val $parameter.right: NativeWord
+        Local $equality.lhs
         Type NativeWord
-        Local $argument.1
-      call $dependency.receiver: Boolean = @fn17 direct
-        Type NativeWord
-        Local $parameter.left
-        Type NativeWord
-        Local $parameter.right
+        Local $call.23
       val $argument.0: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
-          Local $dependency.receiver
+          Local $call.24
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
       call @fn0 direct
         Type Boolean
         Local $parameter.value
-      val wordView: Equality<NativeWord>
-        Type Equality<NativeWord>
-        Box
-          Type NativeWord
-          Local word
-      val $dependency.receiver: Equality<NativeWord>
-        Type Equality<NativeWord>
-        Local wordView
-      val $dependency.argument.0: NativeWord
+      val $receiver: NativeWord
         Type NativeWord
         Local word
-      val $dependency.parameter.other: NativeWord
+      val $argument.0: NativeWord
         Type NativeWord
-        Local $dependency.argument.0
-      call $argument.0: Boolean = @fn18 interface Equality<NativeWord>[0]
-        Type Equality<NativeWord>
-        Local $dependency.receiver
+        Local word
+      val $parameter.other: NativeWord
         Type NativeWord
-        Local $dependency.parameter.other
+        Local $argument.0
+      call $argument.0: Boolean = @fn12 direct
+        Type NativeWord
+        Local $receiver
+        Type NativeWord
+        Local $parameter.other
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -1152,11 +922,48 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn19 direct
+      call @fn13 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun Base.equals @fn2(this: Base, other: Base) -> Boolean
+  fun equalTo @fn2(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      val $dependency.local.4: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn11 direct
+        Type Ptr<UInt8>
+        Local $dependency.local.2
+        Type Ptr<UInt8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Inherited.equals @fn3(this: Inherited, other: Inherited) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn4 direct
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local this
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Base.equals @fn4(this: Base, other: Base) -> Boolean
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -1178,25 +985,44 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Inherited.equals @fn3(this: Inherited, other: Inherited) -> Boolean
+  fun Pair.equals @fn5(this: Pair, other: Pair) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn2 virtual[0]
-        Type Base
-        Retype Base
-          Type Child
-          FieldAccess 0
-            Type Inherited
-            Local this
-        Type Base
-        Retype Base
-          Type Child
-          FieldAccess 0
-            Type Inherited
-            Local other
-      return
+      call $call.1: Boolean = @fn6 direct
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local other
+      branch bb1 bb2
         Type Boolean
         Local $call.1
-  fun Traced.equals @fn4(this: Traced, other: Traced) -> Boolean
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn6 direct
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Traced.equals @fn6(this: Traced, other: Traced) -> Boolean
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -1257,44 +1083,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Pair.equals @fn5(this: Pair, other: Pair) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn4 direct
-        Type Traced
-        FieldAccess 0
-          Type Pair
-          Local this
-        Type Traced
-        FieldAccess 0
-          Type Pair
-          Local other
-      branch bb1 bb2
-        Type Boolean
-        Local $call.1
-    bb1 logic.rhs.1
-      call $call.3: Boolean = @fn4 direct
-        Type Traced
-        FieldAccess 1
-          Type Pair
-          Local this
-        Type Traced
-        FieldAccess 1
-          Type Pair
-          Local other
-      assign $logic.2
-        Type Boolean
-        Local $call.3
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.2
-        Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      return
-        Type Boolean
-        Local $logic.2
-  fun Tagged.equals @fn6(this: Tagged, other: Tagged) -> Boolean
+  fun Tagged.equals @fn7(this: Tagged, other: Tagged) -> Boolean
     bb0 entry
       val $when.1: Tagged
         Type Tagged
@@ -1389,7 +1178,7 @@ Module
         VariantPayloadProject Tagged v1 f0
           Type Tagged
           Local $pattern.subject.7
-      call $call.2: Boolean = @fn4 direct
+      call $call.2: Boolean = @fn6 direct
         Type Traced
         Local $left.1.0
         Type Traced
@@ -1429,7 +1218,7 @@ Module
         BoolLiteral false
     bb18 pattern.merge.18
       unreachable
-  fun Multiple.equals @fn7(this: Multiple, other: Int) -> Boolean
+  fun Multiple.equals @fn8(this: Multiple, other: Int) -> Boolean
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -1449,7 +1238,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Multiple.equals @fn8(this: Multiple, other: Multiple) -> Boolean
+  fun Multiple.equals @fn9(this: Multiple, other: Multiple) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1462,7 +1251,21 @@ Module
           FieldAccess 0
             Type Multiple
             Local other
-  fun equals @fn9(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+  fun Raw.equals @fn10(this: Raw, other: Raw) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn11 direct
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local this
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun equals @fn11(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<UInt8>
         Type Ptr<UInt8>
@@ -1484,21 +1287,7 @@ Module
           PtrToULong
             Type Ptr<UInt8>
             Local $dependency.local.3
-  fun Raw.equals @fn10(this: Raw, other: Raw) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn9 direct
-        Type Ptr<UInt8>
-        FieldAccess 0
-          Type Raw
-          Local this
-        Type Ptr<UInt8>
-        FieldAccess 0
-          Type Raw
-          Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun NativeWord.equals @fn11(this: NativeWord, other: NativeWord) -> Boolean
+  fun NativeWord.equals @fn12(this: NativeWord, other: NativeWord) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1511,108 +1300,7 @@ Module
           FieldAccess 0
             Type NativeWord
             Local other
-  fun same @fn12(left: Inherited, right: Inherited) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Inherited
-        Type Inherited
-        Local left
-      val $dependency.argument.0: Inherited
-        Type Inherited
-        Local right
-      val $dependency.parameter.other: Inherited
-        Type Inherited
-        Local $dependency.argument.0
-      call $call.1: Boolean = @fn3 direct
-        Type Inherited
-        Local $dependency.receiver
-        Type Inherited
-        Local $dependency.parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun same @fn13(left: Pair, right: Pair) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Pair
-        Type Pair
-        Local left
-      val $dependency.argument.0: Pair
-        Type Pair
-        Local right
-      val $dependency.parameter.other: Pair
-        Type Pair
-        Local $dependency.argument.0
-      call $call.1: Boolean = @fn5 direct
-        Type Pair
-        Local $dependency.receiver
-        Type Pair
-        Local $dependency.parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun same @fn14(left: Tagged, right: Tagged) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Tagged
-        Type Tagged
-        Local left
-      val $dependency.argument.0: Tagged
-        Type Tagged
-        Local right
-      val $dependency.parameter.other: Tagged
-        Type Tagged
-        Local $dependency.argument.0
-      call $call.1: Boolean = @fn6 direct
-        Type Tagged
-        Local $dependency.receiver
-        Type Tagged
-        Local $dependency.parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun same @fn15(left: Raw, right: Raw) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Raw
-        Type Raw
-        Local left
-      val $dependency.argument.0: Raw
-        Type Raw
-        Local right
-      val $dependency.parameter.other: Raw
-        Type Raw
-        Local $dependency.argument.0
-      call $call.1: Boolean = @fn10 direct
-        Type Raw
-        Local $dependency.receiver
-        Type Raw
-        Local $dependency.parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun Equality.equals @fn16(this: Equality<Raw>, other: Raw) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun same @fn17(left: NativeWord, right: NativeWord) -> Boolean
-    bb0 entry
-      val $dependency.receiver: NativeWord
-        Type NativeWord
-        Local left
-      val $dependency.argument.0: NativeWord
-        Type NativeWord
-        Local right
-      val $dependency.parameter.other: NativeWord
-        Type NativeWord
-        Local $dependency.argument.0
-      call $call.1: Boolean = @fn11 direct
-        Type NativeWord
-        Local $dependency.receiver
-        Type NativeWord
-        Local $dependency.parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun Equality.equals @fn18(this: Equality<NativeWord>, other: NativeWord) -> Boolean
-    bb0 entry
-      trap "call to abstract method `Equality.equals`"
-  fun println @fn19(value: String) -> Unit
+  fun println @fn13(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1636,127 +1324,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn20(this: Continuation<Child>, value: Child) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn21(this: Continuation<Child>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn22(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn24(this: Continuation<Base>, value: Base) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn25(this: Continuation<Base>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn26(this: SuspendTask<Base>, $completion: Continuation<Base>) -> CoroutineStep<Base>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Base>, continuation: Continuation<Base>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn28(this: Continuation<Inherited>, value: Inherited) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn29(this: Continuation<Inherited>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn30(this: SuspendTask<Inherited>, $completion: Continuation<Inherited>) -> CoroutineStep<Inherited>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Inherited>, continuation: Continuation<Inherited>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn32(this: Continuation<Trace>, value: Trace) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn33(this: Continuation<Trace>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn34(this: SuspendTask<Trace>, $completion: Continuation<Trace>) -> CoroutineStep<Trace>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn35(this: SuspendRegistration<Trace>, continuation: Continuation<Trace>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn36(this: Continuation<Traced>, value: Traced) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn37(this: Continuation<Traced>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn38(this: SuspendTask<Traced>, $completion: Continuation<Traced>) -> CoroutineStep<Traced>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn39(this: SuspendRegistration<Traced>, continuation: Continuation<Traced>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn40(this: Continuation<Pair>, value: Pair) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn41(this: Continuation<Pair>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn42(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn43(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn44(this: Continuation<Tagged>, value: Tagged) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn45(this: Continuation<Tagged>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn46(this: SuspendTask<Tagged>, $completion: Continuation<Tagged>) -> CoroutineStep<Tagged>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn47(this: SuspendRegistration<Tagged>, continuation: Continuation<Tagged>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn48(this: Continuation<Multiple>, value: Multiple) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn49(this: Continuation<Multiple>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn50(this: SuspendTask<Multiple>, $completion: Continuation<Multiple>) -> CoroutineStep<Multiple>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn51(this: SuspendRegistration<Multiple>, continuation: Continuation<Multiple>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn52(this: Continuation<Raw>, value: Raw) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn53(this: Continuation<Raw>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn54(this: SuspendTask<Raw>, $completion: Continuation<Raw>) -> CoroutineStep<Raw>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn55(this: SuspendRegistration<Raw>, continuation: Continuation<Raw>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn56(this: Continuation<NativeWord>, value: NativeWord) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn57(this: Continuation<NativeWord>, exception: Throwable) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn58(this: SuspendTask<NativeWord>, $completion: Continuation<NativeWord>) -> CoroutineStep<NativeWord>
-    bb0 entry
-      trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn59(this: SuspendRegistration<NativeWord>, continuation: Continuation<NativeWord>) -> Unit
-    bb0 entry
-      trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Base.$c1 @fn60(this: Base, key: Int) -> Unit
+  fun init.Base.$c1 @fn14(this: Base, key: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -1764,7 +1332,7 @@ Module
         Type Int
         Local key
       return
-  fun init.Child.$c2 @fn61(this: Child, detail: Int, key: Int) -> Unit
+  fun init.Child.$c2 @fn15(this: Child, detail: Int, key: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1772,7 +1340,7 @@ Module
       val $parameter.key: Int
         Type Int
         Local $argument.0
-      call @fn60 direct
+      call @fn14 direct
         Type Base
         Retype Base
           Type Child
@@ -1785,7 +1353,7 @@ Module
         Type Int
         Local detail
       return
-  fun init.Trace.$c0 @fn62(this: Trace, order: Int) -> Unit
+  fun init.Trace.$c0 @fn16(this: Trace, order: Int) -> Unit
     bb0 entry
       field_set 0
         Type Trace
@@ -1793,7 +1361,7 @@ Module
         Type Int
         Local order
       return
-  fun init.Traced.$c3 @fn63(this: Traced, value: Int, digit: Int, trace: Trace) -> Unit
+  fun init.Traced.$c3 @fn17(this: Traced, value: Int, digit: Int, trace: Trace) -> Unit
     bb0 entry
       field_set 0
         Type Traced
@@ -1811,14 +1379,14 @@ Module
         Type Trace
         Local trace
       return
-  fun ctor.Inherited.$c0 @fn64(child: Child) -> Inherited <no-gc>
+  fun ctor.Inherited.$c0 @fn18(child: Child) -> Inherited <no-gc>
     bb0 entry
       return
         Type Inherited
         StructInit Inherited
           Type Child
           Local child
-  fun ctor.Pair.$c1 @fn65(first: Traced, second: Traced) -> Pair <no-gc>
+  fun ctor.Pair.$c1 @fn19(first: Traced, second: Traced) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -1827,1010 +1395,30 @@ Module
           Local first
           Type Traced
           Local second
-  fun ctor.Multiple.$c2 @fn66(value: Int) -> Multiple <no-gc>
+  fun ctor.Multiple.$c2 @fn20(value: Int) -> Multiple <no-gc>
     bb0 entry
       return
         Type Multiple
         StructInit Multiple
           Type Int
           Local value
-  fun ctor.Raw.$c3 @fn67(pointer: Ptr<UInt8>) -> Raw <no-gc>
+  fun ctor.Raw.$c3 @fn21(pointer: Ptr<UInt8>) -> Raw <no-gc>
     bb0 entry
       return
         Type Raw
         StructInit Raw
           Type Ptr<UInt8>
           Local pointer
-  fun ctor.NativeWord.$c4 @fn68(value: Int) -> NativeWord <no-gc>
+  fun ctor.NativeWord.$c4 @fn22(value: Int) -> NativeWord <no-gc>
     bb0 entry
       return
         Type NativeWord
         StructInit NativeWord
           Type Int
           Local value
-  fun startCoroutine<Multiple> @fn69(task: SuspendTask<Multiple>, completion: Continuation<Multiple>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn48 interface Continuation<Multiple>[0]
-        Type Continuation<Multiple>
-        Local completion
-        Type Multiple
-        EnumField v0 f0
-          Type CoroutineStep<Multiple>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn49 interface Continuation<Multiple>[1]
-        Type Continuation<Multiple>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Multiple> = @fn50 interface SuspendTask<Multiple>[0]
-        Type SuspendTask<Multiple>
-        Local task
-        Type Continuation<Multiple>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Multiple>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Trace> @fn70(task: SuspendTask<Trace>, completion: Continuation<Trace>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn32 interface Continuation<Trace>[0]
-        Type Continuation<Trace>
-        Local completion
-        Type Trace
-        EnumField v0 f0
-          Type CoroutineStep<Trace>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn33 interface Continuation<Trace>[1]
-        Type Continuation<Trace>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Trace> = @fn34 interface SuspendTask<Trace>[0]
-        Type SuspendTask<Trace>
-        Local task
-        Type Continuation<Trace>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Trace>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Pair> @fn71(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn40 interface Continuation<Pair>[0]
-        Type Continuation<Pair>
-        Local completion
-        Type Pair
-        EnumField v0 f0
-          Type CoroutineStep<Pair>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn41 interface Continuation<Pair>[1]
-        Type Continuation<Pair>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Pair> = @fn42 interface SuspendTask<Pair>[0]
-        Type SuspendTask<Pair>
-        Local task
-        Type Continuation<Pair>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Pair>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Child> @fn72(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn20 interface Continuation<Child>[0]
-        Type Continuation<Child>
-        Local completion
-        Type Child
-        EnumField v0 f0
-          Type CoroutineStep<Child>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn21 interface Continuation<Child>[1]
-        Type Continuation<Child>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Child> = @fn22 interface SuspendTask<Child>[0]
-        Type SuspendTask<Child>
-        Local task
-        Type Continuation<Child>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Child>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Tagged> @fn73(task: SuspendTask<Tagged>, completion: Continuation<Tagged>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn44 interface Continuation<Tagged>[0]
-        Type Continuation<Tagged>
-        Local completion
-        Type Tagged
-        EnumField v0 f0
-          Type CoroutineStep<Tagged>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn45 interface Continuation<Tagged>[1]
-        Type Continuation<Tagged>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Tagged> = @fn46 interface SuspendTask<Tagged>[0]
-        Type SuspendTask<Tagged>
-        Local task
-        Type Continuation<Tagged>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Tagged>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Inherited> @fn74(task: SuspendTask<Inherited>, completion: Continuation<Inherited>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn28 interface Continuation<Inherited>[0]
-        Type Continuation<Inherited>
-        Local completion
-        Type Inherited
-        EnumField v0 f0
-          Type CoroutineStep<Inherited>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn29 interface Continuation<Inherited>[1]
-        Type Continuation<Inherited>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Inherited> = @fn30 interface SuspendTask<Inherited>[0]
-        Type SuspendTask<Inherited>
-        Local task
-        Type Continuation<Inherited>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Inherited>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<NativeWord> @fn75(task: SuspendTask<NativeWord>, completion: Continuation<NativeWord>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn56 interface Continuation<NativeWord>[0]
-        Type Continuation<NativeWord>
-        Local completion
-        Type NativeWord
-        EnumField v0 f0
-          Type CoroutineStep<NativeWord>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn57 interface Continuation<NativeWord>[1]
-        Type Continuation<NativeWord>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<NativeWord> = @fn58 interface SuspendTask<NativeWord>[0]
-        Type SuspendTask<NativeWord>
-        Local task
-        Type Continuation<NativeWord>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<NativeWord>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Traced> @fn76(task: SuspendTask<Traced>, completion: Continuation<Traced>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn36 interface Continuation<Traced>[0]
-        Type Continuation<Traced>
-        Local completion
-        Type Traced
-        EnumField v0 f0
-          Type CoroutineStep<Traced>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn37 interface Continuation<Traced>[1]
-        Type Continuation<Traced>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Traced> = @fn38 interface SuspendTask<Traced>[0]
-        Type SuspendTask<Traced>
-        Local task
-        Type Continuation<Traced>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Traced>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Base> @fn77(task: SuspendTask<Base>, completion: Continuation<Base>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn24 interface Continuation<Base>[0]
-        Type Continuation<Base>
-        Local completion
-        Type Base
-        EnumField v0 f0
-          Type CoroutineStep<Base>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn25 interface Continuation<Base>[1]
-        Type Continuation<Base>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Base> = @fn26 interface SuspendTask<Base>[0]
-        Type SuspendTask<Base>
-        Local task
-        Type Continuation<Base>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Base>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun startCoroutine<Raw> @fn78(task: SuspendTask<Raw>, completion: Continuation<Raw>) -> Unit
-    bb0 context.unwind
-      landing_pad cleanup=true
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb1 context.catch_unwind
-      landing_pad cleanup=true
-      end_catch
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      resume
-    bb2 suspended
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb3 completed unwind bb0
-      call @fn52 interface Continuation<Raw>[0]
-        Type Continuation<Raw>
-        Local completion
-        Type Raw
-        EnumField v0 f0
-          Type CoroutineStep<Raw>
-          Local $step
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb4 failed unwind bb0
-      call @fn53 interface Continuation<Raw>[1]
-        Type Continuation<Raw>
-        Local completion
-        Type Throwable
-        Local $exception
-      Type Unit
-      ContextLeave
-        Type internal<context-switch-guard>
-        Local $context_guard
-      return
-    bb5 body_failure unwind bb1
-      landing_pad cleanup=false
-      begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb6 run unwind bb5
-      call $step: CoroutineStep<Raw> = @fn54 interface SuspendTask<Raw>[0]
-        Type SuspendTask<Raw>
-        Local task
-        Type Continuation<Raw>
-        Local completion
-      branch bb3 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Raw>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 entry
-      val $child_context: internal<task-context>
-        Type internal<task-context>
-        ContextFork
-          Type internal<context-node>
-          ContextSnapshot
-      val $context_guard: internal<context-switch-guard>
-        Type internal<context-switch-guard>
-        ContextEnter
-          Type internal<task-context>
-          Local $child_context
-      goto bb6
-  fun thunk<Raw> Equality.equals(Raw) @fn79(this: Equality<Raw>, other: Raw) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn10 direct
-        Type Raw
-        Unbox
-          Type Equality<Raw>
-          Local this
-        Type Raw
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<NativeWord> Equality.equals(NativeWord) @fn80(this: Equality<NativeWord>, other: NativeWord) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn11 direct
-        Type NativeWord
-        Unbox
-          Type Equality<NativeWord>
-          Local this
-        Type NativeWord
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Multiple> Equality.equals(Int) @fn81(this: Equality<Int>, other: Int) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn7 direct
-        Type Multiple
-        Unbox
-          Type Equality<Int>
-          Local this
-        Type Int
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Multiple> Equality.equals(Multiple) @fn82(this: Equality<Multiple>, other: Multiple) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn8 direct
-        Type Multiple
-        Unbox
-          Type Equality<Multiple>
-          Local this
-        Type Multiple
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Pair> Equality.equals(Pair) @fn83(this: Equality<Pair>, other: Pair) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn5 direct
-        Type Pair
-        Unbox
-          Type Equality<Pair>
-          Local this
-        Type Pair
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Tagged> Equality.equals(Tagged) @fn84(this: Equality<Tagged>, other: Tagged) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn6 direct
-        Type Tagged
-        Unbox
-          Type Equality<Tagged>
-          Local this
-        Type Tagged
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Inherited> Equality.equals(Inherited) @fn85(this: Equality<Inherited>, other: Inherited) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn3 direct
-        Type Inherited
-        Unbox
-          Type Equality<Inherited>
-          Local this
-        Type Inherited
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  coroutine_step cs0 CoroutineStep<Multiple> result=Multiple
-  coroutine_step cs1 CoroutineStep<Trace> result=Trace
-  coroutine_step cs2 CoroutineStep<Pair> result=Pair
-  coroutine_step cs3 CoroutineStep<Child> result=Child
-  coroutine_step cs4 CoroutineStep<Tagged> result=Tagged
-  coroutine_step cs5 CoroutineStep<Inherited> result=Inherited
-  coroutine_step cs6 CoroutineStep<NativeWord> result=NativeWord
-  coroutine_step cs7 CoroutineStep<Traced> result=Traced
-  coroutine_step cs8 CoroutineStep<Base> result=Base
-  coroutine_step cs9 CoroutineStep<Raw> result=Raw
-  coroutine_slot cl0 CoroutineSlot<Multiple> value=Multiple
-  coroutine_slot cl1 CoroutineSlot<Trace> value=Trace
-  coroutine_slot cl2 CoroutineSlot<Pair> value=Pair
-  coroutine_slot cl3 CoroutineSlot<Child> value=Child
-  coroutine_slot cl4 CoroutineSlot<Tagged> value=Tagged
-  coroutine_slot cl5 CoroutineSlot<Inherited> value=Inherited
-  coroutine_slot cl6 CoroutineSlot<NativeWord> value=NativeWord
-  coroutine_slot cl7 CoroutineSlot<Traced> value=Traced
-  coroutine_slot cl8 CoroutineSlot<Base> value=Base
-  coroutine_slot cl9 CoroutineSlot<Raw> value=Raw
-  coroutine_start ct0 result=Multiple function=fn69
-  coroutine_start ct1 result=Trace function=fn70
-  coroutine_start ct2 result=Pair function=fn71
-  coroutine_start ct3 result=Child function=fn72
-  coroutine_start ct4 result=Tagged function=fn73
-  coroutine_start ct5 result=Inherited function=fn74
-  coroutine_start ct6 result=NativeWord function=fn75
-  coroutine_start ct7 result=Traced function=fn76
-  coroutine_start ct8 result=Base function=fn77
-  coroutine_start ct9 result=Raw function=fn78
-  coroutine_fn cf0 @fn22 source_return=Child step=cs3 immediate
-  coroutine_fn cf1 @fn26 source_return=Base step=cs8 immediate
-  coroutine_fn cf2 @fn30 source_return=Inherited step=cs5 immediate
-  coroutine_fn cf3 @fn34 source_return=Trace step=cs1 immediate
-  coroutine_fn cf4 @fn38 source_return=Traced step=cs7 immediate
-  coroutine_fn cf5 @fn42 source_return=Pair step=cs2 immediate
-  coroutine_fn cf6 @fn46 source_return=Tagged step=cs4 immediate
-  coroutine_fn cf7 @fn50 source_return=Multiple step=cs0 immediate
-  coroutine_fn cf8 @fn54 source_return=Raw step=cs9 immediate
-  coroutine_fn cf9 @fn58 source_return=NativeWord step=cs6 immediate
-  instance mi0 function=@fn9 <- equals
-  instance mi1 function=@fn12 <- same
-  instance mi2 function=@fn13 <- same
-  instance mi3 function=@fn14 <- same
-  instance mi4 function=@fn15 <- same
-  instance mi5 function=@fn16 <- Equality.equals
-  instance mi6 function=@fn17 <- same
-  instance mi7 function=@fn18 <- Equality.equals
-  instance mi8 function=@fn19 <- println
-  instance mi9 function=@fn20 <- Continuation.resume
-  instance mi10 function=@fn21 <- Continuation.resumeWithException
-  instance mi11 function=@fn22 <- SuspendTask.run
-  instance mi12 function=@fn23 <- SuspendRegistration.register
-  instance mi13 function=@fn24 <- Continuation.resume
-  instance mi14 function=@fn25 <- Continuation.resumeWithException
-  instance mi15 function=@fn26 <- SuspendTask.run
-  instance mi16 function=@fn27 <- SuspendRegistration.register
-  instance mi17 function=@fn28 <- Continuation.resume
-  instance mi18 function=@fn29 <- Continuation.resumeWithException
-  instance mi19 function=@fn30 <- SuspendTask.run
-  instance mi20 function=@fn31 <- SuspendRegistration.register
-  instance mi21 function=@fn32 <- Continuation.resume
-  instance mi22 function=@fn33 <- Continuation.resumeWithException
-  instance mi23 function=@fn34 <- SuspendTask.run
-  instance mi24 function=@fn35 <- SuspendRegistration.register
-  instance mi25 function=@fn36 <- Continuation.resume
-  instance mi26 function=@fn37 <- Continuation.resumeWithException
-  instance mi27 function=@fn38 <- SuspendTask.run
-  instance mi28 function=@fn39 <- SuspendRegistration.register
-  instance mi29 function=@fn40 <- Continuation.resume
-  instance mi30 function=@fn41 <- Continuation.resumeWithException
-  instance mi31 function=@fn42 <- SuspendTask.run
-  instance mi32 function=@fn43 <- SuspendRegistration.register
-  instance mi33 function=@fn44 <- Continuation.resume
-  instance mi34 function=@fn45 <- Continuation.resumeWithException
-  instance mi35 function=@fn46 <- SuspendTask.run
-  instance mi36 function=@fn47 <- SuspendRegistration.register
-  instance mi37 function=@fn48 <- Continuation.resume
-  instance mi38 function=@fn49 <- Continuation.resumeWithException
-  instance mi39 function=@fn50 <- SuspendTask.run
-  instance mi40 function=@fn51 <- SuspendRegistration.register
-  instance mi41 function=@fn52 <- Continuation.resume
-  instance mi42 function=@fn53 <- Continuation.resumeWithException
-  instance mi43 function=@fn54 <- SuspendTask.run
-  instance mi44 function=@fn55 <- SuspendRegistration.register
-  instance mi45 function=@fn56 <- Continuation.resume
-  instance mi46 function=@fn57 <- Continuation.resumeWithException
-  instance mi47 function=@fn58 <- SuspendTask.run
-  instance mi48 function=@fn59 <- SuspendRegistration.register
+  instance mi0 function=@fn2 <- equalTo
+  instance mi1 function=@fn11 <- equals
+  instance mi2 function=@fn13 <- println
   str @str0 "illegal state"
   str @str1 "derived field semantics"
   str @str2 "\n"

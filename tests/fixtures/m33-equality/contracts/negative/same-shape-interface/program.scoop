@@ -1,4 +1,0 @@
-interface Similar<T> {
-    public operator fun equals(other: T): Boolean
-}
-fun main() {}

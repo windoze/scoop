@@ -53,7 +53,14 @@ fn class_fields_are_base_prefix_then_own() {
     );
     let module = lower(&h.finish(main));
 
-    assert_eq!(visible_class_count(&module), 2);
+    assert_eq!(
+        module
+            .classes
+            .iter()
+            .filter(|(_, declaration)| { matches!(declaration.name.as_str(), "Base" | "Derived") })
+            .count(),
+        2
+    );
     let base_def = &module.classes[class_index(0)];
     let derived_def = &module.classes[class_index(1)];
     let field_names = |def: &mir::ClassDef| {

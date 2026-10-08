@@ -2,12 +2,12 @@ public struct SharedEqualityLeaf()
 public struct SharedEqualityPair(val first: SharedEqualityLeaf, val second: SharedEqualityLeaf)
 public enum SharedEqualityChoice { Empty, Full(SharedEqualityPair) }
 
-public struct SharedEqualityManual() : Equality<SharedEqualityManual> {
-    public override operator fun equals(other: SharedEqualityManual): Boolean = false
+public struct SharedEqualityManual() {
+    public operator fun equals(other: SharedEqualityManual): Boolean = false
 }
 public struct SharedEqualityUsesManual(val value: SharedEqualityManual)
-public struct SharedEqualityOverloaded() : Equality<SharedEqualityLeaf> {
-    public override operator fun equals(other: SharedEqualityLeaf): Boolean = true
+public struct SharedEqualityOverloaded() {
+    public operator fun equals(other: SharedEqualityLeaf): Boolean = true
 }
 public interface SharedEqualityMarker {
     public fun leaf(): SharedEqualityLeaf = SharedEqualityLeaf()

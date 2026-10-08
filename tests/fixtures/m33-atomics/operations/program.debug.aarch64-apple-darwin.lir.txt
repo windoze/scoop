@@ -13,9 +13,9 @@ Module
   global @scoop$1$bs$c2d054cad028c7bfb6b4824d69d2c41a8d16fe6854cac8e8e8919df2885170fb = c"call to abstract method `SuspendTask.run`"
   global @scoop$1$bs$b1adb4ece28368c9959d1e0af8d67411bd4501a0cfee5a36a70ac7ca8d3d95ad = c"call to abstract method `SuspendRegistration.register`"
   init0 top-level:shared storage=@scoop$1$ss$130163746dfd1d65a47f0dd1ca3f935ac416701dc64bd2afbad9f77f658df69f failure=@scoop$1$ss$83de00b976d6c254b2b68b4dc7edc88e656b1bfa5123ac98c841094600ca36c0 initializer=@scoop$1$cb$fffe6d0f83058c1196eb5030894523c7aa66e194fcd716251a262035ae3386c2 ensure=@scoop$1$cb$cf7adf365b5be56cfb4c35fbd8a4623c87ae155f415b0062c6dba60564051ccf deps=[]
-  enum MemoryOrder tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum MemoryOrder tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0 ()@8+0
   enum CoroutineStep<Payload> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Payload> niche(kind=managed,payload_variant=1)
   fun @scoop$1$cb$e0ec6d894a1b04a52d22cb42d2d84599571912a2ba1fe69eabb875c02b0f0f81() -> ptr<managed>
@@ -87,17 +87,17 @@ Module
   fun @scoop$1$cb$def1ed64b927bcf2dbf6fcd39af65b527db44d0e16e6b9110ed6a3af2b036184() -> i32
     local %0 $default.local.0: ptr<managed>
     local %1 $default.local.1: ptr<managed>
-    local %2 $dependency.parameter.message: enum1
+    local %2 $dependency.parameter.message: enum0
     local %3 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store global0 -> local0
     store local0 -> local1
-    t0 = enum_wrap e1 v0 (local1) : enum1
+    t0 = enum_wrap e0 v0 (local1) : enum0
     store t0 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[local2:enum1@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td10, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local2:enum0@0] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td10, machine<byte-size>(ByteSize(24)))
     store t1 -> local3
-    call managed-void-target0 sp<managed-call:1> live=[local2:enum1@0, local3:ptr<managed>@0] sig=void0 (ptr<managed>, enum1) external-fn0(local3, local2)
+    call managed-void-target0 sp<managed-call:1> live=[local2:enum0@0, local3:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local3, local2)
     t2 = aggregate () : {}
     throw local3
     unreachable
@@ -107,8 +107,8 @@ Module
     local %2 $dependency.argument.1: i32
     local %3 $dependency.parameter.expected: i32
     local %4 $dependency.parameter.value: i32
-    local %5 $dependency.parameter.successOrder: enum0
-    local %6 $dependency.parameter.failureOrder: enum0
+    local %5 $dependency.parameter.successOrder: enum2
+    local %6 $dependency.parameter.failureOrder: enum2
     local %7 $argument.0: i1
     local %8 $parameter.value: i1
     local %9 $dependency.receiver: i32
@@ -117,8 +117,8 @@ Module
     local %12 $argument.0: i1
     local %13 $parameter.value: i1
     local %14 $dependency.receiver: ptr<managed>
-    local %15 $dependency.argument.0: enum0
-    local %16 $dependency.parameter.order: enum0
+    local %15 $dependency.argument.0: enum2
+    local %16 $dependency.parameter.order: enum2
     local %17 $dependency.receiver: i32
     local %18 $dependency.argument.0: i32
     local %19 $dependency.parameter.other: i32
@@ -126,12 +126,12 @@ Module
     local %21 $parameter.value: i1
     local %22 $dependency.receiver: ptr<managed>
     local %23 $dependency.argument.0: i32
-    local %24 $dependency.argument.1: enum0
+    local %24 $dependency.argument.1: enum2
     local %25 $dependency.parameter.value: i32
-    local %26 $dependency.parameter.order: enum0
+    local %26 $dependency.parameter.order: enum2
     local %27 error: ptr<managed>
     local %28 $dependency.receiver: ptr<managed>
-    local %29 $dependency.parameter.order: enum0
+    local %29 $dependency.parameter.order: enum2
     local %30 $dependency.receiver: i32
     local %31 $dependency.argument.0: i32
     local %32 $dependency.parameter.other: i32
@@ -151,9 +151,9 @@ Module
     store t2 -> local2
     store local1 -> local3
     store local2 -> local4
-    t3 = enum_wrap e0 v4 () : enum0
+    t3 = enum_wrap e2 v4 () : enum2
     store t3 -> local5
-    t4 = enum_wrap e0 v4 () : enum0
+    t4 = enum_wrap e2 v4 () : enum2
     store t4 -> local6
     t5 = atomic_cmpxchg Int Success success=SeqCst failure=SeqCst local0 +16, local3, local4
     store t5 -> local7
@@ -171,7 +171,7 @@ Module
     t9 = aggregate () : {}
     call managed-direct-target3 sp<managed-call:5> live=[] t10 = sig=direct4 () -> ptr<managed> local-fn15()
     store t10 -> local14
-    t11 = enum_wrap e0 v1 () : enum0
+    t11 = enum_wrap e2 v1 () : enum2
     store t11 -> local15
     store local15 -> local16
     t12 = atomic_load Int Acquire local14 +16
@@ -234,7 +234,7 @@ Module
     br @invoke.normal.2
   block invoke.normal.2
     store t24 -> local23
-    t25 = enum_wrap e0 v2 () : enum0
+    t25 = enum_wrap e2 v2 () : enum2
     store t25 -> local24
     store local23 -> local25
     store local24 -> local26
@@ -245,7 +245,7 @@ Module
     unreachable
   block invoke.normal.4
     store t28 -> local28
-    t29 = enum_wrap e0 v4 () : enum0
+    t29 = enum_wrap e2 v4 () : enum2
     store t29 -> local29
     t30 = atomic_load Int SeqCst local28 +16
     store t30 -> local30
@@ -264,7 +264,7 @@ Module
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
-    local %3 $dependency.parameter.message: enum1
+    local %3 $dependency.parameter.message: enum0
     local %4 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -274,11 +274,11 @@ Module
   block if.then.1
     store global1 -> local1
     store local1 -> local2
-    t1 = enum_wrap e1 v0 (local2) : enum1
+    t1 = enum_wrap e0 v0 (local2) : enum0
     store t1 -> local3
-    call managed-direct-target0 sp<managed-call:0> live=[local3:enum1@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td10, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td10, machine<byte-size>(ByteSize(24)))
     store t2 -> local4
-    call managed-void-target0 sp<managed-call:1> live=[local3:enum1@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum1) external-fn0(local4, local3)
+    call managed-void-target0 sp<managed-call:1> live=[local3:enum0@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local4, local3)
     t3 = aggregate () : {}
     throw local4
     unreachable
@@ -318,17 +318,17 @@ Module
     local %10 $parameter.initial: ptr<managed>
     local %11 cell: ptr<managed>
     local %12 $dependency.receiver: ptr<managed>
-    local %13 $dependency.parameter.order: enum0
+    local %13 $dependency.parameter.order: enum2
     local %14 $argument.0: i1
     local %15 $parameter.value: i1
     local %16 $dependency.receiver: ptr<managed>
     local %17 $dependency.argument.0: ptr<managed>
     local %18 $dependency.parameter.value: ptr<managed>
-    local %19 $dependency.parameter.order: enum0
+    local %19 $dependency.parameter.order: enum2
     local %20 $dependency.receiver: ptr<managed>
     local %21 $dependency.argument.0: ptr<managed>
     local %22 $dependency.parameter.value: ptr<managed>
-    local %23 $dependency.parameter.order: enum0
+    local %23 $dependency.parameter.order: enum2
     local %24 $argument.0: i1
     local %25 $parameter.value: i1
     local %26 $dependency.receiver: ptr<managed>
@@ -336,13 +336,13 @@ Module
     local %28 $dependency.argument.1: ptr<managed>
     local %29 $dependency.parameter.expected: ptr<managed>
     local %30 $dependency.parameter.value: ptr<managed>
-    local %31 $dependency.parameter.successOrder: enum0
-    local %32 $dependency.parameter.failureOrder: enum0
+    local %31 $dependency.parameter.successOrder: enum2
+    local %32 $dependency.parameter.failureOrder: enum2
     local %33 $dependency.receiver: i1
     local %34 $argument.0: i1
     local %35 $parameter.value: i1
     local %36 $dependency.receiver: ptr<managed>
-    local %37 $dependency.parameter.order: enum0
+    local %37 $dependency.parameter.order: enum2
     local %38 $argument.0: i1
     local %39 $parameter.value: i1
     local %40 $dependency.receiver: ptr<managed>
@@ -350,8 +350,8 @@ Module
     local %42 $dependency.argument.1: ptr<managed>
     local %43 $dependency.parameter.expected: ptr<managed>
     local %44 $dependency.parameter.value: ptr<managed>
-    local %45 $dependency.parameter.successOrder: enum0
-    local %46 $dependency.parameter.failureOrder: enum0
+    local %45 $dependency.parameter.successOrder: enum2
+    local %46 $dependency.parameter.failureOrder: enum2
     local %47 $argument.0: i1
     local %48 $parameter.value: i1
     local %49 $argument.0: ptr<managed>
@@ -384,7 +384,7 @@ Module
     local %76 $argument.0: i1
     local %77 $parameter.value: i1
     local %78 $dependency.receiver: ptr<managed>
-    local %79 $dependency.parameter.order: enum0
+    local %79 $dependency.parameter.order: enum2
     local %80 $argument.0: i1
     local %81 $parameter.value: i1
     local %82 contract: ptr<managed>
@@ -392,7 +392,7 @@ Module
     local %84 $parameter.initial: ptr<managed>
     local %85 contractCell: ptr<managed>
     local %86 $dependency.receiver: ptr<managed>
-    local %87 $dependency.parameter.order: enum0
+    local %87 $dependency.parameter.order: enum2
     local %88 $argument.0: i1
     local %89 $parameter.value: i1
     local %90 any: ptr<managed>
@@ -400,7 +400,7 @@ Module
     local %92 $parameter.initial: ptr<managed>
     local %93 anyCell: ptr<managed>
     local %94 $dependency.receiver: ptr<managed>
-    local %95 $dependency.parameter.order: enum0
+    local %95 $dependency.parameter.order: enum2
     local %96 $argument.0: i1
     local %97 $parameter.value: i1
     local %98 action: ptr<managed>
@@ -411,7 +411,7 @@ Module
     local %103 $dependency.receiver: ptr<managed>
     local %104 $dependency.argument.0: ptr<managed>
     local %105 $dependency.parameter.value: ptr<managed>
-    local %106 $dependency.parameter.order: enum0
+    local %106 $dependency.parameter.order: enum2
     local %107 old: ptr<managed>
     local %108 $dependency.receiver: i32
     local %109 $dependency.argument.0: i32
@@ -419,7 +419,7 @@ Module
     local %111 $argument.0: i1
     local %112 $parameter.value: i1
     local %113 $dependency.receiver: ptr<managed>
-    local %114 $dependency.parameter.order: enum0
+    local %114 $dependency.parameter.order: enum2
     local %115 $dependency.receiver: i32
     local %116 $dependency.argument.0: i32
     local %117 $dependency.parameter.other: i32
@@ -435,32 +435,32 @@ Module
     poll managed-void-target19 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000001) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t0 -> local120
-    call managed-void-target0 sp<managed-call:1> live=[local120:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn30(local120, local1)
+    call managed-void-target0 sp<managed-call:1> live=[local120:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn31(local120, local1)
     t1 = aggregate () : {}
     store local120 -> local2
     store integer<Int>(0x00000001) -> local3
     store local3 -> local4
-    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t2 -> local121
-    call managed-void-target1 sp<managed-call:3> live=[local2:ptr<managed>@0, local121:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn30(local121, local4)
+    call managed-void-target1 sp<managed-call:3> live=[local2:ptr<managed>@0, local121:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn31(local121, local4)
     t3 = aggregate () : {}
     store local121 -> local5
     store integer<Int>(0x00000002) -> local6
     store local6 -> local7
-    call managed-direct-target2 sp<managed-call:4> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:4> live=[local2:ptr<managed>@0, local5:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(24)))
     store t4 -> local122
-    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local122:ptr<managed>@0] sig=void2 (ptr<managed>, i32) local-fn30(local122, local7)
+    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local122:ptr<managed>@0] sig=void2 (ptr<managed>, i32) local-fn31(local122, local7)
     t5 = aggregate () : {}
     store local122 -> local8
     store local2 -> local9
     store local9 -> local10
-    call managed-direct-target3 sp<managed-call:6> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target3 sp<managed-call:6> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t6 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(24)))
     atomic_store Reference Relaxed t6 +16, local10
     store t6 -> local11
     store local11 -> local12
-    t7 = enum_wrap e0 v4 () : enum0
+    t7 = enum_wrap e2 v4 () : enum2
     store t7 -> local13
     t8 = atomic_load Reference SeqCst local12 +16
     t9 = Eq t8, local2 : i1
@@ -471,14 +471,14 @@ Module
     store local11 -> local16
     store local8 -> local17
     store local17 -> local18
-    t11 = enum_wrap e0 v4 () : enum0
+    t11 = enum_wrap e2 v4 () : enum2
     store t11 -> local19
     atomic_store Reference SeqCst local16 +16, local18
     t12 = aggregate () : {}
     store local11 -> local20
     store local2 -> local21
     store local21 -> local22
-    t13 = enum_wrap e0 v4 () : enum0
+    t13 = enum_wrap e2 v4 () : enum2
     store t13 -> local23
     t14 = atomic_rmw Reference Exchange SeqCst local20 +16, local22
     t15 = Eq t14, local8 : i1
@@ -491,9 +491,9 @@ Module
     store local8 -> local28
     store local27 -> local29
     store local28 -> local30
-    t17 = enum_wrap e0 v4 () : enum0
+    t17 = enum_wrap e2 v4 () : enum2
     store t17 -> local31
-    t18 = enum_wrap e0 v4 () : enum0
+    t18 = enum_wrap e2 v4 () : enum2
     store t18 -> local32
     t19 = atomic_cmpxchg Reference Success success=SeqCst failure=SeqCst local26 +16, local29, local30
     store t19 -> local33
@@ -503,7 +503,7 @@ Module
     call managed-void-target5 sp<managed-call:9> live=[local2:ptr<managed>@0, local5:ptr<managed>@0, local8:ptr<managed>@0, local11:ptr<managed>@0] sig=void5 (i1) local-fn5(local35)
     t21 = aggregate () : {}
     store local11 -> local36
-    t22 = enum_wrap e0 v4 () : enum0
+    t22 = enum_wrap e2 v4 () : enum2
     store t22 -> local37
     t23 = atomic_load Reference SeqCst local36 +16
     t24 = Eq t23, local2 : i1
@@ -516,9 +516,9 @@ Module
     store local8 -> local42
     store local41 -> local43
     store local42 -> local44
-    t26 = enum_wrap e0 v4 () : enum0
+    t26 = enum_wrap e2 v4 () : enum2
     store t26 -> local45
-    t27 = enum_wrap e0 v4 () : enum0
+    t27 = enum_wrap e2 v4 () : enum2
     store t27 -> local46
     t28 = atomic_cmpxchg Reference Success success=SeqCst failure=SeqCst local40 +16, local43, local44
     store t28 -> local47
@@ -576,7 +576,7 @@ Module
     call managed-void-target12 sp<managed-call:19> live=[local2:ptr<managed>@0, local8:ptr<managed>@0, local11:ptr<managed>@0] sig=void12 () runtime @scoop_rt_gc_collect()
     t42 = aggregate () : {}
     store local11 -> local78
-    t43 = enum_wrap e0 v4 () : enum0
+    t43 = enum_wrap e2 v4 () : enum2
     store t43 -> local79
     t44 = atomic_load Reference SeqCst local78 +16
     t45 = Eq t44, local8 : i1
@@ -587,11 +587,11 @@ Module
     store local2 -> local82
     store local82 -> local83
     store local83 -> local84
-    call managed-direct-target7 sp<managed-call:21> live=[local2:ptr<managed>@0, local82:ptr<managed>@0, local84:ptr<managed>@0] t47 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target7 sp<managed-call:21> live=[local2:ptr<managed>@0, local82:ptr<managed>@0, local84:ptr<managed>@0] t47 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(24)))
     atomic_store Reference Relaxed t47 +16, local84
     store t47 -> local85
     store local85 -> local86
-    t48 = enum_wrap e0 v4 () : enum0
+    t48 = enum_wrap e2 v4 () : enum2
     store t48 -> local87
     t49 = atomic_load Reference SeqCst local86 +16
     t50 = Eq t49, local82 : i1
@@ -602,11 +602,11 @@ Module
     store local2 -> local90
     store local90 -> local91
     store local91 -> local92
-    call managed-direct-target8 sp<managed-call:23> live=[local90:ptr<managed>@0, local92:ptr<managed>@0] t52 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target8 sp<managed-call:23> live=[local90:ptr<managed>@0, local92:ptr<managed>@0] t52 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(24)))
     atomic_store Reference Relaxed t52 +16, local92
     store t52 -> local93
     store local93 -> local94
-    t53 = enum_wrap e0 v4 () : enum0
+    t53 = enum_wrap e2 v4 () : enum2
     store t53 -> local95
     t54 = atomic_load Reference SeqCst local94 +16
     t55 = Eq t54, local90 : i1
@@ -614,23 +614,23 @@ Module
     store local96 -> local97
     call managed-void-target15 sp<managed-call:24> live=[] sig=void15 (i1) local-fn5(local97)
     t56 = aggregate () : {}
-    call managed-direct-target9 sp<managed-call:25> live=[] t57 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target9 sp<managed-call:25> live=[] t57 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(24)))
     t58 = function_address @scoop$1$cb$37d2c8380a42face06a842073e1bdf82048be6a6ff4f1144c1bfc4ffd58506d6 : ptr
     heap_store t57 +16 t58
     store t57 -> local98
-    call managed-direct-target10 sp<managed-call:26> live=[local98:ptr<managed>@0] t59 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target10 sp<managed-call:26> live=[local98:ptr<managed>@0] t59 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
     t60 = function_address @scoop$1$cb$d4ed039df60e0cc0f35240d308c70947a4e7d97cf5c8cd638b08feaebdc96d37 : ptr
     heap_store t59 +16 t60
     store t59 -> local99
     store local98 -> local100
     store local100 -> local101
-    call managed-direct-target11 sp<managed-call:27> live=[local99:ptr<managed>@0, local101:ptr<managed>@0] t61 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target11 sp<managed-call:27> live=[local99:ptr<managed>@0, local101:ptr<managed>@0] t61 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
     atomic_store Reference Relaxed t61 +16, local101
     store t61 -> local102
     store local102 -> local103
     store local99 -> local104
     store local104 -> local105
-    t62 = enum_wrap e0 v4 () : enum0
+    t62 = enum_wrap e2 v4 () : enum2
     store t62 -> local106
     t63 = atomic_rmw Reference Exchange SeqCst local103 +16, local105
     store t63 -> local107
@@ -646,7 +646,7 @@ Module
     call managed-void-target17 sp<managed-call:30> live=[local102:ptr<managed>@0] sig=void17 (i1) local-fn5(local112)
     t67 = aggregate () : {}
     store local102 -> local113
-    t68 = enum_wrap e0 v4 () : enum0
+    t68 = enum_wrap e2 v4 () : enum2
     store t68 -> local114
     t69 = atomic_load Reference SeqCst local113 +16
     call managed-direct-target13 sp<managed-call:31> live=[t69:ptr<managed>@0] t70 = sig=direct14 (ptr<managed>) -> i32 dispatch[Closure:2] t69(t69)
@@ -664,7 +664,7 @@ Module
     local %1 $parameter.initial: i32
     local %2 cell: ptr<managed>
     local %3 $dependency.receiver: ptr<managed>
-    local %4 $dependency.parameter.order: enum0
+    local %4 $dependency.parameter.order: enum2
     local %5 $dependency.receiver: i32
     local %6 $dependency.argument.0: i32
     local %7 $dependency.parameter.other: i32
@@ -673,11 +673,11 @@ Module
     local %10 $dependency.receiver: ptr<managed>
     local %11 $dependency.argument.0: i32
     local %12 $dependency.parameter.value: i32
-    local %13 $dependency.parameter.order: enum0
+    local %13 $dependency.parameter.order: enum2
     local %14 $dependency.receiver: ptr<managed>
     local %15 $dependency.argument.0: i32
     local %16 $dependency.parameter.value: i32
-    local %17 $dependency.parameter.order: enum0
+    local %17 $dependency.parameter.order: enum2
     local %18 $dependency.receiver: i32
     local %19 $dependency.argument.0: i32
     local %20 $dependency.parameter.other: i32
@@ -686,7 +686,7 @@ Module
     local %23 $dependency.receiver: ptr<managed>
     local %24 $dependency.argument.0: i32
     local %25 $dependency.parameter.value: i32
-    local %26 $dependency.parameter.order: enum0
+    local %26 $dependency.parameter.order: enum2
     local %27 $dependency.receiver: i32
     local %28 $dependency.argument.0: i32
     local %29 $dependency.parameter.other: i32
@@ -695,7 +695,7 @@ Module
     local %32 $dependency.receiver: ptr<managed>
     local %33 $dependency.argument.0: i32
     local %34 $dependency.parameter.value: i32
-    local %35 $dependency.parameter.order: enum0
+    local %35 $dependency.parameter.order: enum2
     local %36 $dependency.receiver: i32
     local %37 $dependency.argument.0: i32
     local %38 $dependency.parameter.other: i32
@@ -704,7 +704,7 @@ Module
     local %41 $dependency.receiver: ptr<managed>
     local %42 $dependency.argument.0: i32
     local %43 $dependency.parameter.value: i32
-    local %44 $dependency.parameter.order: enum0
+    local %44 $dependency.parameter.order: enum2
     local %45 $dependency.receiver: i32
     local %46 $dependency.argument.0: i32
     local %47 $dependency.parameter.other: i32
@@ -713,7 +713,7 @@ Module
     local %50 $dependency.receiver: ptr<managed>
     local %51 $dependency.argument.0: i32
     local %52 $dependency.parameter.value: i32
-    local %53 $dependency.parameter.order: enum0
+    local %53 $dependency.parameter.order: enum2
     local %54 $dependency.receiver: i32
     local %55 $dependency.argument.0: i32
     local %56 $dependency.parameter.other: i32
@@ -722,14 +722,14 @@ Module
     local %59 $dependency.receiver: ptr<managed>
     local %60 $dependency.argument.0: i32
     local %61 $dependency.parameter.value: i32
-    local %62 $dependency.parameter.order: enum0
+    local %62 $dependency.parameter.order: enum2
     local %63 $dependency.receiver: i32
     local %64 $dependency.argument.0: i32
     local %65 $dependency.parameter.other: i32
     local %66 $argument.0: i1
     local %67 $parameter.value: i1
     local %68 $dependency.receiver: ptr<managed>
-    local %69 $dependency.parameter.order: enum0
+    local %69 $dependency.parameter.order: enum2
     local %70 $dependency.receiver: i32
     local %71 $dependency.argument.0: i32
     local %72 $dependency.parameter.other: i32
@@ -740,8 +740,8 @@ Module
     local %77 $dependency.argument.1: i32
     local %78 $dependency.parameter.expected: i32
     local %79 $dependency.parameter.value: i32
-    local %80 $dependency.parameter.successOrder: enum0
-    local %81 $dependency.parameter.failureOrder: enum0
+    local %80 $dependency.parameter.successOrder: enum2
+    local %81 $dependency.parameter.failureOrder: enum2
     local %82 $dependency.receiver: i1
     local %83 $argument.0: i1
     local %84 $parameter.value: i1
@@ -750,8 +750,8 @@ Module
     local %87 $dependency.argument.1: i32
     local %88 $dependency.parameter.expected: i32
     local %89 $dependency.parameter.value: i32
-    local %90 $dependency.parameter.successOrder: enum0
-    local %91 $dependency.parameter.failureOrder: enum0
+    local %90 $dependency.parameter.successOrder: enum2
+    local %91 $dependency.parameter.failureOrder: enum2
     local %92 $argument.0: i1
     local %93 $parameter.value: i1
     local %94 $dependency.receiver: ptr<managed>
@@ -759,8 +759,8 @@ Module
     local %96 $dependency.argument.1: i32
     local %97 $dependency.parameter.expected: i32
     local %98 $dependency.parameter.value: i32
-    local %99 $dependency.parameter.successOrder: enum0
-    local %100 $dependency.parameter.failureOrder: enum0
+    local %99 $dependency.parameter.successOrder: enum2
+    local %100 $dependency.parameter.failureOrder: enum2
     local %101 $dependency.receiver: i32
     local %102 $dependency.argument.0: i32
     local %103 $dependency.parameter.other: i32
@@ -771,15 +771,15 @@ Module
     local %108 $dependency.argument.1: i32
     local %109 $dependency.parameter.expected: i32
     local %110 $dependency.parameter.value: i32
-    local %111 $dependency.parameter.successOrder: enum0
-    local %112 $dependency.parameter.failureOrder: enum0
+    local %111 $dependency.parameter.successOrder: enum2
+    local %112 $dependency.parameter.failureOrder: enum2
     local %113 $dependency.receiver: i32
     local %114 $dependency.argument.0: i32
     local %115 $dependency.parameter.other: i32
     local %116 $argument.0: i1
     local %117 $parameter.value: i1
     local %118 $dependency.receiver: ptr<managed>
-    local %119 $dependency.parameter.order: enum0
+    local %119 $dependency.parameter.order: enum2
     local %120 $dependency.receiver: i32
     local %121 $dependency.argument.0: i32
     local %122 $dependency.parameter.other: i32
@@ -788,18 +788,18 @@ Module
     local %125 $dependency.receiver: ptr<managed>
     local %126 $dependency.argument.0: i32
     local %127 $dependency.parameter.value: i32
-    local %128 $dependency.parameter.order: enum0
+    local %128 $dependency.parameter.order: enum2
     local %129 $dependency.receiver: ptr<managed>
     local %130 $dependency.argument.0: i32
     local %131 $dependency.parameter.value: i32
-    local %132 $dependency.parameter.order: enum0
+    local %132 $dependency.parameter.order: enum2
     local %133 $dependency.receiver: i32
     local %134 $dependency.argument.0: i32
     local %135 $dependency.parameter.other: i32
     local %136 $argument.0: i1
     local %137 $parameter.value: i1
     local %138 $dependency.receiver: ptr<managed>
-    local %139 $dependency.parameter.order: enum0
+    local %139 $dependency.parameter.order: enum2
     local %140 $dependency.receiver: i32
     local %141 $dependency.argument.0: i32
     local %142 $dependency.parameter.other: i32
@@ -815,7 +815,7 @@ Module
     local %152 $dependency.receiver: ptr<managed>
     local %153 $dependency.argument.0: i32
     local %154 $dependency.parameter.value: i32
-    local %155 $dependency.parameter.order: enum0
+    local %155 $dependency.parameter.order: enum2
     local %156 $dependency.receiver: i32
     local %157 $dependency.argument.0: i32
     local %158 $dependency.parameter.other: i32
@@ -829,7 +829,7 @@ Module
     local %166 $argument.0: i1
     local %167 $parameter.value: i1
     local %168 $dependency.receiver: ptr<managed>
-    local %169 $dependency.parameter.order: enum0
+    local %169 $dependency.parameter.order: enum2
     local %170 $dependency.receiver: i32
     local %171 $dependency.argument.0: i32
     local %172 $dependency.parameter.other: i32
@@ -856,7 +856,7 @@ Module
     atomic_store Int Relaxed t0 +16, local1
     store t0 -> local2
     store local2 -> local3
-    t1 = enum_wrap e0 v4 () : enum0
+    t1 = enum_wrap e2 v4 () : enum2
     store t1 -> local4
     t2 = atomic_load Int SeqCst local3 +16
     store t2 -> local5
@@ -870,14 +870,14 @@ Module
     store local2 -> local10
     store integer<Int>(0x00000008) -> local11
     store local11 -> local12
-    t5 = enum_wrap e0 v4 () : enum0
+    t5 = enum_wrap e2 v4 () : enum2
     store t5 -> local13
     atomic_store Int SeqCst local10 +16, local12
     t6 = aggregate () : {}
     store local2 -> local14
     store integer<Int>(0x00000003) -> local15
     store local15 -> local16
-    t7 = enum_wrap e0 v4 () : enum0
+    t7 = enum_wrap e2 v4 () : enum2
     store t7 -> local17
     t8 = atomic_rmw Int Exchange SeqCst local14 +16, local16
     store t8 -> local18
@@ -891,7 +891,7 @@ Module
     store local2 -> local23
     store integer<Int>(0x00000004) -> local24
     store local24 -> local25
-    t11 = enum_wrap e0 v4 () : enum0
+    t11 = enum_wrap e2 v4 () : enum2
     store t11 -> local26
     t12 = atomic_rmw Int Add SeqCst local23 +16, local25
     store t12 -> local27
@@ -905,7 +905,7 @@ Module
     store local2 -> local32
     store integer<Int>(0x00000002) -> local33
     store local33 -> local34
-    t15 = enum_wrap e0 v4 () : enum0
+    t15 = enum_wrap e2 v4 () : enum2
     store t15 -> local35
     t16 = atomic_rmw Int Subtract SeqCst local32 +16, local34
     store t16 -> local36
@@ -919,7 +919,7 @@ Module
     store local2 -> local41
     store integer<Int>(0x00000003) -> local42
     store local42 -> local43
-    t19 = enum_wrap e0 v4 () : enum0
+    t19 = enum_wrap e2 v4 () : enum2
     store t19 -> local44
     t20 = atomic_rmw Int And SeqCst local41 +16, local43
     store t20 -> local45
@@ -933,7 +933,7 @@ Module
     store local2 -> local50
     store integer<Int>(0x00000006) -> local51
     store local51 -> local52
-    t23 = enum_wrap e0 v4 () : enum0
+    t23 = enum_wrap e2 v4 () : enum2
     store t23 -> local53
     t24 = atomic_rmw Int Or SeqCst local50 +16, local52
     store t24 -> local54
@@ -947,7 +947,7 @@ Module
     store local2 -> local59
     store integer<Int>(0x00000003) -> local60
     store local60 -> local61
-    t27 = enum_wrap e0 v4 () : enum0
+    t27 = enum_wrap e2 v4 () : enum2
     store t27 -> local62
     t28 = atomic_rmw Int Xor SeqCst local59 +16, local61
     store t28 -> local63
@@ -959,7 +959,7 @@ Module
     call managed-void-target6 sp<managed-call:7> live=[local2:ptr<managed>@0] sig=void6 (i1) local-fn5(local67)
     t30 = aggregate () : {}
     store local2 -> local68
-    t31 = enum_wrap e0 v4 () : enum0
+    t31 = enum_wrap e2 v4 () : enum2
     store t31 -> local69
     t32 = atomic_load Int SeqCst local68 +16
     store t32 -> local70
@@ -975,9 +975,9 @@ Module
     store integer<Int>(0x00000009) -> local77
     store local76 -> local78
     store local77 -> local79
-    t35 = enum_wrap e0 v4 () : enum0
+    t35 = enum_wrap e2 v4 () : enum2
     store t35 -> local80
-    t36 = enum_wrap e0 v4 () : enum0
+    t36 = enum_wrap e2 v4 () : enum2
     store t36 -> local81
     t37 = atomic_cmpxchg Int Success success=SeqCst failure=SeqCst local75 +16, local78, local79
     store t37 -> local82
@@ -991,9 +991,9 @@ Module
     store integer<Int>(0x0000000a) -> local87
     store local86 -> local88
     store local87 -> local89
-    t40 = enum_wrap e0 v4 () : enum0
+    t40 = enum_wrap e2 v4 () : enum2
     store t40 -> local90
-    t41 = enum_wrap e0 v4 () : enum0
+    t41 = enum_wrap e2 v4 () : enum2
     store t41 -> local91
     t42 = atomic_cmpxchg Int Success success=SeqCst failure=SeqCst local85 +16, local88, local89
     store t42 -> local92
@@ -1005,9 +1005,9 @@ Module
     store integer<Int>(0x0000000c) -> local96
     store local95 -> local97
     store local96 -> local98
-    t44 = enum_wrap e0 v4 () : enum0
+    t44 = enum_wrap e2 v4 () : enum2
     store t44 -> local99
-    t45 = enum_wrap e0 v4 () : enum0
+    t45 = enum_wrap e2 v4 () : enum2
     store t45 -> local100
     t46 = atomic_cmpxchg Int ObservedValue success=SeqCst failure=SeqCst local94 +16, local97, local98
     store t46 -> local101
@@ -1023,9 +1023,9 @@ Module
     store integer<Int>(0x0000000e) -> local108
     store local107 -> local109
     store local108 -> local110
-    t49 = enum_wrap e0 v4 () : enum0
+    t49 = enum_wrap e2 v4 () : enum2
     store t49 -> local111
-    t50 = enum_wrap e0 v4 () : enum0
+    t50 = enum_wrap e2 v4 () : enum2
     store t50 -> local112
     t51 = atomic_cmpxchg Int ObservedValue success=SeqCst failure=SeqCst local106 +16, local109, local110
     store t51 -> local113
@@ -1037,7 +1037,7 @@ Module
     call managed-void-target11 sp<managed-call:12> live=[local2:ptr<managed>@0] sig=void11 (i1) local-fn5(local117)
     t53 = aggregate () : {}
     store local2 -> local118
-    t54 = enum_wrap e0 v4 () : enum0
+    t54 = enum_wrap e2 v4 () : enum2
     store t54 -> local119
     t55 = atomic_load Int SeqCst local118 +16
     store t55 -> local120
@@ -1051,14 +1051,14 @@ Module
     store local2 -> local125
     store integer<Int>(0x7fffffff) -> local126
     store local126 -> local127
-    t58 = enum_wrap e0 v4 () : enum0
+    t58 = enum_wrap e2 v4 () : enum2
     store t58 -> local128
     atomic_store Int SeqCst local125 +16, local127
     t59 = aggregate () : {}
     store local2 -> local129
     store integer<Int>(0x00000001) -> local130
     store local130 -> local131
-    t60 = enum_wrap e0 v4 () : enum0
+    t60 = enum_wrap e2 v4 () : enum2
     store t60 -> local132
     t61 = atomic_rmw Int Add SeqCst local129 +16, local131
     store t61 -> local133
@@ -1070,7 +1070,7 @@ Module
     call managed-void-target13 sp<managed-call:14> live=[local2:ptr<managed>@0] sig=void13 (i1) local-fn5(local137)
     t63 = aggregate () : {}
     store local2 -> local138
-    t64 = enum_wrap e0 v4 () : enum0
+    t64 = enum_wrap e2 v4 () : enum2
     store t64 -> local139
     t65 = atomic_load Int SeqCst local138 +16
     store t65 -> local146
@@ -1093,7 +1093,7 @@ Module
     store local2 -> local152
     store integer<Int>(0x00000001) -> local153
     store local153 -> local154
-    t70 = enum_wrap e0 v4 () : enum0
+    t70 = enum_wrap e2 v4 () : enum2
     store t70 -> local155
     t71 = atomic_rmw Int Subtract SeqCst local152 +16, local154
     store t71 -> local162
@@ -1114,7 +1114,7 @@ Module
     call managed-void-target15 sp<managed-call:16> live=[local2:ptr<managed>@0] sig=void15 (i1) local-fn5(local167)
     t75 = aggregate () : {}
     store local2 -> local168
-    t76 = enum_wrap e0 v4 () : enum0
+    t76 = enum_wrap e2 v4 () : enum2
     store t76 -> local169
     t77 = atomic_load Int SeqCst local168 +16
     store t77 -> local170
@@ -1136,7 +1136,7 @@ Module
     store local180 -> local181
     call managed-void-target17 sp<managed-call:19> live=[local2:ptr<managed>@0] sig=void17 (i1) local-fn5(local181)
     t82 = aggregate () : {}
-    call managed-direct-target2 sp<managed-call:20> live=[local2:ptr<managed>@0] t83 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
+    call managed-direct-target2 sp<managed-call:20> live=[local2:ptr<managed>@0] t83 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
     t84 = function_address @scoop$1$cb$c627dd438e08083a4de3b33cece95917ddef9d17a7c2b3fbbbc998f3ae55ae3a : ptr
     heap_store t83 +16 t84
     heap_store t83 +24 local2
@@ -1156,7 +1156,7 @@ Module
     local %1 $parameter.initial: i64
     local %2 cell: ptr<managed>
     local %3 $dependency.receiver: ptr<managed>
-    local %4 $dependency.parameter.order: enum0
+    local %4 $dependency.parameter.order: enum2
     local %5 $dependency.receiver: i64
     local %6 $dependency.argument.0: i64
     local %7 $dependency.parameter.other: i64
@@ -1165,11 +1165,11 @@ Module
     local %10 $dependency.receiver: ptr<managed>
     local %11 $dependency.argument.0: i64
     local %12 $dependency.parameter.value: i64
-    local %13 $dependency.parameter.order: enum0
+    local %13 $dependency.parameter.order: enum2
     local %14 $dependency.receiver: ptr<managed>
     local %15 $dependency.argument.0: i64
     local %16 $dependency.parameter.value: i64
-    local %17 $dependency.parameter.order: enum0
+    local %17 $dependency.parameter.order: enum2
     local %18 $dependency.receiver: i64
     local %19 $dependency.argument.0: i64
     local %20 $dependency.parameter.other: i64
@@ -1178,7 +1178,7 @@ Module
     local %23 $dependency.receiver: ptr<managed>
     local %24 $dependency.argument.0: i64
     local %25 $dependency.parameter.value: i64
-    local %26 $dependency.parameter.order: enum0
+    local %26 $dependency.parameter.order: enum2
     local %27 $dependency.receiver: i64
     local %28 $dependency.argument.0: i64
     local %29 $dependency.parameter.other: i64
@@ -1187,7 +1187,7 @@ Module
     local %32 $dependency.receiver: ptr<managed>
     local %33 $dependency.argument.0: i64
     local %34 $dependency.parameter.value: i64
-    local %35 $dependency.parameter.order: enum0
+    local %35 $dependency.parameter.order: enum2
     local %36 $dependency.receiver: i64
     local %37 $dependency.argument.0: i64
     local %38 $dependency.parameter.other: i64
@@ -1196,7 +1196,7 @@ Module
     local %41 $dependency.receiver: ptr<managed>
     local %42 $dependency.argument.0: i64
     local %43 $dependency.parameter.value: i64
-    local %44 $dependency.parameter.order: enum0
+    local %44 $dependency.parameter.order: enum2
     local %45 $dependency.receiver: i64
     local %46 $dependency.argument.0: i64
     local %47 $dependency.parameter.other: i64
@@ -1205,7 +1205,7 @@ Module
     local %50 $dependency.receiver: ptr<managed>
     local %51 $dependency.argument.0: i64
     local %52 $dependency.parameter.value: i64
-    local %53 $dependency.parameter.order: enum0
+    local %53 $dependency.parameter.order: enum2
     local %54 $dependency.receiver: i64
     local %55 $dependency.argument.0: i64
     local %56 $dependency.parameter.other: i64
@@ -1214,7 +1214,7 @@ Module
     local %59 $dependency.receiver: ptr<managed>
     local %60 $dependency.argument.0: i64
     local %61 $dependency.parameter.value: i64
-    local %62 $dependency.parameter.order: enum0
+    local %62 $dependency.parameter.order: enum2
     local %63 $dependency.receiver: i64
     local %64 $dependency.argument.0: i64
     local %65 $dependency.parameter.other: i64
@@ -1225,8 +1225,8 @@ Module
     local %70 $dependency.argument.1: i64
     local %71 $dependency.parameter.expected: i64
     local %72 $dependency.parameter.value: i64
-    local %73 $dependency.parameter.successOrder: enum0
-    local %74 $dependency.parameter.failureOrder: enum0
+    local %73 $dependency.parameter.successOrder: enum2
+    local %74 $dependency.parameter.failureOrder: enum2
     local %75 $dependency.receiver: i1
     local %76 $argument.0: i1
     local %77 $parameter.value: i1
@@ -1235,8 +1235,8 @@ Module
     local %80 $dependency.argument.1: i64
     local %81 $dependency.parameter.expected: i64
     local %82 $dependency.parameter.value: i64
-    local %83 $dependency.parameter.successOrder: enum0
-    local %84 $dependency.parameter.failureOrder: enum0
+    local %83 $dependency.parameter.successOrder: enum2
+    local %84 $dependency.parameter.failureOrder: enum2
     local %85 $argument.0: i1
     local %86 $parameter.value: i1
     local %87 $dependency.receiver: ptr<managed>
@@ -1244,8 +1244,8 @@ Module
     local %89 $dependency.argument.1: i64
     local %90 $dependency.parameter.expected: i64
     local %91 $dependency.parameter.value: i64
-    local %92 $dependency.parameter.successOrder: enum0
-    local %93 $dependency.parameter.failureOrder: enum0
+    local %92 $dependency.parameter.successOrder: enum2
+    local %93 $dependency.parameter.failureOrder: enum2
     local %94 $dependency.receiver: i64
     local %95 $dependency.argument.0: i64
     local %96 $dependency.parameter.other: i64
@@ -1256,15 +1256,15 @@ Module
     local %101 $dependency.argument.1: i64
     local %102 $dependency.parameter.expected: i64
     local %103 $dependency.parameter.value: i64
-    local %104 $dependency.parameter.successOrder: enum0
-    local %105 $dependency.parameter.failureOrder: enum0
+    local %104 $dependency.parameter.successOrder: enum2
+    local %105 $dependency.parameter.failureOrder: enum2
     local %106 $dependency.receiver: i64
     local %107 $dependency.argument.0: i64
     local %108 $dependency.parameter.other: i64
     local %109 $argument.0: i1
     local %110 $parameter.value: i1
     local %111 $dependency.receiver: ptr<managed>
-    local %112 $dependency.parameter.order: enum0
+    local %112 $dependency.parameter.order: enum2
     local %113 $dependency.receiver: i64
     local %114 $dependency.argument.0: i64
     local %115 $dependency.parameter.other: i64
@@ -1273,18 +1273,18 @@ Module
     local %118 $dependency.receiver: ptr<managed>
     local %119 $dependency.argument.0: i64
     local %120 $dependency.parameter.value: i64
-    local %121 $dependency.parameter.order: enum0
+    local %121 $dependency.parameter.order: enum2
     local %122 $dependency.receiver: ptr<managed>
     local %123 $dependency.argument.0: i64
     local %124 $dependency.parameter.value: i64
-    local %125 $dependency.parameter.order: enum0
+    local %125 $dependency.parameter.order: enum2
     local %126 $dependency.receiver: i64
     local %127 $dependency.argument.0: i64
     local %128 $dependency.parameter.other: i64
     local %129 $argument.0: i1
     local %130 $parameter.value: i1
     local %131 $dependency.receiver: ptr<managed>
-    local %132 $dependency.parameter.order: enum0
+    local %132 $dependency.parameter.order: enum2
     local %133 $dependency.receiver: i64
     local %134 $dependency.argument.0: i64
     local %135 $dependency.parameter.other: i64
@@ -1300,7 +1300,7 @@ Module
     local %145 $dependency.receiver: ptr<managed>
     local %146 $dependency.argument.0: i64
     local %147 $dependency.parameter.value: i64
-    local %148 $dependency.parameter.order: enum0
+    local %148 $dependency.parameter.order: enum2
     local %149 $dependency.receiver: i64
     local %150 $dependency.argument.0: i64
     local %151 $dependency.parameter.other: i64
@@ -1314,7 +1314,7 @@ Module
     local %159 $argument.0: i1
     local %160 $parameter.value: i1
     local %161 $dependency.receiver: ptr<managed>
-    local %162 $dependency.parameter.order: enum0
+    local %162 $dependency.parameter.order: enum2
     local %163 $dependency.receiver: i64
     local %164 $dependency.argument.0: i64
     local %165 $dependency.parameter.other: i64
@@ -1328,7 +1328,7 @@ Module
     atomic_store Long Relaxed t0 +16, local1
     store t0 -> local2
     store local2 -> local3
-    t1 = enum_wrap e0 v4 () : enum0
+    t1 = enum_wrap e2 v4 () : enum2
     store t1 -> local4
     t2 = atomic_load Long SeqCst local3 +16
     store t2 -> local5
@@ -1342,14 +1342,14 @@ Module
     store local2 -> local10
     store integer<Long>(0x0000000000000008) -> local11
     store local11 -> local12
-    t5 = enum_wrap e0 v4 () : enum0
+    t5 = enum_wrap e2 v4 () : enum2
     store t5 -> local13
     atomic_store Long SeqCst local10 +16, local12
     t6 = aggregate () : {}
     store local2 -> local14
     store integer<Long>(0x0000000000000003) -> local15
     store local15 -> local16
-    t7 = enum_wrap e0 v4 () : enum0
+    t7 = enum_wrap e2 v4 () : enum2
     store t7 -> local17
     t8 = atomic_rmw Long Exchange SeqCst local14 +16, local16
     store t8 -> local18
@@ -1363,7 +1363,7 @@ Module
     store local2 -> local23
     store integer<Long>(0x0000000000000004) -> local24
     store local24 -> local25
-    t11 = enum_wrap e0 v4 () : enum0
+    t11 = enum_wrap e2 v4 () : enum2
     store t11 -> local26
     t12 = atomic_rmw Long Add SeqCst local23 +16, local25
     store t12 -> local27
@@ -1377,7 +1377,7 @@ Module
     store local2 -> local32
     store integer<Long>(0x0000000000000002) -> local33
     store local33 -> local34
-    t15 = enum_wrap e0 v4 () : enum0
+    t15 = enum_wrap e2 v4 () : enum2
     store t15 -> local35
     t16 = atomic_rmw Long Subtract SeqCst local32 +16, local34
     store t16 -> local36
@@ -1391,7 +1391,7 @@ Module
     store local2 -> local41
     store integer<Long>(0x0000000000000003) -> local42
     store local42 -> local43
-    t19 = enum_wrap e0 v4 () : enum0
+    t19 = enum_wrap e2 v4 () : enum2
     store t19 -> local44
     t20 = atomic_rmw Long And SeqCst local41 +16, local43
     store t20 -> local45
@@ -1405,7 +1405,7 @@ Module
     store local2 -> local50
     store integer<Long>(0x0000000000000006) -> local51
     store local51 -> local52
-    t23 = enum_wrap e0 v4 () : enum0
+    t23 = enum_wrap e2 v4 () : enum2
     store t23 -> local53
     t24 = atomic_rmw Long Or SeqCst local50 +16, local52
     store t24 -> local54
@@ -1419,7 +1419,7 @@ Module
     store local2 -> local59
     store integer<Long>(0x0000000000000003) -> local60
     store local60 -> local61
-    t27 = enum_wrap e0 v4 () : enum0
+    t27 = enum_wrap e2 v4 () : enum2
     store t27 -> local62
     t28 = atomic_rmw Long Xor SeqCst local59 +16, local61
     store t28 -> local63
@@ -1435,9 +1435,9 @@ Module
     store integer<Long>(0x0000000000000009) -> local70
     store local69 -> local71
     store local70 -> local72
-    t31 = enum_wrap e0 v4 () : enum0
+    t31 = enum_wrap e2 v4 () : enum2
     store t31 -> local73
-    t32 = enum_wrap e0 v4 () : enum0
+    t32 = enum_wrap e2 v4 () : enum2
     store t32 -> local74
     t33 = atomic_cmpxchg Long Success success=SeqCst failure=SeqCst local68 +16, local71, local72
     store t33 -> local75
@@ -1451,9 +1451,9 @@ Module
     store integer<Long>(0x000000000000000a) -> local80
     store local79 -> local81
     store local80 -> local82
-    t36 = enum_wrap e0 v4 () : enum0
+    t36 = enum_wrap e2 v4 () : enum2
     store t36 -> local83
-    t37 = enum_wrap e0 v4 () : enum0
+    t37 = enum_wrap e2 v4 () : enum2
     store t37 -> local84
     t38 = atomic_cmpxchg Long Success success=SeqCst failure=SeqCst local78 +16, local81, local82
     store t38 -> local85
@@ -1465,9 +1465,9 @@ Module
     store integer<Long>(0x000000000000000c) -> local89
     store local88 -> local90
     store local89 -> local91
-    t40 = enum_wrap e0 v4 () : enum0
+    t40 = enum_wrap e2 v4 () : enum2
     store t40 -> local92
-    t41 = enum_wrap e0 v4 () : enum0
+    t41 = enum_wrap e2 v4 () : enum2
     store t41 -> local93
     t42 = atomic_cmpxchg Long ObservedValue success=SeqCst failure=SeqCst local87 +16, local90, local91
     store t42 -> local94
@@ -1483,9 +1483,9 @@ Module
     store integer<Long>(0x000000000000000e) -> local101
     store local100 -> local102
     store local101 -> local103
-    t45 = enum_wrap e0 v4 () : enum0
+    t45 = enum_wrap e2 v4 () : enum2
     store t45 -> local104
-    t46 = enum_wrap e0 v4 () : enum0
+    t46 = enum_wrap e2 v4 () : enum2
     store t46 -> local105
     t47 = atomic_cmpxchg Long ObservedValue success=SeqCst failure=SeqCst local99 +16, local102, local103
     store t47 -> local106
@@ -1497,7 +1497,7 @@ Module
     call managed-void-target10 sp<managed-call:11> live=[local2:ptr<managed>@0] sig=void10 (i1) local-fn5(local110)
     t49 = aggregate () : {}
     store local2 -> local111
-    t50 = enum_wrap e0 v4 () : enum0
+    t50 = enum_wrap e2 v4 () : enum2
     store t50 -> local112
     t51 = atomic_load Long SeqCst local111 +16
     store t51 -> local113
@@ -1511,14 +1511,14 @@ Module
     store local2 -> local118
     store integer<Long>(0x7fffffffffffffff) -> local119
     store local119 -> local120
-    t54 = enum_wrap e0 v4 () : enum0
+    t54 = enum_wrap e2 v4 () : enum2
     store t54 -> local121
     atomic_store Long SeqCst local118 +16, local120
     t55 = aggregate () : {}
     store local2 -> local122
     store integer<Long>(0x0000000000000001) -> local123
     store local123 -> local124
-    t56 = enum_wrap e0 v4 () : enum0
+    t56 = enum_wrap e2 v4 () : enum2
     store t56 -> local125
     t57 = atomic_rmw Long Add SeqCst local122 +16, local124
     store t57 -> local126
@@ -1530,7 +1530,7 @@ Module
     call managed-void-target12 sp<managed-call:13> live=[local2:ptr<managed>@0] sig=void12 (i1) local-fn5(local130)
     t59 = aggregate () : {}
     store local2 -> local131
-    t60 = enum_wrap e0 v4 () : enum0
+    t60 = enum_wrap e2 v4 () : enum2
     store t60 -> local132
     t61 = atomic_load Long SeqCst local131 +16
     store t61 -> local139
@@ -1553,7 +1553,7 @@ Module
     store local2 -> local145
     store integer<Long>(0x0000000000000001) -> local146
     store local146 -> local147
-    t66 = enum_wrap e0 v4 () : enum0
+    t66 = enum_wrap e2 v4 () : enum2
     store t66 -> local148
     t67 = atomic_rmw Long Subtract SeqCst local145 +16, local147
     store t67 -> local155
@@ -1574,7 +1574,7 @@ Module
     call managed-void-target14 sp<managed-call:15> live=[local2:ptr<managed>@0] sig=void14 (i1) local-fn5(local160)
     t71 = aggregate () : {}
     store local2 -> local161
-    t72 = enum_wrap e0 v4 () : enum0
+    t72 = enum_wrap e2 v4 () : enum2
     store t72 -> local162
     t73 = atomic_load Long SeqCst local161 +16
     store t73 -> local163
@@ -1591,37 +1591,37 @@ Module
     local %1 $parameter.initial: i1
     local %2 cell: ptr<managed>
     local %3 $dependency.receiver: ptr<managed>
-    local %4 $dependency.parameter.order: enum0
+    local %4 $dependency.parameter.order: enum2
     local %5 $dependency.receiver: i1
     local %6 $argument.0: i1
     local %7 $parameter.value: i1
     local %8 $dependency.receiver: ptr<managed>
     local %9 $dependency.argument.0: i1
     local %10 $dependency.parameter.value: i1
-    local %11 $dependency.parameter.order: enum0
+    local %11 $dependency.parameter.order: enum2
     local %12 $dependency.receiver: ptr<managed>
     local %13 $dependency.argument.0: i1
     local %14 $dependency.parameter.value: i1
-    local %15 $dependency.parameter.order: enum0
+    local %15 $dependency.parameter.order: enum2
     local %16 $argument.0: i1
     local %17 $parameter.value: i1
     local %18 $dependency.receiver: ptr<managed>
     local %19 $dependency.argument.0: i1
     local %20 $dependency.parameter.value: i1
-    local %21 $dependency.parameter.order: enum0
+    local %21 $dependency.parameter.order: enum2
     local %22 $dependency.receiver: i1
     local %23 $argument.0: i1
     local %24 $parameter.value: i1
     local %25 $dependency.receiver: ptr<managed>
     local %26 $dependency.argument.0: i1
     local %27 $dependency.parameter.value: i1
-    local %28 $dependency.parameter.order: enum0
+    local %28 $dependency.parameter.order: enum2
     local %29 $argument.0: i1
     local %30 $parameter.value: i1
     local %31 $dependency.receiver: ptr<managed>
     local %32 $dependency.argument.0: i1
     local %33 $dependency.parameter.value: i1
-    local %34 $dependency.parameter.order: enum0
+    local %34 $dependency.parameter.order: enum2
     local %35 $dependency.receiver: i1
     local %36 $argument.0: i1
     local %37 $parameter.value: i1
@@ -1630,8 +1630,8 @@ Module
     local %40 $dependency.argument.1: i1
     local %41 $dependency.parameter.expected: i1
     local %42 $dependency.parameter.value: i1
-    local %43 $dependency.parameter.successOrder: enum0
-    local %44 $dependency.parameter.failureOrder: enum0
+    local %43 $dependency.parameter.successOrder: enum2
+    local %44 $dependency.parameter.failureOrder: enum2
     local %45 $dependency.receiver: i1
     local %46 $argument.0: i1
     local %47 $parameter.value: i1
@@ -1640,8 +1640,8 @@ Module
     local %50 $dependency.argument.1: i1
     local %51 $dependency.parameter.expected: i1
     local %52 $dependency.parameter.value: i1
-    local %53 $dependency.parameter.successOrder: enum0
-    local %54 $dependency.parameter.failureOrder: enum0
+    local %53 $dependency.parameter.successOrder: enum2
+    local %54 $dependency.parameter.failureOrder: enum2
     local %55 $argument.0: i1
     local %56 $parameter.value: i1
     local %57 $dependency.receiver: ptr<managed>
@@ -1649,8 +1649,8 @@ Module
     local %59 $dependency.argument.1: i1
     local %60 $dependency.parameter.expected: i1
     local %61 $dependency.parameter.value: i1
-    local %62 $dependency.parameter.successOrder: enum0
-    local %63 $dependency.parameter.failureOrder: enum0
+    local %62 $dependency.parameter.successOrder: enum2
+    local %63 $dependency.parameter.failureOrder: enum2
     local %64 $dependency.receiver: i1
     local %65 $argument.0: i1
     local %66 $parameter.value: i1
@@ -1659,13 +1659,13 @@ Module
     local %69 $dependency.argument.1: i1
     local %70 $dependency.parameter.expected: i1
     local %71 $dependency.parameter.value: i1
-    local %72 $dependency.parameter.successOrder: enum0
-    local %73 $dependency.parameter.failureOrder: enum0
+    local %72 $dependency.parameter.successOrder: enum2
+    local %73 $dependency.parameter.failureOrder: enum2
     local %74 $dependency.receiver: i1
     local %75 $argument.0: i1
     local %76 $parameter.value: i1
     local %77 $dependency.receiver: ptr<managed>
-    local %78 $dependency.parameter.order: enum0
+    local %78 $dependency.parameter.order: enum2
     local %79 $argument.0: i1
     local %80 $parameter.value: i1
   block entry
@@ -1676,7 +1676,7 @@ Module
     atomic_store Boolean Relaxed t0 +16, local1
     store t0 -> local2
     store local2 -> local3
-    t1 = enum_wrap e0 v4 () : enum0
+    t1 = enum_wrap e2 v4 () : enum2
     store t1 -> local4
     t2 = atomic_load Boolean SeqCst local3 +16
     store t2 -> local5
@@ -1688,14 +1688,14 @@ Module
     store local2 -> local8
     store true -> local9
     store local9 -> local10
-    t5 = enum_wrap e0 v4 () : enum0
+    t5 = enum_wrap e2 v4 () : enum2
     store t5 -> local11
     atomic_store Boolean SeqCst local8 +16, local10
     t6 = aggregate () : {}
     store local2 -> local12
     store false -> local13
     store local13 -> local14
-    t7 = enum_wrap e0 v4 () : enum0
+    t7 = enum_wrap e2 v4 () : enum2
     store t7 -> local15
     t8 = atomic_rmw Boolean Exchange SeqCst local12 +16, local14
     store t8 -> local16
@@ -1705,7 +1705,7 @@ Module
     store local2 -> local18
     store true -> local19
     store local19 -> local20
-    t10 = enum_wrap e0 v4 () : enum0
+    t10 = enum_wrap e2 v4 () : enum2
     store t10 -> local21
     t11 = atomic_rmw Boolean Or SeqCst local18 +16, local20
     store t11 -> local22
@@ -1717,7 +1717,7 @@ Module
     store local2 -> local25
     store false -> local26
     store local26 -> local27
-    t14 = enum_wrap e0 v4 () : enum0
+    t14 = enum_wrap e2 v4 () : enum2
     store t14 -> local28
     t15 = atomic_rmw Boolean And SeqCst local25 +16, local27
     store t15 -> local29
@@ -1727,7 +1727,7 @@ Module
     store local2 -> local31
     store true -> local32
     store local32 -> local33
-    t17 = enum_wrap e0 v4 () : enum0
+    t17 = enum_wrap e2 v4 () : enum2
     store t17 -> local34
     t18 = atomic_rmw Boolean Xor SeqCst local31 +16, local33
     store t18 -> local35
@@ -1741,9 +1741,9 @@ Module
     store false -> local40
     store local39 -> local41
     store local40 -> local42
-    t21 = enum_wrap e0 v4 () : enum0
+    t21 = enum_wrap e2 v4 () : enum2
     store t21 -> local43
-    t22 = enum_wrap e0 v4 () : enum0
+    t22 = enum_wrap e2 v4 () : enum2
     store t22 -> local44
     t23 = atomic_cmpxchg Boolean Success success=SeqCst failure=SeqCst local38 +16, local41, local42
     store t23 -> local45
@@ -1757,9 +1757,9 @@ Module
     store false -> local50
     store local49 -> local51
     store local50 -> local52
-    t26 = enum_wrap e0 v4 () : enum0
+    t26 = enum_wrap e2 v4 () : enum2
     store t26 -> local53
-    t27 = enum_wrap e0 v4 () : enum0
+    t27 = enum_wrap e2 v4 () : enum2
     store t27 -> local54
     t28 = atomic_cmpxchg Boolean Success success=SeqCst failure=SeqCst local48 +16, local51, local52
     store t28 -> local55
@@ -1771,9 +1771,9 @@ Module
     store true -> local59
     store local58 -> local60
     store local59 -> local61
-    t30 = enum_wrap e0 v4 () : enum0
+    t30 = enum_wrap e2 v4 () : enum2
     store t30 -> local62
-    t31 = enum_wrap e0 v4 () : enum0
+    t31 = enum_wrap e2 v4 () : enum2
     store t31 -> local63
     t32 = atomic_cmpxchg Boolean ObservedValue success=SeqCst failure=SeqCst local57 +16, local60, local61
     store t32 -> local64
@@ -1787,9 +1787,9 @@ Module
     store true -> local69
     store local68 -> local70
     store local69 -> local71
-    t35 = enum_wrap e0 v4 () : enum0
+    t35 = enum_wrap e2 v4 () : enum2
     store t35 -> local72
-    t36 = enum_wrap e0 v4 () : enum0
+    t36 = enum_wrap e2 v4 () : enum2
     store t36 -> local73
     t37 = atomic_cmpxchg Boolean ObservedValue success=SeqCst failure=SeqCst local67 +16, local70, local71
     store t37 -> local74
@@ -1799,7 +1799,7 @@ Module
     call managed-void-target8 sp<managed-call:9> live=[local2:ptr<managed>@0] sig=void8 (i1) local-fn5(local76)
     t39 = aggregate () : {}
     store local2 -> local77
-    t40 = enum_wrap e0 v4 () : enum0
+    t40 = enum_wrap e2 v4 () : enum2
     store t40 -> local78
     t41 = atomic_load Boolean SeqCst local77 +16
     store t41 -> local79
@@ -1939,6 +1939,96 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
+  fun @scoop$1$cb$2de46f21666e8c830d0dd603518ccff2fe687ed8a971e1c2c63a2c88f1d5bc65(ptr<managed>, ptr<managed>) -> i1
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn26(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop$1$cb$080092f354de9ddcea4d368f407c164a4553f7b8c820976c1f4c503b746e33cb(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: ptr<managed>
+    local %2 $dependency.argument.1: ptr<managed>
+    local %3 $dependency.argument.2: enum2
+    local %4 $dependency.argument.3: enum2
+    local %5 $dependency.parameter.expected: ptr<managed>
+    local %6 $dependency.parameter.value: ptr<managed>
+    local %7 $dependency.parameter.successOrder: enum2
+    local %8 $dependency.parameter.failureOrder: enum2
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store param2 -> local2
+    t0 = enum_wrap e2 v3 () : enum2
+    store t0 -> local3
+    t1 = enum_wrap e2 v1 () : enum2
+    store t1 -> local4
+    store local1 -> local5
+    store local2 -> local6
+    store local3 -> local7
+    store local4 -> local8
+    t2 = atomic_cmpxchg Reference ObservedValue success=AcqRel failure=Acquire local0 +16, local5, local6
+    ret t2
+  fun @scoop$1$cb$51d08cb7275b7ae2eb4da465c5766bcb523789b484b3f8ff0e3f1020c5c9afaf(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: ptr<managed>
+    local %2 $dependency.argument.1: ptr<managed>
+    local %3 $dependency.parameter.expected: ptr<managed>
+    local %4 $dependency.parameter.value: ptr<managed>
+    local %5 $dependency.parameter.successOrder: enum2
+    local %6 $dependency.parameter.failureOrder: enum2
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
+    store param0 -> local0
+    store param1 -> local1
+    store param2 -> local2
+    store local1 -> local3
+    store local2 -> local4
+    t0 = enum_wrap e2 v4 () : enum2
+    store t0 -> local5
+    t1 = enum_wrap e2 v4 () : enum2
+    store t1 -> local6
+    t2 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local0 +16, local3, local4
+    ret t2
+  fun @scoop$1$cb$37d2c8380a42face06a842073e1bdf82048be6a6ff4f1144c1bfc4ffd58506d6(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000007)
+  fun @scoop$1$cb$d4ed039df60e0cc0f35240d308c70947a4e7d97cf5c8cd638b08feaebdc96d37(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000009)
+  fun @scoop$1$cb$b68d221aa8b976bb93805fdfe3fca001d98b7aa3147d47a9c93efd26d8a61fe7(ptr<managed>) -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.parameter.order: enum2
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param0 -> local0
+    t0 = enum_wrap e2 v4 () : enum2
+    store t0 -> local1
+    t1 = atomic_load Int SeqCst local0 +16
+    ret t1
+  fun @scoop$1$cb$c627dd438e08083a4de3b33cece95917ddef9d17a7c2b3fbbbc998f3ae55ae3a(ptr<managed>) -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: enum2
+    local %2 $dependency.parameter.order: enum2
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +24 : ptr<managed>
+    store t0 -> local0
+    t1 = enum_wrap e2 v0 () : enum2
+    store t1 -> local1
+    store local1 -> local2
+    t2 = atomic_load Int Relaxed local0 +16
+    ret t2
   fun @scoop$1$cb$5c38d6c06f8121d1844d44566417359fde22530af88b6e2ffcd3b0b17fc62f74(ptr<managed>, ptr<managed>) -> i1
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
@@ -1962,83 +2052,6 @@ Module
     store local4 -> local5
     t5 = integer_compare_Equal<Int> local3, local5 : i1
     ret t5
-  fun @scoop$1$cb$080092f354de9ddcea4d368f407c164a4553f7b8c820976c1f4c503b746e33cb(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $dependency.receiver: ptr<managed>
-    local %1 $dependency.argument.0: ptr<managed>
-    local %2 $dependency.argument.1: ptr<managed>
-    local %3 $dependency.argument.2: enum0
-    local %4 $dependency.argument.3: enum0
-    local %5 $dependency.parameter.expected: ptr<managed>
-    local %6 $dependency.parameter.value: ptr<managed>
-    local %7 $dependency.parameter.successOrder: enum0
-    local %8 $dependency.parameter.failureOrder: enum0
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
-    store param0 -> local0
-    store param1 -> local1
-    store param2 -> local2
-    t0 = enum_wrap e0 v3 () : enum0
-    store t0 -> local3
-    t1 = enum_wrap e0 v1 () : enum0
-    store t1 -> local4
-    store local1 -> local5
-    store local2 -> local6
-    store local3 -> local7
-    store local4 -> local8
-    t2 = atomic_cmpxchg Reference ObservedValue success=AcqRel failure=Acquire local0 +16, local5, local6
-    ret t2
-  fun @scoop$1$cb$51d08cb7275b7ae2eb4da465c5766bcb523789b484b3f8ff0e3f1020c5c9afaf(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $dependency.receiver: ptr<managed>
-    local %1 $dependency.argument.0: ptr<managed>
-    local %2 $dependency.argument.1: ptr<managed>
-    local %3 $dependency.parameter.expected: ptr<managed>
-    local %4 $dependency.parameter.value: ptr<managed>
-    local %5 $dependency.parameter.successOrder: enum0
-    local %6 $dependency.parameter.failureOrder: enum0
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
-    store param0 -> local0
-    store param1 -> local1
-    store param2 -> local2
-    store local1 -> local3
-    store local2 -> local4
-    t0 = enum_wrap e0 v4 () : enum0
-    store t0 -> local5
-    t1 = enum_wrap e0 v4 () : enum0
-    store t1 -> local6
-    t2 = atomic_cmpxchg Reference ObservedValue success=SeqCst failure=SeqCst local0 +16, local3, local4
-    ret t2
-  fun @scoop$1$cb$37d2c8380a42face06a842073e1bdf82048be6a6ff4f1144c1bfc4ffd58506d6(ptr<managed>) -> i32
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    ret integer<Int>(0x00000007)
-  fun @scoop$1$cb$d4ed039df60e0cc0f35240d308c70947a4e7d97cf5c8cd638b08feaebdc96d37(ptr<managed>) -> i32
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    ret integer<Int>(0x00000009)
-  fun @scoop$1$cb$b68d221aa8b976bb93805fdfe3fca001d98b7aa3147d47a9c93efd26d8a61fe7(ptr<managed>) -> i32
-    local %0 $dependency.receiver: ptr<managed>
-    local %1 $dependency.parameter.order: enum0
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    store param0 -> local0
-    t0 = enum_wrap e0 v4 () : enum0
-    store t0 -> local1
-    t1 = atomic_load Int SeqCst local0 +16
-    ret t1
-  fun @scoop$1$cb$c627dd438e08083a4de3b33cece95917ddef9d17a7c2b3fbbbc998f3ae55ae3a(ptr<managed>) -> i32
-    local %0 $dependency.receiver: ptr<managed>
-    local %1 $dependency.argument.0: enum0
-    local %2 $dependency.parameter.order: enum0
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : ptr<managed>
-    store t0 -> local0
-    t1 = enum_wrap e0 v0 () : enum0
-    store t1 -> local1
-    store local1 -> local2
-    t2 = atomic_load Int Relaxed local0 +16
-    ret t2
   fun @scoop$1$cb$f7d06ce0fb8ad819a2c60c5e34ae475f10345bd9c13cc41887bb037f90b1e572(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -2096,12 +2109,12 @@ Module
   block completed
     t10 = enum_field e3 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td6)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td5)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td6)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td5)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -2116,7 +2129,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td7)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td6)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum3 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -2205,32 +2218,30 @@ Module
     end_catch
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$4207129376b35191defc869da35688a3e54e5a399bf1c5935a9bdcfbd10e67bd type-id=17341647566409599862 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=MemoryOrder)]) @scoop$1$td$97a041fdf7b0bd49e81e06603b7c2dc4dc6536a05bb70624ec457271585fa403 type-id=12058414689979855028 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$0f4d8eca35177919534de9ce0291a10ee5574dac0e99777edd7eb05ecc820465 type-id=3821555638981672158 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$0d8186dad7dc186993ac409f3c89912796864b66fe505b6840799771e02438d5 type-id=10328602540278925084 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$1ccec56d59cafe2f5ae5ed3e867610c92545a44b3c3a296d90db01b457ae369d type-id=18368054014374688911 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$af25062fd3ff3bc407e5908eec71c6e807d1d75efbb6c833707fee82fecbaa43 type-id=2124506093423638169 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td8 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$9fc75a26067b1516dc478a50f5362e335379b360bdbc308952288eec9628fc2a type-id=10811659368226136337 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td9 n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload) @scoop$1$td$5f87fcc3a638c1885e96fef8d9620e6f2ba9a573ded7f921a6cfc3aec54fd9c1 type-id=9511615548651331668 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn19]]
-  td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$bafb88127c03610d09d43c586811869d218d5ea3626dbc18626b9c5c8e860fdf type-id=16547679379966750667 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td11 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)])]) @scoop$1$td$13b0534de635f55384df4b3a75b2f017851a9f2e06da999c1118ff8e0f5e59f7 type-id=6602293783639532552 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td12 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) @scoop$1$td$3c2008de9021490295c6734bf8eff916782b72c18c647196ff1c81a7955ea774 type-id=10221070646257256520 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td13 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$60f2aacb88c2de14418688d662d8ade04ccadc7e354d6e17cd4b8cb3f49274a3 type-id=10499815154389077341 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td14 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
-  td td15 g(r=00000001;i=d136c2cf0db1df12073bb68d9b4ffd090e9e5f427d70bd22f17134d2be4f5fa7) @scoop$1$td$0602704c285a447f333bc24200ed607d8e8c6443b9194f788a383c2e1adb89d9 type-id=16811343710389719281 shape=FixedObject minimum-size=24 align=8 parent=td14 vtable=[local-fn32] itables=[]
-  td td16 g(r=00000001;i=ec6c186c619bb609dfad52e6067a7aec7d78adcd1767491eb4b9b8af92cf385d) @scoop$1$td$f825a1168f9aa0663d36e1807fc0cfea463d27bcb9cccb7839f4228b3da1c713 type-id=17207771789149124733 shape=FixedObject minimum-size=24 align=8 parent=td14 vtable=[local-fn33] itables=[]
-  td td17 g(r=00000001;i=4531e4b4137eed7bb73847aa7884db7fe427c972d25f2688273699b66547ff3c) @scoop$1$td$2c125a74b41bb0d67ad89234aa47cf7a2b92e111c94234e3cc0b8b789422d3d2 type-id=2166653087038960921 shape=FixedObject minimum-size=32 align=8 parent=td14 vtable=[local-fn34] itables=[]
-  td td18 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td19 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td20 g(r=00000007;i=9fb044101f5544d3d8bc783f0bcbe7062948098b781a55328aaefee956d8c796) @scoop$1$td$37cffe188508fdb5e86ecdeede84f2d0c68145f4a26b41fe0fe99dd5e22fdc46 type-id=18049832146933266212 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td21 g(r=00000005;i=cc323fee6aee513437cdd0f06feab62566f8e28b2587dacaa06890871cedb676) @scoop$1$td$626f75def36885069929ba266d64748a6e7af85a456515460a055da57c52de4d type-id=8881163901733010003 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$0f4d8eca35177919534de9ce0291a10ee5574dac0e99777edd7eb05ecc820465 type-id=3821555638981672158 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$0d8186dad7dc186993ac409f3c89912796864b66fe505b6840799771e02438d5 type-id=10328602540278925084 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$1ccec56d59cafe2f5ae5ed3e867610c92545a44b3c3a296d90db01b457ae369d type-id=18368054014374688911 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$af25062fd3ff3bc407e5908eec71c6e807d1d75efbb6c833707fee82fecbaa43 type-id=2124506093423638169 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$9fc75a26067b1516dc478a50f5362e335379b360bdbc308952288eec9628fc2a type-id=10811659368226136337 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td8 n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload) @scoop$1$td$5f87fcc3a638c1885e96fef8d9620e6f2ba9a573ded7f921a6cfc3aec54fd9c1 type-id=9511615548651331668 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[td0:[local-fn19]]
+  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)]) @scoop$1$td$bafb88127c03610d09d43c586811869d218d5ea3626dbc18626b9c5c8e860fdf type-id=16547679379966750667 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=dev.m33%3Aatomic-operations%3A0.1.0;p=;o=-;k=C;x=Payload)])]) @scoop$1$td$13b0534de635f55384df4b3a75b2f017851a9f2e06da999c1118ff8e0f5e59f7 type-id=6602293783639532552 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td11 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=Any)]) @scoop$1$td$3c2008de9021490295c6734bf8eff916782b72c18c647196ff1c81a7955ea774 type-id=10221070646257256520 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td12 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=AtomicRef);[f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$60f2aacb88c2de14418688d662d8ade04ccadc7e354d6e17cd4b8cb3f49274a3 type-id=10499815154389077341 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td13 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
+  td td14 g(r=00000001;i=d136c2cf0db1df12073bb68d9b4ffd090e9e5f427d70bd22f17134d2be4f5fa7) @scoop$1$td$0602704c285a447f333bc24200ed607d8e8c6443b9194f788a383c2e1adb89d9 type-id=16811343710389719281 shape=FixedObject minimum-size=24 align=8 parent=td13 vtable=[local-fn33] itables=[]
+  td td15 g(r=00000001;i=ec6c186c619bb609dfad52e6067a7aec7d78adcd1767491eb4b9b8af92cf385d) @scoop$1$td$f825a1168f9aa0663d36e1807fc0cfea463d27bcb9cccb7839f4228b3da1c713 type-id=17207771789149124733 shape=FixedObject minimum-size=24 align=8 parent=td13 vtable=[local-fn34] itables=[]
+  td td16 g(r=00000001;i=4531e4b4137eed7bb73847aa7884db7fe427c972d25f2688273699b66547ff3c) @scoop$1$td$2c125a74b41bb0d67ad89234aa47cf7a2b92e111c94234e3cc0b8b789422d3d2 type-id=2166653087038960921 shape=FixedObject minimum-size=32 align=8 parent=td13 vtable=[local-fn35] itables=[]
+  td td17 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td18 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td19 g(r=00000007;i=9fb044101f5544d3d8bc783f0bcbe7062948098b781a55328aaefee956d8c796) @scoop$1$td$37cffe188508fdb5e86ecdeede84f2d0c68145f4a26b41fe0fe99dd5e22fdc46 type-id=18049832146933266212 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td20 g(r=00000005;i=cc323fee6aee513437cdd0f06feab62566f8e28b2587dacaa06890871cedb676) @scoop$1$td$626f75def36885069929ba266d64748a6e7af85a456515460a055da57c52de4d type-id=8881163901733010003 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout CoroutineStep<Payload> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Payload> size=8 align=8 enum-scan=refs[0]
-  layout Equality value size=8 align=8 refs=[0]
   layout Equality value size=8 align=8 refs=[0]
   layout Equality value size=8 align=8 refs=[0]
   layout Iterable value size=8 align=8 refs=[0]

@@ -1,0 +1,4 @@
+class Value() : Equality<Value> {
+    public override fun equalTo(other: Value): Boolean = true
+}
+fun main() { println(Value() == Value()) }

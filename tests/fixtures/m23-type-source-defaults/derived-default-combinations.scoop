@@ -1,5 +1,5 @@
-private struct Atom() : Equality<Atom> {
-    public override operator fun equals(other: Atom): Boolean = true
+private struct Atom() {
+    public operator fun equals(other: Atom): Boolean = true
 }
 private struct Pair(val first: Atom, val second: Atom)
 private enum Choice { Present(val value: Pair), Empty }

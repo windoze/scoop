@@ -28,14 +28,7 @@ impl Lowerer {
                     .into_iter()
                     .filter(|candidate| self.function_is_accessible(candidate.function, None))
                     .map(|candidate| {
-                        let arguments = match candidate.owner {
-                            crate::CallableCandidateOwner::Method(owner) => {
-                                self.method_owner_arguments(owner).to_vec()
-                            }
-                            crate::CallableCandidateOwner::Function { owner_arguments } => {
-                                owner_arguments
-                            }
-                        };
+                        let arguments = self.callable_candidate_owner_arguments(&candidate);
                         (candidate.function, arguments)
                     })
                     .collect();
@@ -50,14 +43,7 @@ impl Lowerer {
                     .into_iter()
                     .filter(|candidate| self.function_is_accessible(candidate.function, None))
                     .map(|candidate| {
-                        let arguments = match candidate.owner {
-                            crate::CallableCandidateOwner::Method(owner) => {
-                                self.method_owner_arguments(owner).to_vec()
-                            }
-                            crate::CallableCandidateOwner::Function { owner_arguments } => {
-                                owner_arguments
-                            }
-                        };
+                        let arguments = self.callable_candidate_owner_arguments(&candidate);
                         (candidate.function, arguments)
                     })
                     .collect();

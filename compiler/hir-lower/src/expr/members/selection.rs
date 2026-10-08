@@ -1,5 +1,6 @@
 use super::*;
 use crate::call_resolution::named::NamedFunctionLikeProbe;
+use crate::derived::DerivedEqualityCandidate;
 use crate::expr::named_calls::imported_dependency::ImportedMemberReceiver;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
@@ -28,7 +29,7 @@ impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn probe_member_call_partition_with_kind(
         &self,
-        candidates: Vec<crate::CallableCandidate>,
+        mut candidates: Vec<crate::CallableCandidate>,
         name: &ast::Ident,
         receiver: hir::Expr,
         call: CallSite<'_>,
@@ -42,29 +43,46 @@ impl Lowerer {
                 Ok(candidates) => candidates,
                 Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
             };
-        let mut imported = imported
+        let imported = imported
             .into_iter()
             .map(|candidate| (candidate, receiver.clone()))
             .collect::<Vec<_>>();
+        let mut imported_equality = None;
         if kind == MemberCallKind::Ordinary
             && name.text == "equals"
-            && context.imported_derived_equality(receiver.ty).is_some()
-            && let Some(interface) = context.equality_interface(receiver.ty)
+            && !required.infix
+            && required.property_delegate_operator.is_none()
+            && required
+                .operator
+                .is_none_or(|operator| operator == hir::OperatorKind::Equals)
         {
-            let candidates =
-                match context.imported_member_call_candidates(interface, name, required, kind) {
-                    Ok(candidates) => candidates,
-                    Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
-                };
-            let view = context.adapt_to(receiver.clone(), interface);
-            imported.extend(
-                candidates
-                    .into_iter()
-                    .map(|candidate| (candidate, view.clone())),
-            );
+            match context.derived_equality_candidate(receiver.ty, call.span) {
+                Ok(Some(DerivedEqualityCandidate::Imported(target))) => {
+                    imported_equality = Some(target)
+                }
+                Ok(Some(DerivedEqualityCandidate::Nominal {
+                    overload: candidate,
+                    ..
+                })) => {
+                    if !candidates
+                        .iter()
+                        .any(|existing| existing.function == candidate.function)
+                    {
+                        candidates.push(candidate);
+                    }
+                }
+                Ok(Some(DerivedEqualityCandidate::TypeOwned { function, .. })) => {
+                    candidates.push(crate::CallableCandidate::type_owned(function, receiver.ty));
+                }
+                Err(reason) if candidates.is_empty() && imported.is_empty() => {
+                    context.error(call.span, reason);
+                    return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(context)));
+                }
+                Ok(None) | Err(_) => {}
+            }
         }
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
-        if imported.is_empty() && kind == MemberCallKind::Ordinary {
+        if imported.is_empty() && imported_equality.is_none() && kind == MemberCallKind::Ordinary {
             return context.probe_local_member_call_partition(
                 candidates,
                 &name.text,
@@ -76,6 +94,17 @@ impl Lowerer {
         }
         let mut probes = Vec::new();
         let mut first_failure = None;
+        if let Some(target) = imported_equality {
+            match context.probe_imported_derived_equality(target, receiver.clone(), call, expected)
+            {
+                Ok(probe) => probes.push(NamedFunctionLikeProbe::ImportedDerivedEquality(
+                    Box::new(probe),
+                )),
+                Err(failure) => {
+                    first_failure = Some(failure);
+                }
+            }
+        }
         let mut suppressed = false;
         for candidate in candidates {
             if context
@@ -156,6 +185,9 @@ impl Lowerer {
                 }),
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
                 state.commit_imported_dependency_callable_with_kind(*probe, &mut sink, kind)
+            }
+            NamedFunctionLikeProbe::ImportedDerivedEquality(probe) => {
+                Some((*probe).commit(&mut state, &mut sink))
             }
             _ => unreachable!("member call candidates are callable declarations"),
         };

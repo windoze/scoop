@@ -137,7 +137,7 @@ impl Lowerer {
         function
     }
 
-    pub(super) fn declare_structural_derived_equality_method(
+    pub(crate) fn declare_structural_derived_equality_method(
         &mut self,
         owner_ty: hir::TypeId,
         span: ast::Span,

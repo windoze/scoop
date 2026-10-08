@@ -2,6 +2,7 @@ use super::*;
 use hir::ImportedCallableSource;
 use std::collections::HashSet;
 
+mod equality;
 mod members;
 pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
 
@@ -66,6 +67,7 @@ impl Lowerer {
         let abstract_class =
             class.is_some_and(|id| self.classes[id].modifier == hir::ClassModifier::Abstract);
         let all_interfaces = self.owner_interfaces(owner);
+        self.prepare_derived_operator_implementation(owner, &all_interfaces, span);
         let own_owner = self.method_owner_application(owner, self.owner_type_args(owner));
         let mut candidates = own_methods
             .into_iter()

@@ -367,11 +367,6 @@ impl Lowerer {
             None
         };
         self.iteration_core = iteration_core;
-        self.equality_core = if defines_core {
-            self.validate_equality_core(files)
-        } else {
-            None
-        };
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
@@ -443,9 +438,7 @@ impl Lowerer {
             &pending_objects,
             &pending_methods,
         );
-        if defines_core {
-            self.validate_core_equality_conformances();
-        }
+        self.prepare_published_equalities();
         self.validate_signature_exposure();
         self.lower_export_parameter_interfaces(
             &pending_functions,
@@ -544,9 +537,6 @@ impl Lowerer {
         let core_protocols = match self.core.clone() {
             CoreLoweringAuthority::Defined => {
                 hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
-                    equality: self
-                        .equality_core
-                        .expect("an invalid Equality contract is diagnosed"),
                     program_arguments: program_arguments
                         .expect("an invalid program argument builder is diagnosed"),
                     option: self

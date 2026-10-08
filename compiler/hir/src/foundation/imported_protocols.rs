@@ -16,10 +16,9 @@ use scoop_identity::{
 use super::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 use crate::{
     COROUTINE_PROTOCOL_COUNT, CoreCompilerProtocolSurfaceV1, CoreProtocolCallableDefinitionV1,
-    CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EQUALITY_PROTOCOL_COUNT,
-    EXCEPTION_PROTOCOL_COUNT, FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT,
-    FUNDAMENTAL_TYPE_COUNT, ITERATION_PROTOCOL_COUNT, IntegerKind, OPTION_PROTOCOL_COUNT,
-    SOURCE_LOCATION_PROTOCOL_COUNT,
+    CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
+    FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT,
+    ITERATION_PROTOCOL_COUNT, IntegerKind, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
 };
 
 /// Imported nominal identity in the HIR semantic session that owns the
@@ -95,7 +94,6 @@ macro_rules! imported_protocol_product {
 imported_protocol_product!(ImportedCoreFundamentalTypeProtocol, FUNDAMENTAL_TYPE_COUNT);
 imported_protocol_product!(ImportedCoreOptionProtocol, OPTION_PROTOCOL_COUNT);
 imported_protocol_product!(ImportedCoreIterationProtocol, ITERATION_PROTOCOL_COUNT);
-imported_protocol_product!(ImportedCoreEqualityProtocol, EQUALITY_PROTOCOL_COUNT);
 imported_protocol_product!(ImportedCoreExceptionProtocol, EXCEPTION_PROTOCOL_COUNT);
 imported_protocol_product!(ImportedCoreCoroutineProtocol, COROUTINE_PROTOCOL_COUNT);
 imported_protocol_product!(ImportedCoreFfiProtocol, FFI_PROTOCOL_COUNT);
@@ -116,7 +114,6 @@ pub struct ImportedCoreProtocols {
     fundamental_types: ImportedCoreFundamentalTypeProtocol,
     option_protocol: ImportedCoreOptionProtocol,
     iteration_protocol: ImportedCoreIterationProtocol,
-    equality_protocol: ImportedCoreEqualityProtocol,
     exception_protocol: ImportedCoreExceptionProtocol,
     coroutine_protocol: ImportedCoreCoroutineProtocol,
     ffi_protocol: ImportedCoreFfiProtocol,
@@ -146,10 +143,6 @@ impl ImportedCoreProtocols {
             iteration_protocol: ImportedCoreIterationProtocol(import_product(
                 foundation,
                 protocols.iteration_protocol().entries(),
-            )?),
-            equality_protocol: ImportedCoreEqualityProtocol(import_product(
-                foundation,
-                protocols.equality_protocol().entries(),
             )?),
             exception_protocol: ImportedCoreExceptionProtocol(import_product(
                 foundation,
@@ -183,10 +176,6 @@ impl ImportedCoreProtocols {
         &self.option_protocol
     }
 
-    pub const fn equality(&self) -> &ImportedCoreEqualityProtocol {
-        &self.equality_protocol
-    }
-
     pub const fn iteration(&self) -> &ImportedCoreIterationProtocol {
         &self.iteration_protocol
     }
@@ -215,7 +204,6 @@ impl ImportedCoreProtocols {
         self.fundamental_types.subject_count()
             + self.option_protocol.subject_count()
             + self.iteration_protocol.subject_count()
-            + self.equality_protocol.subject_count()
             + self.exception_protocol.subject_count()
             + self.coroutine_protocol.subject_count()
             + self.ffi_protocol.subject_count()

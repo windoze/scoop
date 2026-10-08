@@ -156,6 +156,7 @@ impl Lowerer {
             "rejected declarations never materialize as HIR callables"
         );
         match &candidate.owner {
+            CallableCandidateOwner::TypeOwned(_) => hir::Callable::Function(candidate.function),
             CallableCandidateOwner::Function { .. } => {
                 match self.functions[candidate.function].genericity {
                     hir::FunctionGenericity::Plain => hir::Callable::Function(candidate.function),
@@ -308,6 +309,7 @@ impl Lowerer {
         candidate: &CallableCandidate,
     ) -> Vec<TypeId> {
         match &candidate.owner {
+            CallableCandidateOwner::TypeOwned(_) => Vec::new(),
             CallableCandidateOwner::Function { owner_arguments } => owner_arguments.clone(),
             CallableCandidateOwner::Method(owner) => self.method_owner_arguments(*owner).to_vec(),
         }

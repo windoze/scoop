@@ -7,7 +7,10 @@ public struct Char : Equality<Char>, ToString, Hash {
         @NoGC get() = codeValue()
 
     @NoGC @Intrinsic("char_equals")
-    public override operator fun equals(other: Char): Boolean
+    public operator fun equals(other: Char): Boolean
+
+    @NoGC
+    public override fun equalTo(other: Char): Boolean = this.equals(other)
 
     @NoGC @Intrinsic("char_compare_to")
     public operator fun compareTo(other: Char): Long

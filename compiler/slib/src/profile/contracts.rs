@@ -148,12 +148,12 @@ impl CapabilityContractRegistry {
                     .union(FingerprintSinkSet::RUNTIME_IMAGE)
                     .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.hir", "core-bootstrap-interface", 13) => (
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 14) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 66) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 67) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,

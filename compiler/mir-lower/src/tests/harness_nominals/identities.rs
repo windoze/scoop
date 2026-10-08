@@ -11,7 +11,7 @@ pub(in crate::tests) fn test_source_nominal_identity(
         source.cone(),
         scoop_identity::PackagePath::root(),
         scoop_identity::DefinitionOwnerChain::top_level(),
-        scoop_identity::DeclarationScope::SourceScoped(source),
+        scoop_identity::DeclarationScope::ConeWide,
     )
     .expect("the single-file test declaration site is valid");
     let name = scoop_identity::CanonicalIdentifier::new(name)

@@ -308,28 +308,28 @@ Module
     t45 = aggregate () : {}
     store integer<Int>(0x00000001) -> local61
     store local61 -> local62
-    call no-gc-indirect-target2 local130 = sig=indirect2 (sret struct1 size=4 align=4 scan=none, i32) external-fn2(local62)
+    call no-gc-indirect-target2 local130 = sig=indirect2 (sret struct1 size=4 align=4 scan=none, i32) external-fn1(local62)
     store local130 -> local65
     store integer<Int>(0x00000002) -> local63
     store local63 -> local64
     store local65 -> local66
-    call no-gc-indirect-target3 local131 = sig=indirect3 (sret struct1 size=4 align=4 scan=none, i32) external-fn2(local64)
+    call no-gc-indirect-target3 local131 = sig=indirect3 (sret struct1 size=4 align=4 scan=none, i32) external-fn1(local64)
     store local131 -> local67
     store local67 -> local68
     store local66 -> local132
     store local68 -> local133
-    call managed-direct-target9 sp<managed-call:18> live=[] t46 = sig=direct9 (indirect<struct1 size=4 align=4 scan=none>, indirect<struct1 size=4 align=4 scan=none>) -> i1 external-fn1(indirect local132, indirect local133)
+    call managed-direct-target9 sp<managed-call:18> live=[] t46 = sig=direct9 (indirect<struct1 size=4 align=4 scan=none>, indirect<struct1 size=4 align=4 scan=none>) -> i1 external-fn2(indirect local132, indirect local133)
     store t46 -> local69
     store local69 -> local70
     call managed-void-target9 sp<managed-call:19> live=[] sig=void9 (i1) local-fn1(local70)
     t47 = aggregate () : {}
     store integer<Int>(0x00000003) -> local71
     store local71 -> local72
-    call no-gc-indirect-target4 local134 = sig=indirect4 (sret struct2 size=4 align=4 scan=none, i32) external-fn4(local72)
+    call no-gc-indirect-target4 local134 = sig=indirect4 (sret struct2 size=4 align=4 scan=none, i32) external-fn3(local72)
     store local134 -> local75
     store integer<Int>(0x00000003) -> local73
     store local73 -> local74
-    call no-gc-indirect-target5 local135 = sig=indirect5 (sret struct2 size=4 align=4 scan=none, i32) external-fn4(local74)
+    call no-gc-indirect-target5 local135 = sig=indirect5 (sret struct2 size=4 align=4 scan=none, i32) external-fn3(local74)
     store local135 -> local104
     store local75 -> local136
     store local104 -> local137
@@ -340,12 +340,12 @@ Module
     t49 = aggregate () : {}
     store integer<Int>(0x00000003) -> local78
     store local78 -> local79
-    call no-gc-indirect-target6 local138 = sig=indirect6 (sret struct2 size=4 align=4 scan=none, i32) external-fn4(local79)
+    call no-gc-indirect-target6 local138 = sig=indirect6 (sret struct2 size=4 align=4 scan=none, i32) external-fn3(local79)
     store local138 -> local80
     store integer<Int>(0x00000003) -> local81
     store local81 -> local82
     store local80 -> local139
-    call managed-direct-target11 sp<managed-call:22> live=[] t50 = sig=direct11 (indirect<struct2 size=4 align=4 scan=none>, i32) -> i1 external-fn3(indirect local139, local82)
+    call managed-direct-target11 sp<managed-call:22> live=[] t50 = sig=direct11 (indirect<struct2 size=4 align=4 scan=none>, i32) -> i1 external-fn4(indirect local139, local82)
     store t50 -> local83
     store local83 -> local84
     call managed-void-target11 sp<managed-call:23> live=[] sig=void11 (i1) local-fn1(local84)
@@ -466,12 +466,10 @@ Module
     global_store global6, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=dev.equality%3Aprovider%3A0.1.0;p=equality.origin;o=-;k=S;x=Manual)]) @scoop$1$td$696dd30f5d88ec950967f70671f9bedef94c1888b5c1acad6391dc48303254d6 type-id=16798147668785288959 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td3 a(n(c=dev.equality%3Areexport%3A0.1.0;p=equality.reexport;o=-;k=S;x=Generic);[n(c=dev.equality%3Aprovider%3A0.1.0;p=equality.origin;o=-;k=E;x=Flag)]) @scoop$1$td$6ffe88e8f2ace26d3227e846f5188f8b4fe661f3e9527d8b99f5160d0522b0cf type-id=14906294033052736563 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=dev.equality%3Areexport%3A0.1.0;p=equality.reexport;o=-;k=S;x=Generic);[n(c=dev.equality%3Aprovider%3A0.1.0;p=equality.origin;o=-;k=E;x=Flag)]) @scoop$1$td$6ffe88e8f2ace26d3227e846f5188f8b4fe661f3e9527d8b99f5160d0522b0cf type-id=14906294033052736563 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Generic size=8 align=8 refs=[]
-  layout Equality value size=8 align=8 refs=[0]
   layout Equality value size=8 align=8 refs=[0]
   layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$02d4c994fda1c88d9a15130d8c2af661c8841d90e19dd45751fa291bae9f8ad1

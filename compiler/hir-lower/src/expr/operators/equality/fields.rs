@@ -56,7 +56,7 @@ impl Lowerer {
             }
         }
         for candidate in imported {
-            if let Ok(mut probe) = state.probe_imported_member_callable(
+            if let Ok(probe) = state.probe_imported_member_callable(
                 candidate,
                 ImportedMemberReceiver::Value(lhs.clone()),
                 &name,
@@ -64,9 +64,7 @@ impl Lowerer {
                 Some(state.boolean),
                 false,
             ) {
-                if probe.matches_equality_contract() {
-                    probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)));
-                }
+                probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)));
             }
         }
         if probes.is_empty() {

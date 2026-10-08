@@ -34,6 +34,18 @@ impl Concretizer<'_> {
         {
             return;
         }
+        if let export::CoreProtocols::Defined(core) = self.core {
+            let owner = match family {
+                export::IntrinsicTypeKind::Unit => core.fundamental_types.unit,
+                export::IntrinsicTypeKind::Integer(kind) => {
+                    core.fundamental_types.integers.owner(kind)
+                }
+                export::IntrinsicTypeKind::Boolean => core.fundamental_types.boolean,
+                _ => unreachable!("primitive boxing selects a fixed value representation"),
+            };
+            self.lower_struct_application(self.source.structs[owner].self_application, &[]);
+            return;
+        }
         let source = self
             .source
             .imported_intrinsic_types

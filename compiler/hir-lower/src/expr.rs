@@ -76,6 +76,7 @@ pub(crate) use imported_properties::{
     ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
     ResolvedImportedMemberProperty,
 };
+pub(crate) use members::ImportedDerivedEqualityProbe;
 pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
 mod aggregates;

@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn operator_equals_is_a_typed_hir_contract() {
     let output = lower_user_output(file(vec![
-        inherited_equality(),
+        operator_interface(),
         class_decl(
             ast::ClassModifier::Final,
             "Value",
@@ -59,7 +59,7 @@ fn operator_equals_is_a_typed_hir_contract() {
         FunctionBody::Expr(Box::new(bool_lit(true))),
     );
     let errors = lower_user(file(vec![
-        inherited_equality(),
+        operator_interface(),
         class_decl(
             ast::ClassModifier::Final,
             "Plain",
@@ -83,54 +83,28 @@ fn operator_equals_is_a_typed_hir_contract() {
 
 #[test]
 fn generic_equality_resolves_the_exact_operator_bound_member() {
-    let mut value = struct_decl_full(
-        "Value",
-        Vec::new(),
-        Vec::new(),
-        vec![operator_equals(true, false, ty_named("Value"))],
-    );
-    let Decl::Struct(value_decl) = &mut value else {
-        unreachable!()
-    };
-    value_decl.supertypes = vec![bare_supertype(ty_generic(
-        "Equality",
-        vec![ty_named("Value")],
-    ))];
-
-    let mut equal = fun_expr(
-        "equal",
-        vec!["T"],
-        vec![("left", ty_named("T")), ("right", ty_named("T"))],
-        Some(ty_named("Boolean")),
-        binary(BinOp::Eq, var("left"), var("right")),
-    );
-    let Decl::Function(equal_decl) = &mut equal else {
-        unreachable!()
-    };
-    equal_decl.type_params[0] = upper("T", ty_generic("Equality", vec![ty_named("T")]));
-
-    let output = lower_user_output(file(vec![
-        value,
-        equal,
-        fun(
-            "main",
-            vec![stmt(call(
-                "println",
-                vec![call(
-                    "equal",
-                    vec![
-                        struct_init("Value", Vec::new()),
-                        struct_init("Value", Vec::new()),
-                    ],
-                )],
-            ))],
-        ),
-    ]))
+    let output = lower_user_output(
+        scoop_parser::parse(
+            r#"
+        interface EqualOperator<T> {
+            public operator fun equals(other: T): Boolean
+        }
+        struct Value() : EqualOperator<Value> {
+            public override operator fun equals(other: Value): Boolean = true
+        }
+        fun <T : EqualOperator<T>> equal(left: T, right: T): Boolean = left == right
+        fun main() { println(equal(Value(), Value())) }
+    "#,
+        )
+        .unwrap(),
+    )
     .expect("the F-bound exposes its exact operator member");
 
     let dump = hir::dump(&output.export);
     assert!(
-        dump.contains("MethodCall bound T0 via Equality<T0> -> Equality.equals : Boolean"),
+        dump.contains(
+            "MethodCall bound T0 via EqualOperator<T0> -> EqualOperator.equals : Boolean"
+        ),
         "{dump}"
     );
     let concrete = output
@@ -316,17 +290,9 @@ fn operator_modifier_requires_a_dispatch_or_extension_receiver() {
     );
 }
 
-fn inherited_equality() -> Decl {
-    let mut declaration = interface_decl(
+fn operator_interface() -> Decl {
+    interface_decl(
         "EqualTo",
-        vec![operator_equals(true, true, ty_named("EqualTo"))],
-    );
-    let Decl::Interface(interface) = &mut declaration else {
-        unreachable!()
-    };
-    interface.supertypes = vec![bare_supertype(ty_generic(
-        "Equality",
-        vec![ty_named("EqualTo")],
-    ))];
-    declaration
+        vec![operator_equals(false, true, ty_named("EqualTo"))],
+    )
 }

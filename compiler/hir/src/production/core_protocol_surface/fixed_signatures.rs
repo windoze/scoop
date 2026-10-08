@@ -33,17 +33,6 @@ pub(super) fn validate_fixed_callable_signatures(
         ),
     )?;
 
-    validate(
-        surface.equality_protocol.entries(),
-        CoreProtocolProductKindV1::Equality,
-        1,
-        signature(
-            Effect::Ordinary,
-            vec![binder.clone()],
-            concrete_type(fundamental, 9),
-        ),
-    )?;
-
     let coroutine = surface.coroutine_protocol.entries();
     validate(
         coroutine,

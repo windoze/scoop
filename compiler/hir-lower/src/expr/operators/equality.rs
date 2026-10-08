@@ -26,7 +26,7 @@ impl Lowerer {
     }
 
     /// Resolve `==` / `!=` through the lhs static type's actual
-    /// core Equality interface contracts. The operands arrive already lowered,
+    /// member operators. The operands arrive already lowered,
     /// preserving the language's left-to-right, exactly-once evaluation rule;
     /// applicability and MSC still use the same overload engine as an explicit
     /// member call. Nominal value derivation contributes a typed synthetic
@@ -210,7 +210,7 @@ impl Lowerer {
         let found = self.type_name(lhs.ty);
         self.error(
             span,
-            format!("type `{found}` has no applicable Equality contract for `{symbol}`"),
+            format!("type `{found}` has no applicable member operator `equals` for `{symbol}`"),
         );
         None
     }

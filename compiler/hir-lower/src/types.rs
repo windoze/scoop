@@ -67,7 +67,6 @@ mod atomics;
 mod characters;
 mod constraints;
 mod display;
-mod equality;
 mod fields;
 mod floating;
 mod interning;

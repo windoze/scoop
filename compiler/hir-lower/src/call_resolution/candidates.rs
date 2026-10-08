@@ -117,6 +117,13 @@ impl Lowerer {
         let signature = &self.signatures[&function];
         let target = match candidate.owner {
             CallableCandidateOwner::Method(_) => CallableSource::Method(function),
+            CallableCandidateOwner::TypeOwned(owner) => {
+                debug_assert_eq!(
+                    self.functions[function].method.map(|method| method.owner),
+                    Some(owner)
+                );
+                CallableSource::Method(function)
+            }
             CallableCandidateOwner::Function { .. } => self
                 .local_function_by_function
                 .get(&function)
@@ -131,7 +138,10 @@ impl Lowerer {
                     .get(&function)
                     .expect("extension callable view has a receiver"),
             )
-        } else if matches!(candidate.owner, CallableCandidateOwner::Method(_)) {
+        } else if matches!(
+            candidate.owner,
+            CallableCandidateOwner::Method(_) | CallableCandidateOwner::TypeOwned(_)
+        ) {
             ReceiverShape::Instance
         } else {
             ReceiverShape::None

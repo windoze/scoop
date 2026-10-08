@@ -2,7 +2,7 @@
 
 状态：实施中。以现有设计与三份规范修订为起点，按第 12 节逐项实现、验证并提交；实际进展与测试结果见[验收记录](ACCEPTANCE.md)。数据竞争、NativeSafe/collector、GCLeaf/DirectC、errno、main/root gateway、C++ 与源码选择的既有结论保持；D3～D7 已确定，包含严格、可空和 lossy UTF-8 三种转换，并同步到相关规范。D8 的 M32 依赖已满足。第 10 节记录已定结论、技术验证状态和后续实施任务，不再保留待选择的 D 项。
 
-Equality 按 9.2 的统一接口方案实施并已同步到规范：`==` 使用 Equality 契约，值类型派生相等时同时产生接口实现，泛型通过普通 interface bound 消费。
+2026-10-08 修订 9.2：`==` / `!=` 只使用普通成员 `operator fun equals`；库接口 `Equality<T>` 提供独立的 `equalTo`。结构比较只派生运算符，不派生接口。三份规范已同步，现有实现须按此拆分迁移；旧统一接口方案的测试记录不代表新方案已经验收。
 
 日期：2026-10-08。
 
@@ -20,13 +20,13 @@ M33 交付的能力分为五组：
 2. **并发与 FFI 基础**：语言内存模型、原子操作 intrinsic、程序退出时线程与 callback token 的处理规则、NativeSafe 进出的无锁快路径、通过 `@GCLeaf` 跳过状态切换的小型 C FFI，以及消除标量 FFI 桥接调用与临时存储的直接 C ABI 路径。
 3. **native 数据交换**：有作用域的数组与 String 数据借用（GC 侧采用计数的线程局部 pin 帧）、严格／可空／lossy UTF-8 解码、String 与 C 字符串互转，以及 C 调用后的 errno 捕获。
 4. **构建与链接**：Cone 内的 C/C++ 源码、显式 C++ 编译与链接模式、manifest 声明的 native 库、按平台选择源码，以及依赖 Cone 的默认定位。C++ 首版支持 Darwin 与 Linux GNU，暂不支持 musl。
-5. **core 契约**：泛型相等能力，使普通库能写 `HashMap<K, V>`。
+5. **core 契约**：普通 `Equality<T>.equalTo` 接口，使后续库能用泛型 bound 实现 Map 的 key 比较；运算符相等保持独立。
 
 | 决策 | M33 范围 |
 | --- | --- |
 | 平台库形态 | 普通 library Cone，不进入 core；M33 只提供前置能力 |
 | main 与退出码 | 无参数／完整 argv × Unit／Int 四种形态；argv[0] 为程序自身启动路径；Unit 正常退出为 0，Int 保留任意返回值，语言级 panic／未捕获异常退出为 1 |
-| 泛型相等 | `Equality<T>` 提供唯一的 equals operator 契约；结构相等同时派生接口实现，Hash 独立；Float/Double 支持 Equality 并保留 IEEE 语义 |
+| 泛型相等 | `==` 使用普通成员 operator equals，Map 的 key 比较使用独立的 `Equality<T>.equalTo`；接口须显式实现，Hash 独立，Float/Double 的两个入口均保留 IEEE 语义 |
 | 平台差异 | 主要放在 Cone 自带 C/C++ 源码的 `#ifdef` 中；必要时按文件选择 Scoop/C/C++ 源码，不做 Scoop 表达式或声明级条件编译 |
 | C++ 模式 | `[native] cxx = true` 显式启用；使用配套 C++ 编译器与最终链接配置，需求沿 `.slib` 依赖闭包传递；C++ + musl 暂不支持 |
 | thread spawn | 不新增 runtime spawn 入口；库用 `pthread_create` 加 OneShot `foreignCallback` 实现 |
@@ -378,7 +378,7 @@ M33 在当前三个 target 上，为固定参数的 cdecl C extern 提供 Direct
 
 D3 已确定保持现行的资源约束，改进诊断和退出方式；M33 不提供 daemon 线程。
 
-M33-9a 已完成本节退出规则并通过 Darwin／GNU／musl 的源码、独立链接和实际 GC 验证，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。M33-9 的里程碑组合总验收仍待 Equality 与原子实现完成。
+M33-9a 已完成本节退出规则并通过 Darwin／GNU／musl 的源码、独立链接和实际 GC 验证，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。M33-9 的里程碑组合总验收仍待 9.2 的拆分迁移及其余组合验证完成。
 
 - main 正常返回后，按既有 shutdown 协议拒绝新的 attach 和 callback registration，并检查已 attach 的非主线程、活动 callback 和未释放的 token ownership。全部清空后才销毁 GC 状态并使用 main 返回码。
 - 有遗留项时，在既有同步协议下取得剩余非主线程数、活动 callback 数以及有未释放 ownership 的 token 数，释放相关锁后报告诊断、刷新 stdout/stderr，再 `_exit(1)`。这是 shutdown 失败，覆盖 Unit/Int main 的原返回码，不使用 `abort()`。
@@ -633,48 +633,54 @@ when = { os = "linux" }
 - 找到之后，按普通的 path 依赖构建，进入普通缓存，不享有任何特殊身份；显式 locator 解析失败时仍按普通依赖报错，不回退到 sysroot。
 - 其他 group 不作默认 sysroot 查找；显式候选损坏、歧义或不兼容不触发回退。默认定位不注入依赖、不扩大可见性；artifact-only 链接仍只消费已有 `.slib`，不通过 sysroot 源码补建依赖。
 
-### 9.2 `Equality<T>` 与泛型相等能力
+### 9.2 运算符相等与 `Equality<T>` 分离
 
-core 用普通 `Equality<T>` 接口统一表达 `==` / `!=` 所需的值相等能力：
+`==` / `!=` 使用成员 `operator fun equals`；Map 等库通过普通 invariant `Equality<T>` 接口调用 `equalTo`。编译器不把两个入口互相推导或自动转发。分别命名也避免两个同签名方法仅靠 operator modifier 区分的问题。
 
 ```scoop
 public interface Equality<T> {
-    public operator fun equals(other: T): Boolean
+    public fun equalTo(other: T): Boolean
 }
 
-public fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+public fun <T : Equality<T>> sameKey(left: T, right: T): Boolean =
+    left.equalTo(right)
 
-struct Point(val x: Int, val y: Int)
-
-fun pointExample(): Boolean = same(Point(1, 2), Point(1, 2))
+struct Key(val value: Int) : Equality<Key> {
+    public operator fun equals(other: Key): Boolean = value == other.value
+    public override fun equalTo(other: Key): Boolean = this.equals(other)
+}
 ```
 
-`T` 表示可比较的右操作数类型，不是隐式 Self。相同类型比较写 `T : Equality<T>`；这一形式使用既有的泛型上界规则，现有 `m23-generic-equality` fixture 已包含 `T : EqualTo<T>`。不需要新增相等性专用 bound 或运行期 dictionary。平台库的 `HashMap<K : Hash, V>` 另写 `where K : Equality<K>`，同时要求两项独立能力。
+示例中的两个方法都由作者显式声明；`equalTo` 的转发是普通源码。实现可以复用辅助函数，也可以采用不同语义，语言不要求两个结果一致。只写 operator equals 可以使用 `==`；只实现 Equality 可以调用 `equalTo`，两者均不要求具备另一项能力。
 
-`lhs == rhs` 只从 lhs 静态类型实现／继承的实际 `Equality<R>` 或其 bounds 中选取 equals slot，沿普通参数适配与成员重载规则选择唯一目标；`!=` 对同一调用的结果取反。两侧各求值一次，不交换顺序。普通同名函数、extension 和用户自己声明的同名接口不构成该契约；用户接口可以显式继承 core `Equality<T>`。`===` / `!==` 继续表示引用 identity。
+`lhs == rhs` 只从 lhs 静态类型的成员、继承成员及 bounds 中收集 equals operator，按普通参数适配和重载规则选择唯一目标；两侧按顺序各求值一次，`!=` 对同一调用结果取反。class/object/struct/enum/interface 都可直接声明该成员，实际覆写时才使用 override。普通同名非 operator 函数与 extension 不参与。`Any` 没有该成员；`===` / `!==` 继续表示引用 identity。
 
-接口实现分为以下几种：
+`T : Equality<T>` 只允许调用 `equalTo`，不保证 generic body 中的 `==` 合法。需要泛型 operator 的用户接口可以直接声明 `operator fun equals(other: T): Boolean`，无需继承 core Equality。泛型正文按声明处的普通 bounds 绑定调用，具体化不另选更具体的成员。
 
-| 类型／来源 | Equality 实现方式 |
-| --- | --- |
-| String、Boolean、Char、八种定宽整数、Float/Double、`Ptr<T>` | core 显式实现各自同类型的 Equality，现有 equals 改为合法 override；alias 保持同一 conformance |
-| 普通 struct、enum、tuple | 全部字段／payload 可比较时，同时派生 `Equality<完整宿主类型>` 与结构比较正文；如上例 Point 可直接满足 bound |
-| Unit | 无条件实现 `Equality<Unit>`，结果恒为 true |
-| 手写相等方法的类型 | 显式实现所需 `Equality<R>` 并提供 `public override operator fun equals(other: R): Boolean`；该方法优先于同签名派生体 |
-| class/object | 通过普通声明显式实现或继承 Equality，不自动派生结构相等 |
+| 类型／来源 | operator equals | Equality |
+| --- | --- | --- |
+| String、Boolean、Char、八种定宽整数、Float/Double、`Ptr<T>` | core 的显式同类型成员，保留已有 intrinsic 或普通实现 | core 分别显式声明接口并实现普通 `equalTo`，可在源码中转发 |
+| Unit | 同类型比较恒为 true | core 显式实现 `Equality<Unit>.equalTo`，恒为 true |
+| 普通 struct、enum | 全部实际字段／payload 可比较时派生结构比较，手写同签名成员优先 | 仅按普通声明／继承获得，必须有合法 `equalTo` 实现 |
+| tuple | 全部元素可比较时派生结构比较 | 不自动获得接口；需要接口时使用显式实现它的命名类型包装 |
+| class/object | 普通声明或继承，不自动派生结构比较 | 普通显式实现或继承 |
 
-派生接口和派生方法必须同时存在或不存在；不能只生成一个供 `==` 查找的隐藏成员。struct/tuple 逐字段短路，enum 先比较 tag 再比较 active payload。字段可比较沿其自身的 Equality 契约决议，不必恰好是 `Equality<字段类型>`。泛型条件只来自实际字段／payload：`Box<T>(val value: T)` 不因新增 Equality 而限制 Box 本身的类型实参，只在相应字段比较条件成立时获得派生接口；未存储的 phantom 参数不产生条件。显式写出 Equality 却依赖派生正文的声明必须用足够的 bounds 保证字段条件，不能把显式 implements 变成条件关系。手写同签名成员遵守普通 override 和冲突规则，不生成第二个同签名方法。
+结构比较沿字段各自的 operator equals 决议，struct/tuple 逐字段短路，enum 先比较 tag 再比较 active payload。手写同签名成员遵守普通冲突规则，即使它不是 operator 或在调用处不可见，也不能再生成第二个同签名方法。不同参数类型的重载不阻止同类型派生。
 
-Equality 表示“提供比较操作”，不保证任意实现都满足自反性、对称性或传递性。Float/Double 因此实现 Equality，继续保持 `NaN != NaN` 和正负零相等；含 NaN 的结构比较也保留该行为，不能做 identity／memcmp 或 `x == x` 恒真优化。Float/Double 仍不实现 Hash；本接口不为它们补 hash，不改变 Hash 的独立 opt-in 规则。
+`Box<T>(val value: T)` 的构造不要求 T 可比较；具体 application 需要使用结构比较时才检查相应字段。未存储的 phantom 参数不产生条件。`Box<Int>` 即使有结构 `==`，也不满足 `Equality<Box<Int>>`；显式声明该接口却缺少 `equalTo` 仍是定义处错误。仅构造或装箱不生成相等接口或比较正文，tuple 也不需要为 Equality 维护全局条件 conformance。已有结构比较的 typed 字段调用、普通泛型具体化和 ODR 规则继续适用。
 
-Equality 保持 invariant。继承 `Equality<Base>` 不自动成为 `Equality<Derived>`；两个 `Equality<Point>` 接口值的 equals 参数仍是 Point，不能因二者类型相同就彼此比较。`Any` 没有 Equality 契约，装箱不提供 Any 级相等 fallback。值类型已有的派生接口则可正常用于 bound、装箱、itable、`is` / `as`，这些位置使用同一个 conformance。
+Equality 保持普通接口语义：继承 `Equality<Base>` 不成为 `Equality<Derived>`；`Equality<Point>` 视图的 `equalTo` 参数仍是 Point。bound、装箱、itable 与 `is` / `as` 使用实际声明或继承的接口集合，operator 的存在不改变该集合。
 
-实现需要保持以下两处衔接：
+Float/Double 的 operator 与 core `equalTo` 均保持 `NaN != NaN` 和正负零相等；含 NaN 的结构比较保留字段行为，不做 identity／memcmp 或 `x == x` 恒真优化。Float/Double 仍不实现 Hash。未来 HashMap 用普通 `Equality<K>` 与 `Hash` bounds，key 比较调用 `equalTo`，相等 key 的 hash 一致性以该方法为准。未来 BTreeMap 所需的比较接口同样独立于 `operator compareTo` 和关系运算符，随实际库需求设计；M33 不增加 Map 实现或比较接口 API。
 
-1. HIR 在普通类型／继承信息齐备后、完成相关 interface obligation 和 bound 检查前，建立派生 Equality 签名、字段条件与真实 conformance；派生声明必须先于接口实现检查可用。普通接口、MIR/LIR、boxing／itable、`.slib` 和跨 Cone 泛型消费都须保存同一 slot 到实现的关系。派生方法保持 Equality 的 safe slot 合同，InteriorMutable 的 unsafe 限制在实际值使用处执行。
-2. 保留整数、Char、浮点 equals 的 NoGc intrinsic 实现。value method 允许以 NoGc 实现普通 Managed interface 方法；静态具体类型直接调用仍为 NoGc，接口／bound 调用遵循接口合同，实际 itable 使用匹配 Managed ABI 的普通 value/interface adapter。不能为了实现 Equality 就把普通数值比较改为必须装箱、间接调用或进入 GC；也不能把允许任意用户实现的 Equality 接口整体标为 NoGc。
+实现收敛到两条现有路径：
 
-这是源码规则的统一：既有手写 operator equals 的类型需要补齐 Equality application 与 override；已有用户相等接口需要继承 Equality。普通结构相等的使用方式保持，接口实现由编译器同步派生。不保留“未实现 Equality 但 operator equals 仍可参与 `==`”的兼容分支；M33 同批更新 core、相关 fixtures 和受影响的产物兼容指纹。
+1. 运算符使用普通成员／bound 决议及结构比较派生；移除 core Equality 专用协议身份、operator 必须关联其 slot 的限制，以及派生 Equality conformance、条件接口与配套 itable 生成规则。`equalTo` 使用普通 interface 声明、override、单态化和产物消费，无需新的编译器协议。
+2. core 显式提供所需的两个成员。整数、Char、浮点 operator 保留 NoGc intrinsic；普通 `equalTo` 可用源码转发。已有 NoGc 值方法实现 Managed slot 的通用 adapter 继续适用，直接数值比较不增加装箱、间接调用或 GC 操作。普通接口保持自身的调用 effect，不整体标为 NoGc。
+
+迁移时同步 core、fixtures、golden 与实际受影响的产物兼容指纹。原来要求“未实现 Equality 的 operator”及“不继承 core Equality 的 operator 接口”报错的用例改为正例；新增两个入口独立、显式 Equality 缺少 `equalTo`、结构比较不满足 Equality bound 的验证。旧统一接口方案的实施记录保留为历史结果，不再把泛型／tuple 的自动接口派生作为交付条件。
+
+基础拆分与既有非泛型结构比较迁移已完成，验证记录见验收文档 M33-7f。后续继续区分泛型声明处与闭合类型各自选定的字段调用，保存跨 Cone 模板中的选择，并补齐泛型／tuple 组合与里程碑总验收。
 
 ## 10. 决策记录与实施跟踪
 
@@ -707,7 +713,7 @@ D1～D7 均已有结论；D8 的前置依赖已满足。保留编号用于对应
 
 D3 的 shutdown 失败与显式 exit 已同步到语言规范 12.4.4、运行时规范第 7 章；D4 的原子 API、内存序和 GC 写屏障已同步到语言规范 1.1～1.2、11.14、运行时规范 3.6、实现规范 2.10；D5 的严格/可空/lossy 解码及异常已同步到语言规范 11.4、11.7、运行时规范 2.4、第 6 章、实现规范 2.15；D6/D7 已同步到语言规范 12.2、12.2.3、实现规范 2.7～2.8，native 输入一致性已补到实现规范 2.7。其余数据借用、输出等入口的具体实现仍按 spec 先行，在对应批次补齐所需签名和交叉引用。
 
-Equality 统一入口、条件派生接口和 NoGc 实现的接口适配已同步到语言规范 3.1～3.2、4.1～4.4、9.3、11.2、11.4、11.11、13.1～13.2、13.10，运行时规范 2.3、第 6 章，以及实现规范 2.2～2.3、2.6、2.9。
+运算符与 `Equality<T>.equalTo` 分离、取消条件接口派生及保留通用 NoGc 接口适配的规则，已同步到语言规范 3.1～3.2、4.1～4.4、9.3、11.2、11.4、11.11、13.1～13.2、13.10，运行时规范 2.3、第 6 章，以及实现规范 2.2～2.3、2.6、2.9。
 
 | 内容 | 语言规范 | 运行时规范 | 实现规范 |
 | --- | --- | --- | --- |
@@ -726,7 +732,7 @@ Equality 统一入口、条件派生接口和 NoGc 实现的接口适配已同�
 | Cone native C/C++ 源码、输入快照、编译配置与系统库 | 12.2、12.2.1、12.2.3、13.4 | 5.5、第 7 章 | 第 1 章、2.6、2.7、2.8 |
 | 按平台选择源码 | 11.12、12.1、12.2、12.2.2、12.4.4、第 15 章 | — | 2.1、2.6、2.7 |
 | sysroot 默认定位 | 12.2、12.6 | — | 2.7 |
-| Equality 与条件派生、接口 bound、NoGc 实现适配 | 3.2、4.1～4.4、9.3、11.11、13.2 | 2.3、第 6 章 | 2.2、2.3、2.6、2.9 |
+| 独立的 operator equals、普通 Equality.equalTo 与接口适配 | 3.2、4.1～4.4、9.3、11.11、13.2 | 2.3、第 6 章 | 2.2、2.3、2.6、2.9 |
 
 ## 12. 实施批次
 
@@ -738,7 +744,7 @@ Equality 统一入口、条件派生接口和 NoGc 实现的接口适配已同�
 4. **M33-4 程序入口与输出（第 2 节）**：四种 main 的 typed entry、完整 argc/argv 与 GC 安全的参数构造、root gateway 的 status／退出码双通道、runtime ABI 11／metadata ABI 7 与旧产物拒绝、linker 启动代码、`exit`、固定为 1 的失败退出、`write` 改走 NativeSafe、stderr 与 flush。依赖 M33-2（`write` 需要借用）和 M33-3（`args` 需要受检解码）。
 5. **M33-5 errno 捕获（第 5 节）**：extern 注解与 `(R, Int)` 结果检查、native 签名投影、bridge 清零/快照与整数返回、Scoop tuple 重建、release 组合、产物字段与 bridge recipe 区分、同 symbol 捕获/不捕获的链接兼容。
 6. **M33-6 Cone native C/C++ 源码、系统库与按平台选源码（第 7、8 节）**：manifest 的完整 Scoop 源码清单与默认扫描互斥、target 选择与路径冲突检查；显式 `cxx` 开关、C/C++ driver 及编译参数；完成 10.2 的头文件发现与输入快照任务、缓存失效；`.slib` 的 C++ 需求传递、C++ 最终链接与运行库配置、musl 组合诊断；目标平台系统库解析、链接与符号冲突。
-7. **M33-7 sysroot 定位与泛型相等（第 9 节）**：9.1 限 scoop group、显式来源优先的默认查找；9.2 的 core Equality 与 intrinsic 声明／shape 验证、唯一 operator 契约、派生接口与正文的衔接、generic 条件和 bound、NoGc 直接实现与 Managed 接口适配、boxing／itable 与跨 Cone metadata。同步迁移既有手写 equals 声明并验证 Hash 独立、浮点语义及无新增数值比较开销。
+7. **M33-7 sysroot 定位与泛型相等（第 9 节）**：9.1 限 scoop group、显式来源优先的默认查找；9.2 将普通 operator equals 与库接口 Equality.equalTo 分开，core 显式提供两个入口，移除 Equality 专用协议与条件接口派生。复用普通成员、generic bound、接口实现、NoGc／Managed 适配及跨 Cone metadata；同步迁移旧统一方案的 fixtures，验证结构比较、显式接口、Hash 独立、浮点语义及无新增数值比较开销。
 8. **M33-8 内存模型与原子操作（第 3 节）**：首先完成 10.2 的 AtomicRef/LLVM 技术验证，再实现五种内存序、四个 intrinsic 原子类型及 HIR/MIR/LIR/codegen、写屏障和真实 GC fixture，最后是 core 或平台库中的 `Atomic<T : value>`。普通非原子访问保持数据竞争为未定义行为的语义；不加入 native Ptr 原子接口。
 9. **M33-9 线程退出规则与总验收（4.1、4.3、第 13 节）**：实现遗留 attachment/callback/token 的计数诊断与刷新后退出码 1；验证正常 join/释放、Int 返回码覆盖、显式 exit 带后台线程退出，完成其余组合验收。
 
@@ -756,9 +762,9 @@ Equality 统一入口、条件派生接口和 NoGc 实现的接口适配已同�
 - **原子操作与同步**：多线程 `fetchAdd` 计数、`AtomicBoolean` 自旋锁保护普通字段及数组元素、`AtomicRef` 的 CAS 栈（含 moving GC 与 nursery 晋升，验证写屏障与 CAS 失败路径）、Acquire/Release 发布对象、`Atomic<T>` 在多线程读写 struct、tuple 和 tagged enum 时始终读到完整的值（含引用字段和 moving GC）；非法内存序组合、继承原子类型、访问其值字段的 negative fixture；debug 与 release 两种 profile 都要通过。
 - **原子内存序与 GC lowering**：覆盖全部五种 order、CAS 成功/失败序矩阵、默认 SeqCst、非编译期常量的拒绝、strong CAS 与 fetch 旧值返回；AtomicRef 的对象与所指对象分别移动、跨 GC 的读取结果和 expected/new 引用保活、old→young 引用与成功/失败 CAS。10.2 的 LLVM IR 验证与实际 Scoop/三 target 结果分开记录，不把前者替代后者。
 - **UTF-8 三种转换**：合法多字节、空输入、U+0000、已有 U+FFFD、孤立 continuation、截断、过长编码、代理项和超范围码点；严格异常检查准确的 byteOffset，OrNone 在相同错误输入上返回 None，lossy 精确断言 6.3 的替换数量及合法前后缀。检查结果 byteLength、length、输入/结果存储独立、pointer 严格重载和分配期间 moving GC；argv 仍拒绝非法 UTF-8。
-- **Equality 与 bound**：String、Boolean、Char、八种整数、Float/Double、Ptr 的显式接口与普通自定义 class/struct 的实现均可经 `T : Equality<T>` 比较；Hash 与 Equality 的双 bound 用于实际 key 比较。只有 Hash、缺少 Equality 的手写 operator、缺少 override、未继承 core Equality 的同形接口、Any 比较、重载歧义与缺失 generic bound 均有 negative fixture；验证左右求值一次及 `!=` 只取反。
-- **Equality 派生与产物**：struct、enum、tuple、Unit、嵌套与 generic application 的派生同时满足直接比较、bound、装箱接口调用和 `is` / `as`；字段不可比较的 application 仍可构造，但请求相等能力时报错，phantom 参数不产生条件。手写实现优先、继承的 Equality application 保持 invariant；跨 Cone、泛型模板及 artifact-only 链接消费相同 conformance，HIR/MIR/LIR golden 与 ODR 检查覆盖真实 slot／派生 body／adapter。
-- **Equality 的浮点与 NoGc 组合**：NaN、正负零及含浮点字段的结构在 debug/release 和 bound 调用中保持 IEEE 语义，Float/Double 不满足 Hash。直接整数／Char／浮点比较继续可用于 NoGC 代码，接口调用使用自身 Managed 合同；验证装箱与 moving GC、NoGc 实现对应的 Managed adapter，以及优化后具体标量比较没有新增装箱、间接调用或 safepoint。
+- **运算符与 Equality 分离**：没有 Equality 的手写 operator、直接声明 operator 的用户接口及其 generic bound 均可用于 `==`；只有 Equality 的类型通过 `equalTo` 和普通 bound 调用比较。验证同一类型两个方法返回不同结果时，operator 与库调用各自选择正确入口。仅 Equality bound 下的 `==`、仅 operator／结构比较下的 Equality bound、显式 Equality 缺少 `equalTo`、错误 override、Any 比较、重载歧义与缺失 operator bound 均有 negative fixture；验证左右求值一次及 `!=` 只取反。
+- **结构比较与普通接口产物**：struct、enum、tuple、Unit、嵌套及 generic application 保持直接结构比较；除 core 的显式声明外，不自动满足 Equality bound，也不产生其装箱／`is` / `as` 关系。字段不可比较的 application 仍可构造、传递与装箱，比较时报错，phantom 参数不产生条件。显式实现 Equality 的 class/struct/enum 及 core 类型经 bound、接口调用、装箱与跨 Cone 正常工作，invariant 规则保持。泛型模板与 artifact-only 链接覆盖独立 operator callable、普通 equalTo slot／adapter 和必要 ODR，受影响 HIR/MIR/LIR 保留 golden。
+- **浮点、Hash 与 NoGc 组合**：基本类型的两个相等入口分别覆盖 NaN、正负零及 debug/release；含浮点字段的结构 operator 保留 IEEE 语义，Float/Double 不满足 Hash。普通 Equality 与 Hash 双 bound 的 key 比较 helper 调用 `equalTo`。直接整数／Char／浮点 operator 继续可用于 NoGC 代码，接口调用使用自身 Managed 合同；覆盖显式 equalTo 的装箱、moving GC 与 NoGc 实现的 Managed adapter，优化后标量 operator 没有新增装箱、间接调用或 safepoint。
 - **errno 返回与语义**：覆盖 scalar、pointer、C-layout struct 与 void 的 native 返回，验证 Scoop 得到 `(R, Int)` 或 `(Unit, Int)`；覆盖调用前清零、成功但 errno 非零、失败时的原始错误值，以及忽略第二项时仍采用捕获模式。错误 tuple 元数、第二项非 `Int`、非法 native `R`、含 ref、Scoop ABI/extern 变量启用捕获、未启用捕获却返回 tuple，均有 negative fixture；HIR/MIR/LIR golden 区分 Scoop tuple、native `R` 与 bridge 的整数返回。
 - **errno 生命周期与重入**：保存一次结果后进行其他捕获调用、分配、GC 与协程挂起/恢复，再读取原值；普通 NativeSafe 回调中嵌套捕获，验证每次结果独立。GC 在当前线程执行带捕获的 release hook 时，mutator 先前的错误值不变；hook 的非法 `ReleaseValue` 与 raw leaf 操作继续拒绝。清零与读取仅触及 libc errno，不产生 Scoop TLS/thread runtime 或 collector 保存/恢复调用。
 - **errno 产物与链接**：同 Cone、不同 Cone、泛型消费与 artifact-only 链接中，同一 C symbol 的返回 `R` 与捕获返回 `(R, Int)` 均可共存；真实 native 签名冲突仍报错。捕获/不捕获的 bridge recipe、私有签名与缓存不得混用。普通 NativeSafe、GCLeaf 与 release 分别验证捕获发生在结果复制/helper/返回握手之前；三个 target 及 debug/release 覆盖。

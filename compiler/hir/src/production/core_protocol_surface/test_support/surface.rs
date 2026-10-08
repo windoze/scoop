@@ -258,32 +258,11 @@ pub(super) fn install_with_intrinsics_at(
     else {
         unreachable!("the fixture creates a source function")
     };
-    let equality = builder.generic_nominal(SourceNominalKind::Interface);
-    let equality_id = match equality {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => id,
-        _ => unreachable!("the equality interface is generic"),
-    };
-    let boolean_id = match fundamental_types.entries()[9] {
-        CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(id)) => id,
-        _ => unreachable!("Boolean has a concrete declaration"),
-    };
-    let (equals, equals_id) = builder.function_with_owner_signature(
-        Some(DefinitionOwnerAtom::GenericType(equality_id)),
-        SignatureCallableShape::new(
-            scoop_identity::Effect::Ordinary,
-            None,
-            vec![SignatureTypeKey::Binder { depth: 0, index: 0 }],
-            SignatureTypeKey::Nominal(boolean_id),
-        ),
-    );
-    let equality_protocol =
-        CoreEqualityProtocolV1(product([equality, equals, builder.dispatch(equals_id)]));
     let signature_surface = CoreCompilerProtocolSurfaceV1 {
         program_arguments: program_arguments.clone(),
         fundamental_types: fundamental_types.clone(),
         option_protocol: option_protocol.clone(),
         iteration_protocol: iteration_protocol.clone(),
-        equality_protocol: equality_protocol.clone(),
         exception_protocol: exception_protocol.clone(),
         coroutine_protocol: coroutine_protocol.clone(),
         ffi_protocol: ffi_protocol.clone(),
@@ -376,7 +355,6 @@ pub(super) fn install_with_intrinsics_at(
         fundamental_types,
         option_protocol,
         iteration_protocol,
-        equality_protocol,
         exception_protocol,
         coroutine_protocol,
         ffi_protocol,

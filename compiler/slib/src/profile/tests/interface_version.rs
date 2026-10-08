@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v66_retains_atomic_operations_and_orders() {
+fn source_interface_v67_separates_operators_from_library_equality() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        66,
+        67,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -58,10 +58,10 @@ fn lir_layout_abi_v12_retains_atomic_object_storage() {
 }
 
 #[test]
-fn compiler_protocol_v13_retains_equality_protocol() {
+fn compiler_protocol_v14_omits_equality_protocol() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        13,
+        14,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

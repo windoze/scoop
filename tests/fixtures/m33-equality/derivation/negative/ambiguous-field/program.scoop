@@ -1,8 +1,8 @@
 interface First {}
 interface Second {}
-class Ambiguous : First, Second, Equality<First>, Equality<Second> {
-    public override operator fun equals(other: First): Boolean = true
-    public override operator fun equals(other: Second): Boolean = false
+class Ambiguous : First, Second {
+    public operator fun equals(other: First): Boolean = true
+    public operator fun equals(other: Second): Boolean = false
 }
 struct Container(val value: Ambiguous)
 fun compare(left: Container, right: Container): Boolean = left == right

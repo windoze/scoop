@@ -33,7 +33,7 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                             true,
                             false,
                             "equals",
-                            vec![("other", owner)],
+                            vec![("other", owner.clone())],
                             Some(ty_named("Boolean")),
                             body,
                         ))));
@@ -42,9 +42,23 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                     if let ast::StructMember::Function(function) = member
                         && function.name.text == "equals"
                     {
-                        function.is_override = true;
+                        function.is_override = false;
+                        function.modifier = ast::MethodModifier::Final;
                         function.operator = Some(ast::OperatorModifier { span: sp() });
                     }
+                }
+                if !value.members.iter().any(|member| {
+                    matches!(member,
+                    ast::StructMember::Function(function) if function.name.text == "equalTo")
+                }) {
+                    let no_gc = value.members.iter().any(|member| matches!(member,
+                        ast::StructMember::Function(function) if function.name.text == "equals"
+                            && function.annotations.iter().any(|annotation| annotation.name.text == "NoGC")));
+                    value
+                        .members
+                        .push(ast::StructMember::Function(Box::new(equal_to(
+                            owner, no_gc,
+                        ))));
                 }
             }
             Decl::Class(value) if value.name.text == "String" => {
@@ -53,13 +67,41 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                     if let ast::ClassMember::Function(function) = member
                         && function.name.text == "equals"
                     {
-                        function.is_override = true;
+                        function.is_override = false;
+                        function.modifier = ast::MethodModifier::Final;
                     }
                 }
+                value.members.push(ast::ClassMember::Function(equal_to(
+                    ty_named("String"),
+                    false,
+                )));
             }
             _ => {}
         }
     }
+}
+
+fn equal_to(owner: TypeRef, no_gc: bool) -> ast::FunctionDecl {
+    let mut method = method_full(
+        true,
+        false,
+        "equalTo",
+        vec![("other", owner)],
+        Some(ty_named("Boolean")),
+        FunctionBody::Expr(Box::new(method_call(
+            this_expr(),
+            "equals",
+            vec![var("other")],
+        ))),
+    );
+    if no_gc {
+        method.annotations.push(ast::Annotation {
+            name: ident("NoGC"),
+            args: Vec::new(),
+            span: sp(),
+        });
+    }
+    method
 }
 
 fn supertype(owner: TypeRef) -> ast::SupertypeSpec {

@@ -59,24 +59,18 @@ Module
   enum CoroutineSlot<Secret>
     Empty()
     Value(value: Secret)
-  class Secret vtable=0 itables=1
+  class Secret vtable=0 itables=0
   class Opaque vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class box<Point> vtable=0 itables=1
-  class box<Record> vtable=0 itables=1
+  class box<Point> vtable=0 itables=0
+  class box<Record> vtable=0 itables=0
   class box<Declared> vtable=0 itables=1
   class box<Incomparable> vtable=0 itables=0
-  class box<Choice> vtable=0 itables=1
-  class box<Multiple> vtable=0 itables=2
-  interface Equality<Point>
-  interface Equality<Secret>
-  interface Equality<Record>
+  class box<Choice> vtable=0 itables=0
+  class box<Multiple> vtable=0 itables=0
   interface Equality<Declared>
-  interface Equality<Int>
-  interface Equality<Multiple>
-  interface Equality<Choice>
   interface Continuation<Point>
   interface SuspendTask<Point>
   interface SuspendRegistration<Point>
@@ -128,20 +122,15 @@ Module
   generated_exact_type get24 location=enum12 nominal_id=c4f358b5d16efc0a7b54a43326b9f6b4788cdba53e7a18b8919195e6a3fca135 exact_id=e4627bdbb19952ebda445be9d0632d38476b1661667e06a36b3e7cc3fa9c9d84
   generated_exact_type get25 location=enum13 nominal_id=1ab0041c5545121e3521ebf266ffbb8cd1c1d8fe7437d87c2d44193335d5f219 exact_id=ebceb640fc84ac2554ef03bbe8774e638dd44eb9735f36e1535ae8dba324ff95
   generated_exact_type get26 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn49 id=08c6cf415c881233c3fc4a072e260b9c772f6cedf848ee00ecf19171c9c23a10
-  generated_callable gc1 function=@fn56 id=1720c8f31429c4c38c7701a6f32cc1a432e7aa0141d15cafffcbfac129c0e868
-  generated_callable gc2 function=@fn60 id=19ce336adf23b8cd674e0dcc5f334f394aa117d207183abe793b425f5a32a53d
-  generated_callable gc3 function=@fn54 id=660929f63cb1a7cdca3230a4cbb4f3e7a0a08a7955504fef1034ba5882712c4a
-  generated_callable gc4 function=@fn59 id=6842732161da4fc1e45f538ed5204e06b79ee0087bbb7b4034680f2bec9bafc9
-  generated_callable gc5 function=@fn58 id=77536411f6a8f3249bbe96b26f03b5d68536663e9d06fe50b756de7aaed62117
-  generated_callable gc6 function=@fn55 id=79078099d87b67cf5402f011477baae7dca0722a23eb5b0b5a6382f981e854bc
-  generated_callable gc7 function=@fn53 id=84a41696e9f6a60fb6f3ed00cb3c6538a25a7239f1e7bba929d8ab57db899db7
-  generated_callable gc8 function=@fn61 id=84ca539dcd66a86c2fab8e0e54cdc0472700da2999f859a5416b4ace508f33fe
-  generated_callable gc9 function=@fn48 id=9cbac9f0e154585a5836dc9cb4f3f2c85ce76025235e97ff27fce2dea9673bf0
-  generated_callable gc10 function=@fn50 id=a3770ffa80fc73536b195fb7ff767822ac82343b08808424401d7c31e79cccfc
-  generated_callable gc11 function=@fn51 id=bfef9aedef5e75659faa6895dce1b60e312f940de256b44d08a3cf6d8f6803a7
-  generated_callable gc12 function=@fn57 id=e6ffbc8f7058644019307992e9d6482db0e8fbeb66e4adc4b5ccf1431a4f142d
-  generated_callable gc13 function=@fn52 id=ecf18950c35676fae69bef3c89cc12a6d2ea5d313d4f08a3737f60cdc0335db4
+  generated_callable gc0 function=@fn50 id=08c6cf415c881233c3fc4a072e260b9c772f6cedf848ee00ecf19171c9c23a10
+  generated_callable gc1 function=@fn57 id=145c516b381fbacbce43edecbe1943c907d709ec52f7c0a821e6874e69e2ba6e
+  generated_callable gc2 function=@fn55 id=660929f63cb1a7cdca3230a4cbb4f3e7a0a08a7955504fef1034ba5882712c4a
+  generated_callable gc3 function=@fn56 id=79078099d87b67cf5402f011477baae7dca0722a23eb5b0b5a6382f981e854bc
+  generated_callable gc4 function=@fn54 id=84a41696e9f6a60fb6f3ed00cb3c6538a25a7239f1e7bba929d8ab57db899db7
+  generated_callable gc5 function=@fn49 id=9cbac9f0e154585a5836dc9cb4f3f2c85ce76025235e97ff27fce2dea9673bf0
+  generated_callable gc6 function=@fn51 id=a3770ffa80fc73536b195fb7ff767822ac82343b08808424401d7c31e79cccfc
+  generated_callable gc7 function=@fn52 id=bfef9aedef5e75659faa6895dce1b60e312f940de256b44d08a3cf6d8f6803a7
+  generated_callable gc8 function=@fn53 id=ecf18950c35676fae69bef3c89cc12a6d2ea5d313d4f08a3737f60cdc0335db4
   fun Point.equals @fn0(this: Point, other: Point) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -236,7 +225,26 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun Declared.equals @fn3(this: Declared, other: Declared) -> Boolean
+  fun Declared.equalTo @fn3(this: Declared, other: Declared) -> Boolean
+    bb0 entry
+      val $receiver: Declared
+        Type Declared
+        Local this
+      val $argument.0: Declared
+        Type Declared
+        Local other
+      val $parameter.other: Declared
+        Type Declared
+        Local $argument.0
+      call $call.1: Boolean = @fn4 direct
+        Type Declared
+        Local $receiver
+        Type Declared
+        Local $parameter.other
+      return
+        Type Boolean
+        Local $call.1
+  fun Declared.equals @fn4(this: Declared, other: Declared) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -249,7 +257,7 @@ Module
           FieldAccess 0
             Type Declared
             Local other
-  fun Multiple.equals @fn4(this: Multiple, other: Int) -> Boolean
+  fun Multiple.equals @fn5(this: Multiple, other: Int) -> Boolean
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -269,7 +277,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun Multiple.equals @fn5(this: Multiple, other: Multiple) -> Boolean
+  fun Multiple.equals @fn6(this: Multiple, other: Multiple) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -282,7 +290,7 @@ Module
           FieldAccess 0
             Type Multiple
             Local other
-  fun Choice.equals @fn6(this: Choice, other: Choice) -> Boolean
+  fun Choice.equals @fn7(this: Choice, other: Choice) -> Boolean
     bb0 entry
       val $when.1: Choice
         Type Choice
@@ -416,117 +424,117 @@ Module
         BoolLiteral false
     bb18 pattern.merge.18
       unreachable
-  fun pointView @fn7(point: Point) -> Equality<Point>
+  fun boxedPoint @fn8(point: Point) -> Any
     bb0 entry
       return
-        Type Equality<Point>
+        Type Any
         Box
           Type Point
           Local point
-  fun boxedRecord @fn8(record: Record) -> Any
+  fun boxedRecord @fn9(record: Record) -> Any
     bb0 entry
       return
         Type Any
         Box
           Type Record
           Local record
-  fun Continuation.resume @fn9(this: Continuation<Point>, value: Point) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<Point>, value: Point) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn10(this: Continuation<Point>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn11(this: Continuation<Point>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn11(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
+  fun SuspendTask.run @fn12(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn13(this: Continuation<Record>, value: Record) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Record>, value: Record) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn14(this: Continuation<Record>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn15(this: Continuation<Record>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn15(this: SuspendTask<Record>, $completion: Continuation<Record>) -> CoroutineStep<Record>
+  fun SuspendTask.run @fn16(this: SuspendTask<Record>, $completion: Continuation<Record>) -> CoroutineStep<Record>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Record>, continuation: Continuation<Record>) -> Unit
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Record>, continuation: Continuation<Record>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn17(this: Continuation<Secret>, value: Secret) -> Unit
+  fun Continuation.resume @fn18(this: Continuation<Secret>, value: Secret) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn18(this: Continuation<Secret>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn19(this: Continuation<Secret>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn19(this: SuspendTask<Secret>, $completion: Continuation<Secret>) -> CoroutineStep<Secret>
+  fun SuspendTask.run @fn20(this: SuspendTask<Secret>, $completion: Continuation<Secret>) -> CoroutineStep<Secret>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Secret>, continuation: Continuation<Secret>) -> Unit
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Secret>, continuation: Continuation<Secret>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn21(this: Continuation<Declared>, value: Declared) -> Unit
+  fun Continuation.resume @fn22(this: Continuation<Declared>, value: Declared) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn22(this: Continuation<Declared>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn23(this: Continuation<Declared>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn23(this: SuspendTask<Declared>, $completion: Continuation<Declared>) -> CoroutineStep<Declared>
+  fun SuspendTask.run @fn24(this: SuspendTask<Declared>, $completion: Continuation<Declared>) -> CoroutineStep<Declared>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Declared>, continuation: Continuation<Declared>) -> Unit
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Declared>, continuation: Continuation<Declared>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn25(this: Continuation<Incomparable>, value: Incomparable) -> Unit
+  fun Continuation.resume @fn26(this: Continuation<Incomparable>, value: Incomparable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn26(this: Continuation<Incomparable>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn27(this: Continuation<Incomparable>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn27(this: SuspendTask<Incomparable>, $completion: Continuation<Incomparable>) -> CoroutineStep<Incomparable>
+  fun SuspendTask.run @fn28(this: SuspendTask<Incomparable>, $completion: Continuation<Incomparable>) -> CoroutineStep<Incomparable>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn28(this: SuspendRegistration<Incomparable>, continuation: Continuation<Incomparable>) -> Unit
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Incomparable>, continuation: Continuation<Incomparable>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn29(this: Continuation<Opaque>, value: Opaque) -> Unit
+  fun Continuation.resume @fn30(this: Continuation<Opaque>, value: Opaque) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn30(this: Continuation<Opaque>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn31(this: Continuation<Opaque>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn31(this: SuspendTask<Opaque>, $completion: Continuation<Opaque>) -> CoroutineStep<Opaque>
+  fun SuspendTask.run @fn32(this: SuspendTask<Opaque>, $completion: Continuation<Opaque>) -> CoroutineStep<Opaque>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn32(this: SuspendRegistration<Opaque>, continuation: Continuation<Opaque>) -> Unit
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Opaque>, continuation: Continuation<Opaque>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn33(this: Continuation<Multiple>, value: Multiple) -> Unit
+  fun Continuation.resume @fn34(this: Continuation<Multiple>, value: Multiple) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn34(this: Continuation<Multiple>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn35(this: Continuation<Multiple>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn35(this: SuspendTask<Multiple>, $completion: Continuation<Multiple>) -> CoroutineStep<Multiple>
+  fun SuspendTask.run @fn36(this: SuspendTask<Multiple>, $completion: Continuation<Multiple>) -> CoroutineStep<Multiple>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn36(this: SuspendRegistration<Multiple>, continuation: Continuation<Multiple>) -> Unit
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Multiple>, continuation: Continuation<Multiple>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn37(this: Continuation<Choice>, value: Choice) -> Unit
+  fun Continuation.resume @fn38(this: Continuation<Choice>, value: Choice) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn38(this: Continuation<Choice>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn39(this: Continuation<Choice>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn39(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
+  fun SuspendTask.run @fn40(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn40(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
+  fun SuspendRegistration.register @fn41(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Secret.$c0 @fn41(this: Secret, key: Int) -> Unit
+  fun init.Secret.$c0 @fn42(this: Secret, key: Int) -> Unit
     bb0 entry
       field_set 0
         Type Secret
@@ -534,7 +542,7 @@ Module
         Type Int
         Local key
       return
-  fun init.Opaque.$c1 @fn42(this: Opaque, key: Int) -> Unit
+  fun init.Opaque.$c1 @fn43(this: Opaque, key: Int) -> Unit
     bb0 entry
       field_set 0
         Type Opaque
@@ -542,7 +550,7 @@ Module
         Type Int
         Local key
       return
-  fun ctor.Point.$c0 @fn43(x: Int, y: Int) -> Point <no-gc>
+  fun ctor.Point.$c0 @fn44(x: Int, y: Int) -> Point <no-gc>
     bb0 entry
       return
         Type Point
@@ -551,7 +559,7 @@ Module
           Local x
           Type Int
           Local y
-  fun ctor.Record.$c1 @fn44(secret: Secret, label: String) -> Record <no-gc>
+  fun ctor.Record.$c1 @fn45(secret: Secret, label: String) -> Record <no-gc>
     bb0 entry
       return
         Type Record
@@ -560,28 +568,28 @@ Module
           Local secret
           Type String
           Local label
-  fun ctor.Declared.$c2 @fn45(value: Int) -> Declared <no-gc>
+  fun ctor.Declared.$c2 @fn46(value: Int) -> Declared <no-gc>
     bb0 entry
       return
         Type Declared
         StructInit Declared
           Type Int
           Local value
-  fun ctor.Incomparable.$c3 @fn46(value: Opaque) -> Incomparable <no-gc>
+  fun ctor.Incomparable.$c3 @fn47(value: Opaque) -> Incomparable <no-gc>
     bb0 entry
       return
         Type Incomparable
         StructInit Incomparable
           Type Opaque
           Local value
-  fun ctor.Multiple.$c4 @fn47(value: Int) -> Multiple <no-gc>
+  fun ctor.Multiple.$c4 @fn48(value: Int) -> Multiple <no-gc>
     bb0 entry
       return
         Type Multiple
         StructInit Multiple
           Type Int
           Local value
-  fun startCoroutine<Declared> @fn48(task: SuspendTask<Declared>, completion: Continuation<Declared>) -> Unit
+  fun startCoroutine<Declared> @fn49(task: SuspendTask<Declared>, completion: Continuation<Declared>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -604,7 +612,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn21 interface Continuation<Declared>[0]
+      call @fn22 interface Continuation<Declared>[0]
         Type Continuation<Declared>
         Local completion
         Type Declared
@@ -617,7 +625,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn22 interface Continuation<Declared>[1]
+      call @fn23 interface Continuation<Declared>[1]
         Type Continuation<Declared>
         Local completion
         Type Throwable
@@ -636,7 +644,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Declared> = @fn23 interface SuspendTask<Declared>[0]
+      call $step: CoroutineStep<Declared> = @fn24 interface SuspendTask<Declared>[0]
         Type SuspendTask<Declared>
         Local task
         Type Continuation<Declared>
@@ -662,7 +670,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Incomparable> @fn49(task: SuspendTask<Incomparable>, completion: Continuation<Incomparable>) -> Unit
+  fun startCoroutine<Incomparable> @fn50(task: SuspendTask<Incomparable>, completion: Continuation<Incomparable>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -685,7 +693,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn25 interface Continuation<Incomparable>[0]
+      call @fn26 interface Continuation<Incomparable>[0]
         Type Continuation<Incomparable>
         Local completion
         Type Incomparable
@@ -698,7 +706,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn26 interface Continuation<Incomparable>[1]
+      call @fn27 interface Continuation<Incomparable>[1]
         Type Continuation<Incomparable>
         Local completion
         Type Throwable
@@ -717,7 +725,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Incomparable> = @fn27 interface SuspendTask<Incomparable>[0]
+      call $step: CoroutineStep<Incomparable> = @fn28 interface SuspendTask<Incomparable>[0]
         Type SuspendTask<Incomparable>
         Local task
         Type Continuation<Incomparable>
@@ -743,7 +751,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Choice> @fn50(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+  fun startCoroutine<Choice> @fn51(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -766,7 +774,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn37 interface Continuation<Choice>[0]
+      call @fn38 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         Local completion
         Type Choice
@@ -779,7 +787,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn38 interface Continuation<Choice>[1]
+      call @fn39 interface Continuation<Choice>[1]
         Type Continuation<Choice>
         Local completion
         Type Throwable
@@ -798,7 +806,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Choice> = @fn39 interface SuspendTask<Choice>[0]
+      call $step: CoroutineStep<Choice> = @fn40 interface SuspendTask<Choice>[0]
         Type SuspendTask<Choice>
         Local task
         Type Continuation<Choice>
@@ -824,7 +832,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Multiple> @fn51(task: SuspendTask<Multiple>, completion: Continuation<Multiple>) -> Unit
+  fun startCoroutine<Multiple> @fn52(task: SuspendTask<Multiple>, completion: Continuation<Multiple>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -847,7 +855,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn33 interface Continuation<Multiple>[0]
+      call @fn34 interface Continuation<Multiple>[0]
         Type Continuation<Multiple>
         Local completion
         Type Multiple
@@ -860,7 +868,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn34 interface Continuation<Multiple>[1]
+      call @fn35 interface Continuation<Multiple>[1]
         Type Continuation<Multiple>
         Local completion
         Type Throwable
@@ -879,7 +887,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Multiple> = @fn35 interface SuspendTask<Multiple>[0]
+      call $step: CoroutineStep<Multiple> = @fn36 interface SuspendTask<Multiple>[0]
         Type SuspendTask<Multiple>
         Local task
         Type Continuation<Multiple>
@@ -905,7 +913,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Point> @fn52(task: SuspendTask<Point>, completion: Continuation<Point>) -> Unit
+  fun startCoroutine<Point> @fn53(task: SuspendTask<Point>, completion: Continuation<Point>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -928,7 +936,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn9 interface Continuation<Point>[0]
+      call @fn10 interface Continuation<Point>[0]
         Type Continuation<Point>
         Local completion
         Type Point
@@ -941,7 +949,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn10 interface Continuation<Point>[1]
+      call @fn11 interface Continuation<Point>[1]
         Type Continuation<Point>
         Local completion
         Type Throwable
@@ -960,7 +968,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Point> = @fn11 interface SuspendTask<Point>[0]
+      call $step: CoroutineStep<Point> = @fn12 interface SuspendTask<Point>[0]
         Type SuspendTask<Point>
         Local task
         Type Continuation<Point>
@@ -986,7 +994,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Record> @fn53(task: SuspendTask<Record>, completion: Continuation<Record>) -> Unit
+  fun startCoroutine<Record> @fn54(task: SuspendTask<Record>, completion: Continuation<Record>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1009,7 +1017,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn13 interface Continuation<Record>[0]
+      call @fn14 interface Continuation<Record>[0]
         Type Continuation<Record>
         Local completion
         Type Record
@@ -1022,7 +1030,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn14 interface Continuation<Record>[1]
+      call @fn15 interface Continuation<Record>[1]
         Type Continuation<Record>
         Local completion
         Type Throwable
@@ -1041,7 +1049,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Record> = @fn15 interface SuspendTask<Record>[0]
+      call $step: CoroutineStep<Record> = @fn16 interface SuspendTask<Record>[0]
         Type SuspendTask<Record>
         Local task
         Type Continuation<Record>
@@ -1067,7 +1075,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Opaque> @fn54(task: SuspendTask<Opaque>, completion: Continuation<Opaque>) -> Unit
+  fun startCoroutine<Opaque> @fn55(task: SuspendTask<Opaque>, completion: Continuation<Opaque>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1090,7 +1098,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn29 interface Continuation<Opaque>[0]
+      call @fn30 interface Continuation<Opaque>[0]
         Type Continuation<Opaque>
         Local completion
         Type Opaque
@@ -1103,7 +1111,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn30 interface Continuation<Opaque>[1]
+      call @fn31 interface Continuation<Opaque>[1]
         Type Continuation<Opaque>
         Local completion
         Type Throwable
@@ -1122,7 +1130,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Opaque> = @fn31 interface SuspendTask<Opaque>[0]
+      call $step: CoroutineStep<Opaque> = @fn32 interface SuspendTask<Opaque>[0]
         Type SuspendTask<Opaque>
         Local task
         Type Continuation<Opaque>
@@ -1148,7 +1156,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Secret> @fn55(task: SuspendTask<Secret>, completion: Continuation<Secret>) -> Unit
+  fun startCoroutine<Secret> @fn56(task: SuspendTask<Secret>, completion: Continuation<Secret>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1171,7 +1179,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn17 interface Continuation<Secret>[0]
+      call @fn18 interface Continuation<Secret>[0]
         Type Continuation<Secret>
         Local completion
         Type Secret
@@ -1184,7 +1192,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn18 interface Continuation<Secret>[1]
+      call @fn19 interface Continuation<Secret>[1]
         Type Continuation<Secret>
         Local completion
         Type Throwable
@@ -1203,7 +1211,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Secret> = @fn19 interface SuspendTask<Secret>[0]
+      call $step: CoroutineStep<Secret> = @fn20 interface SuspendTask<Secret>[0]
         Type SuspendTask<Secret>
         Local task
         Type Continuation<Secret>
@@ -1229,31 +1237,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Point> Equality.equals(Point) @fn56(this: Equality<Point>, other: Point) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn0 direct
-        Type Point
-        Unbox
-          Type Equality<Point>
-          Local this
-        Type Point
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Record> Equality.equals(Record) @fn57(this: Equality<Record>, other: Record) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn2 direct
-        Type Record
-        Unbox
-          Type Equality<Record>
-          Local this
-        Type Record
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Declared> Equality.equals(Declared) @fn58(this: Equality<Declared>, other: Declared) -> Boolean
+  fun thunk<Declared> Equality.equalTo(Declared) @fn57(this: Equality<Declared>, other: Declared) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn3 direct
         Type Declared
@@ -1261,42 +1245,6 @@ Module
           Type Equality<Declared>
           Local this
         Type Declared
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Choice> Equality.equals(Choice) @fn59(this: Equality<Choice>, other: Choice) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn6 direct
-        Type Choice
-        Unbox
-          Type Equality<Choice>
-          Local this
-        Type Choice
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Multiple> Equality.equals(Int) @fn60(this: Equality<Int>, other: Int) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn4 direct
-        Type Multiple
-        Unbox
-          Type Equality<Int>
-          Local this
-        Type Int
-        Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun thunk<Multiple> Equality.equals(Multiple) @fn61(this: Equality<Multiple>, other: Multiple) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn5 direct
-        Type Multiple
-        Unbox
-          Type Equality<Multiple>
-          Local this
-        Type Multiple
         Local other
       return
         Type Boolean
@@ -1317,52 +1265,52 @@ Module
   coroutine_slot cl5 CoroutineSlot<Record> value=Record
   coroutine_slot cl6 CoroutineSlot<Opaque> value=Opaque
   coroutine_slot cl7 CoroutineSlot<Secret> value=Secret
-  coroutine_start ct0 result=Declared function=fn48
-  coroutine_start ct1 result=Incomparable function=fn49
-  coroutine_start ct2 result=Choice function=fn50
-  coroutine_start ct3 result=Multiple function=fn51
-  coroutine_start ct4 result=Point function=fn52
-  coroutine_start ct5 result=Record function=fn53
-  coroutine_start ct6 result=Opaque function=fn54
-  coroutine_start ct7 result=Secret function=fn55
-  coroutine_fn cf0 @fn11 source_return=Point step=cs4 immediate
-  coroutine_fn cf1 @fn15 source_return=Record step=cs5 immediate
-  coroutine_fn cf2 @fn19 source_return=Secret step=cs7 immediate
-  coroutine_fn cf3 @fn23 source_return=Declared step=cs0 immediate
-  coroutine_fn cf4 @fn27 source_return=Incomparable step=cs1 immediate
-  coroutine_fn cf5 @fn31 source_return=Opaque step=cs6 immediate
-  coroutine_fn cf6 @fn35 source_return=Multiple step=cs3 immediate
-  coroutine_fn cf7 @fn39 source_return=Choice step=cs2 immediate
-  instance mi0 function=@fn9 <- Continuation.resume
-  instance mi1 function=@fn10 <- Continuation.resumeWithException
-  instance mi2 function=@fn11 <- SuspendTask.run
-  instance mi3 function=@fn12 <- SuspendRegistration.register
-  instance mi4 function=@fn13 <- Continuation.resume
-  instance mi5 function=@fn14 <- Continuation.resumeWithException
-  instance mi6 function=@fn15 <- SuspendTask.run
-  instance mi7 function=@fn16 <- SuspendRegistration.register
-  instance mi8 function=@fn17 <- Continuation.resume
-  instance mi9 function=@fn18 <- Continuation.resumeWithException
-  instance mi10 function=@fn19 <- SuspendTask.run
-  instance mi11 function=@fn20 <- SuspendRegistration.register
-  instance mi12 function=@fn21 <- Continuation.resume
-  instance mi13 function=@fn22 <- Continuation.resumeWithException
-  instance mi14 function=@fn23 <- SuspendTask.run
-  instance mi15 function=@fn24 <- SuspendRegistration.register
-  instance mi16 function=@fn25 <- Continuation.resume
-  instance mi17 function=@fn26 <- Continuation.resumeWithException
-  instance mi18 function=@fn27 <- SuspendTask.run
-  instance mi19 function=@fn28 <- SuspendRegistration.register
-  instance mi20 function=@fn29 <- Continuation.resume
-  instance mi21 function=@fn30 <- Continuation.resumeWithException
-  instance mi22 function=@fn31 <- SuspendTask.run
-  instance mi23 function=@fn32 <- SuspendRegistration.register
-  instance mi24 function=@fn33 <- Continuation.resume
-  instance mi25 function=@fn34 <- Continuation.resumeWithException
-  instance mi26 function=@fn35 <- SuspendTask.run
-  instance mi27 function=@fn36 <- SuspendRegistration.register
-  instance mi28 function=@fn37 <- Continuation.resume
-  instance mi29 function=@fn38 <- Continuation.resumeWithException
-  instance mi30 function=@fn39 <- SuspendTask.run
-  instance mi31 function=@fn40 <- SuspendRegistration.register
+  coroutine_start ct0 result=Declared function=fn49
+  coroutine_start ct1 result=Incomparable function=fn50
+  coroutine_start ct2 result=Choice function=fn51
+  coroutine_start ct3 result=Multiple function=fn52
+  coroutine_start ct4 result=Point function=fn53
+  coroutine_start ct5 result=Record function=fn54
+  coroutine_start ct6 result=Opaque function=fn55
+  coroutine_start ct7 result=Secret function=fn56
+  coroutine_fn cf0 @fn12 source_return=Point step=cs4 immediate
+  coroutine_fn cf1 @fn16 source_return=Record step=cs5 immediate
+  coroutine_fn cf2 @fn20 source_return=Secret step=cs7 immediate
+  coroutine_fn cf3 @fn24 source_return=Declared step=cs0 immediate
+  coroutine_fn cf4 @fn28 source_return=Incomparable step=cs1 immediate
+  coroutine_fn cf5 @fn32 source_return=Opaque step=cs6 immediate
+  coroutine_fn cf6 @fn36 source_return=Multiple step=cs3 immediate
+  coroutine_fn cf7 @fn40 source_return=Choice step=cs2 immediate
+  instance mi0 function=@fn10 <- Continuation.resume
+  instance mi1 function=@fn11 <- Continuation.resumeWithException
+  instance mi2 function=@fn12 <- SuspendTask.run
+  instance mi3 function=@fn13 <- SuspendRegistration.register
+  instance mi4 function=@fn14 <- Continuation.resume
+  instance mi5 function=@fn15 <- Continuation.resumeWithException
+  instance mi6 function=@fn16 <- SuspendTask.run
+  instance mi7 function=@fn17 <- SuspendRegistration.register
+  instance mi8 function=@fn18 <- Continuation.resume
+  instance mi9 function=@fn19 <- Continuation.resumeWithException
+  instance mi10 function=@fn20 <- SuspendTask.run
+  instance mi11 function=@fn21 <- SuspendRegistration.register
+  instance mi12 function=@fn22 <- Continuation.resume
+  instance mi13 function=@fn23 <- Continuation.resumeWithException
+  instance mi14 function=@fn24 <- SuspendTask.run
+  instance mi15 function=@fn25 <- SuspendRegistration.register
+  instance mi16 function=@fn26 <- Continuation.resume
+  instance mi17 function=@fn27 <- Continuation.resumeWithException
+  instance mi18 function=@fn28 <- SuspendTask.run
+  instance mi19 function=@fn29 <- SuspendRegistration.register
+  instance mi20 function=@fn30 <- Continuation.resume
+  instance mi21 function=@fn31 <- Continuation.resumeWithException
+  instance mi22 function=@fn32 <- SuspendTask.run
+  instance mi23 function=@fn33 <- SuspendRegistration.register
+  instance mi24 function=@fn34 <- Continuation.resume
+  instance mi25 function=@fn35 <- Continuation.resumeWithException
+  instance mi26 function=@fn36 <- SuspendTask.run
+  instance mi27 function=@fn37 <- SuspendRegistration.register
+  instance mi28 function=@fn38 <- Continuation.resume
+  instance mi29 function=@fn39 <- Continuation.resumeWithException
+  instance mi30 function=@fn40 <- SuspendTask.run
+  instance mi31 function=@fn41 <- SuspendRegistration.register
   output library

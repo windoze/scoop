@@ -4,11 +4,13 @@
 
 @Intrinsic("core_ptr")
 public struct Ptr<T : value> : Equality<Ptr<T>> {
-    public override operator fun equals(other: Ptr<T>): Boolean {
+    public operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
             return this.toULong() == other.toULong()
         }
     }
+
+    public override fun equalTo(other: Ptr<T>): Boolean = this.equals(other)
 
     @NoGC
     @Unsafe

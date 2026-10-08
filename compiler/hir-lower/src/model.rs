@@ -169,12 +169,21 @@ impl CallableCandidate {
             source: CallableCandidateSource::Direct,
         }
     }
+
+    pub(crate) fn type_owned(function: FunctionId, owner: TypeId) -> Self {
+        Self {
+            function,
+            owner: CallableCandidateOwner::TypeOwned(owner),
+            source: CallableCandidateSource::Direct,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) enum CallableCandidateOwner {
     Function { owner_arguments: Vec<TypeId> },
     Method(hir::MethodOwnerApplication),
+    TypeOwned(TypeId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
