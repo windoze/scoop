@@ -1,6 +1,6 @@
 # M33 实施与验收记录
 
-开始日期：2026-10-08。基线：`670a45477`（M32 完成），分支：`codex/m33`。
+开始日期：2026-10-08。完成日期：2026-10-09。基线：`670a45477`（M32 完成），分支：`codex/m33`。
 
 本文件只记录实际完成的实现和验证；设计方案与验收要求见 [DESIGN.md](DESIGN.md)，未完成项目不计为通过。
 
@@ -16,7 +16,7 @@
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、运算符与库相等 | 完成；恢复原有 operator、普通 Equality.equalTo、通用 NoGc 接口适配及三平台源码／产物／运行闭环通过，旧派生接口结果仅作历史记录 |
 | M33-8 | 原子类型、内存序与 GC | 完成；四类 intrinsic、普通库更新与值存储、产物、真实并发和 GC 均通过三平台验收 |
-| M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
+| M33-9 | 线程退出规则与组合验收 | 完成；退出诊断、最小平台 Cone、三平台组合及收尾回归均通过 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
 
@@ -458,3 +458,30 @@ Python 经 Ruff 0.16.10 格式化及检查，C 经格式化和严格警告检查
 - GNU／musl 各定向复验 native archive／candidate／required-library 三项及 runtime lifecycle 两项，全部以普通模式通过；每个平台合计 5 个变体、37 个进程与 30 次 golden 检查。M33 更新轮的 133 份公共快照，以及这组旧回归的 4 份公共快照，与 Darwin 逐字节一致；目标相关快照分别保留。记录见 tmp/m33/final-linux-regression-reports/、final-linux-common-snapshot-review.json 和 final-linux-regression-snapshot-review.json。
 - 后续普通复验同步 archive 引用链中的两个 DirectC caller、native 候选列表的实际表示，以及损坏产物的成员标识与末字节截断长度。已有强／弱符号解析规则补充到实现规范 2.8；旧 archive 弱定义负例改为实际链接和运行，强实现返回 42、弱实现返回 1042，断言强实现被选择，两个强定义冲突和未声明初始化段仍作为负例。Darwin／GNU／musl 各通过该用例的 1 个变体、20 个进程、4 次 golden 检查；新增 3 份公共快照对照一致。C companion 经格式化和严格告警检查，移除三个已无对应错误规则的弱符号诊断文件。
 - Darwin 最后 554 项普通复验首轮通过 541 项；10 项超时或相关清理失败以 2 个并发、原有时限复验通过，3 项后续诊断预期按上述规则修正后通过，archive 用例在其最终输入上另行完整复验。没有扩大时限、跳过进程或放松文件保留、诊断与运行断言。
+
+## M33 总验收（2026-10-09）
+
+全部九批能力已实现并按功能提交，三份规范的相关章节与当前实现一致。共同能力在 Darwin aarch64、Linux GNU、Linux musl 完成源码编译、产物消费、链接及运行；C++ 在 Darwin／GNU 通过，musl 验证明确拒绝。最小平台 Cone 及 musl PIE 的组合范围见 M33-9b；公开平台库 API 留待后续。
+
+| 验证范围 | 最终结果 | 执行方式 |
+| --- | --- | --- |
+| Rust workspace | 5,394 项通过，0 项未解决 | 首轮完整覆盖后，仅复验受影响测试；按测试身份合并 |
+| 公共 fixture runner | 44 项通过 | 规则实现未变，复用有效结果 |
+| Darwin 全部 fixture | 2,866 项选择，2,850 项适用范围闭合，16 项不适用 | 一次完整首轮、审阅后的快照更新及定向普通复验 |
+| Linux GNU 的全部 M33 fixture 与 6 项旧回归 | 271 项选择，266 项普通通过，5 项不适用 | 260 项 M33 与 6 项旧回归，保留各自成功来源 |
+| Linux musl 的全部 M33 fixture 与 6 项旧回归 | 271 项选择，261 项普通通过，10 项不适用 | 255 项 M33 与 6 项旧回归，保留各自成功来源 |
+
+Darwin 首轮以 `--all` 选择全部 2,866 项，通过 1,423 项，另有 1,201 项失败、226 项配置错误与 16 项不适用。审阅并迁移 core／ABI／native 相关预期后，947 项需要继续产生后续阶段或变体的快照，完成了真实 CLI、诊断、退出码、产物与文件断言。最终普通复验选择 554 项：480 项已有完整转储的用例、该更新组中的 65 项 M33 用例，以及更新组里经过修正的 9 项；本轮失败项按前节记录补验。其余 873 项保留审阅后的完整更新执行结果，未再次运行其 8,365 个进程。
+
+最终按用例保留一次完整成功执行，区分两类证据：
+
+| Darwin 验证方式 | fixture | 变体 | 进程 | 阶段／plan 快照处理 |
+| --- | ---: | ---: | ---: | ---: |
+| 普通比较 | 1,977 | 2,135 | 5,425 | 2,459 次普通检查 |
+| 审阅后的完整快照更新 | 873 | 896 | 8,365 | 9,454 次更新模式处理 |
+
+这不是一次 `--all` 全绿记录，也不把更新模式标为普通快照比较。Darwin 的逐项成功来源与验证类型保存在 `tmp/m33/final-darwin-complete-report.json`；Rust 为 `final-workspace-coverage-audit.json`；Linux 为 `final-linux-{gnu,musl}-complete-report.json`，其原始分组报告位于 `final-linux-reports/` 和 `final-linux-regression-reports/`。Linux 仅执行上述定向范围，没有宣称 Linux 全量验收。
+
+最终 fmt／workspace all-targets clippy 与相关 C、Python 检查通过；之后的 fixture 资料修订使用实际 CLI 验证，新增弱符号 C companion 另经格式化和严格告警检查。23 份 HIR 内联预期已外置，新增生产实现按职责拆成小模块；本次收尾清理 823 个已完成链接的 Rust 中间对象，释放 5,061,171,184 字节，保留配套 CLI、库与有效缓存。Linux 使用 NUC 上的独立测试副本，未覆盖用户原有工作区改动。
+
+NativeSafe、DirectC、aggregate／errno bridge 与 GC 停顿的实际条件和样本见 [PERFORMANCE.md](PERFORMANCE.md)。`==`／`!=` 保持 `23cbfb7de` 的 operator 路径，Equality.equalTo 使用普通 invariant 库接口；原有泛型结构比较正文缓存问题见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)，未作为本里程碑的新能力或验收门槛。
