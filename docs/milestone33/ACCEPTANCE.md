@@ -426,3 +426,7 @@ M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M3
 - 压力模式永久隔离已移动块；初稿主线程无界 GC 循环耗尽测试 arena，改为固定轮次的同步交错后通过。没有改变 runtime 分配规则或增加预算机制。阻塞 stdio／pipe 时的 GC 和最后一次 unpin 后实际移动，分别复用 M33-4a、M33-2 已通过的独立验收。
 - Darwin／GNU／musl 静态在非更新模式下各通过 1 项、2 个 debug/release 变体、12 个进程、12 次 golden 检查；musl PIE 另通过 1 项、2 个变体、12 个进程，实际产物分别为静态 ELF 与带 musl interpreter 的 PIE。全部运行覆盖普通／moving／minor GC。consumer HIR/MIR 在三平台逐字节一致，provider 的 Darwin／Linux 差异只来自所选源码和 open flags，LIR 保留目标差异。报告为 `tmp/m33/platform-{darwin,gnu,musl}-report.json`。
 - 新增 C/Scoop 文件为 4～62 行。C 经格式化和严格告警检查，workspace fmt／all-targets clippy 通过。本批清理 249 个已完成链接的 Rust 中间对象，释放 2,083,970,944 bytes，保留库、CLI 与热缓存。
+
+## 收尾回归：旧 ABI 测试迁移
+
+首次 workspace 回归发现 5 项 codegen 记录测试仍断言 metadata ABI 6，4 项 image 测试共用的 C fixture 仍声明旧的无参数 root gateway。将期望同步为现有 ABI 7，fixture 使用完整 argc/argv/exit-code 原型并写入退出码槽；生产 ABI 与实现不变。格式化、codegen all-targets clippy 后，Darwin/GNU 的这 9 项定向复验均通过。其余已通过测试复用首次结果，尚未执行的 crate 单独继续，不重复整套 workspace。
