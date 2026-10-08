@@ -235,7 +235,6 @@ enum {
 };
 
 void scoop_callback_runtime_init(void);
-void scoop_callback_prepare_shutdown(void);
 void *scoop_runtime_callback_register(const void *closure,
                                       ScoopForeignCallbackAdapter adapter,
                                       const void *signature_descriptor,

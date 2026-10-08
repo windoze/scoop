@@ -14,7 +14,7 @@
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
 | M33-8 | 原子类型、内存序与 GC | LLVM AS1 原子操作技术验证完成；语言与 runtime 实现待继续 |
-| M33-9 | 线程退出规则与组合验收 | 待实现 |
+| M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
 
@@ -326,3 +326,13 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 四种原子指令覆盖全部合法序：3 种 load、3 种 store、5 种 exchange、9 种 strong CAS，共 20 种操作／顺序组合。每组执行 debug／release × Darwin arm64／GNU amd64／musl amd64，共 120 个组合。
 - 每个组合均通过 Scoop 实际优化与 RewriteStatepointsForGC、严格根计划检查、LLVM `verify<safepoint-ir>`／IR verifier 及目标 object 生成；原子指令仍存在，managed reference 不转成整数，CAS 未变为 weak。
 - Darwin 的 LLVM 22.1.8 与 nuc12 的 LLVM 22.1.2 分别通过全部 120 个组合；fmt 与 codegen all-targets clippy 通过。日志为 `tmp/m33/atomic-ir-tests.log` 和 `tmp/m33/atomic-ir-linux-tests.log`。本批只完成后端可行性验证，尚不代表 Atomic 类型、内存序源码诊断、写屏障或实际 moving GC fixture 已实现；没有重跑无关 CLI 测试。
+
+## M33-9a：正常 shutdown 的资源诊断
+
+- 主线程正常返回后，thread／callback registry 分别在原锁下关闭登记并取得非主 attachment、活动 callback lease 和 ownership 非零的 token 数。令牌有多份 ownership 时只计一个，OneShot 消费 ownership 后的活动 invocation 仍计入活动数。
+- 任一计数非零时，释放锁后输出运行时规范第 7 章规定的完整计数诊断，沿现有 NativeSafe 终止路径刷新 stdout/stderr 并 `_exit(1)`。退出码覆盖 main 的返回值；不等待线程、不进入异常／GC 元数据清理。资源清空时保留正常返回码与既有清理流程。
+- callback 自行建立的临时 attachment 保留到 token 状态及 GC handles 清理完成之后，避免 shutdown 在收尾尚未结束时观察到线程与 callback 均为空。shutdown 后的新 invocation 继续按既有 ABI 规则拒绝；没有新增 runtime ABI、线程模式或登记框架。
+- 新增 4 项正式 fixture，覆盖仅遗留 attachment、两个有 ownership 的 token、已消费 ownership 的活动 OneShot，以及正常 join／release 与显式 exit。用 C 条件变量确定线程已进入相应状态，不依赖睡眠或忙等。正常退出保留 Int 41；失败覆盖 Int 73／91；显式 exit 保留 23。
+- 每个目标均通过 4 项、8 个 debug／release 变体、62 个进程、24 次 golden 检查，包含普通／moving／minor GC；先删除源码再独立链接。诊断与输出逐字断言，正常退出执行 atexit，失败／显式退出不执行。captured struct、String、argv 和 OneShot／Reusable 回调组合验证实际根保活。
+- GNU／musl 的普通模式均使用最终实现通过全部四项。Darwin 先完整通过四项，调整 callback detach 顺序后仅重跑受影响的两项，普通模式通过 4 个变体、34 个进程和 12 次 golden 检查，其余两项复用先前结果。8 份公共 HIR／MIR golden 在三目标间一致。
+- workspace fmt／all-targets clippy 和 Darwin／GNU／musl 的 C 严格警告检查通过；现有 NativeSafe 返回与发布握手回归通过 O0／O2 × full／minor 四种配置。报告位于 `tmp/m33/shutdown-darwin-*-report.json` 与 `tmp/m33/shutdown-linux-reports/`。本批没有重跑无关全量测试；M33-7 泛型／tuple Equality、M33-8 原子语言实现及最终组合验收仍未完成。

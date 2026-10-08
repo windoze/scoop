@@ -1,0 +1,15 @@
+@Extern(lib = "fixture_native", name = "m33_shutdown_start_attached")
+fun startAttached()
+@Extern(lib = "fixture_native", name = "m33_shutdown_register_atexit")
+fun registerAtExit()
+
+fun main(): Int {
+    @Unsafe {
+        registerAtExit()
+        startAttached()
+    }
+    gcCollect()
+    write("buffered-output")
+    writeError("before-shutdown\n")
+    return 91
+}

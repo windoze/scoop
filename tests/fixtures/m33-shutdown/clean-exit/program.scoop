@@ -1,0 +1,41 @@
+@Extern(lib = "fixture_native", name = "m33_shutdown_start_callback")
+fun startCallback(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+@Extern(lib = "fixture_native", name = "m33_shutdown_hold")
+fun holdCallback()
+@Extern(lib = "fixture_native", name = "m33_shutdown_join")
+fun joinWorker(): Int
+@Extern(lib = "fixture_native", name = "m33_shutdown_exit_requested")
+fun exitRequested(): Int
+@Extern(lib = "fixture_native", name = "m33_shutdown_register_atexit")
+fun registerAtExit()
+
+struct Payload(val label: String, val value: Int)
+
+fun main(args: Array<String>): Int {
+    if (args.size < 1L) { throw IllegalStateException() }
+    val captured = Payload("rooted", 41)
+    @Unsafe {
+        registerAtExit()
+        val worker = foreignCallback<(Ptr<Unit>) -> Int>(
+            {
+                gcCollect()
+                @Unsafe { holdCallback() }
+                gcCollect()
+                if (captured != Payload("rooted", 41)) {
+                    throw IllegalStateException()
+                }
+                captured.value
+            }, 0, ForeignCallbackMode.Reusable
+        )
+        val observer = retainForeignCallback(worker)
+        startCallback(worker.function, worker.context)
+        gcCollect()
+        write("buffered-output")
+        writeError("before-shutdown\n")
+        if (exitRequested() != 0) { exit(23) }
+        val result = joinWorker()
+        releaseForeignCallback(worker)
+        releaseForeignCallback(observer)
+        return result
+    }
+}

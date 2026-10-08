@@ -433,7 +433,7 @@ callback 注册直接接收 ordinary、非 suspend closure，返回 GC-free opaq
 
 静态 C trampoline 按 `(canonical C signature, context index)` 标识。context index 是 zero-based u32，必须指向真实签名中的 Ptr<Unit> 参数；其余参数与结果满足 C-FFI-safe。trampoline 去掉 cookie 参数，把剩余值传入有类型的 args/result storage，再进入 callback runtime。不能用未类型化 varargs 猜测 managed ABI。
 
-invocation 执行 attach-if-needed、enter managed、保活 closure/snapshot、调用 typed adapter、leave managed、detach-if-owned。adapter 在入口 poll 后建立独立 TaskContext，调用期间可分配和 GC；所有正常/异常出口先恢复 previous Context，再返回 C。
+invocation 执行 attach-if-needed、enter managed、保活 closure/snapshot、调用 typed adapter、leave managed，完成 token 状态和保活引用的释放后再 detach-if-owned。临时 attachment 覆盖整个 runtime 收尾，不能在仍需释放 GC handles 时让 shutdown 观察到线程与 callback 均已清空。adapter 在入口 poll 后建立独立 TaskContext，调用期间可分配和 GC；所有正常/异常出口先恢复 previous Context，再返回 C。
 
 普通 cookie 值复制不增加 owner。retain/release 显式管理 ownership；owner 与 active lease 均为零后释放保活引用并回收 slot。Reusable 每次只增减 active lease；OneShot 原子 claim 并消费一份 worker ownership。需要读取完成/失败状态的 observer 必须预先 retain，创建失败时释放未转移 ownership。
 
@@ -562,6 +562,8 @@ root TaskContext 在首个 gateway 的入口 poll 后创建，在后续 eager ga
 非法 UTF-8 使用普通 managed 启动失败路径：参数构造 helper 在抛出前经 NativeSafe stderr 输出指出参数下标（包括 0），不依赖顶层诊断调用异常的 toString。参数构造抛出的 Throwable 由 root gateway 捕获并发布到其 failure root。eager 或 argv 构造失败均不执行 main。root gateway 成功返回后，runtime 才使用其 `out_exit_code`；正常 Unit 返回对应 0，Int 对应实际返回值。
 
 `main` 正常返回后进入 ShuttingDown，拒绝新的 attach 与 callback registration。只有主线程之外没有 attachment、没有活动 callback 且全部 token ownership 已释放时，才能销毁 GC 状态并使用 main 的正常退出码。仍有任一项时属于 shutdown 失败：在既有同步协议下取得剩余非主线程数、活动 callback 数与有未释放 ownership 的 token 数，释放相关锁后输出诊断，刷新 stdout/stderr，再调用 `_exit(1)`。该退出码覆盖 main 原返回值；此路径不等待 join、不销毁仍可能被其他线程访问的 GC 状态，输出等待使用 NativeSafe。M33 不提供 daemon 线程，也不将遗留资源诊断改成内部 ABI 错误的 abort。shutdown 不追加 managed destructor 或 release hook；之后非法重新进入仍为 fatal ABI error。
+
+退出诊断固定为 `scoop: shutdown failed: non-main threads=N, active callbacks=A, owned tokens=T` 并以换行结束。N 不包括主线程，A 是仍在执行的 callback lease 数，T 是 ownership 非零的 token 个数；同一 token 的多份 ownership 只计一个 T，已消费 ownership 但尚未返回的 OneShot 计入 A。登记关闭和计数分别在现有 thread／callback registry 的锁下完成，输出时不持有这些锁；计数非零时不先进入异常状态或 GC 元数据的销毁流程。
 
 core 的 `exit(code: Int): Nothing` 显式请求结束整个进程：先刷新 stdout/stderr，再调用 `_exit(code)`，传递完整 Int 值，不执行 finally、release hook、线程/token shutdown 检查或 join。刷新允许等待且按 NativeSafe 协议完成，期间保留其他线程仍可能访问的 GC 状态；不调用 C `exit()` 或补调 atexit/native C++ 析构。跳过刷新的立即终止接口留给后续平台库。
 

@@ -1,5 +1,8 @@
+#include <inttypes.h>
 #include <stdatomic.h>
+#include <stdio.h>
 
+#include "callback.h"
 #include "eh_internal.h"
 #include "gc/gc_internal.h"
 #include "startup/internal.h"
@@ -70,9 +73,16 @@ int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *images, uint64_t i
     if (scoop_startup_call_root(root_entry->gateway, argc, argv, &exit_code) != 0) {
         scoop_startup_report_failure(root_entry->failure_root, NULL);
     }
-    scoop_callback_prepare_shutdown();
+    uint64_t attached = scoop_thread_prepare_shutdown();
+    ScoopCallbackShutdownCounts callbacks = scoop_callback_prepare_shutdown();
+    if (attached != 0 || callbacks.active != 0 || callbacks.owned_tokens != 0) {
+        fprintf(stderr,
+                "scoop: shutdown failed: non-main threads=%" PRIu64 ", active callbacks=%" PRIu64
+                ", owned tokens=%" PRIu64 "\n",
+                attached, callbacks.active, callbacks.owned_tokens);
+        scoop_rt_exit(1);
+    }
     scoop_eh_prepare_shutdown();
-    scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();
     scoop_gc_report_metrics();

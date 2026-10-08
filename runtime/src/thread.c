@@ -234,7 +234,7 @@ bool scoop_rt_attach_foreign_thread(void) {
 
 void scoop_rt_detach_foreign_thread(void) { detach_current(SCOOP_THREAD_FOREIGN); }
 
-void scoop_thread_prepare_shutdown(void) {
+uint64_t scoop_thread_prepare_shutdown(void) {
     ScoopThreadState *state = scoop_thread_current_required();
     if (state->attachment_kind != SCOOP_THREAD_MAIN) {
         scoop_thread_fatal("runtime shutdown requested from a foreign thread");
@@ -247,17 +247,17 @@ void scoop_thread_prepare_shutdown(void) {
         scoop_thread_fatal("runtime shutdown entered from an invalid lifecycle state");
     }
     scoop_thread_runtime_lifecycle = SCOOP_RUNTIME_SHUTTING_DOWN;
-    if (scoop_thread_registry_count != 1 || scoop_thread_registry != state) {
-        uint64_t attached = scoop_thread_registry_count;
+    if (scoop_thread_registry_count == 0) {
         scoop_thread_registry_unlock();
-        fprintf(stderr, "scoop runtime: shutdown with %" PRIu64 " attached thread(s)\n", attached);
-        abort();
+        scoop_thread_fatal("runtime shutdown has no main thread attachment");
     }
+    uint64_t attached = scoop_thread_registry_count - 1;
     /* Managed exit already retired the TLAB. Shutdown itself stays native-safe.
      */
     state->allocation.cursor = NULL;
     state->allocation.limit = NULL;
     scoop_thread_registry_unlock();
+    return attached;
 }
 
 void scoop_thread_detach_main(void) { detach_current(SCOOP_THREAD_MAIN); }

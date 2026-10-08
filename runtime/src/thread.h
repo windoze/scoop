@@ -86,7 +86,7 @@ typedef struct ScoopCallbackThreadEntry {
 
 void scoop_thread_runtime_init(void);
 void scoop_thread_attach_main(void);
-void scoop_thread_prepare_shutdown(void);
+uint64_t scoop_thread_prepare_shutdown(void);
 void scoop_thread_detach_main(void);
 void scoop_thread_runtime_finish_shutdown(void);
 

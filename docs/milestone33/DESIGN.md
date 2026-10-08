@@ -375,8 +375,11 @@ M33 在当前三个 target 上，为固定参数的 cdecl C extern 提供 Direct
 
 D3 已确定保持现行的资源约束，改进诊断和退出方式；M33 不提供 daemon 线程。
 
+M33-9a 已完成本节退出规则并通过 Darwin／GNU／musl 的源码、独立链接和实际 GC 验证，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。M33-9 的里程碑组合总验收仍待 Equality 与原子实现完成。
+
 - main 正常返回后，按既有 shutdown 协议拒绝新的 attach 和 callback registration，并检查已 attach 的非主线程、活动 callback 和未释放的 token ownership。全部清空后才销毁 GC 状态并使用 main 返回码。
 - 有遗留项时，在既有同步协议下取得剩余非主线程数、活动 callback 数以及有未释放 ownership 的 token 数，释放相关锁后报告诊断、刷新 stdout/stderr，再 `_exit(1)`。这是 shutdown 失败，覆盖 Unit/Int main 的原返回码，不使用 `abort()`。
+- 固定诊断及各项计数含义遵守运行时规范第 7 章；callback 临时 attachment 覆盖 token 状态及 GC handles 的全部收尾，完成后才能 detach，避免提前观察到空 registry。
 - 失败路径不等待 join、不销毁其他线程仍可能访问的 GC 状态；刷新使用 NativeSafe，允许等待输出完成。它不保证等待遗留线程自行结束后转为成功。
 - 后续平台库用结构化作用域／join 和 token 释放完成正常生命周期；公开 API 随平台库设计确定。需要带着后台线程结束进程时，显式调用 2.2 的 `exit(code)`。
 
