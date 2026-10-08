@@ -1146,7 +1146,7 @@ impl EnumDefs {
             matches!(
                 definition.repr,
                 EnumRepr::Niche {
-                    kind: NichePointerKind::Raw,
+                    kind: NullNicheKind::Raw,
                     ..
                 }
             ),
@@ -1163,7 +1163,7 @@ impl EnumDefs {
             matches!(
                 definition.repr,
                 EnumRepr::Niche {
-                    kind: NichePointerKind::Code,
+                    kind: NullNicheKind::Code,
                     ..
                 }
             ),
@@ -1257,9 +1257,7 @@ impl EnumDefs {
             EnumRepr::Niche {
                 kind,
                 payload_variant,
-            } if variant.variant == *payload_variant && field == 0 => {
-                Some(LirType::Ptr(kind.pointer_kind()))
-            }
+            } if variant.variant == *payload_variant && field == 0 => Some(kind.storage_type()),
             EnumRepr::Niche { .. } => None,
             EnumRepr::Tagged { variants, .. } => variants[variant.variant as usize]
                 .fields
@@ -1364,7 +1362,7 @@ pub enum EnumRepr {
     /// representation and cannot be reconstructed from a scan program.
     Niche {
         /// Exact pointer provenance of both the payload and its typed null.
-        kind: NichePointerKind,
+        kind: NullNicheKind,
         /// Index of the payload-carrying variant.
         payload_variant: u32,
     },

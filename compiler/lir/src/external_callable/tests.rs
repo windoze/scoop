@@ -67,6 +67,7 @@ fn materialization_rejects_physical_abi_drift() {
                     crate::RefScan::None,
                 )
                 .unwrap()
+                .into()
             )],
             AbiReturn::UnitVoid,
             CallingConvention::Cdecl,

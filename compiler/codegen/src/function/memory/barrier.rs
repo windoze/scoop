@@ -80,7 +80,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         offsets: &mut Vec<u64>,
     ) -> Result<(), CodegenError> {
         match ty {
-            LirType::Ptr(PointerKind::Managed) => offsets.push(base),
+            LirType::Ptr(PointerKind::Managed) | LirType::Interface => offsets.push(base),
             LirType::Struct(id) => {
                 if let StructRepresentation::Scoop { fields } = &self.structs[*id].representation {
                     for field in fields {

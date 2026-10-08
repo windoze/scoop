@@ -21,7 +21,9 @@ fn scan_value(
 ) -> StorageResult<lir::RefScan> {
     let (size, alignment) = lir_size_align(context, ty, structs, enums)?;
     let scan = match ty {
-        lir::LirType::Ptr(lir::PointerKind::Managed) => lir::RefScan::References(vec![0]),
+        lir::LirType::Interface | lir::LirType::Ptr(lir::PointerKind::Managed) => {
+            lir::RefScan::References(vec![0])
+        }
         lir::LirType::Aggregate(fields) => {
             let (offsets, _, _) = layout::lir_aggregate_shape(context, fields, structs, enums)?;
             sequence(

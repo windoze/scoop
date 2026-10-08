@@ -163,17 +163,17 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "cross-cone-type-bridge", 17) => (
+            ("org.scoop-lang.mir", "cross-cone-type-bridge", 18) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-abi", 12) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-abi", 13) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-layout-link-closure", 5) => (
+            ("org.scoop-lang.lir", "cross-cone-layout-link-closure", 6) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
@@ -188,7 +188,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "cross-cone-param-free-bridge", 1) => (
+            ("org.scoop-lang.lir", "cross-cone-param-free-bridge", 2) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,

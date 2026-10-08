@@ -234,7 +234,7 @@ pub(super) fn lower_graph(
         &type_descriptor_refs,
     )?;
 
-    let mut lower_body = |body_identity, body, signature| {
+    let mut lower_body = |body_identity, body, signature, known_receiver| {
         lower_function(
             &context,
             module.cone,
@@ -242,6 +242,7 @@ pub(super) fn lower_graph(
             body_identity,
             body,
             signature,
+            known_receiver,
             &string_global_map,
             &storage_globals,
             &mut globals,
@@ -266,6 +267,12 @@ pub(super) fn lower_graph(
                 callable_bodies[id].clone(),
                 &module.functions[*id],
                 &function_signatures[id],
+                module
+                    .meta
+                    .interface_adjusts
+                    .iter()
+                    .find(|adjust| adjust.function() == *id)
+                    .map(|adjust| adjust.class()),
             )
         })
         .collect::<StorageResult<Vec<_>>>()?;
@@ -282,7 +289,7 @@ pub(super) fn lower_graph(
             &identity_roots.for_type(&owner_type),
         )
         .expect("an exact release owner derives its machine body identity");
-        let body = lower_body(identity, &hook.code, &release_signature)?;
+        let body = lower_body(identity, &hook.code, &release_signature, None)?;
         let code = safepoints::complete_function(&context, body, &structs, &enums)?;
         release_hooks.alloc(lir::ReleaseHook {
             owner: type_descriptor_refs.for_type(&owner_type),

@@ -97,6 +97,8 @@ GC scan 只记录 offset 0 的 object leaf；itab 不进入 root set、不标记
 
 LLVM 中必须保留 AS1 与 Metadata provenance 的区别，不能把整个接口值转成两个整数再依赖保守扫描。跨 safepoint 的 SSA 接口值从更新后的 object 和原 metadata 分量重建；内存中的双字接口按所属 place 原地更新 object。引用写屏障覆盖实际写入的 managed leaf／含引用范围。
 
+Context 的内部擦除 binding 槽也保留单字 object，使用独立 generated identity 的普通 managed-pointer 表示。接口 scope 保存 object，以 exact static key 取回后 NoGC 重建相应 itab；不把该内部槽伪装为源码空接口。
+
 `AtomicRef<I>` 的隐藏原子槽仍只保存一个 object pointer。store/CAS 提取 object；load、exchange、compareAndExchange 得到 object 后，按静态 I 取得 itab 并构造返回视图，整个重建为 NoGC 操作。CAS 继续按对象身份比较。不能使用两个独立原子字段表示一个接口，也不要求所有 target 支持 128-bit CAS。普通接口读写仍遵守语言的数据竞争规则。
 
 GcHandle 的保活对象、显式 pin 与 scoped pin frame 同样只保存 object；解析为接口值时重新取得目标表。Scoop ABI native 参数／结果则遵守完整接口 ABI，native 跨 safepoint 保存接口时登记 object slot 或整个递归 value region，并在之后重读。C ABI 仍禁止 managed interface。

@@ -142,7 +142,7 @@ pub(super) fn lower_initialization_startup_gateway(
             gc_effect: scoop_lir::GcEffect::Managed,
             signature: scoop_lir::ScoopAbiSignature::new(
                 Vec::new(),
-                scoop_lir::AbiReturn::Direct(result),
+                scoop_lir::AbiReturn::Direct(result.into()),
                 scoop_lir::CallingConvention::Cdecl,
             ),
             call_targets,

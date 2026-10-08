@@ -3,56 +3,59 @@ use super::*;
 #[test]
 fn adjusts_keep_the_exact_target_and_receiver_conversion() {
     let fixture = Fixture::new();
-    let semantic = sig(Some(fixture.value), vec![], fixture.unit);
-    let lowered = sig(Some(fixture.interface), vec![], fixture.unit);
-    let target = StrongCallableDefinitionOwner::Function(fixture.method.id());
+    let value_signature = sig(Some(fixture.value), vec![], fixture.unit);
+    let boxed_signature = sig(Some(fixture.boxed), vec![], fixture.unit);
+    let value_target = StrongCallableDefinitionOwner::Function(fixture.method.id()).into();
     ParamFreeMirCallableBindingV1::try_new(
         fixture.authority(),
         generated(&fixture.boxing),
         StrongCallableDefinitionOwner::GeneratedCallable(fixture.boxing.id()),
-        MirBridgeCallableSignatureV1::new(semantic.clone(), crate::GcEffect::NoGc),
-        signature(lowered.clone()),
+        MirBridgeCallableSignatureV1::new(value_signature.clone(), crate::GcEffect::NoGc),
+        signature(boxed_signature.clone()),
         MirCallableLoweringRoleV1::BoxingAdjust {
-            target: scoop_identity::CallableDefinitionOwner::Strong(target),
+            target: value_target,
         },
     )
     .unwrap();
-    for (identity, role) in [
+    for (identity, semantic, lowered, role) in [
         (
             &fixture.adjust,
+            sig(Some(fixture.interface), vec![], fixture.unit),
+            sig(Some(fixture.class), vec![], fixture.unit),
             MirCallableLoweringRoleV1::DispatchAdjust {
-                target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                target: StrongCallableDefinitionOwner::Function(fixture.abstract_method.id())
+                    .into(),
             },
         ),
         (
             &fixture.boxing,
+            value_signature,
+            boxed_signature,
             MirCallableLoweringRoleV1::BoxingAdjust {
-                target: scoop_identity::CallableDefinitionOwner::Strong(target),
+                target: value_target,
             },
         ),
     ] {
         fixture
-            .bind(generated(identity), semantic.clone(), lowered.clone(), role)
+            .bind(generated(identity), semantic.clone(), lowered, role)
             .unwrap();
         assert!(matches!(
             fixture.bind(
                 generated(identity),
-                sig(Some(fixture.class), vec![], fixture.unit),
-                lowered.clone(),
+                semantic,
+                sig(Some(fixture.interface), vec![], fixture.unit),
                 role
             ),
-            Err(MirCallableBridgeError::InvalidAdjustTarget)
+            Err(MirCallableBridgeError::FoundationSignatureMismatch { .. })
         ));
     }
     assert!(matches!(
         fixture.bind(
             generated(&fixture.adjust),
-            semantic.clone(),
-            lowered.clone(),
+            sig(Some(fixture.interface), vec![], fixture.unit),
+            sig(Some(fixture.class), vec![], fixture.unit),
             MirCallableLoweringRoleV1::DispatchAdjust {
-                target: scoop_identity::CallableDefinitionOwner::Strong(
-                    StrongCallableDefinitionOwner::Function(fixture.abstract_method.id())
-                )
+                target: value_target
             }
         ),
         Err(MirCallableBridgeError::InvalidAdjustTarget)
@@ -60,10 +63,10 @@ fn adjusts_keep_the_exact_target_and_receiver_conversion() {
     assert!(matches!(
         fixture.bind(
             generated(&fixture.adjust),
-            semantic,
-            lowered,
+            sig(Some(fixture.value), vec![], fixture.unit),
+            sig(Some(fixture.class), vec![], fixture.unit),
             MirCallableLoweringRoleV1::BoxingAdjust {
-                target: scoop_identity::CallableDefinitionOwner::Strong(target)
+                target: value_target
             }
         ),
         Err(MirCallableBridgeError::RoleMismatch)

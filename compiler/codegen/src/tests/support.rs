@@ -768,12 +768,11 @@ fn abi_layout(
             }
             (size.next_multiple_of(align), align)
         }
+        LirType::Interface => (16, 8),
         LirType::Struct(id) => (structs[*id].size, structs[*id].align),
         LirType::Enum(id) => match &enums[*id].repr {
             EnumRepr::Niche { kind, .. } => {
-                let layout =
-                    scoop_lir::LirTargetProfile::DARWIN_AARCH64.pointer_layout(kind.pointer_kind());
-                (layout.size_bytes(), layout.alignment_bytes())
+                kind.layout(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
             }
             EnumRepr::Tagged { size, align, .. } => (*size, *align),
         },
@@ -787,7 +786,7 @@ fn abi_scan(
     base: u64,
 ) -> RefScan {
     match ty {
-        LirType::Ptr(PointerKind::Managed) => RefScan::References(vec![base]),
+        LirType::Ptr(PointerKind::Managed) | LirType::Interface => RefScan::References(vec![base]),
         LirType::Aggregate(fields) => {
             let mut offset = 0u64;
             abi_sequence(fields.iter().map(|field| {
@@ -866,7 +865,12 @@ fn abi_argument(
     )
     .expect("test ABI helper only classifies valid non-void value types")
     {
-        scoop_lir::ScoopAbiPassing::Direct => scoop_lir::AbiArgument::Direct(value),
+        scoop_lir::ScoopAbiPassing::Direct => scoop_lir::AbiArgument::Direct(value.into()),
+        scoop_lir::ScoopAbiPassing::DirectParts => {
+            scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                scoop_lir::AbiDirectParts::interface(value).unwrap(),
+            ))
+        }
         scoop_lir::ScoopAbiPassing::Indirect => scoop_lir::AbiArgument::Indirect(value),
     }
 }

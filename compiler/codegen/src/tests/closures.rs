@@ -58,9 +58,9 @@ fn closure_abi_module() -> Module {
             .indirect_result_signatures
             .alloc(IndirectResultCallSignature::scoop_sret(
                 vec![
-                    scoop_lir::AbiArgument::Direct(managed_pointer.clone()),
+                    scoop_lir::AbiArgument::Direct(managed_pointer.clone().into()),
                     scoop_lir::AbiArgument::Indirect(aggregate_value),
-                    scoop_lir::AbiArgument::Direct(managed_pointer),
+                    scoop_lir::AbiArgument::Direct(managed_pointer.into()),
                 ],
                 abi_value_with_layout(suspend_result_ty.clone(), 16, 8, RefScan::None),
                 scoop_lir::CallingConvention::Cdecl,

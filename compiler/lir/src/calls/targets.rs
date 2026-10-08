@@ -81,19 +81,19 @@ impl ElidedZstCallSignature {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirectCallSignature {
     arguments: Vec<AbiArgument>,
-    result: AbiValue,
+    result: AbiDirectValue,
     calling_convention: CallingConvention,
 }
 
 impl DirectCallSignature {
-    pub const fn new(
+    pub fn new(
         arguments: Vec<AbiArgument>,
-        result: AbiValue,
+        result: impl Into<AbiDirectValue>,
         calling_convention: CallingConvention,
     ) -> Self {
         Self {
             arguments,
-            result,
+            result: result.into(),
             calling_convention,
         }
     }
@@ -102,7 +102,7 @@ impl DirectCallSignature {
         &self.arguments
     }
 
-    pub const fn result(&self) -> &AbiValue {
+    pub const fn result(&self) -> &AbiDirectValue {
         &self.result
     }
 

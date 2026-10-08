@@ -104,7 +104,7 @@ pub(super) fn root_gateway(
     let signature = call_targets
         .direct_signatures
         .alloc(scoop_lir::DirectCallSignature::new(
-            vec![scoop_lir::AbiArgument::Direct(reference.clone())],
+            vec![scoop_lir::AbiArgument::Direct(reference.clone().into())],
             reference,
             scoop_lir::CallingConvention::Cdecl,
         ));
@@ -172,11 +172,11 @@ pub(super) fn root_gateway(
             gc_effect: scoop_lir::GcEffect::Managed,
             signature: scoop_lir::ScoopAbiSignature::new(
                 vec![
-                    scoop_lir::AbiArgument::Direct(result.clone()),
-                    scoop_lir::AbiArgument::Direct(pointer.clone()),
-                    scoop_lir::AbiArgument::Direct(pointer),
+                    scoop_lir::AbiArgument::Direct(result.clone().into()),
+                    scoop_lir::AbiArgument::Direct(pointer.clone().into()),
+                    scoop_lir::AbiArgument::Direct(pointer.into()),
                 ],
-                scoop_lir::AbiReturn::Direct(result),
+                scoop_lir::AbiReturn::Direct(result.into()),
                 scoop_lir::CallingConvention::Cdecl,
             ),
             call_targets,

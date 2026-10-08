@@ -6,14 +6,14 @@ use super::*;
 /// EnumTag / EnumField.
 pub(super) fn enum_module() -> Module {
     enum_module_with(
-        scoop_lir::NichePointerKind::Managed,
+        scoop_lir::NullNicheKind::Managed,
         RefScan::References(vec![0]),
         LirType::I64,
     )
 }
 
 fn enum_module_with(
-    niche_kind: scoop_lir::NichePointerKind,
+    niche_kind: scoop_lir::NullNicheKind,
     niche_scan: RefScan,
     tagged_value_field: LirType,
 ) -> Module {
@@ -237,7 +237,7 @@ fn enum_module_with(
         ty: enum_tag_ty.clone(),
     }); // enum_tag o (param)
     let n1 = niche_temps.alloc(Temp {
-        ty: LirType::Ptr(niche_kind.pointer_kind()),
+        ty: niche_kind.storage_type(),
     }); // enum_field v1 f0 o
     let n2 = niche_temps.alloc(Temp {
         ty: option_ty.clone(),
@@ -667,7 +667,7 @@ fn enum_field_rejects_i64_as_machine_scalar_result() {
 #[test]
 fn tagged_enum_metadata_rejects_recursive_machine_scalar_payload() {
     let mut module = enum_module_with(
-        scoop_lir::NichePointerKind::Managed,
+        scoop_lir::NullNicheKind::Managed,
         RefScan::References(vec![0]),
         LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]),
     );
@@ -708,8 +708,8 @@ fn niche_enum_wrap_rejects_machine_scalar_payload() {
 #[test]
 fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
     for kind in [
-        scoop_lir::NichePointerKind::Raw,
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Raw,
+        scoop_lir::NullNicheKind::Code,
     ] {
         let mut module = enum_module_with(kind, RefScan::None, LirType::I64);
         let option = module.enums.iter().nth(1).expect("niche enum").0;
@@ -723,9 +723,8 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
             Instruction::EnumField { out, .. } => *out,
             _ => panic!("niche fixture must project its payload"),
         };
-        assert_eq!(function.temps[field].ty, LirType::Ptr(kind.pointer_kind()));
-        let identity =
-            static_storage_identity(&format!("qualified{}Niche", kind.pointer_kind().dump()));
+        assert_eq!(function.temps[field].ty, kind.storage_type());
+        let identity = static_storage_identity(&format!("qualified{}Niche", kind.dump()));
         let symbol = identity.symbol().to_string();
         module.globals.alloc(Global {
             address_kind: PointerKind::Raw,
@@ -752,8 +751,8 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
 #[test]
 fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
     for (expected, actual) in [
-        (scoop_lir::NichePointerKind::Raw, PointerKind::Code),
-        (scoop_lir::NichePointerKind::Code, PointerKind::Raw),
+        (scoop_lir::NullNicheKind::Raw, PointerKind::Code),
+        (scoop_lir::NullNicheKind::Code, PointerKind::Raw),
     ] {
         let mut module = enum_module_with(expected, RefScan::None, LirType::I64);
         let option = module.enums.iter().nth(1).expect("niche enum").0;
@@ -780,7 +779,7 @@ fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
                 && error.0.contains(&format!("ptr<{}>", actual.dump()))
                 && error
                     .0
-                    .contains(&format!("expected ptr<{}>", expected.pointer_kind().dump())),
+                    .contains(&format!("expected ptr<{}>", expected.dump())),
             "unexpected error: {error}"
         );
     }
@@ -788,11 +787,7 @@ fn niche_enum_wrap_rejects_raw_code_provenance_crossing() {
 
 #[test]
 fn niche_enum_field_rejects_raw_code_provenance_crossing() {
-    let mut module = enum_module_with(
-        scoop_lir::NichePointerKind::Code,
-        RefScan::None,
-        LirType::I64,
-    );
+    let mut module = enum_module_with(scoop_lir::NullNicheKind::Code, RefScan::None, LirType::I64);
     let option = module.enums.iter().nth(1).expect("niche enum").0;
 
     let function = &mut module.functions[1];
@@ -821,11 +816,7 @@ fn niche_enum_field_rejects_raw_code_provenance_crossing() {
 
 #[test]
 fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
-    let mut module = enum_module_with(
-        scoop_lir::NichePointerKind::Raw,
-        RefScan::None,
-        LirType::I64,
-    );
+    let mut module = enum_module_with(scoop_lir::NullNicheKind::Raw, RefScan::None, LirType::I64);
     let option = module.enums.iter().nth(1).expect("niche enum").0;
     module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
@@ -857,21 +848,15 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
 #[test]
 fn niche_enum_scan_must_match_its_pointer_provenance() {
     for (kind, scan) in [
-        (scoop_lir::NichePointerKind::Managed, RefScan::None),
-        (
-            scoop_lir::NichePointerKind::Raw,
-            RefScan::References(vec![0]),
-        ),
-        (
-            scoop_lir::NichePointerKind::Code,
-            RefScan::References(vec![0]),
-        ),
+        (scoop_lir::NullNicheKind::Managed, RefScan::None),
+        (scoop_lir::NullNicheKind::Raw, RefScan::References(vec![0])),
+        (scoop_lir::NullNicheKind::Code, RefScan::References(vec![0])),
     ] {
         let module = enum_module_with(kind, scan, LirType::I64);
 
         let error = enum_codegen_error(&module);
         assert!(
-            error.0.contains("incompatible scan") && error.0.contains(kind.pointer_kind().dump()),
+            error.0.contains("incompatible scan") && error.0.contains(kind.dump()),
             "unexpected error: {error}"
         );
     }

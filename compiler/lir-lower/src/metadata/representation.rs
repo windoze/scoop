@@ -1,7 +1,7 @@
 use super::*;
 use scoop_wire::WirePath;
 
-fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NichePointerKind> {
+fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NullNicheKind> {
     let option = module.option_core(id)?;
     assert_eq!(option.enum_id(), id, "Option refinement has exact identity");
     let some = option
@@ -19,8 +19,8 @@ fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::
     assert_eq!(some.fields.len(), 1, "core Option Some has one field");
     assert!(none.fields.is_empty(), "core Option None has no fields");
     match payload.ty {
-        mir::Type::Ptr(_) => Some(lir::NichePointerKind::Raw),
-        mir::Type::FunPtr(_) => Some(lir::NichePointerKind::Code),
+        mir::Type::Ptr(_) => Some(lir::NullNicheKind::Raw),
+        mir::Type::FunPtr(_) => Some(lir::NullNicheKind::Code),
         _ => None,
     }
 }
@@ -52,13 +52,11 @@ pub(crate) fn lower_enums(
             scan: lir::RefScan::None,
         };
         let lir_id = match c_nullable_option_kind(module, mir_id) {
-            Some(lir::NichePointerKind::Raw) => {
-                enums.alloc_c_nullable_data_pointer_option(definition)
-            }
-            Some(lir::NichePointerKind::Code) => {
+            Some(lir::NullNicheKind::Raw) => enums.alloc_c_nullable_data_pointer_option(definition),
+            Some(lir::NullNicheKind::Code) => {
                 enums.alloc_c_nullable_code_pointer_option(definition)
             }
-            Some(lir::NichePointerKind::Managed) => {
+            Some(lir::NullNicheKind::Managed | lir::NullNicheKind::Interface) => {
                 unreachable!("C-nullable Option payloads are raw or code pointers")
             }
             None => enums.alloc(definition),
@@ -125,15 +123,14 @@ pub(crate) fn is_niche_payload(ty: &mir::Type) -> bool {
     )
 }
 
-fn niche_pointer_kind(ty: &mir::Type) -> lir::NichePointerKind {
+fn niche_pointer_kind(ty: &mir::Type) -> lir::NullNicheKind {
     match ty {
-        mir::Type::String
-        | mir::Type::Class(_)
-        | mir::Type::Interface(_)
-        | mir::Type::Function(_)
-        | mir::Type::Any => lir::NichePointerKind::Managed,
-        mir::Type::Ptr(_) => lir::NichePointerKind::Raw,
-        mir::Type::FunPtr(_) => lir::NichePointerKind::Code,
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Function(_) | mir::Type::Any => {
+            lir::NullNicheKind::Managed
+        }
+        mir::Type::Interface(_) => lir::NullNicheKind::Interface,
+        mir::Type::Ptr(_) => lir::NullNicheKind::Raw,
+        mir::Type::FunPtr(_) => lir::NullNicheKind::Code,
         _ => unreachable!("only pointer-like fields qualify for a niche enum"),
     }
 }
@@ -272,10 +269,7 @@ fn reserve<T>(length: usize) -> StorageResult<Vec<T>> {
 /// shared pure-value region and disjoint ref-bearing slots.
 pub(crate) fn repr_shape(context: &LoweringContext, repr: &lir::EnumRepr) -> (u64, u64) {
     match repr {
-        lir::EnumRepr::Niche { kind, .. } => {
-            let layout = context.pointer_layout(kind.pointer_kind());
-            (layout.size, layout.align)
-        }
+        lir::EnumRepr::Niche { kind, .. } => kind.layout(context.target_profile()),
         lir::EnumRepr::Tagged { size, align, .. } => (*size, *align),
     }
 }

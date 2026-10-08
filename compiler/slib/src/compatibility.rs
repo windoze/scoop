@@ -253,16 +253,16 @@ mod tests {
             LanguageAbiContract.fingerprint().unwrap().to_string(),
             "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010b02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010c02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583"
+            "54f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c379376586"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258208d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d5830301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc900539102582054f8b11101c6fd80f93492fe8ccd2b2bcd0e917cf1a697273de5d8c3793765860301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(encoded[0], 0xae);
         assert_eq!(
             record.target_fingerprint().to_string(),
-            "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
+            "79afcacae94bf05c0f1b38db6f43eb4f5668065903de37d1c2abf93551166c42"
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),

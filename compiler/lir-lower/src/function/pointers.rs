@@ -84,10 +84,10 @@ impl FunctionLowerer<'_> {
                     pointer
                 };
                 match self.pointer_storage(pointee)? {
-                    lir::AbiArgument::ElidedZst(representation) => {
+                    abi::ValueStorage::ZeroSized(representation) => {
                         self.logical_zst_value(pointee, representation)
                     }
-                    lir::AbiArgument::Direct(pointee) | lir::AbiArgument::Indirect(pointee) => {
+                    abi::ValueStorage::NonZero(pointee) => {
                         let out = self.new_temp(pointee.storage_type().clone());
                         self.push(lir::Instruction::RawLoad {
                             out,
@@ -127,8 +127,8 @@ impl FunctionLowerer<'_> {
                 };
                 let value = self.lower_expr(value)?;
                 match self.pointer_storage(pointee)? {
-                    lir::AbiArgument::ElidedZst(_) => self.unit_value(),
-                    lir::AbiArgument::Direct(pointee) | lir::AbiArgument::Indirect(pointee) => {
+                    abi::ValueStorage::ZeroSized(_) => self.unit_value(),
+                    abi::ValueStorage::NonZero(pointee) => {
                         self.push(lir::Instruction::RawStore {
                             pointer,
                             value,

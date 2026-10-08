@@ -25,6 +25,32 @@ fn value_type<'ctx>(
     )
 }
 
+pub(crate) fn direct_type<'ctx>(
+    context: &'ctx Context,
+    structs: &StructDefs,
+    enums: &EnumDefs,
+    managed_address_space: ManagedAddressSpace,
+    value: &scoop_lir::AbiDirectValue,
+) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
+    match value {
+        scoop_lir::AbiDirectValue::Scalar(value) => {
+            value_type(context, structs, enums, managed_address_space, value)
+        }
+        scoop_lir::AbiDirectValue::DirectParts(parts) => Ok(context
+            .struct_type(
+                &parts
+                    .parts()
+                    .iter()
+                    .map(|part| {
+                        crate::pointer_ty(context, managed_address_space, part.pointer_kind).into()
+                    })
+                    .collect::<Vec<_>>(),
+                false,
+            )
+            .into()),
+    }
+}
+
 /// Translate one already-classified Scoop ABI signature into its physical
 /// LLVM function type. No value shape is reclassified here.
 pub(crate) fn function_type<'ctx>(
@@ -45,6 +71,9 @@ pub(crate) fn function_type<'ctx>(
                 parameter.value(),
             )
             .map(Into::into),
+            AbiPhysicalParameterOrigin::DirectArgumentPart { part, .. } => {
+                Ok(crate::pointer_ty(context, managed_address_space, part.pointer_kind).into())
+            }
             AbiPhysicalParameterOrigin::IndirectReturn
             | AbiPhysicalParameterOrigin::IndirectArgument { .. } => {
                 Ok(BasicMetadataTypeEnum::from(ptr_ty(context)))
@@ -54,7 +83,7 @@ pub(crate) fn function_type<'ctx>(
 
     match signature.result() {
         AbiReturn::Direct(value) => {
-            value_type(context, structs, enums, managed_address_space, value)
+            direct_type(context, structs, enums, managed_address_space, value)
                 .map(|ty| ty.fn_type(&parameters, false))
         }
         AbiReturn::UnitVoid | AbiReturn::ElidedZst(_) | AbiReturn::Indirect(_) => {
@@ -76,7 +105,8 @@ fn apply_parameter_attributes(
         let attribute_name = match parameter.origin() {
             AbiPhysicalParameterOrigin::IndirectReturn => "sret",
             AbiPhysicalParameterOrigin::IndirectArgument { .. } => "byval",
-            AbiPhysicalParameterOrigin::DirectArgument { .. } => continue,
+            AbiPhysicalParameterOrigin::DirectArgument { .. }
+            | AbiPhysicalParameterOrigin::DirectArgumentPart { .. } => continue,
         };
         let index = u32::try_from(parameter.index())
             .ok()

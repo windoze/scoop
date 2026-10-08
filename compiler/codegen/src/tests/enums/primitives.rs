@@ -171,11 +171,11 @@ fn variant_primitives_emit_tagged_test_and_dominated_payload_projection() {
 #[test]
 fn variant_primitives_emit_managed_raw_and_code_niche_provenance() {
     for kind in [
-        scoop_lir::NichePointerKind::Managed,
-        scoop_lir::NichePointerKind::Raw,
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Managed,
+        scoop_lir::NullNicheKind::Raw,
+        scoop_lir::NullNicheKind::Code,
     ] {
-        let scan = if kind == scoop_lir::NichePointerKind::Managed {
+        let scan = if kind == scoop_lir::NullNicheKind::Managed {
             RefScan::References(vec![0])
         } else {
             RefScan::None
@@ -196,14 +196,14 @@ fn variant_primitives_emit_managed_raw_and_code_niche_provenance() {
             .expect("niche carrier field");
         let projection = append_variant_projection_function(
             &mut module,
-            &format!("scoop.variant.niche.{}", kind.pointer_kind().dump()),
+            &format!("scoop.variant.niche.{}", kind.dump()),
             LirType::Enum(option),
             field,
-            LirType::Ptr(kind.pointer_kind()),
+            kind.storage_type(),
         );
         append_variant_test_function(
             &mut module,
-            &format!("scoop.variant.unit.{}", kind.pointer_kind().dump()),
+            &format!("scoop.variant.unit.{}", kind.dump()),
             LirType::Enum(option),
             unit,
             LirType::I1,
@@ -214,7 +214,7 @@ fn variant_primitives_emit_managed_raw_and_code_niche_provenance() {
             ir.contains("icmp ne") && ir.contains("icmp eq"),
             "niche payload/unit tests must be non-null/null comparisons:\n{ir}"
         );
-        if kind == scoop_lir::NichePointerKind::Managed {
+        if kind == scoop_lir::NullNicheKind::Managed {
             assert!(
                 ir.contains(&format!(
                     "define ptr addrspace(1) {}",
@@ -418,11 +418,7 @@ fn variant_payload_projection_rejects_invalid_field_result_and_provenance() {
         "unexpected error: {error}"
     );
 
-    let mut module = enum_module_with(
-        scoop_lir::NichePointerKind::Code,
-        RefScan::None,
-        LirType::I64,
-    );
+    let mut module = enum_module_with(scoop_lir::NullNicheKind::Code, RefScan::None, LirType::I64);
     let option = module.enums.iter().nth(1).expect("code niche").0;
     let variant = module
         .enums

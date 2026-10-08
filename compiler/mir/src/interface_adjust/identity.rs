@@ -1,4 +1,4 @@
-//! Persistent identity for boxed-value interface adjust thunks.
+//! Persistent identities for interface receiver and boxed-value adjust thunks.
 
 use std::fmt;
 
@@ -11,68 +11,112 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableSignatureRecord, CallableSignatureSubject, ClassId, ExactOwnerRoot,
-    ExactOwnerRootError, FunctionId, InterfaceId,
+    CallableSignatureRecord, CallableSignatureSubject, ExactOwnerRoot, ExactOwnerRootError,
 };
 
-type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
-type DispatchSlotRecord = CborIdentityRecord<PersistentDispatchSlotId, DispatchSlotKey>;
+pub(super) type ExactTypeRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
+pub(super) type DispatchSlotRecord = CborIdentityRecord<PersistentDispatchSlotId, DispatchSlotKey>;
 type GeneratedCallableRecord =
     CborIdentityRecord<PersistentGeneratedCallableId, GeneratedCallableKey>;
 type OdrGroupRecord = CborIdentityRecord<scoop_identity::OdrGroupId, SpecializationKey>;
 
-/// Complete persistent identity projection for one boxed-value interface
-/// adjust thunk.
+/// Persistent identity shared by the two concrete interface receiver adapters.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BoxingAdjustIdentity {
+pub struct InterfaceAdjustIdentity {
     slot: DispatchSlotRecord,
     callable: GeneratedCallableRecord,
     root: ExactOwnerRoot,
     signature: CallableSignatureRecord,
 }
 
-impl BoxingAdjustIdentity {
+impl InterfaceAdjustIdentity {
     pub fn new(
         payload: &ExactTypeRecord,
         payload_group: Option<&OdrGroupRecord>,
         slot: &DispatchSlotRecord,
         interface: &ExactTypeRecord,
         signature: ExactCallableSignature,
-    ) -> Result<Self, BoxingAdjustIdentityError> {
+    ) -> Result<Self, InterfaceAdjustIdentityError> {
         if !matches!(
             slot.key().role(),
             DispatchRole::InterfaceMethod
                 | DispatchRole::PropertyGetter
                 | DispatchRole::PropertySetter
         ) {
-            return Err(BoxingAdjustIdentityError::ExpectedInterfaceSlot);
+            return Err(InterfaceAdjustIdentityError::ExpectedInterfaceSlot);
         }
         if !matches!(
             interface.key(),
             ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
         ) {
-            return Err(BoxingAdjustIdentityError::ExpectedNominalInterface);
+            return Err(InterfaceAdjustIdentityError::ExpectedNominalInterface);
         }
         if signature.receiver() != scoop_identity::OptionalExactOwner::Present(interface.id()) {
-            return Err(BoxingAdjustIdentityError::InterfaceReceiverMismatch);
+            return Err(InterfaceAdjustIdentityError::InterfaceReceiverMismatch);
         }
         let callable = CborIdentityRecord::from_key(GeneratedCallableKey::BoxingAdjust {
             slot: slot.id(),
             payload: payload.id(),
             interface: interface.id(),
         })
-        .map_err(BoxingAdjustIdentityError::GeneratedCallable)?;
+        .map_err(InterfaceAdjustIdentityError::GeneratedCallable)?;
+        let signature = ExactCallableSignature::new(
+            signature.effect(),
+            Some(Self::boxed_receiver(payload.id())?),
+            signature.parameters().to_vec(),
+            signature.result(),
+        );
+        Self::finish(payload, payload_group, slot, callable, signature)
+    }
+
+    pub fn reference(
+        owner: &ExactTypeRecord,
+        owner_group: Option<&OdrGroupRecord>,
+        slot: &DispatchSlotRecord,
+        target: CallableMaterialization,
+        signature: ExactCallableSignature,
+    ) -> Result<Self, InterfaceAdjustIdentityError> {
+        if signature.receiver() != scoop_identity::OptionalExactOwner::Present(owner.id()) {
+            return Err(InterfaceAdjustIdentityError::InterfaceReceiverMismatch);
+        }
+        let callable = CborIdentityRecord::from_key(GeneratedCallableKey::DispatchAdjust {
+            slot: slot.id(),
+            implementor: owner.id(),
+            target,
+        })
+        .map_err(InterfaceAdjustIdentityError::GeneratedCallable)?;
+        Self::finish(owner, owner_group, slot, callable, signature)
+    }
+
+    pub fn boxed_receiver(
+        payload: PersistentExactTypeId,
+    ) -> Result<PersistentExactTypeId, InterfaceAdjustIdentityError> {
+        let nominal = scoop_identity::PersistentTypeId::from_generated_key(
+            &scoop_identity::GeneratedNominalKey::BoxedValue { payload },
+        )
+        .map_err(InterfaceAdjustIdentityError::GeneratedType)?;
+        PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
+            .map_err(InterfaceAdjustIdentityError::Hash)
+    }
+
+    fn finish(
+        payload: &ExactTypeRecord,
+        payload_group: Option<&OdrGroupRecord>,
+        slot: &DispatchSlotRecord,
+        callable: GeneratedCallableRecord,
+        signature: ExactCallableSignature,
+    ) -> Result<Self, InterfaceAdjustIdentityError> {
         let root = ExactOwnerRoot::for_member(
             payload,
             payload_group,
             OdrMemberRole::DispatchAdapter,
             OdrMemberDiscriminator::GeneratedCallable(callable.id()),
         )
-        .map_err(BoxingAdjustIdentityError::Root)?;
+        .map_err(InterfaceAdjustIdentityError::Root)?;
         let subject = match root.member_record() {
             Some(member) => CallableSignatureSubject::odr(
                 CallableOdrMemberId::from_key(member.key())
-                    .map_err(BoxingAdjustIdentityError::OdrMember)?,
+                    .map_err(InterfaceAdjustIdentityError::OdrMember)?,
             ),
             None => CallableSignatureSubject::strong(CallableOwner::Generated(callable.id())),
         };
@@ -109,16 +153,18 @@ impl BoxingAdjustIdentity {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BoxingAdjustIdentityError {
+pub enum InterfaceAdjustIdentityError {
     ExpectedInterfaceSlot,
     ExpectedNominalInterface,
     InterfaceReceiverMismatch,
     GeneratedCallable(GeneratedCallableIdentityError),
+    GeneratedType(scoop_identity::GeneratedNominalIdentityError),
+    Hash(scoop_wire::HashError),
     Root(ExactOwnerRootError),
     OdrMember(OdrMemberIdentityError),
 }
 
-impl fmt::Display for BoxingAdjustIdentityError {
+impl fmt::Display for InterfaceAdjustIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ExpectedInterfaceSlot => {
@@ -131,111 +177,12 @@ impl fmt::Display for BoxingAdjustIdentityError {
                 formatter.write_str("boxing adjust signature receiver does not match its interface")
             }
             Self::GeneratedCallable(error) => error.fmt(formatter),
+            Self::GeneratedType(error) => error.fmt(formatter),
+            Self::Hash(error) => error.fmt(formatter),
             Self::Root(error) => error.fmt(formatter),
             Self::OdrMember(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for BoxingAdjustIdentityError {}
-
-/// Exact physical itable location materializing a boxing adjust identity.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BoxingAdjustLocation {
-    boxed: ClassId,
-    interface: InterfaceId,
-    slot: u32,
-    function: FunctionId,
-}
-
-impl BoxingAdjustLocation {
-    pub const fn new(
-        boxed: ClassId,
-        interface: InterfaceId,
-        slot: u32,
-        function: FunctionId,
-    ) -> Self {
-        Self {
-            boxed,
-            interface,
-            slot,
-            function,
-        }
-    }
-
-    pub const fn boxed(self) -> ClassId {
-        self.boxed
-    }
-
-    pub const fn interface(self) -> InterfaceId {
-        self.interface
-    }
-
-    pub const fn slot(self) -> u32 {
-        self.slot
-    }
-
-    pub const fn function(self) -> FunctionId {
-        self.function
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BoxingAdjustTarget {
-    Local(FunctionId),
-    External(crate::ExternalCallableUseId),
-}
-
-/// One checked physical boxing-adjust materialization.
-#[derive(Clone, Debug)]
-pub struct BoxingAdjust {
-    location: BoxingAdjustLocation,
-    target: BoxingAdjustTarget,
-    identity: BoxingAdjustIdentity,
-}
-
-impl BoxingAdjust {
-    pub const fn new(
-        location: BoxingAdjustLocation,
-        target: BoxingAdjustTarget,
-        identity: BoxingAdjustIdentity,
-    ) -> Self {
-        Self {
-            location,
-            target,
-            identity,
-        }
-    }
-
-    pub const fn location(&self) -> BoxingAdjustLocation {
-        self.location
-    }
-
-    pub const fn boxed(&self) -> ClassId {
-        self.location.boxed()
-    }
-
-    pub const fn interface(&self) -> InterfaceId {
-        self.location.interface()
-    }
-
-    pub const fn slot(&self) -> u32 {
-        self.location.slot()
-    }
-
-    pub const fn function(&self) -> FunctionId {
-        self.location.function()
-    }
-
-    /// The concrete conformance target used when lowering the thunk body.
-    pub const fn target(&self) -> BoxingAdjustTarget {
-        self.target
-    }
-
-    pub const fn identity(&self) -> &BoxingAdjustIdentity {
-        &self.identity
-    }
-}
-
-#[cfg(test)]
-mod tests;
+impl std::error::Error for InterfaceAdjustIdentityError {}

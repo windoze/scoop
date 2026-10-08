@@ -42,7 +42,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
     for (key, kind) in [
         (
             ExactTypeKey::RawPointer(value.identity().exact()),
-            NichePointerKind::Raw,
+            NullNicheKind::Raw,
         ),
         (
             ExactTypeKey::NativeFunctionPointer {
@@ -50,7 +50,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
                 parameters: vec![],
                 result: value.identity().exact(),
             },
-            NichePointerKind::Code,
+            NullNicheKind::Code,
         ),
     ] {
         let bound = Bound::value(CborIdentityRecord::from_key(key).unwrap());
@@ -132,7 +132,7 @@ fn records_reject_wrong_role_identity_kind_owner_and_missing_scan_relation() {
     assert!(matches!(
         ExactValueLayoutV1::qualified_pointer(
             bound.identity.clone(),
-            NichePointerKind::Raw,
+            NullNicheKind::Raw,
             &bound.foundation
         ),
         Err(ExactLayoutReplayError::IdentityKind)
@@ -184,7 +184,7 @@ fn fixed_unit_identity_cannot_claim_another_representation() {
     assert!(matches!(
         ExactValueLayoutV1::qualified_pointer(
             bound.identity,
-            NichePointerKind::Managed,
+            NullNicheKind::Managed,
             &bound.foundation
         ),
         Err(ExactLayoutReplayError::IdentityKind)

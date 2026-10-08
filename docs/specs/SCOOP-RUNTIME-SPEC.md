@@ -619,7 +619,7 @@ completion 的成功、失败与恢复具有唯一获胜方和 release/acquire �
 
 TaskContext 属于逻辑任务，绑定以 exact static type 为 key。每个程序为已登记 key 分配 u32 slot；slot 只在本进程有效，不是持久化类型身份。
 
-try-get 无分配、NoGC、nounwind，返回当前绑定或缺失。push 可分配，成功前保留旧绑定，成功时完整提交并返回可恢复 mark。restore 为 NoGC、严格 LIFO；snapshot 无分配，保存当前绑定；fork 得到独立任务上下文，保留绑定值身份。enter/leave 为 NoGC 并恢复前一 context。
+try-get 无分配、NoGC、nounwind，返回擦除后的单字 object 或缺失。接口 binding 的 itab 由编译器按该 exact key 的静态接口在取出时重建；runtime 不把内部 binding 当作双字源码接口。push 可分配，成功前保留旧绑定，成功时完整提交并返回可恢复 mark。restore 为 NoGC、严格 LIFO；snapshot 无分配，保存当前绑定；fork 得到独立任务上下文，保留绑定值身份。enter/leave 为 NoGC 并恢复前一 context。
 
 这些操作的读取与写入具有真实内存效果，不能按 pure 常量跨绑定变更移动或合并。
 

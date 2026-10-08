@@ -427,6 +427,7 @@ fn storage_shape(
         LirType::I64 => scalar(BackendScalarKind::I64),
         LirType::F32 => scalar(BackendScalarKind::F32),
         LirType::F64 => scalar(BackendScalarKind::F64),
+        LirType::Interface => (16, 8),
         LirType::Ptr(kind) => {
             let layout = target.pointer_layout(*kind);
             (layout.size_bytes(), layout.alignment_bytes())
@@ -491,7 +492,9 @@ fn storage_scan(
     base_offset: u64,
 ) -> Result<RefScan, StaticStorageShapeFailureV1> {
     match ty {
-        LirType::Ptr(PointerKind::Managed) => Ok(RefScan::References(vec![base_offset])),
+        LirType::Ptr(PointerKind::Managed) | LirType::Interface => {
+            Ok(RefScan::References(vec![base_offset]))
+        }
         LirType::Aggregate(fields) => {
             let mut offset = 0;
             let mut scans = Vec::with_capacity(fields.len());

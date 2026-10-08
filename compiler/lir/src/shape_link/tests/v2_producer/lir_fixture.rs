@@ -171,13 +171,10 @@ pub(super) fn exact_layouts(
         foundation,
     )
     .unwrap();
-    let value: ExactLayoutExportV1 = ExactValueLayoutV1::qualified_pointer(
-        value_identity,
-        NichePointerKind::Managed,
-        foundation,
-    )
-    .unwrap()
-    .into();
+    let value: ExactLayoutExportV1 =
+        ExactValueLayoutV1::qualified_pointer(value_identity, NullNicheKind::Managed, foundation)
+            .unwrap()
+            .into();
     let instance_identity = ExactLayoutIdentityV1::from_foundation(
         TARGET,
         exact_record,
@@ -230,7 +227,8 @@ pub(super) fn pointer_result_signature() -> ScoopAbiSignature {
                 AbiNonZeroLayout::new(8, 8).unwrap(),
                 RefScan::References(vec![0]),
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
         ),
         crate::CallingConvention::Cdecl,
     )

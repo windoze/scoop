@@ -278,7 +278,7 @@ fn lower_with_dependencies(
         dynamic_adapter_by_target: HashMap::new(),
         function_bridge_targets: Vec::new(),
         finalized_function_bridges: HashSet::new(),
-        boxing_adjusts: Vec::new(),
+        interface_adjusts: Vec::new(),
         external_callables,
         imported_dependency_callable_map,
     }
@@ -394,7 +394,7 @@ struct Lowerer {
     finalized_function_bridges: HashSet<(mir::ClosureClassId, mir::FunctionTypeId)>,
     /// Persistent identity and exact physical itable location of every box
     /// adjust thunk.
-    boxing_adjusts: Vec<mir::BoxingAdjust>,
+    interface_adjusts: Vec<mir::InterfaceAdjust>,
     external_callables: Arena<mir::ExternalCallableUse>,
     imported_dependency_callable_map: ImportedCallableMap,
 }

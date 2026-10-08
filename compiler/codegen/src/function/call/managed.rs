@@ -7,6 +7,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     fn physical_call_arguments(
         &self,
         arguments: &[scoop_lir::AbiCallArgument],
+        signature: &scoop_lir::ScoopAbiSignature,
         result: &TypedCallResult<'_>,
         live: Option<&MaterializedStatepointLive<'ctx>>,
     ) -> Result<Vec<BasicValueEnum<'ctx>>, CodegenError> {
@@ -16,11 +17,37 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if let TypedCallResult::Indirect { storage, .. } = result {
             values.push(self.local_pointer(*storage)?.into());
         }
-        for argument in arguments {
+        for (argument, convention) in arguments.iter().zip(signature.arguments()) {
             match *argument {
                 scoop_lir::AbiCallArgument::ElidedZst(_) => {}
-                scoop_lir::AbiCallArgument::Direct(value) => {
-                    values.push(self.typed_call_argument_value(value, live)?);
+                scoop_lir::AbiCallArgument::Direct(logical) => {
+                    let value = self.typed_call_argument_value(logical, live)?;
+                    if let scoop_lir::AbiArgument::Direct(scoop_lir::AbiDirectValue::DirectParts(
+                        parts,
+                    )) = convention
+                    {
+                        let value = value.into_struct_value();
+                        for (index, _) in parts.parts().iter().enumerate() {
+                            // Reuse the marked SSA leaf instead of extracting a second
+                            // object SSA value from the reconstructed logical interface.
+                            if index == 0
+                                && let Some(object) =
+                                    live.and_then(|live| live.interface_object(logical))
+                            {
+                                values.push(object.into());
+                                continue;
+                            }
+                            values.push(
+                                self.builder
+                                    .build_extract_value(value, index as u32, "argument_part")
+                                    .map_err(|e| {
+                                        CodegenError(format!("extract direct argument part: {e}"))
+                                    })?,
+                            );
+                        }
+                    } else {
+                        values.push(value);
+                    }
                 }
                 scoop_lir::AbiCallArgument::Indirect(storage) => {
                     values.push(self.local_pointer(storage.local())?.into());
@@ -154,7 +181,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             &signature,
         )?;
         let mut call_args =
-            self.physical_call_arguments(call.args(), &result, managed_live.as_ref())?;
+            self.physical_call_arguments(call.args(), &signature, &result, managed_live.as_ref())?;
 
         let native = match &protocol {
             CallProtocol::NativeSafe { roots, .. } => {
@@ -235,7 +262,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             // old addresses. Rebuild the physical call arguments after the
             // handshake so direct refs and managed leaves inside aggregates
             // are loaded from the relocated caller-root storage.
-            call_args = self.physical_call_arguments(call.args(), &result, None)?;
+            call_args = self.physical_call_arguments(call.args(), &signature, &result, None)?;
         }
 
         let apply_scoop_abi_attributes = match destination {

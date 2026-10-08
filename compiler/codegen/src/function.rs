@@ -1,5 +1,6 @@
 use super::*;
 
+mod abi_parts;
 mod call;
 mod instruction;
 mod local_storage;
@@ -104,6 +105,21 @@ struct MaterializedStatepointLive<'ctx> {
     leaves: Vec<StatepointLiveLeaf<'ctx>>,
 }
 
+impl<'ctx> MaterializedStatepointLive<'ctx> {
+    fn interface_object(&self, value: Value) -> Option<PointerValue<'ctx>> {
+        let source = match value {
+            Value::Param(index) => scoop_lir::CallerRootSource::Param(index),
+            Value::Local(id) => scoop_lir::CallerRootSource::Local(id),
+            Value::Temp(id) => scoop_lir::CallerRootSource::Temp(id),
+            _ => return None,
+        };
+        self.leaves
+            .iter()
+            .find(|leaf| leaf.source == source && leaf.byte_offset == 0)
+            .map(|leaf| leaf.value)
+    }
+}
+
 #[derive(Clone, Copy)]
 enum NativeTransitionKind {
     Safe,
@@ -153,7 +169,7 @@ enum TypedCallResult<'a> {
     },
     Direct {
         out: TempId,
-        value: &'a scoop_lir::AbiValue,
+        value: &'a scoop_lir::AbiDirectValue,
     },
     Indirect {
         storage: scoop_lir::LocalId,
@@ -165,9 +181,8 @@ enum TypedCallResult<'a> {
 fn result_scan<'a>(result: &TypedCallResult<'a>) -> &'a RefScan {
     match result {
         TypedCallResult::Void | TypedCallResult::ElidedZst { .. } => &RefScan::None,
-        TypedCallResult::Direct { value, .. } | TypedCallResult::Indirect { value, .. } => {
-            value.scan()
-        }
+        TypedCallResult::Direct { value, .. } => value.scan(),
+        TypedCallResult::Indirect { value, .. } => value.scan(),
     }
 }
 

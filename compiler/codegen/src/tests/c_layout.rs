@@ -133,7 +133,7 @@ fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
         ),
         name: name.to_string(),
         repr: EnumRepr::Niche {
-            kind: scoop_lir::NichePointerKind::Managed,
+            kind: scoop_lir::NullNicheKind::Managed,
             payload_variant: 0,
         },
         scan: RefScan::References(vec![0]),
@@ -143,7 +143,7 @@ fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
 fn pointer_niche(
     module: &mut Module,
     name: &str,
-    kind: scoop_lir::NichePointerKind,
+    kind: scoop_lir::NullNicheKind,
 ) -> scoop_lir::EnumDefId {
     let definition = EnumDef {
         exact_type: crate::tests::test_physical_exact(
@@ -155,20 +155,22 @@ fn pointer_niche(
             kind,
             payload_variant: 0,
         },
-        scan: if kind == scoop_lir::NichePointerKind::Managed {
+        scan: if kind == scoop_lir::NullNicheKind::Managed {
             RefScan::References(vec![0])
         } else {
             RefScan::None
         },
     };
     match kind {
-        scoop_lir::NichePointerKind::Raw => module
+        scoop_lir::NullNicheKind::Raw => module
             .enums
             .alloc_c_nullable_data_pointer_option(definition),
-        scoop_lir::NichePointerKind::Code => module
+        scoop_lir::NullNicheKind::Code => module
             .enums
             .alloc_c_nullable_code_pointer_option(definition),
-        scoop_lir::NichePointerKind::Managed => module.enums.alloc(definition),
+        scoop_lir::NullNicheKind::Managed | scoop_lir::NullNicheKind::Interface => {
+            module.enums.alloc(definition)
+        }
     }
 }
 
@@ -1141,12 +1143,12 @@ fn refined_nullable_references_cannot_cross_raw_and_code_provenance() {
     let raw = pointer_niche(
         &mut module,
         "Option<Ptr<Unit>>",
-        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NullNicheKind::Raw,
     );
     let code = pointer_niche(
         &mut module,
         "Option<FunPtr<() -> Unit>>",
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Code,
     );
     let pointee = scoop_lir::CDataPointee::OpaqueVoid;
     let signature = scoop_lir::CFunctionType {
@@ -1186,7 +1188,7 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
     let option = pointer_niche(
         &mut module,
         "Option<Ptr<Unit>>",
-        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NullNicheKind::Raw,
     );
     let reference = module
         .enums
@@ -1234,7 +1236,7 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
     let option = pointer_niche(
         &mut module,
         "Option<FunPtr<() -> Unit>>",
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Code,
     );
     let bound_signature = scoop_lir::CFunctionType {
         params: Vec::new(),
@@ -1287,12 +1289,12 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
     let raw = pointer_niche(
         &mut module,
         "Option<Ptr<Unit>>",
-        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NullNicheKind::Raw,
     );
     let code = pointer_niche(
         &mut module,
         "Option<FunPtr<() -> Unit>>",
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Code,
     );
     let raw_type = c_nullable_opaque_pointer(&module.enums, raw);
     let code_type = c_nullable_function_pointer(&module.enums, code);
@@ -1355,12 +1357,12 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
     let raw = pointer_niche(
         &mut module,
         "Option<Ptr<Unit>>",
-        scoop_lir::NichePointerKind::Raw,
+        scoop_lir::NullNicheKind::Raw,
     );
     let code = pointer_niche(
         &mut module,
         "Option<FunPtr<(Int) -> Unit>>",
-        scoop_lir::NichePointerKind::Code,
+        scoop_lir::NullNicheKind::Code,
     );
     let callback_signature = scoop_lir::CFunctionType {
         params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
@@ -1794,7 +1796,7 @@ fn refined_c_pointer_references_reject_managed_niches() {
     let managed = pointer_niche(
         &mut module,
         "Option<String>",
-        scoop_lir::NichePointerKind::Managed,
+        scoop_lir::NullNicheKind::Managed,
     );
     assert!(
         module

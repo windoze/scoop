@@ -24,13 +24,7 @@ pub(super) fn validate_coroutine_function(
             .into_iter()
             .chain(coroutine.logical_signature.parameters().iter().copied())
             .chain(std::iter::once(coroutine.logical_signature.result()))
-            .any(|exact| {
-                module
-                    .meta
-                    .source_exact_types
-                    .get_by_identity(exact)
-                    .is_none()
-            })
+            .any(|exact| !crate::validation::callable_signatures::exact_type_exists(module, exact))
     {
         return Err(error(
             location,
@@ -240,7 +234,7 @@ fn validate_coroutine_source(
             ));
         }
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         if adjust.function() == coroutine.function {
             if adjust.identity().signature_record().signature() != &coroutine.logical_signature {
                 return Err(error(

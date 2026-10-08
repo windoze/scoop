@@ -3,38 +3,25 @@ use scoop_mir as mir;
 
 use crate::{LoweringContext, StorageResult, lir_type, safepoints};
 
-enum ClassifiedAbiValue {
+pub(crate) enum ValueStorage {
     ZeroSized(lir::AbiZst),
-    Direct(lir::AbiValue),
-    Indirect(lir::AbiValue),
+    NonZero(lir::AbiValue),
 }
 
-fn classify_value(
+pub(crate) fn classify_storage(
     context: &LoweringContext,
     ty: lir::LirType,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> StorageResult<ClassifiedAbiValue> {
+) -> StorageResult<ValueStorage> {
     let (size, alignment) = safepoints::lir_size_align(context, &ty, structs, enums)?;
     let scan = safepoints::root_scan(context, &ty, structs, enums, 0)?;
     if size == 0 {
         let layout = lir::AbiZeroSizedLayout::new(alignment)?;
-        let value = lir::AbiZst::new(ty, layout)?;
-        return Ok(ClassifiedAbiValue::ZeroSized(value));
+        return Ok(ValueStorage::ZeroSized(lir::AbiZst::new(ty, layout)?));
     }
-
     let layout = lir::AbiNonZeroLayout::new(size, alignment)?;
-    let value = lir::AbiValue::new(ty, layout, scan)?;
-    Ok(
-        match lir::classify_non_zero_scoop_abi_value(
-            context.target_profile(),
-            enums,
-            value.storage_type(),
-        )? {
-            lir::ScoopAbiPassing::Direct => ClassifiedAbiValue::Direct(value),
-            lir::ScoopAbiPassing::Indirect => ClassifiedAbiValue::Indirect(value),
-        },
-    )
+    Ok(ValueStorage::NonZero(lir::AbiValue::new(ty, layout, scan)?))
 }
 
 pub(crate) fn classify_argument(
@@ -43,10 +30,19 @@ pub(crate) fn classify_argument(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
 ) -> StorageResult<lir::AbiArgument> {
-    Ok(match classify_value(context, ty, structs, enums)? {
-        ClassifiedAbiValue::ZeroSized(value) => lir::AbiArgument::ElidedZst(value),
-        ClassifiedAbiValue::Direct(value) => lir::AbiArgument::Direct(value),
-        ClassifiedAbiValue::Indirect(value) => lir::AbiArgument::Indirect(value),
+    Ok(match classify_storage(context, ty, structs, enums)? {
+        ValueStorage::ZeroSized(value) => lir::AbiArgument::ElidedZst(value),
+        ValueStorage::NonZero(value) => match lir::classify_non_zero_scoop_abi_value(
+            context.target_profile(),
+            enums,
+            value.storage_type(),
+        )? {
+            lir::ScoopAbiPassing::Direct => lir::AbiArgument::Direct(value.into()),
+            lir::ScoopAbiPassing::DirectParts => lir::AbiArgument::Direct(
+                lir::AbiDirectValue::DirectParts(lir::AbiDirectParts::interface(value)?),
+            ),
+            lir::ScoopAbiPassing::Indirect => lir::AbiArgument::Indirect(value),
+        },
     })
 }
 
@@ -59,10 +55,10 @@ pub(crate) fn classify_return(
     let Some(ty) = ty else {
         return Ok(lir::AbiReturn::UnitVoid);
     };
-    Ok(match classify_value(context, ty, structs, enums)? {
-        ClassifiedAbiValue::ZeroSized(value) => lir::AbiReturn::ElidedZst(value),
-        ClassifiedAbiValue::Direct(value) => lir::AbiReturn::Direct(value),
-        ClassifiedAbiValue::Indirect(value) => lir::AbiReturn::Indirect(value),
+    Ok(match classify_argument(context, ty, structs, enums)? {
+        lir::AbiArgument::ElidedZst(value) => lir::AbiReturn::ElidedZst(value),
+        lir::AbiArgument::Direct(value) => lir::AbiReturn::Direct(value),
+        lir::AbiArgument::Indirect(value) => lir::AbiReturn::Indirect(value),
     })
 }
 

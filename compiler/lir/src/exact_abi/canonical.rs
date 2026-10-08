@@ -31,9 +31,13 @@ impl ExactValueLayoutV1 {
 
     pub fn canonical_storage(&self) -> CanonicalScoopStorage {
         let shape = match self.representation().kind() {
+            ExactRepresentationKindV1::Interface => ScoopAbiValueShape::Interface,
             ExactRepresentationKindV1::Scalar(_)
-            | ExactRepresentationKindV1::QualifiedPointer(_)
-            | ExactRepresentationKindV1::NicheEnum(_) => ScoopAbiValueShape::Scalar,
+            | ExactRepresentationKindV1::QualifiedPointer(_) => ScoopAbiValueShape::Scalar,
+            ExactRepresentationKindV1::NicheEnum(value) => match value.pointer_kind() {
+                crate::NullNicheKind::Interface => ScoopAbiValueShape::Interface,
+                _ => ScoopAbiValueShape::Scalar,
+            },
             ExactRepresentationKindV1::Struct(_)
             | ExactRepresentationKindV1::Tuple(_)
             | ExactRepresentationKindV1::TaggedEnum(_)
@@ -59,6 +63,7 @@ pub fn canonical_scoop_abi_argument(
     } else {
         match passing(target, storage.shape()) {
             ScoopAbiPassing::Direct => ScoopAbiArgument::direct(storage),
+            ScoopAbiPassing::DirectParts => ScoopAbiArgument::direct_parts(storage),
             ScoopAbiPassing::Indirect => ScoopAbiArgument::indirect(storage),
         }
     }
@@ -74,6 +79,7 @@ pub fn canonical_scoop_abi_value_return(
     } else {
         match passing(target, storage.shape()) {
             ScoopAbiPassing::Direct => ScoopAbiReturn::direct(storage),
+            ScoopAbiPassing::DirectParts => ScoopAbiReturn::direct_parts(storage),
             ScoopAbiPassing::Indirect => ScoopAbiReturn::indirect(storage),
         }
     }
@@ -83,5 +89,6 @@ fn passing(target: LirTargetProfile, shape: ScoopAbiValueShape) -> ScoopAbiPassi
     target.classify_scoop_abi_value(match shape {
         ScoopAbiValueShape::Scalar => crate::ScoopAbiValueShape::Scalar,
         ScoopAbiValueShape::Aggregate => crate::ScoopAbiValueShape::Aggregate,
+        ScoopAbiValueShape::Interface => crate::ScoopAbiValueShape::Interface,
     })
 }

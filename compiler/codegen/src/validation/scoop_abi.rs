@@ -110,12 +110,7 @@ impl<'a> AbiMetadataValidator<'a> {
             );
             self.validate_arguments(signature.arguments(), &owner)?;
             let result_owner = format!("{owner} result");
-            self.validate_value(signature.result(), &result_owner)?;
-            self.validate_passing(
-                signature.result(),
-                scoop_lir::ScoopAbiPassing::Direct,
-                &result_owner,
-            )?;
+            self.validate_direct(signature.result(), &result_owner)?;
         }
         for (id, signature) in targets.indirect_result_signatures.iter() {
             let owner = format!(
@@ -150,8 +145,7 @@ impl<'a> AbiMetadataValidator<'a> {
             }
             scoop_lir::AbiReturn::Direct(result) => {
                 let result_owner = format!("{owner} result");
-                self.validate_value(result, &result_owner)?;
-                self.validate_passing(result, scoop_lir::ScoopAbiPassing::Direct, &result_owner)
+                self.validate_direct(result, &result_owner)
             }
             scoop_lir::AbiReturn::Indirect(result) => {
                 let result_owner = format!("{owner} result");
@@ -171,8 +165,7 @@ impl<'a> AbiMetadataValidator<'a> {
             match argument {
                 scoop_lir::AbiArgument::ElidedZst(value) => self.validate_zst(value, &owner)?,
                 scoop_lir::AbiArgument::Direct(value) => {
-                    self.validate_value(value, &owner)?;
-                    self.validate_passing(value, scoop_lir::ScoopAbiPassing::Direct, &owner)?;
+                    self.validate_direct(value, &owner)?;
                 }
                 scoop_lir::AbiArgument::Indirect(value) => {
                     self.validate_value(value, &owner)?;
@@ -181,6 +174,19 @@ impl<'a> AbiMetadataValidator<'a> {
             }
         }
         Ok(())
+    }
+
+    fn validate_direct(
+        &mut self,
+        value: &scoop_lir::AbiDirectValue,
+        owner: &str,
+    ) -> Result<(), CodegenError> {
+        self.validate_value(value.value(), owner)?;
+        let passing = match value {
+            scoop_lir::AbiDirectValue::Scalar(_) => scoop_lir::ScoopAbiPassing::Direct,
+            scoop_lir::AbiDirectValue::DirectParts(_) => scoop_lir::ScoopAbiPassing::DirectParts,
+        };
+        self.validate_passing(value.value(), passing, owner)
     }
 
     fn validate_passing(
@@ -273,6 +279,11 @@ impl<'a> AbiMetadataValidator<'a> {
             LirType::F32 => scalar(scoop_lir::BackendScalarKind::F32),
             LirType::F64 => scalar(scoop_lir::BackendScalarKind::F64),
             LirType::I64 | LirType::MachineScalar(_) => scalar(scoop_lir::BackendScalarKind::I64),
+            LirType::Interface => StorageFacts {
+                size: 16,
+                align: 8,
+                scan: RefScan::References(vec![0]),
+            },
             LirType::Ptr(kind) => {
                 let layout = profile.pointer_layout(*kind);
                 StorageFacts {
@@ -438,6 +449,7 @@ fn abi_metadata_error(
 const fn scoop_abi_passing_name(passing: scoop_lir::ScoopAbiPassing) -> &'static str {
     match passing {
         scoop_lir::ScoopAbiPassing::Direct => "direct",
+        scoop_lir::ScoopAbiPassing::DirectParts => "direct-parts",
         scoop_lir::ScoopAbiPassing::Indirect => "indirect",
     }
 }
@@ -1537,12 +1549,15 @@ mod tests {
     #[test]
     fn aggregate_argument_cannot_claim_direct_scoop_passing() {
         let module = module_with_types(StructDefs::default(), EnumDefs::default());
-        let argument = scoop_lir::AbiArgument::Direct(abi_value(
-            LirType::Aggregate(vec![LirType::I64, LirType::I64]),
-            16,
-            8,
-            RefScan::None,
-        ));
+        let argument = scoop_lir::AbiArgument::Direct(
+            abi_value(
+                LirType::Aggregate(vec![LirType::I64, LirType::I64]),
+                16,
+                8,
+                RefScan::None,
+            )
+            .into(),
+        );
         let error = AbiMetadataValidator::new(&module)
             .validate_arguments(&[argument], "test signature")
             .expect_err("aggregate direct passing must be rejected");

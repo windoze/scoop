@@ -109,6 +109,14 @@ fn exact(module: &Module, ty: &Type) -> PersistentExactTypeId {
             .exact_record()
             .id();
     }
+    if let Type::Class(class) = ty
+        && let Some(identity) = module
+            .meta
+            .generated_exact_types
+            .get(GeneratedExactTypeLocation::Class(*class))
+    {
+        return identity.exact_record().id();
+    }
     module
         .meta
         .source_exact_types

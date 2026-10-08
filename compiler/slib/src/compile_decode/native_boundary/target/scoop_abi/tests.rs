@@ -86,3 +86,46 @@ fn ordinary_callable_abi_replays_intrinsics_from_mixed_actual_providers() {
 
 mod intrinsic_sources;
 mod shared_sources;
+
+#[test]
+fn interface_abi_uses_two_parts_from_native_or_shared_declarations() {
+    for native in [true, false] {
+        let interface = Fixture::from_shape(
+            ConeIdentity::CORE,
+            SourceNominalKind::Interface,
+            NativeBoundaryNominalShape::Reference,
+        );
+        let interface = if native {
+            interface
+        } else {
+            interface.without_native_witness()
+        };
+        let current = Fixture::empty();
+        let signature = ExactCallableSignature::new(
+            Effect::Ordinary,
+            None,
+            vec![interface.exact()],
+            interface.exact(),
+        );
+        for target in [
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            scoop_lir::LirTargetProfile::LINUX_X86_64_GNU,
+            scoop_lir::LirTargetProfile::LINUX_X86_64_MUSL,
+        ] {
+            let abi = replay_canonical_scoop_abi_parts(
+                target,
+                current.borrow(),
+                &[interface.borrow()],
+                &signature,
+                GcEffect::Managed,
+            )
+            .unwrap();
+            assert!(
+                matches!(abi.arguments(), [ScoopAbiArgument::DirectParts(value)]
+                if value.byte_size() == 16 && value.alignment().get() == 8)
+            );
+            assert!(matches!(abi.result(), ScoopAbiReturn::DirectParts(value)
+                if value.byte_size() == 16 && value.alignment().get() == 8));
+        }
+    }
+}

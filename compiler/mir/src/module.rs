@@ -747,7 +747,7 @@ pub struct MirMeta {
     /// reconstruct this relation from the synthetic class link name.
     pub boxed_types: Vec<BoxedType>,
     /// Exact generated callable materialization for every boxed itable slot.
-    pub boxing_adjusts: Vec<BoxingAdjust>,
+    pub interface_adjusts: Vec<InterfaceAdjust>,
 }
 
 impl MirMeta {

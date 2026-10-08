@@ -8,7 +8,7 @@ use scoop_identity::{
 use crate::exact_layout::tests::Bound;
 use crate::{
     EnumLayoutFieldInputV1, EnumLayoutVariantInputV1, ExactInstanceLayoutV1, ExactLayoutExportV1,
-    ExactValueLayoutV1, NichePointerKind,
+    ExactValueLayoutV1, NullNicheKind,
 };
 
 #[derive(Clone)]
@@ -140,7 +140,19 @@ fn source_value(
 ) -> (ExactValueLayoutV1, crate::ConeLirFoundation) {
     match source.declaration_kind() {
         SourceDeclarationKind::Struct => empty_struct(source.origin(), exact),
-        SourceDeclarationKind::Interface => managed_value(source.origin(), exact),
+        SourceDeclarationKind::Interface => {
+            let Bound {
+                identity,
+                foundation,
+            } = Bound::for_provider(
+                source.origin(),
+                exact,
+                RepresentationRole::ManagedValue,
+                ScanRole::InlineValue,
+            );
+            let value = ExactValueLayoutV1::interface(identity, &foundation).unwrap();
+            (value, foundation)
+        }
         _ => panic!("fixture source kind"),
     }
 }
@@ -176,7 +188,7 @@ fn managed_value(
         ScanRole::InlineValue,
     );
     let value =
-        ExactValueLayoutV1::qualified_pointer(identity, NichePointerKind::Managed, &foundation)
+        ExactValueLayoutV1::qualified_pointer(identity, NullNicheKind::Managed, &foundation)
             .unwrap();
     (value, foundation)
 }
@@ -248,6 +260,7 @@ fn helper_shape(
         value: payload.value(),
         pointer_kind: match payload.representation().kind() {
             crate::ExactRepresentationKindV1::QualifiedPointer(kind) => Some(kind),
+            crate::ExactRepresentationKindV1::Interface => Some(NullNicheKind::Interface),
             _ => None,
         },
     }];

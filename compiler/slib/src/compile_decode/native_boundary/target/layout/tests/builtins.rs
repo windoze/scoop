@@ -120,7 +120,7 @@ fn with_keys<T>(
     let initialization_units = HashMap::new();
     let definitions = records
         .iter()
-        .map(|record| (record.owner(), AbiNominalDefinition::native(record)))
+        .map(|record| (record.owner(), AbiNominalDefinition::native(record, false)))
         .collect();
 
     let mut normalizer = NativeBoundaryNormalizer::new(

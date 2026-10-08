@@ -1,0 +1,90 @@
+interface Parent {
+    fun value(): Int
+    fun doubled(): Int = value() * 2
+}
+interface Measure : Parent {}
+interface Label { fun label(): String }
+interface Empty {}
+interface Echo<T> { fun echo(value: T): T = value }
+
+open class Item(val number: Int) : Measure, Label, Empty {
+    public override fun value(): Int = number
+    public override fun label(): String = "item"
+}
+class Leaf : Item(21)
+class EchoUser : Echo<Measure>
+struct Small(val number: Int) : Measure {
+    public override fun value(): Int = number
+}
+struct Zero() : Measure { public override fun value(): Int = 0 }
+struct Pair(val first: Measure, val second: Measure)
+interface Cell { var item: Measure }
+class Holder(public override var item: Measure, var pair: Pair) : Cell
+enum Envelope { Full(Measure, Int), Empty }
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun keep(value: Measure): Measure { gcCollect(); return value }
+fun fromAny(value: Any): Measure = value as Measure
+fun optional(value: Measure?): Measure? { gcCollect(); return value }
+fun invoke(value: Measure): Int = value.doubled()
+
+context(value: Measure)
+fun current(): Measure = value
+
+@Unsafe fun main() {
+    val instance = Leaf()
+    val view: Measure = instance
+    val label: Label = instance
+    val empty: Empty = instance
+    check(view === label)
+    check(empty === view)
+    check(invoke(view) == 42)
+    check(label.label() == "item")
+    check(keep(view) === view)
+    check(fromAny(view).value() == 21)
+    check(EchoUser().echo(view) === view)
+    val boxed: Measure = Small(9)
+    check(boxed.doubled() == 18)
+    val zero: Measure = Zero()
+    check(zero.doubled() == 0)
+    val holder = Holder(view, Pair(view, boxed))
+    val cell: Cell = holder
+    val values = MutableArray<Measure>(3L) { i -> if (i == 0L) { view } else { boxed } }
+    val envelope = Envelope.Full(view, 3)
+    val nested: Measure?? = Some(None)
+    val emptyOption: Empty? = Some(empty)
+    gcCollect()
+    cell.item = boxed
+    check(cell.item.value() == 9)
+    values[1L] = keep(view)
+    check(holder.item.value() == 9)
+    check(holder.pair.first.doubled() + holder.pair.second.value() == 51)
+    check(values[0L].value() + values[1L].value() + values[2L].value() == 51)
+    check(when (envelope) { Full(value, n) -> value.value() + n; Empty -> 0 } == 24)
+    check(optional(Some(view))!! === view)
+    check(when (optional(None)) { Some(_) -> false; None -> true })
+    check(when (nested) { Some(None) -> true; Some(Some(_)) -> false; None -> false })
+    check(emptyOption!! === view)
+    check(when (("wrong" as Any) as? Measure) { Some(_) -> false; None -> true })
+    val captured: () -> Measure = { keep(view) }
+    check(captured().doubled() == 42)
+    val bound: () -> Int = view::doubled
+    val exact: (Any) -> Measure = { _ -> keep(view) }
+    val widened: (Measure) -> Any = exact
+    val erased: Any = exact
+    val dynamic = erased as (Measure) -> Measure
+    gcCollect()
+    check(bound() == 42)
+    check(widened(view) === view)
+    check(dynamic(view) === view)
+    val returned = try { keep(boxed) } catch (error: IllegalStateException) { view }
+    gcCollect()
+    check(returned.value() == 9)
+    context(view) {
+        gcCollect()
+        check(current().doubled() == 42)
+        context(boxed) { check(current().value() == 9) }
+        check(current() === view)
+    }
+    println("interface values")
+}

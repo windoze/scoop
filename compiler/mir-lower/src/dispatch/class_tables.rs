@@ -54,8 +54,22 @@ impl Lowerer {
                     }
                 }
             }
-            let itables = decl
-                .interface_implementations
+            // Ordinary dependency descriptors already own their tables and
+            // receiver adapters. A derived local class builds its own tables.
+            let imported = module
+                .exact_type_identities
+                .nominal_specialization(decl.canonical_type)
+                .is_none()
+                && decl
+                    .origin
+                    .source()
+                    .is_some_and(|source| source.declaration().origin() != module.cone);
+            let implementations = if imported {
+                &[][..]
+            } else {
+                &decl.interface_implementations[..]
+            };
+            let itables = implementations
                 .iter()
                 .map(|implementation| {
                     let interface = self.interfaces.mir_id(implementation.interface);
@@ -64,18 +78,13 @@ impl Lowerer {
                         .take(method_count)
                         .collect::<Vec<_>>();
                     for method in &implementation.methods {
-                        let target = match method.target {
-                            hir::InterfaceImplementationTarget::Method(function)
-                            | hir::InterfaceImplementationTarget::Abstract {
-                                declaration: function,
-                            } => mir::TableSlot::Function(self.function_map[&function]),
-                            hir::InterfaceImplementationTarget::Imported(callable)
-                            | hir::InterfaceImplementationTarget::ImportedAbstract {
-                                declaration: callable,
-                            } => mir::TableSlot::External(
-                                self.imported_dependency_callable_map[&callable].scoop_entry(),
-                            ),
-                        };
+                        let target = self.interface_reference_entry(
+                            module,
+                            hir_id,
+                            implementation.interface,
+                            method.slot,
+                            method.target,
+                        );
                         let slot = method.slot.into_raw() as usize;
                         let previous = slots[slot].replace(target);
                         assert!(

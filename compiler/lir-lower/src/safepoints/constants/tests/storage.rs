@@ -10,7 +10,7 @@ fn known_enum_copies_keep_the_typed_variant_without_evaluating_payloads() {
         ),
         name: "Folded".to_string(),
         repr: lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Managed,
+            kind: lir::NullNicheKind::Managed,
             payload_variant: 1,
         },
         scan: lir::RefScan::References(vec![0]),

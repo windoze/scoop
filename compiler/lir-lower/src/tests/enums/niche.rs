@@ -83,7 +83,7 @@ fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
     assert!(matches!(
         edef(&module, option).repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Raw,
+            kind: lir::NullNicheKind::Raw,
             payload_variant: 0,
         }
     ));
@@ -128,7 +128,7 @@ fn option_of_code_pointer_records_code_niche_provenance() {
     assert!(matches!(
         edef(&module, option).repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Code,
+            kind: lir::NullNicheKind::Code,
             payload_variant: 0,
         }
     ));
@@ -258,21 +258,21 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     assert!(matches!(
         edef(&module, option_s).repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Managed,
+            kind: lir::NullNicheKind::Managed,
             payload_variant: 0,
         }
     ));
     assert!(matches!(
         edef(&module, option_array).repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Managed,
+            kind: lir::NullNicheKind::Managed,
             payload_variant: 0,
         }
     ));
     assert!(matches!(
         edef(&module, flip).repr,
         lir::EnumRepr::Niche {
-            kind: lir::NichePointerKind::Managed,
+            kind: lir::NullNicheKind::Managed,
             payload_variant: 1,
         }
     ));

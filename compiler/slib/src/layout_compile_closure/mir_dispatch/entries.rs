@@ -28,6 +28,43 @@ impl Replay<'_> {
             Component::Signature,
             candidate.signature() == &self.lowered_signature(&signature)?,
         )?;
+        if let Implementation::AdjustThunkTarget(target) = candidate.implementation() {
+            let hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } = role else {
+                return Err(Error::SourceSlot {
+                    owner,
+                    slot: contract.slot(),
+                });
+            };
+            let selected = match contract.implementation() {
+                hir::InheritanceSlotImplementationV1::Abstract(selected)
+                | hir::InheritanceSlotImplementationV1::Concrete(selected)
+                | hir::InheritanceSlotImplementationV1::InterfaceDefault(selected) => selected,
+            };
+            self.adjustment(
+                owner,
+                contract.slot(),
+                interface_exact,
+                value,
+                selected,
+                target,
+            )?;
+            if matches!(
+                contract.implementation(),
+                hir::InheritanceSlotImplementationV1::Abstract(_)
+            ) {
+                let selected = self.binding(self.target(selected)?)?;
+                Error::entry(
+                    owner,
+                    contract.slot(),
+                    Component::CallableRole,
+                    matches!(
+                        selected.lowering_role(),
+                        mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                    ),
+                )?;
+            }
+            return Ok(());
+        }
         let expected = match contract.implementation() {
             hir::InheritanceSlotImplementationV1::Abstract(selected) => {
                 let target = self.target(selected)?;
@@ -58,40 +95,25 @@ impl Replay<'_> {
             }
             hir::InheritanceSlotImplementationV1::Concrete(source)
             | hir::InheritanceSlotImplementationV1::InterfaceDefault(source) => {
-                if value {
-                    let hir::InheritanceSlotSchemaRoleV1::Interface { interface_exact } = role
-                    else {
-                        return Err(Error::SourceSlot {
-                            owner,
-                            slot: contract.slot(),
-                        });
-                    };
-                    Implementation::AdjustThunkTarget(self.adjustment(
-                        owner,
-                        contract.slot(),
-                        interface_exact,
-                        source,
-                    )?)
+                Error::entry(owner, contract.slot(), Component::Implementation, !value)?;
+                let expected = bindings::signature(
+                    source.signature(),
+                    source
+                        .signature()
+                        .exact_signature()
+                        .receiver()
+                        .into_option(),
+                )?;
+                let target = self.target(source)?;
+                self.source_binding(owner, contract.slot(), target, &expected)?;
+                let receiver = adaptation(&signature, &expected);
+                if matches!(
+                    contract.implementation(),
+                    hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
+                ) {
+                    Implementation::InterfaceDefaultTarget { target, receiver }
                 } else {
-                    let expected = bindings::signature(
-                        source.signature(),
-                        source
-                            .signature()
-                            .exact_signature()
-                            .receiver()
-                            .into_option(),
-                    )?;
-                    let target = self.target(source)?;
-                    self.source_binding(owner, contract.slot(), target, &expected)?;
-                    let receiver = adaptation(&signature, &expected);
-                    if matches!(
-                        contract.implementation(),
-                        hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
-                    ) {
-                        Implementation::InterfaceDefaultTarget { target, receiver }
-                    } else {
-                        Implementation::DirectStrongTarget { target, receiver }
-                    }
+                    Implementation::DirectStrongTarget { target, receiver }
                 }
             }
         };

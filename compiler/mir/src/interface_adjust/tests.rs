@@ -4,7 +4,14 @@ use scoop_identity::{
     SourceDeclarationSite, SourceNominalKind,
 };
 
+use super::identity::{DispatchSlotRecord, ExactTypeRecord};
 use super::*;
+use crate::{CallableSignatureSubject, ExactOwnerRoot};
+use scoop_identity::{
+    CallableOdrMemberId, CallableOwner, CborIdentityRecord, DispatchSlotKey,
+    ExactCallableSignature, ExactTypeKey, GeneratedCallableKey, OdrMemberDiscriminator,
+    OdrMemberRole, PersistentExactTypeId, SpecializationKey,
+};
 
 fn declaration(name: &str, kind: SourceNominalKind, parameters: u32) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
@@ -58,7 +65,7 @@ fn signature(interface: &ExactTypeRecord, result: PersistentExactTypeId) -> Exac
 fn source_payload_owns_a_strong_boxing_adjust() {
     let payload = concrete("Value", SourceNominalKind::Struct);
     let interface = interface();
-    let identity = BoxingAdjustIdentity::new(
+    let identity = InterfaceAdjustIdentity::new(
         &payload,
         None,
         &interface_slot(),
@@ -112,7 +119,7 @@ fn generic_payload_uses_a_dispatch_adapter_member_of_its_nominal_group() {
     let group =
         CborIdentityRecord::from_key(SpecializationKey::Nominal { origin, arguments }).unwrap();
     let interface = interface();
-    let identity = BoxingAdjustIdentity::new(
+    let identity = InterfaceAdjustIdentity::new(
         &payload,
         Some(&group),
         &interface_slot(),
@@ -162,18 +169,18 @@ fn identity_rejects_a_virtual_slot_and_a_different_receiver() {
     let virtual_slot =
         CborIdentityRecord::from_key(DispatchSlotKey::virtual_method(function)).unwrap();
     assert_eq!(
-        BoxingAdjustIdentity::new(
+        InterfaceAdjustIdentity::new(
             &payload,
             None,
             &virtual_slot,
             &interface,
             signature(&interface, payload.id()),
         ),
-        Err(BoxingAdjustIdentityError::ExpectedInterfaceSlot)
+        Err(InterfaceAdjustIdentityError::ExpectedInterfaceSlot)
     );
     let different = concrete("Other", SourceNominalKind::Interface);
     assert_eq!(
-        BoxingAdjustIdentity::new(
+        InterfaceAdjustIdentity::new(
             &payload,
             None,
             &interface_slot(),
@@ -185,7 +192,7 @@ fn identity_rejects_a_virtual_slot_and_a_different_receiver() {
                 payload.id(),
             ),
         ),
-        Err(BoxingAdjustIdentityError::InterfaceReceiverMismatch)
+        Err(InterfaceAdjustIdentityError::InterfaceReceiverMismatch)
     );
 }
 
@@ -235,7 +242,7 @@ fn property_accessor_slots_keep_distinct_boxing_adjust_identities() {
             ),
         };
         let identity =
-            BoxingAdjustIdentity::new(&payload, None, &slot, &interface, signature).unwrap();
+            InterfaceAdjustIdentity::new(&payload, None, &slot, &interface, signature).unwrap();
         assert_eq!(identity.slot_record(), &slot);
         generated.push(identity.callable_record().id());
     }

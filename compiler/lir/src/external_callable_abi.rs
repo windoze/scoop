@@ -46,10 +46,20 @@ fn argument_matches(canonical: CanonicalArgument, physical: &AbiArgument) -> boo
             expected.byte_size() == actual.layout().size()
                 && expected.alignment() == actual.layout().alignment()
         }
-        (CanonicalArgument::Direct(expected), AbiArgument::Direct(actual))
+        (
+            CanonicalArgument::Direct(expected),
+            AbiArgument::Direct(crate::AbiDirectValue::Scalar(actual)),
+        )
         | (CanonicalArgument::Indirect(expected), AbiArgument::Indirect(actual)) => {
             expected.byte_size() == actual.layout().size().get()
                 && expected.alignment() == actual.layout().alignment()
+        }
+        (
+            CanonicalArgument::DirectParts(expected),
+            AbiArgument::Direct(crate::AbiDirectValue::DirectParts(actual)),
+        ) => {
+            expected.byte_size() == actual.value().layout().size().get()
+                && expected.alignment() == actual.value().layout().alignment()
         }
         _ => false,
     }
@@ -62,10 +72,20 @@ fn return_matches(canonical: CanonicalReturn, physical: &AbiReturn) -> bool {
             expected.byte_size() == actual.layout().size()
                 && expected.alignment() == actual.layout().alignment()
         }
-        (CanonicalReturn::Direct(expected), AbiReturn::Direct(actual))
+        (
+            CanonicalReturn::Direct(expected),
+            AbiReturn::Direct(crate::AbiDirectValue::Scalar(actual)),
+        )
         | (CanonicalReturn::Indirect(expected), AbiReturn::Indirect(actual)) => {
             expected.byte_size() == actual.layout().size().get()
                 && expected.alignment() == actual.layout().alignment()
+        }
+        (
+            CanonicalReturn::DirectParts(expected),
+            AbiReturn::Direct(crate::AbiDirectValue::DirectParts(actual)),
+        ) => {
+            expected.byte_size() == actual.value().layout().size().get()
+                && expected.alignment() == actual.value().layout().alignment()
         }
         _ => false,
     }

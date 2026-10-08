@@ -389,7 +389,7 @@ impl Lowerer {
                 closure_adapters: self.closure_adapters,
                 dynamic_closure_adapters: self.dynamic_closure_adapters,
                 boxed_types,
-                boxing_adjusts: self.boxing_adjusts,
+                interface_adjusts: self.interface_adjusts,
                 ..mir::MirMeta::default()
             },
         };
@@ -572,7 +572,7 @@ fn generated_callables(module: &mir::Module) -> mir::MirGeneratedCallableIdentit
             point.identity().failure().signature_record().subject(),
         );
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register(
             adjust.function(),
             adjust.identity().callable_record(),
@@ -628,7 +628,7 @@ fn callable_signatures(module: &mir::Module) -> mir::MirCallableSignatures {
         register(point.identity().success().signature_record());
         register(point.identity().failure().signature_record());
     }
-    for adjust in &module.meta.boxing_adjusts {
+    for adjust in &module.meta.interface_adjusts {
         register(adjust.identity().signature_record());
     }
 

@@ -20,9 +20,10 @@ pub(in crate::tests) fn test_local_with_types(
             assert_eq!(value.storage_type(), &LirType::Aggregate(Vec::new()));
             scoop_lir::LocalStorage::LogicalZst(unit_zst(value))
         }
-        scoop_lir::AbiArgument::Direct(value) | scoop_lir::AbiArgument::Indirect(value) => {
-            scoop_lir::LocalStorage::NonZero(value)
+        scoop_lir::AbiArgument::Direct(value) => {
+            scoop_lir::LocalStorage::NonZero(value.value().clone())
         }
+        scoop_lir::AbiArgument::Indirect(value) => scoop_lir::LocalStorage::NonZero(value),
     };
     Local::new(name, storage)
 }

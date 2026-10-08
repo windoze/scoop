@@ -11,6 +11,7 @@ impl RawValue {
             (Self::QualifiedPointer(raw), E::QualifiedPointer(expected)) if raw == expected => {
                 Ok(())
             }
+            (Self::Interface, E::Interface) => Ok(()),
             (Self::Unit, E::IntrinsicValue(IntrinsicValueFamilyV1::Unit)) => Ok(()),
             (
                 Self::Struct {

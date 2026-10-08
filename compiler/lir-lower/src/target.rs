@@ -165,6 +165,10 @@ impl LoweringContext {
         .0[4]
     }
 
+    pub(crate) fn type_descriptor_itables_offset(self) -> u64 {
+        self.type_descriptor_vtable_offset() + self.pointer_layout(lir::PointerKind::Metadata).size
+    }
+
     /// LLVM landing-pad record `{ raw-ptr exception, i32 selector }`.
     pub(crate) fn exception_record_layout(self) -> PhysicalLayout {
         self.aggregate_layout([

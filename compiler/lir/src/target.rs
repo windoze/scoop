@@ -34,20 +34,20 @@ pub enum BackendScalarKind {
 
 /// Coarse physical shape consumed by the closed Scoop ABI classifier.
 ///
-/// Zero-sized values are classified before this point. Aggregate values stay
-/// distinct even when they happen to fit in registers: the first ABI revision
-/// deliberately uses one stable indirect convention instead of reproducing a
-/// platform C ABI's shape-sensitive coercions.
+/// Zero-sized values are classified before this point. Interface values carry
+/// an object and immutable metadata; ordinary aggregates retain their layouts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ScoopAbiValueShape {
     Scalar,
     Aggregate,
+    Interface,
 }
 
 /// Passing convention selected for one non-zero-sized Scoop ABI value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ScoopAbiPassing {
     Direct,
+    DirectParts,
     Indirect,
 }
 
@@ -260,6 +260,7 @@ impl LirTargetProfile {
         match shape {
             ScoopAbiValueShape::Scalar => ScoopAbiPassing::Direct,
             ScoopAbiValueShape::Aggregate => ScoopAbiPassing::Indirect,
+            ScoopAbiValueShape::Interface => ScoopAbiPassing::DirectParts,
         }
     }
 }

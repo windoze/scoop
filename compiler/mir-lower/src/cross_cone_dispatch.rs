@@ -51,10 +51,9 @@ pub fn lower_dispatch_schemas(
             continue;
         };
         let slots = match storage.role {
-            mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
-                mir::MirDispatchSlotsV1::ClassVtable(Vec::new())
-            }
-            mir::ContextStorageRole::Binding => mir::MirDispatchSlotsV1::InterfaceSlots(Vec::new()),
+            mir::ContextStorageRole::Task
+            | mir::ContextStorageRole::Node
+            | mir::ContextStorageRole::Binding => mir::MirDispatchSlotsV1::ClassVtable(Vec::new()),
             mir::ContextStorageRole::Mark | mir::ContextStorageRole::SwitchGuard => {
                 mir::MirDispatchSlotsV1::NoClassVtable
             }

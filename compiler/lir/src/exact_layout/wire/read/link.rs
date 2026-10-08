@@ -73,7 +73,10 @@ impl DecodedExactLayoutExportV1 {
                         }
                     }
                 }
-                RawValue::Scalar(_) | RawValue::QualifiedPointer(_) | RawValue::Unit => {
+                RawValue::Scalar(_)
+                | RawValue::QualifiedPointer(_)
+                | RawValue::Unit
+                | RawValue::Interface => {
                     return Ok(dependencies);
                 }
             },

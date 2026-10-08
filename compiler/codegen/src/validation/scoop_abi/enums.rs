@@ -37,7 +37,7 @@ impl AbiMetadataValidator<'_> {
             gc_free: bool,
         }
         enum EnumShape {
-            Niche(scoop_lir::NichePointerKind),
+            Niche(scoop_lir::NullNicheKind),
             Tagged {
                 variants: Vec<VariantShape>,
                 size: u64,
@@ -77,15 +77,14 @@ impl AbiMetadataValidator<'_> {
 
         let expected = match shape {
             EnumShape::Niche(kind) => {
-                let layout = self
-                    .module
-                    .meta
-                    .target_profile
-                    .pointer_layout(kind.pointer_kind());
+                let (size, align) = kind.layout(self.module.meta.target_profile);
                 StorageFacts {
-                    size: layout.size_bytes(),
-                    align: layout.alignment_bytes(),
-                    scan: if kind == scoop_lir::NichePointerKind::Managed {
+                    size,
+                    align,
+                    scan: if matches!(
+                        kind,
+                        scoop_lir::NullNicheKind::Managed | scoop_lir::NullNicheKind::Interface
+                    ) {
                         RefScan::References(vec![0])
                     } else {
                         RefScan::None

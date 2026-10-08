@@ -1,6 +1,44 @@
 use super::*;
 
 #[test]
+fn default_interface_bodies_have_a_concrete_receiver_adapter() {
+    let mut h = Harness::new();
+    let interface = h.interface("Named", &["name"]);
+    let member = h.interfaces[interface].methods[0];
+    let target = h.interface_methods[member].function;
+    let hir::FunctionKind::Abstract { locals } = &h.functions[target].kind else {
+        panic!("the fixture starts with an abstract interface method")
+    };
+    let locals = locals.clone();
+    h.functions[target].kind = hir::FunctionKind::User(hir::Body {
+        locals,
+        statements: Vec::new(),
+    });
+    h.functions[target].method.as_mut().unwrap().modifier = hir::MethodModifier::Open;
+    h.interface_methods[member].implementation = hir::InterfaceMemberImplementation::Body;
+    h.class("Item", hir::ClassModifier::Final, &[], None, &[interface]);
+    let main = empty_main(&mut h);
+    let module = lower(&h.finish(main));
+    assert_eq!(module.validate(), Ok(()));
+    let adjust = &module.meta.interface_adjusts[0];
+    let function = &module.functions[adjust.function()];
+    assert_eq!(function.params.len(), 1);
+    assert_eq!(function.params[0].ty, mir::Type::Class(adjust.class()));
+    let (call, _) = statement_call(&entry_statements(&function.body)[0]);
+    assert_eq!(call.target.kind, mir::CallKind::Direct);
+    let mir::Callee::User(target) = call.target.callee else {
+        panic!("the adapter forwards to the available default body")
+    };
+    assert_eq!(module.functions[target].name, "Named.name");
+    assert_eq!(call.args[0].ty, mir::Type::Interface(adjust.interface()));
+    assert!(matches!(call.args[0].kind, mir::ExprKind::Retype { .. }));
+    assert!(matches!(
+        module.classes[adjust.class()].itables[0].slots[0],
+        mir::TableSlot::Function(id) if id == adjust.function()
+    ));
+}
+
+#[test]
 fn boxed_interfaces_come_from_the_declaration() {
     // `struct S(val x: Int) : Describable` boxed to `Any` — the
     // boxed itable covers the declared interface even though the

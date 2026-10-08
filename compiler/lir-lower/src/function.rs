@@ -9,6 +9,7 @@ mod data_borrow;
 mod expression;
 mod expression_support;
 mod floating;
+mod interfaces;
 mod objects;
 mod places;
 mod pointers;
@@ -105,6 +106,7 @@ pub(super) fn lower_function<'a>(
     callable_body: lir::CallableBodyIdentity,
     function: &'a mir::Function,
     signature: &'a lir::ScoopAbiSignature,
+    known_receiver_class: Option<mir::ClassId>,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
@@ -199,6 +201,7 @@ pub(super) fn lower_function<'a>(
         gc_effect: function.gc_effect,
         module,
         mir_locals: &function.body.locals,
+        known_receiver: known_receiver_class.map(|class| (function.params[0].local, class)),
         global_map,
         storage_globals,
         globals,
@@ -297,6 +300,8 @@ struct FunctionLowerer<'a> {
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,
+    /// An itable adapter belongs to one concrete receiver class.
+    known_receiver: Option<(mir::LocalId, mir::ClassId)>,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
@@ -392,9 +397,9 @@ impl<'a> FunctionLowerer<'a> {
     /// basic blocks (LIR has no phi nodes; mem2reg removes it).
     fn new_hidden_local(&mut self, ty: lir::LirType) -> StorageResult<lir::LocalId> {
         self.hidden_count += 1;
-        let value = match abi::classify_argument(self.context, ty, self.structs, self.enums)? {
-            lir::AbiArgument::Direct(value) | lir::AbiArgument::Indirect(value) => value,
-            lir::AbiArgument::ElidedZst(_) => {
+        let value = match abi::classify_storage(self.context, ty, self.structs, self.enums)? {
+            abi::ValueStorage::NonZero(value) => value,
+            abi::ValueStorage::ZeroSized(_) => {
                 unreachable!("hidden physical storage requires a nonzero ABI value")
             }
         };

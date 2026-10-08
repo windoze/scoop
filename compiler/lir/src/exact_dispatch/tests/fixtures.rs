@@ -184,13 +184,9 @@ pub(super) fn empty_itable() -> EmptyItable {
 
 fn named_pointer(name: &str) -> ExactLayoutExportV1 {
     let bound = Bound::value(exact(&source(name, SourceNominalKind::Class, 0)));
-    ExactValueLayoutV1::qualified_pointer(
-        bound.identity,
-        NichePointerKind::Managed,
-        &bound.foundation,
-    )
-    .unwrap()
-    .into()
+    ExactValueLayoutV1::qualified_pointer(bound.identity, NullNicheKind::Managed, &bound.foundation)
+        .unwrap()
+        .into()
 }
 
 fn callable_foundation(name: &str) -> (StrongCallableDefinitionOwner, ConeLirFoundation) {

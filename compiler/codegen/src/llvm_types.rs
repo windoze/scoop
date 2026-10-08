@@ -27,6 +27,15 @@ pub(crate) fn basic_ty<'ctx>(
         // this final physical lowering boundary.
         LirType::MachineScalar(_) => context.i64_type().into(),
         LirType::Ptr(kind) => pointer_ty(context, managed_address_space, *kind).into(),
+        LirType::Interface => context
+            .struct_type(
+                &[
+                    pointer_ty(context, managed_address_space, PointerKind::Managed).into(),
+                    pointer_ty(context, managed_address_space, PointerKind::Metadata).into(),
+                ],
+                false,
+            )
+            .into(),
         LirType::ExceptionRecord => context
             .struct_type(
                 &[
@@ -48,9 +57,13 @@ pub(crate) fn basic_ty<'ctx>(
         }
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
-            EnumRepr::Niche { kind, .. } => {
-                pointer_ty(context, managed_address_space, kind.pointer_kind()).into()
-            }
+            EnumRepr::Niche { kind, .. } => basic_ty(
+                context,
+                structs,
+                enums,
+                managed_address_space,
+                &kind.storage_type(),
+            )?,
             EnumRepr::Tagged { size, align, .. } => tagged_ty(
                 context,
                 managed_address_space,
@@ -171,7 +184,7 @@ pub(crate) fn llvm_constant<'ctx>(
                                 .to_string(),
                         ));
                     }
-                    ty.into_pointer_type().const_null().into()
+                    ty.const_zero()
                 }
                 EnumRepr::Tagged { variants, .. } => {
                     let representation = &variants[variant_index as usize];

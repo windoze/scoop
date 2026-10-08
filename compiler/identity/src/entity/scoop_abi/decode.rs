@@ -65,6 +65,7 @@ pub enum DecodedScoopAbiArgument {
     ElidedZst(DecodedCanonicalScoopStorage),
     Direct(DecodedCanonicalScoopStorage),
     Indirect(DecodedCanonicalScoopStorage),
+    DirectParts(DecodedCanonicalScoopStorage),
 }
 
 impl DecodedScoopAbiArgument {
@@ -91,6 +92,11 @@ impl DecodedScoopAbiArgument {
                     .resolve(resolver)
                     .map_err(ScoopAbiResolutionError::Reference)?,
             ),
+            Self::DirectParts(storage) => ScoopAbiArgument::direct_parts(
+                storage
+                    .resolve(resolver)
+                    .map_err(ScoopAbiResolutionError::Reference)?,
+            ),
         }
         .map_err(ScoopAbiResolutionError::Shape)
     }
@@ -102,6 +108,7 @@ impl WireEncode for DecodedScoopAbiArgument {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 1, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 2, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 3, storage),
+            Self::DirectParts(storage) => encode_value_sum(encoder, 4, storage),
         }
     }
 }
@@ -114,6 +121,7 @@ impl WireDecode for DecodedScoopAbiArgument {
             1 => decode_storage_variant(decoder, Self::ElidedZst),
             2 => decode_storage_variant(decoder, Self::Direct),
             3 => decode_storage_variant(decoder, Self::Indirect),
+            4 => decode_storage_variant(decoder, Self::DirectParts),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -125,6 +133,7 @@ pub enum DecodedScoopAbiReturn {
     ElidedZst(DecodedCanonicalScoopStorage),
     Direct(DecodedCanonicalScoopStorage),
     Indirect(DecodedCanonicalScoopStorage),
+    DirectParts(DecodedCanonicalScoopStorage),
 }
 
 impl DecodedScoopAbiReturn {
@@ -155,6 +164,12 @@ impl DecodedScoopAbiReturn {
                     .map_err(ScoopAbiResolutionError::Reference)?,
             )
             .map_err(ScoopAbiResolutionError::Shape),
+            Self::DirectParts(storage) => ScoopAbiReturn::direct_parts(
+                storage
+                    .resolve(resolver)
+                    .map_err(ScoopAbiResolutionError::Reference)?,
+            )
+            .map_err(ScoopAbiResolutionError::Shape),
         }
     }
 }
@@ -166,6 +181,7 @@ impl WireEncode for DecodedScoopAbiReturn {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 2, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 3, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 4, storage),
+            Self::DirectParts(storage) => encode_value_sum(encoder, 5, storage),
         }
     }
 }
@@ -189,6 +205,10 @@ impl WireDecode for DecodedScoopAbiReturn {
             4 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decode_storage_variant(decoder, Self::Indirect)
+            }
+            5 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decode_storage_variant(decoder, Self::DirectParts)
             }
             tag => Err(unknown_tag(decoder, tag)),
         }
@@ -270,6 +290,7 @@ impl WireDecode for ScoopAbiValueShape {
         match decoder.unsigned()? {
             1 => Ok(Self::Scalar),
             2 => Ok(Self::Aggregate),
+            3 => Ok(Self::Interface),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

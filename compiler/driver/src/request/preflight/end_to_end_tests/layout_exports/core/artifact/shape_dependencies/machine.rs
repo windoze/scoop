@@ -61,7 +61,7 @@ pub(super) fn check(
         .collect::<BTreeSet<_>>();
     assert!(plan.generated_nominal_shapes().is_empty());
     assert!(!plan.dependency_generated_nominal_shapes().is_empty());
-    assert!(input.mir.module().meta.boxing_adjusts.is_empty());
+    assert!(input.mir.module().meta.interface_adjusts.is_empty());
     let mut source = Source::from_mir(input.mir, provider.layout);
     for root in plan.dependency_generated_nominal_shapes() {
         assert_eq!(root.provider(), provider.layout.provider());

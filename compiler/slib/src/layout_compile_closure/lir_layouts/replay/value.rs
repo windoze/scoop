@@ -45,14 +45,14 @@ impl Replay<'_> {
             | Kind::Class { .. }
             | Kind::InlineArray { .. }
             | Kind::AtomicReference { .. }
-            | Kind::Interface
             | Kind::Object { .. }
             | Kind::ObjectBacking { .. }
             | Kind::BoxedValue { .. } => lir::ExactValueLayoutV1::qualified_pointer(
                 identity,
-                lir::NichePointerKind::Managed,
+                lir::NullNicheKind::Managed,
                 foundation,
             )?,
+            Kind::Interface => lir::ExactValueLayoutV1::interface(identity, foundation)?,
             Kind::Struct {
                 fields,
                 c_layout,

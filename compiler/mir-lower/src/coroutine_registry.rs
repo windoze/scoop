@@ -79,6 +79,46 @@ pub(super) struct CoroutineRegistry {
     pub(super) pre_coroutine_call_sites: HashMap<mir::FunctionId, Vec<cfg::CallSite>>,
 }
 
+impl Lowerer {
+    pub(super) fn coroutine_slot_for(
+        &mut self,
+        value: &mir::Type,
+    ) -> (mir::CoroutineSlotId, mir::Type) {
+        let identity = if let mir::Type::Context(storage) = value {
+            assert_eq!(storage.role, mir::ContextStorageRole::Mark);
+            mir::CoroutineSlotIdentity::context_mark(storage.core)
+        } else if let Some(source) = self.source_exact_types.get(value) {
+            mir::CoroutineSlotIdentity::new(
+                source.identity_record(),
+                source.nominal_specialization(),
+            )
+        } else {
+            let boxed = self
+                .boxed
+                .entries
+                .iter()
+                .find(|boxed| value == &mir::Type::Class(boxed.class))
+                .expect("a generated saved receiver has its concrete box identity");
+            let payload = self
+                .source_exact_types
+                .get(&boxed.payload)
+                .expect("a box retains its source payload identity");
+            mir::CoroutineSlotIdentity::boxed_value(
+                payload.identity_record(),
+                payload.nominal_specialization(),
+            )
+        }
+        .expect("a saved value has one exact coroutine-slot identity");
+        self.coroutines.slot_for(
+            identity,
+            value,
+            &self.structs,
+            &mut self.enums,
+            &mut self.shell,
+        )
+    }
+}
+
 impl CoroutineRegistry {
     pub(super) fn record_call_sites(
         &mut self,
@@ -103,9 +143,9 @@ impl CoroutineRegistry {
         exact_types: &'a SourceExactTypeRegistry,
         lowered: &mir::Type,
     ) -> &'a mir::SourceExactTypeIdentity {
-        exact_types
-            .get(lowered)
-            .expect("coroutine value types originate in local-concrete HIR")
+        exact_types.get(lowered).unwrap_or_else(|| {
+            panic!("coroutine value type {lowered:?} has no local-concrete HIR identity")
+        })
     }
 
     pub(super) fn step_for(
@@ -207,27 +247,15 @@ impl CoroutineRegistry {
             .expect("every synthesized CoroutineStep type has typed metadata")
     }
 
-    pub(super) fn slot_for(
+    fn slot_for(
         &mut self,
-        exact_types: &SourceExactTypeRegistry,
+        identity: mir::CoroutineSlotIdentity,
         value: &mir::Type,
         structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineSlotId, mir::Type) {
-        let (exact_record, nominal_group) = match value {
-            mir::Type::Context(storage) if storage.role == mir::ContextStorageRole::Mark => {
-                (storage.exact_record(), None)
-            }
-            _ => {
-                let source = Self::source_type(exact_types, value);
-                (
-                    source.identity_record().clone(),
-                    source.nominal_specialization(),
-                )
-            }
-        };
-        let exact = exact_record.id();
+        let exact = identity.value_record().id();
         if let Some((_, id)) = self
             .slots_by_value
             .iter()
@@ -236,13 +264,6 @@ impl CoroutineRegistry {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
-        let identity = match value {
-            mir::Type::Context(storage) if storage.role == mir::ContextStorageRole::Mark => {
-                mir::CoroutineSlotIdentity::context_mark(storage.core)
-            }
-            _ => mir::CoroutineSlotIdentity::new(&exact_record, nominal_group),
-        }
-        .expect("a saved value has one exact coroutine-slot identity");
         let name = format!("CoroutineSlot<{}>", mir::type_name(shell, value));
         let value_gc_free = mir_type_gc_free(value, structs, enums);
         let mut variants = Vec::new();

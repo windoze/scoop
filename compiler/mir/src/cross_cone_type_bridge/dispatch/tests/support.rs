@@ -111,6 +111,20 @@ impl Fixture {
             .map(|receiver| sig(exact(source[receiver].id()), exact(source[UNIT].id())))
             .collect();
         let mut mir = crate::CanonicalMirFoundation::empty();
+        let boxed = CborIdentityRecord::from_key(scoop_identity::GeneratedNominalKey::BoxedValue {
+            payload: exact(source[VALUE].id()),
+        })
+        .unwrap();
+        let payload_field = CborIdentityRecord::from_key(
+            scoop_identity::FieldIdentityKey::box_payload(boxed.key()).unwrap(),
+        )
+        .unwrap();
+        mir.set_fields(vec![payload_field.clone()]).unwrap();
+        mir.set_generated_types(vec![boxed.clone()]).unwrap();
+        mir.set_exact_types(vec![
+            CborIdentityRecord::from_key(ExactTypeKey::Nominal(boxed.id())).unwrap(),
+        ])
+        .unwrap();
         mir.set_generated_callables(boxing.clone()).unwrap();
         mir.set_callable_signatures(
             methods
@@ -130,12 +144,7 @@ impl Fixture {
                             StrongCallableDefinitionOwner::GeneratedCallable(generated.id())
                                 .callable_owner(),
                         ),
-                        match generated.key() {
-                            GeneratedCallableKey::BoxingAdjust { interface, .. } => {
-                                sig(*interface, exact(source[UNIT].id()))
-                            }
-                            _ => unreachable!(),
-                        },
+                        sig(exact(boxed.id()), exact(source[UNIT].id())),
                     )
                 }))
                 .collect(),
@@ -161,7 +170,7 @@ impl Fixture {
             identities: &graph,
             foundation: &foundation,
         };
-        let records = source
+        let mut records: Vec<_> = source
             .iter()
             .enumerate()
             .map(|(index, source)| {
@@ -209,6 +218,28 @@ impl Fixture {
                 .unwrap()
             })
             .collect();
+        records.push(
+            ParamFreeMirTypeExportV1::try_new(
+                type_authority,
+                exact(boxed.id()),
+                MirTypeOriginV1::GeneratedNominal {
+                    nominal: boxed.id(),
+                    role: boxed.key().clone(),
+                },
+                facts(MirValueKindV1::Reference),
+                MirTypeRepresentationV1::BoxedValue {
+                    payload: MirRepresentationFieldV1 {
+                        field: payload_field.id(),
+                        value: exact(source[VALUE].id()),
+                    },
+                },
+                MirBaseAndInterfacesV1 {
+                    base: MirBaseClassV1::None,
+                    interfaces: vec![],
+                },
+            )
+            .unwrap(),
+        );
         let types = CanonicalParamFreeMirTypeExportsV1::try_new(records).unwrap();
         let mut fixture = Self {
             graph,
@@ -280,7 +311,8 @@ impl Fixture {
                     bindings[target].lowered_signature().clone(),
                     MirBridgeCallableSignatureV1::new(
                         sig(
-                            fixture.exact(if index < 2 { ROOT } else { LEFT }),
+                            crate::InterfaceAdjustIdentity::boxed_receiver(fixture.exact(VALUE))
+                                .unwrap(),
                             fixture.exact(UNIT),
                         ),
                         crate::GcEffect::Managed,

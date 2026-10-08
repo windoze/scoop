@@ -44,6 +44,8 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiArgument::elided_zst(zero(first_type())).unwrap(),
         ScoopAbiArgument::direct(scalar(first_type())).unwrap(),
         ScoopAbiArgument::indirect(aggregate(first_type())).unwrap(),
+        ScoopAbiArgument::direct_parts(storage(first_type(), 16, ScoopAbiValueShape::Interface))
+            .unwrap(),
     ];
     for argument in arguments {
         let decoded =
@@ -56,6 +58,8 @@ fn all_scoop_argument_and_return_kinds_round_trip_and_recheck_shape() {
         ScoopAbiReturn::elided_zst(zero(second_type())).unwrap(),
         ScoopAbiReturn::direct(scalar(second_type())).unwrap(),
         ScoopAbiReturn::indirect(aggregate(second_type())).unwrap(),
+        ScoopAbiReturn::direct_parts(storage(second_type(), 16, ScoopAbiValueShape::Interface))
+            .unwrap(),
     ];
     for result in returns {
         let decoded = decode_canonical::<DecodedScoopAbiReturn>(&encode(&result).unwrap()).unwrap();
@@ -125,9 +129,9 @@ fn scoop_storage_decoder_rejects_zero_alignment() {
 
 #[test]
 fn scoop_abi_decoder_rejects_unknown_tags() {
-    assert_unknown::<ScoopAbiValueShape>(b"\x03", 3);
-    assert_unknown::<DecodedScoopAbiArgument>(&unknown_value_sum(4), 4);
-    assert_unknown::<DecodedScoopAbiReturn>(&unknown_value_sum(5), 5);
+    assert_unknown::<ScoopAbiValueShape>(b"\x04", 4);
+    assert_unknown::<DecodedScoopAbiArgument>(&unknown_value_sum(5), 5);
+    assert_unknown::<DecodedScoopAbiReturn>(&unknown_value_sum(6), 6);
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {

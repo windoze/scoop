@@ -17,6 +17,7 @@ pub use decode::{
 pub enum ScoopAbiValueShape {
     Scalar,
     Aggregate,
+    Interface,
 }
 
 impl WireEncode for ScoopAbiValueShape {
@@ -24,6 +25,7 @@ impl WireEncode for ScoopAbiValueShape {
         encoder.unsigned(match self {
             Self::Scalar => 1,
             Self::Aggregate => 2,
+            Self::Interface => 3,
         })
     }
 }
@@ -87,6 +89,7 @@ pub enum ScoopAbiArgument {
     ElidedZst(CanonicalScoopStorage),
     Direct(CanonicalScoopStorage),
     Indirect(CanonicalScoopStorage),
+    DirectParts(CanonicalScoopStorage),
 }
 
 impl ScoopAbiArgument {
@@ -100,6 +103,14 @@ impl ScoopAbiArgument {
         Ok(Self::Direct(storage))
     }
 
+    pub fn direct_parts(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
+        require_nonzero_shape(storage, ScoopAbiValueShape::Interface)?;
+        if storage.byte_size() != 16 || storage.alignment().get() != 8 {
+            return Err(ScoopAbiError::PassingShapeMismatch);
+        }
+        Ok(Self::DirectParts(storage))
+    }
+
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
         Ok(Self::Indirect(storage))
@@ -107,7 +118,10 @@ impl ScoopAbiArgument {
 
     pub const fn storage(self) -> CanonicalScoopStorage {
         match self {
-            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => storage,
+            Self::ElidedZst(storage)
+            | Self::Direct(storage)
+            | Self::Indirect(storage)
+            | Self::DirectParts(storage) => storage,
         }
     }
 }
@@ -118,6 +132,7 @@ impl WireEncode for ScoopAbiArgument {
             Self::ElidedZst(storage) => (1, storage),
             Self::Direct(storage) => (2, storage),
             Self::Indirect(storage) => (3, storage),
+            Self::DirectParts(storage) => (4, storage),
         };
         encode_value_sum(encoder, tag, storage)
     }
@@ -129,6 +144,7 @@ pub enum ScoopAbiReturn {
     ElidedZst(CanonicalScoopStorage),
     Direct(CanonicalScoopStorage),
     Indirect(CanonicalScoopStorage),
+    DirectParts(CanonicalScoopStorage),
 }
 
 impl ScoopAbiReturn {
@@ -146,6 +162,14 @@ impl ScoopAbiReturn {
         Ok(Self::Direct(storage))
     }
 
+    pub fn direct_parts(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
+        require_nonzero_shape(storage, ScoopAbiValueShape::Interface)?;
+        if storage.byte_size() != 16 || storage.alignment().get() != 8 {
+            return Err(ScoopAbiError::PassingShapeMismatch);
+        }
+        Ok(Self::DirectParts(storage))
+    }
+
     pub fn indirect(storage: CanonicalScoopStorage) -> Result<Self, ScoopAbiError> {
         require_nonzero_shape(storage, ScoopAbiValueShape::Aggregate)?;
         Ok(Self::Indirect(storage))
@@ -154,9 +178,10 @@ impl ScoopAbiReturn {
     fn storage(self) -> Option<CanonicalScoopStorage> {
         match self {
             Self::UnitVoid => None,
-            Self::ElidedZst(storage) | Self::Direct(storage) | Self::Indirect(storage) => {
-                Some(storage)
-            }
+            Self::ElidedZst(storage)
+            | Self::Direct(storage)
+            | Self::Indirect(storage)
+            | Self::DirectParts(storage) => Some(storage),
         }
     }
 }
@@ -168,6 +193,7 @@ impl WireEncode for ScoopAbiReturn {
             Self::ElidedZst(storage) => encode_value_sum(encoder, 2, storage),
             Self::Direct(storage) => encode_value_sum(encoder, 3, storage),
             Self::Indirect(storage) => encode_value_sum(encoder, 4, storage),
+            Self::DirectParts(storage) => encode_value_sum(encoder, 5, storage),
         }
     }
 }

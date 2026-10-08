@@ -36,7 +36,7 @@ fn replay_joins_schema_physical_slot_callable_abi_and_definition() {
 }
 
 #[test]
-fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_signature() {
+fn reference_dispatch_requires_managed_receivers_and_preserves_call_signature() {
     let fixture = DirectFixture::reference();
     let input = fixture.reference_input(Some(&fixture.owner));
     let mut resolver = fixture.local_resolver();
@@ -99,14 +99,12 @@ fn reference_dispatch_requires_distinct_managed_receivers_and_preserves_call_sig
     let mut same = fixture.reference_input(Some(&fixture.target_receiver));
     same.slot_signature = same_receiver;
     let mut resolver = fixture.local_resolver();
-    assert!(matches!(
-        ExactDispatchExportV1::replay(
-            TARGET,
-            (&fixture.vtable).into(),
-            &[same],
-            &fixture.foundation,
-            &mut resolver,
-        ),
-        Err(ExactDispatchError::ReceiverAdaptation(_))
-    ));
+    ExactDispatchExportV1::replay(
+        TARGET,
+        (&fixture.vtable).into(),
+        &[same],
+        &fixture.foundation,
+        &mut resolver,
+    )
+    .unwrap();
 }

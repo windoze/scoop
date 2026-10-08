@@ -359,8 +359,10 @@ fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
             )));
         }
         let valid_scan = match kind {
-            scoop_lir::NichePointerKind::Managed => definition.scan == RefScan::References(vec![0]),
-            scoop_lir::NichePointerKind::Raw | scoop_lir::NichePointerKind::Code => {
+            scoop_lir::NullNicheKind::Managed | scoop_lir::NullNicheKind::Interface => {
+                definition.scan == RefScan::References(vec![0])
+            }
+            scoop_lir::NullNicheKind::Raw | scoop_lir::NullNicheKind::Code => {
                 definition.scan == RefScan::None
             }
         };
@@ -368,7 +370,7 @@ fn validate_niche_representations(module: &Module) -> Result<(), CodegenError> {
             return Err(CodegenError(format!(
                 "niche enum `{}` has {} pointer provenance but incompatible scan {}",
                 definition.name,
-                kind.pointer_kind().dump(),
+                kind.dump(),
                 definition.scan.dump(),
             )));
         }
@@ -832,7 +834,7 @@ fn validate_c_return_type(
     }
 }
 
-fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NichePointerKind> {
+fn niche_pointer_kind(module: &Module, lir: &LirType) -> Option<scoop_lir::NullNicheKind> {
     let LirType::Enum(id) = lir else {
         return None;
     };
@@ -904,7 +906,7 @@ fn validate_c_type(
                     )));
                 }
                 if niche_pointer_kind(module, &LirType::Enum(id))
-                    != Some(scoop_lir::NichePointerKind::Raw)
+                    != Some(scoop_lir::NullNicheKind::Raw)
                 {
                     return Err(CodegenError(format!(
                         "nullable C data pointer references enum `{}` without raw-pointer provenance",
@@ -939,7 +941,7 @@ fn validate_c_type(
                     )));
                 }
                 if niche_pointer_kind(module, &LirType::Enum(id))
-                    != Some(scoop_lir::NichePointerKind::Code)
+                    != Some(scoop_lir::NullNicheKind::Code)
                 {
                     return Err(CodegenError(format!(
                         "nullable C code pointer references enum `{}` without code-pointer provenance",

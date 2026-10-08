@@ -108,7 +108,7 @@ impl Fixture {
         let definitions = self
             .records
             .iter()
-            .map(|r| (r.owner(), AbiNominalDefinition::native(r)))
+            .map(|r| (r.owner(), AbiNominalDefinition::native(r, false)))
             .collect();
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
@@ -218,6 +218,7 @@ fn mixed_handle_scalar_and_unit_parameters_preserve_the_complete_scoop_abi() {
                 .iter()
                 .map(|argument| match argument {
                     ScoopAbiArgument::Direct(value) => storage("direct", *value),
+                    ScoopAbiArgument::DirectParts(value) => storage("direct-parts", *value),
                     ScoopAbiArgument::Indirect(value) => storage("indirect", *value),
                     ScoopAbiArgument::ElidedZst(value) => storage("elided", *value),
                 })
@@ -226,6 +227,7 @@ fn mixed_handle_scalar_and_unit_parameters_preserve_the_complete_scoop_abi() {
             let result = match signature.result() {
                 ScoopAbiReturn::UnitVoid => "unit".to_owned(),
                 ScoopAbiReturn::Direct(value) => storage("direct", value),
+                ScoopAbiReturn::DirectParts(value) => storage("direct-parts", value),
                 ScoopAbiReturn::Indirect(value) => storage("indirect", value),
                 ScoopAbiReturn::ElidedZst(value) => storage("elided", value),
             };

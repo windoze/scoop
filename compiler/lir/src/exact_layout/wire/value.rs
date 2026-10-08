@@ -3,6 +3,7 @@ use super::*;
 impl WireEncode for ExactRepresentationLayoutV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         match self.kind() {
+            ExactRepresentationKindV1::Interface => sum(encoder, 8, 0),
             ExactRepresentationKindV1::Scalar(kind) => {
                 sum(encoder, 1, 1)?;
                 encoder.field(1)?;

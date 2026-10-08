@@ -58,11 +58,14 @@ pub(crate) fn layouts(
         if !identity_roots.materializes_type(&ty) {
             continue;
         }
-        layouts.alloc(managed_reference_value_layout(
+        let mut layout = managed_reference_value_layout(
             context,
             managed_value_layout_identity(context, identity_roots, module, &ty),
             &def.name,
-        ));
+        );
+        layout.size = 16;
+        layout.align = 8;
+        layouts.alloc(layout);
     }
     for (id, def) in module.classes.iter() {
         let ty = def.physical_type(id);

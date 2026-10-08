@@ -1,12 +1,12 @@
 use super::*;
-use crate::{BoxingAdjust, CallableOwner, CallableSignatureSubject, ConeMirInput, FunctionId};
+use crate::{CallableOwner, CallableSignatureSubject, ConeMirInput, FunctionId, InterfaceAdjust};
 use std::collections::BTreeMap;
 
 mod binding;
 
 impl CanonicalMirCallableBindingsV1 {
-    /// Projects actual boxed-value dispatch bodies for locally exported payloads.
-    pub fn from_boxing_adjusts(
+    /// Projects interface receiver adapters for locally exported concrete owners.
+    pub fn from_interface_adjusts(
         input: &ConeMirInput,
         local_types: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
@@ -17,20 +17,20 @@ impl CanonicalMirCallableBindingsV1 {
         for root in input.materialization().callable_roots() {
             roots.insert(root.function(), root.subject());
         }
-        let adjusts = &input.module().meta.boxing_adjusts;
+        let adjusts = &input.module().meta.interface_adjusts;
         let mut records = Vec::new();
 
         scoop_wire::allocation::try_reserve(&mut records, adjusts.len(), &WirePath::root())?;
         for adjust in adjusts {
-            let GeneratedCallableKey::BoxingAdjust { payload, .. } =
-                adjust.identity().callable_record().key()
-            else {
-                return Err(Error::InvalidAdjust(adjust.function()));
+            let owner = match adjust.identity().callable_record().key() {
+                GeneratedCallableKey::BoxingAdjust { payload, .. } => *payload,
+                GeneratedCallableKey::DispatchAdjust { implementor, .. } => *implementor,
+                _ => return Err(Error::InvalidAdjust(adjust.function())),
             };
-            if local_types.get(*payload).is_none()
+            if local_types.get(owner).is_none()
                 && !matches!(
                     identities
-                        .canonical_key::<_, ExactTypeKey>(*payload)
+                        .canonical_key::<_, ExactTypeKey>(owner)
                         .map_err(MirCallableBridgeError::from)?
                         .as_ref(),
                     ExactTypeKey::Tuple(_) | ExactTypeKey::RawPointer(_)

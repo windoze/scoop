@@ -4,8 +4,12 @@ impl FunctionLowerer<'_> {
     pub(super) fn lower_atomic_operation(
         &mut self,
         atomic: &mir::AtomicExpression<mir::Expr>,
+        result_type: &mir::Type,
     ) -> StorageResult<lir::Value> {
-        let atomic = atomic.try_map(|operand| self.lower_expr(operand))?;
+        let atomic = atomic.try_map(|operand| {
+            let value = self.lower_expr(operand)?;
+            Ok::<_, StorageLoweringError>(self.reference_object(value, &operand.ty))
+        })?;
         let layout = lir::atomic_object_layout(self.context.target_profile(), atomic.kind)?;
         let location = lir::AtomicLocation {
             object: atomic.object,
@@ -67,7 +71,7 @@ impl FunctionLowerer<'_> {
                 out
             }
         };
-        Ok(lir::Value::Temp(out))
+        self.restore_reference_value(lir::Value::Temp(out), result_type)
     }
 
     pub(super) fn lower_atomic_new(
@@ -86,6 +90,7 @@ impl FunctionLowerer<'_> {
         let kind = storage.kind();
         let layout = lir::atomic_object_layout(self.context.target_profile(), kind)?;
         let value = self.lower_expr(initial)?;
+        let value = self.reference_object(value, &initial.ty);
         let object = self.emit_plain_call(
             LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
             vec![

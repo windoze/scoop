@@ -27,7 +27,7 @@ extern "C" {
 #error "Scoop runtime metadata ABI v1 requires little-endian byte order"
 #endif
 
-#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(7)
+#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(8)
 
 /* Unused program/core record magic values 0x53434f4f50505247 and
  * 0x53434f4f50434f52 are retired and must not be reused. */

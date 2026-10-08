@@ -8,6 +8,7 @@ pub(crate) struct DependencyTypeDescriptors {
     pub source: Vec<(mir::Type, lir::TypeDescriptorRef)>,
     pub generated: HashMap<mir::GeneratedExactTypeLocation, lir::TypeDescriptorRef>,
     pub boxed: Vec<(mir::Type, lir::BoxedValueDescriptor)>,
+    pub itable_interfaces: HashMap<mir::ClassId, Vec<scoop_identity::PersistentExactTypeId>>,
 }
 
 impl DependencyTypeDescriptors {
@@ -156,6 +157,47 @@ pub(super) fn lower(
         result
             .source
             .push((source.ty().clone(), lir::TypeDescriptorRef::External(id)));
+    }
+    for (class, reference) in result
+        .source
+        .iter()
+        .filter_map(|(ty, reference)| {
+            if let mir::Type::Class(class) = ty {
+                Some((*class, reference))
+            } else {
+                None
+            }
+        })
+        .chain(result.generated.iter().filter_map(|(location, reference)| {
+            if let mir::GeneratedExactTypeLocation::Class(class) = location {
+                Some((*class, reference))
+            } else {
+                None
+            }
+        }))
+    {
+        let lir::TypeDescriptorRef::External(id) = *reference else {
+            unreachable!("dependency descriptors refer to selected external definitions")
+        };
+        let descriptor = &external[id];
+        let record = selected.and_then(|selected| {
+            selected.semantic_record(
+                descriptor.provider(),
+                lir::LayoutAbiSemanticTargetV1::Descriptor(descriptor.target()),
+            )
+        });
+        let Some(lir::LayoutAbiSemanticRecordV1::Descriptor(record)) = record else {
+            return Err(Error::DependencyDescriptorBinding(descriptor.target()));
+        };
+        result.itable_interfaces.insert(
+            class,
+            record
+                .dispatch()
+                .itables()
+                .iter()
+                .map(|table| table.interface().exact_type())
+                .collect(),
+        );
     }
     Ok(result)
 }

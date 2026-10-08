@@ -346,6 +346,7 @@ pub(crate) fn lower_intrinsic_type_representation(
 /// lives only in typed `ArrayType` metadata.
 pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
+        mir::Type::Interface(_) => lir::LirType::Interface,
         mir::Type::Context(storage) => match storage.role {
             mir::ContextStorageRole::Task
             | mir::ContextStorageRole::Node
@@ -359,11 +360,9 @@ pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         mir::Type::Integer(kind) => integer_kind(*kind).scalar_type(),
         mir::Type::MachineScalar(kind) => lir::LirType::MachineScalar(machine_scalar_kind(*kind)),
         mir::Type::Boolean => lir::LirType::I1,
-        mir::Type::String
-        | mir::Type::Class(_)
-        | mir::Type::Interface(_)
-        | mir::Type::Function(_)
-        | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
+        mir::Type::String | mir::Type::Class(_) | mir::Type::Function(_) | mir::Type::Any => {
+            lir::LirType::Ptr(lir::PointerKind::Managed)
+        }
         mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
         mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
         mir::Type::Struct(id) => match module.structs[*id].representation {

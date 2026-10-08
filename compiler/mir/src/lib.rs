@@ -91,8 +91,8 @@ pub use continuation_adapter::*;
 mod boxed_value;
 pub use boxed_value::*;
 
-mod boxing_adjust;
-pub use boxing_adjust::*;
+mod interface_adjust;
+pub use interface_adjust::*;
 
 mod identity_metadata;
 pub use identity_metadata::*;

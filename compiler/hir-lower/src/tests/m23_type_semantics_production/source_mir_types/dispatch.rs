@@ -77,7 +77,7 @@ fn with_dispatch<R>(
                 .unwrap(),
             callables
         );
-        let boxing = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+        let boxing = CanonicalMirCallableBindingsV1::from_interface_adjusts(
             input, &types, graph, &index, &callables,
         )
         .unwrap();

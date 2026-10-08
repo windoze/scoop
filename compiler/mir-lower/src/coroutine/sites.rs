@@ -147,10 +147,7 @@ pub(super) fn rewrite_site(
             adapter_state(ADAPTER_WAITING),
         ],
     ));
-    call.args.push(mir::Expr::local(
-        adapter_local,
-        mir::Type::Class(adapter.class),
-    ));
+    call.args.push(adapter.reference(adapter_local));
     block.statements.push(statement(mir::StatementKind::Call(
         mir::CallEffect::Value {
             destination: step_local,

@@ -9,7 +9,7 @@ use super::{
     InitializationOutcome, InternalPointerCarrier, LirTargetProfile, LirType,
     LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
     ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
-    NativeBorrowedResultRoot, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
+    NativeBorrowedResultRoot, NonEmptyRefScan, NullNicheKind, PointerKind, PointerNullEncoding,
     RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
@@ -157,7 +157,7 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
         ),
         name: "Option<Throwable>".to_string(),
         repr: EnumRepr::Niche {
-            kind: NichePointerKind::Managed,
+            kind: NullNicheKind::Managed,
             payload_variant: 0,
         },
         scan: RefScan::References(vec![0]),
@@ -230,9 +230,9 @@ fn darwin_aarch64_profile_keeps_pointer_provenance_and_qualification_typed() {
 #[test]
 fn niche_representation_atomically_preserves_source_pointer_provenance() {
     for (kind, expected) in [
-        (NichePointerKind::Managed, PointerKind::Managed),
-        (NichePointerKind::Raw, PointerKind::Raw),
-        (NichePointerKind::Code, PointerKind::Code),
+        (NullNicheKind::Managed, PointerKind::Managed),
+        (NullNicheKind::Raw, PointerKind::Raw),
+        (NullNicheKind::Code, PointerKind::Code),
     ] {
         let repr = EnumRepr::Niche {
             kind,
@@ -246,8 +246,7 @@ fn niche_representation_atomically_preserves_source_pointer_provenance() {
             panic!("the test constructs a niche representation");
         };
 
-        assert_eq!(kind.pointer_kind(), expected);
-        assert_eq!(PointerKind::from(kind), expected);
+        assert_eq!(kind.storage_type(), LirType::Ptr(expected));
         assert_eq!(payload_variant, 1);
     }
 }
@@ -293,7 +292,7 @@ fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
         ),
         name: "RawOption".to_string(),
         repr: EnumRepr::Niche {
-            kind: NichePointerKind::Raw,
+            kind: NullNicheKind::Raw,
             payload_variant: 0,
         },
         scan: RefScan::None,
@@ -408,7 +407,7 @@ fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
 
     let i64_value = abi_value(LirType::I64, 8, 8, RefScan::None);
     let direct_signature = targets.direct_signatures.alloc(DirectCallSignature::new(
-        vec![AbiArgument::Direct(i64_value.clone())],
+        vec![AbiArgument::Direct(i64_value.clone().into())],
         i64_value,
         CallingConvention::Cdecl,
     ));
@@ -512,7 +511,7 @@ fn native_borrowed_result_publication_is_sealed_with_return_convention() {
         gc_effect: GcEffect::Managed,
         signature: ScoopAbiSignature::new(
             Vec::new(),
-            AbiReturn::Direct(direct_result.clone()),
+            AbiReturn::Direct(direct_result.clone().into()),
             CallingConvention::Cdecl,
         ),
     });
@@ -679,7 +678,7 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
     let signature = ScoopAbiSignature::new(
         vec![
             AbiArgument::ElidedZst(abi_zst(zst_ty.clone(), 1)),
-            AbiArgument::Direct(abi_value(LirType::I64, 8, 8, RefScan::None)),
+            AbiArgument::Direct(abi_value(LirType::I64, 8, 8, RefScan::None).into()),
             AbiArgument::Indirect(abi_value(indirect_ty.clone(), 16, 8, RefScan::None)),
         ],
         AbiReturn::UnitVoid,
@@ -1038,7 +1037,7 @@ fn exact_c_types_totally_determine_their_lir_storage() {
         ),
         name: "Option<Ptr<Unit>>".to_string(),
         repr: EnumRepr::Niche {
-            kind: NichePointerKind::Raw,
+            kind: NullNicheKind::Raw,
             payload_variant: 0,
         },
         scan: RefScan::None,
@@ -1051,7 +1050,7 @@ fn exact_c_types_totally_determine_their_lir_storage() {
         ),
         name: "Option<FunPtr<() -> Unit>>".to_string(),
         repr: EnumRepr::Niche {
-            kind: NichePointerKind::Code,
+            kind: NullNicheKind::Code,
             payload_variant: 0,
         },
         scan: RefScan::None,
@@ -1165,11 +1164,11 @@ fn target_contract_and_fingerprint_match_the_fixed_vectors() {
     let profile = LirTargetProfile::DARWIN_AARCH64;
     assert_eq!(
         hex(&scoop_wire::encode(&profile.contract()).unwrap()),
-        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e020f01"
+        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d020e020f01"
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
+        "79afcacae94bf05c0f1b38db6f43eb4f5668065903de37d1c2abf93551166c42"
     );
     assert_eq!(
         super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),

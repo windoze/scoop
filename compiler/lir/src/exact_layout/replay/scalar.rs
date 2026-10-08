@@ -1,5 +1,5 @@
 use super::*;
-use crate::{BackendScalarKind, NichePointerKind};
+use crate::{BackendScalarKind, NullNicheKind};
 
 impl ExactValueLayoutV1 {
     /// Replays scalar geometry. The complete section must join `kind` and the
@@ -42,13 +42,29 @@ impl ExactValueLayoutV1 {
         )
     }
 
+    pub fn interface(
+        identity: ExactLayoutIdentityV1,
+        foundation: &ConeLirFoundation,
+    ) -> Result<Self, ExactLayoutReplayError> {
+        require_roles(&identity, &[RepresentationRole::ManagedValue])?;
+        nominal(identity.exact_key())?;
+        let storage = ValueStorageLayoutV1::inline(16, 8, RefScan::References(vec![0]))?;
+        finish_value(
+            identity,
+            storage,
+            ValueRepresentation::Interface,
+            foundation,
+        )
+    }
+
     pub fn qualified_pointer(
         identity: ExactLayoutIdentityV1,
-        kind: NichePointerKind,
+        kind: NullNicheKind,
         foundation: &ConeLirFoundation,
     ) -> Result<Self, ExactLayoutReplayError> {
         let layout = match kind {
-            NichePointerKind::Managed => {
+            NullNicheKind::Interface => return Self::interface(identity, foundation),
+            NullNicheKind::Managed => {
                 require_roles(&identity, &[RepresentationRole::ManagedValue])?;
                 if is_unit(identity.exact_key()) {
                     return Err(ExactLayoutReplayError::IdentityKind);
@@ -63,7 +79,7 @@ impl ExactValueLayoutV1 {
                 }
                 identity.target().managed_pointer_layout()
             }
-            NichePointerKind::Raw => {
+            NullNicheKind::Raw => {
                 require_roles(
                     &identity,
                     &[RepresentationRole::ManagedValue, RepresentationRole::CValue],
@@ -73,7 +89,7 @@ impl ExactValueLayoutV1 {
                 }
                 identity.target().data_pointer().layout()
             }
-            NichePointerKind::Code => {
+            NullNicheKind::Code => {
                 require_roles(
                     &identity,
                     &[
@@ -92,8 +108,8 @@ impl ExactValueLayoutV1 {
             }
         };
         let scan = match kind {
-            NichePointerKind::Managed => RefScan::References(vec![0]),
-            NichePointerKind::Raw | NichePointerKind::Code => RefScan::None,
+            NullNicheKind::Managed | NullNicheKind::Interface => RefScan::References(vec![0]),
+            NullNicheKind::Raw | NullNicheKind::Code => RefScan::None,
         };
         let storage =
             ValueStorageLayoutV1::inline(layout.size_bytes(), layout.alignment_bytes(), scan)?;

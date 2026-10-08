@@ -31,7 +31,7 @@ pub(in crate::tests) fn lower_test_input(
             } else {
                 lir::ExactValueLayoutV1::qualified_pointer(
                     identity,
-                    lir::NichePointerKind::Managed,
+                    lir::NullNicheKind::Managed,
                     foundation,
                 )
                 .unwrap()

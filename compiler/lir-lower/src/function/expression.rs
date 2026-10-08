@@ -119,7 +119,7 @@ impl<'a> FunctionLowerer<'a> {
                 operand,
             } => self.lower_array_clone(ty, source_type, target_type, operand)?,
             mir::ExprKind::AtomicNew(initial) => self.lower_atomic_new(ty, initial)?,
-            mir::ExprKind::Atomic(atomic) => self.lower_atomic_operation(atomic)?,
+            mir::ExprKind::Atomic(atomic) => self.lower_atomic_operation(atomic, ty)?,
             mir::ExprKind::Local(local) => self.local_value(*local),
             mir::ExprKind::GlobalRead(global) => self.lower_global_read(ty, *global),
             mir::ExprKind::InitializationUnitAddress(unit) => {
@@ -235,17 +235,21 @@ impl<'a> FunctionLowerer<'a> {
                     retyped_ty.as_ref(),
                     "Retype expression carries one result type"
                 );
-                assert_eq!(
-                    lir_type(self.module, &operand.ty),
-                    lir::MANAGED_PTR,
+                assert!(
+                    matches!(
+                        lir_type(self.module, &operand.ty),
+                        lir::MANAGED_PTR | lir::LirType::Interface
+                    ),
                     "Retype operand must be a managed reference"
                 );
-                assert_eq!(
-                    lir_type(self.module, ty),
-                    lir::MANAGED_PTR,
+                assert!(
+                    matches!(
+                        lir_type(self.module, ty),
+                        lir::MANAGED_PTR | lir::LirType::Interface
+                    ),
                     "Retype result must be a managed reference"
                 );
-                self.lower_expr(operand)?
+                self.lower_reference_conversion(operand, ty)?
             }
             mir::ExprKind::FieldAccess { receiver, index } => {
                 self.lower_field_access(ty, receiver, index)?
@@ -268,11 +272,12 @@ impl<'a> FunctionLowerer<'a> {
                 expected,
                 replacement,
             )?,
-            mir::ExprKind::Box(operand) => self.lower_box(operand)?,
+            mir::ExprKind::Box(operand) => self.lower_box(operand, ty)?,
             mir::ExprKind::Unbox(operand) => self.lower_unbox(operand, ty)?,
             // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
             mir::ExprKind::IsInstance { operand, check_ty } => {
                 let object = self.lower_expr(operand)?;
+                let object = self.reference_object(object, &operand.ty);
                 let td = self.td_ref(check_ty);
                 self.emit_plain_call(
                     LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::IsInstance),

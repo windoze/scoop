@@ -95,9 +95,6 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 )?);
                 continue;
             }
-            if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) {
-                continue;
-            }
             let identity = input
                 .module()
                 .meta
@@ -105,6 +102,12 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 .get(root.location())
                 .expect("a generated materialization retains its MIR identity");
             let role = identity.nominal_record().key();
+            let boxed_slot = matches!(role, GeneratedNominalKey::CoroutineSlot { value }
+                if plan.shape_support().iter().any(|root| matches!(root.boxed(),
+                    StrongBoxedShapeSupportRoot::Available(boxed) if boxed.exact() == *value)));
+            if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) && !boxed_slot {
+                continue;
+            }
             let source_exact = match role {
                 GeneratedNominalKey::BoxedValue { payload } => *payload,
                 GeneratedNominalKey::CoroutineStep { result } => *result,
@@ -112,18 +115,8 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 _ => continue,
             };
             let source_key = identities.canonical_key::<_, ExactTypeKey>(source_exact)?;
-            let context_mark = input
-                .module()
-                .meta
-                .generated_exact_types
-                .get_by_identity(source_exact)
-                .is_some_and(|entry| {
-                    matches!(entry.location(),
-                    GeneratedExactTypeLocation::Context(storage)
-                        if storage.role == crate::ContextStorageRole::Mark)
-                });
             let interfaces = match source_key.as_ref() {
-                _ if context_mark => &[],
+                _ if !matches!(role, GeneratedNominalKey::BoxedValue { .. }) => &[],
                 ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                     &sources
                         .get(source_exact)

@@ -24,10 +24,10 @@ fn type_semantics_v26_retires_derived_interface_targets() {
 }
 
 #[test]
-fn mir_type_bridge_v17_retains_atomic_reference_arguments() {
+fn mir_type_bridge_v18_retains_concrete_interface_receivers() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        17,
+        18,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -48,10 +48,10 @@ fn mir_foundation_v5_retains_callback_snapshot_abi() {
 }
 
 #[test]
-fn lir_layout_abi_v12_retains_atomic_object_storage() {
+fn lir_layout_abi_v13_retains_interface_parts() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        12,
+        13,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

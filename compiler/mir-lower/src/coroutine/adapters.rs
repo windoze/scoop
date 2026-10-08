@@ -10,9 +10,23 @@ use resume::generate_resume_method;
 
 pub(super) struct GeneratedAdapter {
     pub(super) class: mir::ClassId,
+    continuation: mir::InterfaceId,
     pub(super) resume: mir::FunctionId,
     pub(super) resume_with_exception: mir::FunctionId,
     pub(super) identity: mir::ContinuationAdapterIdentity,
+}
+
+impl GeneratedAdapter {
+    pub(super) fn reference(&self, local: mir::LocalId) -> mir::Expr {
+        let ty = mir::Type::Interface(self.continuation);
+        mir::Expr::new(
+            ty.clone(),
+            mir::ExprKind::Retype {
+                operand: Box::new(mir::Expr::local(local, mir::Type::Class(self.class))),
+                ty: Box::new(ty),
+            },
+        )
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -136,6 +150,7 @@ pub(super) fn generate_adapter(
     }];
     GeneratedAdapter {
         class,
+        continuation,
         resume,
         resume_with_exception: failure,
         identity,

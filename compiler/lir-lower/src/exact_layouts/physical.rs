@@ -135,6 +135,7 @@ impl Projection<'_> {
             (
                 Kind::Scalar(_)
                 | Kind::QualifiedPointer(_)
+                | Kind::Interface
                 | Kind::Struct(_)
                 | Kind::Tuple(_)
                 | Kind::IntrinsicValue(_),

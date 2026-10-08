@@ -222,6 +222,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Terminator::Throw { exception, unwind } => {
                 let value = self.lower_expr(exception)?;
+                let value = self.reference_object(value, &exception.ty);
                 if let Some(unwind) = unwind {
                     let normal = self.new_block("throw.normal");
                     let (call, _) =

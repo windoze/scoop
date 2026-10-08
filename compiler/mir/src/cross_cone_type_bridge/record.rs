@@ -75,6 +75,15 @@ fn is_odr_origin(
                 .identities
                 .canonical_key::<_, ExactTypeKey>(payload)?;
             if let ExactTypeKey::Nominal(nominal) = key.as_ref() {
+                if matches!(role, GeneratedNominalKey::CoroutineSlot { .. })
+                    && let Some(GeneratedNominalKey::BoxedValue { payload }) =
+                        authority.foundation.generated_type_key(*nominal)
+                {
+                    let payload = authority
+                        .identities
+                        .canonical_key::<_, ExactTypeKey>(*payload)?;
+                    return Ok(!matches!(payload.as_ref(), ExactTypeKey::Nominal(_)));
+                }
                 return Ok(matches!(role, GeneratedNominalKey::CoroutineSlot { .. })
                     && matches!(authority.foundation.generated_type_key(*nominal),
                         Some(GeneratedNominalKey::TaskContext(storage))

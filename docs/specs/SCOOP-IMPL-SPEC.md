@@ -117,6 +117,10 @@ closure 具有完整捕获字段、类型、invoke 与扫描属性；绑定方�
 
 suspend callable 的执行 ABI 为 `(source args..., Continuation<R>) -> CoroutineStep<R>`，后者仅含 Completed(R) 与 Suspended。输出不保留源码级 suspend call；frame、continuation、恢复入口和 saved slots 均有独立身份和完整类型。跨挂起只保存已初始化的 exact payload，不保存 native block address 或 active EH record。
 
+接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 box slot 随已发布的 box 支持输出，纯内部 saved slot 不扩张私有 payload 的发布闭包。
+
+object 的源码 exact type 与 backing class exact type 是同一对象的两种视图，共用分发表及 receiver adapter。adapter 的 implementor 保留源码 object 身份；backing 表通过类型记录中已有的 `Object { backing }` 关系引用它，不另建 callable 或放宽为任意继承 receiver。
+
 completion 与 resume 具有唯一获胜方，并明确 payload 的 release/acquire 关系。恢复失败沿原调用点的异常／cleanup 路径传播。挂起状态使用 frame 的 TaskContext，恢复前后的切换见 2.16。
 
 MIR metadata 保存源码声明到实际 callable、constructor、accessor、generated body 的映射，exact signature、GC effect、继承、dispatch、object/init 关系及 Strong/ODR 归属。它不定义目标布局；布局由 LIR metadata 提供。
@@ -265,8 +269,8 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/68`、`cross-cone-type-semantics/26` |
-| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/17` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/12`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
+| MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/18` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/2`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/13`、`cross-cone-layout-link-closure/6`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -599,6 +603,8 @@ ArrayList 以普通 MutableArray<MaybeUninit<T>> 实现容量存储，elementCou
 ### 2.16 Task-local Context
 
 Context 的语言行为见语言规范 8.3.5，运行时 key、scope、task 与 callback ABI 见运行时规范第 9 章。HIR 保存 exact key、完整绑定值类型及已选 Context 操作；泛型条件在实际 application 中替换，不按运行期对象类型猜 key。
+
+Context runtime 的擦除 binding 槽保存单字 object；compiler-owned `context-binding-ref` 使用与 Any 相同的 managed-pointer 表示及独立 generated identity，不冒充源码空接口。绑定接口时提取 object，按 exact key 取出后为静态接口重建 itab；该重建为 NoGC。用户可见的参数、结果和字段仍保存完整双字接口。
 
 Context scope 在完整 value 求值与成功 push 后才生效。真实离开 scope 的正常结果、return、break、continue 和异常都恢复 mark；挂起不退出 scope，已消费的 mark 不继续保活旧绑定。
 

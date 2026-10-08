@@ -1545,12 +1545,12 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun thunk<Label> Describable.describe() @fn55(this: Describable) -> String
+  fun thunk<Label> Describable.describe() @fn55(this: box<Label>) -> String
     bb0 entry
       call $call.1: String = @fn0 direct
         Type Label
         Unbox
-          Type Describable
+          Type box<Label>
           Local this
       return
         Type String

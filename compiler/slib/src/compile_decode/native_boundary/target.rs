@@ -54,7 +54,7 @@ pub(super) fn validate_target_normalization(
 ) -> Result<(), NativeBoundaryCompileError> {
     let types = scoop_abi::AbiReplayTypes {
         exact: exact_type_records(graph)?,
-        definitions: nominals::native_definitions(view.type_definitions)?,
+        definitions: nominals::native_definitions(view.type_definitions, graph)?,
     };
     normalization::validate(artifact, graph, view, types, &[])
 }
