@@ -410,6 +410,7 @@ fn native_contract_fixture(
     .unwrap();
     let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
         contract.fingerprint(),
+        scoop_identity::CResultAdaptation::Direct,
     ))
     .unwrap();
     let atom = atom_producer.map(|producer| {

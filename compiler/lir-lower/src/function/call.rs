@@ -19,6 +19,7 @@ impl<'a> FunctionLowerer<'a> {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
                 let extern_ = &self.module.extern_functions[id];
                 let parameter_types = extern_.params.clone();
+                let result = extern_.result.clone();
                 assert_eq!(call.args.len(), parameter_types.len(), "extern call arity");
                 let args = call
                     .args
@@ -27,7 +28,7 @@ impl<'a> FunctionLowerer<'a> {
                     .collect::<StorageResult<Vec<_>>>()?;
                 match self.extern_function_refs[&id] {
                     LoweredExternFunctionRef::C(function) => {
-                        self.lower_c_call(function, &parameter_types, result_ty, args)?
+                        self.lower_c_call(function, &parameter_types, &result, args)?
                     }
                     LoweredExternFunctionRef::Scoop(function) => {
                         let destination = NativeCallDestination::Borrowed(

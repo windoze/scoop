@@ -132,7 +132,10 @@ fn extern_implementation_cannot_supply_a_template_body() {
     let bytes = encode(&expected.index_locals().unwrap()).unwrap();
     for implementation in [
         CallableImplementationV1::SourceExternScoop,
-        CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+        CallableImplementationV1::SourceExternC(
+            scoop_identity::CAbiCallMode::NativeSafe,
+            scoop_identity::CResultAdaptation::Direct,
+        ),
     ] {
         let mut decoded: DecodedExportGenericCallableBodyV1 = decode_canonical(&bytes).unwrap();
         decoded.effects = decode_canonical(&encode(&effects(implementation)).unwrap()).unwrap();

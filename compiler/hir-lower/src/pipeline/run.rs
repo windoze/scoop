@@ -391,8 +391,6 @@ impl Lowerer {
         self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
-        self.validate_extern_functions();
-        self.validate_extern_global_symbols();
 
         // Publish the complete duplicate-signature rejection set after all
         // related signatures are final and before body-capable passes may
@@ -402,6 +400,12 @@ impl Lowerer {
             self.declaration_surface.is_frozen(),
             "body-capable passes require a frozen declaration surface"
         );
+
+        if !self.resolve_errno_annotations(&pending_functions, &pending_globals) {
+            return Err(self.take_source_diagnostics());
+        }
+        self.validate_extern_functions();
+        self.validate_extern_global_symbols();
 
         self.resolve_annotation_declarations();
         for &(id, declaration, file) in &pending_structs {

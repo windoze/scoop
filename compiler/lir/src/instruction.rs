@@ -7,12 +7,12 @@ pub struct BasicBlock {
     pub terminator: Terminator,
 }
 
-/// Address-only operand for one outbound C-ABI argument.
+/// Address-only operand for one outbound C-ABI bridge parameter.
 ///
-/// The operand names the local that owns the argument's complete physical
-/// storage. It cannot be forged from an arbitrary raw pointer: codegen binds
-/// the local's exact [`LirType`] to the corresponding [`CType::storage_type`]
-/// before passing its address to the generated C bridge.
+/// The local owns complete physical argument or native-result storage.
+/// Codegen checks its exact [`LirType`] against [`CType::storage_type`]
+/// before passing its address to the generated C bridge. An errno-capturing
+/// bridge passes its native result slot as the first pointer parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CArgumentStorage(LocalId);
 

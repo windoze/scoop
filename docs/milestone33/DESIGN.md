@@ -405,7 +405,7 @@ fun closeErrorCode(fd: Int): Int {
 
 - 启用捕获时，源码返回类型必须在透明 alias 展开后为二元 tuple `(R, Int)`；`R` 是实际 C 返回类型在 Scoop 中的表示，第二项为 `Int32` errno。`R` 遵守既有 C-FFI-safe 返回规则，包括 scalar、pointer 和合法 C-layout struct。`R = Unit` 对应 C `void`，Scoop 返回 `((), capturedErrno)`。
 - 目标 C 函数的参数不变，返回值只取 `R`；外层 tuple 由 Scoop 调用适配器产生，不作为 C struct 返回，也不使一般 tuple 成为 C-FFI-safe。上例两个声明都对应 `int close(int)`。不开启捕获时继续直接声明、返回 `R`。
-- 调用表达式、函数引用与泛型消费均保留声明的固定 Scoop 类型；不按接收变量数量或 expected type 选择模式。解构时丢弃 errno 或忽略整个结果，不关闭该声明要求的捕获。
+- 调用表达式与泛型消费均保留声明的固定 Scoop 类型；不按接收变量数量或 expected type 选择模式。函数引用遵守既有 unsafe 规则：unsafe extern 不能直接存入 managed function type，安全包装函数的引用保留完整 tuple 返回类型。解构时丢弃 errno 或忽略整个结果，不关闭该声明要求的捕获。
 - 错误元数、第二项不是 `Int`、`R` 不满足 C 返回约束、含 managed reference 或违反既有 extern 声明规则时，在前端报告错误。普通 C extern 返回 tuple 不会隐式启用捕获。
 - errno 只提供原始错误值，不自动抛异常或创建 error 对象。先按该 C API 的返回值规则判断成功；成功时 errno 仍可能非零，失败时也不自动补造错误码。C 函数内部的清理或回调若覆盖 errno，由该 C 实现维护其返回契约，FFI 只捕获函数最终返回时的状态。
 

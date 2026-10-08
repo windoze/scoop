@@ -236,7 +236,7 @@ pub(super) fn validate_bridges(
     for record in tables.units {
         let unit = record.id();
         match *record.key() {
-            GeneratedBridgeUnitKey::OutboundFunction(contract)
+            GeneratedBridgeUnitKey::OutboundFunction(contract, _)
             | GeneratedBridgeUnitKey::GlobalRead(contract)
             | GeneratedBridgeUnitKey::GlobalWrite(contract)
             | GeneratedBridgeUnitKey::GlobalAddress(contract) => {

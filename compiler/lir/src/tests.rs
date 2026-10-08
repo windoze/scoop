@@ -736,13 +736,19 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
-        call_plan: super::CAbiCallPlan::StorageBridge(Box::new(
-            super::GeneratedBridgeEntryIdentity::new(
-                scoop_identity::ConeIdentity::SINGLE_FILE,
-                scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
-            )
-            .unwrap(),
-        )),
+        call_plan: super::CAbiCallPlan::StorageBridge {
+            entry: Box::new(
+                super::GeneratedBridgeEntryIdentity::new(
+                    scoop_identity::ConeIdentity::SINGLE_FILE,
+                    scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                        contract,
+                        scoop_identity::CResultAdaptation::Direct,
+                    ),
+                )
+                .unwrap(),
+            ),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: super::CFunctionType {
             params: Vec::new(),
             return_type: super::CReturnType::Void,

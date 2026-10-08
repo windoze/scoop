@@ -184,8 +184,18 @@ pub fn dump(module: &Module) -> String {
                     signature.dump(),
                     match call_plan {
                         CAbiCallPlan::Direct(signature) => format!("direct-c={}", signature.dump()),
-                        CAbiCallPlan::StorageBridge(bridge) =>
-                            format!("bridge=@{}", bridge.symbol()),
+                        CAbiCallPlan::StorageBridge {
+                            entry: bridge,
+                            result,
+                        } => format!(
+                            "bridge=@{}{}",
+                            bridge.symbol(),
+                            if *result == CResultAdaptation::CaptureErrno {
+                                " capture-errno"
+                            } else {
+                                ""
+                            }
+                        ),
                     },
                     if *call_mode == CAbiCallMode::GcLeaf {
                         " mode=gc-leaf"

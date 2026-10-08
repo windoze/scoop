@@ -71,7 +71,10 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
         Effect::Ordinary,
         CallableSafetyV1::Unsafe,
         GcEffect::NoGc,
-        CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+        CallableImplementationV1::SourceExternC(
+            scoop_identity::CAbiCallMode::NativeSafe,
+            scoop_identity::CResultAdaptation::Direct,
+        ),
         CallableOperatorRoleV1::Language(CallableOperatorV1::Component {
             index: NonZeroU32::new(3).unwrap(),
         }),
@@ -139,7 +142,10 @@ fn callable_effects_reject_impossible_semantic_combinations() {
             Effect::Ordinary,
             CallableSafetyV1::Safe,
             GcEffect::NoGc,
-            CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+            CallableImplementationV1::SourceExternC(
+                scoop_identity::CAbiCallMode::NativeSafe,
+                scoop_identity::CResultAdaptation::Direct
+            ),
             ordinary_role,
             CallableInfixV1::Ordinary,
         ),
@@ -150,7 +156,10 @@ fn callable_effects_reject_impossible_semantic_combinations() {
             Effect::Ordinary,
             CallableSafetyV1::Unsafe,
             GcEffect::Managed,
-            CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+            CallableImplementationV1::SourceExternC(
+                scoop_identity::CAbiCallMode::NativeSafe,
+                scoop_identity::CResultAdaptation::Direct
+            ),
             ordinary_role,
             CallableInfixV1::Ordinary,
         ),

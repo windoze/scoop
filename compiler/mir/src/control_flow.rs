@@ -26,7 +26,7 @@ pub struct ExternFunction {
     pub calling_convention: CallingConvention,
     pub gc_effect: GcEffect,
     pub params: Vec<Type>,
-    pub return_type: Type,
+    pub result: scoop_identity::ExternResult<Type>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

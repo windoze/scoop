@@ -1,0 +1,48 @@
+package m33.errno
+
+public const val CaptureEnabled: Boolean = true
+public typealias Captured = (Int, Int)
+
+@CLayout
+public struct Pair(val number: Int, val flag: Boolean, val fraction: Double)
+
+@Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = CaptureEnabled)
+public fun capture(value: Int, code: Int, mode: Int): Captured
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = true)
+public fun leaf(value: Int, code: Int, mode: Int): Captured
+
+@Extern(lib = "fixture_errno", name = "m33_errno_pair", captureErrno = true)
+public fun capturePair(value: Pair, capture: Int): (Pair, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_disturb")
+public fun disturb()
+
+@Extern(lib = "fixture_errno", name = "m33_errno_record")
+public fun record(value: Int, error: Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_released")
+public fun released(): Int
+
+public fun captured(value: Int, code: Int): Captured {
+    @Unsafe { return capture(value, code, 0) }
+}
+
+@NoGC @Unsafe
+public fun leafNoGc(value: Int): Captured = leaf(value, 17, 1)
+
+public fun <T> retained(value: T): T {
+    val (_, error) = captured(0, 37)
+    if (error != 37) { throw IllegalStateException() }
+    return value
+}
+
+public class Owner<T> public constructor(private val value: T) {
+    public fun get(): T = value
+    release {
+        @Unsafe {
+            val (result, error) = capture(5, 55, -1)
+            record(result, error)
+        }
+    }
+}

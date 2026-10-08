@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v61_retains_source_roots() {
+fn source_interface_v62_retains_errno_adaptation() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        61,
+        62,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

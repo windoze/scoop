@@ -9,7 +9,6 @@ impl BodyLowerer<'_> {
         &mut self,
         native: &crate::imported_callables::ImportedCFunction,
         arguments: &[hir::Expr],
-        return_type: mir::Type,
     ) -> Option<mir::ExternFunctionId> {
         let source = &native.contract;
         let SourceNativeExternalContract::Function {
@@ -24,6 +23,7 @@ impl BodyLowerer<'_> {
         if let Some((id, _)) = self.extern_functions.iter().find(|(_, function)| {
             function.source_contract.id() == source.id()
                 && function.abi == mir::ExternAbi::C(native.call_mode)
+                && function.result.adaptation() == native.result.adaptation()
         }) {
             return Some(id);
         }
@@ -38,6 +38,7 @@ impl BodyLowerer<'_> {
             SourceNativeLibraryBinding::DefaultNativeNamespace => String::new(),
             SourceNativeLibraryBinding::LogicalLibrary(name) => name.as_str().to_owned(),
         };
+        let result = native.result.map(|ty| self.lower_type(ty));
         Some(self.extern_functions.alloc(mir::ExternFunction {
             source_contract: source.clone(),
             source_name: native_symbol.clone(),
@@ -49,7 +50,7 @@ impl BodyLowerer<'_> {
             },
             gc_effect: mir::GcEffect::NoGc,
             params,
-            return_type,
+            result,
         }))
     }
 }

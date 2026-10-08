@@ -108,7 +108,14 @@ impl WireEncode for RawStaticCallbackTrampoline {
 #[test]
 fn all_bridge_unit_keys_round_trip_and_resolve_typed_references() {
     let keys = [
-        GeneratedBridgeUnitKey::OutboundFunction(native_contract_fingerprint()),
+        GeneratedBridgeUnitKey::OutboundFunction(
+            native_contract_fingerprint(),
+            crate::CResultAdaptation::Direct,
+        ),
+        GeneratedBridgeUnitKey::OutboundFunction(
+            native_contract_fingerprint(),
+            crate::CResultAdaptation::CaptureErrno,
+        ),
         GeneratedBridgeUnitKey::GlobalRead(native_contract_fingerprint()),
         GeneratedBridgeUnitKey::GlobalWrite(native_contract_fingerprint()),
         GeneratedBridgeUnitKey::GlobalAddress(native_contract_fingerprint()),
@@ -243,10 +250,18 @@ fn bridge_decoder_rejects_unknown_and_incomplete_sums() {
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 2,
+            expected: 3,
             actual: 1
         }
     );
+    let mut old = encode(&GeneratedBridgeUnitKey::OutboundFunction(
+        native_contract_fingerprint(),
+        crate::CResultAdaptation::Direct,
+    ))
+    .unwrap();
+    old[0] = 0xa2;
+    old.truncate(old.len() - 2);
+    assert!(decode_canonical::<DecodedGeneratedBridgeUnitKey>(&old).is_err());
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {

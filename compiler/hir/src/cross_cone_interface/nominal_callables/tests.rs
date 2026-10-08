@@ -254,7 +254,10 @@ fn param_free_source_extern_uses_its_provider_callable_entry() {
 fn native_leaf_contracts_keep_managed_provider_entries() {
     let (classifier, unit, _) = classifier();
     for implementation in [
-        CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+        CallableImplementationV1::SourceExternC(
+            scoop_identity::CAbiCallMode::NativeSafe,
+            scoop_identity::CResultAdaptation::Direct,
+        ),
         CallableImplementationV1::SourceExternScoop,
     ] {
         let callable = callable(

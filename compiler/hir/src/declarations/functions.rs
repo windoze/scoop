@@ -272,7 +272,7 @@ pub struct ExternFunction {
     pub gc_effect: GcEffect,
     pub safety: Safety,
     pub params: Vec<TypeId>,
-    pub return_type: TypeId,
+    pub result: scoop_identity::ExternResult<TypeId>,
 }
 
 #[derive(Debug, Clone)]

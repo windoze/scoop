@@ -9,7 +9,7 @@ Module
   enum CoroutineSlot<Pair> tagged size=24 align=8 variants=()@8+0 (struct0)@8+16
   extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=fixture_native>
   extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
-  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$fe54b25f11ddc6de48d4d33849bc0f63d75a6cbc00555899421203e15c0fff9a gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$1271bdff4ddadf2d2b3a99a63154cc5d63c937e87e692ef2437849a105aa3081 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   fun @scoop$1$cb$fe9410d63f304ef7456f9efd1b63ee9649d4b33e402505fea3f3b9504005d19d(indirect<struct0 size=16 align=8 scan=none>, indirect<struct0 size=16 align=8 scan=none>) -> i1
     local %0 $logic.1: i1
   block entry

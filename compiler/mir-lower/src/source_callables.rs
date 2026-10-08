@@ -170,7 +170,7 @@ pub(super) fn exact_function_signature(
                 .iter()
                 .map(|ty| module.exact_type_identities[*ty].id())
                 .collect(),
-            module.exact_type_identities[external.return_type].id(),
+            module.exact_type_identities[*external.result.scoop_type()].id(),
         );
     }
     let receiver = declaration.receiver.value_type();

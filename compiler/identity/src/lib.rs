@@ -27,7 +27,7 @@ mod source;
 mod syntax;
 mod validation;
 
-pub use entity::CAbiCallMode;
+pub use entity::{CAbiCallMode, CResultAdaptation, ExternResult};
 
 pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedContextStorageType};
 

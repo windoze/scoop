@@ -27,7 +27,15 @@ impl WireEncode for GeneratedCSourceTemplateContractV1 {
             encoder.map(2)?;
             encoder.field(1)?;
             component.encode(encoder)?;
-            encode_unsigned_field(encoder, 2, 1)?;
+            encode_unsigned_field(
+                encoder,
+                2,
+                if component == GeneratedCSourceTemplateComponentV1::OutboundWrappers {
+                    2
+                } else {
+                    1
+                },
+            )?;
         }
         Ok(())
     }

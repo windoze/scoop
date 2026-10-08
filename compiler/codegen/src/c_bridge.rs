@@ -1,3 +1,6 @@
+mod outbound;
+use outbound::render_outbound_function;
+
 use super::*;
 
 mod layout;
@@ -90,13 +93,13 @@ fn render_unit(
     plan: &scoop_lir::GeneratedBridgeUnitPlanV1,
 ) -> Result<String, CodegenError> {
     match *plan.unit_authority().key() {
-        scoop_lir::GeneratedBridgeUnitKey::OutboundFunction(_) => {
+        scoop_lir::GeneratedBridgeUnitKey::OutboundFunction(_, result) => {
             let function = module
                 .extern_functions
                 .iter()
                 .find_map(|(_, function)| match &function.kind {
                     ExternFunctionKind::C {
-                        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(bridge),
+                        call_plan: scoop_lir::CAbiCallPlan::StorageBridge { entry: bridge, .. },
                         signature,
                         ..
                     } if bridge.unit() == plan.unit() => {
@@ -106,7 +109,7 @@ fn render_unit(
                 })
                 .ok_or_else(|| missing_unit_source(plan.unit()))?;
             require_exact_materialized_plan(plan, function.1, &[])?;
-            render_outbound_function(module, plan, function.0, function.1, function.2)
+            render_outbound_function(module, plan, function.0, function.1, function.2, result)
         }
         scoop_lir::GeneratedBridgeUnitKey::GlobalRead(_) => {
             let global = module
@@ -233,75 +236,6 @@ fn unit_prelude(
     surface: &CBridgeTypeSurface,
 ) -> Result<String, CodegenError> {
     c_layout_assertions_for_unit(module, surface, plan)
-}
-
-fn render_outbound_function(
-    module: &Module,
-    plan: &scoop_lir::GeneratedBridgeUnitPlanV1,
-    function: &scoop_lir::ExternFunction,
-    bridge: &scoop_lir::GeneratedBridgeEntryIdentity,
-    signature: &scoop_lir::CFunctionType,
-) -> Result<String, CodegenError> {
-    let surface = CBridgeTypeSurface::for_function(module, signature)?;
-    let renderer = CTypeRenderer::new(surface.function_types());
-    let mut out = unit_prelude(module, plan, &surface)?;
-    let parameter_types = signature
-        .params
-        .iter()
-        .map(|parameter| renderer.declaration(parameter, ""))
-        .collect::<Result<Vec<_>, _>>()?;
-    let prototype_parameters = if parameter_types.is_empty() {
-        "void".to_string()
-    } else {
-        parameter_types.join(", ")
-    };
-    let declarator = format!("{}({prototype_parameters})", function.native_symbol);
-    out.push_str("extern ");
-    out.push_str(&renderer.return_declaration(&signature.return_type, &declarator)?);
-    out.push_str(";\n");
-
-    let has_result = !signature.return_type.is_void();
-    let mut wrapper_parameters = Vec::new();
-    if has_result {
-        wrapper_parameters.push("void *result".to_string());
-    }
-    wrapper_parameters.extend(
-        signature
-            .params
-            .iter()
-            .enumerate()
-            .map(|(index, _)| format!("const void *arg{index}")),
-    );
-    if wrapper_parameters.is_empty() {
-        wrapper_parameters.push("void".to_string());
-    }
-    out.push_str(&format!(
-        "void {}({}) {{\n",
-        bridge.symbol(),
-        wrapper_parameters.join(", ")
-    ));
-    for (index, parameter) in signature.params.iter().enumerate() {
-        let declaration = renderer.declaration(parameter, &format!("value{index}"))?;
-        out.push_str(&format!(
-            "  {declaration};\n  __builtin_memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
-        ));
-    }
-    let arguments = (0..signature.params.len())
-        .map(|index| format!("value{index}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    if has_result {
-        let result_declaration =
-            renderer.return_declaration(&signature.return_type, "native_result")?;
-        out.push_str(&format!(
-            "  {result_declaration} = {}({arguments});\n  __builtin_memcpy(result, &native_result, sizeof(native_result));\n",
-            function.native_symbol
-        ));
-    } else {
-        out.push_str(&format!("  {}({arguments});\n", function.native_symbol));
-    }
-    out.push_str("}\n");
-    Ok(out)
 }
 
 #[derive(Clone, Copy)]

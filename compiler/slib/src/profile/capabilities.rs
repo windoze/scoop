@@ -15,7 +15,7 @@ pub fn mir_identity_foundation_capability() -> CapabilityId {
 }
 
 pub fn lir_identity_foundation_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "identity-foundation", 6)
+    CapabilityId::new("org.scoop-lang.lir", "identity-foundation", 7)
         .expect("built-in capability id is valid")
 }
 
@@ -30,7 +30,7 @@ pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 61)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 62)
         .expect("built-in capability id is valid")
 }
 

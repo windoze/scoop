@@ -63,13 +63,13 @@ impl Lowerer {
                         );
                     }
                 }
-                if !self.is_gc_free(extern_.return_type) {
+                if !self.is_gc_free(*extern_.result.scoop_type()) {
                     self.error(
                         function.span,
                         format!(
                             "`@NoGC` extern function `{}` has non-GC-free return type {}",
                             function.name,
-                            self.type_name(extern_.return_type)
+                            self.type_name(*extern_.result.scoop_type())
                         ),
                     );
                 }
@@ -173,7 +173,7 @@ impl Lowerer {
                         );
                     }
                 }
-                if self.requires_unsafe_use(extern_.return_type) {
+                if self.requires_unsafe_use(*extern_.result.scoop_type()) {
                     self.error(
                         function.span,
                         format!(

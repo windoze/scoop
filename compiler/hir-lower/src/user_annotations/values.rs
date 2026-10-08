@@ -19,7 +19,7 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn annotation_constant(
+    pub(crate) fn annotation_constant(
         &mut self,
         value: &ast::AnnotationLiteral,
         ty: hir::TypeId,

@@ -40,7 +40,7 @@ impl BodyLowerer<'_> {
         let callee = if matches!(self.current_owner, mir::LocalValueOwner::ReleaseHook(_)) {
             target
                 .native_c()
-                .and_then(|native| self.release_native_target(native, args, return_ty.clone()))
+                .and_then(|native| self.release_native_target(native, args))
                 .map(mir::Callee::Extern)
                 .unwrap_or_else(|| mir::Callee::External(target.scoop_entry()))
         } else {

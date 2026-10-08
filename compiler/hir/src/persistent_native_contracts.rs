@@ -137,16 +137,16 @@ impl HirSourceNativeContracts {
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let result = mapper.map(extern_.return_type, &[]).map_err(|error| {
-                HirSourceNativeContractError::InvalidSignatureType {
+            let result = mapper
+                .map(*extern_.result.native_type(), &[])
+                .map_err(|error| HirSourceNativeContractError::InvalidSignatureType {
                     owner: HirSourceNativeContractOwner::Function(function_id),
                     error,
-                }
-            })?;
+                })?;
             let abi = match extern_.abi {
                 ExternAbi::C(_) => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
                     parameters,
-                    if extern_.return_type == inputs.unit {
+                    if *extern_.result.native_type() == inputs.unit {
                         SourceCAbiReturn::Void
                     } else {
                         SourceCAbiReturn::Value(result)
@@ -281,7 +281,7 @@ fn validate_function(
 ) -> Result<(), HirSourceNativeContractError> {
     if function.method.is_some()
         || function.name != extern_.source_name
-        || function.return_ty != extern_.return_type
+        || function.return_ty != *extern_.result.scoop_type()
         || function.attributes.calling_convention != extern_.calling_convention
         || function.attributes.gc_effect != extern_.gc_effect
         || function.attributes.safety != extern_.safety

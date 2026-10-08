@@ -9,6 +9,7 @@ use crate::{Lowerer, Owner};
 
 mod arguments;
 mod constructors;
+mod externs;
 mod functions;
 
 pub(crate) use arguments::is_core_annotation;

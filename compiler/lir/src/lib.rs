@@ -5,8 +5,8 @@
 //! metadata, functions, instructions and calls in separate source modules.
 
 pub use scoop_identity::{
-    CAbiCallMode, FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind,
-    FloatUnaryOperator,
+    CAbiCallMode, CResultAdaptation, FloatBinaryOperator, FloatConstant as LirFloatConstant,
+    FloatKind, FloatUnaryOperator,
 };
 
 use std::num::NonZeroU32;

@@ -142,7 +142,7 @@ impl CallableSourceEffectsV1 {
                     ));
                 }
             }
-            CallableImplementationV1::SourceExternC(_) => {
+            CallableImplementationV1::SourceExternC(..) => {
                 if execution == Effect::Suspend {
                     return Err(CallableSourceEffectsBuildError::SuspendExtern(
                         implementation,
@@ -192,7 +192,7 @@ impl CallableSourceEffectsV1 {
                 || self.execution != Effect::Ordinary
                 || matches!(
                     self.implementation,
-                    CallableImplementationV1::SourceExternC(_)
+                    CallableImplementationV1::SourceExternC(..)
                         | CallableImplementationV1::SourceExternScoop
                 )
             {
@@ -225,7 +225,7 @@ impl CallableSourceEffectsV1 {
     /// wrapper preserves the source declaration's NoGC effect.
     pub const fn provider_entry_gc_effect(&self) -> GcEffect {
         match self.implementation {
-            CallableImplementationV1::SourceExternC(crate::CAbiCallMode::NativeSafe)
+            CallableImplementationV1::SourceExternC(crate::CAbiCallMode::NativeSafe, _)
             | CallableImplementationV1::SourceExternScoop => GcEffect::Managed,
             _ => self.gc_effect,
         }

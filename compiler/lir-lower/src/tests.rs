@@ -1037,7 +1037,9 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: params.clone(),
-        return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+        result: scoop_identity::ExternResult::Direct(mir::Type::Integer(
+            mir::IntegerKind::UNSIGNED_64,
+        )),
     });
     let same_integers = builder.c_extern(
         "sameIntegers",
@@ -1397,7 +1399,7 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
             mir::Type::Enum(raw_option, vec![raw_payload]),
             mir::Type::Enum(code_option, vec![code_payload]),
         ],
-        return_type: mir::Type::Unit,
+        result: scoop_identity::ExternResult::Direct(mir::Type::Unit),
     });
     let main = builder.main(Arena::new(), Vec::new());
 
@@ -1475,7 +1477,7 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
         params: vec![mir::Type::Enum(lookalike, vec![payload])],
-        return_type: mir::Type::Unit,
+        result: scoop_identity::ExternResult::Direct(mir::Type::Unit),
     });
     let main = builder.main(Arena::new(), Vec::new());
 

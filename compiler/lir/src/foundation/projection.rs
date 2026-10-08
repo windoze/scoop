@@ -125,7 +125,7 @@ impl CanonicalLirFoundation {
 
         for (_, external) in module.extern_functions.iter() {
             if let crate::ExternFunctionKind::C {
-                call_plan: crate::CAbiCallPlan::StorageBridge(bridge),
+                call_plan: crate::CAbiCallPlan::StorageBridge { entry: bridge, .. },
                 ..
             } = &external.kind
             {
@@ -318,7 +318,7 @@ impl CanonicalLirFoundation {
             .iter()
             .filter_map(|(_, external)| match &external.kind {
                 crate::ExternFunctionKind::C {
-                    call_plan: crate::CAbiCallPlan::StorageBridge(bridge),
+                    call_plan: crate::CAbiCallPlan::StorageBridge { entry: bridge, .. },
                     ..
                 } => Some(bridge.symbol_request()),
                 crate::ExternFunctionKind::C { .. } | crate::ExternFunctionKind::Scoop { .. } => {

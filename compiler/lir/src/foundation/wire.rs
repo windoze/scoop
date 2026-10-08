@@ -458,6 +458,7 @@ mod tests {
         .unwrap();
         let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
             contract.fingerprint(),
+            scoop_identity::CResultAdaptation::Direct,
         ))
         .unwrap();
         let mut canonical = CanonicalLirFoundation::empty();

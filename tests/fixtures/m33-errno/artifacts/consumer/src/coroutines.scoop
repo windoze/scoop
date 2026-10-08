@@ -1,0 +1,46 @@
+package m33.consumer
+import m33.errno.*
+
+class Gate {
+    var waiter: Continuation<Int>? = None
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public override fun register(continuation: Continuation<Int>) { gate.waiter = Some(continuation) }
+}
+
+class Completion : Continuation<Int> {
+    var value: Int = 0
+    public override fun resume(value: Int) { this.value = value }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+class ErrnoTask(val gate: Gate) : SuspendTask<Int> {
+    public override suspend fun run(): Int {
+        val saved = captured(7, 41)
+        try {
+            val resumed: Int = suspendCoroutine(Registration(gate))
+            val (value, error) = saved
+            expect(value == 7 && error == 41)
+            return error + resumed
+        } finally {
+            @Unsafe { disturb() }
+            gcCollect()
+            val (_, error) = saved
+            expect(error == 41)
+        }
+    }
+}
+
+fun checkSuspension() {
+    val gate = Gate()
+    val completion = Completion()
+    startCoroutine(ErrnoTask(gate), completion)
+    expect(completion.value == 0)
+    @Unsafe { disturb() }
+    gcCollect()
+    val waiter = gate.waiter!!
+    gate.waiter = None
+    waiter.resume(1)
+    expect(completion.value == 42)
+}

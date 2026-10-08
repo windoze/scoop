@@ -387,7 +387,10 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
         mir::Callee::Extern(extern_id) => {
-            return lowerer.extern_functions[extern_id].return_type.clone();
+            return lowerer.extern_functions[extern_id]
+                .result
+                .scoop_type()
+                .clone();
         }
         mir::Callee::External(external) => {
             let target = lowerer

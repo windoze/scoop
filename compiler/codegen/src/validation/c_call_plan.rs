@@ -4,11 +4,26 @@ use scoop_lir::{CAbiCallPlan, CIntegerExtension, CType, DirectCReturn, DirectCTy
 pub(super) fn validate(function: &scoop_lir::ExternFunction) -> Result<(), CodegenError> {
     let ExternFunctionKind::C {
         signature,
-        call_plan: CAbiCallPlan::Direct(plan),
+        call_plan,
         ..
     } = &function.kind
     else {
         return Ok(());
+    };
+    let plan = match call_plan {
+        CAbiCallPlan::Direct(plan) => plan,
+        CAbiCallPlan::StorageBridge { entry, result } => {
+            return if matches!(entry.unit_record().key(),
+                scoop_lir::GeneratedBridgeUnitKey::OutboundFunction(_, expected) if expected == result)
+            {
+                Ok(())
+            } else {
+                Err(CodegenError(format!(
+                    "C extern `{}` bridge recipe disagrees with its result adaptation",
+                    function.source_name
+                )))
+            };
+        }
     };
     let params_match = signature.params.len() == plan.params.len()
         && signature

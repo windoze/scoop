@@ -25,7 +25,9 @@ pub(in crate::production) fn function(
             };
             match external.abi {
                 ExternAbi::Scoop => CallableImplementationV1::SourceExternScoop,
-                ExternAbi::C(mode) => CallableImplementationV1::SourceExternC(mode),
+                ExternAbi::C(mode) => {
+                    CallableImplementationV1::SourceExternC(mode, external.result.adaptation())
+                }
             }
         }
         FunctionKind::DerivedEquality => {

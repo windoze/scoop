@@ -127,7 +127,7 @@ impl Builder {
             calling_convention: mir::CallingConvention::Cdecl,
             gc_effect: mir::GcEffect::Managed,
             params,
-            return_type,
+            result: scoop_identity::ExternResult::Direct(return_type),
         })
     }
 
@@ -151,7 +151,7 @@ impl Builder {
             calling_convention: mir::CallingConvention::Cdecl,
             gc_effect: mir::GcEffect::Managed,
             params,
-            return_type,
+            result: scoop_identity::ExternResult::Direct(return_type),
         })
     }
 

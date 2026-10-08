@@ -135,6 +135,7 @@ impl crate::CBridgeTargetSupportV1 {
             Self::TlvBootstrap | Self::TlsGetAddr => leaf(&[P], P),
             Self::Fmodf => leaf(&[F(F32), F(F32)], F(F32)),
             Self::Fmod => leaf(&[F(F64), F(F64)], F(F64)),
+            Self::DarwinErrno | Self::LinuxErrno => leaf(&[], P),
         }
     }
 }

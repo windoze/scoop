@@ -143,14 +143,16 @@ impl Lowerer {
                     )
                 })
                 .collect();
-            let return_type = types.lower(
-                extern_.return_type,
-                &mut self.source_exact_types,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            );
+            let result = extern_.result.map(|ty| {
+                types.lower(
+                    ty,
+                    &mut self.source_exact_types,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            });
             let id = self.extern_functions.alloc(mir::ExternFunction {
                 source_contract: extern_.source_contract.clone(),
                 source_name: extern_.source_name.clone(),
@@ -168,7 +170,7 @@ impl Lowerer {
                     hir::GcEffect::NoGc => mir::GcEffect::NoGc,
                 },
                 params,
-                return_type,
+                result,
             });
             self.extern_map.insert(hir_id, id);
         }

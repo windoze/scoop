@@ -205,7 +205,11 @@ fn bridge_unit() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUni
         &contract,
     )
     .unwrap();
-    CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(fingerprint)).unwrap()
+    CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+        fingerprint,
+        scoop_identity::CResultAdaptation::Direct,
+    ))
+    .unwrap()
 }
 
 fn bridge_primary_atom(

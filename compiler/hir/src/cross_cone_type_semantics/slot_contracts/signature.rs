@@ -34,7 +34,7 @@ impl InheritanceCallableSignatureV1 {
         if matches!(
             effects.implementation(),
             CallableImplementationV1::SourceExternScoop
-                | CallableImplementationV1::SourceExternC(_)
+                | CallableImplementationV1::SourceExternC(..)
         ) {
             return Err(InheritanceCallableSignatureBuildError::SourceExtern);
         }

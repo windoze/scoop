@@ -58,7 +58,10 @@ fn outbound_bridge_for_contract(
 ) -> scoop_lir::GeneratedBridgeEntryIdentity {
     scoop_lir::GeneratedBridgeEntryIdentity::new(
         ConeIdentity::SINGLE_FILE,
-        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract.fingerprint()),
+        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+            contract.fingerprint(),
+            scoop_identity::CResultAdaptation::Direct,
+        ),
     )
     .unwrap()
 }

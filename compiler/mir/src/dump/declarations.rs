@@ -92,13 +92,19 @@ pub fn dump(module: &Module) -> String {
         } else {
             format!(" lib={}", extern_.library)
         };
+        let result = match &extern_.result {
+            scoop_identity::ExternResult::Direct(_) => String::new(),
+            scoop_identity::ExternResult::CaptureErrno { native, .. } => {
+                format!(" capture-errno native-result={}", type_name(module, native))
+            }
+        };
         out.push_str(&format!(
-            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}>\n",
+            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}{result}>\n",
             id.into_raw().into_u32(),
             extern_.source_name,
             extern_.native_symbol,
             params,
-            type_name(module, &extern_.return_type),
+            type_name(module, extern_.result.scoop_type()),
             if extern_.gc_effect == GcEffect::NoGc {
                 " no-gc"
             } else {

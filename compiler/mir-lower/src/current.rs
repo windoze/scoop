@@ -201,17 +201,22 @@ fn lower_dependency_callables(
             false => mir::GcEffect::Managed,
             true => mir::GcEffect::NoGc,
         };
-        let native_c = selected.native_contract().and_then(|contract| {
-            match selected.interface().effects().implementation() {
-                scoop_hir::CallableImplementationV1::SourceExternC(call_mode) => {
-                    Some(crate::imported_callables::ImportedCFunction {
-                        contract: contract.clone(),
-                        call_mode,
-                    })
-                }
-                _ => None,
-            }
-        });
+        let native_c = match (
+            selected.native_contract(),
+            selected.interface().effects().implementation(),
+        ) {
+            (
+                Some(contract),
+                scoop_hir::CallableImplementationV1::SourceExternC(call_mode, result),
+            ) => Some(crate::imported_callables::ImportedCFunction::new(
+                output.output().local.module(),
+                contract.clone(),
+                call_mode,
+                result,
+                target.semantic_signature().result(),
+            )?),
+            _ => None,
+        };
         let entry =
             match native_c {
                 Some(native) if release_only.contains(&source_id) => {
@@ -315,6 +320,7 @@ pub enum CurrentConeMirLoweringError {
         index: u32,
     },
     MissingExternalSignatureType(scoop_identity::PersistentExactTypeId),
+    InvalidErrnoResultType(scoop_identity::PersistentExactTypeId),
     InvalidOutput(mir::DependencyMirOutputError),
 }
 

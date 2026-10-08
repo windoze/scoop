@@ -2345,7 +2345,7 @@ fun closeErrorCode(fd: Int): Int {
 
 外层 tuple 是 Scoop 包装结果，不是 C 函数返回的 struct，也不扩展一般 tuple 的 C-FFI-safe 分类。`R` 为合法 C-layout struct 时仍按原 C ABI 返回该 struct；未启用捕获的普通 C extern 不能通过返回 `(R, Int)` 隐式启用捕获。
 
-- **固定调用类型**：普通调用、解构、函数引用和泛型正文消费都看到声明中的 `(R, Int)`；不能根据接收变量数量或 expected type 选择捕获模式。忽略第二项或整个结果不会关闭声明要求的捕获。
+- **固定调用类型**：普通调用、解构和泛型正文消费都看到声明中的 `(R, Int)`；不能根据接收变量数量或 expected type 选择捕获模式。函数引用仍遵守既有 unsafe 规则，unsafe extern 不能直接存入不含 safety 身份的 managed function type；安全包装函数的引用保留其完整 tuple 返回类型。忽略第二项或整个结果不会关闭声明要求的捕获。
 - **捕获时机**：完成实参准备及适用的 NativeSafe 进入后，在实际 C 调用前立即将目标 libc 的 errno 清零；C 函数返回后立即将其复制到本次调用的 native 局部整数，再进行结果复制、表示转换或返回握手。M33 使用带捕获的 StorageBridge（实现规范 2.4～2.5），不会到 managed 侧再次查询 errno。未启用捕获的调用不增加清零或捕获步骤。
 - **返回语义**：第二项是 C 函数返回时 errno 的快照，不自动抛异常、构造 error 对象或判断成功。失败条件由该 C API 的返回值契约决定；调用成功也可能留下非零 errno，调用失败也不自动补造错误码。若 C 函数在内部执行清理或回调而覆盖 errno，FFI 不能恢复更早的值，需由该 C 实现维护自己的返回契约。
 - **值的生命周期**：结果是普通 GC-free tuple，每次调用独立。之后的分配、GC、release、其他捕获调用、嵌套调用或协程恢复不会自动覆盖已取得的值；协程保存它时沿普通局部值存入 frame，不依赖原 OS 线程。该保证只针对复制出的值，不保证 libc 的 errno 在之后仍保持不变。不提供线程级 `lastErrno()` 或对应的 Scoop runtime 槽位。

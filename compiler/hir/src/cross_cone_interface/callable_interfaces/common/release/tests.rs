@@ -52,7 +52,10 @@ fn release_effect_cannot_upgrade_extern_or_managed_callables() {
     for (implementation, gc) in [
         (CallableImplementationV1::Scoop, GcEffect::Managed),
         (
-            CallableImplementationV1::SourceExternC(scoop_identity::CAbiCallMode::NativeSafe),
+            CallableImplementationV1::SourceExternC(
+                scoop_identity::CAbiCallMode::NativeSafe,
+                scoop_identity::CResultAdaptation::Direct,
+            ),
             GcEffect::NoGc,
         ),
         (CallableImplementationV1::SourceExternScoop, GcEffect::NoGc),

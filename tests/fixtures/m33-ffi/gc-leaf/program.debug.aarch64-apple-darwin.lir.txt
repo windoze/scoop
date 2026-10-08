@@ -9,7 +9,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   extern ef0 safeObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=fixture_native>
   extern ef1 leafObserve @m33_observe(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
-  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$b4400c316ca1398ae7ea43ed3fd2db4d2f60cc5332e66a9c446c6719d21860cf gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  extern ef2 leafPair @m33_pair(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$85b8588d304e848c31642737e043ec351aaf893446413b4bd808aeccc560312a gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   extern ef3 leafCalls @m33_calls() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
   fun @scoop$1$cb$f9a3cdff5a04d354953b5375ad333e894798e3dc2fd30d3f4ad29241b9792e9c(i32, i32) -> i32
     local %0 $call.1: i32
@@ -499,13 +499,14 @@ Module
     raw_store param0 local0 align 4
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn8() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

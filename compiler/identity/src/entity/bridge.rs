@@ -18,7 +18,7 @@ pub use decode::{
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum GeneratedBridgeUnitKey {
-    OutboundFunction(NativeExternalContractFingerprint),
+    OutboundFunction(NativeExternalContractFingerprint, crate::CResultAdaptation),
     GlobalRead(NativeExternalContractFingerprint),
     GlobalWrite(NativeExternalContractFingerprint),
     GlobalAddress(NativeExternalContractFingerprint),
@@ -35,7 +35,9 @@ pub enum GeneratedBridgeUnitKey {
 impl WireEncode for GeneratedBridgeUnitKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::OutboundFunction(contract) => encode_value_sum(encoder, 1, contract),
+            Self::OutboundFunction(contract, result) => {
+                encode_two_value_sum(encoder, 1, contract, result)
+            }
             Self::GlobalRead(contract) => encode_value_sum(encoder, 2, contract),
             Self::GlobalWrite(contract) => encode_value_sum(encoder, 3, contract),
             Self::GlobalAddress(contract) => encode_value_sum(encoder, 4, contract),
@@ -231,16 +233,24 @@ mod tests {
     #[test]
     fn bridge_unit_kind_is_part_of_the_identity() {
         let contract = NativeExternalContractFingerprint(ConeIdentity::CORE.0);
-        let function =
-            GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::OutboundFunction(contract))
-                .unwrap();
+        let function = GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::OutboundFunction(
+            contract,
+            crate::CResultAdaptation::Direct,
+        ))
+        .unwrap();
         let read =
             GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::GlobalRead(contract)).unwrap();
+        let capture = GeneratedBridgeUnitId::from_key(&GeneratedBridgeUnitKey::OutboundFunction(
+            contract,
+            crate::CResultAdaptation::CaptureErrno,
+        ))
+        .unwrap();
 
         assert_ne!(function, read);
+        assert_ne!(function, capture);
         assert_eq!(
             function.to_string(),
-            "d199d64f271d9c4038341cea0f1985d5751f6f7128652b9f6b76e81d7f17410e"
+            "de290c32fd36368bc3fbf2e3c57fd0f95978e43c59b4855c300241caf34cf5a6"
         );
     }
 

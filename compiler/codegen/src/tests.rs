@@ -49,6 +49,7 @@ mod closures;
 mod constants;
 mod dependency_external;
 mod enums;
+mod errno;
 mod exceptions;
 mod external_type_descriptors;
 mod gc_leaf;

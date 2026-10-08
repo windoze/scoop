@@ -67,7 +67,15 @@ pub(super) fn validate(
         };
     }
 
-    if call.arguments().len() != c_signature.params.len()
+    let capture = matches!(
+        call_plan,
+        scoop_lir::CAbiCallPlan::StorageBridge {
+            result: scoop_lir::CResultAdaptation::CaptureErrno,
+            ..
+        }
+    );
+    let result_pointer = usize::from(capture && !c_signature.return_type.is_void());
+    if call.arguments().len() != c_signature.params.len() + result_pointer
         || call.arguments().iter().any(|argument| {
             !matches!(argument, scoop_lir::AbiArgument::Direct(value)
                 if value.storage_type() == &scoop_lir::RAW_PTR
@@ -83,7 +91,28 @@ pub(super) fn validate(
         ));
     }
 
-    for (index, (argument, parameter)) in call.args().iter().zip(&c_signature.params).enumerate() {
+    if result_pointer == 1 {
+        let scoop_lir::AbiCallArgument::Direct(Value::CArgumentStorage(storage)) = call.args()[0]
+        else {
+            return Err(call_error(
+                function,
+                "errno bridge requires exact native result storage",
+            ));
+        };
+        require_local_type(
+            function,
+            storage.local(),
+            &c_signature.storage_return_type(),
+            "errno bridge native result storage",
+        )?;
+    }
+    for (index, (argument, parameter)) in call
+        .args()
+        .iter()
+        .skip(result_pointer)
+        .zip(&c_signature.params)
+        .enumerate()
+    {
         let scoop_lir::AbiCallArgument::Direct(Value::CArgumentStorage(storage)) = argument else {
             return Err(call_error(
                 function,
@@ -104,23 +133,29 @@ pub(super) fn validate(
         )?;
     }
 
-    let result_matches = match (&c_signature.return_type, call) {
-        (scoop_lir::CReturnType::Void, scoop_lir::TypedCallView::Void { .. }) => true,
-        (
-            scoop_lir::CReturnType::Value(_),
-            scoop_lir::TypedCallView::IndirectResult { signature, .. },
-        ) => {
-            signature.convention() == scoop_lir::IndirectResultConvention::CStoragePointer
-                && signature.result().storage_type() == &c_signature.storage_return_type()
-                && signature.result().scan() == &RefScan::None
+    let result_matches = if capture {
+        matches!(call, scoop_lir::TypedCallView::Direct { signature, .. }
+            if signature.result().storage_type() == &scoop_lir::LirType::I32
+                && signature.result().scan() == &RefScan::None)
+    } else {
+        match (&c_signature.return_type, call) {
+            (scoop_lir::CReturnType::Void, scoop_lir::TypedCallView::Void { .. }) => true,
+            (
+                scoop_lir::CReturnType::Value(_),
+                scoop_lir::TypedCallView::IndirectResult { signature, .. },
+            ) => {
+                signature.convention() == scoop_lir::IndirectResultConvention::CStoragePointer
+                    && signature.result().storage_type() == &c_signature.storage_return_type()
+                    && signature.result().scan() == &RefScan::None
+            }
+            _ => false,
         }
-        _ => false,
     };
     if !result_matches {
         return Err(call_error(
             function,
             format!(
-                "C extern `{}` result does not use its exact void/storage-pointer bridge convention",
+                "C extern `{}` result does not use its declared storage bridge convention",
                 declaration.source_name
             ),
         ));

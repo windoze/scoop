@@ -10,7 +10,7 @@
 | M33-2 | 作用域数据借用、计数 pin | 完成并通过三平台验收 |
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
-| M33-5 | errno 捕获 | 待实现 |
+| M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 待实现 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
@@ -173,3 +173,21 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 七个 negative fixture 固定错误参数数量、vararg、可空／可变／元素不匹配的数组、错误返回类型和重复入口的完整诊断及源码位置。8 份公共 HIR/MIR 在三平台一致，16 份 Linux LIR 单独保存。
 - Darwin 另有 8 项旧入口、初始化、独立链接和退出回归，在非更新模式下通过 13 个变体、73 个进程、44 份 golden。旧 HIR 同步完整签名表示、导入索引及既有 core 源码范围；旧 LIR 只增加 root gateway 的 C 参数和退出码槽写入。
 - 清理增量目录 2.85 GiB 和 481 个已链接的 Rust 中间对象 2.93 GiB，保留库、CLI、测试二进制及热缓存。没有执行无关全量测试。
+
+## M33-5：按次捕获 errno
+
+- `@Extern` 支持默认 false 的编译期 Boolean `captureErrno`，复用现有常量求值，支持位置／命名参数、当前 Cone 与导入的 const val。true 仅适用于 C ABI 函数，返回类型在透明 alias 展开后必须为 `(R, Int)`；C-FFI-safe 检查只分类 native 返回 `R`，完整 Scoop 返回仍参与普通类型、GC-free 与 ReleaseValue 规则。
+- HIR/MIR 以 `ExternResult` 区分普通结果及捕获结果，显式保存 native／Scoop 类型。LIR 保留结果适配及完整 C storage signature，捕获始终使用 StorageBridge；非 void 的 native 结果写入本次调用的精确 caller-owned storage，bridge 自身返回 Int32 errno，随后重建 tuple。Unit 不分配 native 结果槽。没有新增共享 buffer、Scoop TLS 错误槽或 runtime errno getter/setter。
+- generated-C 在参数解包之后、真实 C 调用之前清零 errno，返回后立即保存到局部 `int`，再复制 native 结果。宏由所选目标头文件展开，Darwin／GNU／musl 的实际 libc accessor 引用进入普通 target-support requirements。NativeSafe 在返回握手前捕获；GCLeaf 与 release 不增加 GC 边界操作。
+- native symbol 合并只比较投影后的实际 ABI，普通和捕获声明可共用 native 定义。OutboundFunction recipe identity 含 Direct／CaptureErrno，避免合并不同私有返回方式。HIR interface 升为 62，LIR foundation 升为 7，OutboundWrappers 模板升为 2；旧的缺字段声明／bridge 及旧 capability 明确拒绝。安全包装函数的引用保留 tuple，unsafe extern 仍遵守原有函数值规则。
+- 注解 schema、errno 类型投影、bridge 生成和 C 调用 lowering 分别保持在 129、99、88、104 行的模块中；跨 Cone native 调用信息模块为 88 行。没有添加新的泛用验证或资源计费层。
+
+已完成的验证：
+
+- Rust fmt、受影响 crate 的 clippy，以及 C 格式化和 `-Wall -Wextra -Werror` 检查通过。11 项 bridge identity／wire、5 项 callable implementation 编码、16 项 C toolchain／target support、19 项产物 profile、12 项既有 extern 前端测试通过。C 生成测试检查清零／调用／快照／复制顺序、void 与非 void 私有签名及普通／捕获 recipe 分离；3 项 GCLeaf LLVM 测试经 statepoint rewrite 和 verifier 检查，捕获返回同样无 statepoint、relocation、native 握手及 caller-root 操作。
+- Darwin／GNU／musl 各 17 项正式 CLI、20 个变体、58 个进程、24 次 golden 比较通过。三个正例均覆盖 debug/release × normal/moving/minor；包含 Int、Boolean、Unit、可空 pointer、C-layout struct、丢弃结果、安全函数引用、泛型、NoGC、release、原样错误值与同 symbol 的普通调用。
+- 产物组合先删除 provider 源码，consumer 从 `.slib` 读取捕获声明、常量与泛型；再删除 consumer 源码独立链接并运行。覆盖导入 extern 在 release 中直接调用、泛型 release owner、协程挂起／恢复与 finally GC。
+- 嵌套回调及四线程回调分别在本次调用中设置不同 errno，GC 和其他 native 调用之后仍保留原 tuple；outer C 函数在回调后设置的最终 errno 正确返回。14 个 negative fixture 固定形态、native 返回约束、ABI／变量限制、常量类型／常量性、重复参数、unsafe 及真实 native 签名冲突的诊断和位置。
+- 8 份公共 HIR/MIR 在三平台一致，GNU debug/release 的实际 dump 另逐字节核对，16 份 Linux LIR 独立保存。三平台均在非更新模式下完成最终复验。
+- Darwin 另通过 10 项旧 GCLeaf／FFI 回归，13 个变体、51 个进程、24 次 golden 比较。旧 HIR 同步完整 main 签名与 Direct 结果表示；旧 LIR 同步既有 root gateway 参数和本批 bridge identity，原 MIR 未改变。
+- 清理 369 个已链接的 Rust 中间对象约 2.58 GiB、增量目录约 2.38 GiB，保留库、CLI、测试二进制与热缓存。未执行无关全量测试。

@@ -8,7 +8,10 @@ use crate::{
 #[derive(Debug)]
 pub enum CAbiCallPlan {
     Direct(DirectCSignature),
-    StorageBridge(Box<GeneratedBridgeEntryIdentity>),
+    StorageBridge {
+        entry: Box<GeneratedBridgeEntryIdentity>,
+        result: scoop_identity::CResultAdaptation,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

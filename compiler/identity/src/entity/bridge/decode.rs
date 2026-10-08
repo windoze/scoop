@@ -16,7 +16,10 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DecodedGeneratedBridgeUnitKey {
-    OutboundFunction(DecodedPersistentId<NativeExternalContractFingerprint>),
+    OutboundFunction(
+        DecodedPersistentId<NativeExternalContractFingerprint>,
+        crate::CResultAdaptation,
+    ),
     GlobalRead(DecodedPersistentId<NativeExternalContractFingerprint>),
     GlobalWrite(DecodedPersistentId<NativeExternalContractFingerprint>),
     GlobalAddress(DecodedPersistentId<NativeExternalContractFingerprint>),
@@ -41,9 +44,9 @@ impl DecodedGeneratedBridgeUnitKey {
             + PersistentKeyResolver<PersistentGeneratedCallableId, GeneratedCallableKey, Error = E>,
     {
         match self {
-            Self::OutboundFunction(contract) => resolver
+            Self::OutboundFunction(contract, result) => resolver
                 .resolve(contract)
-                .map(GeneratedBridgeUnitKey::OutboundFunction)
+                .map(|contract| GeneratedBridgeUnitKey::OutboundFunction(contract, result))
                 .map_err(GeneratedBridgeUnitResolutionError::Reference),
             Self::GlobalRead(contract) => resolver
                 .resolve(contract)
@@ -105,7 +108,9 @@ impl<E: std::error::Error + 'static> std::error::Error for GeneratedBridgeUnitRe
 impl WireEncode for DecodedGeneratedBridgeUnitKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::OutboundFunction(contract) => encode_value_sum(encoder, 1, contract),
+            Self::OutboundFunction(contract, result) => {
+                encode_two_value_sum(encoder, 1, contract, result)
+            }
             Self::GlobalRead(contract) => encode_value_sum(encoder, 2, contract),
             Self::GlobalWrite(contract) => encode_value_sum(encoder, 3, contract),
             Self::GlobalAddress(contract) => encode_value_sum(encoder, 4, contract),
@@ -125,7 +130,13 @@ impl WireDecode for DecodedGeneratedBridgeUnitKey {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         let (fields, tag) = decode_sum_header(decoder)?;
         match tag {
-            1 => decode_id_variant(decoder, fields, Self::OutboundFunction),
+            1 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::OutboundFunction(
+                    decoder.field(1, DecodedPersistentId::decode)?,
+                    decoder.field(2, crate::CResultAdaptation::decode)?,
+                ))
+            }
             2 => decode_id_variant(decoder, fields, Self::GlobalRead),
             3 => decode_id_variant(decoder, fields, Self::GlobalWrite),
             4 => decode_id_variant(decoder, fields, Self::GlobalAddress),

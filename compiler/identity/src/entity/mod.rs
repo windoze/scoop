@@ -34,7 +34,7 @@ mod source_declaration;
 mod source_origin;
 mod structural;
 
-pub use c_call::CAbiCallMode;
+pub use c_call::{CAbiCallMode, CResultAdaptation, ExternResult};
 
 pub use binding::{
     BindableEntity, BindingIdentityResolutionError, BindingNamespace, BindingResolver, BindingRole,

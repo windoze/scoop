@@ -639,7 +639,10 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound)),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Struct(outer)],
             return_type: c_value(scoop_lir::CType::Struct(outer)),
@@ -705,7 +708,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         .kind
     {
         scoop_lir::ExternFunctionKind::C {
-            call_plan: scoop_lir::CAbiCallPlan::StorageBridge(bridge),
+            call_plan: scoop_lir::CAbiCallPlan::StorageBridge { entry: bridge, .. },
             ..
         } => bridge.symbol().to_string(),
         _ => panic!("expected a C storage bridge"),
@@ -875,7 +878,10 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(3))),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound_bridge(3)),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64)],
             return_type: scoop_lir::CReturnType::Void,
@@ -908,7 +914,10 @@ fn append_c_void_call(
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(4))),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound_bridge(4)),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: vec![parameter],
             return_type: scoop_lir::CReturnType::Void,
@@ -1027,7 +1036,7 @@ fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
         .kind
     {
         scoop_lir::ExternFunctionKind::C {
-            call_plan: scoop_lir::CAbiCallPlan::StorageBridge(bridge),
+            call_plan: scoop_lir::CAbiCallPlan::StorageBridge { entry: bridge, .. },
             ..
         } => bridge.symbol().to_string(),
         _ => panic!("expected a C storage bridge"),
@@ -1441,9 +1450,10 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
                 library: "fixture".to_string(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            call_plan: scoop_lir::CAbiCallPlan::StorageBridge(Box::new(outbound_bridge(
-                function_seed,
-            ))),
+            call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+                entry: Box::new(outbound_bridge(function_seed)),
+                result: scoop_identity::CResultAdaptation::Direct,
+            },
             signature: scoop_lir::CFunctionType {
                 params: vec![ty.clone()],
                 return_type: c_value(ty.clone()),

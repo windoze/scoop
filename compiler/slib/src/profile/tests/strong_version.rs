@@ -45,7 +45,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
             ][..],
-            &[1, 2, 3, 4, 5][..],
+            &[1, 2, 3, 4, 5, 6][..],
         ),
         (
             lir_link_identity_closure_capability(),

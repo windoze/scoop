@@ -147,7 +147,11 @@ fn unit_record() -> CborIdentityRecord<GeneratedBridgeUnitId, GeneratedBridgeUni
         &contract,
     )
     .unwrap();
-    CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(fingerprint)).unwrap()
+    CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+        fingerprint,
+        scoop_identity::CResultAdaptation::Direct,
+    ))
+    .unwrap()
 }
 
 fn expected_definition_plan(

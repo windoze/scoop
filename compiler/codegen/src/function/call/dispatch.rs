@@ -150,7 +150,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
                 ExternFunctionKind::C {
-                    call_plan: scoop_lir::CAbiCallPlan::StorageBridge(bridge),
+                    call_plan: scoop_lir::CAbiCallPlan::StorageBridge { entry: bridge, .. },
                     ..
                 } => bridge.symbol(),
                 ExternFunctionKind::C {
