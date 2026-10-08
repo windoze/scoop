@@ -8,7 +8,17 @@ import statistics
 import subprocess
 from pathlib import Path
 
-MODES = ("c-scalar", "safe-direct", "leaf-direct", "c-pair", "safe-bridge", "leaf-bridge")
+MODES = (
+    "c-scalar",
+    "safe-direct",
+    "leaf-direct",
+    "c-pair",
+    "safe-bridge",
+    "leaf-bridge",
+    "c-errno",
+    "safe-errno",
+    "leaf-errno",
+)
 
 
 def sample(binary, mode, threads, collect):
@@ -43,22 +53,27 @@ def sample(binary, mode, threads, collect):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--gc-binary", type=Path, required=True)
+    parser.add_argument("--gc-binary", type=Path)
+    parser.add_argument("--errno-only", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if not args.errno_only and args.gc_binary is None:
+        parser.error("--gc-binary is required unless --errno-only is selected")
+    modes = (6, 7, 8) if args.errno_only else range(len(MODES))
     report = {"host": platform.platform(), "samples": [], "medians": {}}
     for threads in (1, 2, 4, 8):
-        timings = {mode: [] for mode in MODES}
+        timings = {MODES[mode]: [] for mode in modes}
         for _ in range(3):
-            for mode, name in enumerate(MODES):
+            for mode in modes:
                 value = sample(args.binary, mode, threads, False)
                 report["samples"].append(value)
-                timings[name].append(value["ns_per_call"])
+                timings[MODES[mode]].append(value["ns_per_call"])
         report["medians"][str(threads)] = {
             name: statistics.median(values) for name, values in timings.items()
         }
-        for mode in (1, 2):
-            report["samples"].append(sample(args.gc_binary, mode, threads, True))
+        if not args.errno_only:
+            for mode in (1, 2):
+                report["samples"].append(sample(args.gc_binary, mode, threads, True))
         args.output.write_text(json.dumps(report, indent=2) + "\n")
         print(f"threads={threads}: {report['medians'][str(threads)]}", flush=True)
 

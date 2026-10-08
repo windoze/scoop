@@ -1,0 +1,351 @@
+{
+  "host": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "samples": [
+    {
+      "mode": 6,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 1503965,
+      "ns_per_call": 0.752,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 64455403,
+      "ns_per_call": 32.228,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 35664640,
+      "ns_per_call": 17.832,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2416019,
+      "ns_per_call": 1.208,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 64697841,
+      "ns_per_call": 32.349,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 35665492,
+      "ns_per_call": 17.833,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2366107,
+      "ns_per_call": 1.183,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 66010607,
+      "ns_per_call": 33.005,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 1,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37145392,
+      "ns_per_call": 18.573,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2418717,
+      "ns_per_call": 0.605,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 65876952,
+      "ns_per_call": 16.469,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 36477093,
+      "ns_per_call": 9.119,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2358099,
+      "ns_per_call": 0.59,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 65215917,
+      "ns_per_call": 16.304,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 37036136,
+      "ns_per_call": 9.259,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2398684,
+      "ns_per_call": 0.6,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 67318085,
+      "ns_per_call": 16.83,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 2,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 38029786,
+      "ns_per_call": 9.507,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2361703,
+      "ns_per_call": 0.295,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 74063450,
+      "ns_per_call": 9.258,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 43867379,
+      "ns_per_call": 5.483,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2399612,
+      "ns_per_call": 0.3,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 79290869,
+      "ns_per_call": 9.911,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 41046001,
+      "ns_per_call": 5.131,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2428492,
+      "ns_per_call": 0.304,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 74062362,
+      "ns_per_call": 9.258,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 4,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 43195159,
+      "ns_per_call": 5.399,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 3032265,
+      "ns_per_call": 0.19,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 97425739,
+      "ns_per_call": 6.089,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 44448180,
+      "ns_per_call": 2.778,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 3102130,
+      "ns_per_call": 0.194,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 111109437,
+      "ns_per_call": 6.944,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 45466010,
+      "ns_per_call": 2.842,
+      "collections": 0
+    },
+    {
+      "mode": 6,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 2584578,
+      "ns_per_call": 0.162,
+      "collections": 0
+    },
+    {
+      "mode": 7,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 102532783,
+      "ns_per_call": 6.408,
+      "collections": 0
+    },
+    {
+      "mode": 8,
+      "threads": 8,
+      "iterations": 2000000,
+      "gc": false,
+      "elapsed_ns": 44328776,
+      "ns_per_call": 2.771,
+      "collections": 0
+    }
+  ],
+  "medians": {
+    "1": {
+      "c-errno": 1.183,
+      "safe-errno": 32.349,
+      "leaf-errno": 17.833
+    },
+    "2": {
+      "c-errno": 0.6,
+      "safe-errno": 16.469,
+      "leaf-errno": 9.259
+    },
+    "4": {
+      "c-errno": 0.3,
+      "safe-errno": 9.258,
+      "leaf-errno": 5.399
+    },
+    "8": {
+      "c-errno": 0.19,
+      "safe-errno": 6.408,
+      "leaf-errno": 2.778
+    }
+  }
+}

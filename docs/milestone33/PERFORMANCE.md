@@ -111,4 +111,23 @@ GCLeaf DirectC 单线程耗时为 Darwin 12.557 ns、GNU 16.237 ns，普通 Nati
 | GNU / 8 | NativeSafe | 6,159 | 10.158 / 102.241 / 144.701 | 171.483 / 276.33 / 1363.536 |
 | GNU / 8 | GCLeaf | 2,307 | 16.912 / 45.481 / 132.695 | 179.461 / 293.788 / 1377.457 |
 
-GCLeaf 的线程保持 managed，collector 必须等真实 poll；普通 C 调用已发布 NativeSafe 时可直接视为停稳。Darwin 8 线程下，GCLeaf 的等待 p99 为 408 微秒，高于 NativeSafe 的 220 微秒；GNU 的 GCLeaf 等待尾部在本次样本中较低，但完整停顿并非始终更短。吞吐、停稳和整轮 GC 是不同指标，不能用单次调用加速推导全部 GC 延迟改善。errno 捕获尚未实现，其 bridge 测量随 M33-5 追加。
+GCLeaf 的线程保持 managed，collector 必须等真实 poll；普通 C 调用已发布 NativeSafe 时可直接视为停稳。Darwin 8 线程下，GCLeaf 的等待 p99 为 408 微秒，高于 NativeSafe 的 220 微秒；GNU 的 GCLeaf 等待尾部在本次样本中较低，但完整停顿并非始终更短。吞吐、停稳和整轮 GC 是不同指标，不能用单次调用加速推导全部 GC 延迟改善。errno 捕获的独立测量见下一节。
+
+## M33-5：errno 捕获的独立成本
+
+2026-10-09 补测。复用同一 [FFI benchmark](../../tests/benchmarks/ffi/README.md)，增加 C、NativeSafe 与 GCLeaf 三条捕获路径，以 `--errno-only` 只执行本组，不重复既有 aggregate 与 GC 压力测量。三条路径调用同一个独立编译的 `bench_scalar`，调用前清零 errno，返回后立即读取，并将 native 返回值和 errno 一起计入校验和；callee 的操作仍是整数加一，errno 保持零。每线程 2,000,000 次调用，1/2/4/8 线程分别取三轮交替样本的中位数，共 36 个样本。
+
+Darwin 使用上述 Apple M3 Ultra，native callee 与 C caller 为 Clang 22.1.8 O2，Scoop 为 LLVM 22.1.8 release，bridge 使用目标 SDK 工具链。Linux GNU 使用上述 NUC12，native callee 与 C caller 为 Clang 22.1.2 O2，Scoop 为 LLVM 22.1.2 release，目标 C ABI 工具链为 GCC 15.2.0。两者采用 production runtime、动态系统库、独立对象和禁用 builtin／LTO 的相同构建条件。计时期间被测机器不执行其他编译、fixture 或目录清理。原始样本见 [Darwin](measurements/errno-darwin.json) 和 [Linux GNU](measurements/errno-linux-gnu.json)。
+
+下表单位为 ns，计算方式为总墙钟时间除以总调用数，表示聚合吞吐；只有单线程列可近似理解为调用延迟。
+
+| 平台 / 路径 | 1 线程 | 2 线程 | 4 线程 | 8 线程 |
+| --- | ---: | ---: | ---: | ---: |
+| Darwin / C errno | 2.350 | 1.248 | 0.633 | 0.319 |
+| Darwin / NativeSafe errno bridge | 31.620 | 16.015 | 9.257 | 7.718 |
+| Darwin / GCLeaf errno bridge | 17.284 | 8.556 | 4.149 | 2.234 |
+| GNU / C errno | 1.183 | 0.600 | 0.300 | 0.190 |
+| GNU / NativeSafe errno bridge | 32.349 | 16.469 | 9.258 | 6.408 |
+| GNU / GCLeaf errno bridge | 17.833 | 9.259 | 5.399 | 2.778 |
+
+这组结果包含 libc errno 访问、必要的 StorageBridge 及结果存储。Scoop 循环保留正常回边 poll；GCLeaf 捕获调用自身没有 NativeSafe 进出和 caller-root 操作。它们与无捕获的 DirectC 是不同调用路径，不能把整段循环相对 C 的差距都归为状态切换，也不以不同批次的微小耗时差异推断固定的 errno 增量成本。

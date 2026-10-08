@@ -4,6 +4,10 @@
 @GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_scalar") fun leafScalar(value: Long): Long
 @Extern(lib = "ffi_benchmark", name = "bench_pair") fun safePair(value: Pair): Pair
 @GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_pair") fun leafPair(value: Pair): Pair
+@Extern(lib = "ffi_benchmark", name = "bench_scalar", captureErrno = true)
+fun safeErrno(value: Long): (Long, Int)
+@GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_scalar", captureErrno = true)
+fun leafErrno(value: Long): (Long, Int)
 @Extern(lib = "ffi_benchmark", name = "bench_mode") fun mode(): Int
 @GCLeaf @Extern(lib = "ffi_benchmark", name = "bench_done") fun done(): Boolean
 @Extern(lib = "ffi_benchmark", name = "bench_pause") fun pause()
@@ -51,6 +55,32 @@ fun pairLeaf(count: Int): Long {
     return sum
 }
 
+fun errnoSafe(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) {
+        @Unsafe {
+            val (value, error) = safeErrno(index.toInt64())
+            sum += value + error.toInt64()
+        }
+        index += 1
+    }
+    return sum
+}
+
+fun errnoLeaf(count: Int): Long {
+    var sum = 0L
+    var index = 0
+    while (index < count) {
+        @Unsafe {
+            val (value, error) = leafErrno(index.toInt64())
+            sum += value + error.toInt64()
+        }
+        index += 1
+    }
+    return sum
+}
+
 fun main() {
     @Unsafe {
         val selected = mode()
@@ -59,6 +89,8 @@ fun main() {
                 1 -> scalarSafe(count)
                 2 -> scalarLeaf(count)
                 4 -> pairSafe(count)
+                7 -> errnoSafe(count)
+                8 -> errnoLeaf(count)
                 else -> pairLeaf(count)
             } }, 1, ForeignCallbackMode.Reusable
         )

@@ -442,3 +442,9 @@ M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M3
 - 23 份较大的 HIR 预期移到相邻 snapshots 目录，以 include_str! 读取，Rust 测试文件减少约 2,900 行内联数据。LIR 预期保留完整入口参数及退出码槽写入，固定 wire 向量按实际格式更新。
 - fmt 和 workspace all-targets clippy 通过。工作区首轮覆盖 5,394 项测试，其中 5,283 项通过；修正后只复验受影响测试。HIR-lower 全部 1,391 项、slib 全部 567 项及其余失败项通过，最后两项较重的 driver 产物测试使用 release 优化构建，551 秒完成。按测试身份合并首轮与复验记录，5,394 项全部闭合，没有重复运行整套 workspace。
 - 原始日志为 tmp/m33/final-workspace-{tests,remaining}.log、final-recheck-*.log、final-driver-release-*.log；逐项成功来源保存在 tmp/m33/final-workspace-coverage-audit.json。公共 fixture runner 的 44 项规则测试通过，其实现未变，结果继续复用。
+
+## M33-5 补充：errno bridge 性能记录
+
+在既有 FFI benchmark 中补齐 C／NativeSafe／GCLeaf 的 errno 捕获对照。三条路径使用同一独立 native callee，清零、立即读取并将 errno 和返回值一并计入校验和。Darwin/GNU 各完成 1/2/4/8 线程 × 三条路径 × 三轮，共 36 个无 GC 样本；计时期间被测机器不运行其他构建、fixture 或清理任务。两平台实际机器码确认调用同一个 C 函数、保留捕获 bridge，GCLeaf 包装没有额外状态切换或 caller-root 操作，普通循环 poll 保持。
+
+Python 经 Ruff 0.16.10 格式化及检查，C 经格式化和严格警告检查，新增三条路径的双线程校验和在两平台通过。新增 `--errno-only` 直接服务本次补测，复用已有 aggregate 与 GC 压力记录；没有增加编译器或 runtime 机制。源码文件分别为 110、169、82 行，原始样本和测量条件见 [PERFORMANCE.md](PERFORMANCE.md)。
