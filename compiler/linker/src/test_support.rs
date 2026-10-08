@@ -106,7 +106,13 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     } else {
         Vec::new()
     };
-    let closure = read_program_artifacts(&root, &[library, core], &profile).unwrap();
+    let closure = read_program_artifacts(
+        &root,
+        &[library, core],
+        scoop_lir::ValidatedLirTargetSelection::from_id(profile.id()),
+        profile.startup_toolchain().profile(),
+    )
+    .unwrap();
     let output = link_program(
         &closure,
         &runtime,

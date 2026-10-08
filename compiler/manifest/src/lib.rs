@@ -22,7 +22,7 @@ pub use input::{
     CurrentConeInput, CurrentConeOperandError, CurrentConeOperandErrorKind,
     classify_current_cone_operand,
 };
-pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag};
+pub use native::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
     ManifestRootLocator, load_cone_manifest,

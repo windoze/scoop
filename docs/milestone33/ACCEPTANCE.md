@@ -11,7 +11,7 @@
 | M33-3 | 严格／可空／lossy UTF-8、C 字符串 | 完成并通过三平台验收 |
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
-| M33-6 | native C/C++、系统库与源码选择 | 源码选择、native C、系统库完成；C++ 待实现 |
+| M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
@@ -237,3 +237,21 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 产物 fixture 删除 provider/consumer 源码后完成跨 Cone 消费和独立链接；缓存 fixture 验证无 C 源码时库重排、重复及未选条目仍命中，新增库要求使缓存和产物改变。16 类 negative fixture 固定完整诊断，覆盖名称、kind、条件、缺失系统库、显式候选损坏／空库／歧义和 target 限制。
 - Darwin previous fixture 的公开 stub 指向实际旧 dylib，公开名称对应的 dylib 不存在，最终程序仍成功加载运行。另有两项既有动态库重导出／符号重命名回归通过，14 个进程、10 份 golden；绑定仍保留 facade 与实际 source symbol，旧 golden 同步已完成的 M33 入口和 DirectC 变化。
 - musl 完整运行暴露 libc archive 被重复按普通 native 对象解析的问题；修复后只复验失败缓存项、GNU 系统绑定及受影响诊断。清理 246 项已链接中间对象和 incremental 目录，共 2,019,638,990 bytes，保留配套 CLI 与热缓存；没有运行无关全量测试。
+
+## M33-6d：C++ 源码、产物要求与最终链接
+
+- `native.cxx` 是显式布尔开关，`cxx_flags` 与 `c_flags` 分别作用于 C++／C。默认采用 C++20／C11；`.cc`、`.cpp`、`.cxx`、`.C` 必须开启 C++。C/C++ 共用已实现的头文件发现和不可变预处理快照，编译阶段消费对应 `.ii`／`.i` 内容。
+- C++ driver 从已选 C driver 的配套位置解析。GNU 检查 target、版本、frontend 和 libstdc++；Darwin 保留 clang++ 的调用名称并使用所选 SDK 的 libc++。driver、标准库及实际宏进入 native 输入指纹；配置开启 C++ 时，即使没有选中的 C++ 源码也保留该要求。工具链错误标明要求 C++ 的 Cone。
+- LIR foundation 增加必需的 `native_cxx` 字段，进入 Code 和 production manifest。完整 Link 闭包确定最终模式，root 无需重复声明依赖的 C++ 配置。LIR identity-foundation 升为 8，production manifest 升为 6；相关固定编码和指纹同步。runtime／metadata ABI、host protocol 仍为 11/7/5。
+- GNU 使用配套 g++、libstdc++ 和唯一的 libgcc_s unwind provider；Darwin 使用 clang++、libc++ 与 SDK 中实际提供 ABI 符号的库。C++ 初始化／析构、TLS、原生异常与普通 weak/COMDAT 定义走目标工具链规则。Mach-O 的普通绑定和 weak coalescing 分开解释；`__dso_handle` 按映像头地址解析。GNU UNIQUE 定义按其可合并语义处理。公开 runtime 头兼容 C++ 的 C linkage、noreturn、static_assert 和 alignof，结构布局不变。
+- native、C++ driver、最终运行库配置及 Mach-O binding 校验分别放在小模块中。已有较长的 foundation/cone 文件移出 native 配置操作，final_image 文件也移出 binding 检查，未增加通用框架。
+
+已完成的验证：
+
+- Rust fmt 与受影响 crate 的 clippy 通过。Darwin/GNU 的 native 输入测试各 6 项通过，覆盖真实混合编译、公开头、标准库、原生异常及修改头文件后仍编译原快照。另有 LIR 模式编码／三个 target 投影、11 项 Code 投影、7 项 production manifest、19 项 capability profile、5 项缓存键和 2 项 SDK previous 指令测试通过。新增字段接受 0/1 并拒绝其他值，旧格式版本仍被拒绝。
+- 新增 15 项正式 fixture。Darwin 通过 10 项适用用例、13 个变体、52 个进程；GNU 通过 14 项、17 个变体、56 个进程。两者各验证 30 份 golden，10 份公共 HIR/MIR 完全一致。其余项按 target 标为不适用。
+- values 用例覆盖五种源文件后缀、C/C++ 参数隔离、模板／inline 共享定义、标准库、原生 throw/catch、全局构造／析构、TLS、NativeSafe／GCLeaf、errno 和 Scoop 异常组合；debug/release 下运行普通、moving、minor GC。三层产物用例在每层构建后删除源码，最终无 C++ 源码／配置的 consumer 通过中间 Cone 消费 provider，再独立链接运行。
+- cache 用例验证传递头、强制 include、C++ 参数和源码变化后的失效，以及重排、未选输入和无关头的复用。mode-cache 验证仅切换 `cxx`、没有 native 源码时，缓存键、产物和链接计划变化，重复构建命中。exit 用例确认显式退出刷新输出、返回 37，并且不执行 C++ 全局析构。
+- negative 用例覆盖字段类型、受 driver 管理的参数、缺少开关、参数不隐式开启 C++、缺配套 driver／标准库、target／版本不匹配。musl 通过 6 项适用配置用例、7 个变体，包含未选中 C++ 源码时 static/dynamic 均拒绝的检查。Linux 另有真实产物读取测试：删除源码后读取带 C++ 要求的 GNU Link 闭包，分别选择 musl static/dynamic final-link profile，均在解析 C++ 工具链前拒绝并指出 Cone。
+- 三平台各通过 1 项既有纯 C fixture、2 个变体、8 个进程与 6 份 golden，验证混合功能改动后原有 C 路径。最后清理本机 262 项 target 中间对象／incremental 目录，共 2,369,074,897 bytes，保留热缓存和配套 CLI；没有运行无关全量测试。
+- 最后补充工具链错误中的当前 Cone 来源，只复验 GNU 的 4 项工具链诊断、musl 的 static/dynamic 两个拒绝变体和混合 native 输入测试，均通过；其余已通过结果直接复用。

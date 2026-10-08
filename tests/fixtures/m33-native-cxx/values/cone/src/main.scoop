@@ -1,0 +1,19 @@
+@Extern(name = "m33_cpp_value")
+fun nativeValue(): Int
+@GCLeaf
+@Extern(name = "m33_cpp_leaf")
+fun nativeLeaf(): Int
+@Extern(name = "m33_cpp_errno", captureErrno = true)
+fun nativeErrno(): (Int, Int)
+fun main() {
+    val live = "retained " + "Scoop value"
+    @Unsafe {
+        if (nativeValue() != 42 || nativeLeaf() != 42) { throw IllegalStateException() }
+        val (result, captured) = nativeErrno()
+        if (result != 42 || captured != 7) { throw IllegalStateException() }
+    }
+    if (live != "retained Scoop value") { throw IllegalStateException() }
+    try { throw IllegalStateException() } catch (error: IllegalStateException) {
+        @Unsafe { if (nativeValue() != 42) { throw error } }
+    }
+}

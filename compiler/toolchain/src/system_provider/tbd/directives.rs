@@ -48,7 +48,9 @@ impl StubDirectives {
                 },
             )?,
             "install_name" => self.install_name = Some(symbol.to_owned()),
-            "compatibility_version" => self.compatibility_version = Some(parse_version(symbol)?),
+            "compatibility_version" => {
+                self.compatibility_version = Some(parse_compatibility(symbol)?)
+            }
             _ => return Err(invalid(directive)),
         }
         Ok(())
@@ -68,11 +70,7 @@ impl StubDirectives {
         let platform: u32 = platform.parse().map_err(|_| invalid(directive))?;
         let start = parse_version(start)?;
         let end = parse_version(end)?;
-        let compatibility = parse_version(if compatibility.is_empty() {
-            "0"
-        } else {
-            compatibility
-        })?;
+        let compatibility = parse_compatibility(compatibility)?;
         if name.is_empty() || start >= end {
             return Err(invalid(directive));
         }
@@ -109,6 +107,13 @@ fn parse_version(value: &str) -> Result<u32, ToolchainError> {
     };
     crate::c_bridge::parse_darwin_version(&value, "SDK linker directive")
         .map(|version| version.packed())
+}
+
+fn parse_compatibility(value: &str) -> Result<u32, ToolchainError> {
+    match value {
+        "" | "0" | "0.0" | "0.0.0" => Ok(0),
+        _ => parse_version(value),
+    }
 }
 
 fn invalid(value: &str) -> ToolchainError {

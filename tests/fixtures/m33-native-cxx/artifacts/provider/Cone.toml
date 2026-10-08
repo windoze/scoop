@@ -1,0 +1,14 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "cxx-provider"
+version = "0.1.0"
+kind = "library"
+[native]
+cxx = true
+cxx_flags = ["-DPROVIDER_OFFSET=2", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/provider.cpp"
+
+[[native.libraries]]
+name = "m"

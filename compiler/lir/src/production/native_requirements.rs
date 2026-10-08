@@ -79,6 +79,7 @@ pub struct CanonicalNativeExternalRequirementSurfaceV1 {
     target: LirTargetProfile,
     contracts: Vec<CanonicalNativeExternalRequirementV1>,
     library_requirements: Vec<CanonicalNativeLibraryRequirementV1>,
+    cxx: bool,
 }
 
 impl CanonicalNativeExternalRequirementSurfaceV1 {
@@ -166,6 +167,7 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
             target,
             contracts: grouped.into_values().collect(),
             library_requirements: requirements.into_values().collect(),
+            cxx: foundation.native_cxx(),
         })
     }
 
@@ -179,6 +181,10 @@ impl CanonicalNativeExternalRequirementSurfaceV1 {
 
     pub fn contracts(&self) -> &[CanonicalNativeExternalRequirementV1] {
         &self.contracts
+    }
+
+    pub fn cxx(&self) -> bool {
+        self.cxx
     }
 
     pub fn library_requirements(&self) -> &[CanonicalNativeLibraryRequirementV1] {

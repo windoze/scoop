@@ -34,6 +34,18 @@ fn previous_sdk_library_name_and_version_apply_without_a_symbol() {
     assert_eq!(records[0].install_name, "/usr/lib/previous.dylib");
     assert_eq!(records[0].compatibility_version, 3 << 16);
     assert!(records[0].previous_exports.is_empty());
+    for version in ["", "0", "0.0"] {
+        let text = std::str::from_utf8(text)
+            .unwrap()
+            .replace("$3$1$", &format!("${version}$1$"));
+        let records = read_text_stubs(
+            text.as_bytes(),
+            DarwinPackedVersionV1::from_components(13, 0, 0).unwrap(),
+            true,
+        )
+        .unwrap();
+        assert_eq!(records[0].compatibility_version, 0);
+    }
 }
 
 #[test]

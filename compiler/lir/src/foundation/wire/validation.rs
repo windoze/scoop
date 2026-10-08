@@ -106,6 +106,7 @@ fn validate_foundation(
         native_link_requirements: _,
         definition_plans: _,
         definition_atoms: _,
+        native_cxx,
     } = foundation.decoded;
 
     let mut resolved_materialized_exact_types = Vec::new();
@@ -302,6 +303,7 @@ fn validate_foundation(
     set!(set_native_link_requirements, native_link_requirements);
     set!(set_definition_plans, definition_plans);
     set!(set_definition_atoms, definition_atoms);
+    canonical.native_cxx = native_cxx;
 
     let rebuilt = encode_canonical_temporary(&canonical, &WirePath::root())
         .map_err(LirFoundationValidationError::Resource)?;

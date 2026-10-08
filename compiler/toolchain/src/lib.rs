@@ -8,6 +8,7 @@ use std::fmt;
 
 mod c_bridge;
 mod compiler;
+mod cxx;
 mod final_link;
 mod linux_c;
 mod native;
@@ -19,12 +20,14 @@ mod system_provider;
 mod trusted_core;
 mod unwind;
 
+pub use cxx::ValidatedCxxToolchain;
 pub use final_link::{
     FinalLinkOptions, LinkMode, LinuxFinalLinkProfile, ValidatedFinalLinkProfile,
 };
 pub use linux_c::resolve_linux_c_toolchain;
 pub use native::{
-    NativeSourceInput, PreparedNativeInputs, compile_native_source, prepare_native_inputs,
+    NativeSourceInput, NativeToolchain, PreparedNativeInputs, compile_native_source,
+    prepare_native_inputs,
 };
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
 pub use registry::host_target_triple;

@@ -7,6 +7,9 @@ use scoop_process::CommandExt;
 use super::*;
 use crate::ResolvedTargetProfile;
 
+#[cfg(not(target_env = "musl"))]
+mod cxx;
+
 fn target() -> &'static ResolvedTargetProfile {
     static TARGET: OnceLock<ResolvedTargetProfile> = OnceLock::new();
     TARGET.get_or_init(|| ResolvedTargetProfile::resolve_host().unwrap())
@@ -67,7 +70,7 @@ fn snapshot_compiles_old_headers_and_next_build_observes_changes() {
     compile_native_source(
         &prepared.units()[0],
         manifest.parsed().semantic().native(),
-        target().c_bridge_toolchain(),
+        &NativeToolchain::resolve(target().c_bridge_toolchain(), &manifest).unwrap(),
         OptimizationMode::Debug,
         &object,
     )
@@ -119,7 +122,7 @@ fn relocation_preserves_preprocessed_bytes_and_object_content() {
         compile_native_source(
             &prepared.units()[0],
             manifest.parsed().semantic().native(),
-            target().c_bridge_toolchain(),
+            &NativeToolchain::resolve(target().c_bridge_toolchain(), &manifest).unwrap(),
             OptimizationMode::Debug,
             &object,
         )

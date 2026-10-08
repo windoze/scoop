@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "cxx-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m33:cxx-middle" = "0.1.0"

@@ -85,10 +85,20 @@ pub(super) fn include(
                 "{diagnostic} defines compiler-owned symbol {symbol}"
             )));
         }
-        if let Some(previous) = inputs
-            .definitions
-            .insert(symbol.clone(), DefinitionOwner::Native(id))
-        {
+        if let Some(previous) = inputs.definitions.get(symbol) {
+            if let DefinitionOwner::Native(previous) = previous {
+                let (previous_index, _) = inputs.native.object(*previous)?;
+                let old = previous_index.info.definitions[symbol];
+                let new = index.info.definitions[symbol];
+                if old.weak || new.weak {
+                    if old.weak && !new.weak {
+                        inputs
+                            .definitions
+                            .insert(symbol.clone(), DefinitionOwner::Native(id));
+                    }
+                    continue;
+                }
+            }
             let previous = match previous {
                 DefinitionOwner::Native(previous) => inputs.native.files[&previous.input()]
                     .locator
@@ -100,6 +110,9 @@ pub(super) fn include(
                 "{diagnostic} conflicts with {previous} at {symbol}"
             )));
         }
+        inputs
+            .definitions
+            .insert(symbol.clone(), DefinitionOwner::Native(id));
     }
     for symbol in &index.info.requirements {
         inputs.requirements.insert(symbol.clone());

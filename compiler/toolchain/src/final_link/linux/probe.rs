@@ -27,11 +27,12 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     let source = directory.path().join("probe.c");
     let object = directory.path().join("probe.o");
     std::fs::write(&source, SOURCE).map_err(error)?;
-    run(profile
-        .startup
-        .object_compilation_command(&source, &object)
-        .args(["-funwind-tables", "-fno-omit-frame-pointer", "-I"])
-        .arg(profile.unwind_prefix.join("include")))?;
+    let mut compile = profile.startup.object_compilation_command(&source, &object);
+    compile.args(["-funwind-tables", "-fno-omit-frame-pointer"]);
+    if let Some(prefix) = profile.unwind_prefix() {
+        compile.arg("-I").arg(prefix.join("include"));
+    }
+    run(&mut compile)?;
     let binary = directory.path().join("probe");
     let map = directory.path().join("probe.map");
     let mut command = profile.command(directory.path(), &binary, &map)?;
@@ -42,16 +43,14 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile) -> Result<Vec<SystemInput>,
     profile.check_image(&bytes)?;
     let trace = String::from_utf8(result.stdout).map_err(error)?;
     let map = std::fs::read_to_string(map).map_err(error)?;
-    if map.contains("libgcc_eh.a") || map.contains("libgcc_s.so") {
-        return Err(error(
-            "linker selected a second EH provider alongside LLVM libunwind",
-        ));
-    }
+    profile.check_unwind_map(&map)?;
     let mut paths = BTreeSet::from([
         profile.linker.clone(),
         driver_program(&profile.startup, "collect2")?,
-        profile.unwind_prefix.join("lib/libunwind.a"),
     ]);
+    if let Some(prefix) = profile.unwind_prefix() {
+        paths.insert(prefix.join("lib/libunwind.a"));
+    }
     for line in trace.lines() {
         let path = Path::new(line.trim());
         if path.is_absolute() && !path.starts_with(directory.path()) {

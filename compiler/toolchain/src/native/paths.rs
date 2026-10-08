@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use scoop_manifest::{ConeRelativePath, NativeCompileFlag, NativeConfig, NativeIncludeFlag};
+use scoop_manifest::{
+    ConeRelativePath, NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage,
+};
 
 use super::{ToolchainError, error};
 
@@ -42,11 +44,18 @@ impl InputRoots {
         Ok(resolved)
     }
 
-    pub(super) fn validate_includes(&self, config: &NativeConfig) -> Result<(), ToolchainError> {
+    pub(super) fn validate_includes(
+        &self,
+        config: &NativeConfig,
+        languages: &std::collections::BTreeSet<NativeSourceLanguage>,
+    ) -> Result<(), ToolchainError> {
         for include in config.include() {
             self.checked_path(include, true)?;
         }
-        for flag in config.c_flags() {
+        for flag in languages
+            .iter()
+            .flat_map(|language| config.flags(*language))
+        {
             if let NativeCompileFlag::Include { kind, path } = flag {
                 self.checked_path(
                     path,

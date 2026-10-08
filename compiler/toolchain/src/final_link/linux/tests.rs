@@ -49,7 +49,7 @@ fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() 
                 .startup
                 .object_compilation_command(&source, &object)
                 .args(["-funwind-tables", "-fno-omit-frame-pointer", "-I"])
-                .arg(linux.unwind_prefix.join("include")),
+                .arg(linux.unwind_prefix().unwrap().join("include")),
         )
         .unwrap();
         let binary = directory.path().join("program");

@@ -28,6 +28,7 @@ impl NativeInputs {
                 let index = NativeObjectIndex::read_with_toolchain(
                     object.bytes(),
                     profile.startup_toolchain().profile(),
+                    artifact.foundation().native_cxx(),
                 )
                 .map_err(|err| error(format!("{}: {err}", locator.display())))?;
                 self.files.insert(

@@ -1,22 +1,28 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use scoop_lir::{OptimizationMode, TargetProfileId, ValidatedCBridgeToolchainInvocation};
-use scoop_manifest::{ImmutableInputSnapshot, LoadedConeManifest, NativeCompileFlag};
+use scoop_lir::{OptimizationMode, TargetProfileId};
+use scoop_manifest::{
+    ImmutableInputSnapshot, LoadedConeManifest, NativeCompileFlag, NativeConfig,
+    NativeSourceLanguage,
+};
 use scoop_process::parse_make_dependencies;
 
 use super::paths::{InputRoots, normalize_line_markers};
-use super::{NativeSourceInput, PreparedNativeInputs, ToolchainError, command, error};
+use super::{
+    NativeSourceInput, NativeToolchain, PreparedNativeInputs, ToolchainError, command, error,
+};
 
 pub(super) fn prepare(
     manifest: &LoadedConeManifest,
     target: TargetProfileId,
-    compiler: &ValidatedCBridgeToolchainInvocation,
+    compiler: &NativeToolchain,
     optimization: OptimizationMode,
     public_include: &Path,
 ) -> Result<PreparedNativeInputs, ToolchainError> {
     let config = manifest.parsed().semantic().native();
     let libraries = config.library_requirements(target).map_err(error)?;
+    let cxx = compiler.cxx_fingerprint();
     let mut sources: Vec<_> = config
         .sources()
         .iter()
@@ -26,43 +32,42 @@ pub(super) fn prepare(
     if sources.is_empty() {
         return Ok(PreparedNativeInputs {
             libraries,
+            cxx,
             ..PreparedNativeInputs::default()
         });
+    }
+    let sources = sources
+        .into_iter()
+        .map(|source| {
+            config
+                .source_language(source.path())
+                .map(|language| (source, language))
+                .map_err(error)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let languages: BTreeSet<_> = sources.iter().map(|(_, language)| *language).collect();
+    let mut system = Vec::new();
+    for language in &languages {
+        for root in command::system_roots(compiler, *language)? {
+            if !system.contains(&root) {
+                system.push(root);
+            }
+        }
     }
     let roots = InputRoots {
         cone: manifest.real_root().to_path_buf(),
         public: public_include.canonicalize().map_err(error)?,
-        system: command::system_roots(compiler)?,
+        system,
     };
-    roots.validate_includes(config)?;
+    roots.validate_includes(config, &languages)?;
     let mut selected = BTreeSet::new();
-    for source in &sources {
+    for (source, _) in &sources {
         let resolved = roots.checked_path(source.path(), false)?;
         if !selected.insert(super::paths::physical_identity(&resolved)?) {
             return Err(error(format!(
                 "duplicate native source {}",
                 source.path().as_str()
             )));
-        }
-        match source
-            .path()
-            .as_path()
-            .extension()
-            .and_then(|ext| ext.to_str())
-        {
-            Some("c") => {}
-            Some("cc" | "cpp" | "cxx" | "C") => {
-                return Err(error(format!(
-                    "{} requires native.cxx = true",
-                    source.path().as_str()
-                )));
-            }
-            _ => {
-                return Err(error(format!(
-                    "{} has an invalid native source extension",
-                    source.path().as_str()
-                )));
-            }
         }
     }
     let directory = tempfile::Builder::new()
@@ -72,13 +77,14 @@ pub(super) fn prepare(
     for _ in 0..3 {
         let mut result = PreparedNativeInputs {
             libraries: libraries.clone(),
+            cxx,
             ..PreparedNativeInputs::default()
         };
         let mut captured = BTreeMap::new();
-        for source in &sources {
+        for (source, language) in &sources {
             let input = roots.cone.join(source.path().as_path());
             let depfile = directory.path().join("unit.d");
-            let mut command = command::base(compiler, optimization);
+            let mut command = command::base(compiler, *language, optimization)?;
             command.args([
                 format!("-DSCOOP_TARGET_OS_{}=1", target.os().to_ascii_uppercase()),
                 format!(
@@ -87,7 +93,7 @@ pub(super) fn prepare(
                 ),
                 format!("-DSCOOP_TARGET_ENV_{}=1", target.env().to_ascii_uppercase()),
             ]);
-            command::configure_preprocessor(&mut command, config, &roots.cone);
+            command::configure_preprocessor(&mut command, config, *language, &roots.cone);
             command
                 .current_dir(&roots.cone)
                 .arg("-I")
@@ -97,7 +103,15 @@ pub(super) fn prepare(
             }
             command
                 .arg("-fPIC")
-                .args(["-E", "-x", "c", "-MD", "-MT", "native-unit", "-MF"])
+                .args([
+                    "-E",
+                    "-x",
+                    language.input_name(),
+                    "-MD",
+                    "-MT",
+                    "native-unit",
+                    "-MF",
+                ])
                 .arg(&depfile)
                 .arg(&input);
             let output = command::run(&mut command, source.path().as_str())?;
@@ -128,21 +142,17 @@ pub(super) fn prepare(
             let preprocessed = normalize_line_markers(&output.stdout, &path_map, &roots)?;
             result.units.push(NativeSourceInput::new(
                 source.path().clone(),
+                *language,
                 preprocessed.into(),
             ));
         }
         if captured.values().all(ImmutableInputSnapshot::is_current) {
-            result.flags = config
-                .include()
-                .iter()
-                .flat_map(|path| ["-I".to_owned(), path.as_str().to_owned()])
-                .chain(config.c_flags().iter().flat_map(|flag| match flag {
-                    NativeCompileFlag::Argument(argument) => vec![argument.clone()],
-                    NativeCompileFlag::Include { kind, path } => {
-                        vec![kind.argument().to_owned(), path.as_str().to_owned()]
-                    }
-                }))
-                .collect();
+            if languages.contains(&NativeSourceLanguage::C) {
+                result.flags = flags(config, NativeSourceLanguage::C);
+            }
+            if languages.contains(&NativeSourceLanguage::Cxx) {
+                result.cxx_flags = flags(config, NativeSourceLanguage::Cxx);
+            }
             return Ok(result);
         }
     }
@@ -150,4 +160,18 @@ pub(super) fn prepare(
         "inputs for {} kept changing during preprocessing",
         Path::new(manifest.manifest_path()).display()
     )))
+}
+
+fn flags(config: &NativeConfig, language: NativeSourceLanguage) -> Vec<String> {
+    config
+        .include()
+        .iter()
+        .flat_map(|path| ["-I".to_owned(), path.as_str().to_owned()])
+        .chain(config.flags(language).iter().flat_map(|flag| match flag {
+            NativeCompileFlag::Argument(argument) => vec![argument.clone()],
+            NativeCompileFlag::Include { kind, path } => {
+                vec![kind.argument().to_owned(), path.as_str().to_owned()]
+            }
+        }))
+        .collect()
 }

@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for LinuxFinalLinkProfile {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(8)?;
+        e.map(9)?;
         e.field(1)?;
         self.startup.profile().contract().target().encode(e)?;
         e.field(2)?;
@@ -12,7 +12,10 @@ impl WireEncode for LinuxFinalLinkProfile {
         e.field(4)?;
         e.text(&self.linker_version)?;
         e.field(5)?;
-        e.array((OPTIONS.len() + self.mode_flags().len()) as u64)?;
+        e.array((OPTIONS.len() + self.mode_flags().len() + usize::from(!self.cxx())) as u64)?;
+        if !self.cxx() {
+            e.text("-nodefaultlibs")?;
+        }
         for option in OPTIONS.iter().chain(self.mode_flags()) {
             e.text(option)?;
         }
@@ -39,6 +42,14 @@ impl WireEncode for LinuxFinalLinkProfile {
             digest.encode(e)?;
         }
         e.field(8)?;
-        e.unsigned(1)
+        e.unsigned(1)?;
+        e.field(9)?;
+        match &self.runtime {
+            RuntimeLibraries::C { .. } => e.array(0),
+            RuntimeLibraries::Cxx(cxx) => {
+                e.array(1)?;
+                cxx.fingerprint().encode(e)
+            }
+        }
     }
 }

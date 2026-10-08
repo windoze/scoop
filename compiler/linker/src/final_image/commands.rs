@@ -217,27 +217,28 @@ impl FinalImage<'_> {
         )?;
         let rebase = self.file_range(info.rebase_off.get(endian), info.rebase_size.get(endian))?;
         self.rebases = fixups::rebases(rebase, &self.segments)?;
-        for (offset, length, weak) in [
-            (info.bind_off.get(endian), info.bind_size.get(endian), false),
-            (
-                info.weak_bind_off.get(endian),
-                info.weak_bind_size.get(endian),
-                true,
-            ),
+        for (offset, length) in [
+            (info.bind_off.get(endian), info.bind_size.get(endian)),
             (
                 info.lazy_bind_off.get(endian),
                 info.lazy_bind_size.get(endian),
-                false,
             ),
         ] {
             for (address, binding) in
-                fixups::bindings(self.file_range(offset, length)?, &self.segments, weak)?
+                fixups::bindings(self.file_range(offset, length)?, &self.segments)?
             {
                 if self.bindings.insert(address, binding).is_some() {
                     return Err(error("duplicate final pointer binding"));
                 }
             }
         }
+        self.weak_bindings = fixups::bindings(
+            self.file_range(
+                info.weak_bind_off.get(endian),
+                info.weak_bind_size.get(endian),
+            )?,
+            &self.segments,
+        )?;
         let (offset, length) =
             signature.ok_or_else(|| error("final output has no ad-hoc code signature"))?;
         signature::check(self.file_range(offset, length)?, offset)?;

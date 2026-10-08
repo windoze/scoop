@@ -1,0 +1,15 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-cxx-cache"
+version = "0.1.0"
+kind = "executable"
+[native]
+cxx = true
+include = ["include"]
+cxx_flags = ["-DM33_OFFSET=40", "-include", "forced.h", "-imacros", "macros.h"]
+[[native.sources]]
+path = "native/answer.cpp"
+[[native.sources]]
+path = "native/ignored.cpp"
+when = {os = []}

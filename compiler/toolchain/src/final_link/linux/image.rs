@@ -87,9 +87,11 @@ pub(super) fn check(profile: &LinuxFinalLinkProfile, bytes: &[u8]) -> Result<(),
         .filter(|symbol| symbol.is_undefined())
     {
         let name = symbol.name().map_err(error)?;
-        if name.starts_with("_Unwind_")
-            || (name.starts_with("__cxa_") && !matches!(name, "__cxa_finalize" | "__cxa_atexit"))
-            || name.starts_with("__gxx_personality")
+        if !profile.cxx()
+            && (name.starts_with("_Unwind_")
+                || (name.starts_with("__cxa_")
+                    && !matches!(name, "__cxa_finalize" | "__cxa_atexit"))
+                || name.starts_with("__gxx_personality"))
         {
             return Err(error(format!(
                 "ELF executable imports an unexpected EH provider symbol {name}"

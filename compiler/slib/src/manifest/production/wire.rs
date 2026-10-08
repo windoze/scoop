@@ -148,7 +148,7 @@ impl WireDecode for DecodedSingleConeProductionOutputV1 {
 type DecodedNativeLibraryRequirementV1 =
     DecodedCborIdentityRecord<NativeLinkRequirementId, DecodedNativeLinkRequirementKey>;
 
-/// Parsed eleven-field manifest, compared with the actual production result
+/// Parsed twelve-field manifest, compared with the actual production result
 /// before its IDs and fingerprints are consumed.
 #[derive(Debug)]
 pub struct DecodedSingleConeProductionManifestV1 {
@@ -161,13 +161,14 @@ pub struct DecodedSingleConeProductionManifestV1 {
     code_fingerprint: DecodedFixedBytesV1<CodeFingerprint>,
     native_contracts: DecodedCanonicalNativeExternalContractCodeSetV1,
     native_library_requirements: Vec<DecodedNativeLibraryRequirementV1>,
+    native_cxx: bool,
     c_bridge_production: DecodedCBridgeProductionSetV1,
     odr_members: DecodedCanonicalOdrMemberDirectoryV1,
     optimization: scoop_lir::OptimizationMode,
 }
 
 /// A decoded production manifest whose generated-C production branch was
-/// rebuilt from one typed bridge plan and toolchain profile. The other ten
+/// rebuilt from one typed bridge plan and toolchain profile. The other eleven
 /// fields remain untrusted until the complete Code proof is available.
 #[derive(Debug)]
 pub struct CBridgeCheckedSingleConeProductionManifestV1 {
@@ -249,7 +250,7 @@ impl DecodedSingleConeProductionManifestV1 {
 
 impl WireEncode for DecodedSingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(12)?;
         encoder.field(1)?;
         self.distribution.encode(encoder)?;
         encoder.field(2)?;
@@ -271,13 +272,15 @@ impl WireEncode for DecodedSingleConeProductionManifestV1 {
         encoder.field(11)?;
         self.odr_members.encode(encoder)?;
         encoder.field(12)?;
-        self.optimization.encode(encoder)
+        self.optimization.encode(encoder)?;
+        encoder.field(13)?;
+        encoder.unsigned(u64::from(self.native_cxx))
     }
 }
 
 impl WireDecode for DecodedSingleConeProductionManifestV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        decoder.expect_map(12)?;
         Ok(Self {
             distribution: decoder.field(1, DecodedArtifactDistributionClassV1::decode)?,
             output: decoder.field(2, DecodedSingleConeProductionOutputV1::decode)?,
@@ -294,6 +297,11 @@ impl WireDecode for DecodedSingleConeProductionManifestV1 {
             c_bridge_production: decoder.field(10, DecodedCBridgeProductionSetV1::decode)?,
             odr_members: decoder.field(11, DecodedCanonicalOdrMemberDirectoryV1::decode)?,
             optimization: decoder.field(12, scoop_lir::OptimizationMode::decode)?,
+            native_cxx: decoder.field(13, |decoder| match decoder.unsigned()? {
+                0 => Ok(false),
+                1 => Ok(true),
+                tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+            })?,
         })
     }
 }

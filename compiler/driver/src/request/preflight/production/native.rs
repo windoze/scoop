@@ -2,7 +2,7 @@ use std::path::Path;
 
 use scoop_identity::{ConeIdentity, NormalizedSourcePath};
 use scoop_manifest::ImmutableInputSnapshot;
-use scoop_toolchain::{NativeSourceInput, ToolchainError};
+use scoop_toolchain::{NativeSourceInput, NativeToolchain, ToolchainError};
 
 use super::{ValidatedCurrentConeInput, ValidatedSingleConeBuildRequest};
 use crate::request::NativeInputOrigin;
@@ -24,16 +24,16 @@ pub(super) fn compile(
     };
     let config = manifest.parsed().semantic().native();
     let target = request.target();
+    let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
     let units = match &request.request.native_inputs {
-        NativeInputOrigin::Source => scoop_toolchain::prepare_native_inputs(
-            manifest,
-            target.id(),
-            target.c_bridge_toolchain(),
-            request.optimization(),
-            &scoop_toolchain::development_runtime_root().join("include"),
-        )?
-        .units()
-        .to_vec(),
+        NativeInputOrigin::Source => compiler
+            .prepare(
+                manifest,
+                request.optimization(),
+                &scoop_toolchain::development_runtime_root().join("include"),
+            )?
+            .units()
+            .to_vec(),
         NativeInputOrigin::Preprocessed(inputs) => {
             let mut selected: Vec<_> = config
                 .sources()
@@ -55,6 +55,7 @@ pub(super) fn compile(
                     let captured = ImmutableInputSnapshot::capture(input).map_err(error)?;
                     Ok(NativeSourceInput::new(
                         source.path().clone(),
+                        config.source_language(source.path()).map_err(error)?,
                         captured.shared_bytes(),
                     ))
                 })
@@ -76,7 +77,7 @@ pub(super) fn compile(
             scoop_toolchain::compile_native_source(
                 &unit,
                 config,
-                target.c_bridge_toolchain(),
+                &compiler,
                 request.optimization(),
                 &output,
             )?;
@@ -108,4 +109,8 @@ pub(super) fn libraries(
             .map_err(error),
         ValidatedCurrentConeInput::SingleFile { .. } => Ok(Vec::new()),
     }
+}
+
+pub(super) fn cxx(request: &ValidatedSingleConeBuildRequest<'_>) -> bool {
+    matches!(request.current(), ValidatedCurrentConeInput::Manifest { manifest } if manifest.parsed().semantic().native().cxx())
 }

@@ -264,6 +264,7 @@ pub(super) fn assemble(
         .with_native_libraries(
             super::native::libraries(request).map_err(CurrentConeProductionFailure::Native)?,
         )
+        .with_native_cxx(super::native::cxx(request))
         .assemble(objects, &generated, &owners)
         .map_err(Error::Artifact)
         .map_err(Into::into)

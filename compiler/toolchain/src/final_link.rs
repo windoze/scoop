@@ -46,13 +46,17 @@ impl ValidatedFinalLinkProfile {
         options: &FinalLinkOptions,
     ) -> Result<Self, ToolchainError> {
         let target = ResolvedTargetProfile::resolve_with(triple, c_toolchain)?;
-        Self::from_startup(target.c_bridge_toolchain().clone(), options)
+        Self::from_startup(target.c_bridge_toolchain().clone(), options, false)
     }
 
     pub(crate) fn from_startup(
         startup: ValidatedCBridgeToolchainInvocation,
         options: &FinalLinkOptions,
+        cxx: bool,
     ) -> Result<Self, ToolchainError> {
+        let cxx = cxx
+            .then(|| crate::ValidatedCxxToolchain::resolve(&startup))
+            .transpose()?;
         match startup.profile().contract().target().id() {
             TargetProfileId::DarwinAarch64 => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
@@ -60,16 +64,23 @@ impl ValidatedFinalLinkProfile {
                         "Darwin uses dynamic libSystem unwinding; static mode and an unwind prefix are not applicable",
                     ));
                 }
-                DarwinFinalLinkProfile::from_startup(startup).map(Self::Darwin)
+                DarwinFinalLinkProfile::from_startup(startup, cxx).map(Self::Darwin)
             }
             TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
-                LinuxFinalLinkProfile::resolve(startup, options).map(Self::Linux)
+                LinuxFinalLinkProfile::resolve(startup, options, cxx).map(Self::Linux)
             }
         }
     }
 
     pub fn id(&self) -> TargetProfileId {
         self.startup_toolchain().profile().contract().target().id()
+    }
+
+    pub fn cxx(&self) -> bool {
+        match self {
+            Self::Darwin(profile) => profile.cxx(),
+            Self::Linux(profile) => profile.cxx(),
+        }
     }
 
     pub fn target(&self) -> LirTargetProfile {

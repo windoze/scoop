@@ -1,33 +1,42 @@
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use scoop_lir::{OptimizationMode, ValidatedCBridgeToolchainInvocation};
-use scoop_manifest::{NativeCompileFlag, NativeConfig};
+use scoop_lir::OptimizationMode;
+use scoop_manifest::{NativeCompileFlag, NativeConfig, NativeSourceLanguage};
 use scoop_process::CommandExt;
 
-use super::{NativeSourceInput, ToolchainError, error};
+use super::{NativeSourceInput, NativeToolchain, ToolchainError, error};
 
 pub(super) fn base(
-    compiler: &ValidatedCBridgeToolchainInvocation,
+    compiler: &NativeToolchain,
+    language: NativeSourceLanguage,
     optimization: OptimizationMode,
-) -> Command {
-    let mut command = compiler.driver_command();
+) -> Result<Command, ToolchainError> {
+    let mut command = compiler.command(language)?;
     command.env("SOURCE_DATE_EPOCH", "0").args([
-        "-std=c11",
+        match language {
+            NativeSourceLanguage::C => "-std=c11",
+            NativeSourceLanguage::Cxx => "-std=c++20",
+        },
         "-fPIC",
         match optimization {
             OptimizationMode::Debug => "-O0",
             OptimizationMode::Release => "-O2",
         },
     ]);
-    command
+    Ok(command)
 }
 
-pub(super) fn configure_preprocessor(command: &mut Command, config: &NativeConfig, root: &Path) {
+pub(super) fn configure_preprocessor(
+    command: &mut Command,
+    config: &NativeConfig,
+    language: NativeSourceLanguage,
+    root: &Path,
+) {
     for include in config.include() {
         command.arg("-I").arg(root.join(include.as_path()));
     }
-    for flag in config.c_flags() {
+    for flag in config.flags(language) {
         match flag {
             NativeCompileFlag::Argument(argument) => {
                 command.arg(argument);
@@ -54,12 +63,13 @@ pub(super) fn run(
 }
 
 pub(super) fn system_roots(
-    compiler: &ValidatedCBridgeToolchainInvocation,
+    compiler: &NativeToolchain,
+    language: NativeSourceLanguage,
 ) -> Result<Vec<std::path::PathBuf>, ToolchainError> {
     let output = run(
         compiler
-            .driver_command()
-            .args(["-E", "-v", "-x", "c", "-"])
+            .command(language)?
+            .args(["-E", "-v", "-x", language.input_name(), "-"])
             .stdin(Stdio::null()),
         "system include search",
     )?;
@@ -81,7 +91,7 @@ pub(super) fn system_roots(
         ));
     }
     // Apple Clang records SDKSettings.json alongside included headers.
-    if let Ok(sdk) = compiler.sdk_root() {
+    if let Ok(sdk) = compiler.c().sdk_root() {
         roots.push(sdk.canonicalize().map_err(error)?);
     }
     Ok(roots)
@@ -90,7 +100,7 @@ pub(super) fn system_roots(
 pub(super) fn compile(
     input: &NativeSourceInput,
     config: &NativeConfig,
-    compiler: &ValidatedCBridgeToolchainInvocation,
+    compiler: &NativeToolchain,
     optimization: OptimizationMode,
     output: &Path,
 ) -> Result<(), ToolchainError> {
@@ -98,10 +108,14 @@ pub(super) fn compile(
         .prefix("scoop-native-")
         .tempdir()
         .map_err(error)?;
-    let source = directory.path().join("unit.i");
+    let language = input.language();
+    let source = directory.path().join(match language {
+        NativeSourceLanguage::C => "unit.i",
+        NativeSourceLanguage::Cxx => "unit.ii",
+    });
     std::fs::write(&source, input.preprocessed()).map_err(error)?;
-    let mut command = base(compiler, optimization);
-    for flag in config.c_flags() {
+    let mut command = base(compiler, language, optimization)?;
+    for flag in config.flags(language) {
         if let NativeCompileFlag::Argument(argument) = flag
             && !argument.starts_with("-D")
             && !argument.starts_with("-U")
@@ -116,7 +130,7 @@ pub(super) fn compile(
             "-ffile-prefix-map={}=/scoop-native",
             directory.path().display()
         ))
-        .args(["-x", "cpp-output", "-c"])
+        .args(["-x", language.preprocessed_name(), "-c"])
         .arg(&source)
         .arg("-o")
         .arg(output);
