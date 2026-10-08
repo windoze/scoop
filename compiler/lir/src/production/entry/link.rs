@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-    LinkDataError,
-    link_data::{link_error, same_wire},
-};
+use crate::{LinkDataError, link_data::link_error};
 use scoop_identity::{PersistentIdResolver, ValidatedIdentityGraph};
 
 impl DecodedEntryProductionPlanV1 {
@@ -19,13 +16,11 @@ impl DecodedEntryProductionPlanV1 {
                     .clone()
                     .resolve(identities)
                     .map_err(link_error)?;
-                let ordinary = ExactOrdinaryNoArgUnitSignature::new(signature.result());
-                same_wire(&signature, &ordinary, "root source signature")?;
                 let source = ExecutableSourceEntryIdentity::try_new(
                     &identities
                         .canonical_record(declaration)
                         .map_err(link_error)?,
-                    ordinary,
+                    signature,
                 )
                 .map_err(link_error)?;
                 Ok(EntryProductionSourceV1::executable(source))

@@ -1,0 +1,28 @@
+typealias Order = MemoryOrder
+var trace: Int = 0
+val shared: AtomicInt = AtomicInt(4)
+
+fun receiver(): AtomicInt {
+    trace = trace * 10 + 1
+    return shared
+}
+fun expected(): Int {
+    trace = trace * 10 + 2
+    return 4
+}
+fun replacement(): Int {
+    trace = trace * 10 + 3
+    return 6
+}
+fun fail(): Int { throw IllegalStateException() }
+
+fun evaluationOrder() {
+    check(receiver().compareAndSet(expected(), replacement()))
+    check(trace == 123)
+    check(shared.load((Order.Acquire)) == 6)
+    try {
+        shared.store(fail(), MemoryOrder.Release)
+    } catch (error: IllegalStateException) {
+        check(shared.load() == 6)
+    }
+}

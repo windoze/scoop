@@ -1,20 +1,40 @@
 Module
   global0 nativeHandle: GcHandle<Any> extern native_handle
   extern ef0 exchangeHandles @exchange_handles(NativeHandles, Ptr<GcHandle<Any>>, Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles <abi=c no-gc>
-  callback cb0 @fn1 -> @fn6 function_type0 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
+  callback cb0 @fn2 -> @fn8 function_type0 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
   struct NativeHandles (flag: UInt8, pin: PinnedPtr<Any>, handle: GcHandle<Any>) <c-layout aligned=natural packed=natural>
   struct PinnedPtr<Any> (raw: ULong) <c-abi uint64-field>
   struct GcHandle<Any> (raw: ULong) <c-abi uint64-field>
   enum Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
     Some(_0: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>)
     None()
+  interface Equality<Ptr<GcHandle<Any>>>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn6 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
-  fun exchangeHandles @fn0(arg0: NativeHandles, arg1: Ptr<GcHandle<Any>>, arg2: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles
+  generated_callable gc0 function=@fn8 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
+  fun equalTo @fn0(this: Ptr<GcHandle<Any>>, other: Ptr<GcHandle<Any>>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local this
+      val $dependency.local.3: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local other
+      val $dependency.local.4: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn4 direct
+        Type Ptr<GcHandle<Any>>
+        Local $dependency.local.2
+        Type Ptr<GcHandle<Any>>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun exchangeHandles @fn1(arg0: NativeHandles, arg1: Ptr<GcHandle<Any>>, arg2: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles
     bb0 entry
       call $call.1: NativeHandles = extern0 @exchange_handles direct
         Type NativeHandles
@@ -26,12 +46,12 @@ Module
       return
         Type NativeHandles
         Local $call.1
-  fun echoHandle @fn1(value: GcHandle<Any>) -> GcHandle<Any> <no-gc>
+  fun echoHandle @fn2(value: GcHandle<Any>) -> GcHandle<Any> <no-gc>
     bb0 entry
       return
         Type GcHandle<Any>
         Local value
-  fun main @fn2() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
       val $dependency.argument.0: ULong
         Type ULong
@@ -39,7 +59,7 @@ Module
       val $dependency.parameter.raw: ULong
         Type ULong
         Local $dependency.argument.0
-      call handle: GcHandle<Any> = @fn4 direct
+      call handle: GcHandle<Any> = @fn6 direct
         Type ULong
         Local $dependency.parameter.raw
       val $dependency.argument.0: ULong
@@ -48,7 +68,7 @@ Module
       val $dependency.parameter.raw: ULong
         Type ULong
         Local $dependency.argument.0
-      call pin: PinnedPtr<Any> = @fn5 direct
+      call pin: PinnedPtr<Any> = @fn7 direct
         Type ULong
         Local $dependency.parameter.raw
       val callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
@@ -83,7 +103,7 @@ Module
       val $parameter.handle: GcHandle<Any>
         Type GcHandle<Any>
         Local $argument.2
-      call $argument.0: NativeHandles = @fn3 direct
+      call $argument.0: NativeHandles = @fn5 direct
         Type UInt8
         Local $parameter.flag
         Type PinnedPtr<Any>
@@ -118,7 +138,29 @@ Module
           Type NativeHandles
           Local result
       return
-  fun ctor.NativeHandles.$c0 @fn3(flag: UInt8, pin: PinnedPtr<Any>, handle: GcHandle<Any>) -> NativeHandles <no-gc>
+  fun equals @fn4(this: Ptr<GcHandle<Any>>, other: Ptr<GcHandle<Any>>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<GcHandle<Any>>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<GcHandle<Any>>
+            Local $dependency.local.3
+  fun ctor.NativeHandles.$c0 @fn5(flag: UInt8, pin: PinnedPtr<Any>, handle: GcHandle<Any>) -> NativeHandles <no-gc>
     bb0 entry
       return
         Type NativeHandles
@@ -129,23 +171,23 @@ Module
           Local pin
           Type GcHandle<Any>
           Local handle
-  fun ctor.GcHandle.$c0 @fn4(raw: ULong) -> GcHandle<Any> <no-gc>
+  fun ctor.GcHandle.$c0 @fn6(raw: ULong) -> GcHandle<Any> <no-gc>
     bb0 entry
       return
         Type GcHandle<Any>
         StructInit GcHandle<Any>
           Type ULong
           Local raw
-  fun ctor.PinnedPtr.$c1 @fn5(raw: ULong) -> PinnedPtr<Any> <no-gc>
+  fun ctor.PinnedPtr.$c1 @fn7(raw: ULong) -> PinnedPtr<Any> <no-gc>
     bb0 entry
       return
         Type PinnedPtr<Any>
         StructInit PinnedPtr<Any>
           Type ULong
           Local raw
-  fun callback bridge for echoHandle @fn6($result: Ptr<GcHandle<Any>>, $arg0: Ptr<GcHandle<Any>>) -> Unit <no-gc>
+  fun callback bridge for echoHandle @fn8($result: Ptr<GcHandle<Any>>, $arg0: Ptr<GcHandle<Any>>) -> Unit <no-gc>
     bb0 entry
-      call $value: GcHandle<Any> = @fn1 direct
+      call $value: GcHandle<Any> = @fn2 direct
         Type GcHandle<Any>
         PtrLoad GcHandle<Any>
           Type Ptr<GcHandle<Any>>
@@ -157,4 +199,6 @@ Module
         Type GcHandle<Any>
         Local $value
       return
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn4 <- equals
   output library

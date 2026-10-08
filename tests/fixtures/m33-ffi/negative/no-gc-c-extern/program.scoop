@@ -1,0 +1,7 @@
+@NoGC @Extern(name = "native_one")
+fun nativeOne(): Int
+
+@GCLeaf @NoGC @Extern(name = "native_two")
+fun nativeTwo(): Int
+
+fun main() {}

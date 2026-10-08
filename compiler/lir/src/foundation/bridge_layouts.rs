@@ -41,7 +41,7 @@ pub(crate) fn required_generated_bridge_layouts(
             required: BTreeSet::new(),
         };
         match key {
-            GeneratedBridgeUnitKey::OutboundFunction(contract) => {
+            GeneratedBridgeUnitKey::OutboundFunction(contract, _) => {
                 let contract = require_contract(unit, contract, &contracts)?;
                 let NativeExternalContract::Function {
                     abi: NativeExternAbi::C(signature),

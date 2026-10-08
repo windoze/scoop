@@ -7,6 +7,7 @@ impl RawInstance {
     ) -> Result<(), ExactLayoutWireError> {
         use InstanceRepresentationKindV1 as E;
         match (self, expected.kind()) {
+            (Self::Atomic(actual), E::Atomic(expected)) if actual == expected => Ok(()),
             (
                 Self::Class {
                     base,

@@ -3,6 +3,10 @@ use super::*;
 impl WireEncode for InstanceRepresentationV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         match self.kind() {
+            InstanceRepresentationKindV1::Atomic(kind) => {
+                sum(encoder, 6, 1)?;
+                field(encoder, 1, &kind)
+            }
             InstanceRepresentationKindV1::ClassObject(value) => {
                 sum(encoder, 1, 3)?;
                 encoder.field(1)?;

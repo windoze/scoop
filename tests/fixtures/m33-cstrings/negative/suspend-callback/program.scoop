@@ -1,0 +1,2 @@
+suspend fun read(pointer: Ptr<Int8>): Long = 1L
+fun main() { @Unsafe { "value".withCString(::read) } }

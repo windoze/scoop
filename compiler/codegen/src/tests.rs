@@ -42,6 +42,7 @@ mod runtime_eh_personality_tests;
 
 mod arrays;
 mod arrays_zst;
+mod atomics;
 mod boxing;
 mod c_bridge_objects;
 mod c_layout;
@@ -49,8 +50,10 @@ mod closures;
 mod constants;
 mod dependency_external;
 mod enums;
+mod errno;
 mod exceptions;
 mod external_type_descriptors;
+mod gc_leaf;
 mod image;
 mod initialization;
 mod linux_codegen;
@@ -66,6 +69,7 @@ mod scoop_abi;
 mod smoke;
 mod statepoints;
 mod strong_shapes;
+mod utf8;
 mod validation_boundaries;
 mod zst_places;
 

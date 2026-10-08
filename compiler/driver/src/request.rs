@@ -99,6 +99,14 @@ pub struct SingleConeBuildRequest {
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
+    native_inputs: NativeInputOrigin,
+}
+
+#[derive(Debug, Default)]
+enum NativeInputOrigin {
+    #[default]
+    Source,
+    Preprocessed(Vec<PathBuf>),
 }
 
 impl SingleConeBuildRequest {
@@ -122,11 +130,17 @@ impl SingleConeBuildRequest {
             diagnostics,
             emit,
             optimization: scoop_lir::OptimizationMode::Debug,
+            native_inputs: NativeInputOrigin::Source,
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    fn with_native_inputs(mut self, inputs: Vec<PathBuf>) -> Self {
+        self.native_inputs = NativeInputOrigin::Preprocessed(inputs);
         self
     }
 }

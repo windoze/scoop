@@ -239,6 +239,8 @@ pub(super) fn assemble(
     .map_err(Error::Codegen)?;
     let producer = slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
         .map_err(CurrentConeProductionFailure::Producer)?;
+    let native_objects = super::native::compile(request, cone.identity(), temporary_parent)
+        .map_err(CurrentConeProductionFailure::Native)?;
     let metadata = crate::CrossConeArtifactMetadataInputV1::new(
         producer,
         cone,
@@ -258,6 +260,11 @@ pub(super) fn assemble(
         .cloned()
         .collect::<Vec<_>>();
     crate::CrossConeLayoutArtifactMetadataInputV1::new(metadata, &source, &mir_section, &section)
+        .with_native_objects(native_objects)
+        .with_native_libraries(
+            super::native::libraries(request).map_err(CurrentConeProductionFailure::Native)?,
+        )
+        .with_native_cxx(super::native::cxx(request))
         .assemble(objects, &generated, &owners)
         .map_err(Error::Artifact)
         .map_err(Into::into)

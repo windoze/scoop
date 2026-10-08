@@ -1,0 +1,29 @@
+package m33.consumer
+import m33.borrow.*
+
+struct Pair(val number: Int, val extra: Long)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val values = MutableArray<Int>(2L) { _ -> 7 }
+    @Unsafe {
+        val result = withValues(values, fun(pointer: Ptr<Int>, count: Long): Pair {
+            @Unsafe {
+                pointer.store(1L, 39)
+                gcCollect()
+                return Pair(pointer.load(1L), count)
+            }
+        })
+        expect(result.number == 39 && result.extra == 2L)
+        expect(first(values.toArray()) == 7)
+        val pairs = Array<Pair>(1L) { _ -> Pair(12, 15L) }
+        expect(first(pairs).extra == 15L)
+        try {
+            withValues<Unit>(values) { pointer: Ptr<Int>, count: Long -> throw IllegalStateException() }
+        } catch (error: IllegalStateException) {
+            gcCollect()
+        }
+    }
+    expect(byteSum("ABC") == 198L && values[1L] == 39)
+    println("scoped-data-artifacts-ok")
+}

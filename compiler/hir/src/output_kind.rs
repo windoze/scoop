@@ -3,7 +3,7 @@
 use std::fmt;
 
 use scoop_identity::{
-    DeclarationName, DefinitionOriginSubject, ExactOrdinaryNoArgUnitSignature,
+    DeclarationName, DefinitionOriginSubject, ExactCallableSignature,
     ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, PersistentFunctionId,
     SourceSignatureFingerprint,
 };
@@ -72,22 +72,28 @@ impl LocalExecutableEntry {
         if function.is_suspend {
             return Err(LocalExecutableEntryError::Suspend);
         }
-        if !function.params.is_empty() {
-            return Err(LocalExecutableEntryError::HasParameters);
-        }
-        if function.return_ty != module.unit {
-            return Err(LocalExecutableEntryError::NotUnitResult);
-        }
         if !matches!(function.kind, FunctionKind::User(_)) {
             return Err(LocalExecutableEntryError::NotScoopDefined);
         }
 
-        let unit = module
-            .type_identities
-            .get(module.unit)
-            .and_then(|identity| identity.exact())
-            .ok_or(LocalExecutableEntryError::UnitHasNoExactIdentity)?
-            .id();
+        let exact_type = |ty| {
+            module
+                .type_identities
+                .get(ty)
+                .and_then(|identity| identity.exact())
+                .map(|identity| identity.id())
+                .ok_or(LocalExecutableEntryError::MissingExactType)
+        };
+        let signature = ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            function
+                .params
+                .iter()
+                .map(|parameter| exact_type(parameter.ty))
+                .collect::<Result<_, _>>()?,
+            exact_type(function.return_ty)?,
+        );
         let declaration = record.id();
         let origin = module
             .export_definition_origins
@@ -97,11 +103,8 @@ impl LocalExecutableEntry {
             return Err(LocalExecutableEntryError::DefinitionOriginConeMismatch);
         }
 
-        let identity = ExecutableSourceEntryIdentity::try_new(
-            record,
-            ExactOrdinaryNoArgUnitSignature::new(unit),
-        )
-        .map_err(LocalExecutableEntryError::Identity)?;
+        let identity = ExecutableSourceEntryIdentity::try_new(record, signature)
+            .map_err(LocalExecutableEntryError::Identity)?;
         Ok(Self {
             identity,
             local_function: CurrentFunctionId(function_id),
@@ -116,7 +119,7 @@ impl LocalExecutableEntry {
         self.local_function
     }
 
-    pub const fn source_signature(&self) -> &ExactOrdinaryNoArgUnitSignature {
+    pub const fn source_signature(&self) -> &ExactCallableSignature {
         self.identity.source_signature()
     }
 
@@ -148,10 +151,8 @@ pub enum LocalExecutableEntryError {
     NotMain,
     Generic,
     Suspend,
-    HasParameters,
-    NotUnitResult,
     NotScoopDefined,
-    UnitHasNoExactIdentity,
+    MissingExactType,
     MissingDefinitionOrigin,
     DefinitionOriginConeMismatch,
     Identity(ExecutableSourceEntryIdentityError),
@@ -168,10 +169,8 @@ impl fmt::Display for LocalExecutableEntryError {
             Self::NotMain => "the executable entry is not named `main`",
             Self::Generic => "the executable entry is generic",
             Self::Suspend => "the executable entry is suspend",
-            Self::HasParameters => "the executable entry has parameters",
-            Self::NotUnitResult => "the executable entry does not return `Unit`",
             Self::NotScoopDefined => "the executable entry has no ordinary Scoop body",
-            Self::UnitHasNoExactIdentity => "the HIR `Unit` type has no exact identity",
+            Self::MissingExactType => "an executable signature type has no exact identity",
             Self::MissingDefinitionOrigin => "the executable entry has no definition origin",
             Self::DefinitionOriginConeMismatch => {
                 "the executable entry definition origin belongs to a different Cone"

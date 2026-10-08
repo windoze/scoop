@@ -66,6 +66,7 @@ pub(crate) fn struct_layout(
                 )
             }
             mir::IntrinsicTypeRepresentation::String
+            | mir::IntrinsicTypeRepresentation::Atomic(_)
             | mir::IntrinsicTypeRepresentation::Any
             | mir::IntrinsicTypeRepresentation::Nothing
             | mir::IntrinsicTypeRepresentation::Array { .. }

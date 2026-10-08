@@ -32,7 +32,7 @@ pub use diagnostic::*;
 pub use discovery::*;
 pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
-pub use program_link::link_built_program;
+pub use program_link::read_built_program;
 pub use request::*;
 pub use runtime_build::*;
 pub use schedule::*;

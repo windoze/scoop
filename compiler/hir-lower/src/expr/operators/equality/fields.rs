@@ -82,7 +82,7 @@ impl Lowerer {
         let expression = match probes.swap_remove(winner) {
             NamedFunctionLikeProbe::Callable(probe) => state
                 .commit_named_callable(*probe, &mut sink)
-                .and_then(|resolved| state.finish_resolved_method_call(resolved, span)),
+                .and_then(|resolved| state.finish_resolved_method_call(resolved, span, &sink)),
             NamedFunctionLikeProbe::ImportedDependency(probe) => {
                 state.commit_imported_lowered_callable(*probe)
             }

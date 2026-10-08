@@ -13,18 +13,16 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Box> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Box> niche(kind=managed,payload_variant=1)
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$adacc022142d9d4bbad2b18495ff7e22d3a8810bd35d441b2fa07969cda80907 gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$dbbc7d9702a7af48e1968bf8bf11e4a498434ca2f3eae19f8236770077b2eb9c(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i64
     ret t0
   fun @scoop$1$cb$3672bc8ad616cd85fb8eec1048d3aa9762ef0cfbb1a7684eaa394e16b2a6ab9a(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$f087cd69aef71b36539138b676dac3e46dbd2cfe08957ce9e3d1242e76c09662() -> i64
@@ -34,7 +32,6 @@ Module
     local %3 $dependency.parameter.other: i32
     local %4 $argument.0: i64
     local %5 $parameter.value: i64
-    local %6 $sc.1: i64
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn9()
@@ -47,8 +44,7 @@ Module
     t2 = aggregate () : {}
     store integer<Long>(0x0000000000000001) -> local4
     store local4 -> local5
-    store local5 -> local6
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void1 (ptr<raw>) extern0(c-arg-address(local6))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void1 (i64) extern0(local5)
     t3 = aggregate () : {}
     call managed-void-target0 sp<managed-call:0> live=[] sig=void2 () local-fn6()
     t4 = aggregate () : {}

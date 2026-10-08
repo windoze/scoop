@@ -1,0 +1,6 @@
+fun bad(cell: AtomicInt): Int {
+    var order = MemoryOrder.Relaxed
+    order = MemoryOrder.Acquire
+    return cell.load(order)
+}
+fun main() {}

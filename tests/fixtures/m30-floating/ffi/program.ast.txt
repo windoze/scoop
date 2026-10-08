@@ -16,46 +16,32 @@ SourceFile
   struct Pair
     field small: Float
     field wide: Double
-    @NoGC
     @Extern(lib = "fixture_native", name = "float_from_bits")
   fun fromFloatBits(value: UInt): Float
-    @NoGC
     @Extern(lib = "fixture_native", name = "double_from_bits")
   fun fromDoubleBits(value: ULong): Double
-    @NoGC
     @Extern(lib = "fixture_native", name = "float_bits")
   fun floatBits(value: Float): UInt
-    @NoGC
     @Extern(lib = "fixture_native", name = "double_bits")
   fun doubleBits(value: Double): ULong
-    @NoGC
     @Extern(lib = "fixture_native", name = "round_singles")
   fun roundSingles(value: Singles): Singles
-    @NoGC
     @Extern(lib = "fixture_native", name = "round_doubles")
   fun roundDoubles(value: Doubles): Doubles
-    @NoGC
     @Extern(lib = "fixture_native", name = "round_mixed")
   fun roundMixed(value: Mixed): Mixed
-    @NoGC
     @Extern(lib = "fixture_native", name = "pointer_single")
   fun pointerSingle(value: Ptr<Float>): Float
-    @NoGC
     @Extern(lib = "fixture_native", name = "pointer_wide")
   fun pointerWide(value: Ptr<Double>): Double
-    @NoGC
     @Extern(lib = "fixture_native", name = "tls_matches")
   fun tlsMatches(small: UInt, wide: ULong): Int
-    @NoGC
     @Extern(lib = "fixture_native", name = "native_single")
   fun nativeSingle(): FunPtr<(Float) -> Float>
-    @NoGC
     @Extern(lib = "fixture_native", name = "native_wide")
   fun nativeWide(): FunPtr<(Double) -> Double>
-    @NoGC
     @Extern(lib = "fixture_native", name = "invoke_single")
   fun invokeSingle(callback: FunPtr<(Float) -> Float>, value: Float): Float
-    @NoGC
     @Extern(lib = "fixture_native", name = "invoke_wide")
   fun invokeWide(callback: FunPtr<(Double) -> Double>, value: Double): Double
     @Extern(lib = "fixture_native", name = "invoke_managed")

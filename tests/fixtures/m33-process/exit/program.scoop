@@ -1,0 +1,28 @@
+@Extern(lib = "fixture_native", name = "exit_code")
+fun exitCode(): Int
+@Extern(lib = "fixture_native", name = "register_exit_handler")
+fun registerExitHandler()
+@Extern(lib = "fixture_native", name = "unexpected_release")
+fun unexpectedRelease()
+
+class Resource {
+    release { @Unsafe { unexpectedRelease() } }
+}
+
+fun stop(code: Int): Nothing = exit(code)
+
+fun main() {
+    @Unsafe {
+        registerExitHandler()
+        val handle = getGcHandle(Resource())
+        try {
+            write("stdout-buffer")
+            writeError("stderr-buffer")
+            val impossible: Int = stop(exitCode())
+            println(impossible)
+        } finally {
+            writeError("finally-bad")
+            val resource = releaseGcHandle(handle)
+        }
+    }
+}

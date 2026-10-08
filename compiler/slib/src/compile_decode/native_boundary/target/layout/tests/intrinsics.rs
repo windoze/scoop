@@ -13,6 +13,7 @@ fn with_intrinsic(
     let count = match family.parameters() {
         IntrinsicTypeParameters::None => 0,
         IntrinsicTypeParameters::OneInvariantUnconstrained
+        | IntrinsicTypeParameters::OneInvariantRef
         | IntrinsicTypeParameters::OneInvariantValue => 1,
     };
     let source = SourceDeclarationKey::nominal(

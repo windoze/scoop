@@ -149,8 +149,12 @@ pub fn normalize_protocol_build_request(
         map_diagnostic_policy(build.diagnostics()),
         map_dump_policy(build.emit()),
     )
-    .map(|request| request.with_optimization(build.optimization()))
     .map_err(BuildRequestNormalizationError::Request)
+    .and_then(|request| {
+        Ok(request
+            .with_optimization(build.optimization())
+            .with_native_inputs(protocol_paths(build.native_inputs())?))
+    })
 }
 
 fn validate_dependency_shape_before_toolchain(

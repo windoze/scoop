@@ -116,7 +116,7 @@ fn manifest_sources_parse_in_canonical_identity_order() {
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {
         panic!("test constructs a manifest input")
     };
-    let parsed = parse_manifest_current(manifest).unwrap();
+    let parsed = parse_manifest_current(manifest, TargetProfileId::DarwinAarch64).unwrap();
 
     let paths = parsed
         .sources()
@@ -184,7 +184,7 @@ fn parser_failure_keeps_semantic_source_identity() {
     let LoadedCurrentConeInput::Manifest { manifest } = &current else {
         panic!("test constructs a manifest input")
     };
-    let error = parse_manifest_current(manifest).unwrap_err();
+    let error = parse_manifest_current(manifest, TargetProfileId::DarwinAarch64).unwrap_err();
 
     assert!(matches!(
         error,

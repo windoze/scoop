@@ -5,13 +5,11 @@ Module
   global @scoop$1$io$74f8799d04f79e36e5cefcbb5b09569cfd2baac911792fa683a6aaf9e8313b76 = "illegal state"
   global @scoop$1$ss$9764ad0693166f644580dab3f628f93b88e26e62a976e1f4423b743560d8f143 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$37aa82ca9551981f04e43210204eed7e8dff6ba1bbb3f31a67dc31c4ea0aa85a gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$c0d5f9172c2690456ff6b68814a05d79ff0e17a9899fc83d438be69c5a86f88c(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$ec8562ca7a675c12d765ed09ddfa40255c07ef04abb266af2cd8d07c00d866e8() -> ptr<managed>
@@ -121,7 +119,6 @@ Module
     local %33 $new.3: ptr<managed>
     local %34 $logic.4: i1
     local %35 $new.5: ptr<managed>
-    local %36 $sc.1: i64
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn1()
@@ -224,17 +221,17 @@ Module
     call managed-direct-target9 sp<managed-call:11> live=[local9:ptr<managed>@0] t25 = sig=direct9 (ptr<managed>) -> i64 external-fn5(local9)
     store t25 -> local23
     store local23 -> local24
-    store local24 -> local36
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void4 (ptr<raw>) extern0(c-arg-address(local36))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void4 (i64) extern0(local24)
     t26 = aggregate () : {}
     ret
-  fun @scoop$1$cb$eb9453aa5ef3ea5b25c31b9d3970f7de56006e4df2e03eb58ada139fdb39be36() -> i32
+  fun @scoop$1$cb$eb9453aa5ef3ea5b25c31b9d3970f7de56006e4df2e03eb58ada139fdb39be36(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

@@ -131,16 +131,16 @@ impl<'module> CanonicalCAbiBuilder<'module> {
         let symbol_key = self.target_symbol(symbol);
         let library = self.library_binding(source_library);
         let contract = match external.abi {
-            mir::ExternAbi::C => identity::NativeExternalContract::c_function(
+            mir::ExternAbi::C(_) => identity::NativeExternalContract::c_function(
                 library,
-                self.add_signature(&external.params, &external.return_type)?,
+                self.add_signature(&external.params, external.result.native_type())?,
             ),
             mir::ExternAbi::Scoop => {
                 let physical = abi::classify_mir_signature(
                     context,
                     self.module,
                     external.params.iter(),
-                    &external.return_type,
+                    external.result.native_type(),
                     self.structs,
                     self.enums,
                 )?;
@@ -157,10 +157,10 @@ impl<'module> CanonicalCAbiBuilder<'module> {
                                 .iter()
                                 .map(|ty| self.exact_type(ty))
                                 .collect(),
-                            self.exact_type(&external.return_type),
+                            self.exact_type(external.result.native_type()),
                         ),
                         &external.params,
-                        &external.return_type,
+                        external.result.native_type(),
                         external.gc_effect,
                         &physical,
                     ),

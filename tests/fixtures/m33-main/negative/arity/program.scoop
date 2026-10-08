@@ -1,0 +1,1 @@
+fun main(first: Array<String>, second: Array<String>) {}

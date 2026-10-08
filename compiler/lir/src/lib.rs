@@ -5,6 +5,8 @@
 //! metadata, functions, instructions and calls in separate source modules.
 
 pub use scoop_identity::{
+    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
+    AtomicRmwOperation, AtomicStoreOrder, AtomicValueKind, CAbiCallMode, CResultAdaptation,
     FloatBinaryOperator, FloatConstant as LirFloatConstant, FloatKind, FloatUnaryOperator,
 };
 
@@ -14,6 +16,9 @@ use la_arena::{Arena, Idx};
 
 mod types;
 pub use types::*;
+
+mod atomic;
+pub use atomic::*;
 
 mod target;
 pub use target::*;
@@ -41,6 +46,9 @@ pub use abi::*;
 
 mod externs;
 pub use externs::*;
+
+mod c_call_plan;
+pub use c_call_plan::*;
 
 mod calls;
 pub use calls::*;

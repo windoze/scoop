@@ -103,17 +103,22 @@ impl Lowerer {
                         {
                             return false;
                         }
-                        let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
+                        let crate::CallableCandidateOwner::Method(method_owner) = candidate.owner
+                        else {
                             unreachable!("nominal candidates are methods")
                         };
-                        let arguments = self.method_owner_arguments(owner).to_vec();
+                        let arguments = self.method_owner_arguments(method_owner).to_vec();
                         let signature =
                             self.instantiated_signature(candidate.function, &arguments, &[]);
                         let signature = InterfaceSignature::local(
                             &self.functions[candidate.function].name,
                             &signature,
                         );
-                        self.same_interface_signature(&signature, &member.signature)
+                        self.implementation_satisfies_interface_signature(
+                            owner,
+                            &signature,
+                            &member.signature,
+                        )
                     })
                     .cloned();
                 let imported_implementation = if implemented.is_none() {

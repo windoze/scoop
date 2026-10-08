@@ -88,8 +88,12 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  interface Equality<Boolean>
   interface SuspendRegistration<Int>
   interface SuspendTask<Nothing>
   interface Continuation<Any>

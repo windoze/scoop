@@ -100,7 +100,15 @@ impl ResolvedTargetProfile {
         &self,
         options: &FinalLinkOptions,
     ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
-        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options)
+        self.final_link_with_cxx(options, false)
+    }
+
+    pub fn final_link_with_cxx(
+        &self,
+        options: &FinalLinkOptions,
+        cxx: bool,
+    ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options, cxx)
     }
 }
 

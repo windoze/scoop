@@ -64,6 +64,7 @@ impl Builder {
                         mir::Type::FunPtr(*signature)
                     }
                     mir::IntrinsicTypeRepresentation::String
+                    | mir::IntrinsicTypeRepresentation::Atomic(_)
                     | mir::IntrinsicTypeRepresentation::Any
                     | mir::IntrinsicTypeRepresentation::Nothing
                     | mir::IntrinsicTypeRepresentation::Array { .. }
@@ -230,7 +231,10 @@ impl Builder {
             enums: self.enums,
             classes: self.classes,
             interfaces: self.interfaces,
-            output: mir::MirOutput::Executable { entry },
+            output: mir::MirOutput::Executable {
+                entry,
+                arguments: mir::ProgramArguments::Unused,
+            },
             meta: mir::MirMeta {
                 generated_exact_types,
                 source_exact_types,

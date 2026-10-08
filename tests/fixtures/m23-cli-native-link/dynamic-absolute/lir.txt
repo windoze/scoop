@@ -1,18 +1,13 @@
 Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$b587650d0c36a4da96fdd4455acd83c74fc0c11a6f4a1e1c8eeef9156c9b0788 : ptr<managed> scan=refs[0]
-  extern ef0 nativeAdd @m23_add(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$0e1d756c9ffdb85fb1e1aeb5b1029aad1b70d4810aedb742a680523c3e874c53 gc-leaf nounwind lib=m23_math>
+  extern ef0 nativeAdd @m23_add(i32, i32) -> i32 <c exact=(Int,Int)->Int direct-c=(i32,i32)->i32 gc-leaf nounwind lib=m23_math>
   fun @scoop$1$cb$cab325bc01c3f8d9f50ed00c1e5eea36cc0f75ef6a111c530ca46fe79b59056f(i32, i32) -> i32
     local %0 $call.1: i32
-    local %1 $sc.1: i32
-    local %2 $sc.2: i32
-    local %3 $sc.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local1
-    store param1 -> local2
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
-    store local3 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i32) -> i32 extern0(param0, param1)
+    store t0 -> local0
     ret local0
   fun @scoop$1$cb$6eaa021c4933fb89cb65073556e5e1eeebc77418bf0104afa9fe0c7f28116775() -> void
     local %0 $argument.0: i32
@@ -21,22 +16,17 @@ Module
     local %3 $parameter.right: i32
     local %4 $dependency.argument.0: i32
     local %5 $dependency.parameter.value: i32
-    local %6 $sc.1: i32
-    local %7 $sc.2: i32
-    local %8 $sc.3: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000014) -> local0
     store integer<Int>(0x00000016) -> local1
     store local0 -> local2
     store local1 -> local3
-    store local2 -> local6
-    store local3 -> local7
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local8 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local6), c-arg-address(local7))
-    store local8 -> local4
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (i32, i32) -> i32 extern0(local2, local3)
+    store t0 -> local4
     store local4 -> local5
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn2(local5)
-    t0 = aggregate () : {}
+    t1 = aggregate () : {}
     ret
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
@@ -57,13 +47,14 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ceade0f4aa38fdc6e53d9ef0a3561a28f1cdc53c2bd7566586d9323e24b212a3() -> i32
+  fun @scoop$1$cb$ceade0f4aa38fdc6e53d9ef0a3561a28f1cdc53c2bd7566586d9323e24b212a3(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -72,4 +63,6 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$6eaa021c4933fb89cb65073556e5e1eeebc77418bf0104afa9fe0c7f28116775

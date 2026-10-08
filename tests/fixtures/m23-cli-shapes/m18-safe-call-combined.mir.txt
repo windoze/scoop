@@ -76,8 +76,10 @@ Module
   interface Continuation<String>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface SuspendTask<Int>
   interface SuspendRegistration<String>
   interface Continuation<SafeFailure>

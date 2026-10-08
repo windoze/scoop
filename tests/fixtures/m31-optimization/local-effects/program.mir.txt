@@ -17,8 +17,11 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class ArithmeticException vtable=0 itables=0
+  interface Equality<Ptr<Int>>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Long>
   interface Continuation<Item>
   interface SuspendTask<Item>
   interface SuspendRegistration<Item>
@@ -29,7 +32,7 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get6 location=enum2 nominal_id=50f112dbab2949c0bf83cd86e80ccfb682853b9e695b586dc10057f10ac55c08 exact_id=f44f62d38ba29c211cf8b8689a47f26145a5cc06a6b996853b8eaad8102ffccf
-  generated_callable gc0 function=@fn16 id=aa8f21cc0b78d68d0d12c5ca7919d630ec9ba7dcde4d2cdb2f30f9fb818159af
+  generated_callable gc0 function=@fn18 id=aa8f21cc0b78d68d0d12c5ca7919d630ec9ba7dcde4d2cdb2f30f9fb818159af
   fun payload @fn0() -> Item
     bb0 entry
       call $dependency.receiver: Int = @fn7 direct
@@ -56,7 +59,7 @@ Module
       assign $new.1
         Type Item
         ClassAlloc Item
-      call @fn15 direct
+      call @fn17 direct
         Type Item
         Local $new.1
         Type Int
@@ -587,14 +590,14 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       call $dependency.argument.0: Int = @fn3 direct
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -609,7 +612,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Long
@@ -624,7 +627,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: Long
@@ -639,14 +642,14 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Long
         Local $dependency.parameter.value
       call $dependency.argument.0: Int = @fn7 direct
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type Int
         Local $dependency.parameter.value
       return
@@ -661,7 +664,26 @@ Module
         Type Int
         Local value
       return
-  fun println @fn9(value: Int) -> Unit
+  fun equalTo @fn9(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn12 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun println @fn10(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -685,7 +707,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn10(value: Long) -> Unit
+  fun println @fn11(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -709,19 +731,41 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn11(this: Continuation<Item>, value: Item) -> Unit
+  fun equals @fn12(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun Continuation.resume @fn13(this: Continuation<Item>, value: Item) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn12(this: Continuation<Item>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn14(this: Continuation<Item>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn13(this: SuspendTask<Item>, $completion: Continuation<Item>) -> CoroutineStep<Item>
+  fun SuspendTask.run @fn15(this: SuspendTask<Item>, $completion: Continuation<Item>) -> CoroutineStep<Item>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Item>, continuation: Continuation<Item>) -> Unit
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Item>, continuation: Continuation<Item>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Item.$c0 @fn15(this: Item, number: Int) -> Unit
+  fun init.Item.$c0 @fn17(this: Item, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Item
@@ -729,7 +773,7 @@ Module
         Type Int
         Local number
       return
-  fun startCoroutine<Item> @fn16(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
+  fun startCoroutine<Item> @fn18(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -752,7 +796,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn11 interface Continuation<Item>[0]
+      call @fn13 interface Continuation<Item>[0]
         Type Continuation<Item>
         Local completion
         Type Item
@@ -765,7 +809,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn12 interface Continuation<Item>[1]
+      call @fn14 interface Continuation<Item>[1]
         Type Continuation<Item>
         Local completion
         Type Throwable
@@ -784,7 +828,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Item> = @fn13 interface SuspendTask<Item>[0]
+      call $step: CoroutineStep<Item> = @fn15 interface SuspendTask<Item>[0]
         Type SuspendTask<Item>
         Local task
         Type Continuation<Item>
@@ -812,14 +856,16 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Item> result=Item
   coroutine_slot cl0 CoroutineSlot<Item> value=Item
-  coroutine_start ct0 result=Item function=fn16
-  coroutine_fn cf0 @fn13 source_return=Item step=cs0 immediate
-  instance mi0 function=@fn9 <- println
+  coroutine_start ct0 result=Item function=fn18
+  coroutine_fn cf0 @fn15 source_return=Item step=cs0 immediate
+  instance mi0 function=@fn9 <- equalTo
   instance mi1 function=@fn10 <- println
-  instance mi2 function=@fn11 <- Continuation.resume
-  instance mi3 function=@fn12 <- Continuation.resumeWithException
-  instance mi4 function=@fn13 <- SuspendTask.run
-  instance mi5 function=@fn14 <- SuspendRegistration.register
+  instance mi2 function=@fn11 <- println
+  instance mi3 function=@fn12 <- equals
+  instance mi4 function=@fn13 <- Continuation.resume
+  instance mi5 function=@fn14 <- Continuation.resumeWithException
+  instance mi6 function=@fn15 <- SuspendTask.run
+  instance mi7 function=@fn16 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "\n"
   str @str2 "\n"

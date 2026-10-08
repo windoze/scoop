@@ -56,17 +56,40 @@ pub(in crate::program) fn read(
     }
     let mut libraries = BTreeMap::new();
     for (artifact, symbols) in closure.artifacts() {
-        for requirement in symbols.native_requirements().contracts() {
-            if let Some(record) = requirement.library().requirement() {
-                let entry = libraries
-                    .entry(record.id())
-                    .or_insert_with(|| (record.key().clone(), Vec::new()));
-                entry.1.push(format!(
-                    "{} (native declarations {:?})",
-                    artifact.manifest().cone().coordinate(),
-                    requirement.sources()
+        if symbols.native_requirements().cxx() {
+            use scoop_identity::{
+                CanonicalNativeLibraryName, NativeLibraryGrouping, NativeLibraryKind,
+            };
+            let target = symbols.native_requirements().target();
+            let name = match target.id() {
+                scoop_lir::TargetProfileId::DarwinAarch64 => "c++",
+                scoop_lir::TargetProfileId::LinuxX86_64Gnu => "stdc++",
+                scoop_lir::TargetProfileId::LinuxX86_64Musl => {
+                    return Err(error("C++ native runtime is not supported for Linux musl"));
+                }
+            };
+            let key = NativeLinkRequirementKey::for_target(
+                target.wire_id(),
+                CanonicalNativeLibraryName::new(name).map_err(error)?,
+                NativeLibraryKind::Dynamic,
+                NativeLibraryGrouping::Independent,
+            );
+            libraries
+                .entry(NativeLinkRequirementId::from_key(&key).map_err(error)?)
+                .or_insert_with(|| (key, Vec::new()))
+                .1
+                .push(format!(
+                    "{} (C++ runtime)",
+                    artifact.manifest().cone().coordinate()
                 ));
-            }
+        }
+        for record in symbols.native_requirements().library_requirements() {
+            let entry = libraries
+                .entry(record.id())
+                .or_insert_with(|| (record.key().clone(), Vec::new()));
+            entry
+                .1
+                .push(artifact.manifest().cone().coordinate().to_string());
         }
     }
     Ok((declarations, libraries))

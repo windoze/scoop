@@ -9,7 +9,7 @@ fn unknown_use_construction_member_and_edge_tags_are_rejected() {
     for (case, offset, tag, at) in [
         (0, USE + 2, 10, WirePath::root().field(2)),
         (2, NESTED + 2, 3, WirePath::root().field(2).field(2)),
-        (4, NESTED + 2, 4, WirePath::root().field(2).field(2)),
+        (4, NESTED + 2, 5, WirePath::root().field(2).field(2)),
         (10, NESTED + 2, 0, WirePath::root().field(2).field(2)),
     ] {
         let mut bytes = record_wire(f.provider, &f.cases()[case].1);

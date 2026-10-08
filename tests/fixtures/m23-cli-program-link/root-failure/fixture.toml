@@ -31,7 +31,7 @@ name = "run_built"
 argv = ["${build.result.output}"]
 stdout = ""
 stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
-signal = "SIGABRT"
+exit = 1
 
 [[steps]]
 name = "isolate"
@@ -53,4 +53,4 @@ name = "run_linked"
 argv = ["${link.result.output}"]
 stdout = ""
 stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
-signal = "SIGABRT"
+exit = 1

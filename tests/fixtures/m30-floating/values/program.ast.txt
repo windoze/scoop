@@ -12,16 +12,12 @@ SourceFile
   var storedSingle: Float = <expr>
     @Global
   var storedWide: Double = <expr>
-    @NoGC
     @Extern(lib = "fixture_native", name = "float_from_bits")
   fun fromFloatBits(value: UInt): Float
-    @NoGC
     @Extern(lib = "fixture_native", name = "double_from_bits")
   fun fromDoubleBits(value: ULong): Double
-    @NoGC
     @Extern(lib = "fixture_native", name = "float_bits")
   fun floatBits(value: Float): UInt
-    @NoGC
     @Extern(lib = "fixture_native", name = "double_bits")
   fun doubleBits(value: Double): ULong
   fun identity<T>(value: T): T

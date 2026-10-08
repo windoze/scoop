@@ -1,6 +1,7 @@
 Module
   class Later vtable=0 itables=0
   class Counter vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -15,7 +16,7 @@ Module
       assign $new.1
         Type Later
         ClassAlloc Later
-      call @fn6 direct
+      call @fn8 direct
         Type Later
         Local $new.1
         Type Int
@@ -131,7 +132,7 @@ Module
       val $dependency.local.10: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.4
-      call $dependency.local.11: Long = @fn3 direct
+      call $dependency.local.11: Long = @fn4 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.12: Long
@@ -147,7 +148,7 @@ Module
       val $dependency.local.13: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.6
-      call $dependency.local.14: Long = @fn3 direct
+      call $dependency.local.14: Long = @fn4 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.15: Long
@@ -163,7 +164,7 @@ Module
       val $dependency.local.18: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.6
-      call $dependency.local.19: Long = @fn3 direct
+      call $dependency.local.19: Long = @fn4 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.16: Unit
@@ -172,7 +173,7 @@ Module
       val $dependency.local.17: Unit
         Type Unit
         Local $dependency.local.16
-      call @fn4 direct
+      call @fn5 direct
         Type Unit
         Local $dependency.local.17
       val $dependency.local.20: Unit
@@ -360,7 +361,7 @@ Module
       val $dependency.local.10: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.4
-      call $dependency.local.11: Long = @fn5 direct
+      call $dependency.local.11: Long = @fn6 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.12: Long
@@ -376,7 +377,7 @@ Module
       val $dependency.local.13: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.6
-      call $dependency.local.14: Long = @fn5 direct
+      call $dependency.local.14: Long = @fn6 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.15: Long
@@ -392,7 +393,7 @@ Module
       val $dependency.local.18: Ptr<Unit>
         Type Ptr<Unit>
         Local $dependency.local.6
-      call $dependency.local.19: Long = @fn5 direct
+      call $dependency.local.19: Long = @fn6 direct
         Type Counter
         Local $dependency.local.3
       val $dependency.local.16: Unit
@@ -401,7 +402,7 @@ Module
       val $dependency.local.17: Unit
         Type Unit
         Local $dependency.local.16
-      call @fn4 direct
+      call @fn5 direct
         Type Unit
         Local $dependency.local.17
       val $dependency.local.20: Unit
@@ -555,7 +556,26 @@ Module
       return
         Type Int
         Local $dependency.local.43
-  fun offset @fn3($capture.0: Counter) -> Long
+  fun equalTo @fn3(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn7 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun offset @fn4($capture.0: Counter) -> Long
     bb0 entry
       val $dependency.local.0: Counter
         Type Counter
@@ -586,7 +606,7 @@ Module
       return
         Type Long
         IntegerLiteral Long value=500 bits=0x00000000000001f4
-  fun copy @fn4(value: Unit) -> Unit
+  fun copy @fn5(value: Unit) -> Unit
     bb0 entry
       val $dependency.local.1: Ptr<Unit>
         Type Ptr<Unit>
@@ -599,7 +619,7 @@ Module
         Type Ptr<Unit>
         Local $dependency.local.2
       return
-  fun offset @fn5($capture.0: Counter) -> Long
+  fun offset @fn6($capture.0: Counter) -> Long
     bb0 entry
       val $dependency.local.0: Counter
         Type Counter
@@ -630,7 +650,29 @@ Module
       return
         Type Long
         IntegerLiteral Long value=500 bits=0x00000000000001f4
-  fun init.Later.$c0 @fn6(this: Later, number: Int) -> Unit
+  fun equals @fn7(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun init.Later.$c0 @fn8(this: Later, number: Int) -> Unit
     bb0 entry
       field_set 0
         Type Later
@@ -640,7 +682,9 @@ Module
       return
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- exercise
-  instance mi2 function=@fn3 <- offset
-  instance mi3 function=@fn4 <- copy
-  instance mi4 function=@fn5 <- offset
+  instance mi2 function=@fn3 <- equalTo
+  instance mi3 function=@fn4 <- offset
+  instance mi4 function=@fn5 <- copy
+  instance mi5 function=@fn6 <- offset
+  instance mi6 function=@fn7 <- equals
   output library

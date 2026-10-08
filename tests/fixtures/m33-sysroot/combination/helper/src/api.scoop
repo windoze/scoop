@@ -1,0 +1,2 @@
+package helperlib
+public fun base(): Int = 40

@@ -61,9 +61,7 @@ pub(super) fn link(
         }
     }
     let map = std::fs::read_to_string(link_map).map_err(error)?;
-    if map.contains("libgcc_eh.a") || map.contains("libgcc_s.so") {
-        return Err(error("ELF linker selected a second EH provider"));
-    }
+    profile.check_unwind_map(&map).map_err(error)?;
     let bytes = std::fs::read(candidate).map_err(error)?;
     crate::final_image::elf::verify(&bytes, inputs, profile)
         .map_err(|err| error(format!("final ELF validation: {err}")))

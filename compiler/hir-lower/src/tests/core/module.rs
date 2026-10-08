@@ -14,6 +14,17 @@ use super::{
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(iteration_core_declarations());
+    let equal_to = bodyless_method(
+        false,
+        "equalTo",
+        vec![("other", ty_named("T"))],
+        Some(ty_named("Boolean")),
+    );
+    declarations.push(generic_interface_decl(
+        "Equality",
+        vec!["T"],
+        vec![equal_to],
+    ));
     declarations.extend(intrinsic_type_declarations());
     declarations.extend(super::floating::floating_declarations());
     declarations.extend([
@@ -83,6 +94,7 @@ pub(crate) fn core_file() -> SourceFile {
         print,
         println,
     ]);
+    super::equality::adopt_equality(&mut declarations);
     let mut source = file(declarations);
     make_core_public(&mut source);
     source
@@ -245,7 +257,12 @@ fn make_object_public(declaration: &mut ast::ObjectDecl) {
 fn make_declaration_public(declaration: &mut Decl) {
     match declaration {
         Decl::Global(property) => make_property_public(property),
-        Decl::Function(function) if function.name.text != "__scoopThrowInitializationCycle" => {
+        Decl::Function(function)
+            if !matches!(
+                function.name.text.as_str(),
+                "__scoopThrowInitializationCycle" | "__scoopProgramArguments"
+            ) =>
+        {
             make_function_public(function)
         }
         Decl::Function(_) => {}

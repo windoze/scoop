@@ -11,7 +11,9 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     let root = crate::workspace_root().join("sysroot/lib/scoop.core");
     let manifest =
         scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
-    let sources = discover_manifest_sources(&manifest).unwrap();
+    let sources =
+        discover_manifest_sources(&manifest, scoop_identity::TargetProfileId::DarwinAarch64)
+            .unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
     let world =
         scoop_hir::ImportedSemanticWorld::from_dependencies(parsed.cone(), Vec::new(), Vec::new())

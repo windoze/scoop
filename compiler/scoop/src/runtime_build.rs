@@ -19,6 +19,15 @@ pub enum RuntimeOptimization {
     Optimized,
 }
 
+impl RuntimeOptimization {
+    fn c_flags(self) -> &'static [&'static str] {
+        match self {
+            Self::None => &["-O0"],
+            Self::Optimized => &["-O2", "-DNDEBUG"],
+        }
+    }
+}
+
 pub struct RuntimeBuildRequest<'a> {
     pub target: &'a ResolvedTargetProfile,
     pub runtime_root: &'a Path,

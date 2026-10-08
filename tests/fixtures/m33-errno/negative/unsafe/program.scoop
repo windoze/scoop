@@ -1,0 +1,3 @@
+@GCLeaf @Extern(name = "bad", captureErrno = true)
+fun bad(): (Int, Int)
+fun main() { val result = bad() }

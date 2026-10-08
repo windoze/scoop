@@ -162,13 +162,17 @@ fn bridge_module(count: u8) -> Module {
     for seed in 1..=count {
         install_test_native_function_contract(&mut module, seed);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+            call_mode: scoop_identity::CAbiCallMode::NativeSafe,
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("bridge{seed}"),
                 native_symbol: format!("native_bridge_{seed}"),
                 library: "fixture".to_owned(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            bridge: outbound_bridge(seed),
+            call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+                entry: Box::new(outbound_bridge(seed)),
+                result: scoop_identity::CResultAdaptation::Direct,
+            },
             signature: scoop_lir::CFunctionType {
                 params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
                 return_type: scoop_lir::CReturnType::Void,

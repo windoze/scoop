@@ -6,7 +6,9 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, RequestedConeKind, SourceContentDigest, SourceIdentity,
 };
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_manifest::{ConeManifestSemantic, DiscoveredSource, SourceDisplayLocator};
+use scoop_manifest::{
+    ConeManifestSemantic, ConeRelativePath, DiscoveredSource, SourceDisplayLocator,
+};
 use scoop_slib::{
     ArtifactFingerprint, ArtifactManifestSummaryV1, ArtifactSnapshot, ConeKind, ConeSourceForm,
 };
@@ -84,6 +86,8 @@ pub struct ManifestSourceSnapshot {
     pub(super) manifest_bytes: Arc<[u8]>,
     pub(super) manifest_digest: Digest256,
     pub(super) sources: NonEmptySourceSnapshots,
+    pub(super) source_directories: Vec<ConeRelativePath>,
+    pub(super) native: scoop_toolchain::PreparedNativeInputs,
 }
 
 impl ManifestSourceSnapshot {
@@ -188,6 +192,7 @@ pub(super) struct PreparedManifestSourceNode {
     pub(super) snapshot: ManifestSourceSnapshot,
     pub(super) input_root: PathBuf,
     pub(super) output_path: PathBuf,
+    pub(super) native_inputs: Vec<PathBuf>,
 }
 
 #[derive(Debug)]

@@ -65,9 +65,11 @@ fn fixture(
         &native_contract,
     )
     .unwrap();
-    let bridge_unit =
-        CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(fingerprint))
-            .unwrap();
+    let bridge_unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+        fingerprint,
+        scoop_identity::CResultAdaptation::Direct,
+    ))
+    .unwrap();
     let bridge_atom = CborIdentityRecord::from_key(GeneratedBridgeAtomKey::new(
         ConeIdentity::CORE,
         GeneratedBridgeAtomRoleKey::PrimaryEntry {

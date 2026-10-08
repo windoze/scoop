@@ -2,16 +2,17 @@ Module
   global @scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 : i32 scan=none
   global @scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 : ptr<managed> scan=refs[0]
   init0 top-level:localValue storage=@scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 failure=@scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 initializer=@scoop$1$cb$ddacf44a794888d78389bc252c73f4f5c943461bc588ddbaa3307028669a7cce ensure=@scoop$1$cb$4844ac66bf5930290cf530d2f67f4d4a0db539c771d642b84a02a2e8a2c753e0 deps=[]
-  extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$b716b009cef6064b0e09a10a96ce423dd092851722436757354ffe4efca98ca1 gc-leaf nounwind>
-  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> i32
-    local %0 $call.1: i32
+  extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$2a0d2d3a8213ebda0db4e61d47282dfbce04f8737bdd74b452a3c24ee3267fdc capture-errno gc-leaf nounwind>
+  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+    local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
     local %2 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    store local2 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local2), c-arg-address(local1))
+    t1 = aggregate (local2, t0) : {i32, i32}
+    store t1 -> local0
     ret local0
   fun @scoop$1$cb$26e0f8016852dded634b71cef1e51b677681acd9c04717f069b0065a918c87c4() -> i32
     local %0 $call.1: i32
@@ -23,17 +24,23 @@ Module
   fun @scoop$1$cb$a751caf97813452062393f2c33d995eb5998bb60f3b4d6b1280355a7af92505e(i32) -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
-    local %2 $call.1: i32
-    local %3 $sc.1: i32
-    local %4 $sc.2: i32
+    local %2 $binding.subject.0: {i32, i32}
+    local %3 $binding.projection.1: i32
+    local %4 result: i32
+    local %5 $sc.1: i32
+    local %6 $sc.2: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     store local0 -> local1
-    store local1 -> local3
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local3))
-    store local4 -> local2
-    ret local2
+    store local1 -> local5
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i32 extern0(c-arg-address(local6), c-arg-address(local5))
+    t1 = aggregate (local6, t0) : {i32, i32}
+    store t1 -> local2
+    t2 = extract local2, 0 : i32
+    store t2 -> local3
+    store local3 -> local4
+    ret local4
   fun @scoop$1$cb$ddacf44a794888d78389bc252c73f4f5c943461bc588ddbaa3307028669a7cce() -> void
     local %0 $call.1: i32
   block entry

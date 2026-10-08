@@ -303,10 +303,8 @@ impl Lowerer {
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
-        let candidates = self.classes[owner]
-            .constructors
-            .iter()
-            .copied()
+        let candidates = self
+            .source_class_constructors(owner)
             .map(NominalConstructorSource::Class)
             .collect::<Vec<_>>();
         let name = self.classes[owner].name.clone();
@@ -359,10 +357,8 @@ impl Lowerer {
             unreachable!("a direct base type is a class application")
         };
         let base = self.class_applications[base_application].clone();
-        let candidates = self.classes[self.class_id(base.template)]
-            .constructors
-            .iter()
-            .copied()
+        let candidates = self
+            .source_class_constructors(self.class_id(base.template))
             .map(NominalConstructorSource::Class)
             .collect::<Vec<_>>();
         let name = self.classes[self.class_id(base.template)].name.clone();

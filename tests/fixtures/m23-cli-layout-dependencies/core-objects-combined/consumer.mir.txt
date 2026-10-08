@@ -20,20 +20,20 @@ Module
   init4 top-level:localComputed eager global4 initializer=@fn18 ensure=@fn19 failure=11 deps=[]
   init5 top-level:localImage eager global5 initializer=@fn21 ensure=@fn22 failure=12 deps=[]
   init6 top-level:localImageWrite eager global6 initializer=@fn24 ensure=@fn25 failure=13 deps=[]
-  extern ef0 nativeIdentity @scoop_test_identity(Int) -> Int <abi=c no-gc>
+  extern ef0 nativeIdentity @scoop_test_identity(Int) -> (Int, Int) <abi=c no-gc capture-errno native-result=Int>
   extern ef1 nativeOther @scoop_test_other(Int) -> Int <abi=c no-gc>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun nativeIdentity @fn0(arg0: Int) -> Int
+  fun nativeIdentity @fn0(arg0: Int) -> (Int, Int)
     bb0 entry
-      call $call.1: Int = extern0 @scoop_test_identity direct
+      call $call.1: (Int, Int) = extern0 @scoop_test_identity direct
         Type Int
         Local arg0
       return
-        Type Int
+        Type (Int, Int)
         Local $call.1
   fun nativeOther @fn1(arg0: Int) -> Int
     bb0 entry
@@ -67,9 +67,20 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.receiver: Int = extern0 @scoop_test_identity direct
+      call $binding.subject.3: (Int, Int) = extern0 @scoop_test_identity direct
         Type Int
         Local $parameter.value
+      val $binding.projection.4: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int)
+          Local $binding.subject.3
+      val result: Int
+        Type Int
+        Local $binding.projection.4
+      val $dependency.receiver: Int
+        Type Int
+        Local result
       val $argument.0: Int
         Type Int
         Local value

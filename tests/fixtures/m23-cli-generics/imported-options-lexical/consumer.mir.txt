@@ -23,6 +23,7 @@ Module
   class box<Option<Int>> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Cell>
   interface SuspendTask<Cell>
   interface SuspendRegistration<Cell>

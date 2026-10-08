@@ -43,7 +43,7 @@ impl LoweredCallDestination {
 
 #[derive(Clone, Copy)]
 pub(in crate::function) enum NativeCallDestination {
-    Safe(lir::NativeSafeCallDestination),
+    C(lir::CCallDestination, lir::CAbiCallMode),
     Borrowed(lir::NativeBorrowedCallDestination),
 }
 
@@ -308,19 +308,17 @@ impl<'a> FunctionLowerer<'a> {
         call: PendingTypedCall,
     ) -> StorageResult<lir::CallSite> {
         Ok(match destination {
-            NativeCallDestination::Safe(destination) => {
+            NativeCallDestination::C(destination, mode) => {
                 assert_eq!(
                     call.result_scan(&self.call_targets),
                     &lir::RefScan::None,
                     "native-safe C ABI results must be GC-free"
                 );
-                let call = bind_typed_call(
-                    &mut self.call_targets.native_safe_targets,
-                    destination,
-                    call,
-                );
+                let call = bind_typed_call(&mut self.call_targets.c_targets, destination, call);
                 if self.callable_body.release_owner().is_some() {
                     lir::CallSite::ReleaseNativeLeaf(lir::ReleaseNativeLeafCallSite { call })
+                } else if mode == lir::CAbiCallMode::GcLeaf {
+                    lir::CallSite::NativeGcLeaf(lir::NativeGcLeafCallSite { call })
                 } else {
                     lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
                         call,

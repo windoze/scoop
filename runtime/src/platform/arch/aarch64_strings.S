@@ -17,4 +17,12 @@ _scoop_rt_string_slice_bounds:
     mov x0, x8
     b _scoop_rt_string_slice_bounds_storage
 
+.p2align 2
+.globl _scoop_rt_string_decode_utf8
+_scoop_rt_string_decode_utf8:
+    mov x2, x1
+    mov x1, x0
+    mov x0, x8
+    b _scoop_rt_string_decode_utf8_storage
+
 .subsections_via_symbols

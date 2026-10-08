@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "ELF shared library requires --link-mode dynamic; requirement f1bac0d8e7d2efca0ad79e4bd30796fb1a1299124a3ed3349b7bfe2e81433b90; origins: dev.m33:library-negative:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,7 @@
+@GCLeaf @Extern(name = "native_generic")
+fun <T> nativeGeneric(value: T): T
+
+@GCLeaf @Extern(name = "native_suspend")
+suspend fun nativeSuspend(): Int
+
+fun main() {}

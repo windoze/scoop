@@ -1,33 +1,30 @@
 Module
   global @scoop$1$ss$b6ef0fe3a5ad37b0fec22d9601b544de4bb9329379ce0b5d0173039340893668 : ptr<managed> scan=refs[0]
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$46f2d86b25e5993158dc442917b3e44d34a630b4642130dc8e9f1537676dce1b gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$7dc5ac3ed93bf6044fc9bde2a61c7024a8b85f3f950064addf4311c199850d7d(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$562c0f9fb73c24b42a2bd9c8c1488121a6c8a7067904869d9264abd16c99d6d5() -> void
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
-    local %2 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000064) -> local0
     store local0 -> local1
-    store local1 -> local2
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local2))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$90cd6747c850861da329fb0aa7a530fb7a15809cb229b1719c230c2d4eaae1d9() -> i32
+  fun @scoop$1$cb$90cd6747c850861da329fb0aa7a530fb7a15809cb229b1719c230c2d4eaae1d9(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

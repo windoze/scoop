@@ -56,11 +56,18 @@ fn synthetic_declaration(declaration: Decl) -> Decl {
 fn synthetic_function(value: ast::FunctionDecl, owner: Option<&str>) -> ast::FunctionDecl {
     let body = match value.body {
         FunctionBody::None => FunctionBody::None,
-        FunctionBody::Expr(_) => {
-            assert_eq!(value.name.text, "toString");
-            let helper = format!("core{}ToString", owner.expect("toString is a member"));
-            FunctionBody::Expr(Box::new(call(&helper, vec![this_expr()])))
-        }
+        FunctionBody::Expr(_) => match value.name.text.as_str() {
+            "toString" => {
+                let helper = format!("core{}ToString", owner.expect("toString is a member"));
+                FunctionBody::Expr(Box::new(call(&helper, vec![this_expr()])))
+            }
+            "equalTo" => FunctionBody::Expr(Box::new(method_call(
+                this_expr(),
+                "equals",
+                vec![var("other")],
+            ))),
+            _ => panic!("unexpected numeric source body"),
+        },
         FunctionBody::Block(_) => panic!("numeric signatures have no block body"),
     };
     let parameters = value

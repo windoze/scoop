@@ -25,8 +25,8 @@ impl Lowerer {
         Some((lhs, rhs))
     }
 
-    /// Resolve `==` / `!=` through the lhs static type's ordinary
-    /// `operator fun equals` member set. The operands arrive already lowered,
+    /// Resolve `==` / `!=` through the lhs static type's actual
+    /// member operators. The operands arrive already lowered,
     /// preserving the language's left-to-right, exactly-once evaluation rule;
     /// applicability and MSC still use the same overload engine as an explicit
     /// member call. Nominal value derivation contributes a typed synthetic
@@ -40,11 +40,7 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let mut candidates = self.methods_by_name(lhs.ty, "equals");
-        candidates.retain(|candidate| {
-            self.signatures[&candidate.function].modifiers.operator
-                == Some(hir::OperatorKind::Equals)
-        });
+        let mut candidates = self.methods_by_operator(lhs.ty, hir::OperatorKind::Equals);
         let mut derived = None;
         let mut structural_derived = None;
         let mut derivation_failure = None;
@@ -216,7 +212,7 @@ impl Lowerer {
         let found = self.type_name(lhs.ty);
         self.error(
             span,
-            format!("type `{found}` has no member operator `equals` for `{symbol}`"),
+            format!("type `{found}` has no applicable member operator `equals` for `{symbol}`"),
         );
         None
     }
@@ -231,14 +227,7 @@ impl Lowerer {
         literal: hir::Expr,
         span: Span,
     ) -> Option<(hir::Expr, hir::LiteralPatternEquality)> {
-        let candidates = self
-            .methods_by_name(subject_ty, "equals")
-            .into_iter()
-            .filter(|candidate| {
-                self.signatures[&candidate.function].modifiers.operator
-                    == Some(hir::OperatorKind::Equals)
-            })
-            .collect::<Vec<_>>();
+        let candidates = self.methods_by_operator(subject_ty, hir::OperatorKind::Equals);
         if candidates.is_empty()
             && let Some(probe) = self
                 .select_imported_equality(

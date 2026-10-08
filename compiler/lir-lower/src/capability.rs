@@ -198,9 +198,19 @@ fn expression_requirement(
     expression: &mir::Expr,
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
+        mir::ExprKind::DataBorrow(operation) => match operation.kind {
+            mir::DataBorrowOperationKind::DataPointer(mir::BorrowDataSource::Array(class))
+            | mir::DataBorrowOperationKind::Length(mir::BorrowDataSource::Array(class)) => {
+                unavailable_array(roots, class)
+            }
+            _ => None,
+        },
         mir::ExprKind::Context(_) => None,
         mir::ExprKind::ClassAlloc { class_id } => {
             unavailable_descriptor(module, roots, dependencies, &mir::Type::Class(*class_id))
+        }
+        mir::ExprKind::AtomicNew(_) => {
+            unavailable_descriptor(module, roots, dependencies, &expression.ty)
         }
         mir::ExprKind::Box(operand) => {
             unavailable_descriptor(module, roots, dependencies, &operand.ty)
@@ -275,7 +285,8 @@ fn expression_requirement(
         | mir::ExprKind::EnumTag(_)
         | mir::ExprKind::EnumField { .. }
         | mir::ExprKind::VariantTest { .. }
-        | mir::ExprKind::VariantPayloadProject { .. } => None,
+        | mir::ExprKind::VariantPayloadProject { .. }
+        | mir::ExprKind::Atomic(_) => None,
     }
 }
 

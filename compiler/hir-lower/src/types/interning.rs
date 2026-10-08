@@ -232,6 +232,7 @@ impl Lowerer {
             hir::ClassApplicationRepresentation::Intrinsic(
                 hir::IntrinsicTypeRepresentation::Array { .. }
                 | hir::IntrinsicTypeRepresentation::MutableArray { .. }
+                | hir::IntrinsicTypeRepresentation::Atomic(_)
                 | hir::IntrinsicTypeRepresentation::Nothing,
             )
             | hir::ClassApplicationRepresentation::Declared => {

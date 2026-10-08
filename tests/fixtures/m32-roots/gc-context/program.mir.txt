@@ -25,6 +25,10 @@ Module
   class box<Item> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Unit>
+  interface Equality<Long>
+  interface Equality<Boolean>
   interface Continuation<Node>
   interface SuspendTask<Node>
   interface SuspendRegistration<Node>

@@ -1,0 +1,18 @@
+package collisions
+public struct Plain(val value: Int) {
+    public fun equals(other: Plain): Boolean = false
+}
+public struct Generic<T>(val value: T) {
+    public fun equals(other: Generic<T>): Boolean = false
+}
+public struct Hidden<T>(val value: T) {
+    private fun equals(other: Hidden<T>): Boolean = false
+}
+public enum Choice {
+    Entry(Int)
+    public fun equals(other: Choice): Boolean = false
+}
+public struct Different(val value: Int) {
+    public fun equals(other: Int): Boolean = false
+    public fun same(other: Different): Boolean = false
+}

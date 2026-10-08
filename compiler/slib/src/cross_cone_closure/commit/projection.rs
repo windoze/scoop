@@ -125,7 +125,7 @@ impl ValidatedCrossConeSemanticClosure {
         self.project_callback_storage(hir, &mut projected)?;
         self.project_derived_equalities(hir, &mut projected)?;
         self.project_coroutine_starts(hir, &mut projected)?;
-        self.project_initialization_callables(hir.output().local.module(), &mut projected)?;
+        self.project_core_functions(&hir.output().local, &mut projected)?;
         self.project_runtime_constructors(hir.output().local.module(), &mut projected)?;
         let objects =
             self.project_dependency_singletons(hir.output().local.module(), &mut projected)?;

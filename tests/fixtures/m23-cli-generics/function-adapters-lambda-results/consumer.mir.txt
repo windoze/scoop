@@ -10,6 +10,7 @@ Module
   interface Readable
   interface ToString
   interface Hash
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
     bridge function_type1 -> @fn6 id=deac2313fe63559a60993c04864a81998714875a8b706b5fad16816d3a386d4e
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn4 captures=1

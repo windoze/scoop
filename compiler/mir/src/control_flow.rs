@@ -26,13 +26,19 @@ pub struct ExternFunction {
     pub calling_convention: CallingConvention,
     pub gc_effect: GcEffect,
     pub params: Vec<Type>,
-    pub return_type: Type,
+    pub result: scoop_identity::ExternResult<Type>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExternAbi {
-    C,
+    C(CAbiCallMode),
     Scoop,
+}
+
+impl ExternAbi {
+    pub const fn is_c(self) -> bool {
+        matches!(self, Self::C(_))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -645,6 +651,7 @@ impl std::error::Error for MirVariantExprError {}
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Context(ContextOperation<Expr>),
+    DataBorrow(DataBorrowOperation<Expr>),
     StringConst(StringConstId),
     IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),
@@ -837,6 +844,8 @@ pub enum ExprKind {
         target_type: ClassId,
         operand: Box<Expr>,
     },
+    AtomicNew(Box<Expr>),
+    Atomic(Box<AtomicExpression<Expr>>),
     Binary {
         op: BinOp,
         lhs: Box<Expr>,

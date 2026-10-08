@@ -15,6 +15,7 @@ pub enum IntrinsicTypeKind {
     FunPtr,
     Any,
     Nothing,
+    Atomic(AtomicValueKind),
 }
 
 impl IntrinsicTypeKind {
@@ -32,6 +33,10 @@ impl IntrinsicTypeKind {
             Self::FunPtr => "core_fun_ptr",
             Self::Any => "core_any",
             Self::Nothing => "core_nothing",
+            Self::Atomic(AtomicValueKind::Int) => "core_atomic_int",
+            Self::Atomic(AtomicValueKind::Long) => "core_atomic_long",
+            Self::Atomic(AtomicValueKind::Boolean) => "core_atomic_boolean",
+            Self::Atomic(AtomicValueKind::Reference) => "core_atomic_ref",
         }
     }
 
@@ -49,6 +54,7 @@ impl IntrinsicTypeKind {
             Self::FunPtr => "FunPtr",
             Self::Any => "Any",
             Self::Nothing => "Nothing",
+            Self::Atomic(kind) => kind.source_name(),
         }
     }
 
@@ -61,9 +67,12 @@ impl IntrinsicTypeKind {
             | Self::Char
             | Self::Ptr
             | Self::FunPtr => IntrinsicTypeTarget::Struct,
-            Self::String | Self::Array | Self::MutableArray | Self::Any | Self::Nothing => {
-                IntrinsicTypeTarget::Class
-            }
+            Self::String
+            | Self::Array
+            | Self::MutableArray
+            | Self::Any
+            | Self::Nothing
+            | Self::Atomic(_) => IntrinsicTypeTarget::Class,
         }
     }
 
@@ -76,7 +85,11 @@ impl IntrinsicTypeKind {
             | Self::Char
             | Self::String
             | Self::Any
-            | Self::Nothing => IntrinsicTypeParameters::None,
+            | Self::Nothing
+            | Self::Atomic(
+                AtomicValueKind::Int | AtomicValueKind::Long | AtomicValueKind::Boolean,
+            ) => IntrinsicTypeParameters::None,
+            Self::Atomic(AtomicValueKind::Reference) => IntrinsicTypeParameters::OneInvariantRef,
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
             Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
             Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
@@ -93,6 +106,18 @@ impl IntrinsicTypeKind {
             (Self::String, []) => IntrinsicTypeRepresentation::String,
             (Self::Any, []) => IntrinsicTypeRepresentation::Any,
             (Self::Nothing, []) => IntrinsicTypeRepresentation::Nothing,
+            (Self::Atomic(AtomicValueKind::Int), []) => {
+                IntrinsicTypeRepresentation::Atomic(AtomicStorage::Int)
+            }
+            (Self::Atomic(AtomicValueKind::Long), []) => {
+                IntrinsicTypeRepresentation::Atomic(AtomicStorage::Long)
+            }
+            (Self::Atomic(AtomicValueKind::Boolean), []) => {
+                IntrinsicTypeRepresentation::Atomic(AtomicStorage::Boolean)
+            }
+            (Self::Atomic(AtomicValueKind::Reference), [value]) => {
+                IntrinsicTypeRepresentation::Atomic(AtomicStorage::Reference(*value))
+            }
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
             (Self::MutableArray, [element]) => {
                 IntrinsicTypeRepresentation::MutableArray { element: *element }
@@ -110,6 +135,7 @@ impl IntrinsicTypeKind {
 /// family variants contain their concrete element type directly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntrinsicTypeRepresentation {
+    Atomic(AtomicStorage<TypeId>),
     Unit,
     Integer(IntegerKind),
     Boolean,

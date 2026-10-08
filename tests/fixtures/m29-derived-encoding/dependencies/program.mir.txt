@@ -246,6 +246,8 @@ Module
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Leaf>
   interface Encodable<Wrapper>
   interface List<Node> : Iterable<Node>
@@ -276,6 +278,7 @@ Module
   interface Iterator<Int>
   interface Encodable<Packet<Int>>
   interface Hash
+  interface Equality<Int>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>
@@ -292,8 +295,10 @@ Module
   interface Iterator<JsonValue>
   interface Encodable<(Int, Option<Int>, Unit)>
   interface Encodable<Array<Int>>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Encodable<Option<Int>>
   interface Encodable<Unit>
   interface Continuation<Leaf>

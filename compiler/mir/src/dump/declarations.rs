@@ -77,7 +77,8 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let abi = match extern_.abi {
-            ExternAbi::C => "c",
+            ExternAbi::C(CAbiCallMode::NativeSafe) => "c",
+            ExternAbi::C(CAbiCallMode::GcLeaf) => "c gc-leaf",
             ExternAbi::Scoop => "scoop",
         };
         let params = extern_
@@ -91,13 +92,19 @@ pub fn dump(module: &Module) -> String {
         } else {
             format!(" lib={}", extern_.library)
         };
+        let result = match &extern_.result {
+            scoop_identity::ExternResult::Direct(_) => String::new(),
+            scoop_identity::ExternResult::CaptureErrno { native, .. } => {
+                format!(" capture-errno native-result={}", type_name(module, native))
+            }
+        };
         out.push_str(&format!(
-            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}>\n",
+            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}{result}>\n",
             id.into_raw().into_u32(),
             extern_.source_name,
             extern_.native_symbol,
             params,
-            type_name(module, &extern_.return_type),
+            type_name(module, extern_.result.scoop_type()),
             if extern_.gc_effect == GcEffect::NoGc {
                 " no-gc"
             } else {
@@ -493,8 +500,18 @@ pub fn dump(module: &Module) -> String {
     }
     match module.output {
         MirOutput::Library => out.push_str("  output library\n"),
-        MirOutput::Executable { entry } => {
+        MirOutput::Executable { entry, arguments } => {
             out.push_str(&format!("  output executable {}\n", function_ref(entry)));
+            match arguments {
+                ProgramArguments::Unused => {}
+                ProgramArguments::Local(builder) => {
+                    out.push_str(&format!("  program arguments {}\n", function_ref(builder)))
+                }
+                ProgramArguments::External(builder) => out.push_str(&format!(
+                    "  program arguments external{}\n",
+                    builder.into_raw().into_u32()
+                )),
+            }
         }
     }
     out

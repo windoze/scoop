@@ -3,7 +3,7 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$642f5510084e42f3706d93bb6608a36e96d43e9743ad997abbc04fd07a39403c : ptr<managed> scan=refs[0]
   c-struct struct0 Packed fields=[Boolean@0/1,Int@1/1]
-  extern ef0 transform @m23_packed(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$83c54927c8169da18a36e95fdceedd2c6ac99a964e3af8a5050f80ea8d38e683 gc-leaf nounwind lib=m23_cabi>
+  extern ef0 transform @m23_packed(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$3c9d2abdfdfed09e06ee123a03824333db41a9149d49a8f9cc3a0b80cac26541 gc-leaf nounwind lib=m23_cabi>
   fun @scoop$1$cb$06e9f5e05597ae4819f28f61490c5c9b64ac4f393045ccea5094bf230c111abb(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
     local %0 $call.1: struct0
     local %1 $sc.1: struct0
@@ -94,13 +94,14 @@ Module
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  fun @scoop$1$cb$908dd55cbc155f06eaec0e47ddbd59fbd97c97e6918aea8f989d4b205c3e0321() -> i32
+  fun @scoop$1$cb$908dd55cbc155f06eaec0e47ddbd59fbd97c97e6918aea8f989d4b205c3e0321(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -109,9 +110,13 @@ Module
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=dev.programlink%3Acabi%3A0.1.0;p=;o=-;k=S;x=Packed) @scoop$1$td$eba5808f1c3f2f6e426e2f392523f8112519387ce2bb6f1099f4143fed93aeff type-id=6413863973408416815 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 n(c=dev.programlink%3Acabi%3A0.1.0;p=;o=-;k=S;x=Packed) @scoop$1$td$eba5808f1c3f2f6e426e2f392523f8112519387ce2bb6f1099f4143fed93aeff type-id=6413863973408416815 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Packed size=8 align=8 refs=[]
   layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
   layout Packed size=8 align=8 refs=[]
   layout-meta Packed c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$4175775072d52c29590a469b2936b03a26ede0d0be78923bb99d97ef3f8eb064

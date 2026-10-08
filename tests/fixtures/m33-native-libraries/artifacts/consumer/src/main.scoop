@@ -1,0 +1,12 @@
+import nativeapi.*
+
+@Extern(name = "m33_provider_sum")
+fun plain(value: Int): Int
+class Cell(val value: Int)
+fun main() {
+    val cell = keep(Cell(50))
+    gcCollect()
+    @Unsafe { if (plain(40) != 42) { throw IllegalStateException() } }
+    if (call(cell.value) != (52, 17)) { throw IllegalStateException() }
+    println("native-artifacts-ok")
+}

@@ -450,13 +450,14 @@ Module
   block entry
     t0 = aggregate (param0) : struct3
     ret t0
-  fun @scoop$1$cb$c24bf1d0147198f15fd19a82c807374e9451a0b48ebeca82a3c7d3ab1514a734() -> i32
+  fun @scoop$1$cb$c24bf1d0147198f15fd19a82c807374e9451a0b48ebeca82a3c7d3ab1514a734(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -465,6 +466,10 @@ Module
     global_store global6, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=dev.equality%3Areexport%3A0.1.0;p=equality.reexport;o=-;k=S;x=Generic);[n(c=dev.equality%3Aprovider%3A0.1.0;p=equality.origin;o=-;k=E;x=Flag)]) @scoop$1$td$6ffe88e8f2ace26d3227e846f5188f8b4fe661f3e9527d8b99f5160d0522b0cf type-id=14906294033052736563 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=dev.equality%3Areexport%3A0.1.0;p=equality.reexport;o=-;k=S;x=Generic);[n(c=dev.equality%3Aprovider%3A0.1.0;p=equality.origin;o=-;k=E;x=Flag)]) @scoop$1$td$6ffe88e8f2ace26d3227e846f5188f8b4fe661f3e9527d8b99f5160d0522b0cf type-id=14906294033052736563 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Generic size=8 align=8 refs=[]
+  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$02d4c994fda1c88d9a15130d8c2af661c8841d90e19dd45751fa291bae9f8ad1

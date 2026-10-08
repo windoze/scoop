@@ -115,11 +115,21 @@ pub(super) fn verify_directory_records(
             *member,
         ));
     }
-    if let Some(member) = actual_ids.difference(&expected_ids).next() {
-        return Err(CodeLinkObjectMemberValidationError::UnexpectedDirectoryMember(*member));
-    }
-
     let mut verified = Vec::with_capacity(expected.len());
+    for member in actual_ids.difference(&expected_ids) {
+        let record = actual[member];
+        if !crate::is_native_link_object(record) {
+            return Err(CodeLinkObjectMemberValidationError::UnexpectedDirectoryMember(*member));
+        }
+        verified.push(VerifiedCodeLinkObjectMemberV1 {
+            member: *member,
+            fingerprint: record
+                .as_link_member()
+                .expect("LinkObject record")
+                .fingerprint()
+                .map_err(CodeLinkObjectMemberValidationError::Hash)?,
+        });
+    }
     for expected in expected {
         let record = actual[&expected.member];
         if record.stable_key() != &expected.stable_key || record.role() != &expected.role {
@@ -144,6 +154,7 @@ pub(super) fn verify_directory_records(
             fingerprint,
         });
     }
+    verified.sort_unstable_by_key(|member| member.member);
     Ok(CodeLinkObjectMemberSetV1 { members: verified })
 }
 

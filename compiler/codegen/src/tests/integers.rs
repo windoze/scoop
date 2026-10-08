@@ -147,13 +147,17 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
     );
     install_test_native_function_contract(&mut module, 1);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "integerWidths".to_string(),
             native_symbol: "native_integer_widths".to_string(),
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound_bridge(1),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound_bridge(1)),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: IntegerKind::ALL
                 .iter()

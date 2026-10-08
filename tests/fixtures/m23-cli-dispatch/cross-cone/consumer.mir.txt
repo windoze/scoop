@@ -14,8 +14,11 @@ Module
   interface Refined<Int> : Echo<Int>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn20 captures=1
     bridge function_type1 -> @fn22 id=40425ea016c6762a9e17b1ceb1c44f785d86afff068c6db6ffd3ec1ca53aec68
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d

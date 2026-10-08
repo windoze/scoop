@@ -1,0 +1,17 @@
+import m33.utf8.*
+
+struct Result(val value: String, val count: Long)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val result = decodeThen([231u, 149u, 140u, 0u], fun(value: String): Result {
+        gcCollect()
+        return Result(value, value.length)
+    })
+    gcCollect()
+    expect(result.value == "界\u0000" && result.count == 2L)
+    expect(failureOffset([65u, 225u, 128u]) == 1L)
+    expect(recover([225u, 128u, 65u]) == "�A")
+    expect(String.fromUtf8OrNone([239u, 191u, 189u]) == Some("�"))
+    println("utf8-artifacts-ok")
+}

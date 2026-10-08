@@ -253,20 +253,20 @@ mod tests {
             LanguageAbiContract.fingerprint().unwrap().to_string(),
             "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010a02010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010b02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "6c09728dbccb1cb654bed42e07d93f0d9fd0c0476ea79ccb8a8751a49d235cff"
+            "8d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d583"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258206c09728dbccb1cb654bed42e07d93f0d9fd0c0476ea79ccb8a8751a49d235cff0301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258208d0878fbaa8a430839c184f53feba9db6305368881034179e1bb13e5e0b8d5830301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "35d4e1e50bbbd272221d4f95f27b8b7da4cdc10e202c4e3dc0c6c21bafa153be"
+            "9c57315fa9f82ac6b90223a3d39740d569108042e4e7d02ae424ad3ee51a2e43"
         );
     }
 
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(encoded[0], 0xae);
         assert_eq!(
             record.target_fingerprint().to_string(),
-            "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+            "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
         );
         assert_eq!(
             record.backend_fingerprint().to_string(),
@@ -290,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "eddc54aa2df78e5c3358a5d8276e84ac36fc1c0058fb24fcd06bb257a01c5a51"
+            "87b4f913e3b9d8eac27308776a203e8a6881f4b8b7a10f0590336be009337026"
         );
     }
 

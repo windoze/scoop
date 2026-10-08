@@ -10,6 +10,7 @@ impl Flow<'_> {
         }
         let complete = |value: &hir::Expr| self.expression_can_complete(value);
         match &expression.kind {
+            E::Atomic(atomic) => atomic.operands().all(complete),
             E::Binary {
                 op: hir::BinOp::And | hir::BinOp::Or,
                 lhs,
@@ -56,6 +57,7 @@ impl Flow<'_> {
             | E::ReferenceUpcast(operand)
             | E::ArrayLen(operand)
             | E::ArrayClone(operand)
+            | E::AtomicNew(operand)
             | E::SomeWrap(operand)
             | E::IsSome(operand) => complete(operand),
             E::FunctionCoercion { source, .. } => complete(source),

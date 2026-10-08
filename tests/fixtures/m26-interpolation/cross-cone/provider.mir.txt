@@ -40,6 +40,8 @@ Module
   interface Iterator<String>
   interface ToString
   interface Hash
+  interface Equality<Char>
+  interface Equality<Int>
   interface Continuation<StringBuilder>
   interface SuspendTask<StringBuilder>
   interface SuspendRegistration<StringBuilder>

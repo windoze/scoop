@@ -1,0 +1,13 @@
+package atomicconstruction
+
+public class Payload public constructor(val text: String)
+public typealias TextCell = AtomicRef<String>
+public class Holder<T : ref> public constructor(public val cell: AtomicRef<T>)
+
+public fun <T : ref> make(value: T): AtomicRef<T> = AtomicRef(initial = value)
+public fun integer(value: Int): AtomicInt = AtomicInt(value)
+public fun wide(value: Long): AtomicLong = AtomicLong(value)
+public fun flag(value: Boolean): AtomicBoolean = AtomicBoolean(value)
+public fun text(value: String, cell: AtomicRef<String> = AtomicRef(value)): AtomicRef<String> = cell
+public fun <T : ref> defaultCell(value: T, cell: AtomicRef<T> = AtomicRef(value)): AtomicRef<T> = cell
+public fun <T : ref> holder(value: T): Holder<T> = Holder(make(value))

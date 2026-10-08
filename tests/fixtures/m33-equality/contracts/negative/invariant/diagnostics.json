@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `requireChild` in current-unit top-level candidate layer:\n  - fun requireChild(value: Equality<Child>): Unit — argument for `value` has type Child, which is not equal to Child",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 200,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 193
+    },
+    "severity": "error"
+  }
+]

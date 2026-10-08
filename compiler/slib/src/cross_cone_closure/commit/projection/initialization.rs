@@ -7,20 +7,40 @@ use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirCallable};
 use super::{CrossConeMirSelectionProjectionError as Error, ValidatedCrossConeSemanticClosure};
 
 impl ValidatedCrossConeSemanticClosure {
-    pub(super) fn project_initialization_callables(
+    pub(super) fn project_core_functions(
         &self,
-        module: &concrete::Module,
+        output: &scoop_hir::LocalConcreteHirOutput,
         selected: &mut Vec<SelectedExternalMirCallable>,
     ) -> Result<(), Error> {
-        for (_, unit) in module.initialization_units.iter() {
-            let concrete::InitializationCycleThrower::Imported(callable) = &unit.cycle_thrower
-            else {
-                continue;
-            };
+        let module = output.module();
+        let arguments = match output.output_kind() {
+            scoop_hir::LocalConeOutputKind::Executable { local_entry }
+                if !module.functions[local_entry.local_function().function()]
+                    .params
+                    .is_empty() =>
+            {
+                match &module.core_protocols {
+                    concrete::ConcreteCoreProtocols::Imported(protocols) => {
+                        Some(protocols.program_arguments())
+                    }
+                    concrete::ConcreteCoreProtocols::Defined(_) => None,
+                }
+            }
+            _ => None,
+        };
+        let callables = module
+            .initialization_units
+            .iter()
+            .filter_map(|(_, unit)| match &unit.cycle_thrower {
+                concrete::InitializationCycleThrower::Imported(callable) => Some(callable),
+                concrete::InitializationCycleThrower::Local(_) => None,
+            })
+            .chain(arguments);
+        for callable in callables {
             let ImportedCoreProtocolCallableDefinition::Function(definition) =
                 callable.definition()
             else {
-                return Err(Error::InitializationFunctionKind(callable.definition()));
+                return Err(Error::CoreFunctionKind(callable.definition()));
             };
             let provider = callable.provider();
             let target = StrongCallableDefinitionOwner::Function(definition.persistent());

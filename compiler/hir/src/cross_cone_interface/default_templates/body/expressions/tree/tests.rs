@@ -246,13 +246,23 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             trap_on_none: CanonicalBooleanV1::True,
         },
         DefaultExpressionKindV1::ReferenceUpcast(Box::new(unit(&fixture))),
+        DefaultExpressionKindV1::AtomicNew(Box::new(unit(&fixture))),
+        DefaultExpressionKindV1::Atomic(Box::new(crate::AtomicExpression {
+            object: unit(&fixture),
+            kind: crate::AtomicValueKind::Int,
+            operation: crate::AtomicOperation::Load {
+                order: crate::AtomicLoadOrder::Acquire,
+            },
+        })),
     ];
 
-    assert_eq!(cases.len(), 57);
+    assert_eq!(cases.len(), 59);
     for (index, kind) in cases.into_iter().enumerate() {
         let expected_tag = match index {
             43 => 57,
             56 => 58,
+            57 => 71,
+            58 => 72,
             _ => u64::try_from(index + 1).unwrap(),
         };
         let expression = expression(kind, &fixture);

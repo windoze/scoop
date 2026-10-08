@@ -4,6 +4,34 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn pointer_interfaces(&mut self, pointee: hir::TypeId) -> Vec<hir::TypeId> {
+        let interfaces = match &self.core {
+            CoreLoweringAuthority::Defined => {
+                self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Ptr)
+            }
+            CoreLoweringAuthority::Imported(core) => {
+                let owner = hir::SourceNominalId::GenericTemplate(
+                    core.fundamental_types().ptr().persistent(),
+                );
+                if let Err(error) = self.imported_nominal_application(owner, vec![pointee]) {
+                    self.error(
+                        Span::new(0, 0),
+                        error.diagnostic("Ptr interface declarations"),
+                    );
+                    return Vec::new();
+                }
+                self.loaded_struct_definitions[&owner]
+                    .definition
+                    .interfaces
+                    .clone()
+            }
+        };
+        interfaces
+            .into_iter()
+            .map(|interface| self.instantiate_ty(interface, &[pointee]))
+            .collect()
+    }
+
     pub(crate) fn resolve_imported_generic_type_target(
         &mut self,
         binding: &hir::DirectImportedTargetBinding,

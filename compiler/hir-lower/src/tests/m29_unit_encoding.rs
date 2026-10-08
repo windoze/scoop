@@ -36,7 +36,22 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
                 .id()
         )
     );
-    assert!(declaration.interfaces.is_empty());
+    let (equality, _) = module
+        .interfaces
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Equality")
+        .unwrap();
+    assert_eq!(declaration.interfaces.len(), 1);
+    let hir::Type::Interface(application) = &module.types[declaration.interfaces[0]] else {
+        panic!("Unit explicitly implements Equality<Unit>");
+    };
+    let application = &module.interface_applications[*application];
+    assert_eq!(
+        application.template,
+        module.nominal_identities[equality].declaration_id()
+    );
+    assert_eq!(application.arguments.len(), 1);
+    assert_eq!(module.types[application.arguments[0]], hir::Type::Unit);
     let method = module
         .functions
         .values()

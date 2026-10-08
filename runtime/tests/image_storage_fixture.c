@@ -12,7 +12,12 @@ static void ensure_a(void) {}
 static uint32_t gateway_a(void) { return 0; }
 static void initialize_b(void) {}
 static void ensure_b(void) {}
-static uint32_t root_gateway(void) { return 0; }
+static uint32_t root_gateway(int32_t argc, const char *const *argv, int32_t *exit_code) {
+    (void)argc;
+    (void)argv;
+    *exit_code = 0;
+    return 0;
+}
 static uint32_t gateway_b(void) { return 0; }
 
 static ScoopDescriptorPrefixV1 prefix(uint64_t magic, size_t size) {

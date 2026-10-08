@@ -1,5 +1,6 @@
 package hidden
 
+import Equality
 import ToString
 import Hash
 import Float

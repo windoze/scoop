@@ -1,0 +1,2 @@
+fun <T : ref> bad(cell: AtomicRef<T>): (MemoryOrder) -> T = cell::load
+fun main() {}

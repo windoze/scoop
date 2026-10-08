@@ -1,5 +1,7 @@
 use super::*;
 
+mod named;
+
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -59,7 +61,10 @@ fn imported_generic_equality_rejects_incomparable_fields_at_the_operator() {
             "bad-static-type",
             "has no applicable member operator `equals`",
         ),
-        ("bad-exact-type", "has no member operator `equals`"),
+        (
+            "bad-exact-type",
+            "has no applicable member operator `equals`",
+        ),
         ("bad-no-gc", "@NoGC"),
     ] {
         let source = fixture(case);

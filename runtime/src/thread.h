@@ -16,15 +16,15 @@ typedef enum ScoopThreadMode {
     SCOOP_THREAD_PARKED,
     SCOOP_THREAD_COLLECTOR,
     SCOOP_THREAD_DETACHING,
+    SCOOP_THREAD_MANAGED_PENDING,
+    SCOOP_THREAD_NATIVE_SAFE_RETURNING,
 } ScoopThreadMode;
 
-_Static_assert((int)SCOOP_THREAD_NATIVE_SAFE ==
-                   (int)SCOOP_THREAD_DEBUG_NATIVE_SAFE,
+_Static_assert((int)SCOOP_THREAD_NATIVE_SAFE == (int)SCOOP_THREAD_DEBUG_NATIVE_SAFE,
                "public native-safe debug value drifted");
 _Static_assert((int)SCOOP_THREAD_MANAGED == (int)SCOOP_THREAD_DEBUG_MANAGED,
                "public managed debug value drifted");
-_Static_assert((int)SCOOP_THREAD_NATIVE_BORROWED ==
-                   (int)SCOOP_THREAD_DEBUG_NATIVE_BORROWED,
+_Static_assert((int)SCOOP_THREAD_NATIVE_BORROWED == (int)SCOOP_THREAD_DEBUG_NATIVE_BORROWED,
                "public native-borrowed debug value drifted");
 _Static_assert((int)SCOOP_THREAD_PARKED == (int)SCOOP_THREAD_DEBUG_PARKED,
                "public parked debug value drifted");
@@ -37,12 +37,6 @@ typedef enum ScoopThreadAttachmentKind {
     SCOOP_THREAD_MAIN,
     SCOOP_THREAD_FOREIGN,
 } ScoopThreadAttachmentKind;
-
-typedef enum ScoopManagedSegmentState {
-    SCOOP_MANAGED_SEGMENT_NONE,
-    SCOOP_MANAGED_SEGMENT_PENDING,
-    SCOOP_MANAGED_SEGMENT_ACTIVE,
-} ScoopManagedSegmentState;
 
 struct ScoopExceptionRecord;
 struct ScoopTaskContext;
@@ -58,7 +52,6 @@ typedef struct ScoopThreadState {
     _Atomic(uint64_t) observed_gc_epoch;
     const char *managed_stack_boundary;
     ScoopManagedAnchor *managed_anchor;
-    ScoopManagedSegmentState managed_segment;
     ScoopThreadMode parked_from;
     uint64_t managed_depth;
     uint64_t callback_depth;
@@ -67,6 +60,7 @@ typedef struct ScoopThreadState {
     ScoopNativeRegionRootFrame *native_region_roots;
     ScoopCallerRootFrame *caller_roots;
     ScoopCompilerRootFrame *compiler_roots;
+    ScoopPinFrame *pin_frames;
     const ScoopInitializationUnitDescriptorV1 **initialization_stack;
     size_t initialization_stack_len;
     size_t initialization_stack_cap;
@@ -87,13 +81,12 @@ typedef struct ScoopCallbackThreadEntry {
     ScoopThreadMode previous_mode;
     const char *previous_managed_stack_boundary;
     uint64_t previous_managed_depth;
-    ScoopManagedSegmentState previous_managed_segment;
     bool active;
 } ScoopCallbackThreadEntry;
 
 void scoop_thread_runtime_init(void);
 void scoop_thread_attach_main(void);
-void scoop_thread_prepare_shutdown(void);
+uint64_t scoop_thread_prepare_shutdown(void);
 void scoop_thread_detach_main(void);
 void scoop_thread_runtime_finish_shutdown(void);
 
@@ -102,25 +95,17 @@ ScoopThreadState *scoop_thread_current_required(void);
 void scoop_thread_require_managed(void);
 void scoop_thread_poll(void);
 void scoop_thread_native_borrowed_entry(void);
-void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
-                                      uintptr_t return_pc,
-                                      uintptr_t stack_pointer,
-                                      uintptr_t frame_pointer);
+void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
+                                      uintptr_t stack_pointer, uintptr_t frame_pointer);
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
-void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor,
-                                        uintptr_t return_pc,
-                                        uintptr_t stack_pointer,
-                                        uintptr_t frame_pointer);
-void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
-                                     uintptr_t managed_stack_low,
-                                     uintptr_t return_pc,
-                                     uintptr_t stack_pointer,
+void scoop_thread_push_safepoint_anchor(ScoopManagedAnchor *anchor, uintptr_t return_pc,
+                                        uintptr_t stack_pointer, uintptr_t frame_pointer);
+void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition, uintptr_t managed_stack_low,
+                                     uintptr_t return_pc, uintptr_t stack_pointer,
                                      uintptr_t frame_pointer);
 void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
-                                         uintptr_t managed_stack_low,
-                                         uintptr_t return_pc,
-                                         uintptr_t stack_pointer,
-                                         uintptr_t frame_pointer);
+                                         uintptr_t managed_stack_low, uintptr_t return_pc,
+                                         uintptr_t stack_pointer, uintptr_t frame_pointer);
 
 /* Collection coordinator. begin returns false when this request joined an
  * already active epoch; only the true-returning collector may enumerate the

@@ -19,6 +19,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             CallProtocol::ManagedInvoke { roots, .. } => roots.as_slice(),
             CallProtocol::NoGc => &[],
             CallProtocol::Managed { .. }
+            | CallProtocol::NativeGcLeaf
             | CallProtocol::ReleaseNativeLeaf
             | CallProtocol::NativeSafe { .. }
             | CallProtocol::NativeBorrowed { .. } => {

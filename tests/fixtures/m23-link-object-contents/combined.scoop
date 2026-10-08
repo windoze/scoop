@@ -3,8 +3,9 @@ import dependency.api.imageValue
 import dependency.api.imageMutable
 import dependency.api.computedValue
 
-@Extern(name = "scoop_test_identity")
-fun nativeIdentity(value: Int): Int
+// Keep a StorageBridge alongside the scalar DirectC call below.
+@Extern(name = "scoop_test_identity", captureErrno = true)
+fun nativeIdentity(value: Int): (Int, Int)
 
 @Extern(name = "scoop_test_other")
 fun nativeOther(value: Int): Int
@@ -20,5 +21,8 @@ public val localImageWrite: Int = if (true) { imageMutable = 6; imageMutable } e
 public fun outside(): Int = remote
 public fun unusedDefault(value: Int = remote): Int = value
 public fun nativeCalls(value: Int): Int {
-    @Unsafe { return nativeIdentity(value) + nativeOther(value) }
+    @Unsafe {
+        val (result, _) = nativeIdentity(value)
+        return result + nativeOther(value)
+    }
 }

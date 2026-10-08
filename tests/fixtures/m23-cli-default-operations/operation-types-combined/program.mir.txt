@@ -1,6 +1,6 @@
 Module
   foreign_callback_family fcf0 callback=ForeignCallback<(Ptr<Unit>) -> Unit> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type2 managed=function_type0 context=0 mode=ForeignCallbackMode.Reusable adapter=@fn40
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type2 managed=function_type0 context=0 mode=ForeignCallbackMode.Reusable adapter=@fn44
   struct Array<Int> (value: Int)
   struct MutableArray<Int> (value: Int)
   struct Option<Int> (value: Int)
@@ -37,11 +37,13 @@ Module
   interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
+  interface Equality<Ptr<Int>>
   interface List<(Int, Ptr<Int>)> : Iterable<(Int, Ptr<Int>)>
   interface Iterable<(Int, Ptr<Int>)>
   interface Iterator<(Int, Ptr<Int>)>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn26 captures=0
-    bridge function_type1 -> @fn41 id=071ed12a35a51be941d829b2016415198fce4494ee73f395f52debc92e359cbe
+  interface Equality<Ptr<Unit>>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn28 captures=0
+    bridge function_type1 -> @fn45 id=071ed12a35a51be941d829b2016415198fce4494ee73f395f52debc92e359cbe
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
@@ -49,8 +51,8 @@ Module
   generated_exact_type get4 location=closure0 nominal_id=942758717b04f7462fc6de5676270a295c0f83cea39fa341ee25a68ca8413b8f exact_id=5a4e3f93e29c020389c11bea2ce9f27df072063aef26ba2b7e5fc1350f14048c
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn41 id=071ed12a35a51be941d829b2016415198fce4494ee73f395f52debc92e359cbe
-  generated_callable gc1 function=@fn40 id=d318bf985862bcce593623ea9a1b28943cabf0af2dd9f3e287d2b56877758b88
+  generated_callable gc0 function=@fn45 id=071ed12a35a51be941d829b2016415198fce4494ee73f395f52debc92e359cbe
+  generated_callable gc1 function=@fn44 id=d318bf985862bcce593623ea9a1b28943cabf0af2dd9f3e287d2b56877758b88
   fun verifyDefault @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -115,7 +117,7 @@ Module
       val $dependency.parameter.value: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.seed
-      call $dependency.receiver: Array<Int> = @fn11 direct
+      call $dependency.receiver: Array<Int> = @fn13 direct
         Type Combinations
         Local $dependency.receiver
         Type Array<Int>
@@ -164,7 +166,7 @@ Module
       val $dependency.parameter.value: MutableArray<Int>
         Type MutableArray<Int>
         Local $dependency.parameter.seed
-      call $dependency.receiver: MutableArray<Int> = @fn12 direct
+      call $dependency.receiver: MutableArray<Int> = @fn14 direct
         Type Combinations
         Local $dependency.receiver
         Type MutableArray<Int>
@@ -290,7 +292,7 @@ Module
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
         Local $dependency.parameter.seed
-      call $equality.lhs: Option<Int> = @fn13 direct
+      call $equality.lhs: Option<Int> = @fn15 direct
         Type Combinations
         Local $dependency.receiver
         Type Option<Int>
@@ -303,7 +305,7 @@ Module
       val $dependency.parameter._1: Int
         Type Int
         Local $dependency.argument.0
-      call $argument.0: Boolean = @fn14 direct
+      call $argument.0: Boolean = @fn16 direct
         Type Option<Int>
         Local $equality.lhs
         Type Option<Int>
@@ -325,7 +327,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Array<Int> = @fn36 direct
+      call $dependency.argument.0: Array<Int> = @fn40 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.seed: Array<Int>
@@ -334,7 +336,7 @@ Module
       val $dependency.parameter.value: Array<Int>
         Type Array<Int>
         Local $dependency.parameter.seed
-      call $equality.lhs: Array<Int> = @fn15 direct
+      call $equality.lhs: Array<Int> = @fn17 direct
         Type Combinations
         Local $dependency.receiver
         Type Array<Int>
@@ -347,10 +349,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.3: Array<Int> = @fn36 direct
+      call $call.3: Array<Int> = @fn40 direct
         Type Int
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn16 direct
+      call $argument.0: Boolean = @fn18 direct
         Type Array<Int>
         Local $equality.lhs
         Type Array<Int>
@@ -370,7 +372,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: MutableArray<Int> = @fn37 direct
+      call $dependency.argument.0: MutableArray<Int> = @fn41 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.seed: MutableArray<Int>
@@ -379,7 +381,7 @@ Module
       val $dependency.parameter.value: MutableArray<Int>
         Type MutableArray<Int>
         Local $dependency.parameter.seed
-      call $equality.lhs: MutableArray<Int> = @fn17 direct
+      call $equality.lhs: MutableArray<Int> = @fn19 direct
         Type Combinations
         Local $dependency.receiver
         Type MutableArray<Int>
@@ -392,10 +394,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.4: MutableArray<Int> = @fn37 direct
+      call $call.4: MutableArray<Int> = @fn41 direct
         Type Int
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn18 direct
+      call $argument.0: Boolean = @fn20 direct
         Type MutableArray<Int>
         Local $equality.lhs
         Type MutableArray<Int>
@@ -415,7 +417,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: Option<Int> = @fn38 direct
+      call $dependency.argument.0: Option<Int> = @fn42 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.seed: Option<Int>
@@ -424,7 +426,7 @@ Module
       val $dependency.parameter.value: Option<Int>
         Type Option<Int>
         Local $dependency.parameter.seed
-      call $equality.lhs: Option<Int> = @fn19 direct
+      call $equality.lhs: Option<Int> = @fn21 direct
         Type Combinations
         Local $dependency.receiver
         Type Option<Int>
@@ -437,10 +439,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.5: Option<Int> = @fn38 direct
+      call $call.5: Option<Int> = @fn42 direct
         Type Int
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn20 direct
+      call $argument.0: Boolean = @fn22 direct
         Type Option<Int>
         Local $equality.lhs
         Type Option<Int>
@@ -460,7 +462,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $dependency.argument.0: ForeignCallback<Int> = @fn39 direct
+      call $dependency.argument.0: ForeignCallback<Int> = @fn43 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.parameter.seed: ForeignCallback<Int>
@@ -469,7 +471,7 @@ Module
       val $dependency.parameter.value: ForeignCallback<Int>
         Type ForeignCallback<Int>
         Local $dependency.parameter.seed
-      call $equality.lhs: ForeignCallback<Int> = @fn21 direct
+      call $equality.lhs: ForeignCallback<Int> = @fn23 direct
         Type Combinations
         Local $dependency.receiver
         Type ForeignCallback<Int>
@@ -482,10 +484,10 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.6: ForeignCallback<Int> = @fn39 direct
+      call $call.6: ForeignCallback<Int> = @fn43 direct
         Type Int
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn22 direct
+      call $argument.0: Boolean = @fn24 direct
         Type ForeignCallback<Int>
         Local $equality.lhs
         Type ForeignCallback<Int>
@@ -519,7 +521,7 @@ Module
         Local $dependency.parameter.seed
         Type (Unit, Boolean)
         Local $dependency.parameter.value
-      call $argument.0: Boolean = @fn24 direct
+      call $argument.0: Boolean = @fn26 direct
         Type (Unit, Boolean)
         Local $call.7
         Type (Unit, Boolean)
@@ -561,7 +563,7 @@ Module
       val $dependency.parameter.value: Array<(Int, Ptr<Int>)>
         Type Array<(Int, Ptr<Int>)>
         Local $dependency.parameter.seed
-      call $dependency.receiver: Array<(Int, Ptr<Int>)> = @fn25 direct
+      call $dependency.receiver: Array<(Int, Ptr<Int>)> = @fn27 direct
         Type Combinations
         Local $dependency.receiver
         Type Array<(Int, Ptr<Int>)>
@@ -574,7 +576,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call selected: (Int, Ptr<Int>) = @fn9 direct
+      call selected: (Int, Ptr<Int>) = @fn10 direct
         Type Array<(Int, Ptr<Int>)>
         Local $dependency.receiver
         Type Long
@@ -667,7 +669,7 @@ Module
       val $dependency.parameter.value: ForeignCallback<(Ptr<Unit>) -> Unit>
         Type ForeignCallback<(Ptr<Unit>) -> Unit>
         Local $dependency.parameter.seed
-      call copied: ForeignCallback<(Ptr<Unit>) -> Unit> = @fn27 direct
+      call copied: ForeignCallback<(Ptr<Unit>) -> Unit> = @fn29 direct
         Type Combinations
         Local $dependency.receiver
         Type ForeignCallback<(Ptr<Unit>) -> Unit>
@@ -729,7 +731,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn34 direct
+      call @fn38 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -840,7 +842,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn34 direct
+      call @fn38 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -926,7 +928,26 @@ Module
         ArrayLen MutableArray<Int>
           Type MutableArray<Int>
           Local $dependency.local.1
-  fun iterator @fn8(this: Array<(Int, Ptr<Int>)>) -> Iterator<(Int, Ptr<Int>)>
+  fun equalTo @fn8(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn31 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun iterator @fn9(this: Array<(Int, Ptr<Int>)>) -> Iterator<(Int, Ptr<Int>)>
     bb0 entry
       val $dependency.local.1: List<(Int, Ptr<Int>)>
         Type List<(Int, Ptr<Int>)>
@@ -951,7 +972,7 @@ Module
       assign $new.1
         Type ListIterator<(Int, Ptr<Int>)>
         ClassAlloc ListIterator<(Int, Ptr<Int>)>
-      call @fn35 direct
+      call @fn39 direct
         Type ListIterator<(Int, Ptr<Int>)>
         Local $new.1
         Type List<(Int, Ptr<Int>)>
@@ -965,7 +986,7 @@ Module
         Retype Iterator<(Int, Ptr<Int>)>
           Type ListIterator<(Int, Ptr<Int>)>
           Local $new.1
-  fun get @fn9(this: Array<(Int, Ptr<Int>)>, index: Long) -> (Int, Ptr<Int>)
+  fun get @fn10(this: Array<(Int, Ptr<Int>)>, index: Long) -> (Int, Ptr<Int>)
     bb0 entry
       val $dependency.local.2: Array<(Int, Ptr<Int>)>
         Type Array<(Int, Ptr<Int>)>
@@ -1027,7 +1048,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn10(this: Array<(Int, Ptr<Int>)>) -> Long
+  fun size @fn11(this: Array<(Int, Ptr<Int>)>) -> Long
     bb0 entry
       val $dependency.local.1: Array<(Int, Ptr<Int>)>
         Type Array<(Int, Ptr<Int>)>
@@ -1037,22 +1058,41 @@ Module
         ArrayLen Array<(Int, Ptr<Int>)>
           Type Array<(Int, Ptr<Int>)>
           Local $dependency.local.1
-  fun array @fn11(this: Combinations, seed: Array<Int>, value: Array<Int>) -> Array<Int>
+  fun equalTo @fn12(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn33 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun array @fn13(this: Combinations, seed: Array<Int>, value: Array<Int>) -> Array<Int>
     bb0 entry
       return
         Type Array<Int>
         Local value
-  fun mutable @fn12(this: Combinations, seed: MutableArray<Int>, value: MutableArray<Int>) -> MutableArray<Int>
+  fun mutable @fn14(this: Combinations, seed: MutableArray<Int>, value: MutableArray<Int>) -> MutableArray<Int>
     bb0 entry
       return
         Type MutableArray<Int>
         Local value
-  fun option @fn13(this: Combinations, seed: Option<Int>, value: Option<Int>) -> Option<Int>
+  fun option @fn15(this: Combinations, seed: Option<Int>, value: Option<Int>) -> Option<Int>
     bb0 entry
       return
         Type Option<Int>
         Local value
-  fun $derived.equals.0 @fn14(this: Option<Int>, other: Option<Int>) -> Boolean
+  fun $derived.equals.0 @fn16(this: Option<Int>, other: Option<Int>) -> Boolean
     bb0 entry
       val $when.1: Option<Int>
         Type Option<Int>
@@ -1138,12 +1178,12 @@ Module
         BoolLiteral false
     bb12 pattern.merge.12
       unreachable
-  fun mimicArray @fn15(this: Combinations, seed: Array<Int>, value: Array<Int>) -> Array<Int>
+  fun mimicArray @fn17(this: Combinations, seed: Array<Int>, value: Array<Int>) -> Array<Int>
     bb0 entry
       return
         Type Array<Int>
         Local value
-  fun $derived.equals.1 @fn16(this: Array<Int>, other: Array<Int>) -> Boolean
+  fun $derived.equals.1 @fn18(this: Array<Int>, other: Array<Int>) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1156,12 +1196,12 @@ Module
           FieldAccess 0
             Type Array<Int>
             Local other
-  fun mimicMutable @fn17(this: Combinations, seed: MutableArray<Int>, value: MutableArray<Int>) -> MutableArray<Int>
+  fun mimicMutable @fn19(this: Combinations, seed: MutableArray<Int>, value: MutableArray<Int>) -> MutableArray<Int>
     bb0 entry
       return
         Type MutableArray<Int>
         Local value
-  fun $derived.equals.2 @fn18(this: MutableArray<Int>, other: MutableArray<Int>) -> Boolean
+  fun $derived.equals.2 @fn20(this: MutableArray<Int>, other: MutableArray<Int>) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1174,12 +1214,12 @@ Module
           FieldAccess 0
             Type MutableArray<Int>
             Local other
-  fun mimicOption @fn19(this: Combinations, seed: Option<Int>, value: Option<Int>) -> Option<Int>
+  fun mimicOption @fn21(this: Combinations, seed: Option<Int>, value: Option<Int>) -> Option<Int>
     bb0 entry
       return
         Type Option<Int>
         Local value
-  fun $derived.equals.3 @fn20(this: Option<Int>, other: Option<Int>) -> Boolean
+  fun $derived.equals.3 @fn22(this: Option<Int>, other: Option<Int>) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1192,12 +1232,12 @@ Module
           FieldAccess 0
             Type Option<Int>
             Local other
-  fun mimicCallback @fn21(this: Combinations, seed: ForeignCallback<Int>, value: ForeignCallback<Int>) -> ForeignCallback<Int>
+  fun mimicCallback @fn23(this: Combinations, seed: ForeignCallback<Int>, value: ForeignCallback<Int>) -> ForeignCallback<Int>
     bb0 entry
       return
         Type ForeignCallback<Int>
         Local value
-  fun $derived.equals.4 @fn22(this: ForeignCallback<Int>, other: ForeignCallback<Int>) -> Boolean
+  fun $derived.equals.4 @fn24(this: ForeignCallback<Int>, other: ForeignCallback<Int>) -> Boolean
     bb0 entry
       return
         Type Boolean
@@ -1210,14 +1250,14 @@ Module
           FieldAccess 0
             Type ForeignCallback<Int>
             Local other
-  fun $derived.equals.5 @fn23(this: Unit, other: Unit) -> Boolean
+  fun $derived.equals.5 @fn25(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return
         Type Boolean
         BoolLiteral true
-  fun $derived.equals.6 @fn24(this: (Unit, Boolean), other: (Unit, Boolean)) -> Boolean
+  fun $derived.equals.6 @fn26(this: (Unit, Boolean), other: (Unit, Boolean)) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn23 direct
+      call $call.1: Boolean = @fn25 direct
         Type Unit
         FieldAccess 0
           Type (Unit, Boolean)
@@ -1252,20 +1292,20 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun nested @fn25(this: Combinations, seed: Array<(Int, Ptr<Int>)>, value: Array<(Int, Ptr<Int>)>) -> Array<(Int, Ptr<Int>)>
+  fun nested @fn27(this: Combinations, seed: Array<(Int, Ptr<Int>)>, value: Array<(Int, Ptr<Int>)>) -> Array<(Int, Ptr<Int>)>
     bb0 entry
       return
         Type Array<(Int, Ptr<Int>)>
         Local value
-  fun $lambda.0 @fn26($closure: () -> Unit) -> Unit
+  fun $lambda.0 @fn28($closure: () -> Unit) -> Unit
     bb0 entry
       return
-  fun callback @fn27(this: Combinations, seed: ForeignCallback<(Ptr<Unit>) -> Unit>, value: ForeignCallback<(Ptr<Unit>) -> Unit>) -> ForeignCallback<(Ptr<Unit>) -> Unit>
+  fun callback @fn29(this: Combinations, seed: ForeignCallback<(Ptr<Unit>) -> Unit>, value: ForeignCallback<(Ptr<Unit>) -> Unit>) -> ForeignCallback<(Ptr<Unit>) -> Unit>
     bb0 entry
       return
         Type ForeignCallback<(Ptr<Unit>) -> Unit>
         Local value
-  fun next @fn28(this: ListIterator<Int>) -> Option<Int>
+  fun next @fn30(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1282,7 +1322,7 @@ Module
         FieldAccess 1
           Type ListIterator<Int>
           Local this
-      call $dependency.local.3: Long = @fn30 interface List<Int>[2]
+      call $dependency.local.3: Long = @fn34 interface List<Int>[2]
         Type List<Int>
         FieldAccess 0
           Type ListIterator<Int>
@@ -1324,7 +1364,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Int = @fn31 interface List<Int>[1]
+      call $dependency.local.1: Int = @fn35 interface List<Int>[1]
         Type List<Int>
         Local $dependency.local.5
         Type Long
@@ -1360,7 +1400,29 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun next @fn29(this: ListIterator<(Int, Ptr<Int>)>) -> Option<(Int, Ptr<Int>)>
+  fun equals @fn31(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun next @fn32(this: ListIterator<(Int, Ptr<Int>)>) -> Option<(Int, Ptr<Int>)>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1377,7 +1439,7 @@ Module
         FieldAccess 1
           Type ListIterator<(Int, Ptr<Int>)>
           Local this
-      call $dependency.local.3: Long = @fn32 interface List<(Int, Ptr<Int>)>[2]
+      call $dependency.local.3: Long = @fn36 interface List<(Int, Ptr<Int>)>[2]
         Type List<(Int, Ptr<Int>)>
         FieldAccess 0
           Type ListIterator<(Int, Ptr<Int>)>
@@ -1419,7 +1481,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: (Int, Ptr<Int>) = @fn33 interface List<(Int, Ptr<Int>)>[1]
+      call $dependency.local.1: (Int, Ptr<Int>) = @fn37 interface List<(Int, Ptr<Int>)>[1]
         Type List<(Int, Ptr<Int>)>
         Local $dependency.local.5
         Type Long
@@ -1455,19 +1517,41 @@ Module
         VariantConstruct Option<(Int, Ptr<Int>)> v0
           Type (Int, Ptr<Int>)
           Local $dependency.local.12
-  fun List.$get$size @fn30(this: List<Int>) -> Long
+  fun equals @fn33(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun List.$get$size @fn34(this: List<Int>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn31(this: List<Int>, index: Long) -> Int
+  fun List.get @fn35(this: List<Int>, index: Long) -> Int
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn32(this: List<(Int, Ptr<Int>)>) -> Long
+  fun List.$get$size @fn36(this: List<(Int, Ptr<Int>)>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn33(this: List<(Int, Ptr<Int>)>, index: Long) -> (Int, Ptr<Int>)
+  fun List.get @fn37(this: List<(Int, Ptr<Int>)>, index: Long) -> (Int, Ptr<Int>)
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun init.ListIterator.$c4 @fn34(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn38(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Int>
@@ -1485,7 +1569,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c4 @fn35(this: ListIterator<(Int, Ptr<Int>)>, source: List<(Int, Ptr<Int>)>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c4 @fn39(this: ListIterator<(Int, Ptr<Int>)>, source: List<(Int, Ptr<Int>)>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<(Int, Ptr<Int>)>
@@ -1503,35 +1587,35 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Array.$c0 @fn36(value: Int) -> Array<Int> <no-gc>
+  fun ctor.Array.$c0 @fn40(value: Int) -> Array<Int> <no-gc>
     bb0 entry
       return
         Type Array<Int>
         StructInit Array<Int>
           Type Int
           Local value
-  fun ctor.MutableArray.$c1 @fn37(value: Int) -> MutableArray<Int> <no-gc>
+  fun ctor.MutableArray.$c1 @fn41(value: Int) -> MutableArray<Int> <no-gc>
     bb0 entry
       return
         Type MutableArray<Int>
         StructInit MutableArray<Int>
           Type Int
           Local value
-  fun ctor.Option.$c2 @fn38(value: Int) -> Option<Int> <no-gc>
+  fun ctor.Option.$c2 @fn42(value: Int) -> Option<Int> <no-gc>
     bb0 entry
       return
         Type Option<Int>
         StructInit Option<Int>
           Type Int
           Local value
-  fun ctor.ForeignCallback.$c3 @fn39(value: Int) -> ForeignCallback<Int> <no-gc>
+  fun ctor.ForeignCallback.$c3 @fn43(value: Int) -> ForeignCallback<Int> <no-gc>
     bb0 entry
       return
         Type ForeignCallback<Int>
         StructInit ForeignCallback<Int>
           Type Int
           Local value
-  fun foreign callback adapter 0 @fn40($closure: () -> Unit, $snapshot: internal<context-node>, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn44($closure: () -> Unit, $snapshot: internal<context-node>, $result: Ptr<Unit>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1590,7 +1674,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.() -> Any @fn41($source: () -> Unit) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn45($source: () -> Unit) -> Any
     bb0 entry
       call <closure:function_type0> closure[function_type0]
         Type () -> Unit
@@ -1606,23 +1690,27 @@ Module
   instance mi3 function=@fn5 <- iterator
   instance mi4 function=@fn6 <- get
   instance mi5 function=@fn7 <- size
-  instance mi6 function=@fn8 <- iterator
-  instance mi7 function=@fn9 <- get
-  instance mi8 function=@fn10 <- size
-  instance mi9 function=@fn11 <- array
-  instance mi10 function=@fn12 <- mutable
-  instance mi11 function=@fn13 <- option
-  instance mi12 function=@fn15 <- mimicArray
-  instance mi13 function=@fn17 <- mimicMutable
-  instance mi14 function=@fn19 <- mimicOption
-  instance mi15 function=@fn21 <- mimicCallback
-  instance mi16 function=@fn25 <- nested
-  instance mi17 function=@fn27 <- callback
-  instance mi18 function=@fn28 <- next
-  instance mi19 function=@fn29 <- next
-  instance mi20 function=@fn30 <- List.$get$size
-  instance mi21 function=@fn31 <- List.get
-  instance mi22 function=@fn32 <- List.$get$size
-  instance mi23 function=@fn33 <- List.get
+  instance mi6 function=@fn8 <- equalTo
+  instance mi7 function=@fn9 <- iterator
+  instance mi8 function=@fn10 <- get
+  instance mi9 function=@fn11 <- size
+  instance mi10 function=@fn12 <- equalTo
+  instance mi11 function=@fn13 <- array
+  instance mi12 function=@fn14 <- mutable
+  instance mi13 function=@fn15 <- option
+  instance mi14 function=@fn17 <- mimicArray
+  instance mi15 function=@fn19 <- mimicMutable
+  instance mi16 function=@fn21 <- mimicOption
+  instance mi17 function=@fn23 <- mimicCallback
+  instance mi18 function=@fn27 <- nested
+  instance mi19 function=@fn29 <- callback
+  instance mi20 function=@fn30 <- next
+  instance mi21 function=@fn31 <- equals
+  instance mi22 function=@fn32 <- next
+  instance mi23 function=@fn33 <- equals
+  instance mi24 function=@fn34 <- List.$get$size
+  instance mi25 function=@fn35 <- List.get
+  instance mi26 function=@fn36 <- List.$get$size
+  instance mi27 function=@fn37 <- List.get
   str @str0 "illegal state"
   output executable @fn1

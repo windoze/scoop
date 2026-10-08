@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_PREBUILT_VIEW_INVALID",
+    "message": "invalid artifact summary ${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib: archive global magic is not canonical",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "container:$",
+      "path": "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"
+    },
+    "phase": "Summary",
+    "severity": "error"
+  }
+]

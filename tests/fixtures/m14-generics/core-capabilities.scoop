@@ -8,10 +8,11 @@ struct Point(val x: Int, val y: Int) : ToString, Hash, Label {
     override fun label(): String = toString()
 }
 
-class User(val id: Int) : ToString, Hash {
+class User(val id: Int) : ToString, Hash, Equality<User> {
     public override fun toString(): String = "User"
     public override fun hash(): Long = id.toInt64()
-    operator fun equals(other: User): Boolean = id == other.id
+    public operator fun equals(other: User): Boolean = id == other.id
+    public override fun equalTo(other: User): Boolean = this.equals(other)
 }
 
 class RenderBox<T : ToString>(val value: T) : ToString {

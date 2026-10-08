@@ -344,6 +344,12 @@ impl BodyProjection<'_, '_> {
             ExprKind::ArrayClone(value) => {
                 DefaultExpressionKindV1::ArrayClone(Box::new(self.expression(value)?))
             }
+            ExprKind::AtomicNew(value) => {
+                DefaultExpressionKindV1::AtomicNew(Box::new(self.expression(value)?))
+            }
+            ExprKind::Atomic(atomic) => DefaultExpressionKindV1::Atomic(Box::new(
+                atomic.try_map(|value| self.expression(value))?,
+            )),
             ExprKind::Call {
                 callee,
                 args,

@@ -21,7 +21,7 @@ impl Lowerer {
         ))
     }
 
-    pub(super) fn imported_derived_equality(
+    pub(crate) fn imported_derived_equality(
         &self,
         ty: hir::TypeId,
     ) -> Option<hir::ImportedDerivedEquality> {
@@ -93,12 +93,7 @@ impl Lowerer {
             .dependencies
             .as_ref()
             .expect("an imported equality owner retains its provider")
-            .member_callable_candidates(
-                owner,
-                hir::ImportedMemberLookup::Operator(hir::CallableOperatorRoleV1::Language(
-                    hir::CallableOperatorV1::Equals,
-                )),
-            )
+            .member_callable_candidates(owner, hir::ImportedMemberLookup::Name("equals"))
             .map_err(|error| error.to_string())?;
         for candidate in candidates {
             let [parameter] = candidate.interface().parameters().parameters() else {

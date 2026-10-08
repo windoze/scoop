@@ -14,7 +14,7 @@ pub struct StructDecl {
     pub methods: Vec<FunctionId>,
     pub properties: Vec<PropertyId>,
     /// Compiler-derived same-type equality declaration, when no explicit
-    /// same-signature operator suppresses derivation. Applicability remains
+    /// same-signature member suppresses derivation. Applicability remains
     /// conditional on this application's field obligations.
     pub derived_equality: Option<FunctionId>,
     pub span: Span,

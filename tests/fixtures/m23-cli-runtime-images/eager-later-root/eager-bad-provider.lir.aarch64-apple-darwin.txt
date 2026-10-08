@@ -4,13 +4,11 @@ Module
   global @scoop$1$ss$1ad607e4b1ae3f8298cb17eafb050770fc09943d71a90423c84b5d538859f0c9 : ptr<managed> scan=refs[0]
   init0 top-level:bad storage=@scoop$1$ss$2236e867bd5724e9fff56ace2216eff93269a152c978bebece64d7664e7ad801 failure=@scoop$1$ss$1ad607e4b1ae3f8298cb17eafb050770fc09943d71a90423c84b5d538859f0c9 initializer=@scoop$1$cb$794a804cc0d0674255cda8c22956ea54c6f178f6057bff802779df95c64ca819 ensure=@scoop$1$cb$5044e6fa216f0237703d567af4a24c51de5ef05596d311f1d08f5fa6c334aa6d deps=[]
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$a6de9f5f9f29d89155848fdbd7451091b8372ce674dd8e31c30f0b1bf11e78ab gc-leaf nounwind lib=m23_runtime_images>
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void direct-c=(i64)->void gc-leaf nounwind lib=m23_runtime_images>
   fun @scoop$1$cb$b081d4509c18b7b27c6240514533110f88fb19e6ad3987f7e02f93ad77add817(i64) -> void
-    local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    store param0 -> local0
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(param0)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$b41744d4179ce002c4b2182d57d693cc064643529da0fe97fef722c788907423() -> i64
@@ -20,13 +18,11 @@ Module
     local %3 $default.local.1: ptr<managed>
     local %4 $dependency.parameter.message: enum0
     local %5 $new.1: ptr<managed>
-    local %6 $sc.1: i64
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000001) -> local0
     store local0 -> local1
-    store local1 -> local6
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local6))
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i64) extern0(local1)
     t0 = aggregate () : {}
     store global0 -> local2
     store local2 -> local3

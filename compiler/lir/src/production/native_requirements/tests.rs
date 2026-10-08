@@ -107,7 +107,7 @@ fn rejects_conflicting_contracts_for_one_link_symbol() {
 }
 
 #[test]
-fn rejects_missing_and_orphan_library_requirements() {
+fn rejects_missing_requirements_and_preserves_native_only_libraries() {
     let missing = CborIdentityRecord::from_key(NativeLinkRequirementKey::target_default(
         CanonicalNativeLibraryName::new("missing").unwrap(),
     ))
@@ -140,13 +140,12 @@ fn rejects_missing_and_orphan_library_requirements() {
     ))
     .unwrap();
     let orphan_foundation = foundation(Vec::new(), vec![orphan.clone()]);
-    assert_eq!(
-        CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
-            LirTargetProfile::DARWIN_AARCH64,
-            &orphan_foundation,
-        ),
-        Err(CanonicalNativeExternalRequirementBuildError::UnusedLibraryRequirement(orphan.id()))
-    );
+    let surface = CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
+        LirTargetProfile::DARWIN_AARCH64,
+        &orphan_foundation,
+    )
+    .unwrap();
+    assert_eq!(surface.library_requirements(), &[orphan]);
 }
 
 fn foundation(

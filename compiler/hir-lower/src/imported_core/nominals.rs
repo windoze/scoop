@@ -100,7 +100,7 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Intrinsic(representation)
                 if representation.family() == hir::IntrinsicTypeKind::Ptr =>
             {
-                Ok(self.intern_type(hir::Type::Ptr(arguments[0])))
+                self.imported_struct_type(declaration, arguments)
             }
             hir::NominalSourceShapeV1::Intrinsic(representation)
                 if representation.family() == hir::IntrinsicTypeKind::FunPtr =>
@@ -117,6 +117,7 @@ impl Lowerer {
                 if matches!(
                     representation.family(),
                     hir::IntrinsicTypeKind::Array
+                        | hir::IntrinsicTypeKind::Atomic(_)
                         | hir::IntrinsicTypeKind::MutableArray
                         | hir::IntrinsicTypeKind::Any
                         | hir::IntrinsicTypeKind::Nothing

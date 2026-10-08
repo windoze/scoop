@@ -109,6 +109,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
     ) -> concrete::IntrinsicTypeRepresentation {
         match representation {
+            export::IntrinsicTypeRepresentation::Atomic(storage) => {
+                concrete::IntrinsicTypeRepresentation::Atomic(
+                    storage.map(|ty| self.lower_type(ty, substitution)),
+                )
+            }
             export::IntrinsicTypeRepresentation::Any => concrete::IntrinsicTypeRepresentation::Any,
             export::IntrinsicTypeRepresentation::Nothing => {
                 concrete::IntrinsicTypeRepresentation::Nothing
@@ -224,7 +229,9 @@ impl Concretizer<'_> {
             }
             export::Type::Ptr(pointee) => {
                 let pointee = self.lower_type(pointee, substitution);
-                self.intern_type(concrete::TypeKind::Ptr(pointee), true)
+                let ty = self.intern_type(concrete::TypeKind::Ptr(pointee), true);
+                self.ensure_pointer_source(pointee);
+                ty
             }
             export::Type::FunPtr(id) => {
                 let id = self.lower_function_type(id, substitution);

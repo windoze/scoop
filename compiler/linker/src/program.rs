@@ -210,6 +210,7 @@ impl<'a> ProgramInputs<'a> {
         );
         let (declarations, libraries) = native::declarations::read(closure)?;
         let mut native = NativeInputs::read(libraries, library_paths, profile)?;
+        native.include_embedded(closure, profile)?;
         let namespace =
             crate::namespace::NativeNamespace::read(&mut native, library_paths, profile)?;
         let mut result = Self {
@@ -253,6 +254,7 @@ impl<'a> ProgramInputs<'a> {
 
     pub fn linker_defined(&self, symbol: &str) -> bool {
         symbol == self.symbol("scoop_td_String")
+            || symbol == self.symbol("__dso_handle")
             || (self.target.id() != scoop_lir::TargetProfileId::DarwinAarch64
                 && matches!(
                     symbol,

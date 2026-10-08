@@ -1,0 +1,42 @@
+interface Measure {
+    public fun measure(delta: Int): Int
+}
+
+interface DetailedMeasure : Measure {}
+
+struct Reading(val base: Int) : DetailedMeasure {
+    @NoGC
+    public override fun measure(delta: Int): Int = base + delta
+}
+
+enum Mode : Measure {
+    Active, Idle
+
+    @NoGC
+    public override fun measure(delta: Int): Int = delta + 10
+}
+
+@NoGC
+fun direct(reading: Reading): Int = reading.measure(2)
+
+fun <T : Measure> bounded(value: T): Int = value.measure(3)
+
+fun dispatch(value: Measure): Int = value.measure(4)
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    val reading = Reading(40)
+    check(direct(reading) == 42)
+    check(bounded(reading) == 43)
+    val view: DetailedMeasure = reading
+    check(dispatch(view) == 44)
+    val boxed: Any = reading
+    check(boxed is Measure)
+    check((boxed as Measure).measure(5) == 45)
+    check(bounded(Mode.Active) == 13)
+    check(dispatch(Mode.Idle) == 14)
+    println("effect adapters")
+}

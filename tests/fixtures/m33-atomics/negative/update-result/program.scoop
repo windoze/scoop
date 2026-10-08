@@ -1,0 +1,2 @@
+fun bad(cell: AtomicInt) { cell.updateAndGet({ value -> true }) }
+fun main() {}

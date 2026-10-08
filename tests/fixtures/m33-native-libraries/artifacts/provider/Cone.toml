@@ -1,0 +1,13 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "library-provider"
+version = "0.1.0"
+kind = "library"
+[native]
+c_flags = ["-DPROVIDER_OFFSET=2", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/provider.c"
+
+[[native.libraries]]
+name = "m"

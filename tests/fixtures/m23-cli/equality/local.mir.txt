@@ -70,6 +70,8 @@ Module
   class box<Flag> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Boolean>
+  interface Equality<Int>
   interface Continuation<Envelope>
   interface SuspendTask<Envelope>
   interface SuspendRegistration<Envelope>

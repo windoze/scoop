@@ -17,6 +17,7 @@ Module
   interface Iterator<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn9 captures=0
     bridge function_type1 -> @fn18 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn15 captures=0

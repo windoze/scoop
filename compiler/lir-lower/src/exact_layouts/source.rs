@@ -115,6 +115,57 @@ impl<'a> Projection<'a> {
                 }
                 Ok(())
             }
+            (Kind::AtomicReference { value }, mir::Type::Class(id)) => {
+                let mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(
+                    scoop_identity::AtomicStorage::Reference(actual),
+                )) = &self.module.classes[*id].representation
+                else {
+                    return Err(ExactLayoutLoweringError::SourceRepresentation(exact));
+                };
+                if *value != self.exact_of(actual)? {
+                    return Err(ExactLayoutLoweringError::SourceFields(exact));
+                }
+                Ok(())
+            }
+            (
+                Kind::Intrinsic(
+                    expected @ (Intrinsic::AtomicInt
+                    | Intrinsic::AtomicLong
+                    | Intrinsic::AtomicBoolean),
+                ),
+                mir::Type::Class(id),
+            ) => {
+                let matches = matches!(
+                    (expected, &self.module.classes[*id].representation),
+                    (
+                        Intrinsic::AtomicInt,
+                        mir::ClassRepresentation::Intrinsic(
+                            mir::IntrinsicTypeRepresentation::Atomic(
+                                scoop_identity::AtomicStorage::Int
+                            )
+                        )
+                    ) | (
+                        Intrinsic::AtomicLong,
+                        mir::ClassRepresentation::Intrinsic(
+                            mir::IntrinsicTypeRepresentation::Atomic(
+                                scoop_identity::AtomicStorage::Long
+                            )
+                        )
+                    ) | (
+                        Intrinsic::AtomicBoolean,
+                        mir::ClassRepresentation::Intrinsic(
+                            mir::IntrinsicTypeRepresentation::Atomic(
+                                scoop_identity::AtomicStorage::Boolean
+                            )
+                        )
+                    )
+                );
+                if matches {
+                    Ok(())
+                } else {
+                    Err(ExactLayoutLoweringError::SourceRepresentation(exact))
+                }
+            }
             (Kind::Intrinsic(Intrinsic::Float(expected)), mir::Type::Struct(id)) if matches!(self.module.structs[*id].representation, mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Float(actual)) if actual == *expected) => {
                 Ok(())
             }

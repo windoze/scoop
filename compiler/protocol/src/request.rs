@@ -108,6 +108,7 @@ pub struct ScoopcBuildRequestV1 {
     diagnostics: DiagnosticOutputPolicyV1,
     emit: StageDumpPolicyV1,
     optimization: OptimizationMode,
+    native_inputs: Vec<HostPathCarrier>,
 }
 
 impl ScoopcBuildRequestV1 {
@@ -133,6 +134,7 @@ impl ScoopcBuildRequestV1 {
             diagnostics,
             emit,
             optimization: OptimizationMode::Debug,
+            native_inputs: Vec::new(),
         })
     }
 
@@ -143,6 +145,16 @@ impl ScoopcBuildRequestV1 {
 
     pub const fn optimization(&self) -> OptimizationMode {
         self.optimization
+    }
+
+    /// Preprocessed units in normalized, target-selected native source order.
+    pub fn with_native_inputs(mut self, inputs: Vec<HostPathCarrier>) -> Self {
+        self.native_inputs = inputs;
+        self
+    }
+
+    pub fn native_inputs(&self) -> &[HostPathCarrier] {
+        &self.native_inputs
     }
 
     pub fn current(&self) -> &CurrentConeRequestV1 {
@@ -180,7 +192,7 @@ impl ScoopcBuildRequestV1 {
 
 impl WireEncode for ScoopcBuildRequestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.current.encode(encoder)?;
         encoder.field(2)?;
@@ -198,7 +210,9 @@ impl WireEncode for ScoopcBuildRequestV1 {
         encoder.field(8)?;
         self.emit.encode(encoder)?;
         encoder.field(9)?;
-        self.optimization.encode(encoder)
+        self.optimization.encode(encoder)?;
+        encoder.field(10)?;
+        encode_paths(encoder, &self.native_inputs)
     }
 }
 

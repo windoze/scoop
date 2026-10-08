@@ -166,6 +166,8 @@ Module
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Child>
   interface Encodable<Explicit>
   interface Extended<Item> : Encodable<Item>
@@ -182,6 +184,7 @@ Module
   interface SingleValueDecodingContainer
   interface Encodable<Envelope<Item>>
   interface Hash
+  interface Equality<Int>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>
@@ -196,8 +199,10 @@ Module
   interface List<JsonValue> : Iterable<JsonValue>
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Explicit>
   interface SuspendTask<Explicit>
   interface SuspendRegistration<Explicit>

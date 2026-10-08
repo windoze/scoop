@@ -1,0 +1,21 @@
+package m33.consumer
+import m33.leaf.*
+
+class Cell(val number: Int)
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val cell = Cell(42)
+    @Unsafe {
+        expect(safeObserve(0, 7) == 7)
+        expect(leafObserve(1, 9) == 9)
+        val result = leafPair(Pair(5, 0.75))
+        expect(result.number == 15 && result.fraction == 1.25)
+    }
+    expect(throughGeneric(cell, 13) === cell)
+    expect(throughGeneric(17, 19) == 17)
+    gcCollect()
+    expect(cell.number == 42)
+    println("gc-leaf-artifacts-ok")
+}

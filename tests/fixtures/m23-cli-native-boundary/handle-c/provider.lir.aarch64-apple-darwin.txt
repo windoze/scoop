@@ -1,16 +1,13 @@
 Module
-  extern ef0 handleRoundTrip @handle_round_trip(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop$1$br$b76a0cbef755af022b4bcd5c7384dbc1f508a4a85e2a4ca11e4524c836579b5f gc-leaf nounwind>
+  extern ef0 handleRoundTrip @handle_round_trip(i64) -> i64 <c exact=(ULong)->ULong direct-c=(i64)->i64 gc-leaf nounwind>
   fun @scoop$1$cb$76928f3d698834740317bd6f3661fd3140b223e8e8ed4f569c090172724ce3ab(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
     local %0 $call.1: struct0
-    local %1 $sc.1: i64
-    local %2 $sc.2: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i64
-    store t0 -> local1
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local1))
-    t1 = aggregate (local2) : struct0
-    store t1 -> local0
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct0 (i64) -> i64 extern0(t0)
+    t2 = aggregate (t1) : struct0
+    store t2 -> local0
     ret local0
   fun @scoop$1$cb$d00e5d4a2b7e154fdcfbb35a7bd66f9c7d9327aaf2ad55132b419c0e2bf69572() -> void
     local %0 $dependency.argument.0: i64
@@ -19,8 +16,6 @@ Module
     local %3 $parameter.value: struct0
     local %4 result: struct0
     local %5 $sc.1: struct0
-    local %6 $sc.2: i64
-    local %7 $sc.3: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<ULong>(0x000000000000002a) -> local0
@@ -29,10 +24,9 @@ Module
     store local5 -> local2
     store local2 -> local3
     t0 = extract local3, 0 : i64
-    store t0 -> local6
-    call native-safe-indirect-target0 sp<native-safe:0> roots=[] local7 = sig=indirect1 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern0(c-arg-address(local6))
-    t1 = aggregate (local7) : struct0
-    store t1 -> local4
+    call native-safe-direct-target0 sp<native-safe:0> roots=[] t1 = sig=direct0 (i64) -> i64 extern0(t0)
+    t2 = aggregate (t1) : struct0
+    store t2 -> local4
     ret
   fun @scoop$1$cb$5de9fd09d6fd1391d730b0fb135fd200662f47e2a13fa4abae2c32adecb95e97(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
   block entry

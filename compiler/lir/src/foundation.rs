@@ -91,6 +91,7 @@ pub struct CanonicalLirFoundation {
     bridge_atoms: Vec<BridgeAtomRecord>,
     callback_bridges: Vec<CallbackBridgeRecord>,
     native_link_requirements: Vec<NativeLinkRequirementRecord>,
+    native_cxx: bool,
     definition_plans: Vec<DefinitionPlanRecord>,
     definition_atoms: Vec<DefinitionAtomRecord>,
 }
@@ -118,6 +119,7 @@ impl CanonicalLirFoundation {
             bridge_atoms: Vec::new(),
             callback_bridges: Vec::new(),
             native_link_requirements: Vec::new(),
+            native_cxx: false,
             definition_plans: Vec::new(),
             definition_atoms: Vec::new(),
         }
@@ -421,7 +423,7 @@ pub struct LirFoundationCounts {
 
 impl WireEncode for CanonicalLirFoundation {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(22)?;
+        encoder.map(23)?;
         encode_table_field(encoder, 1, &self.materialized_exact_types)?;
         encode_table_field(encoder, 2, &self.layouts)?;
         encode_table_field(encoder, 3, &self.scans)?;
@@ -444,7 +446,9 @@ impl WireEncode for CanonicalLirFoundation {
         encode_table_field(encoder, 19, &self.callback_bridges)?;
         encode_table_field(encoder, 20, &self.native_link_requirements)?;
         encode_table_field(encoder, 21, &self.definition_plans)?;
-        encode_table_field(encoder, 22, &self.definition_atoms)
+        encode_table_field(encoder, 22, &self.definition_atoms)?;
+        encoder.field(23)?;
+        encoder.unsigned(u64::from(self.native_cxx))
     }
 }
 

@@ -8,8 +8,11 @@ Module
   class box<SourceLocation> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Long>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=0
     bridge function_type1 -> @fn13 id=4525a398d45d100a31b38f7fab90497a68ab3eabe4c57176e7bd6485473accfe
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn11 captures=0

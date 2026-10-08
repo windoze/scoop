@@ -1,0 +1,20 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "library-system-native"
+version = "0.1.0"
+kind = "executable"
+[native]
+c_flags = ["-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native.c"
+[[native.libraries]]
+name = "m"
+when = {os = "linux"}
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+when = {os = "darwin"}
+[[native.libraries]]
+name = "not-selected"
+when = {os = []}

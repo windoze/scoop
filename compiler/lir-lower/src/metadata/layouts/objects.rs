@@ -14,6 +14,10 @@ pub(crate) fn class_layout(
     def: &mir::ClassDef,
 ) -> StorageResult<(u64, u64, lir::RefScan)> {
     match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Atomic(storage)) => {
+            let layout = atomic_object_layout(context, storage.kind())?;
+            return Ok((layout.size, layout.align, layout.scan));
+        }
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicTypeRepresentation::Any | mir::IntrinsicTypeRepresentation::Nothing,
         ) => {
@@ -136,6 +140,19 @@ pub(crate) fn class_definition_layout(
         }
         mir::ClassRepresentation::Intrinsic(representation) => {
             let (size, align, kind) = match representation {
+                mir::IntrinsicTypeRepresentation::Atomic(storage) => {
+                    let layout = atomic_object_layout(context, storage.kind())?;
+                    return Ok(lir::Layout {
+                        identity,
+                        name: def.name.clone(),
+                        size: layout.size,
+                        align: layout.align,
+                        fields: Vec::new(),
+                        c_layout: None,
+                        interior_mutable: false,
+                        kind: lir::LayoutKind::Plain { scan: layout.scan },
+                    });
+                }
                 mir::IntrinsicTypeRepresentation::Any => {
                     (0, 1, lir::IntrinsicTypeRepresentation::Any)
                 }

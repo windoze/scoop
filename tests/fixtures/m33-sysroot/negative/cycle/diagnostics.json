@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_GRAPH_CYCLE",
+    "message": "resolved graph contains dependency cycles; scoop:scoop.helper:0.1.0 -> scoop:scoop.platform:0.1.0 -> scoop:scoop.helper:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "GraphCycleOrder",
+    "severity": "error"
+  }
+]

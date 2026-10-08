@@ -1,0 +1,13 @@
+schema = 1
+[[sources]]
+path = "api"
+[[sources]]
+path = "empty"
+[[sources]]
+path = "absent"
+when = {os = []}
+[cone]
+group = "dev.m33"
+name = "source-cache"
+version = "0.1.0"
+kind = "library"

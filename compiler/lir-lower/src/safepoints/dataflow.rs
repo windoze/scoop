@@ -5,6 +5,21 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
+        lir::Instruction::AtomicLoad { location, .. } => vec![location.object],
+        lir::Instruction::AtomicStore {
+            location, value, ..
+        }
+        | lir::Instruction::AtomicRmw {
+            location, value, ..
+        } => vec![location.object, *value],
+        lir::Instruction::AtomicCmpXchg {
+            location,
+            expected,
+            replacement,
+            ..
+        } => {
+            vec![location.object, *expected, *replacement]
+        }
         lir::Instruction::BoxValue { payload, .. } => payload
             .source()
             .map(lir::Value::Local)
@@ -37,7 +52,7 @@ pub(super) fn instruction_uses(
         | lir::Instruction::MachineHeapLoad {
             object: operand, ..
         }
-        | lir::Instruction::AtomicLoad {
+        | lir::Instruction::MachineAtomicLoad {
             object: operand, ..
         }
         | lir::Instruction::ULongToPtr { value: operand, .. }
@@ -48,6 +63,19 @@ pub(super) fn instruction_uses(
         | lir::Instruction::BeginCatch { raw: operand, .. }
         | lir::Instruction::Throw { exception: operand }
         | lir::Instruction::ArrayAllocDynamic { count: operand, .. }
+        | lir::Instruction::PushPinFrame {
+            object: operand, ..
+        }
+        | lir::Instruction::PopPinFrame { frame: operand }
+        | lir::Instruction::ArrayDataPointer {
+            object: operand, ..
+        }
+        | lir::Instruction::StringDataPointer {
+            object: operand, ..
+        }
+        | lir::Instruction::BorrowDataLength {
+            object: operand, ..
+        }
         | lir::Instruction::ArrayLen { operand, .. }
         | lir::Instruction::ArrayClone { operand, .. }
         | lir::Instruction::EnumTag { operand, .. }
@@ -78,8 +106,8 @@ pub(super) fn instruction_uses(
         }
         lir::Instruction::HeapStore { object, value, .. }
         | lir::Instruction::MachineHeapStore { object, value, .. }
-        | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
-        lir::Instruction::AtomicCompareExchange {
+        | lir::Instruction::MachineAtomicStore { object, value, .. } => vec![*object, *value],
+        lir::Instruction::MachineAtomicCompareExchange {
             object,
             expected,
             replacement,
@@ -155,8 +183,11 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ReleaseFieldLoad { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
         | lir::Instruction::MachineHeapLoad { out, .. }
+        | lir::Instruction::MachineAtomicLoad { out, .. }
         | lir::Instruction::AtomicLoad { out, .. }
-        | lir::Instruction::AtomicCompareExchange { out, .. }
+        | lir::Instruction::AtomicRmw { out, .. }
+        | lir::Instruction::AtomicCmpXchg { out, .. }
+        | lir::Instruction::MachineAtomicCompareExchange { out, .. }
         | lir::Instruction::GlobalLoad { out, .. }
         | lir::Instruction::GlobalAddress { out, .. }
         | lir::Instruction::NativeGlobalLoad { out, .. }
@@ -171,6 +202,10 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::ArrayAllocDynamic { out, .. }
         | lir::Instruction::ArrayAlloc { out, .. }
         | lir::Instruction::ArrayAssembly { out, .. }
+        | lir::Instruction::PushPinFrame { out, .. }
+        | lir::Instruction::ArrayDataPointer { out, .. }
+        | lir::Instruction::StringDataPointer { out, .. }
+        | lir::Instruction::BorrowDataLength { out, .. }
         | lir::Instruction::ArrayLen { out, .. }
         | lir::Instruction::ArrayGet { out, .. }
         | lir::Instruction::ArrayClone { out, .. }
@@ -193,10 +228,12 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }
         | lir::Instruction::MachineHeapStore { .. }
+        | lir::Instruction::MachineAtomicStore { .. }
         | lir::Instruction::AtomicStore { .. }
         | lir::Instruction::RawStore { .. }
         | lir::Instruction::ArraySet { .. }
         | lir::Instruction::ManagedPoll { .. }
+        | lir::Instruction::PopPinFrame { .. }
         | lir::Instruction::EndCatch
         | lir::Instruction::Throw { .. } => None,
     };

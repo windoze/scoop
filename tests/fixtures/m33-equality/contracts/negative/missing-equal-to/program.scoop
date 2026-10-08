@@ -1,0 +1,4 @@
+struct Key(val value: Int) : Equality<Key> {
+    public operator fun equals(other: Key): Boolean = value == other.value
+}
+fun main() {}

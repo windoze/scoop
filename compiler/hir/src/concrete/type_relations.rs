@@ -104,6 +104,10 @@ impl<'a> ConcreteTypeRelations<'a> {
         visit: &mut impl FnMut(TypeId) -> Result<(), E>,
     ) -> Result<(), E> {
         match representation {
+            IntrinsicTypeRepresentation::Atomic(scoop_identity::AtomicStorage::Reference(
+                value,
+            )) => visit(*value),
+            IntrinsicTypeRepresentation::Atomic(_) => Ok(()),
             IntrinsicTypeRepresentation::Array { element }
             | IntrinsicTypeRepresentation::MutableArray { element }
             | IntrinsicTypeRepresentation::Ptr { pointee: element } => visit(*element),

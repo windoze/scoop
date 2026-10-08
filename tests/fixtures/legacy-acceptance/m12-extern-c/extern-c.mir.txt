@@ -31,6 +31,8 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Boolean>
   interface Continuation<Int>
   interface SuspendTask<Int>
   interface SuspendRegistration<Int>

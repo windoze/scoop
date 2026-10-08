@@ -1,0 +1,14 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-cache"
+version = "0.1.0"
+kind = "executable"
+[native]
+include = ["include"]
+c_flags = ["-DM33_OFFSET=40", "-include", "forced.h", "-imacros", "macros.h"]
+[[native.sources]]
+path = "native/ignored.c"
+when = {os = []}
+[[native.sources]]
+path = "native/answer.c"

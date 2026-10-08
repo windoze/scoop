@@ -2,7 +2,7 @@ use scoop_lir::ConeImagePlanV1;
 
 pub(super) const IMAGE_DESCRIPTOR_SIZE: usize = 240;
 const IMAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d47;
-const METADATA_ABI_VERSION: u32 = 6;
+const METADATA_ABI_VERSION: u32 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1;
 
 pub(super) fn expected_image_record(plan: &ConeImagePlanV1) -> [u8; IMAGE_DESCRIPTOR_SIZE] {
     let mut bytes = [0; IMAGE_DESCRIPTOR_SIZE];

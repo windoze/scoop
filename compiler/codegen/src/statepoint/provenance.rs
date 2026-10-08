@@ -53,8 +53,19 @@ pub(super) fn verify_pointer_instruction(
         InstructionOpcode::AddrSpaceCast => {
             // SAFETY: addrspacecast has one pointer operand in verified LLVM IR.
             let source = unsafe { LLVMGetOperand(raw, 0) };
-            if is_managed_pointer(source, managed_address_space)
+            let source_managed = is_managed_pointer(source, managed_address_space);
+            // SAFETY: an addrspacecast always has a pointer result.
+            let target_space = unsafe { LLVMGetPointerAddressSpace(LLVMTypeOf(raw)) };
+            if source_managed && target_space == 0 {
+                require_pointer_boundary(
+                    witness,
+                    TypedManagedPointerBoundary::ScopedDataBorrow,
+                    function,
+                    instruction,
+                )?;
+            } else if source_managed
                 || is_managed_pointer(raw, managed_address_space)
+                || witness.is_some()
             {
                 return Err(CodegenError(format!(
                     "managed address-space cast is not a supported typed boundary in `{function}`: {instruction}"
@@ -92,6 +103,7 @@ fn typed_pointer_boundary(
     match name {
         b"allocation-result" => Ok(Some(TypedManagedPointerBoundary::AllocationResult)),
         b"card-address" => Ok(Some(TypedManagedPointerBoundary::CardAddress)),
+        b"scoped-data-borrow" => Ok(Some(TypedManagedPointerBoundary::ScopedDataBorrow)),
         _ => Err(CodegenError(format!(
             "unknown typed managed pointer boundary `{}`",
             String::from_utf8_lossy(name)

@@ -1,0 +1,40 @@
+Module
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  extern ef0 code @main_code() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind mode=gc-leaf lib=fixture_native>
+  fun @scoop$1$cb$34175cc6c00ff7d292e361dcaf0b090fdf164bc2791815d3b1ad33ec81df6d80() -> i32 <no-gc>
+    local %0 $call.1: i32
+  block entry
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 () -> i32 extern0()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> i32 <no-gc>
+    local %0 $call.1: i32
+  block entry
+    call native-gc-leaf-direct-target0 t0 = sig=direct0 () -> i32 extern0()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$d63c9ee92ba7442439c323b239287df803fdc0869ca446398623120d094510dc(ptr<raw>) -> void <no-gc>
+    local %0 $value: i32
+  block entry
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn1()
+    store t0 -> local0
+    raw_store param0 local0 align 4
+    t1 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t5 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
+    invoke no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    raw_store param2 t0 align 4
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t1, t2) = landingpad : (exception_record, ptr<raw>)
+    t3 = begin_catch t2 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:1> live=[t3:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t3)
+    global_store global0, t4
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

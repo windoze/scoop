@@ -13,17 +13,18 @@ Module
   class Throwable vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class Box<Int> vtable=0 itables=0
-  class box<Ptr<Int>> vtable=0 itables=0
+  class box<Ptr<Int>> vtable=0 itables=1
   class box<Long> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn11 id=31d681c4a115ff62c90afde4f9d22c2cd326e95c602e20205081aedf2f0a64a2
-  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn6 captures=3
-    bridge function_type1 -> @fn12 id=7487e2151fd0db63dcfb2a284ca76f347d2ad1dc15c76d3439bd6ea8bc20efcb
-  closure cc2 $Closure$dynamic_adapter$(Ptr<Int>) -> Long type=function_type2 invoke=@fn9 captures=1
-    bridge function_type1 -> @fn13 id=6a3e05ea8361e774f9b21ccd2ad53fd286747e72c1952866d744cf0b251b5f17
-  closure cc3 $Closure$dynamic_adapter$(Ptr<Int>) -> Any type=function_type3 invoke=@fn10 captures=1
-    bridge function_type1 -> @fn14 id=1fba424e2d39d120879efc568584551501870ecb0b5c651334da5adf07d91e5b
+    bridge function_type1 -> @fn14 id=31d681c4a115ff62c90afde4f9d22c2cd326e95c602e20205081aedf2f0a64a2
+  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn8 captures=3
+    bridge function_type1 -> @fn15 id=7487e2151fd0db63dcfb2a284ca76f347d2ad1dc15c76d3439bd6ea8bc20efcb
+  closure cc2 $Closure$dynamic_adapter$(Ptr<Int>) -> Long type=function_type2 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn16 id=6a3e05ea8361e774f9b21ccd2ad53fd286747e72c1952866d744cf0b251b5f17
+  closure cc3 $Closure$dynamic_adapter$(Ptr<Int>) -> Any type=function_type3 invoke=@fn12 captures=1
+    bridge function_type1 -> @fn17 id=1fba424e2d39d120879efc568584551501870ecb0b5c651334da5adf07d91e5b
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -36,12 +37,13 @@ Module
   generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get10 location=class5 nominal_id=f6d0c91a411ef1e42258670255772b7f33d8425df0395f6cb630fb4671f26ced exact_id=f36e0e01b2296cdc98234bb1ef848d9313e4cf8f8a89d04bbd11c4ddc1714c6c
   generated_exact_type get11 location=class6 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
-  generated_callable gc0 function=@fn14 id=1fba424e2d39d120879efc568584551501870ecb0b5c651334da5adf07d91e5b
-  generated_callable gc1 function=@fn11 id=31d681c4a115ff62c90afde4f9d22c2cd326e95c602e20205081aedf2f0a64a2
-  generated_callable gc2 function=@fn13 id=6a3e05ea8361e774f9b21ccd2ad53fd286747e72c1952866d744cf0b251b5f17
-  generated_callable gc3 function=@fn12 id=7487e2151fd0db63dcfb2a284ca76f347d2ad1dc15c76d3439bd6ea8bc20efcb
-  generated_callable gc4 function=@fn10 id=84d54b28d9578efa3649520bf12d2da99c7c004f80de6349e844f250e633ca5e
-  generated_callable gc5 function=@fn9 id=9e4631019cc8d68d8d03e311b3b39d5e50e6fdd0d335deca02e894fe26b18e22
+  generated_callable gc0 function=@fn13 id=03404110e47aa750647d7c29ca48a3cfea4b3937462b4c82559608ec155fcf82
+  generated_callable gc1 function=@fn17 id=1fba424e2d39d120879efc568584551501870ecb0b5c651334da5adf07d91e5b
+  generated_callable gc2 function=@fn14 id=31d681c4a115ff62c90afde4f9d22c2cd326e95c602e20205081aedf2f0a64a2
+  generated_callable gc3 function=@fn16 id=6a3e05ea8361e774f9b21ccd2ad53fd286747e72c1952866d744cf0b251b5f17
+  generated_callable gc4 function=@fn15 id=7487e2151fd0db63dcfb2a284ca76f347d2ad1dc15c76d3439bd6ea8bc20efcb
+  generated_callable gc5 function=@fn12 id=84d54b28d9578efa3649520bf12d2da99c7c004f80de6349e844f250e633ca5e
+  generated_callable gc6 function=@fn11 id=9e4631019cc8d68d8d03e311b3b39d5e50e6fdd0d335deca02e894fe26b18e22
   dynamic_adapter da0 class=cc2 target=function_type2
   dynamic_adapter da1 class=cc3 target=function_type3
   fun result @fn0() -> Int
@@ -97,7 +99,7 @@ Module
       val $dependency.parameter.pointer: Ptr<Int>
         Type Ptr<Int>
         Local $dependency.argument.2
-      call erased: Any = @fn3 direct
+      call erased: Any = @fn4 direct
         Type Int
         Local $dependency.parameter.seed
         Type (Int) -> Int
@@ -149,7 +151,7 @@ Module
       val $parameter.value: Option<(Ptr<Int>) -> Long>
         Type Option<(Ptr<Int>) -> Long>
         Local $argument.0
-      call $dependency.receiver: Boolean = @fn4 direct
+      call $dependency.receiver: Boolean = @fn5 direct
         Type Option<(Ptr<Int>) -> Long>
         Local $parameter.value
       branch bb6 bb7
@@ -348,7 +350,26 @@ Module
         PtrLoad Int
           Type Ptr<Int>
           Local $dependency.receiver
-  fun dynamicPointer @fn3(seed: Int, read: (Int) -> Int, pointer: Ptr<Int>) -> Any
+  fun equalTo @fn3(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn6 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun dynamicPointer @fn4(seed: Int, read: (Int) -> Int, pointer: Ptr<Int>) -> Any
     bb0 entry
       val $dependency.local.3: Int
         Type Int
@@ -368,7 +389,7 @@ Module
       val $dependency.local.8: Ptr<Int>
         Type Ptr<Int>
         Local $dependency.local.5
-      call $call.1: (Any) -> Ptr<Int> = @fn5 direct
+      call $call.1: (Any) -> Ptr<Int> = @fn7 direct
         Type Int
         Local $dependency.local.6
         Type (Int) -> Int
@@ -380,7 +401,7 @@ Module
         Retype Any
           Type (Any) -> Ptr<Int>
           Local $call.1
-  fun isNone @fn4(value: Option<(Ptr<Int>) -> Long>) -> Boolean
+  fun isNone @fn5(value: Option<(Ptr<Int>) -> Long>) -> Boolean
     bb0 entry
       val $when.1: Option<(Ptr<Int>) -> Long>
         Type Option<(Ptr<Int>) -> Long>
@@ -420,7 +441,29 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun pointerSource @fn5(seed: Int, read: (Int) -> Int, pointer: Ptr<Int>) -> (Any) -> Ptr<Int>
+  fun equals @fn6(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun pointerSource @fn7(seed: Int, read: (Int) -> Int, pointer: Ptr<Int>) -> (Any) -> Ptr<Int>
     bb0 entry
       return
         Type (Any) -> Ptr<Int>
@@ -434,7 +477,7 @@ Module
           CaptureInit field=2
             Type (Int) -> Int
             Local read
-  fun $lambda @fn6($argument.0: (Any) -> Ptr<Int>, $argument.1: Any) -> Ptr<Int>
+  fun $lambda @fn8($argument.0: (Any) -> Ptr<Int>, $argument.1: Any) -> Ptr<Int>
     bb0 entry
       val $dependency.local.2: Int
         Type Int
@@ -447,7 +490,7 @@ Module
       assign $new.1
         Type Box<Int>
         ClassAlloc Box<Int>
-      call @fn8 direct
+      call @fn10 direct
         Type Box<Int>
         Local $new.1
         Type Int
@@ -460,7 +503,7 @@ Module
         ClosureCapture cc1 1
           Type (Any) -> Ptr<Int>
           Local $argument.0
-      call $call.2: Int = @fn7 direct
+      call $call.2: Int = @fn9 direct
         Type Box<Int>
         Local $dependency.local.1
       call $dependency.local.5: Int = <closure:function_type0> closure[function_type0]
@@ -484,14 +527,14 @@ Module
         ClosureCapture cc1 1
           Type (Any) -> Ptr<Int>
           Local $argument.0
-  fun value @fn7(this: Box<Int>) -> Int
+  fun value @fn9(this: Box<Int>) -> Int
     bb0 entry
       return
         Type Int
         FieldAccess 0
           Type Box<Int>
           Local this
-  fun init.Box.$c0 @fn8(this: Box<Int>, value: Int) -> Unit
+  fun init.Box.$c0 @fn10(this: Box<Int>, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Box<Int>
@@ -499,7 +542,7 @@ Module
         Type Int
         Local value
       return
-  fun $dynamic_adapter.(Ptr<Int>) -> Long @fn9($closure: (Ptr<Int>) -> Long, arg0: Ptr<Int>) -> Long
+  fun $dynamic_adapter.(Ptr<Int>) -> Long @fn11($closure: (Ptr<Int>) -> Long, arg0: Ptr<Int>) -> Long
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
         Type Any
@@ -515,7 +558,7 @@ Module
         Unbox
           Type Any
           Local $call.1
-  fun $dynamic_adapter.(Ptr<Int>) -> Any @fn10($closure: (Ptr<Int>) -> Any, arg0: Ptr<Int>) -> Any
+  fun $dynamic_adapter.(Ptr<Int>) -> Any @fn12($closure: (Ptr<Int>) -> Any, arg0: Ptr<Int>) -> Any
     bb0 entry
       call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
         Type Any
@@ -529,7 +572,19 @@ Module
       return
         Type Any
         Local $call.1
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn11($source: (Int) -> Int, arg0: Any) -> Any
+  fun thunk<Ptr<Int>> Equality.equalTo(Ptr<Int>) @fn13(this: Equality<Ptr<Int>>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn3 direct
+        Type Ptr<Int>
+        Unbox
+          Type Equality<Ptr<Int>>
+          Local this
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -543,7 +598,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn12($source: (Any) -> Ptr<Int>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn15($source: (Any) -> Ptr<Int>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Ptr<Int> = <closure:function_type4> closure[function_type4]
         Type (Any) -> Ptr<Int>
@@ -555,7 +610,7 @@ Module
         Box
           Type Ptr<Int>
           Local $call.1
-  fun function_bridge.$Closure$dynamic_adapter$(Ptr<Int>) -> Long.(Any) -> Any @fn13($source: (Ptr<Int>) -> Long, arg0: Any) -> Any
+  fun function_bridge.$Closure$dynamic_adapter$(Ptr<Int>) -> Long.(Any) -> Any @fn16($source: (Ptr<Int>) -> Long, arg0: Any) -> Any
     bb0 entry
       call $call.1: Long = <closure:function_type2> closure[function_type2]
         Type (Ptr<Int>) -> Long
@@ -569,7 +624,7 @@ Module
         Box
           Type Long
           Local $call.1
-  fun function_bridge.$Closure$dynamic_adapter$(Ptr<Int>) -> Any.(Any) -> Any @fn14($source: (Ptr<Int>) -> Any, arg0: Any) -> Any
+  fun function_bridge.$Closure$dynamic_adapter$(Ptr<Int>) -> Any.(Any) -> Any @fn17($source: (Ptr<Int>) -> Any, arg0: Any) -> Any
     bb0 entry
       call $call.1: Any = <closure:function_type3> closure[function_type3]
         Type (Ptr<Int>) -> Any
@@ -582,9 +637,11 @@ Module
         Type Any
         Local $call.1
   instance mi0 function=@fn2 <- exercise
-  instance mi1 function=@fn3 <- dynamicPointer
-  instance mi2 function=@fn4 <- isNone
-  instance mi3 function=@fn5 <- pointerSource
-  instance mi4 function=@fn6 <- $lambda
-  instance mi5 function=@fn7 <- value
+  instance mi1 function=@fn3 <- equalTo
+  instance mi2 function=@fn4 <- dynamicPointer
+  instance mi3 function=@fn5 <- isNone
+  instance mi4 function=@fn6 <- equals
+  instance mi5 function=@fn7 <- pointerSource
+  instance mi6 function=@fn8 <- $lambda
+  instance mi7 function=@fn9 <- value
   output library

@@ -102,10 +102,10 @@ impl CoreCoroutineProtocolV1 {
 }
 
 /// Complete typed declaration references for compiler protocols. Every
-/// constituent is a closed product and the eight products are validated as
-/// one complete set of declaration references.
+/// protocol family is a closed product, alongside the ordinary argv builder.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreCompilerProtocolSurfaceV1 {
+    program_arguments: CoreProtocolCallableV1,
     fundamental_types: CoreFundamentalTypeProtocolV1,
     option_protocol: CoreOptionProtocolV1,
     iteration_protocol: CoreIterationProtocolV1,
@@ -117,6 +117,10 @@ pub struct CoreCompilerProtocolSurfaceV1 {
 }
 
 impl CoreCompilerProtocolSurfaceV1 {
+    pub const fn program_arguments(&self) -> &CoreProtocolCallableV1 {
+        &self.program_arguments
+    }
+
     pub fn from_export(
         export: &ExportHir,
         protocols: &crate::DefinedCoreProtocols,
@@ -303,7 +307,11 @@ impl CoreCompilerProtocolSurfaceV1 {
             callable(export, protocols, location.current)?,
         ]));
 
+        let program_arguments =
+            CoreProtocolCallableV1::from_function(export, protocols, protocols.program_arguments)
+                .map_err(CoreCompilerProtocolSurfaceBuildError::Callable)?;
         let surface = Self {
+            program_arguments,
             fundamental_types,
             option_protocol,
             iteration_protocol,

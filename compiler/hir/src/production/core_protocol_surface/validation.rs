@@ -254,6 +254,7 @@ pub enum CoreProtocolProductKindV1 {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreCompilerProtocolSurfaceRelationError {
+    ProgramArgumentsSignature,
     DuplicateRoleSubject,
     RoleCallableKindMismatch {
         product: CoreProtocolProductKindV1,

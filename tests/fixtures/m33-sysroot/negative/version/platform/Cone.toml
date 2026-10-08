@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "scoop"
+name = "scoop.platform"
+version = "0.2.0"
+kind = "library"

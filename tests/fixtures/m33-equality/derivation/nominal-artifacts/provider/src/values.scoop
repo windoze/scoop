@@ -1,0 +1,22 @@
+package derived
+
+public struct Point(val x: Int, val y: Int)
+public class Secret public constructor(private val key: Int) {
+    public operator fun equals(other: Secret): Boolean = key == other.key
+}
+public struct Record(val secret: Secret, val label: String)
+public struct Declared(val value: Int) : Equality<Declared> {
+    public override fun equalTo(other: Declared): Boolean = this.equals(other)
+}
+public enum Choice { Empty, Value(Record), Number(Long) }
+public class Opaque public constructor(val key: Int)
+public struct Incomparable(val value: Opaque)
+
+public struct Multiple(val value: Int) {
+    public operator fun equals(other: Int): Boolean = value == other
+}
+
+public fun <T : Equality<T>> compare(left: T, right: T): Boolean = left.equalTo(right)
+
+public fun boxedPoint(point: Point): Any = point
+public fun boxedRecord(record: Record): Any = record

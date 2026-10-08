@@ -49,8 +49,11 @@ Module
   class box<ValueBox<Dog>> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   interface Continuation<Animal>
   interface SuspendTask<Animal>
   interface SuspendRegistration<Animal>

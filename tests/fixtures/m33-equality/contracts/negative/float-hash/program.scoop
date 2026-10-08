@@ -1,0 +1,2 @@
+fun <T : Hash> hash(value: T): Long = value.hash()
+fun main() { println(hash(1f)) }

@@ -69,6 +69,14 @@ impl Lowerer {
             layer: callable_layer_name(state, std::slice::from_ref(&view)),
             reason,
         };
+        if let hir::FunctionKind::Intrinsic(intrinsic) = state.functions[function].kind
+            && matches!(intrinsic.kind, hir::IntrinsicFunctionKind::Atomic(_))
+        {
+            return Err(fail(
+                &state,
+                crate::expr::atomics::ATOMIC_REFERENCE_ERROR.into(),
+            ));
+        }
         let own_type_param_count = view.signature.callable_parameters.len();
         let forwarding_parameter_types = extension_receiver
             .into_iter()

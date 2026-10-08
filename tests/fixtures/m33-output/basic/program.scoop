@@ -1,0 +1,27 @@
+class Counter(var calls: Int) : ToString {
+    public override fun toString(): String {
+        calls += 1
+        gcCollect()
+        return "value"
+    }
+}
+
+class Failing : ToString {
+    public override fun toString(): String { throw IllegalStateException() }
+}
+
+fun main() {
+    val value = Counter(0)
+    write("A\u0000界")
+    print(value)
+    println(42)
+    flushOutput()
+    writeError("E\u0000界")
+    eprint(value)
+    eprintln(true)
+    try { eprintln(Failing()) } catch (error: IllegalStateException) { println("caught") }
+    if (value.calls != 2) { throw IllegalStateException() }
+    write("")
+    writeError("")
+    flushOutput()
+}

@@ -4,6 +4,7 @@ use scoop_wire::encode;
 use super::*;
 use crate::*;
 
+mod atomics;
 mod c_layout;
 mod enums;
 mod instances;

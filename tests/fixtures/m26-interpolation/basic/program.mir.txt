@@ -26,6 +26,16 @@ Module
   interface Iterator<String>
   interface ToString
   interface Hash
+  interface Equality<Char>
+  interface Equality<Int>
+  interface Equality<Boolean>
+  interface Equality<Int8>
+  interface Equality<UInt8>
+  interface Equality<Int16>
+  interface Equality<UInt16>
+  interface Equality<UInt>
+  interface Equality<Long>
+  interface Equality<ULong>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn26 captures=0
     bridge function_type1 -> @fn43 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn38 captures=3

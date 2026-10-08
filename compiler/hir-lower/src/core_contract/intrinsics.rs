@@ -63,6 +63,13 @@ impl Lowerer {
                     Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value))
                 )) && where_clause.is_none()
             }
+            hir::IntrinsicTypeParameters::OneInvariantRef => {
+                matches!(parameters, [parameter]
+                if matches!(
+                    parameter.inline_bound,
+                    Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Ref))
+                )) && where_clause.is_none()
+            }
             hir::IntrinsicTypeParameters::OneInvariantUnconstrained => {
                 matches!(parameters, [parameter] if parameter.inline_bound.is_none())
                     && where_clause.is_none()

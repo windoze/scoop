@@ -1,0 +1,4 @@
+package nativebridge
+import nativeapi.*
+public fun relayCall(value: Int): (Int, Int) = call(value)
+public fun <T> relayKeep(value: T): T = keep(value)

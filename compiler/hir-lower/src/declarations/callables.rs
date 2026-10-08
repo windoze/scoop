@@ -165,7 +165,7 @@ impl Lowerer {
                     gc_effect: checked.attributes.gc_effect,
                     safety: checked.attributes.safety,
                     params: Vec::new(),
-                    return_type: self.unit,
+                    result: scoop_identity::ExternResult::Direct(self.unit),
                 });
                 FunctionKind::Extern(id)
             }

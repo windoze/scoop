@@ -51,6 +51,7 @@ Module
   interface Iterator<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Choice>
   interface SuspendTask<Choice>
   interface SuspendRegistration<Choice>

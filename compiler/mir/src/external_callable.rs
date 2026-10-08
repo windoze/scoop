@@ -32,6 +32,13 @@ impl ExternalCallableUse {
 
 pub(crate) fn referenced_external_callables(module: &Module) -> HashSet<ExternalCallableUseId> {
     let mut referenced = HashSet::new();
+    if let crate::MirOutput::Executable {
+        arguments: crate::ProgramArguments::External(builder),
+        ..
+    } = module.output
+    {
+        referenced.insert(builder);
+    }
     for function in module
         .functions
         .iter()

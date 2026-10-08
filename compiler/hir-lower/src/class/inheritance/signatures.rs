@@ -99,6 +99,7 @@ impl Lowerer {
 
     pub(super) fn same_instantiated_signature(
         &mut self,
+        owner: Owner,
         candidate: FunctionId,
         name: &str,
         sig: &FnSig,
@@ -107,6 +108,11 @@ impl Lowerer {
         self.same_instantiated_signature_shape(candidate, name, sig, args)
             && self.functions[candidate].is_suspend == sig.is_suspend
             && self.functions[candidate].modifiers == sig.modifiers
+            && self.functions[candidate].attributes.safety == sig.attributes.safety
+            && (self.functions[candidate].attributes.gc_effect == sig.attributes.gc_effect
+                || (matches!(owner, Owner::Struct(_) | Owner::Enum(_))
+                    && sig.attributes.gc_effect == hir::GcEffect::NoGc
+                    && self.functions[candidate].attributes.gc_effect == hir::GcEffect::Managed))
     }
 
     pub(super) fn same_instantiated_signature_shape(

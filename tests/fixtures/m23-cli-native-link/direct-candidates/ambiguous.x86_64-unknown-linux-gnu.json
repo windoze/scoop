@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "ambiguous native library \"m23_math\": [\"${work}/alternate/m23_math.o\", \"${work}/native/m23_math.o\"]; requirement f7c478a79d5776baf2d1b94cf8c391cc48d482c39b820e8d65a14393d64edb18; origins: dev.programlink:direct:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 18, 74, 180, 227, 66, 19, 82, 220, 222, 192, 5, 128, 99, 235, 64, 0, 240, 235, 214, 180, 21, 121, 86, 218, 234, 32, 54, 216, 139, 239, 111])])",
+    "message": "ambiguous native library \"m23_math\": [\"${work}/alternate/m23_math.o\", \"${work}/native/m23_math.o\"]; requirement f7c478a79d5776baf2d1b94cf8c391cc48d482c39b820e8d65a14393d64edb18; origins: dev.programlink:direct:0.1.0",
     "notes": [],
     "origin": {
       "kind": "none"

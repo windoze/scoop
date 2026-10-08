@@ -330,8 +330,9 @@ pub(crate) fn lower_intrinsic_type_representation(
             }
         }
         mir::IntrinsicTypeRepresentation::Array { .. }
-        | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
-            unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
+        | mir::IntrinsicTypeRepresentation::MutableArray { .. }
+        | mir::IntrinsicTypeRepresentation::Atomic(_) => {
+            unreachable!("intrinsic class storage uses its own metadata layout")
         }
     }
 }

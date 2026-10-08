@@ -53,11 +53,14 @@ Module
   interface Iterator<Option<Cell>>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface List<Option<Int>> : Iterable<Option<Int>>
   interface Iterable<Option<Int>>
   interface Iterator<Option<Int>>
+  interface Equality<Int>
   interface Continuation<Cell>
   interface SuspendTask<Cell>
   interface SuspendRegistration<Cell>

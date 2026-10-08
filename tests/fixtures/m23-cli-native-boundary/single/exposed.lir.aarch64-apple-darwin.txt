@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$a4937e6da7fdccaa455cf45386325ec45eb54b206dcfddc0a9fc39685f54e65d = "illegal state"
   enum Option niche(kind=managed,payload_variant=0)
-  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$97c8584d5dfff7daef249045132f594ceb70ad8bf5c66aa4310b679a2f9a0d64 gc-leaf nounwind lib=m23_native_boundary>
+  extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void direct-c=()->void gc-leaf nounwind lib=m23_native_boundary>
   extern ef1 nativeNarrow @native_narrow(i8) -> i8 <scoop managed nounwind lib=m23_native_boundary>
   fun @scoop$1$cb$331f1699dd256700b333c5b7770b5b66c9862008fab79667f910c551243e5ac1() -> void
   block entry

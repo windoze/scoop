@@ -1,0 +1,2 @@
+fun bad(cell: AtomicRef<String>): String = cell.fetchAnd("value")
+fun main() {}

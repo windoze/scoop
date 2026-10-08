@@ -1,0 +1,11 @@
+[
+  {
+    "code": "SCOOPC_BUILD_FAILED",
+    "message": "native compilation: native.c: /scoop-native/cone/native.c:1:18: error: expected declaration specifiers or '...' before '{' token",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "severity": "error"
+  }
+]

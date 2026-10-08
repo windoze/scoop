@@ -1,7 +1,7 @@
 SourceFile
   RootPackage
   private struct Atom
-    internal operator fun equals
+    public operator fun equals
   private struct Pair
     field first: Atom
     field second: Atom

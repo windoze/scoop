@@ -35,8 +35,12 @@ Module
   interface Consumer<Any>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   interface Continuation<Animal>
   interface SuspendTask<Animal>
   interface SuspendRegistration<Animal>

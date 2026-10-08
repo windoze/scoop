@@ -45,6 +45,7 @@ Module
   class box<Char> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface List<Char> : Iterable<Char>
   interface Iterable<Char>
   interface Iterator<Char>
@@ -56,6 +57,8 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer
@@ -77,6 +80,8 @@ Module
   interface Iterable<Option<Int8>>
   interface Iterator<Option<Int8>>
   interface MutableList<Int8> : List<Int8>
+  interface Equality<String>
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn37 captures=0
     bridge function_type1 -> @fn71 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn54 captures=3

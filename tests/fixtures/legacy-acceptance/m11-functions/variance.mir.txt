@@ -49,8 +49,12 @@ Module
   interface Describable
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Boolean>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Label>
   interface SuspendTask<Label>
   interface SuspendRegistration<Label>

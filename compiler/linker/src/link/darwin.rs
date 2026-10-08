@@ -18,15 +18,18 @@ pub(super) fn link(
         write_new(&path, bytes)?;
         stubs.insert(path, namespace.providers.providers[id].install_name.clone());
     }
-    let mut command = profile.command(&sdk, candidate, link_map).map_err(error)?;
+    let ValidatedFinalLinkProfile::Darwin(darwin) = profile else {
+        return Err(error("Darwin linking requires its selected target profile"));
+    };
+    let mut command = darwin.command(&sdk, candidate, link_map).map_err(error)?;
     let response = object_response_file(directory, paths)?;
-    command
-        .arg(response)
-        .arg("-alias")
-        .arg(&inputs.string_target)
-        .arg("_scoop_td_String");
+    command.arg(response);
+    for argument in ["-alias", &inputs.string_target, "_scoop_td_String"] {
+        darwin.linker_argument(&mut command, argument);
+    }
     for path in &namespace.providers.rpaths {
-        command.arg("-rpath").arg(path);
+        darwin.linker_argument(&mut command, "-rpath");
+        darwin.linker_argument(&mut command, path);
     }
     command.args(stubs.keys());
     let result = command

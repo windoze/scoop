@@ -38,6 +38,8 @@ Module
   interface Iterable<String>
   interface Iterator<String>
   interface Hash
+  interface Equality<Char>
+  interface Equality<Int>
   interface Continuation<Label>
   interface SuspendTask<Label>
   interface SuspendRegistration<Label>

@@ -19,6 +19,8 @@ Module
   interface Readable
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Unit>
   interface Continuation<Local>
   interface SuspendTask<Local>
   interface SuspendRegistration<Local>

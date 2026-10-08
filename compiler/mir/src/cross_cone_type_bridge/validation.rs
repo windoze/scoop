@@ -159,6 +159,9 @@ impl MirTypeBridgeAuthority<'_> {
                         SourceDeclarationKind::Class,
                         MirTypeRepresentationV1::Intrinsic(
                             MirParamFreeIntrinsicV1::String
+                                | MirParamFreeIntrinsicV1::AtomicInt
+                                | MirParamFreeIntrinsicV1::AtomicLong
+                                | MirParamFreeIntrinsicV1::AtomicBoolean
                                 | MirParamFreeIntrinsicV1::Any
                                 | MirParamFreeIntrinsicV1::Nothing
                         )
@@ -189,6 +192,7 @@ impl MirTypeBridgeAuthority<'_> {
                         SourceDeclarationKind::Class,
                         MirTypeRepresentationV1::Class { .. }
                             | MirTypeRepresentationV1::InlineArray { .. }
+                            | MirTypeRepresentationV1::AtomicReference { .. }
                     ) | (
                         SourceDeclarationKind::Interface,
                         MirTypeRepresentationV1::Interface
@@ -260,11 +264,15 @@ impl MirTypeBridgeAuthority<'_> {
             ) => facts.kind() == Kind::NonZeroValue && facts.gc() == MirGcKindV1::GcFree,
             Repr::Intrinsic(
                 MirParamFreeIntrinsicV1::String
+                | MirParamFreeIntrinsicV1::AtomicInt
+                | MirParamFreeIntrinsicV1::AtomicLong
+                | MirParamFreeIntrinsicV1::AtomicBoolean
                 | MirParamFreeIntrinsicV1::Any
                 | MirParamFreeIntrinsicV1::Nothing,
             )
             | Repr::Class { .. }
             | Repr::InlineArray { .. }
+            | Repr::AtomicReference { .. }
             | Repr::Interface
             | Repr::Object { .. }
             | Repr::ObjectBacking { .. }

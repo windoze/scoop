@@ -22,8 +22,12 @@ Module
   class box<Score> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  interface Equality<Boolean>
   interface Continuation<Score>
   interface SuspendTask<Score>
   interface SuspendRegistration<Score>

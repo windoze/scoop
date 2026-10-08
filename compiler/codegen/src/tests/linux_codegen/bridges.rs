@@ -186,16 +186,21 @@ fn fixture(target: TargetProfileId) -> (Module, String) {
     );
     let outbound = bridge(GeneratedBridgeUnitKey::OutboundFunction(
         function.fingerprint(),
+        scoop_identity::CResultAdaptation::Direct,
     ));
     install_test_c_signature_record(&mut module, outbound_signature);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "transform".into(),
             native_symbol: "native_transform".into(),
             library: String::new(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge: outbound.clone(),
+        call_plan: scoop_lir::CAbiCallPlan::StorageBridge {
+            entry: Box::new(outbound.clone()),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
             return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),

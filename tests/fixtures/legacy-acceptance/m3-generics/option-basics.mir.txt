@@ -22,6 +22,7 @@ Module
   class box<Point> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Point>
   interface SuspendTask<Point>
   interface SuspendRegistration<Point>

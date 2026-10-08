@@ -7,12 +7,12 @@ pub struct BasicBlock {
     pub terminator: Terminator,
 }
 
-/// Address-only operand for one outbound C-ABI argument.
+/// Address-only operand for one outbound C-ABI bridge parameter.
 ///
-/// The operand names the local that owns the argument's complete physical
-/// storage. It cannot be forged from an arbitrary raw pointer: codegen binds
-/// the local's exact [`LirType`] to the corresponding [`CType::storage_type`]
-/// before passing its address to the generated C bridge.
+/// The local owns complete physical argument or native-result storage.
+/// Codegen checks its exact [`LirType`] against [`CType::storage_type`]
+/// before passing its address to the generated C bridge. An errno-capturing
+/// bridge passes its native result slot as the first pointer parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CArgumentStorage(LocalId);
 
@@ -56,6 +56,54 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    AtomicLoad {
+        out: TempId,
+        location: AtomicLocation,
+        order: AtomicLoadOrder,
+    },
+    AtomicStore {
+        location: AtomicLocation,
+        value: Value,
+        order: AtomicStoreOrder,
+    },
+    AtomicRmw {
+        out: TempId,
+        location: AtomicLocation,
+        value: Value,
+        operation: AtomicRmwOperation,
+        order: AtomicMemoryOrder,
+    },
+    AtomicCmpXchg {
+        out: TempId,
+        location: AtomicLocation,
+        expected: Value,
+        replacement: Value,
+        result: AtomicCompareExchangeResult,
+        order: AtomicCompareExchangeOrder,
+    },
+    /// Caller-stack pin frames for synchronous scoped borrows.
+    PushPinFrame {
+        out: TempId,
+        object: Value,
+    },
+    PopPinFrame {
+        frame: Value,
+    },
+    ArrayDataPointer {
+        out: TempId,
+        object: Value,
+        array_type: ArrayTypeId,
+    },
+    StringDataPointer {
+        out: TempId,
+        object: Value,
+        byte_offset: u64,
+    },
+    BorrowDataLength {
+        out: TempId,
+        object: Value,
+        byte_offset: u64,
+    },
     FloatUnary {
         out: TempId,
         kind: FloatKind,
@@ -196,7 +244,7 @@ pub enum Instruction {
         offset: u64,
     },
     /// Acquire-load a 64-bit synthetic state word from managed storage.
-    AtomicLoad {
+    MachineAtomicLoad {
         out: TempId,
         kind: MachineScalarKind,
         object: Value,
@@ -252,7 +300,7 @@ pub enum Instruction {
         value: Value,
     },
     /// Release-store a 64-bit synthetic state word in managed storage.
-    AtomicStore {
+    MachineAtomicStore {
         kind: MachineScalarKind,
         object: Value,
         offset: u64,
@@ -260,7 +308,7 @@ pub enum Instruction {
     },
     /// Acq_rel/acquire compare-exchange of a 64-bit synthetic state word.
     /// `out` receives the observed old word.
-    AtomicCompareExchange {
+    MachineAtomicCompareExchange {
         out: TempId,
         kind: MachineScalarKind,
         object: Value,
@@ -518,9 +566,10 @@ impl Instruction {
                 CallSite::NativeBorrowed(site) => {
                     Some((SafepointSiteRole::NativeBorrowedTransition, site.safepoint))
                 }
-                CallSite::NoGc(_) | CallSite::ReleaseScoop(_) | CallSite::ReleaseNativeLeaf(_) => {
-                    None
-                }
+                CallSite::NoGc(_)
+                | CallSite::ReleaseScoop(_)
+                | CallSite::NativeGcLeaf(_)
+                | CallSite::ReleaseNativeLeaf(_) => None,
             },
             Self::ManagedPoll { site } => Some((SafepointSiteRole::ManagedPoll, site.safepoint)),
             Self::Invoke {

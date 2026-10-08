@@ -1,6 +1,6 @@
 Module
-  callback cb0 @fn0 -> @fn16 function_type2 id=2de79a89f4eed844d142b4de4c1495efc81d723a2508a69e2921c155912af73e
-  callback cb1 @fn1 -> @fn17 function_type0 id=3df1117804ba4823760199f3a330e2b1b78266bc7380c2c088030e4f6accea6a
+  callback cb0 @fn0 -> @fn18 function_type2 id=2de79a89f4eed844d142b4de4c1495efc81d723a2508a69e2921c155912af73e
+  callback cb1 @fn1 -> @fn19 function_type0 id=3df1117804ba4823760199f3a330e2b1b78266bc7380c2c088030e4f6accea6a
   struct Marker (text: String)
   struct Envelope (tag: UInt16, packed: Packed, tail: Long) <c-layout aligned=16 packed=2>
   struct Packed (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
@@ -14,17 +14,29 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  interface Equality<Ptr<Int>>
   interface ToString
   interface Hash
+  interface Equality<Int8>
+  interface Equality<Int16>
+  interface Equality<Int>
+  interface Equality<Long>
+  interface Equality<UInt8>
+  interface Equality<UInt16>
+  interface Equality<UInt>
+  interface Equality<ULong>
+  interface Equality<Boolean>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn16 id=2de79a89f4eed844d142b4de4c1495efc81d723a2508a69e2921c155912af73e
-  generated_callable gc1 function=@fn17 id=3df1117804ba4823760199f3a330e2b1b78266bc7380c2c088030e4f6accea6a
+  generated_callable gc0 function=@fn18 id=2de79a89f4eed844d142b4de4c1495efc81d723a2508a69e2921c155912af73e
+  generated_callable gc1 function=@fn19 id=3df1117804ba4823760199f3a330e2b1b78266bc7380c2c088030e4f6accea6a
   fun shift @fn0(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.receiver: Int
@@ -162,7 +174,7 @@ Module
       val $parameter.text: String
         Type String
         Local $argument.0
-      call marker: Marker = @fn15 direct
+      call marker: Marker = @fn17 direct
         Type String
         Local $parameter.text
       val $dependency.argument.0: Int8
@@ -177,7 +189,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.argument.0: Int16
@@ -192,7 +204,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn5 direct
         Type Int16
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -207,7 +219,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -222,7 +234,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt8
@@ -237,7 +249,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt16
@@ -252,7 +264,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn9 direct
         Type UInt16
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt
@@ -267,7 +279,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type UInt
         Local $dependency.parameter.value
       val $dependency.argument.0: ULong
@@ -282,7 +294,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type ULong
         Local $dependency.parameter.value
       val $dependency.argument.0: Int8
@@ -364,7 +376,7 @@ Module
       val $dependency.parameter.value: Int8
         Type Int8
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Int8
         Local $dependency.parameter.value
       val $dependency.argument.0: Int16
@@ -375,7 +387,7 @@ Module
       val $dependency.parameter.value: Int16
         Type Int16
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn5 direct
         Type Int16
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -386,7 +398,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -397,7 +409,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt8
@@ -408,7 +420,7 @@ Module
       val $dependency.parameter.value: UInt8
         Type UInt8
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type UInt8
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt16
@@ -419,7 +431,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn9 direct
         Type UInt16
         Local $dependency.parameter.value
       val $dependency.argument.0: UInt
@@ -430,7 +442,7 @@ Module
       val $dependency.parameter.value: UInt
         Type UInt
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn10 direct
         Type UInt
         Local $dependency.parameter.value
       val $dependency.argument.0: ULong
@@ -441,7 +453,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type ULong
         Local $dependency.parameter.value
       val $dependency.argument.0: Marker
@@ -498,7 +510,7 @@ Module
       val $dependency.parameter.callback: FunPtr<(Envelope) -> Envelope>
         Type FunPtr<(Envelope) -> Envelope>
         Local $dependency.argument.2
-      call result: Envelope = @fn11 direct
+      call result: Envelope = @fn12 direct
         Type Marker
         Local $dependency.parameter.marker
         Type Envelope
@@ -513,7 +525,7 @@ Module
       val $dependency.parameter.value: UInt16
         Type UInt16
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn9 direct
         Type UInt16
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -526,7 +538,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -539,7 +551,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -550,7 +562,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type Long
         Local $dependency.parameter.value
       var value: Int
@@ -574,7 +586,7 @@ Module
       val $dependency.parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         VariantConstruct Option<FunPtr<(Int) -> Int>> v1
-      call $dependency.argument.0: Int = @fn13 direct
+      call $dependency.argument.0: Int = @fn14 direct
         Type Marker
         Local $dependency.parameter.marker
         Type Ptr<Int>
@@ -586,7 +598,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: FunPtr<(Int) -> Int>
@@ -632,7 +644,7 @@ Module
       val $dependency.parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $dependency.argument.3
-      call $dependency.argument.0: Int = @fn13 direct
+      call $dependency.argument.0: Int = @fn14 direct
         Type Marker
         Local $dependency.parameter.marker
         Type Ptr<Int>
@@ -644,7 +656,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Int
@@ -653,7 +665,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Int
         Local $dependency.parameter.value
       call @scoop_rt_gc_collect direct
@@ -665,11 +677,30 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn15 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun println @fn3(value: Int8) -> Unit
+  fun equalTo @fn3(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn16 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun println @fn4(value: Int8) -> Unit
     bb0 entry
       val $dependency.local.1: Int8
         Type Int8
@@ -693,7 +724,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn4(value: Int16) -> Unit
+  fun println @fn5(value: Int16) -> Unit
     bb0 entry
       val $dependency.local.1: Int16
         Type Int16
@@ -717,7 +748,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn5(value: Int) -> Unit
+  fun println @fn6(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -741,7 +772,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn6(value: Long) -> Unit
+  fun println @fn7(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -765,7 +796,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn7(value: UInt8) -> Unit
+  fun println @fn8(value: UInt8) -> Unit
     bb0 entry
       val $dependency.local.1: UInt8
         Type UInt8
@@ -789,7 +820,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn8(value: UInt16) -> Unit
+  fun println @fn9(value: UInt16) -> Unit
     bb0 entry
       val $dependency.local.1: UInt16
         Type UInt16
@@ -813,7 +844,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn9(value: UInt) -> Unit
+  fun println @fn10(value: UInt) -> Unit
     bb0 entry
       val $dependency.local.1: UInt
         Type UInt
@@ -837,7 +868,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn10(value: ULong) -> Unit
+  fun println @fn11(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
@@ -861,7 +892,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun envelope @fn11(marker: Marker, value: Envelope, callback: FunPtr<(Envelope) -> Envelope>) -> Envelope
+  fun envelope @fn12(marker: Marker, value: Envelope, callback: FunPtr<(Envelope) -> Envelope>) -> Envelope
     bb0 entry
       val $dependency.local.3: Envelope
         Type Envelope
@@ -883,7 +914,7 @@ Module
       return
         Type Envelope
         Local $call.1
-  fun println @fn12(value: Boolean) -> Unit
+  fun println @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -907,7 +938,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun pointer @fn13(marker: Marker, value: Ptr<Int>, other: Option<Ptr<Int>>, callback: Option<FunPtr<(Int) -> Int>>) -> Int
+  fun pointer @fn14(marker: Marker, value: Ptr<Int>, other: Option<Ptr<Int>>, callback: Option<FunPtr<(Int) -> Int>>) -> Int
     bb0 entry
       val $dependency.local.4: Ptr<Int>
         Type Ptr<Int>
@@ -937,7 +968,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun println @fn14(value: String) -> Unit
+  fun println @fn15(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -961,14 +992,36 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun ctor.Marker.$c0 @fn15(text: String) -> Marker <no-gc>
+  fun equals @fn16(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun ctor.Marker.$c0 @fn17(text: String) -> Marker <no-gc>
     bb0 entry
       return
         Type Marker
         StructInit Marker
           Type String
           Local text
-  fun callback bridge for shift @fn16($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for shift @fn18($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @fn0 direct
         Type Int
@@ -982,7 +1035,7 @@ Module
         Type Int
         Local $value
       return
-  fun callback bridge for shiftEnvelope @fn17($result: Ptr<Envelope>, $arg0: Ptr<Envelope>) -> Unit <no-gc>
+  fun callback bridge for shiftEnvelope @fn19($result: Ptr<Envelope>, $arg0: Ptr<Envelope>) -> Unit <no-gc>
     bb0 entry
       call $value: Envelope = @fn1 direct
         Type Envelope
@@ -996,7 +1049,7 @@ Module
         Type Envelope
         Local $value
       return
-  instance mi0 function=@fn3 <- println
+  instance mi0 function=@fn3 <- equalTo
   instance mi1 function=@fn4 <- println
   instance mi2 function=@fn5 <- println
   instance mi3 function=@fn6 <- println
@@ -1004,10 +1057,12 @@ Module
   instance mi5 function=@fn8 <- println
   instance mi6 function=@fn9 <- println
   instance mi7 function=@fn10 <- println
-  instance mi8 function=@fn11 <- envelope
-  instance mi9 function=@fn12 <- println
-  instance mi10 function=@fn13 <- pointer
-  instance mi11 function=@fn14 <- println
+  instance mi8 function=@fn11 <- println
+  instance mi9 function=@fn12 <- envelope
+  instance mi10 function=@fn13 <- println
+  instance mi11 function=@fn14 <- pointer
+  instance mi12 function=@fn15 <- println
+  instance mi13 function=@fn16 <- equals
   str @str0 "cabi-"
   str @str1 "alive"
   str @str2 "\n"

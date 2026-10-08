@@ -1,0 +1,163 @@
+Module
+  typealias Float32 = Float
+  typealias Float64 = Double
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=storage-body(Exception.$get$message) <stored field0 init=parameter9>
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class MissingContextException(message: Option<String>)
+  class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
+  class IllegalStateException(message: Option<String>)
+  class MyError(code: Int)
+    field1 property12: Int
+    property12 val code: Int getter12=storage <stored field1 init=parameter13>
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Long
+  interface Iterator<T>
+    fun next(): Option<T0>
+  interface Iterable<T>
+    operator fun iterator(): Iterator<T0>
+  interface Equality<T>
+    fun equalTo(other: T0): Boolean
+  interface Continuation<T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<T>
+    suspend fun run(): T0
+  interface SuspendRegistration<T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern0 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern1 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreLongToString(arg1: Long): String <extern2 abi=scoop symbol=scoop_rt_long_to_string>
+  fun coreULongToString(arg1: ULong): String <extern3 abi=scoop symbol=scoop_rt_ulong_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern4 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreLongHash(arg1: Long): Long <extern5 abi=scoop symbol=scoop_rt_long_hash>
+  fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
+  fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun coreFloatToString(arg1: Float): String <extern9 abi=scoop symbol=scoop_rt_float_to_string>
+  fun coreDoubleToString(arg1: Double): String <extern10 abi=scoop symbol=scoop_rt_double_to_string>
+  fun __scoopProgramArguments(): Array<String>
+    val local0
+      StringLiteral "illegal state" : String
+    val local1
+      Local $argument.0 : String
+    val local2
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    return
+  fun println<T : ToString>(value: T0): Unit
+    val local1
+      Local value : T0
+    val local2
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
+  fun read(): Int
+    throw
+      ClassInit UnwrapException : UnwrapException
+    return
+      IntegerLiteral 1 : Int
+  fun main(): Unit
+    try
+      Call read : Int
+      val local0
+        StringLiteral "unreachable" : String
+      val local1
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    catch e: UnwrapException
+      val local3
+        StringLiteral "caught unwrap" : String
+      val local4
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    catch e: Exception
+      val local6
+        StringLiteral "caught other" : String
+      val local7
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    finally
+      val local8
+        StringLiteral "finally" : String
+      val local9
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    try
+      val local10
+        IntegerLiteral 42 : Int
+      val local11
+        Local $argument.0 : Int
+      throw
+        ClassInit MyError : MyError
+          Local $parameter.code : Int
+    catch e: MyError
+      val local13
+        FieldAccess class field code : Int
+          Local e : MyError
+      val local14
+        Local $argument.0 : Int
+      Call println<Int> : Unit
+        Local $parameter.value : Int
+    finally
+      val local15
+        StringLiteral "done" : String
+      val local16
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+  output executable main
+  instance println<String>
+  instance println<Int>

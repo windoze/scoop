@@ -168,8 +168,11 @@ fn bridge_plan(producer: ConeIdentity) -> BridgePlanFixture {
         &contract,
     )
     .unwrap();
-    let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(fingerprint))
-        .unwrap();
+    let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+        fingerprint,
+        scoop_identity::CResultAdaptation::Direct,
+    ))
+    .unwrap();
     let primary = CborIdentityRecord::from_key(GeneratedBridgeAtomKey::new(
         producer,
         GeneratedBridgeAtomRoleKey::PrimaryEntry { unit: unit.id() },

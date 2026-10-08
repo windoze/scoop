@@ -1,8 +1,6 @@
 #include "scoop_runtime_metadata_v1.h"
 
-static void release_hook(void *object_start) {
-    *(int *)object_start = 1;
-}
+static void release_hook(void *object_start) { *(int *)object_start = 1; }
 
 int main(void) {
     ScoopDescriptorPrefixV1 prefix = {
@@ -11,8 +9,8 @@ int main(void) {
         (uint32_t)sizeof(ScoopImageDescriptorV1),
     };
 
-    if (prefix.magic != UINT64_C(0x53434f4f50494d47) ||
-        prefix.abi_version != 6 || prefix.struct_size != 240) {
+    if (prefix.magic != UINT64_C(0x53434f4f50494d47) || prefix.abi_version != 7 ||
+        prefix.struct_size != 240) {
         return 2;
     }
     if (SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1 != UINT64_C(0x53434f4f50454e54) ||

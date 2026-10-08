@@ -61,14 +61,85 @@ SourceFile
       public fun decoder
 SourceFile
   RootPackage
+  public class Atomic<T : value>(initial: T)
+    private val lock: AtomicBoolean = <expr>
+      Call AtomicBoolean
+        BoolLiteral false
+    private var value: T = <expr>
+      Var initial
+    public fun load
+    public fun store
+    public fun exchange
+    @Extern(name = "sched_yield")
+  private fun atomicYield(): Int
+SourceFile
+  RootPackage
+  public enum MemoryOrder
+    Relaxed
+    Acquire
+    Release
+    AcqRel
+    SeqCst
+    @Intrinsic("core_atomic_int")
+  public class AtomicInt()
+    public fun load
+    public fun store
+    public fun exchange
+    public fun compareAndSet
+    public fun compareAndExchange
+    public fun fetchAdd
+    public fun fetchSub
+    public fun fetchAnd
+    public fun fetchOr
+    public fun fetchXor
+    public fun getAndUpdate
+    public fun updateAndGet
+    @Intrinsic("core_atomic_long")
+  public class AtomicLong()
+    public fun load
+    public fun store
+    public fun exchange
+    public fun compareAndSet
+    public fun compareAndExchange
+    public fun fetchAdd
+    public fun fetchSub
+    public fun fetchAnd
+    public fun fetchOr
+    public fun fetchXor
+    public fun getAndUpdate
+    public fun updateAndGet
+    @Intrinsic("core_atomic_boolean")
+  public class AtomicBoolean()
+    public fun load
+    public fun store
+    public fun exchange
+    public fun compareAndSet
+    public fun compareAndExchange
+    public fun fetchAnd
+    public fun fetchOr
+    public fun fetchXor
+    public fun getAndUpdate
+    public fun updateAndGet
+    @Intrinsic("core_atomic_ref")
+  public class AtomicRef<T : ref>()
+    public fun load
+    public fun store
+    public fun exchange
+    public fun compareAndSet
+    public fun compareAndExchange
+    public fun getAndUpdate
+    public fun updateAndGet
+SourceFile
+  RootPackage
     @Intrinsic("core_char")
-  public struct Char <representation omitted> : ToString, Hash
+  public struct Char <representation omitted> : Equality<Char>, ToString, Hash
     private fun codeValue
     public val code: Int <computed>
       @NoGC
       get()
         Call codeValue
     public operator fun equals
+    public fun equalTo
     public operator fun compareTo
     public fun toString
     public fun hash
@@ -129,6 +200,92 @@ SourceFile
       Call suspendCoroutine
         Call FunctionSuspendRegistration
           Var registration
+SourceFile
+  RootPackage
+    @Unsafe
+  public fun String.withCString<R>(block: (Ptr<Int8>) -> R): R
+    val source
+      This
+    val length
+      Var byteLength
+    var index
+      IntLiteral 0L
+    while
+      Binary Lt
+        Var index
+        Var length
+      if
+        Binary Eq
+          Call coreStringByteAt
+            Var source
+            Var index
+          IntLiteral 0
+        throw
+          Call IllegalArgumentException
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1L
+    val bytes
+      Call MutableArray<UInt8>
+        Binary Add
+          Var length
+          IntLiteral 1L
+        Lambda 0 suspend=false
+          param index: _
+          if
+            Binary Eq
+              Var index
+              Var length
+            IntLiteral 0u
+          else
+            MethodCall toUInt8
+              Call coreStringByteAt
+                Var source
+                Var index
+    return
+      MethodCall withDataPointer<UInt8, R>
+        Var bytes
+        AnonymousFunction 0 suspend=false return=R
+          param pointer: Ptr<UInt8>
+          param count: Long
+          @Unsafe block
+            return
+              Call block
+                MethodCall cast<Int8>
+                  Var pointer
+    @GCLeaf
+    @Extern(name = "strlen")
+  internal fun coreCStringLength(pointer: Ptr<Int8>): ULong
+SourceFile
+  RootPackage
+    @Unsafe
+    @Intrinsic("array_with_data_pointer")
+  internal fun _withArrayDataPointer<T : value, R>(array: Array<T>, block: (Ptr<T>, Long) -> R): R
+    @Unsafe
+    @Intrinsic("mutable_array_with_data_pointer")
+  internal fun _withMutableArrayDataPointer<T : value, R>(array: MutableArray<T>, block: (Ptr<T>, Long) -> R): R
+    @Unsafe
+    @Intrinsic("string_with_utf8_bytes")
+  internal fun _withStringUtf8Bytes<R>(value: String, block: (Ptr<UInt8>, Long) -> R): R
+    @Unsafe
+  public fun Array<T>.withDataPointer<T : value, R>(block: (Ptr<T>, Long) -> R): R
+    =
+      Call _withArrayDataPointer<T, R>
+        This
+        Var block
+    @Unsafe
+  public fun MutableArray<T>.withDataPointer<T : value, R>(block: (Ptr<T>, Long) -> R): R
+    =
+      Call _withMutableArrayDataPointer<T, R>
+        This
+        Var block
+    @Unsafe
+  public fun String.withUtf8Bytes<R>(block: (Ptr<UInt8>, Long) -> R): R
+    =
+      Call _withStringUtf8Bytes<R>
+        This
+        Var block
 SourceFile
   RootPackage
   public interface Decodable<T>
@@ -227,8 +384,9 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_ptr")
-  public struct Ptr<T : value> <representation omitted>
+  public struct Ptr<T : value> <representation omitted> : Equality<Ptr<T>>
     public operator fun equals
+    public fun equalTo
     public fun toULong
     public fun cast
     public fun load
@@ -251,7 +409,7 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_float")
-  public struct Float <representation omitted> : ToString
+  public struct Float <representation omitted> : Equality<Float>, ToString
     public companion object
       public fun encode
       public fun decode
@@ -282,6 +440,7 @@ SourceFile
     public operator fun div
     public operator fun rem
     public operator fun equals
+    public fun equalTo
     public fun isNaN
     public fun isInfinite
     public fun isFinite
@@ -298,7 +457,7 @@ SourceFile
     public fun toDouble
     public fun toString
     @Intrinsic("core_double")
-  public struct Double <representation omitted> : ToString
+  public struct Double <representation omitted> : Equality<Double>, ToString
     public companion object
       public fun encode
       public fun decode
@@ -329,6 +488,7 @@ SourceFile
     public operator fun div
     public operator fun rem
     public operator fun equals
+    public fun equalTo
     public fun isNaN
     public fun isInfinite
     public fun isFinite
@@ -427,11 +587,12 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_int")
-  public struct Int <representation omitted> : ToString, Hash
+  public struct Int <representation omitted> : Equality<Int>, ToString, Hash
     public fun toFloat
     public fun toDouble
     internal fun characterUnchecked
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -469,10 +630,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_int16")
-  public struct Int16 <representation omitted> : ToString, Hash
+  public struct Int16 <representation omitted> : Equality<Int16>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -510,10 +672,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_int8")
-  public struct Int8 <representation omitted> : ToString, Hash
+  public struct Int8 <representation omitted> : Equality<Int8>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -551,10 +714,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_long")
-  public struct Long <representation omitted> : ToString, Hash
+  public struct Long <representation omitted> : Equality<Long>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -592,10 +756,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_uint")
-  public struct UInt <representation omitted> : ToString, Hash
+  public struct UInt <representation omitted> : Equality<UInt>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -632,10 +797,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_uint16")
-  public struct UInt16 <representation omitted> : ToString, Hash
+  public struct UInt16 <representation omitted> : Equality<UInt16>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -672,10 +838,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_uint8")
-  public struct UInt8 <representation omitted> : ToString, Hash
+  public struct UInt8 <representation omitted> : Equality<UInt8>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -712,10 +879,11 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_ulong")
-  public struct ULong <representation omitted> : ToString, Hash
+  public struct ULong <representation omitted> : Equality<ULong>, ToString, Hash
     public fun toFloat
     public fun toDouble
     public operator fun equals
+    public fun equalTo
     public operator fun unaryPlus
     public operator fun unaryMinus
     public operator fun inc
@@ -751,8 +919,37 @@ SourceFile
       public fun decode
 SourceFile
   RootPackage
-    @Extern(name = "scoop_rt_write", abi = "scoop")
   public fun write(message: String)
+    @Unsafe block
+      MethodCall withUtf8Bytes<Unit>
+        Var message
+        AnonymousFunction 0 suspend=false return=_
+          param pointer: Ptr<UInt8>
+          param length: Long
+          @Unsafe block
+            Call coreStdoutWrite
+              Var pointer
+              Var length
+  public fun writeError(message: String)
+    @Unsafe block
+      MethodCall withUtf8Bytes<Unit>
+        Var message
+        AnonymousFunction 1 suspend=false return=_
+          param pointer: Ptr<UInt8>
+          param length: Long
+          @Unsafe block
+            Call coreStderrWrite
+              Var pointer
+              Var length
+  public fun flushOutput()
+    @Unsafe block
+      Call coreFlushStdout
+    @Extern(name = "scoop_rt_flush_stdout")
+  internal fun coreFlushStdout()
+    @Extern(name = "scoop_rt_stdout_write")
+  internal fun coreStdoutWrite(pointer: Ptr<UInt8>, length: Long)
+    @Extern(name = "scoop_rt_stderr_write")
+  internal fun coreStderrWrite(pointer: Ptr<UInt8>, length: Long)
   public fun print<T : ToString>(value: T)
     =
       Call write
@@ -763,6 +960,17 @@ SourceFile
       MethodCall toString
         Var value
     Call write
+      StringLiteral "\n"
+  public fun eprint<T : ToString>(value: T)
+    =
+      Call writeError
+        MethodCall toString
+          Var value
+  public fun eprintln<T : ToString>(value: T)
+    Call writeError
+      MethodCall toString
+        Var value
+    Call writeError
       StringLiteral "\n"
 SourceFile
   RootPackage
@@ -847,6 +1055,45 @@ SourceFile
   RootPackage
   internal class OptionEncoder<T>(val element: Encodable<T>), Encodable<Option<T>>
     public fun encode
+SourceFile
+  RootPackage
+    @Extern(name = "scoop_rt_exit", abi = "scoop")
+  public fun exit(code: Int): Nothing
+SourceFile
+  RootPackage
+    @GCLeaf
+    @Extern(name = "scoop_rt_program_argc", abi = "c")
+  internal fun coreProgramArgc(): Int
+    @GCLeaf
+    @Extern(name = "scoop_rt_program_argv", abi = "c")
+  internal fun coreProgramArgv(index: Int): Ptr<Int8>?
+  internal fun __scoopProgramArguments(): Array<String>
+    @Unsafe block
+      return
+        Call Array<String>
+          MethodCall toInt64
+            Call coreProgramArgc
+          AnonymousFunction 0 suspend=false return=String
+            param index: Long
+            @Unsafe block
+              try
+                return
+                  MethodCall fromCString
+                    Var String
+                    NullAssert
+                      Call coreProgramArgv
+                        MethodCall toInt32
+                          Var index
+              catch failure: CharacterCodingException
+                Call eprintln
+                  Binary Add
+                    Binary Add
+                      StringLiteral "invalid UTF-8 in argv["
+                      MethodCall toString
+                        Var index
+                    StringLiteral "]"
+                throw
+                  Var failure
 SourceFile
   RootPackage
   public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
@@ -968,7 +1215,7 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_string")
-  public class String(), ToString, Hash, Iterable<Char>
+  public class String(), Equality<String>, ToString, Hash, Iterable<Char>
     public val byteLength: Long <computed>
       get()
         Call coreStringByteLength
@@ -978,6 +1225,7 @@ SourceFile
         Call coreStringLength
           This
     public operator fun equals
+    public fun equalTo
     public operator fun plus
     public operator fun compareTo
     public fun toString
@@ -992,6 +1240,11 @@ SourceFile
       public fun decode
       public fun fromChars
       public fun fromUtf8Unchecked
+      public fun fromUtf8
+      public fun fromUtf8OrNone
+      public fun fromUtf8Lossy
+      public fun fromUtf8
+      public fun fromCString
     @Extern(name = "scoop_rt_string_eq", abi = "scoop")
   internal fun coreStringEquals(left: String, right: String): Boolean
     @Extern(name = "scoop_rt_string_hash", abi = "scoop")
@@ -1025,6 +1278,7 @@ SourceFile
   public class IndexOutOfBoundsException() : Exception(<1 args>)
   public class IllegalArgumentException(message: String? = <expr>) : Exception(<1 args>)
   public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
+  public class CharacterCodingException(val byteOffset: Long) : Exception(<1 args>)
   internal fun __scoopThrowInitializationCycle(message: String)
     throw
       Call IllegalStateException
@@ -1032,6 +1286,8 @@ SourceFile
           Var message
 SourceFile
   RootPackage
+  public interface Equality<T>
+    fun equalTo
   public interface ToString
     fun toString
   public interface Hash
@@ -1045,8 +1301,9 @@ SourceFile
   public typealias UInt32 = UInt
   public typealias UInt64 = ULong
     @Intrinsic("core_boolean")
-  public struct Boolean <representation omitted> : ToString, Hash
+  public struct Boolean <representation omitted> : Equality<Boolean>, ToString, Hash
     public operator fun equals
+    public fun equalTo
     public operator fun not
     public fun toString
     public fun hash
@@ -1070,4 +1327,54 @@ SourceFile
 SourceFile
   RootPackage
     @Intrinsic("core_unit")
-  public struct Unit <representation omitted>
+  public struct Unit <representation omitted> : Equality<Unit>
+    public fun equalTo
+SourceFile
+  RootPackage
+  internal fun requireValidUtf8(result: (String?, Long)): String
+    val value
+      FieldAccess _1
+        Var result
+    if
+      Binary Eq
+        Var value
+        Var None
+      throw
+        Call CharacterCodingException
+          FieldAccess _2
+            Var result
+    return
+      NullAssert
+        Var value
+  internal fun decodeUtf8(bytes: Array<UInt8>): (String?, Long)
+    @Unsafe block
+      return
+        MethodCall withDataPointer
+          Var bytes
+          AnonymousFunction 0 suspend=false return=(String?, Long)
+            param pointer: Ptr<UInt8>
+            param length: Long
+            @Unsafe block
+              return
+                Call coreStringDecodeUtf8
+                  Var pointer
+                  Var length
+  internal fun decodeUtf8Lossy(bytes: Array<UInt8>): String
+    @Unsafe block
+      return
+        MethodCall withDataPointer
+          Var bytes
+          AnonymousFunction 1 suspend=false return=String
+            param pointer: Ptr<UInt8>
+            param length: Long
+            @Unsafe block
+              return
+                Call coreStringDecodeUtf8Lossy
+                  Var pointer
+                  Var length
+    @Unsafe
+    @Extern(name = "scoop_rt_string_decode_utf8", abi = "scoop")
+  internal fun coreStringDecodeUtf8(pointer: Ptr<UInt8>, length: Long): (String?, Long)
+    @Unsafe
+    @Extern(name = "scoop_rt_string_decode_utf8_lossy", abi = "scoop")
+  internal fun coreStringDecodeUtf8Lossy(pointer: Ptr<UInt8>, length: Long): String

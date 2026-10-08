@@ -124,13 +124,14 @@ fn function_signatures_params_and_calls() {
         call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn0(integer<Int>(0x00000028), integer<Int>(0x00000002))
         store t0 -> local0
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -167,7 +168,7 @@ fn function_signatures_params_and_calls() {
 }
 
 #[test]
-fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
+fn c_extern_scalar_arguments_use_values_without_bridge_storage() {
     let mut b = Builder::new();
     let int8 = mir::Type::Integer(mir::IntegerKind::SIGNED_8);
     let consume = b.c_extern(
@@ -187,13 +188,6 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
-    let local = instructions
-        .iter()
-        .find_map(|instruction| match instruction {
-            lir::Instruction::Store { local, .. } => Some(*local),
-            _ => None,
-        })
-        .expect("C argument is stored in one exact typed local");
     let arguments = instructions
         .iter()
         .find_map(|instruction| match instruction {
@@ -205,12 +199,12 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
         .expect("C extern uses the native-safe protocol");
     assert_eq!(
         arguments,
-        [lir::AbiCallArgument::Direct(lir::Value::CArgumentStorage(
-            lir::CArgumentStorage::address_of(local)
+        [lir::AbiCallArgument::Direct(lir::Value::IntegerConst(
+            lir::LirIntegerConstant::Signed8(7)
         ))]
     );
-    assert_eq!(function.locals[local].ty(), &lir::LirType::I8);
-    assert!(lir::dump(&module).contains("extern0(c-arg-address(local0))"));
+    assert!(function.locals.is_empty());
+    assert!(lir::dump(&module).contains("direct-c=(i8 signext)->void"));
     assert!(
         !instructions
             .iter()
@@ -287,13 +281,14 @@ fn return_inside_a_branch_seals_its_block() {
       block entry
         poll managed-void-target0 sp<managed-poll:0> live=[]
         ret
-      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
         call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
         br @success
       block success
+        raw_store param2 integer<Int>(0x00000000) align 4
         ret integer<UInt>(0x00000000)
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)

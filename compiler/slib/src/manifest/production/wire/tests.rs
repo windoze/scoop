@@ -21,10 +21,10 @@ fn library_manifest_wire_round_trips_without_promoting_carried_values() {
 fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
     let mut old = library_manifest_bytes();
     old.truncate(old.len() - 2);
-    old[0] = 0xaa;
+    old[0] = 0xab;
     let mut extended = library_manifest_bytes();
-    extended[0] = 0xac;
-    extended.extend_from_slice(&[13, 0x80]);
+    extended[0] = 0xad;
+    extended.extend_from_slice(&[14, 0x80]);
     for bytes in [old, extended] {
         assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
     }
@@ -38,10 +38,10 @@ fn manifest_reader_rejects_old_extended_and_unknown_sum_shapes() {
 #[test]
 fn manifest_reader_requires_the_odr_directory_field_even_when_empty() {
     let mut missing = library_manifest_bytes();
-    missing.drain(missing.len() - 4..missing.len() - 2);
+    missing.drain(missing.len() - 6..missing.len() - 4);
     assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&missing).is_err());
     let mut wrong_field = library_manifest_bytes();
-    let field = wrong_field.len() - 4;
+    let field = wrong_field.len() - 6;
     assert_eq!(wrong_field[field], 11);
     wrong_field[field] = 12;
     let error =
@@ -53,6 +53,20 @@ fn manifest_reader_requires_the_odr_directory_field_even_when_empty() {
             actual: 12
         }
     );
+}
+
+#[test]
+fn manifest_native_cxx_mode_requires_a_boolean_and_round_trips() {
+    for cxx in [0, 1] {
+        let mut bytes = library_manifest_bytes();
+        *bytes.last_mut().unwrap() = cxx;
+        let decoded = decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).unwrap();
+        assert_eq!(decoded.native_cxx, cxx == 1);
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+    }
+    let mut bytes = library_manifest_bytes();
+    *bytes.last_mut().unwrap() = 2;
+    assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
 }
 
 #[test]
@@ -75,7 +89,7 @@ fn manifest_c_bridge_branch_is_checked_without_promoting_other_fields() {
 }
 
 pub(crate) fn library_manifest_bytes() -> Vec<u8> {
-    let mut bytes = vec![0xab];
+    let mut bytes = vec![0xac];
     field(&mut bytes, 1);
     bytes.extend_from_slice(&[0xa1, 0x00, 0x01]);
     field(&mut bytes, 2);
@@ -98,6 +112,8 @@ pub(crate) fn library_manifest_bytes() -> Vec<u8> {
     bytes.push(0x80);
     field(&mut bytes, 12);
     bytes.push(1);
+    field(&mut bytes, 13);
+    bytes.push(0);
     bytes
 }
 

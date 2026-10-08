@@ -15,7 +15,9 @@ impl Lowerer {
                 let constructor = &self.struct_constructors[id];
                 (constructor.safety, &self.structs[constructor.owner].name)
             }
-            NominalConstructorSource::IntrinsicClass(_)
+            NominalConstructorSource::Atomic(_)
+            | NominalConstructorSource::ImportedAtomic(_)
+            | NominalConstructorSource::IntrinsicClass(_)
             | NominalConstructorSource::ArrayGenerate(_)
             | NominalConstructorSource::ImportedArray(_)
             | NominalConstructorSource::ImportedArrayGenerate(_)

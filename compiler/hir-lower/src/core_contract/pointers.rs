@@ -107,7 +107,6 @@ impl Lowerer {
             && declaration.type_params[0].kind() == hir::TypeParamKind::Value
             && declaration.semantic_fields().is_empty()
             && declaration.constructors.is_empty()
-            && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
         if !valid {

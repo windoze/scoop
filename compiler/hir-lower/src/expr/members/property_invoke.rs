@@ -219,7 +219,8 @@ impl Lowerer {
                 };
                 expression
             }
-            NamedFunctionLikeProbe::ImportedDependencyProperty(_)
+            NamedFunctionLikeProbe::ImportedDerivedEquality(_)
+            | NamedFunctionLikeProbe::ImportedDependencyProperty(_)
             | NamedFunctionLikeProbe::Nominal(_)
             | NamedFunctionLikeProbe::IntrinsicStruct(_) => {
                 unreachable!("property extension invoke partitions contain callable candidates")

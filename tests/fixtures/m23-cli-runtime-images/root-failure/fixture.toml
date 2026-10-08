@@ -115,7 +115,7 @@ argv = ["${work}/program"]
 stdout = ""
 stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
 env = {}
-signal = "SIGABRT"
+exit = 1
 
 [[steps]]
 name = "run_moving"
@@ -123,4 +123,4 @@ argv = ["${work}/program"]
 stdout = ""
 stderr = "scoop: uncaught exception: n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=IllegalStateException)\n"
 env = {"SCOOP_GC_STRESS_MOVE" = "1"}
-signal = "SIGABRT"
+exit = 1

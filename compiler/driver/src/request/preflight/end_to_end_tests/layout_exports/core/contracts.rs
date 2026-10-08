@@ -86,6 +86,10 @@ pub(super) fn check(
         "(Long) -> Char",
         "(Long) -> Int8",
         "(Long) -> Option<String>",
+        "(Long) -> String",
+        "(Ptr<UInt8>, Long) -> (Option<String>, Long)",
+        "(Ptr<UInt8>, Long) -> String",
+        "(Ptr<UInt8>, Long) -> Unit",
         "IntRangeIterator",
         "LongRangeIterator",
         "StringIterator",
@@ -97,6 +101,11 @@ pub(super) fn check(
         "closure (Long) -> Int8",
         "closure (Long) -> Option<String>",
         "closure (Long) -> Option<String>",
+        "closure (Long) -> String",
+        "closure (Ptr<UInt8>, Long) -> (Option<String>, Long)",
+        "closure (Ptr<UInt8>, Long) -> String",
+        "closure (Ptr<UInt8>, Long) -> Unit",
+        "closure (Ptr<UInt8>, Long) -> Unit",
     ];
     expected_local.extend(match name {
         "shared-callables-combined" => Some("SharedCallableImpl"),

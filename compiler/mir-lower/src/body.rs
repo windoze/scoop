@@ -5,6 +5,7 @@ mod callbacks;
 mod calls;
 mod casts;
 mod coroutines;
+mod data_borrow;
 mod exceptions;
 mod expressions;
 mod function;

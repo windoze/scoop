@@ -92,7 +92,9 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         &'request self,
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
         let sources = match &self.current {
-            ValidatedCurrentConeInput::Manifest { manifest } => parse_manifest_current(manifest)?,
+            ValidatedCurrentConeInput::Manifest { manifest } => {
+                parse_manifest_current(manifest, self.target().id())?
+            }
             ValidatedCurrentConeInput::SingleFile { source } => parse_single_file_current(source)?,
         };
         Ok(ParsedSingleConeBuildRequest {

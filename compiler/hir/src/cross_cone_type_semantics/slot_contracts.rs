@@ -45,7 +45,7 @@ impl InheritanceSlotContractV1 {
         declaration_access: DeclarationAccessSourceV1,
     ) -> Result<Self, InheritanceSlotContractBuildError> {
         let target = implementation.target();
-        if !target.signature().matches_slot(&signature) {
+        if !target.signature().matches_slot(&signature, role) {
             return Err(InheritanceSlotContractBuildError::SignatureMismatch);
         }
         if matches!(implementation, InheritanceSlotImplementationV1::Abstract(_))

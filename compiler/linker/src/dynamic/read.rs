@@ -27,34 +27,16 @@ pub(crate) fn read(
         .into_iter()
         .map(|record| {
             let id = DynamicProvider::id(input, &record.install_name, profile)?;
+            let (exports, dependencies) =
+                super::stub::entries(record.exports, &record.previous_exports, record.reexports);
             Ok(Arc::new(DynamicProvider {
                 id,
                 input,
                 install_name: record.install_name,
                 current_version: record.current_version,
                 compatibility_version: record.compatibility_version,
-                exports: record
-                    .exports
-                    .into_iter()
-                    .map(|(name, interface)| {
-                        (
-                            name,
-                            DynamicExport::Symbol {
-                                interface,
-                                storage: ExportStorage::InterfaceOnly,
-                            },
-                        )
-                    })
-                    .collect(),
-                dependencies: record
-                    .reexports
-                    .into_iter()
-                    .map(|name| LoadDependency {
-                        name,
-                        reexport: true,
-                        compatibility_version: 0,
-                    })
-                    .collect(),
+                exports,
+                dependencies,
                 rpaths: Vec::new(),
                 locator: locator.to_owned(),
             }))

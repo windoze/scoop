@@ -11,7 +11,7 @@ use scoop_lir::{
 use super::RuntimeMetadataV1Types;
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 6;
+const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const IMAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d47;
 const IMAGE_DESCRIPTOR_SIZE: u64 = 240;
 const RUNTIME_IMAGE_FINGERPRINT_OFFSET: u64 = 96;

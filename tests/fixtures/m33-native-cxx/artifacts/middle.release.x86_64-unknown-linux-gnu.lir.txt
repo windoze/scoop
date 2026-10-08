@@ -1,0 +1,14 @@
+Module
+  fun @scoop$1$cb$f0519212cec63442fadd462f20c235618d55fc54927c3f1b511d02b13cb8e3a0(i32) -> sret<{i32, i32} size=8 align=4 scan=none>
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 $call.1: {i32, i32}
+    local %3 $sc.1: {i32, i32}
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    call managed-indirect-target0 sp<managed-call:0> live=[] local3 = sig=indirect0 (sret {i32, i32} size=8 align=4 scan=none, i32) external-fn0(local1)
+    store local3 -> local2
+    ret local2
+  output library

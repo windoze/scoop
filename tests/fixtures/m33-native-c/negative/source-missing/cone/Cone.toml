@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "native-negative"
+version = "0.1.0"
+kind = "executable"
+[native]
+[[native.sources]]
+path = "absent.c"

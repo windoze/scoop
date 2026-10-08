@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m33"
+name = "errno-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m33:errno-provider" = "0.1.0"

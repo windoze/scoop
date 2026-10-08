@@ -203,13 +203,6 @@ impl CanonicalHirFoundation {
             })
     }
 
-    pub(crate) fn exact_type_id_by_key(&self, key: &ExactTypeKey) -> Option<PersistentExactTypeId> {
-        self.exact_types
-            .iter()
-            .find(|record| record.key() == key)
-            .map(CborIdentityRecord::id)
-    }
-
     pub(crate) fn export_binding_id_by_bytes(
         &self,
         bytes: &[u8; 32],
@@ -1063,3 +1056,18 @@ impl fmt::Display for HexIdentity<'_> {
 
 #[cfg(test)]
 mod tests;
+
+impl scoop_identity::PersistentIdResolver<PersistentExactTypeId> for &CanonicalHirFoundation {
+    type Error = ();
+
+    fn resolve(
+        &mut self,
+        value: scoop_identity::DecodedPersistentId<PersistentExactTypeId>,
+    ) -> Result<PersistentExactTypeId, Self::Error> {
+        self.exact_types
+            .iter()
+            .map(CborIdentityRecord::id)
+            .find(|id| id.as_array() == value.as_array())
+            .ok_or(())
+    }
+}

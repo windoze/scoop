@@ -1,0 +1,4 @@
+@InteriorMutable
+struct Cell(val value: Int)
+fun compare(left: Cell, right: Cell): Boolean = left == right
+fun main() {}

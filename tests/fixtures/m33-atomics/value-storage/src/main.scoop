@@ -1,0 +1,44 @@
+class Payload(val value: Int)
+struct Snapshot(val serial: Int, val payload: Payload)
+enum State { Empty, Item(Int, Payload) }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val integers = Atomic(3)
+    check(integers.load() == 3)
+    integers.store(5)
+    check(integers.exchange(7) == 5 && integers.load() == 7)
+    val unit = Atomic(Unit)
+    unit.store(Unit)
+    check(unit.exchange(Unit) == Unit)
+
+    val first = Payload(11)
+    val second = Payload(22)
+    val snapshot = Atomic(Snapshot(1, first))
+    val copy = snapshot.load()
+    val alias = snapshot
+    alias.store(Snapshot(2, second))
+    val old = snapshot.exchange(Snapshot(3, first))
+    gcCollect()
+    check(copy.serial == 1 && copy.payload === first)
+    check(old.serial == 2 && old.payload.value == 22)
+    check(snapshot.load().payload === first)
+
+    val pair = Atomic((1, first))
+    pair.store((2, second))
+    val (number, payload) = pair.exchange((3, first))
+    check(number == 2 && payload === second)
+    val state = Atomic<State>(State.Empty)
+    state.store(State.Item(4, second))
+    val saved = state.exchange(State.Empty)
+    when (saved) {
+        State.Empty -> { throw IllegalStateException() }
+        State.Item(serial, node) -> { check(serial == 4 && node === second) }
+    }
+    val values = MutableArray<Atomic<Snapshot>>(2L) { index -> snapshot }
+    values[1L].store(Snapshot(8, second))
+    gcCollect()
+    check(values[0L].load().serial == 8)
+    check(values[0L].load().payload.value == 22)
+    println("atomic values")
+}

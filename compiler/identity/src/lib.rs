@@ -12,6 +12,12 @@
 //! let _: PersistentTypeId = cone;
 //! ```
 
+mod atomic;
+pub use atomic::{
+    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicExpression, AtomicLoadOrder,
+    AtomicMemoryOrder, AtomicOperation, AtomicRmwOperation, AtomicStorage, AtomicStoreOrder,
+    AtomicValueKind,
+};
 mod capability;
 mod cone;
 mod context;
@@ -26,6 +32,8 @@ mod record;
 mod source;
 mod syntax;
 mod validation;
+
+pub use entity::{CAbiCallMode, CResultAdaptation, ExternResult};
 
 pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedContextStorageType};
 
@@ -79,13 +87,13 @@ pub use entity::{
     DecodedOptionalExactOwner, EnumVariantFieldKey, EnumVariantFieldResolutionError,
     EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
     EnumVariantResolutionError, ExactCallableSignature, ExactCallableSignatureResolutionError,
-    ExactOrdinaryNoArgUnitSignature, FieldIdentityError, FieldIdentityKey,
-    FieldIdentityResolutionError, FieldIdentityView, GeneratedCallableIdentityError,
-    GeneratedCallableKey, GeneratedCallableResolutionError, GeneratedEnumVariantRole,
-    GeneratedFieldKey, GeneratedNominalIdentityError, GeneratedNominalKey,
-    GeneratedNominalResolutionError, InitializationCallableRole, LexicalCallableParent,
-    LexicalCallableRole, LexicalParentError, OptionalExactOwner, SourceFieldKey,
-    StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
+    FieldIdentityError, FieldIdentityKey, FieldIdentityResolutionError, FieldIdentityView,
+    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedCallableResolutionError,
+    GeneratedEnumVariantRole, GeneratedFieldKey, GeneratedNominalIdentityError,
+    GeneratedNominalKey, GeneratedNominalResolutionError, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, LexicalParentError, OptionalExactOwner,
+    SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
+    StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use entity::{CallableDefinitionOwner, DecodedCallableDefinitionOwner};
 pub use entity::{

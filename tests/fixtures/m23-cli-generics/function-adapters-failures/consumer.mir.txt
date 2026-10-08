@@ -10,6 +10,7 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
     bridge function_type1 -> @fn7 id=e5b961b59896dd07284c24687310161b1c4be71ec7490cf988f2afdbdca06c9b
   closure cc1 $Closure$lambda1 type=function_type3 invoke=@fn4 captures=1

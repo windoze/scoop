@@ -56,6 +56,7 @@ Module
   interface Bound
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Bound>
   interface SuspendTask<Bound>
   interface SuspendRegistration<Bound>

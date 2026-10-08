@@ -353,6 +353,8 @@ impl Lowerer {
             self.validate_core_operator_intrinsics(files);
             self.validate_array_conversion_intrinsics(files);
             self.validate_gc_control_intrinsics(files);
+            self.validate_data_borrow_intrinsics();
+            self.validate_atomic_intrinsics(files);
         }
         let source_location_core = if defines_core {
             self.validate_source_location_core(files)
@@ -390,8 +392,6 @@ impl Lowerer {
         self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
-        self.validate_extern_functions();
-        self.validate_extern_global_symbols();
 
         // Publish the complete duplicate-signature rejection set after all
         // related signatures are final and before body-capable passes may
@@ -401,6 +401,12 @@ impl Lowerer {
             self.declaration_surface.is_frozen(),
             "body-capable passes require a frozen declaration surface"
         );
+
+        if !self.resolve_errno_annotations(&pending_functions, &pending_globals) {
+            return Err(self.take_source_diagnostics());
+        }
+        self.validate_extern_functions();
+        self.validate_extern_global_symbols();
 
         self.resolve_annotation_declarations();
         for &(id, declaration, file) in &pending_structs {
@@ -448,6 +454,11 @@ impl Lowerer {
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
         // targets from names.
+        let program_arguments = if defines_core {
+            self.validate_program_arguments()
+        } else {
+            None
+        };
         let exception_core = if defines_core {
             self.validate_exception_core(files)
         } else {
@@ -499,7 +510,7 @@ impl Lowerer {
         }
         self.complete_imported_generic_bodies();
         if self.diagnostics.is_empty() {
-            self.prepare_public_derived_equalities();
+            self.prepare_published_equalities();
         }
 
         // Effects consume fully resolved calls and types. Local functions and
@@ -530,6 +541,8 @@ impl Lowerer {
         let core_protocols = match self.core.clone() {
             CoreLoweringAuthority::Defined => {
                 hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                    program_arguments: program_arguments
+                        .expect("an invalid program argument builder is diagnosed"),
                     option: self
                         .option_core
                         .expect("a missing or invalid core `Option` is always diagnosed"),

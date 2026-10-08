@@ -59,6 +59,7 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                     }
                     scoop_lir::CallSite::NoGc(_)
                     | scoop_lir::CallSite::ReleaseScoop(_)
+                    | scoop_lir::CallSite::NativeGcLeaf(_)
                     | scoop_lir::CallSite::ReleaseNativeLeaf(_) => {}
                 },
                 Instruction::Invoke {
@@ -108,8 +109,11 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ReleaseFieldLoad { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }
+        | Instruction::MachineAtomicLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
-        | Instruction::AtomicCompareExchange { out, .. }
+        | Instruction::AtomicRmw { out, .. }
+        | Instruction::AtomicCmpXchg { out, .. }
+        | Instruction::MachineAtomicCompareExchange { out, .. }
         | Instruction::GlobalLoad { out, .. }
         | Instruction::GlobalAddress { out, .. }
         | Instruction::NativeGlobalLoad { out, .. }
@@ -125,6 +129,10 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
+        | Instruction::PushPinFrame { out, .. }
+        | Instruction::ArrayDataPointer { out, .. }
+        | Instruction::StringDataPointer { out, .. }
+        | Instruction::BorrowDataLength { out, .. }
         | Instruction::ArrayLen { out, .. }
         | Instruction::ArrayGet { out, .. }
         | Instruction::ArrayClone { out, .. }
@@ -145,9 +153,11 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
         | Instruction::MachineHeapStore { .. }
+        | Instruction::MachineAtomicStore { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::RawStore { .. }
         | Instruction::ManagedPoll { .. }
+        | Instruction::PopPinFrame { .. }
         | Instruction::EndCatch
         | Instruction::Throw { .. }
         | Instruction::ArraySet { .. } => None,

@@ -3,12 +3,14 @@
 // dedicated Ptr/FunPtr types; downstream stages never identify them by name.
 
 @Intrinsic("core_ptr")
-public struct Ptr<T : value> {
+public struct Ptr<T : value> : Equality<Ptr<T>> {
     public operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
             return this.toULong() == other.toULong()
         }
     }
+
+    public override fun equalTo(other: Ptr<T>): Boolean = this.equals(other)
 
     @NoGC
     @Unsafe

@@ -93,7 +93,9 @@ impl DecodedExactLayoutExportV1 {
                     let exact = identities.resolve(*exact).map_err(link_error)?;
                     dependencies.push(value_layout_id(target, exact)?);
                 }
-                RawInstance::InlineBytes | RawInstance::AbstractReference => {
+                RawInstance::InlineBytes
+                | RawInstance::AbstractReference
+                | RawInstance::Atomic(_) => {
                     return Ok(dependencies);
                 }
             },

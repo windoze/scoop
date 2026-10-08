@@ -39,8 +39,8 @@ impl BodyLowerer<'_> {
         let return_ty = self.lower_type(result_type);
         let callee = if matches!(self.current_owner, mir::LocalValueOwner::ReleaseHook(_)) {
             target
-                .native_contract()
-                .and_then(|contract| self.release_native_target(contract, args, return_ty.clone()))
+                .native_c()
+                .and_then(|native| self.release_native_target(native, args))
                 .map(mir::Callee::Extern)
                 .unwrap_or_else(|| mir::Callee::External(target.scoop_entry()))
         } else {

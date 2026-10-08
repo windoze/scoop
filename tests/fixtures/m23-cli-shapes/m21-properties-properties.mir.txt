@@ -44,8 +44,12 @@ Module
   class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   interface Continuation<Base>
   interface SuspendTask<Base>
   interface SuspendRegistration<Base>

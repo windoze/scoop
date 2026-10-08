@@ -1,0 +1,49 @@
+@Extern(lib = "fixture_errno", name = "m33_errno_callback", captureErrno = true)
+fun callCallback(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): (Int, Int)
+
+@Extern(lib = "fixture_errno", name = "m33_errno_parallel", captureErrno = true)
+fun parallel(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): (Int, Int)
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_int", captureErrno = true)
+fun leaf(value: Int, code: Int, mode: Int): (Int, Int)
+
+@Extern(lib = "fixture_errno", name = "m13_callback_barrier")
+fun barrier()
+
+@GCLeaf @Extern(lib = "fixture_errno", name = "m33_errno_disturb")
+fun disturb()
+
+class Cell(val value: Int)
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun nested(input: Int): Int {
+    val cell = Cell(input)
+    @Unsafe {
+        val saved = leaf(input, input + 100, 1)
+        if (input >= 10) { barrier() }
+        gcCollect()
+        disturb()
+        val (value, error) = saved
+        expect(value == input && error == input + 100 && cell.value == input)
+        return value
+    }
+}
+
+fun main() {
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { input: Int -> nested(input) }, 1, ForeignCallbackMode.Reusable
+        )
+        val (single, singleError) = callCallback(callback.function, callback.context, 5)
+        expect(single == 6 && singleError == 61)
+        val (many, manyError) = parallel(callback.function, callback.context)
+        expect(many == 46 && manyError == 79)
+        expect(foreignCallbackState(callback) == ForeignCallbackState.Registered)
+        when (foreignCallbackFailure(callback)) {
+            None -> {}
+            Some(_) -> { throw IllegalStateException() }
+        }
+        releaseForeignCallback(callback)
+    }
+    println("errno-callbacks-ok")
+}

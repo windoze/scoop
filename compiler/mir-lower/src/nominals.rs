@@ -76,6 +76,7 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::String
+                        | hir::IntrinsicTypeRepresentation::Atomic(_)
                         | hir::IntrinsicTypeRepresentation::Any
                         | hir::IntrinsicTypeRepresentation::Nothing
                         | hir::IntrinsicTypeRepresentation::Array { .. }
@@ -278,6 +279,18 @@ impl Lowerer {
                         class_map: &self.class_map,
                     };
                     mir::ClassRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::Atomic(storage) => {
+                            mir::IntrinsicTypeRepresentation::Atomic(storage.clone().map(|ty| {
+                                types.lower(
+                                    ty,
+                                    &mut self.source_exact_types,
+                                    &mut self.enums,
+                                    &mut self.structs,
+                                    &mut self.interfaces,
+                                    &mut self.shell,
+                                )
+                            }))
+                        }
                         hir::IntrinsicTypeRepresentation::Any => {
                             mir::IntrinsicTypeRepresentation::Any
                         }
@@ -388,7 +401,10 @@ impl Lowerer {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
         let id = self.functions.alloc(mir::Function {
-            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(_)) {
+            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(id)
+                if !matches!(module.extern_functions[id].abi,
+                    hir::ExternAbi::C(scoop_identity::CAbiCallMode::GcLeaf)))
+            {
                 mir::GcEffect::Managed
             } else {
                 lower_gc_effect(function.attributes.gc_effect)

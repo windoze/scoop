@@ -51,8 +51,11 @@ impl<'a> CommittedDependencyCallOccurrence<'a> {
     pub fn instantiation(self) -> crate::HirDependencyCallInstantiationV1 {
         match self.target {
             CommittedDependencyCallTarget::Direct { callable, .. }
-                if callable.interface().effects().implementation()
-                    == crate::CallableImplementationV1::SourceExternC
+                if callable
+                    .interface()
+                    .effects()
+                    .implementation()
+                    .is_c_extern()
                     && matches!(
                         self.position().root.template(),
                         scoop_identity::CallableTemplateOwner::ReleaseHook(_)

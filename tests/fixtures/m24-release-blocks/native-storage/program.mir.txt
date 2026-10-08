@@ -1,16 +1,37 @@
 Module
   global0 nativeCount: Int extern m24_native_count
-  callback cb0 @fn0 -> @fn5 function_type0 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
+  callback cb0 @fn1 -> @fn7 function_type0 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
   class Owner vtable=0 itables=0
+  interface Equality<Ptr<Int>>
   interface ToString
   interface Hash
+  interface Equality<Int>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn5 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
-  fun addCount @fn0(amount: Int) -> Unit <no-gc>
+  generated_callable gc0 function=@fn7 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
+  fun equalTo @fn0(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn4 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun addCount @fn1(amount: Int) -> Unit <no-gc>
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -29,7 +50,7 @@ Module
           Type Int
           Local $dependency.parameter.other
       return
-  fun allocate @fn1() -> Unit
+  fun allocate @fn2() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -40,7 +61,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn4 direct
+      call @fn6 direct
         Type Owner
         Local $new.1
         Type Int
@@ -52,9 +73,9 @@ Module
         Type Owner
         Local $new.1
       return
-  fun main @fn2() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
-      call @fn1 direct
+      call @fn2 direct
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
       val $dependency.argument.0: Int
@@ -63,11 +84,33 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun println @fn3(value: Int) -> Unit
+  fun equals @fn4(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun println @fn5(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -91,7 +134,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun init.Owner.$c0 @fn4(this: Owner, handle: Int) -> Unit
+  fun init.Owner.$c0 @fn6(this: Owner, handle: Int) -> Unit
     bb0 entry
       field_set 0
         Type Owner
@@ -99,9 +142,9 @@ Module
         Type Int
         Local handle
       return
-  fun callback bridge for addCount @fn5($arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for addCount @fn7($arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call @fn0 direct
+      call @fn1 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -148,10 +191,12 @@ Module
       val $parameter.amount: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-      call @fn0 direct
+      call @fn1 direct
         Type Int
         Local $parameter.amount
       return
-  instance mi0 function=@fn3 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn4 <- equals
+  instance mi2 function=@fn5 <- println
   str @str0 "\n"
-  output executable @fn2
+  output executable @fn3

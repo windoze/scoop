@@ -263,9 +263,11 @@ pub(in crate::link_object) fn fixture(native_name: Option<&str>) -> Fixture {
             &native_contract,
         )
         .unwrap();
-        let unit =
-            CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(fingerprint))
-                .unwrap();
+        let unit = CborIdentityRecord::from_key(GeneratedBridgeUnitKey::OutboundFunction(
+            fingerprint,
+            scoop_identity::CResultAdaptation::Direct,
+        ))
+        .unwrap();
         let bridge_atom = CborIdentityRecord::from_key(GeneratedBridgeAtomKey::new(
             ConeIdentity::CORE,
             GeneratedBridgeAtomRoleKey::PrimaryEntry { unit: unit.id() },

@@ -23,6 +23,29 @@ fn finish_instance(
 }
 
 impl ExactInstanceLayoutV1 {
+    pub fn atomic(
+        identity: ExactLayoutIdentityV1,
+        kind: crate::AtomicValueKind,
+        foundation: &ConeLirFoundation,
+    ) -> Result<Self, ExactLayoutReplayError> {
+        require_roles(&identity, &[RepresentationRole::ManagedObject])?;
+        nominal(identity.exact_key())?;
+        let layout = crate::atomic_object_layout(identity.target(), kind)?;
+        let shape = TypeInstanceShapeV1::fixed_object(
+            identity.target(),
+            layout.size,
+            layout.align,
+            layout.scan,
+        )?;
+        finish_instance(
+            identity,
+            shape,
+            InstanceRepresentation::Atomic(kind),
+            ScanRole::ManagedObject,
+            foundation,
+        )
+    }
+
     /// Replays either a value's own descriptor or its generated box helper.
     /// The containing section joins the representation to the source facts.
     pub fn boxed_payload(

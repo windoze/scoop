@@ -1,0 +1,59 @@
+schema = 1
+name = "m33-sysroot-priority"
+inputs = ["cone", "platform", "helper"]
+tools = ["scoop", "scoopc", "scoop-link"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m33", "sysroot", "resolver"]
+variants = [
+ {name = "source", vars = {dependency = "{version = \"0.1.0\", path = \"../sysroot/lib/selected\"}", expected = "45"}},
+ {name = "artifact", vars = {dependency = "\"0.1.0\"", expected = "42"}},
+]
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {mkdir = {path = "${work}/sysroot/lib"}},
+ {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+ {copy = {from = "${fixture}/helper", to = "${work}/sysroot/lib/scoop.helper"}},
+]
+
+[[steps]]
+name = "platform"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.platform", {each = "${options}"}, "-o", "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "select"
+files = [
+ {copy = {from = "${work}/sysroot/lib/scoop.platform", to = "${work}/sysroot/lib/selected"}},
+ {replace = {path = "${work}/sysroot/lib/selected/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 5"}},
+ {replace = {path = "${work}/cone/Cone.toml", old = "\"scoop:scoop.platform\" = \"0.1.0\"", new = "\"scoop:scoop.platform\" = ${dependency}"}},
+ {write = {path = "${work}/sysroot/lib/scoop.platform/Cone.toml", data = "this default source must not be parsed"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--cone-path", "${work}/artifacts"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+
+exit = 0
+stdout = "sysroot library ${expected}\n"
+stderr = ""

@@ -6,6 +6,7 @@ Module
   interface ToString
   interface Hash
   interface RebuiltReadable
+  interface Equality<Long>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
     bridge function_type1 -> @fn3 id=238460a806e82a27677d2c6fdac68ed850bfe0b6147dca69c11ed268cf537205
   closure cc1 $Closure$adapter$(Any) -> Long$(Long) -> Any type=function_type2 invoke=@fn2 captures=1

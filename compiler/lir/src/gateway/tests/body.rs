@@ -13,10 +13,33 @@ pub(super) fn gateway(
         RefScan::None,
     )
     .unwrap();
-    function.signature =
-        ScoopAbiSignature::new(vec![], AbiReturn::Direct(result), CallingConvention::Cdecl);
+    let parameters = if failure_root.is_some() {
+        let pointer =
+            AbiValue::new(RAW_PTR, AbiNonZeroLayout::new(8, 8).unwrap(), RefScan::None).unwrap();
+        vec![
+            AbiArgument::Direct(result.clone()),
+            AbiArgument::Direct(pointer.clone()),
+            AbiArgument::Direct(pointer),
+        ]
+    } else {
+        Vec::new()
+    };
+    function.signature = ScoopAbiSignature::new(
+        parameters,
+        AbiReturn::Direct(result.clone()),
+        CallingConvention::Cdecl,
+    );
     let entry = function.entry;
     let success = function.blocks.alloc(exit(0));
+    if failure_root.is_some() {
+        function.blocks[success]
+            .instructions
+            .push(Instruction::RawStore {
+                pointer: Value::Param(2),
+                value: Value::IntegerConst(LirIntegerConstant::Signed32(0)),
+                pointee: result,
+            });
+    }
     let failure = function.blocks.alloc(exit(1));
     let targets = &mut function.call_targets;
     let signature = targets

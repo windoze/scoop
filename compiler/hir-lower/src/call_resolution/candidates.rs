@@ -9,6 +9,7 @@ use crate::{
 };
 
 mod arrays;
+mod atomics;
 mod parameters;
 pub(crate) use parameters::{
     DeclarationSignature, ValueParameter, ValueParameterCalling, VarargOmission,
@@ -54,6 +55,8 @@ pub(crate) enum NominalConstructorSource {
     ArrayGenerate(hir::ClassId),
     ImportedArray(hir::SourceNominalId),
     ImportedArrayGenerate(hir::SourceNominalId),
+    Atomic(hir::ClassId),
+    ImportedAtomic(hir::SourceNominalId),
     Variant(hir::EnumVariantRef),
 }
 
@@ -91,6 +94,20 @@ impl CallableView {
 }
 
 impl Lowerer {
+    pub(crate) fn source_class_constructors(
+        &self,
+        owner: hir::ClassId,
+    ) -> impl Iterator<Item = hir::ClassConstructorId> + '_ {
+        self.classes[owner]
+            .constructors
+            .iter()
+            .copied()
+            .filter(|id| {
+                self.class_constructors[*id].identity_kind
+                    == hir::ClassConstructorIdentityKind::Source
+            })
+    }
+
     pub(crate) fn callable_view(
         &self,
         candidate: &CallableCandidate,
@@ -100,6 +117,13 @@ impl Lowerer {
         let signature = &self.signatures[&function];
         let target = match candidate.owner {
             CallableCandidateOwner::Method(_) => CallableSource::Method(function),
+            CallableCandidateOwner::TypeOwned(owner) => {
+                debug_assert_eq!(
+                    self.functions[function].method.map(|method| method.owner),
+                    Some(owner)
+                );
+                CallableSource::Method(function)
+            }
             CallableCandidateOwner::Function { .. } => self
                 .local_function_by_function
                 .get(&function)
@@ -114,7 +138,10 @@ impl Lowerer {
                     .get(&function)
                     .expect("extension callable view has a receiver"),
             )
-        } else if matches!(candidate.owner, CallableCandidateOwner::Method(_)) {
+        } else if matches!(
+            candidate.owner,
+            CallableCandidateOwner::Method(_) | CallableCandidateOwner::TypeOwned(_)
+        ) {
             ReceiverShape::Instance
         } else {
             ReceiverShape::None
@@ -245,6 +272,17 @@ impl Lowerer {
             NominalConstructorSource::ImportedArray(owner)
             | NominalConstructorSource::ImportedArrayGenerate(owner) => {
                 self.imported_array_constructor_view(target, owner, span)
+            }
+            NominalConstructorSource::Atomic(class) => {
+                let declaration = &self.classes[class];
+                self.atomic_constructor_view(
+                    target,
+                    declaration.type_params.clone(),
+                    self.class_applications[declaration.self_application].canonical_type,
+                )
+            }
+            NominalConstructorSource::ImportedAtomic(owner) => {
+                self.imported_atomic_constructor_view(target, owner, span)
             }
             NominalConstructorSource::Variant(variant) => {
                 let enumeration = variant.enumeration();

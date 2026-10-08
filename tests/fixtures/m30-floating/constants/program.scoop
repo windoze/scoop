@@ -26,9 +26,9 @@ const val importedNan: Double = Double.NaN
 @Global var globalSingle: Float = 0.1
 @Global var globalDouble: Double = -0.0
 
-@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+@Extern(lib = "fixture_native", name = "float_bits")
 fun floatBits(value: Float): UInt32
-@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+@Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): UInt64
 
 @Unsafe fun main() {

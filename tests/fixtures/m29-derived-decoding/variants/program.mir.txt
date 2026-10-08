@@ -100,6 +100,7 @@ Module
   class box<(Long, Char)> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Decodable<(Int, String, (Long, Char), Unit)>
   interface Decoder
   interface KeyedDecodingContainer
@@ -108,6 +109,8 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<Choice>
   interface Encoder
   interface KeyedEncodingContainer
@@ -128,8 +131,10 @@ Module
   interface Decodable<Char>
   interface Encodable<Long>
   interface Encodable<Char>
+  interface Equality<Int>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>

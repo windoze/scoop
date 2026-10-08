@@ -32,8 +32,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
                 targets.typed_call_view(
                     &site.call,
-                    &targets.native_safe_targets,
-                    scoop_lir::NativeSafeCallDestination::view,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
                 ),
                 CallProtocol::NativeSafe {
                     safepoint: self.safepoint_id(site.safepoint),
@@ -44,10 +44,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallSite::ReleaseNativeLeaf(site) => self.emit_typed_call(
                 targets.typed_call_view(
                     &site.call,
-                    &targets.native_safe_targets,
-                    scoop_lir::NativeSafeCallDestination::view,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
                 ),
                 CallProtocol::ReleaseNativeLeaf,
+                None,
+            ),
+            scoop_lir::CallSite::NativeGcLeaf(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.c_targets,
+                    scoop_lir::CCallDestination::view,
+                ),
+                CallProtocol::NativeGcLeaf,
                 None,
             ),
             scoop_lir::CallSite::NativeBorrowed(site) => {
@@ -140,8 +149,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 return Ok(function);
             }
             scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
-                ExternFunctionKind::C { bridge, .. } => bridge.symbol(),
-                ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
+                ExternFunctionKind::C {
+                    call_plan: scoop_lir::CAbiCallPlan::StorageBridge { entry: bridge, .. },
+                    ..
+                } => bridge.symbol(),
+                ExternFunctionKind::C {
+                    call_plan: scoop_lir::CAbiCallPlan::Direct(_),
+                    ..
+                }
+                | ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
             },
             scoop_lir::CallDestination::Dispatch { .. } => {
                 unreachable!("dispatch destinations have no direct callee")
@@ -158,16 +174,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 signature,
             );
         }
-        if let Some(function) = self.llvm.get_function(symbol) {
+        let function = if let Some(function) = self.llvm.get_function(symbol) {
             if function.get_type() != fn_ty {
                 return Err(CodegenError(format!(
                     "typed target `{symbol}` disagrees with its existing declaration"
                 )));
             }
-            Ok(function)
+            function
         } else {
-            Ok(self.llvm.add_function(symbol, fn_ty, None))
-        }
+            self.llvm.add_function(symbol, fn_ty, None)
+        };
+        self.apply_c_abi_attributes(destination, |location, attribute| {
+            function.add_attribute(location, attribute)
+        });
+        Ok(function)
     }
 
     pub(in crate::function) fn dispatch_function_pointer(

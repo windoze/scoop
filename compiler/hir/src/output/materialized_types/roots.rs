@@ -17,7 +17,8 @@ impl Collector<'_> {
         }
         for (_, function) in module.extern_functions.iter() {
             self.types(function.params.iter().copied())?;
-            self.add(function.return_type)?;
+            self.add(*function.result.native_type())?;
+            self.add(*function.result.scoop_type())?;
         }
         for (_, constructor) in module.class_constructors.iter() {
             self.add(module.classes[constructor.class].canonical_type)?;

@@ -36,6 +36,7 @@ pub(crate) fn validate<'input>(
 
     for member in manifest.members() {
         if matches!(member.role(), SlibMemberRole::LinkObject { .. })
+            && !crate::is_native_link_object(member)
             && expected.binary_search(&member.id()).is_err()
         {
             return Err(StrongLinkMaterializationError::UnexpectedObjectMember(

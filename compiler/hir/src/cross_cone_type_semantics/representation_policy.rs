@@ -122,6 +122,11 @@ impl NominalIntrinsicRepresentationV1 {
 impl WireEncode for NominalIntrinsicRepresentationV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self.family {
+            IntrinsicTypeKind::Atomic(kind) => {
+                wire::tag(encoder, 2, 13)?;
+                encoder.field(1)?;
+                kind.encode(encoder)
+            }
             IntrinsicTypeKind::Integer(kind) => {
                 wire::tag(encoder, 3, 1)?;
                 encoder.field(1)?;
@@ -169,6 +174,10 @@ impl WireDecode for NominalIntrinsicRepresentationV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let family = match tag {
+            13 => {
+                wire::expect_fields(decoder, fields, 2)?;
+                IntrinsicTypeKind::Atomic(decoder.field(1, crate::AtomicValueKind::decode)?)
+            }
             1 => {
                 wire::expect_fields(decoder, fields, 3)?;
                 let signedness = decoder.field(1, decode_signedness)?;

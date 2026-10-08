@@ -5,10 +5,9 @@ use std::fmt;
 use scoop_identity::{
     CallableOwner, CborIdentityRecord, CoreBuiltinNominal, DecodedCallableOwner,
     DecodedExactCallableSignature, DecodedExecutableSourceEntryIdentity, ExactCallableSignature,
-    ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature, ExactTypeKey,
-    ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError, IdentityReferenceError,
-    PersistentExactTypeId, PersistentFunctionId, PersistentKeyResolver, SourceDeclarationKey,
-    ValidatedIdentityGraph,
+    ExactCallableSignatureResolutionError, ExactTypeKey, ExecutableSourceEntryIdentity,
+    ExecutableSourceEntryIdentityError, IdentityReferenceError, PersistentExactTypeId,
+    PersistentFunctionId, PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -269,16 +268,13 @@ fn resolve_entry_source(
         .map_err(MirProductionValidationError::Identity)?;
     let declaration = CborIdentityRecord::from_key((*declaration_key).clone())
         .map_err(MirProductionValidationError::EntrySourceRecord)?;
-    let unit = CborIdentityRecord::<PersistentExactTypeId, ExactTypeKey>::from_key(
-        ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
-    )
-    .map_err(MirProductionValidationError::EntryUnitRecord)?
-    .id();
-    let expected = ExecutableSourceEntryIdentity::try_new(
-        &declaration,
-        ExactOrdinaryNoArgUnitSignature::new(unit),
-    )
-    .map_err(MirProductionValidationError::InvalidEntrySource)?;
+    let signature = decoded
+        .source_signature()
+        .clone()
+        .resolve(identities)
+        .map_err(MirProductionValidationError::Signature)?;
+    let expected = ExecutableSourceEntryIdentity::try_new(&declaration, signature)
+        .map_err(MirProductionValidationError::InvalidEntrySource)?;
     if expected.root_cone() != artifact {
         return Err(MirProductionValidationError::ForeignEntrySource {
             artifact,

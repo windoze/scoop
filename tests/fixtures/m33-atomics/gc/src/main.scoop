@@ -1,0 +1,35 @@
+@Extern(lib = "m33_atomic_gc", name = "m33_atomic_address")
+fun address(handle: GcHandle<Any>): ULong
+@Extern(lib = "m33_atomic_gc", name = "m33_atomic_minor_count")
+fun minorCount(): Long
+@Extern(lib = "m33_atomic_gc", name = "m33_atomic_moving")
+fun movingStress(): Boolean
+
+class Payload(val value: Int)
+struct Snapshot(val serial: Int, val payload: Payload)
+enum Packet { Empty, Data(Int, Payload) }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun minorCollection() {
+    @Unsafe {
+        if (movingStress()) {
+            gcCollect()
+            return
+        }
+        val before = minorCount()
+        while (minorCount() == before) {
+            var index = 0
+            while (index < 256) {
+                val churn = Payload(index)
+                index = churn.value + 1
+            }
+        }
+    }
+}
+
+fun main() {
+    independentMovement()
+    operationRoots()
+    writeBarriers()
+    println("atomic gc")
+}

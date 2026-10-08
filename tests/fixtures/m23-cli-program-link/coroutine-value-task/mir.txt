@@ -59,6 +59,7 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface SuspendRegistration<Int>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
     bridge function_type1 -> @fn34 id=d404b0609b25e8a203f78e40562a8da83cbbc6a807bd88cd03c378d2d12e924d

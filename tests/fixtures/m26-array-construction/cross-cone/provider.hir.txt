@@ -43,34 +43,44 @@ unit Unit
 intrinsic core_int8 Int8 Concrete(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4]))
   interface ToString
   interface Hash
+  interface Equality<Int8>
 intrinsic core_int16 Int16 Concrete(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70]))
   interface ToString
   interface Hash
+  interface Equality<Int16>
 intrinsic core_int Int Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))
   interface ToString
   interface Hash
+  interface Equality<Int>
 intrinsic core_long Long Concrete(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230]))
   interface ToString
   interface Hash
+  interface Equality<Long>
 intrinsic core_uint8 UInt8 Concrete(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216]))
   interface ToString
   interface Hash
+  interface Equality<UInt8>
 intrinsic core_uint16 UInt16 Concrete(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53]))
   interface ToString
   interface Hash
+  interface Equality<UInt16>
 intrinsic core_uint UInt Concrete(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75]))
   interface ToString
   interface Hash
+  interface Equality<UInt>
 intrinsic core_ulong ULong Concrete(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248]))
   interface ToString
   interface Hash
+  interface Equality<ULong>
 intrinsic core_boolean Boolean Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))
   interface ToString
   interface Hash
+  interface Equality<Boolean>
 intrinsic core_string String Concrete(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151]))
   interface ToString
   interface Hash
   interface Iterable<Char>
+  interface Equality<String>
   public property byteLength: Long f020a22fffeabbf1e46514694e716c1b601d0bb507c41b060fae9f43be568cf1 no-field
   public property length: Long b380695314aea475138a1fdda6ba48f626ffb5dfcbb51f0e08623e57fb06d965 no-field
 any Any
@@ -104,6 +114,9 @@ intrinsic core_array Array<Long> GenericTemplate(PersistentGenericTypeId([100, 2
 function (Long) -> Long
 interface ToString Concrete(PersistentTypeId([32, 77, 174, 210, 81, 229, 222, 22, 57, 191, 89, 172, 109, 95, 149, 24, 136, 109, 90, 36, 244, 77, 0, 244, 250, 122, 221, 152, 164, 64, 20, 40]))
 interface Hash Concrete(PersistentTypeId([32, 108, 193, 138, 130, 239, 221, 7, 112, 131, 53, 27, 117, 253, 149, 31, 141, 6, 204, 40, 198, 71, 59, 27, 246, 158, 25, 55, 229, 59, 10, 124]))
+interface Equality<T> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
+  parameter T: Any
+interface Equality<Long> GenericTemplate(PersistentGenericTypeId([113, 196, 249, 31, 28, 165, 157, 159, 213, 22, 9, 139, 207, 208, 79, 138, 79, 116, 134, 203, 97, 132, 36, 30, 194, 64, 208, 85, 125, 57, 149, 16]))
 class IllegalArgumentException Concrete(PersistentTypeId([94, 23, 135, 31, 100, 44, 77, 16, 70, 23, 145, 213, 152, 140, 159, 3, 248, 127, 31, 16, 198, 111, 242, 200, 78, 126, 174, 81, 233, 76, 231, 199]))
   base Exception
   constructor Constructor(PersistentConstructorId([166, 82, 4, 71, 181, 0, 43, 131, 238, 220, 155, 15, 227, 139, 220, 173, 32, 169, 9, 70, 76, 55, 143, 76, 83, 192, 246, 190, 112, 211, 239, 92]))
@@ -208,9 +221,9 @@ CrossCone d2f430bc98f008943ecdd948ab9c9a93055f7628a6cb34a7b7af4f7601079416
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(6) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(5), arguments: Method { owner: Idx::<Type>(42), method_arguments: [] } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(7) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(3), arguments: Method { owner: Idx::<Type>(42), method_arguments: [] } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(8) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(54), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(9) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(12), arguments: Method { owner: Idx::<Type>(108), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(10) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(13), arguments: Method { owner: Idx::<Type>(113), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(11) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(14), arguments: Method { owner: Idx::<Type>(113), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(9) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(12), arguments: Method { owner: Idx::<Type>(111), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(10) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(13), arguments: Method { owner: Idx::<Type>(116), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(11) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(14), arguments: Method { owner: Idx::<Type>(116), method_arguments: [] } }
   public_bindings count=3
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([33, 252, 44, 167, 233, 202, 92, 147, 118, 142, 152, 57, 54, 43, 250, 133, 161, 59, 2, 110, 189, 149, 54, 154, 233, 16, 69, 111, 57, 63, 179, 244]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([76, 217, 26, 115, 66, 2, 211, 136, 184, 83, 155, 1, 189, 99, 75, 211, 88, 230, 98, 39, 241, 33, 223, 168, 251, 238, 129, 146, 43, 251, 115, 232])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([78, 240, 18, 159, 37, 73, 247, 136, 41, 98, 114, 100, 215, 117, 6, 140, 228, 159, 132, 28, 121, 154, 223, 89, 49, 248, 204, 185, 201, 97, 34, 143]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([129, 246, 239, 116, 191, 72, 183, 112, 213, 109, 183, 251, 147, 30, 49, 243, 19, 211, 125, 54, 70, 84, 130, 247, 84, 144, 232, 212, 230, 80, 101, 206])) } }

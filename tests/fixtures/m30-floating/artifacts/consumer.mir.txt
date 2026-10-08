@@ -58,6 +58,8 @@ Module
   class box<Option<JsonValue>> vtable=0 itables=0
   class box<Option<JsonMember>> vtable=0 itables=0
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Decodable<Record>
   interface Decoder
   interface KeyedDecodingContainer
@@ -86,8 +88,10 @@ Module
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
   interface Hash
+  interface Equality<Char>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn47 captures=3
     bridge function_type1 -> @fn59 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn52 captures=3

@@ -4,13 +4,13 @@ enum Reading { Value(Float), Empty }
 @Global var storedSingle: Float = -0.0
 @Global var storedWide: Double = Double.MIN_NORMAL
 
-@NoGC @Extern(lib = "fixture_native", name = "float_from_bits")
+@Extern(lib = "fixture_native", name = "float_from_bits")
 fun fromFloatBits(value: UInt): Float
-@NoGC @Extern(lib = "fixture_native", name = "double_from_bits")
+@Extern(lib = "fixture_native", name = "double_from_bits")
 fun fromDoubleBits(value: ULong): Double
-@NoGC @Extern(lib = "fixture_native", name = "float_bits")
+@Extern(lib = "fixture_native", name = "float_bits")
 fun floatBits(value: Float): UInt
-@NoGC @Extern(lib = "fixture_native", name = "double_bits")
+@Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): ULong
 fun <T> identity(value: T): T = value
 fun unpack(value: Reading): Float = when (value) { Value(number) -> number; Empty -> 0f }

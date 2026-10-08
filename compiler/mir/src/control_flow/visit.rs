@@ -11,6 +11,12 @@ pub fn visit_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
 /// choose whether to process the root itself.
 pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
     match &expr.kind {
+        ExprKind::Atomic(atomic) => {
+            for operand in atomic.operands() {
+                visit_expr(operand, visitor);
+            }
+        }
+        ExprKind::DataBorrow(operation) => visit_expr(&operation.operand, visitor),
         ExprKind::Context(operation) => {
             if let Some(operand) = operation.operand() {
                 visit_expr(operand, visitor);
@@ -69,6 +75,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
+        | ExprKind::AtomicNew(operand)
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }
@@ -163,6 +170,12 @@ pub fn visit_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
 /// child's complete subtree.
 pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
     match &mut expr.kind {
+        ExprKind::Atomic(atomic) => {
+            for operand in atomic.operands_mut() {
+                visit_expr_mut(operand, visitor);
+            }
+        }
+        ExprKind::DataBorrow(operation) => visit_expr_mut(&mut operation.operand, visitor),
         ExprKind::Context(operation) => {
             if let Some(operand) = operation.operand_mut() {
                 visit_expr_mut(operand, visitor);
@@ -221,6 +234,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
+        | ExprKind::AtomicNew(operand)
         | ExprKind::Unary { operand, .. }
         | ExprKind::IntegerUnary { operand, .. }
         | ExprKind::IntegerConversion { operand, .. }

@@ -14,7 +14,7 @@ use scoop_wire::HashError;
 
 use crate::locator::{
     DependencyLocatorError, LocatedDependencyClaim, ManifestSourceProjection,
-    PrebuiltArtifactProjection, locate_from_search_roots, locate_manifest_dependency,
+    PrebuiltArtifactProjection, locate_build_dependency, locate_manifest_dependency,
 };
 use crate::request::{BuildGraphRequestParts, BuildRootInputKind};
 use crate::{

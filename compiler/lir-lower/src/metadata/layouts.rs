@@ -1,9 +1,11 @@
 use super::*;
+mod atomics;
 mod objects;
 mod shapes;
 mod task_context;
 mod values;
 
+pub(crate) use atomics::*;
 pub(crate) use objects::*;
 pub(crate) use shapes::*;
 pub(crate) use values::*;

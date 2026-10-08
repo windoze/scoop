@@ -254,12 +254,12 @@ fn main_cannot_be_suspend() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`, `fun main(): Int`, `fun main(args: Array<String>): Unit`, or `fun main(args: Array<String>): Int`"
     );
     assert_eq!(errors[0].notes.len(), 1);
     assert_eq!(
         errors[0].notes[0].message,
-        "`main` is not eligible because it is suspend"
+        "`fun main(): Unit` is not eligible because it is suspend"
     );
 }
 

@@ -17,8 +17,11 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Node> vtable=0 itables=0
+  interface Equality<Ptr<Node>>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<ULong>
   interface Continuation<Node>
   interface SuspendTask<Node>
   interface SuspendRegistration<Node>
@@ -30,8 +33,27 @@ Module
   generated_exact_type get5 location=enum3 nominal_id=89c7a37a96e968750c3c025581122ee9b23400d567bd610d3b9c51ba9d684a04 exact_id=7c737b9c5ffcc60bae6fd9f3b626ff4a4387ab623a427a4e89acd4c6d4f2cf09
   generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn9 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
-  fun bumpNode @fn0(arg0: Node) -> Node
+  generated_callable gc0 function=@fn11 id=3254788d88a50cb2191c8092df38ecef7abeb7a5e4ea7c03682de9e720e4a67a
+  fun equalTo @fn0(this: Ptr<Node>, other: Ptr<Node>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Node>
+        Type Ptr<Node>
+        Local this
+      val $dependency.local.3: Ptr<Node>
+        Type Ptr<Node>
+        Local other
+      val $dependency.local.4: Ptr<Node>
+        Type Ptr<Node>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn3 direct
+        Type Ptr<Node>
+        Local $dependency.local.2
+        Type Ptr<Node>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun bumpNode @fn1(arg0: Node) -> Node
     bb0 entry
       call $call.1: Node = extern0 @bump_node direct
         Type Node
@@ -39,7 +61,7 @@ Module
       return
         Type Node
         Local $call.1
-  fun main @fn1() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
       val $argument.0: Option<Ptr<Node>>
         Type Option<Ptr<Node>>
@@ -53,7 +75,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $argument.0: Node = @fn8 direct
+      call $argument.0: Node = @fn10 direct
         Type Option<Ptr<Node>>
         Local $parameter.next
         Type Int
@@ -72,7 +94,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
       val $when.1: Option<Ptr<Node>>
@@ -105,7 +127,7 @@ Module
       val $dependency.parameter.value: ULong
         Type ULong
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn5 direct
         Type ULong
         Local $dependency.parameter.value
       goto bb3
@@ -127,7 +149,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn4 direct
         Type Int
         Local $dependency.parameter.value
       goto bb6
@@ -135,7 +157,29 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun println @fn2(value: Int) -> Unit
+  fun equals @fn3(this: Ptr<Node>, other: Ptr<Node>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Node>
+        Type Ptr<Node>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Node>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Node>
+        Type Ptr<Node>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Node>
+            Local $dependency.local.3
+  fun println @fn4(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -159,7 +203,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn3(value: ULong) -> Unit
+  fun println @fn5(value: ULong) -> Unit
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
@@ -183,19 +227,19 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn4(this: Continuation<Node>, value: Node) -> Unit
+  fun Continuation.resume @fn6(this: Continuation<Node>, value: Node) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn5(this: Continuation<Node>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn7(this: Continuation<Node>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn6(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+  fun SuspendTask.run @fn8(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.Node.$c0 @fn8(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
+  fun ctor.Node.$c0 @fn10(next: Option<Ptr<Node>>, value: Int) -> Node <no-gc>
     bb0 entry
       return
         Type Node
@@ -204,7 +248,7 @@ Module
           Local next
           Type Int
           Local value
-  fun startCoroutine<Node> @fn9(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+  fun startCoroutine<Node> @fn11(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -227,7 +271,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn4 interface Continuation<Node>[0]
+      call @fn6 interface Continuation<Node>[0]
         Type Continuation<Node>
         Local completion
         Type Node
@@ -240,7 +284,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn5 interface Continuation<Node>[1]
+      call @fn7 interface Continuation<Node>[1]
         Type Continuation<Node>
         Local completion
         Type Throwable
@@ -259,7 +303,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Node> = @fn6 interface SuspendTask<Node>[0]
+      call $step: CoroutineStep<Node> = @fn8 interface SuspendTask<Node>[0]
         Type SuspendTask<Node>
         Local task
         Type Continuation<Node>
@@ -287,14 +331,16 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Node> result=Node
   coroutine_slot cl0 CoroutineSlot<Node> value=Node
-  coroutine_start ct0 result=Node function=fn9
-  coroutine_fn cf0 @fn6 source_return=Node step=cs0 immediate
-  instance mi0 function=@fn2 <- println
-  instance mi1 function=@fn3 <- println
-  instance mi2 function=@fn4 <- Continuation.resume
-  instance mi3 function=@fn5 <- Continuation.resumeWithException
-  instance mi4 function=@fn6 <- SuspendTask.run
-  instance mi5 function=@fn7 <- SuspendRegistration.register
+  coroutine_start ct0 result=Node function=fn11
+  coroutine_fn cf0 @fn8 source_return=Node step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn3 <- equals
+  instance mi2 function=@fn4 <- println
+  instance mi3 function=@fn5 <- println
+  instance mi4 function=@fn6 <- Continuation.resume
+  instance mi5 function=@fn7 <- Continuation.resumeWithException
+  instance mi6 function=@fn8 <- SuspendTask.run
+  instance mi7 function=@fn9 <- SuspendRegistration.register
   str @str0 "\n"
   str @str1 "\n"
-  output executable @fn1
+  output executable @fn2

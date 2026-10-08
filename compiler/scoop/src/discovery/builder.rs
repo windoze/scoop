@@ -68,26 +68,30 @@ impl DiscoveryBuilder {
     }
 
     fn discover_declared_dependencies(&mut self) -> Result<(), BuildGraphDiscoveryError> {
-        while let Some(pending) = pop_explicit(&mut self.explicit) {
-            let claim = {
-                let nodes = &self.nodes;
-                let Some(GraphNode::ManifestSource(parent)) = nodes.get(&pending.dependent) else {
-                    return Err(BuildGraphDiscoveryError::InternalSourceClaim(
-                        pending.dependent,
-                    ));
+        loop {
+            while let Some(pending) = pop_explicit(&mut self.explicit) {
+                let claim = {
+                    let nodes = &self.nodes;
+                    let Some(GraphNode::ManifestSource(parent)) = nodes.get(&pending.dependent)
+                    else {
+                        return Err(BuildGraphDiscoveryError::InternalSourceClaim(
+                            pending.dependent,
+                        ));
+                    };
+                    locate_manifest_dependency(
+                        parent,
+                        &pending.key,
+                        &self.context.artifact_search_roots,
+                        self.context.target.lir_target_selection(),
+                    )
+                    .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
                 };
-                locate_manifest_dependency(
-                    parent,
-                    &pending.key,
-                    &self.context.artifact_search_roots,
-                    self.context.target.lir_target_selection(),
-                )
-                .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
-            };
-            self.intern_claim(claim)?;
-        }
+                self.intern_claim(claim)?;
+            }
 
-        while let Some(pending) = pop_unlocated(&mut self.unlocated) {
+            let Some(pending) = pop_unlocated(&mut self.unlocated) else {
+                return Ok(());
+            };
             let identity = pending
                 .coordinate
                 .identity()
@@ -102,16 +106,15 @@ impl DiscoveryBuilder {
                 }
                 continue;
             }
-            let claim = locate_from_search_roots(
+            let claim = locate_build_dependency(
                 &pending.coordinate,
                 &self.context.artifact_search_roots,
+                self.context.sysroot.as_path(),
                 self.context.target.lir_target_selection(),
             )
             .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
-            self.intern_claim(LocatedDependencyClaim::Prebuilt(Box::new(claim)))?;
+            self.intern_claim(claim)?;
         }
-
-        Ok(())
     }
 
     fn intern_claim(

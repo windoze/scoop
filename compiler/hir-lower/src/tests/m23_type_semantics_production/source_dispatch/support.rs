@@ -5,7 +5,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     run: impl FnOnce(&hir::DependencyHirOutput, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
-        let records = if output
+        let mut records = if output
             .output()
             .local
             .module()
@@ -16,6 +16,23 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
         } else {
             vec![core.project_initialization_cycle_to_mir()]
         };
+        records.extend(
+            output
+                .executable_dependency_callables()
+                .unwrap()
+                .into_iter()
+                .map(|use_| {
+                    let selected = use_.callable();
+                    let callable = selected.capability();
+                    scoop_mir::SelectedDependencyMirCallableV1::try_new(
+                        selected.provider(),
+                        callable.direct_declaration().unwrap(),
+                        callable.implementation(),
+                        callable.signature().clone(),
+                    )
+                    .unwrap()
+                }),
+        );
         let dependencies = scoop_mir::SelectedExternalMirSet::try_from_callables(
             output.output().local.module().cone,
             records,

@@ -10,7 +10,7 @@ use super::CallableOdrMemberId;
 use crate::ids::derive_runtime_persistent_id;
 use crate::{
     CallableOwner, CborIdentityRecord, ConeIdentity, DeclarationName, DecodedPersistentId,
-    DuplicateSignatureKey, ExactOrdinaryNoArgUnitSignature, OdrMemberId, OdrMemberIdentityError,
+    DuplicateSignatureKey, ExactCallableSignature, OdrMemberId, OdrMemberIdentityError,
     OdrMemberKey, OptionalSignatureType, PersistentCallableBodyId, PersistentConstructorId,
     PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId, PersistentId,
     PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
@@ -366,13 +366,12 @@ impl MainCallableBodyId {
     }
 }
 
-/// Persistent proof that a source declaration is the unique shape accepted
-/// by executable-entry lowering.
+/// Persistent identity and exact signature of the selected source entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutableSourceEntryIdentity {
     root_cone: ConeIdentity,
     declaration: PersistentFunctionId,
-    source_signature: ExactOrdinaryNoArgUnitSignature,
+    source_signature: ExactCallableSignature,
     source_signature_fingerprint: SourceSignatureFingerprint,
     main: MainCallableBodyId,
 }
@@ -380,7 +379,7 @@ pub struct ExecutableSourceEntryIdentity {
 impl ExecutableSourceEntryIdentity {
     pub fn try_new(
         declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-        source_signature: ExactOrdinaryNoArgUnitSignature,
+        source_signature: ExactCallableSignature,
     ) -> Result<Self, ExecutableSourceEntryIdentityError> {
         let key = declaration.key();
         if key.declaration_kind() != SourceDeclarationKind::Function {
@@ -398,8 +397,13 @@ impl ExecutableSourceEntryIdentity {
                 type_parameter_count: 0,
                 receiver: OptionalSignatureType::Absent,
                 parameters,
-            } if parameters.is_empty()
+            } if parameters.len() == source_signature.parameters().len() && parameters.len() <= 1
         ) {
+            return Err(ExecutableSourceEntryIdentityError::InvalidDeclarationShape);
+        }
+        if source_signature.effect() != super::Effect::Ordinary
+            || source_signature.receiver().is_present()
+        {
             return Err(ExecutableSourceEntryIdentityError::InvalidDeclarationShape);
         }
         let declaration_id = declaration.id();
@@ -427,7 +431,7 @@ impl ExecutableSourceEntryIdentity {
         self.declaration
     }
 
-    pub const fn source_signature(&self) -> &ExactOrdinaryNoArgUnitSignature {
+    pub const fn source_signature(&self) -> &ExactCallableSignature {
         &self.source_signature
     }
 
@@ -458,9 +462,8 @@ impl WireEncode for ExecutableSourceEntryIdentity {
 
 /// Untrusted wire form of [`ExecutableSourceEntryIdentity`].
 ///
-/// Readers must rebuild the trusted proof from the referenced source
-/// declaration and the trusted core `Unit` exact identity, then compare the
-/// complete encoded value. No field is independently promoted.
+/// Readers resolve the source declaration and exact types, then check the
+/// stored identities and fingerprint against the resolved signature.
 #[derive(Debug)]
 pub struct DecodedExecutableSourceEntryIdentity {
     root_cone: DecodedPersistentId<ConeIdentity>,
@@ -471,6 +474,10 @@ pub struct DecodedExecutableSourceEntryIdentity {
 }
 
 impl DecodedExecutableSourceEntryIdentity {
+    pub const fn source_signature(&self) -> &crate::DecodedExactCallableSignature {
+        &self.source_signature
+    }
+
     pub const fn declaration(&self) -> DecodedPersistentId<PersistentFunctionId> {
         self.declaration
     }

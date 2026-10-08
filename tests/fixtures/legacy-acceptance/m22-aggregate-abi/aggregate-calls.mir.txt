@@ -29,8 +29,12 @@ Module
   class box<(Int, Long)> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
+  interface Equality<Long>
   interface Continuation<Signal>
   interface SuspendTask<Signal>
   interface SuspendRegistration<Signal>

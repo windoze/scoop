@@ -78,7 +78,7 @@ name = "human_member"
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "human", "-o", "${work}/program"]
 exit = 1
 stdout = ""
-stderr = "${work}/artifacts/root.slib:member/39987e9fd9883c9d9647ad07938793caf19f3b98540556f42449d1bfbd6e493e:$.8[slib-member:39987e9fd9883c9d9647ad07938793caf19f3b98540556f42449d1bfbd6e493e]: error[SCOOP_LINK_FAILED]: archive member 39987e9fd9883c9d9647ad07938793caf19f3b98540556f42449d1bfbd6e493e payload digest does not match its directory record\n"
+stderr = "${work}/artifacts/root.slib:member/3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd:$.8[slib-member:3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd]: error[SCOOP_LINK_FAILED]: archive member 3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd payload digest does not match its directory record\n"
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]
@@ -88,7 +88,7 @@ checks = []
 
 [[steps]]
 name = "truncate"
-files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 127671}}]
+files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 154841}}]
 checks = []
 
 [[steps]]

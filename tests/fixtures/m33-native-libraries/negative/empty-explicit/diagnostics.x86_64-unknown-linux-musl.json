@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native library b7125d45185c9376457ba5eaa1fe240e1460772bbecb60019345d96ca15ca861 does not provide cos; origins: dev.m33:library-negative:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([68, 201, 59, 194, 80, 126, 245, 95, 1, 49, 198, 206, 137, 49, 75, 237, 210, 241, 25, 246, 127, 47, 66, 69, 52, 30, 215, 201, 246, 131, 212, 240])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

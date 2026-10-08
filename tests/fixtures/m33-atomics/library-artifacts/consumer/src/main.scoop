@@ -1,0 +1,23 @@
+import atomiclibrary.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first = Payload(1)
+    val second = Payload(2)
+    val cell = make(Snapshot(1, first))
+    check(read(cell).payload === first)
+    val old = exchange(cell, Snapshot(2, second))
+    val readCell: () -> Snapshot = cell::load
+    gcCollect()
+    check(old.serial == 1 && old.payload === first)
+    check(readCell().serial == 2 && readCell().payload === second)
+    val ref = AtomicRef(first)
+    val result = update(ref, { value -> Payload(value.value + 10) })
+    check(result.value == 11 && ref.load() === result)
+    val integer = AtomicInt(20)
+    check(increment(integer) == 20 && integer.load() == 21)
+    val tuple = make((3, first))
+    val (number, payload) = exchange(tuple, (4, second))
+    check(number == 3 && payload === first)
+    println("atomic library artifacts")
+}

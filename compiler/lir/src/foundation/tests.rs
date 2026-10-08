@@ -10,14 +10,42 @@ use super::{CanonicalLirFoundation, LirFoundationBuildError, LirFoundationTable}
 use crate::RuntimeTypeMappingRecord;
 
 #[test]
-fn empty_foundation_has_all_twenty_two_empty_tables() {
+fn empty_foundation_has_all_tables_and_c_runtime_mode() {
     let actual = encode(&CanonicalLirFoundation::empty()).unwrap();
-    let mut expected = vec![0xb6];
+    let mut expected = vec![0xb7];
     for field in 1_u8..=22 {
         expected.push(field);
         expected.push(0x80);
     }
+    expected.extend([23, 0]);
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn native_cxx_mode_survives_wire_and_all_target_requirement_projections() {
+    use crate::{CanonicalNativeExternalRequirementSurfaceV1, ConeLirFoundation, LirTargetProfile};
+    for cxx in [false, true] {
+        let foundation =
+            ConeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty())
+                .unwrap()
+                .with_native_cxx(cxx);
+        let bytes = encode(foundation.as_canonical()).unwrap();
+        let decoded = scoop_wire::decode_canonical::<crate::DecodedLirFoundation>(&bytes).unwrap();
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+        for target in [
+            LirTargetProfile::DARWIN_AARCH64,
+            LirTargetProfile::LINUX_X86_64_GNU,
+            LirTargetProfile::LINUX_X86_64_MUSL,
+        ] {
+            let requirements =
+                CanonicalNativeExternalRequirementSurfaceV1::from_foundation(target, &foundation)
+                    .unwrap();
+            assert_eq!(requirements.cxx(), cxx);
+        }
+        let mut invalid = bytes;
+        *invalid.last_mut().unwrap() = 2;
+        assert!(scoop_wire::decode_canonical::<crate::DecodedLirFoundation>(&invalid).is_err());
+    }
 }
 
 #[test]

@@ -1,15 +1,15 @@
 use super::{
     AbiArgument, AbiCallArgument, AbiNonZeroLayout, AbiReturn, AbiValue, AbiZeroSizedLayout,
-    AbiZst, CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
-    CallingConvention, CoroutineAdapterState, CoroutineFrameState, CoroutineSuspendStateId,
-    DirectCallSignature, ElidedZstCallSignature, EnumDef, EnumDefs, EnumFieldRepr, EnumRepr,
-    EnumVariantRepr, ExternFunctionIdentity, ExternFunctions, ForeignCallbackFailureResult,
-    ForeignCallbackModes, ForeignCallbackStates, ForeignCallbackStatus, GcEffect,
-    IndirectResultCallSignature, IndirectResultConvention, InitializationOutcome,
-    InternalPointerCarrier, LirTargetProfile, LirType, LocalFunctionIdentities, MachineScalarKind,
-    MachineScalarValue, ManagedCallDestination, ManagedRuntimeFunction,
-    NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
-    NativeSafeCallDestination, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
+    AbiZst, CCallDestination, CExternFunction, CExternFunctionRef, CallDestination, CallTarget,
+    CallTargets, CallingConvention, CoroutineAdapterState, CoroutineFrameState,
+    CoroutineSuspendStateId, DirectCallSignature, ElidedZstCallSignature, EnumDef, EnumDefs,
+    EnumFieldRepr, EnumRepr, EnumVariantRepr, ExternFunctionIdentity, ExternFunctions,
+    ForeignCallbackFailureResult, ForeignCallbackModes, ForeignCallbackStates,
+    ForeignCallbackStatus, GcEffect, IndirectResultCallSignature, IndirectResultConvention,
+    InitializationOutcome, InternalPointerCarrier, LirTargetProfile, LirType,
+    LocalFunctionIdentities, MachineScalarKind, MachineScalarValue, ManagedCallDestination,
+    ManagedRuntimeFunction, NativeBorrowedCallDestination, NativeBorrowedResultPublication,
+    NativeBorrowedResultRoot, NichePointerKind, NonEmptyRefScan, PointerKind, PointerNullEncoding,
     RefScan, ScoopAbiSignature, ScoopExternFunction, ScoopExternFunctionRef, TargetProfileId,
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
@@ -729,17 +729,26 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     )
     .unwrap();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {
+        call_mode: scoop_identity::CAbiCallMode::NativeSafe,
         identity: ExternFunctionIdentity {
             source_name: "c".to_string(),
             native_symbol: "c".to_string(),
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
-        bridge: super::GeneratedBridgeEntryIdentity::new(
-            scoop_identity::ConeIdentity::SINGLE_FILE,
-            scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
-        )
-        .unwrap(),
+        call_plan: super::CAbiCallPlan::StorageBridge {
+            entry: Box::new(
+                super::GeneratedBridgeEntryIdentity::new(
+                    scoop_identity::ConeIdentity::SINGLE_FILE,
+                    scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                        contract,
+                        scoop_identity::CResultAdaptation::Direct,
+                    ),
+                )
+                .unwrap(),
+            ),
+            result: scoop_identity::CResultAdaptation::Direct,
+        },
         signature: super::CFunctionType {
             params: Vec::new(),
             return_type: super::CReturnType::Void,
@@ -771,7 +780,7 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
         super::ExternFunctionKind::Scoop { .. }
     ));
     assert_eq!(
-        NativeSafeCallDestination::extern_function(c_ref).view(),
+        CCallDestination::extern_function(c_ref).view(),
         CallDestination::Extern(c)
     );
     assert_eq!(
@@ -1156,11 +1165,11 @@ fn target_contract_and_fingerprint_match_the_fixed_vectors() {
     let profile = LirTargetProfile::DARWIN_AARCH64;
     assert_eq!(
         hex(&scoop_wire::encode(&profile.contract()).unwrap()),
-        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e010f01"
+        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e020f01"
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+        "251eda029a5db3b45ee339ad22f68dcf5edc54a30525b4e49a25ba2bc14b455e"
     );
     assert_eq!(
         super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),

@@ -1,0 +1,363 @@
+Module
+  struct Plain (value: Int)
+  struct Generic<Int> (value: Int)
+  struct Different (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Entry(_0: Int)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Equality<Char>
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Equality<String>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Plain = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Plain = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Plain
+        Type Plain
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type Plain
+        Local $dependency.receiver
+        Type Plain
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 if.then.1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.2
+        Type Exception
+        ClassAlloc Exception
+      call external2 direct
+        Type Exception
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type Exception
+        Local $new.2
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Generic<Int> = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Generic<Int> = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Generic<Int>
+        Type Generic<Int>
+        Local $dependency.argument.0
+      call $call.3: Boolean = @fn1 direct
+        Type Generic<Int>
+        Local $dependency.receiver
+        Type Generic<Int>
+        Local $dependency.parameter.other
+      branch bb3 bb4
+        Type Boolean
+        Local $call.3
+    bb3 if.then.3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.4
+        Type Exception
+        ClassAlloc Exception
+      call external2 direct
+        Type Exception
+        Local $new.4
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type Exception
+        Local $new.4
+    bb4 if.merge.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Choice
+        Type Choice
+        VariantConstruct Choice v0
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.parameter.other: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $call.5: Boolean = external3 direct
+        Type Choice
+        Local $dependency.receiver
+        Type Choice
+        Local $dependency.parameter.other
+      branch bb5 bb6
+        Type Boolean
+        Local $call.5
+    bb5 if.then.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.6
+        Type Exception
+        ClassAlloc Exception
+      call external2 direct
+        Type Exception
+        Local $new.6
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type Exception
+        Local $new.6
+    bb6 if.merge.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $equality.lhs: Different = external4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.7: Different = external4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Boolean = external7 direct
+        Type Different
+        Local $equality.lhs
+        Type Different
+        Local $call.7
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb7 if.then.7
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.8
+        Type Exception
+        ClassAlloc Exception
+      call external2 direct
+        Type Exception
+        Local $new.8
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type Exception
+        Local $new.8
+    bb8 if.merge.8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $equality.lhs: Different = external4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.9: Different = external4 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $call.10: Boolean = external7 direct
+        Type Different
+        Local $equality.lhs
+        Type Different
+        Local $call.9
+      branch bb9 bb10
+        Type Boolean
+        Local $call.10
+    bb9 if.then.9
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        Local $dependency.argument.0
+      assign $new.11
+        Type Exception
+        ClassAlloc Exception
+      call external2 direct
+        Type Exception
+        Local $new.11
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type Exception
+        Local $new.11
+    bb10 if.merge.10
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun equals @fn1(this: Generic<Int>, other: Generic<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral false
+  fun println @fn2(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external6 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external6 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Generic.$c0 @fn3(value: Int) -> Generic<Int> <no-gc>
+    bb0 entry
+      return
+        Type Generic<Int>
+        StructInit Generic<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- equals
+  instance mi1 function=@fn2 <- println
+  str @str0 "plain equals"
+  str @str1 "generic equals"
+  str @str2 "enum equals"
+  str @str3 "different signature"
+  str @str4 "structural comparison"
+  str @str5 "equality member collisions"
+  str @str6 "\n"
+  output executable @fn0

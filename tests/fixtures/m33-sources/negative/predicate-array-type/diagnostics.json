@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: target predicate \"os\" requires strings",
+    "notes": [],
+    "origin": {
+      "end": 65,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 53
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

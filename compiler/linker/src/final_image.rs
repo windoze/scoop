@@ -14,6 +14,7 @@ use crate::{
     startup::StartupObject,
 };
 
+mod bindings;
 mod commands;
 pub(crate) mod elf;
 mod exports;
@@ -40,6 +41,7 @@ pub(crate) struct FinalImage<'a> {
     segments: Vec<Segment>,
     rebases: BTreeSet<u64>,
     bindings: BTreeMap<u64, fixups::Binding>,
+    weak_bindings: BTreeMap<u64, fixups::Binding>,
     exports: BTreeMap<String, u64>,
     providers: Vec<crate::dynamic::NativeDynamicProviderId>,
 }
@@ -75,6 +77,7 @@ pub(crate) fn verify(
         segments: Vec::new(),
         rebases: BTreeSet::new(),
         bindings: BTreeMap::new(),
+        weak_bindings: BTreeMap::new(),
         exports: BTreeMap::new(),
         providers: Vec::new(),
     };
@@ -119,7 +122,7 @@ pub(crate) fn verify(
             "runtime String alias does not share its actual TD address",
         ));
     }
-    check_bindings(&image, inputs)?;
+    bindings::check(&image, inputs)?;
     let array = image.symbol(crate::startup::IMAGE_ARRAY)?;
     for (index, symbol) in inputs.images.iter().enumerate() {
         if image.pointer(array + index as u64 * 8)? != image.symbol(symbol)? {
@@ -155,6 +158,13 @@ pub(crate) fn verify(
 
 impl FinalImage<'_> {
     fn symbol(&self, symbol: &str) -> Result<u64, LinkError> {
+        // Mach-O's __dso_handle denotes the image header. ld resolves its
+        // relocations without retaining a separate symbol-table entry.
+        let symbol = if symbol == "___dso_handle" {
+            "__mh_execute_header"
+        } else {
+            symbol
+        };
         match self.symbols.get(symbol).map(Vec::as_slice) {
             Some([address]) => Ok(*address),
             _ => Err(error(format!(
@@ -190,7 +200,11 @@ impl FinalImage<'_> {
         )))
     }
     fn pointer(&self, address: u64) -> Result<u64, LinkError> {
-        if let Some(binding) = self.bindings.get(&address) {
+        if let Some(binding) = self
+            .weak_bindings
+            .get(&address)
+            .or_else(|| self.bindings.get(&address))
+        {
             return self
                 .symbol(&binding.symbol)?
                 .checked_add_signed(binding.addend)
@@ -209,77 +223,4 @@ impl FinalImage<'_> {
         }
         Ok(value)
     }
-}
-
-fn check_bindings(image: &FinalImage<'_>, inputs: &ProgramInputs<'_>) -> Result<(), LinkError> {
-    let mut seen = BTreeSet::new();
-    for import in image.file.imports().map_err(error)? {
-        let name = std::str::from_utf8(import.name()).map_err(error)?;
-        let expected = inputs
-            .namespace
-            .darwin()?
-            .bindings
-            .get(name)
-            .ok_or_else(|| error(format!("unexpected final dynamic import {name}")))?;
-        if import.library()
-            != inputs.namespace.darwin()?.providers.providers[&expected.owner]
-                .install_name
-                .as_bytes()
-            || inputs.definitions.contains_key(name)
-        {
-            return Err(error(format!(
-                "final dynamic import {name} binds to a different provider"
-            )));
-        }
-        seen.insert(name.to_owned());
-    }
-    for binding in image.bindings.values() {
-        if binding.weak && inputs.definitions.contains_key(&binding.symbol) {
-            if image.exports.get(&binding.symbol) != Some(&image.symbol(&binding.symbol)?) {
-                return Err(error(format!(
-                    "weak binding {} has no matching final export",
-                    binding.symbol
-                )));
-            }
-            continue;
-        }
-        let expected = inputs
-            .namespace
-            .darwin()?
-            .bindings
-            .get(&binding.symbol)
-            .ok_or_else(|| {
-                error(format!(
-                    "unexpected final binding {} from ordinal {}",
-                    binding.symbol, binding.ordinal
-                ))
-            })?;
-        let owner = binding
-            .ordinal
-            .checked_sub(1)
-            .and_then(|index| usize::try_from(index).ok())
-            .and_then(|index| image.providers.get(index));
-        if owner != Some(&expected.owner)
-            || inputs.definitions.contains_key(&binding.symbol)
-            || binding.weak
-        {
-            return Err(error(format!(
-                "unexpected final binding {} from ordinal {}; expected provider {}",
-                binding.symbol, binding.ordinal, expected.owner
-            )));
-        }
-        seen.insert(binding.symbol.clone());
-    }
-    if let Some(symbol) = inputs
-        .namespace
-        .darwin()?
-        .bindings
-        .keys()
-        .find(|symbol| !seen.contains(*symbol))
-    {
-        return Err(error(format!(
-            "final image omitted dynamic import {symbol}"
-        )));
-    }
-    Ok(())
 }

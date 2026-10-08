@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "native C++ toolchain: paired C++ driver -dumpfullversion mismatch: \"99.2.0\", expected \"99.1.0\"; C++ required by dev.m33:cxx-config:0.1.0",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "SourceSnapshot",
+    "severity": "error"
+  }
+]

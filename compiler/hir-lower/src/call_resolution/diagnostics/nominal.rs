@@ -46,6 +46,7 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
             )
         }
         NominalConstructorSource::IntrinsicClass(class)
+        | NominalConstructorSource::Atomic(class)
         | NominalConstructorSource::ArrayGenerate(class) => {
             format!(
                 "class {}{parameters}({fields})",
@@ -53,6 +54,7 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
             )
         }
         NominalConstructorSource::ImportedArray(owner)
+        | NominalConstructorSource::ImportedAtomic(owner)
         | NominalConstructorSource::ImportedArrayGenerate(owner) => {
             let declaration = lowerer
                 .dependencies

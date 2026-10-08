@@ -25,6 +25,12 @@ pub(super) struct ImportedReferenceDeclaration {
 impl ImportedReferenceDeclaration {
     fn resolve(state: &mut Lowerer, candidate: ImportedCallableCandidate) -> Result<Self, String> {
         let interface = candidate.interface();
+        if matches!(
+            interface.effects().implementation(),
+            hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Atomic(_))
+        ) {
+            return Err(crate::expr::atomics::ATOMIC_REFERENCE_ERROR.into());
+        }
         if candidate.callable_body().is_some()
             || matches!(
                 interface.owner(),

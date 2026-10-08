@@ -1,0 +1,3 @@
+class Orders(val value: MemoryOrder)
+fun bad(cell: AtomicInt, orders: Orders): Int = cell.load(orders.value)
+fun main() {}

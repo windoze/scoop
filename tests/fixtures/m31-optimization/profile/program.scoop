@@ -1,4 +1,4 @@
-@NoGC @Extern(lib = "fixture_native", name = "seed")
+@Extern(lib = "fixture_native", name = "seed")
 fun seed(): Long
 
 class Box(val value: Long)

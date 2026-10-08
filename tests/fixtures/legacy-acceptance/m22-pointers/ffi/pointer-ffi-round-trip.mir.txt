@@ -26,7 +26,7 @@ Module
   extern ef18 prepareGlobals @m22_prepare_globals() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef19 cleanupGlobals @m22_cleanup_globals() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef20 globalsMatch @m22_globals_match(Ptr<Unit>, Ptr<NativeCell>, Option<Ptr<Unit>>, Option<Ptr<NativeCell>>, FunPtr<(Int) -> Int>, Option<FunPtr<(Int) -> Int>>) -> Boolean <abi=c no-gc lib=fixture_native>
-  callback cb0 @fn21 -> @fn37 function_type0 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
+  callback cb0 @fn23 -> @fn43 function_type0 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
   struct NativeCell (value: Int) <c-layout aligned=natural packed=natural>
   struct PointerBundle (opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option<Ptr<Unit>>, optionalCell: Option<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option<FunPtr<(Int) -> Int>>) <c-layout aligned=natural packed=natural>
   enum Option<Ptr<Unit>>
@@ -52,8 +52,13 @@ Module
   class Throwable vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class box<NativeCell> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
+  interface Equality<Ptr<NativeCell>>
+  interface Equality<Ptr<Int>>
   interface ToString
   interface Hash
+  interface Equality<Boolean>
+  interface Equality<Int>
   interface Continuation<NativeCell>
   interface SuspendTask<NativeCell>
   interface SuspendRegistration<NativeCell>
@@ -65,9 +70,47 @@ Module
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=class4 nominal_id=07d79ca14f0815a3fb1aeb344f53b0f75f23b8ecfadc7a12aa15626c868e029c exact_id=ec51504300dc1631064574c8a4185ac59c799a0515b2e621344468ec89d6791a
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn37 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
-  generated_callable gc1 function=@fn38 id=f4e272e3a5e90e0a233d1434ad4af84d6ba5106c5d2635a24dbfb64d4873365c
-  fun malloc @fn0(arg0: ULong) -> Ptr<Unit>
+  generated_callable gc0 function=@fn43 id=5810b055294645ac7911df9f38be8bd18b48b72095c536f48202e4093c9f1a82
+  generated_callable gc1 function=@fn44 id=f4e272e3a5e90e0a233d1434ad4af84d6ba5106c5d2635a24dbfb64d4873365c
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn31 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn1(this: Ptr<NativeCell>, other: Ptr<NativeCell>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<NativeCell>
+        Type Ptr<NativeCell>
+        Local this
+      val $dependency.local.3: Ptr<NativeCell>
+        Type Ptr<NativeCell>
+        Local other
+      val $dependency.local.4: Ptr<NativeCell>
+        Type Ptr<NativeCell>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn32 direct
+        Type Ptr<NativeCell>
+        Local $dependency.local.2
+        Type Ptr<NativeCell>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun malloc @fn2(arg0: ULong) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @malloc direct
         Type ULong
@@ -75,13 +118,13 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun free @fn1(arg0: Ptr<Unit>) -> Unit
+  fun free @fn3(arg0: Ptr<Unit>) -> Unit
     bb0 entry
       call extern1 @free direct
         Type Ptr<Unit>
         Local arg0
       return
-  fun roundOpaque @fn2(arg0: Ptr<Unit>) -> Ptr<Unit>
+  fun roundOpaque @fn4(arg0: Ptr<Unit>) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern2 @m22_round_opaque direct
         Type Ptr<Unit>
@@ -89,7 +132,7 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun roundCell @fn3(arg0: Ptr<NativeCell>) -> Ptr<NativeCell>
+  fun roundCell @fn5(arg0: Ptr<NativeCell>) -> Ptr<NativeCell>
     bb0 entry
       call $call.1: Ptr<NativeCell> = extern3 @m22_round_cell direct
         Type Ptr<NativeCell>
@@ -97,7 +140,7 @@ Module
       return
         Type Ptr<NativeCell>
         Local $call.1
-  fun roundOptionalOpaque @fn4(arg0: Option<Ptr<Unit>>) -> Option<Ptr<Unit>>
+  fun roundOptionalOpaque @fn6(arg0: Option<Ptr<Unit>>) -> Option<Ptr<Unit>>
     bb0 entry
       call $call.1: Option<Ptr<Unit>> = extern4 @m22_round_optional_opaque direct
         Type Option<Ptr<Unit>>
@@ -105,7 +148,7 @@ Module
       return
         Type Option<Ptr<Unit>>
         Local $call.1
-  fun roundOptionalCell @fn5(arg0: Option<Ptr<NativeCell>>) -> Option<Ptr<NativeCell>>
+  fun roundOptionalCell @fn7(arg0: Option<Ptr<NativeCell>>) -> Option<Ptr<NativeCell>>
     bb0 entry
       call $call.1: Option<Ptr<NativeCell>> = extern5 @m22_round_optional_cell direct
         Type Option<Ptr<NativeCell>>
@@ -113,7 +156,7 @@ Module
       return
         Type Option<Ptr<NativeCell>>
         Local $call.1
-  fun roundCallback @fn6(arg0: FunPtr<(Int) -> Int>) -> FunPtr<(Int) -> Int>
+  fun roundCallback @fn8(arg0: FunPtr<(Int) -> Int>) -> FunPtr<(Int) -> Int>
     bb0 entry
       call $call.1: FunPtr<(Int) -> Int> = extern6 @m22_round_callback direct
         Type FunPtr<(Int) -> Int>
@@ -121,7 +164,7 @@ Module
       return
         Type FunPtr<(Int) -> Int>
         Local $call.1
-  fun roundOptionalCallback @fn7(arg0: Option<FunPtr<(Int) -> Int>>) -> Option<FunPtr<(Int) -> Int>>
+  fun roundOptionalCallback @fn9(arg0: Option<FunPtr<(Int) -> Int>>) -> Option<FunPtr<(Int) -> Int>>
     bb0 entry
       call $call.1: Option<FunPtr<(Int) -> Int>> = extern7 @m22_round_optional_callback direct
         Type Option<FunPtr<(Int) -> Int>>
@@ -129,37 +172,37 @@ Module
       return
         Type Option<FunPtr<(Int) -> Int>>
         Local $call.1
-  fun nullOpaque @fn8() -> Option<Ptr<Unit>>
+  fun nullOpaque @fn10() -> Option<Ptr<Unit>>
     bb0 entry
       call $call.1: Option<Ptr<Unit>> = extern8 @m22_null_opaque direct
       return
         Type Option<Ptr<Unit>>
         Local $call.1
-  fun nullCell @fn9() -> Option<Ptr<NativeCell>>
+  fun nullCell @fn11() -> Option<Ptr<NativeCell>>
     bb0 entry
       call $call.1: Option<Ptr<NativeCell>> = extern9 @m22_null_cell direct
       return
         Type Option<Ptr<NativeCell>>
         Local $call.1
-  fun nativeCallback @fn10() -> FunPtr<(Int) -> Int>
+  fun nativeCallback @fn12() -> FunPtr<(Int) -> Int>
     bb0 entry
       call $call.1: FunPtr<(Int) -> Int> = extern10 @m22_native_callback direct
       return
         Type FunPtr<(Int) -> Int>
         Local $call.1
-  fun nativeOptionalCallback @fn11() -> Option<FunPtr<(Int) -> Int>>
+  fun nativeOptionalCallback @fn13() -> Option<FunPtr<(Int) -> Int>>
     bb0 entry
       call $call.1: Option<FunPtr<(Int) -> Int>> = extern11 @m22_native_optional_callback direct
       return
         Type Option<FunPtr<(Int) -> Int>>
         Local $call.1
-  fun nullCallback @fn12() -> Option<FunPtr<(Int) -> Int>>
+  fun nullCallback @fn14() -> Option<FunPtr<(Int) -> Int>>
     bb0 entry
       call $call.1: Option<FunPtr<(Int) -> Int>> = extern12 @m22_null_callback direct
       return
         Type Option<FunPtr<(Int) -> Int>>
         Local $call.1
-  fun applyCallback @fn13(arg0: Int, arg1: FunPtr<(Int) -> Int>) -> Int
+  fun applyCallback @fn15(arg0: Int, arg1: FunPtr<(Int) -> Int>) -> Int
     bb0 entry
       call $call.1: Int = extern13 @m22_apply_callback direct
         Type Int
@@ -169,7 +212,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun roundBundle @fn14(arg0: PointerBundle) -> PointerBundle
+  fun roundBundle @fn16(arg0: PointerBundle) -> PointerBundle
     bb0 entry
       call $call.1: PointerBundle = extern14 @m22_round_bundle direct
         Type PointerBundle
@@ -177,7 +220,7 @@ Module
       return
         Type PointerBundle
         Local $call.1
-  fun makeSomeBundle @fn15(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>) -> PointerBundle
+  fun makeSomeBundle @fn17(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>) -> PointerBundle
     bb0 entry
       call $call.1: PointerBundle = extern15 @m22_make_some_bundle direct
         Type Ptr<Unit>
@@ -187,7 +230,7 @@ Module
       return
         Type PointerBundle
         Local $call.1
-  fun makeNoneBundle @fn16(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>) -> PointerBundle
+  fun makeNoneBundle @fn18(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>) -> PointerBundle
     bb0 entry
       call $call.1: PointerBundle = extern16 @m22_make_none_bundle direct
         Type Ptr<Unit>
@@ -197,7 +240,7 @@ Module
       return
         Type PointerBundle
         Local $call.1
-  fun readOpaque @fn17(arg0: Ptr<Unit>) -> Int
+  fun readOpaque @fn19(arg0: Ptr<Unit>) -> Int
     bb0 entry
       call $call.1: Int = extern17 @m22_read_opaque direct
         Type Ptr<Unit>
@@ -205,15 +248,15 @@ Module
       return
         Type Int
         Local $call.1
-  fun prepareGlobals @fn18() -> Unit
+  fun prepareGlobals @fn20() -> Unit
     bb0 entry
       call extern18 @m22_prepare_globals direct
       return
-  fun cleanupGlobals @fn19() -> Unit
+  fun cleanupGlobals @fn21() -> Unit
     bb0 entry
       call extern19 @m22_cleanup_globals direct
       return
-  fun globalsMatch @fn20(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>, arg2: Option<Ptr<Unit>>, arg3: Option<Ptr<NativeCell>>, arg4: FunPtr<(Int) -> Int>, arg5: Option<FunPtr<(Int) -> Int>>) -> Boolean
+  fun globalsMatch @fn22(arg0: Ptr<Unit>, arg1: Ptr<NativeCell>, arg2: Option<Ptr<Unit>>, arg3: Option<Ptr<NativeCell>>, arg4: FunPtr<(Int) -> Int>, arg5: Option<FunPtr<(Int) -> Int>>) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern20 @m22_globals_match direct
         Type Ptr<Unit>
@@ -231,7 +274,7 @@ Module
       return
         Type Boolean
         Local $call.1
-  fun scoopIncrement @fn21(value: Int) -> Int <no-gc>
+  fun scoopIncrement @fn23(value: Int) -> Int <no-gc>
     bb0 entry
       val $dependency.receiver: Int
         Type Int
@@ -249,7 +292,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun optionalOpaqueMatches @fn22(actual: Option<Ptr<Unit>>, expected: Ptr<Unit>) -> Boolean
+  fun optionalOpaqueMatches @fn24(actual: Option<Ptr<Unit>>, expected: Ptr<Unit>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -320,7 +363,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCellMatches @fn23(actual: Option<Ptr<NativeCell>>, expected: Ptr<NativeCell>) -> Boolean
+  fun optionalCellMatches @fn25(actual: Option<Ptr<NativeCell>>, expected: Ptr<NativeCell>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
@@ -391,7 +434,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalOpaqueIsNone @fn24(actual: Option<Ptr<Unit>>) -> Boolean
+  fun optionalOpaqueIsNone @fn26(actual: Option<Ptr<Unit>>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -436,7 +479,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCellIsNone @fn25(actual: Option<Ptr<NativeCell>>) -> Boolean
+  fun optionalCellIsNone @fn27(actual: Option<Ptr<NativeCell>>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
@@ -481,7 +524,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun applyOptionalCallback @fn26(callback: Option<FunPtr<(Int) -> Int>>, value: Int) -> Int
+  fun applyOptionalCallback @fn28(callback: Option<FunPtr<(Int) -> Int>>, value: Int) -> Int
     bb0 entry
       val $when.1: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
@@ -543,7 +586,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun optionalCallbackIsNone @fn27(callback: Option<FunPtr<(Int) -> Int>>) -> Boolean
+  fun optionalCallbackIsNone @fn29(callback: Option<FunPtr<(Int) -> Int>>) -> Boolean
     bb0 entry
       val $when.1: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
@@ -588,7 +631,7 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun main @fn28() -> Unit
+  fun main @fn30() -> Unit
     bb0 entry
       val $argument.0: ULong
         Type ULong
@@ -642,7 +685,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: NativeCell = @fn35 direct
+      call $dependency.argument.0: NativeCell = @fn41 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter.value: NativeCell
@@ -683,7 +726,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -712,7 +755,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<Unit>
@@ -753,7 +796,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<NativeCell>
@@ -794,7 +837,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<NativeCell>
@@ -816,7 +859,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: Ptr<Unit>
@@ -845,7 +888,7 @@ Module
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn22 direct
+      call $dependency.argument.0: Boolean = @fn24 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
@@ -853,7 +896,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Ptr<NativeCell>
@@ -882,7 +925,7 @@ Module
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn23 direct
+      call $dependency.argument.0: Boolean = @fn25 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
@@ -890,7 +933,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -905,13 +948,13 @@ Module
       val $parameter.actual: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn24 direct
+      call $dependency.argument.0: Boolean = @fn26 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -926,39 +969,39 @@ Module
       val $parameter.actual: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn25 direct
+      call $dependency.argument.0: Boolean = @fn27 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call $argument.0: Option<Ptr<Unit>> = extern8 @m22_null_opaque direct
       val $parameter.actual: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn24 direct
+      call $dependency.argument.0: Boolean = @fn26 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call $argument.0: Option<Ptr<NativeCell>> = extern9 @m22_null_cell direct
       val $parameter.actual: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn25 direct
+      call $dependency.argument.0: Boolean = @fn27 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call cCallback: FunPtr<(Int) -> Int> = extern10 @m22_native_callback direct
@@ -982,7 +1025,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1011,7 +1054,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1040,7 +1083,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       call $argument.0: Option<FunPtr<(Int) -> Int>> = extern11 @m22_native_optional_callback direct
@@ -1053,7 +1096,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -1061,7 +1104,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.argument.0: FunPtr<(Int) -> Int>
@@ -1090,7 +1133,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -1098,7 +1141,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1113,26 +1156,26 @@ Module
       val $parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn27 direct
+      call $dependency.argument.0: Boolean = @fn29 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call $argument.0: Option<FunPtr<(Int) -> Int>> = extern12 @m22_null_callback direct
       val $parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn27 direct
+      call $dependency.argument.0: Boolean = @fn29 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<Unit>
@@ -1186,7 +1229,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -1204,7 +1247,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -1221,7 +1264,7 @@ Module
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn22 direct
+      call $dependency.argument.0: Boolean = @fn24 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
@@ -1229,7 +1272,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -1246,7 +1289,7 @@ Module
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn23 direct
+      call $dependency.argument.0: Boolean = @fn25 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
@@ -1254,7 +1297,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1279,7 +1322,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1296,7 +1339,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -1304,7 +1347,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Ptr<Unit>
@@ -1332,13 +1375,13 @@ Module
       val $parameter.actual: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn24 direct
+      call $dependency.argument.0: Boolean = @fn26 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -1349,13 +1392,13 @@ Module
       val $parameter.actual: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn25 direct
+      call $dependency.argument.0: Boolean = @fn27 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1366,13 +1409,13 @@ Module
       val $parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn27 direct
+      call $dependency.argument.0: Boolean = @fn29 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<Unit>
@@ -1435,7 +1478,7 @@ Module
       val $parameter.optionalCallback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.5
-      call $argument.0: PointerBundle = @fn36 direct
+      call $argument.0: PointerBundle = @fn42 direct
         Type Ptr<Unit>
         Local $parameter.opaque
         Type Ptr<NativeCell>
@@ -1488,7 +1531,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -1525,7 +1568,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -1542,7 +1585,7 @@ Module
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn22 direct
+      call $dependency.argument.0: Boolean = @fn24 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
@@ -1550,7 +1593,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -1567,7 +1610,7 @@ Module
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn23 direct
+      call $dependency.argument.0: Boolean = @fn25 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
@@ -1575,7 +1618,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1600,7 +1643,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1617,7 +1660,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -1625,7 +1668,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -1634,13 +1677,13 @@ Module
       val $parameter.actual: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn24 direct
+      call $dependency.argument.0: Boolean = @fn26 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -1649,13 +1692,13 @@ Module
       val $parameter.actual: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn25 direct
+      call $dependency.argument.0: Boolean = @fn27 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1664,13 +1707,13 @@ Module
       val $parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn27 direct
+      call $dependency.argument.0: Boolean = @fn29 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call extern18 @m22_prepare_globals direct
@@ -1700,7 +1743,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Ptr<Unit>
@@ -1715,7 +1758,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -1744,7 +1787,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -1760,7 +1803,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -1801,7 +1844,7 @@ Module
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn22 direct
+      call $dependency.argument.0: Boolean = @fn24 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
@@ -1809,7 +1852,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $opt.3: Option<Ptr<Unit>>
@@ -1850,7 +1893,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -1891,7 +1934,7 @@ Module
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn23 direct
+      call $dependency.argument.0: Boolean = @fn25 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
@@ -1899,7 +1942,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $opt.7: Option<Ptr<NativeCell>>
@@ -1941,7 +1984,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -1964,7 +2007,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -1979,7 +2022,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -1987,7 +2030,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       global_assign globalOpaque
@@ -2108,7 +2151,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<Unit>
@@ -2143,7 +2186,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Ptr<NativeCell>
@@ -2178,7 +2221,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -2193,7 +2236,7 @@ Module
       val $parameter.expected: Ptr<Unit>
         Type Ptr<Unit>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn22 direct
+      call $dependency.argument.0: Boolean = @fn24 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
         Type Ptr<Unit>
@@ -2201,7 +2244,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -2216,7 +2259,7 @@ Module
       val $parameter.expected: Ptr<NativeCell>
         Type Ptr<NativeCell>
         Local $argument.1
-      call $dependency.argument.0: Boolean = @fn23 direct
+      call $dependency.argument.0: Boolean = @fn25 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
         Type Ptr<NativeCell>
@@ -2224,7 +2267,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -2247,7 +2290,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -2262,7 +2305,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.1
-      call $dependency.argument.0: Int = @fn26 direct
+      call $dependency.argument.0: Int = @fn28 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
         Type Int
@@ -2270,7 +2313,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn30 direct
+      call @fn35 direct
         Type Int
         Local $dependency.parameter.value
       global_assign globalOptionalOpaque
@@ -2334,7 +2377,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<Unit>>
@@ -2343,13 +2386,13 @@ Module
       val $parameter.actual: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn24 direct
+      call $dependency.argument.0: Boolean = @fn26 direct
         Type Option<Ptr<Unit>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<Ptr<NativeCell>>
@@ -2358,13 +2401,13 @@ Module
       val $parameter.actual: Option<Ptr<NativeCell>>
         Type Option<Ptr<NativeCell>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn25 direct
+      call $dependency.argument.0: Boolean = @fn27 direct
         Type Option<Ptr<NativeCell>>
         Local $parameter.actual
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -2373,13 +2416,13 @@ Module
       val $parameter.callback: Option<FunPtr<(Int) -> Int>>
         Type Option<FunPtr<(Int) -> Int>>
         Local $argument.0
-      call $dependency.argument.0: Boolean = @fn27 direct
+      call $dependency.argument.0: Boolean = @fn29 direct
         Type Option<FunPtr<(Int) -> Int>>
         Local $parameter.callback
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn29 direct
+      call @fn34 direct
         Type Boolean
         Local $dependency.parameter.value
       call extern19 @m22_cleanup_globals direct
@@ -2407,7 +2450,70 @@ Module
         Type Ptr<Unit>
         Local $parameter.pointer
       return
-  fun println @fn29(value: Boolean) -> Unit
+  fun equals @fn31(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun equals @fn32(this: Ptr<NativeCell>, other: Ptr<NativeCell>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<NativeCell>
+        Type Ptr<NativeCell>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<NativeCell>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<NativeCell>
+        Type Ptr<NativeCell>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<NativeCell>
+            Local $dependency.local.3
+  fun equalTo @fn33(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn36 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun println @fn34(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -2431,7 +2537,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn30(value: Int) -> Unit
+  fun println @fn35(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -2455,26 +2561,48 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn31(this: Continuation<NativeCell>, value: NativeCell) -> Unit
+  fun equals @fn36(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun Continuation.resume @fn37(this: Continuation<NativeCell>, value: NativeCell) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn32(this: Continuation<NativeCell>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn38(this: Continuation<NativeCell>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn33(this: SuspendTask<NativeCell>, $completion: Continuation<NativeCell>) -> CoroutineStep<NativeCell>
+  fun SuspendTask.run @fn39(this: SuspendTask<NativeCell>, $completion: Continuation<NativeCell>) -> CoroutineStep<NativeCell>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn34(this: SuspendRegistration<NativeCell>, continuation: Continuation<NativeCell>) -> Unit
+  fun SuspendRegistration.register @fn40(this: SuspendRegistration<NativeCell>, continuation: Continuation<NativeCell>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.NativeCell.$c0 @fn35(value: Int) -> NativeCell <no-gc>
+  fun ctor.NativeCell.$c0 @fn41(value: Int) -> NativeCell <no-gc>
     bb0 entry
       return
         Type NativeCell
         StructInit NativeCell
           Type Int
           Local value
-  fun ctor.PointerBundle.$c1 @fn36(opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option<Ptr<Unit>>, optionalCell: Option<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option<FunPtr<(Int) -> Int>>) -> PointerBundle <no-gc>
+  fun ctor.PointerBundle.$c1 @fn42(opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Option<Ptr<Unit>>, optionalCell: Option<Ptr<NativeCell>>, callback: FunPtr<(Int) -> Int>, optionalCallback: Option<FunPtr<(Int) -> Int>>) -> PointerBundle <no-gc>
     bb0 entry
       return
         Type PointerBundle
@@ -2491,9 +2619,9 @@ Module
           Local callback
           Type Option<FunPtr<(Int) -> Int>>
           Local optionalCallback
-  fun callback bridge for scoopIncrement @fn37($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for scoopIncrement @fn43($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn21 direct
+      call $value: Int = @fn23 direct
         Type Int
         PtrLoad Int
           Type Ptr<Int>
@@ -2505,7 +2633,7 @@ Module
         Type Int
         Local $value
       return
-  fun startCoroutine<NativeCell> @fn38(task: SuspendTask<NativeCell>, completion: Continuation<NativeCell>) -> Unit
+  fun startCoroutine<NativeCell> @fn44(task: SuspendTask<NativeCell>, completion: Continuation<NativeCell>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2528,7 +2656,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn31 interface Continuation<NativeCell>[0]
+      call @fn37 interface Continuation<NativeCell>[0]
         Type Continuation<NativeCell>
         Local completion
         Type NativeCell
@@ -2541,7 +2669,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn32 interface Continuation<NativeCell>[1]
+      call @fn38 interface Continuation<NativeCell>[1]
         Type Continuation<NativeCell>
         Local completion
         Type Throwable
@@ -2560,7 +2688,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<NativeCell> = @fn33 interface SuspendTask<NativeCell>[0]
+      call $step: CoroutineStep<NativeCell> = @fn39 interface SuspendTask<NativeCell>[0]
         Type SuspendTask<NativeCell>
         Local task
         Type Continuation<NativeCell>
@@ -2588,14 +2716,20 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<NativeCell> result=NativeCell
   coroutine_slot cl0 CoroutineSlot<NativeCell> value=NativeCell
-  coroutine_start ct0 result=NativeCell function=fn38
-  coroutine_fn cf0 @fn33 source_return=NativeCell step=cs0 immediate
-  instance mi0 function=@fn29 <- println
-  instance mi1 function=@fn30 <- println
-  instance mi2 function=@fn31 <- Continuation.resume
-  instance mi3 function=@fn32 <- Continuation.resumeWithException
-  instance mi4 function=@fn33 <- SuspendTask.run
-  instance mi5 function=@fn34 <- SuspendRegistration.register
+  coroutine_start ct0 result=NativeCell function=fn44
+  coroutine_fn cf0 @fn39 source_return=NativeCell step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn1 <- equalTo
+  instance mi2 function=@fn31 <- equals
+  instance mi3 function=@fn32 <- equals
+  instance mi4 function=@fn33 <- equalTo
+  instance mi5 function=@fn34 <- println
+  instance mi6 function=@fn35 <- println
+  instance mi7 function=@fn36 <- equals
+  instance mi8 function=@fn37 <- Continuation.resume
+  instance mi9 function=@fn38 <- Continuation.resumeWithException
+  instance mi10 function=@fn39 <- SuspendTask.run
+  instance mi11 function=@fn40 <- SuspendRegistration.register
   str @str0 "\n"
   str @str1 "\n"
-  output executable @fn28
+  output executable @fn30

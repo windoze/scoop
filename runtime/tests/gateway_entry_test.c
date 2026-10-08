@@ -73,8 +73,7 @@ static void nested_target(Rendezvous *sync, const void *boundary) {
     poll_frame(frames[0]);
     scoop_thread_leave_callback(&callbacks[1]);
     scoop_rt_leave_native_safe(&transitions[1]);
-    assert(scoop_thread_current_required()->managed_stack_boundary ==
-           (const char *)frames[2]);
+    assert(scoop_thread_current_required()->managed_stack_boundary == (const char *)frames[2]);
     scoop_rt_pop_caller_roots(&roots[1]);
     scoop_thread_leave_callback(&callbacks[0]);
     scoop_rt_leave_native_borrowed(&transitions[0]);
@@ -97,8 +96,7 @@ static void *target_thread(void *context) {
             poll_frame(frame);
             scoop_thread_leave_managed();
         }
-        bool enter_later =
-            sync->scenario == BEFORE_ENTRY || sync->scenario == BETWEEN_GATEWAYS;
+        bool enter_later = sync->scenario == BEFORE_ENTRY || sync->scenario == BETWEEN_GATEWAYS;
         if (!enter_later) {
             scoop_thread_enter_gateway(boundary);
             if (sync->scenario != PENDING_POLL)
@@ -113,8 +111,7 @@ static void *target_thread(void *context) {
     }
     ScoopThreadState *state = scoop_thread_current_required();
     assert(state->managed_stack_boundary == NULL && state->managed_anchor == NULL);
-    assert(state->managed_segment == SCOOP_MANAGED_SEGMENT_NONE &&
-           state->managed_depth == 0);
+    assert(atomic_load(&state->mode) == SCOOP_THREAD_NATIVE_SAFE && state->managed_depth == 0);
     assert(state->callback_depth == 0 && state->current_transition == NULL);
     assert(pthread_mutex_lock(&sync->lock) == 0);
     sync->stage = 3;
@@ -172,8 +169,8 @@ static void run_scenario(Scenario scenario) {
      * delays or production test hooks determine these interleavings. */
     scoop_gc_heap_lock();
     assert(pthread_create(&collector, NULL, collector_thread, NULL) == 0);
-    bool active = scenario == ACTIVE_POLL || scenario == RETURN_TO_NATIVE ||
-                  scenario == NESTED_CALLBACK;
+    bool active =
+        scenario == ACTIVE_POLL || scenario == RETURN_TO_NATIVE || scenario == NESTED_CALLBACK;
     wait_world(active ? SCOOP_WORLD_STOPPING : SCOOP_WORLD_COLLECTING);
     proceed(&sync);
     wait_stage(&sync, 2);
@@ -181,7 +178,7 @@ static void run_scenario(Scenario scenario) {
         scoop_thread_registry_lock();
         while (atomic_load(&sync.target->mode) != SCOOP_THREAD_PARKED)
             scoop_thread_world_wait();
-        assert(sync.target->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING);
+        assert(sync.target->parked_from == SCOOP_THREAD_MANAGED_PENDING);
         assert(sync.target->managed_anchor == NULL);
         scoop_thread_registry_unlock();
     } else if (active) {
@@ -192,7 +189,7 @@ static void run_scenario(Scenario scenario) {
             assert(sync.target->managed_stack_boundary == NULL);
         } else {
             assert(atomic_load(&sync.target->mode) == SCOOP_THREAD_PARKED);
-            assert(sync.target->managed_segment == SCOOP_MANAGED_SEGMENT_ACTIVE);
+            assert(sync.target->parked_from == SCOOP_THREAD_MANAGED);
             assert(sync.target->managed_anchor != NULL);
         }
         scoop_thread_registry_unlock();

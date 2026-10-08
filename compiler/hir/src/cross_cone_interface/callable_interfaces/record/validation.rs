@@ -99,7 +99,7 @@ pub(super) fn validate_dispatch_shape(
     }
     if matches!(
         effects.implementation(),
-        CallableImplementationV1::SourceExternScoop | CallableImplementationV1::SourceExternC
+        CallableImplementationV1::SourceExternScoop | CallableImplementationV1::SourceExternC(..)
     ) && (!matches!(declaration, CallableTemplateOrigin::Function(_))
         || owner != PublicDeclarationOwnerV1::TopLevel)
     {

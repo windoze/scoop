@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid Cone.toml: TOML parse error at line 5, column 1\n  |\n5 | extra = true\n  | ^^^^^\nunknown field `extra`, expected `path` or `when`\n",
+    "notes": [],
+    "origin": {
+      "end": 62,
+      "kind": "host",
+      "path": "${work}/cone/Cone.toml",
+      "start": 57
+    },
+    "phase": "Root",
+    "severity": "error"
+  }
+]

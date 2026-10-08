@@ -159,7 +159,8 @@ impl Lowerer {
                     sink: layer_sink,
                 })
             }
-            NamedFunctionLikeProbe::ImportedDependencyProperty(_)
+            NamedFunctionLikeProbe::ImportedDerivedEquality(_)
+            | NamedFunctionLikeProbe::ImportedDependencyProperty(_)
             | NamedFunctionLikeProbe::Nominal(_)
             | NamedFunctionLikeProbe::IntrinsicStruct(_) => {
                 unreachable!("extension function partitions contain only callable candidates")

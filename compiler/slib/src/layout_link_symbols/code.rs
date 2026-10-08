@@ -59,11 +59,6 @@ pub(super) fn replay(
     input
         .link
         .production_manifest_wire()
-        .replay_code_projection(
-            &production,
-            fingerprint,
-            &contracts,
-            native.library_requirements(),
-        )?;
+        .replay_code_projection(&production, fingerprint, &contracts, native)?;
     Ok((fingerprint, production))
 }

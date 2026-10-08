@@ -126,6 +126,7 @@ pub enum ConcreteCoreProtocols {
 /// independently of the others.
 #[derive(Debug, Clone)]
 pub struct DefinedConcreteCoreProtocols {
+    pub program_arguments: FunctionId,
     pub option: Vec<OptionCore>,
     pub exceptions: CompilerExceptionCore,
     pub foreign_callbacks: ForeignCallbackCore,

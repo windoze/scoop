@@ -193,6 +193,9 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match kind {
+            hir::IntrinsicFunctionKind::DataBorrow(kind) => {
+                return self.lower_data_borrow(kind, args, result_ty);
+            }
             hir::IntrinsicFunctionKind::GcPinRaw => mir::RuntimeFn::Pin,
             hir::IntrinsicFunctionKind::GcUnpinRaw => mir::RuntimeFn::Unpin,
             hir::IntrinsicFunctionKind::GcGetHandleRaw => mir::RuntimeFn::GetHandle,
@@ -207,6 +210,7 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::Char(_)
             | hir::IntrinsicFunctionKind::Integer(_)
             | hir::IntrinsicFunctionKind::Array(_)
+            | hir::IntrinsicFunctionKind::Atomic(_)
             | hir::IntrinsicFunctionKind::ArrayAccess(_)
             | hir::IntrinsicFunctionKind::PrimitiveUnary(_)
             | hir::IntrinsicFunctionKind::PrimitiveBinary(_)

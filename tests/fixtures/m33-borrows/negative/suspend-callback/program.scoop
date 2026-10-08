@@ -1,0 +1,6 @@
+suspend fun read(pointer: Ptr<Int>, count: Long): Long = count
+fun main() {
+    @Unsafe {
+        Array<Int>(1L) { _ -> 3 }.withDataPointer(::read)
+    }
+}

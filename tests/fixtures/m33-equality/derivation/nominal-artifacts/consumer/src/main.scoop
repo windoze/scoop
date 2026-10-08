@@ -1,0 +1,44 @@
+import derived.*
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun <T : Equality<T>> verify(left: T, right: T, expected: Boolean) {
+    check(compare(left, right) == expected)
+    val view: Equality<T> = left
+    check(view.equalTo(right) == expected)
+    val boxed: Any = left
+    check(boxed is Equality<T>)
+    check((boxed as Equality<T>).equalTo(right) == expected)
+}
+
+fun main() {
+    val point = Point(1, 2)
+    check(point == Point(1, 2))
+    check(point != Point(1, 3))
+    check(point.equals(Point(1, 2)))
+    val pointBox = boxedPoint(point)
+    check(!(pointBox is Equality<Point>))
+    check((pointBox as Point).equals(point))
+    check(Secret(3) == Secret(3))
+    check(Secret(3) != Secret(4))
+    val record = Record(Secret(3), "stored")
+    check(record == Record(Secret(3), "stored"))
+    check(record != Record(Secret(3), "changed"))
+    val boxed = boxedRecord(record)
+    check(!(boxed is Equality<Record>))
+    check((boxed as Record).equals(record))
+    check(Choice.Empty == Choice.Empty)
+    check(Choice.Value(record) == Choice.Value(record))
+    check(Choice.Value(record) != Choice.Number(3L))
+    verify(Declared(9), Declared(9), true)
+    verify(Declared(9), Declared(8), false)
+    check(Multiple(7) == Multiple(7))
+    val multiple = Multiple(7)
+    check(multiple.equals(7))
+    check(multiple.equals(Multiple(7)))
+    val opaque: Any = Incomparable(Opaque(1))
+    check(!(opaque is Equality<Incomparable>))
+    println("derived equality artifacts")
+}

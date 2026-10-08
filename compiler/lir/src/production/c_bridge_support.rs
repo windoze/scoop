@@ -21,25 +21,37 @@ pub enum CBridgeTargetSupportV1 {
     TlsGetAddr,
     Fmodf,
     Fmod,
+    DarwinErrno,
+    LinuxErrno,
 }
 
 impl CBridgeTargetSupportV1 {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::Memcpy,
         Self::TlvBootstrap,
         Self::TlsGetAddr,
         Self::Fmodf,
         Self::Fmod,
+        Self::DarwinErrno,
+        Self::LinuxErrno,
     ];
 
     pub const fn for_target(target: LirTargetProfile) -> &'static [Self] {
         match target.id() {
-            crate::TargetProfileId::DarwinAarch64 => {
-                &[Self::Memcpy, Self::TlvBootstrap, Self::Fmodf, Self::Fmod]
-            }
-            crate::TargetProfileId::LinuxX86_64Gnu | crate::TargetProfileId::LinuxX86_64Musl => {
-                &[Self::Memcpy, Self::TlsGetAddr, Self::Fmodf, Self::Fmod]
-            }
+            crate::TargetProfileId::DarwinAarch64 => &[
+                Self::Memcpy,
+                Self::TlvBootstrap,
+                Self::Fmodf,
+                Self::Fmod,
+                Self::DarwinErrno,
+            ],
+            crate::TargetProfileId::LinuxX86_64Gnu | crate::TargetProfileId::LinuxX86_64Musl => &[
+                Self::Memcpy,
+                Self::TlsGetAddr,
+                Self::Fmodf,
+                Self::Fmod,
+                Self::LinuxErrno,
+            ],
         }
     }
 
@@ -50,6 +62,8 @@ impl CBridgeTargetSupportV1 {
             Self::TlsGetAddr => "__tls_get_addr",
             Self::Fmodf => "fmodf",
             Self::Fmod => "fmod",
+            Self::DarwinErrno => "__error",
+            Self::LinuxErrno => "__errno_location",
         }
     }
 }
@@ -62,6 +76,8 @@ impl WireEncode for CBridgeTargetSupportV1 {
             Self::TlsGetAddr => 3,
             Self::Fmodf => 4,
             Self::Fmod => 5,
+            Self::DarwinErrno => 6,
+            Self::LinuxErrno => 7,
         })
     }
 }
