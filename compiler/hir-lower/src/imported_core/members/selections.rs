@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use scoop_identity::PersistentDispatchSlotId;
+use scoop_identity::{CallableTemplateOrigin, PersistentDispatchSlotId};
 
 use super::*;
 
 pub(super) type SelectedInterfaceSources =
-    BTreeMap<(hir::TypeId, PersistentDispatchSlotId), hir::InheritanceCallableDeclarationV1>;
+    BTreeMap<(hir::TypeId, PersistentDispatchSlotId), CallableTemplateOrigin>;
 
 impl Lowerer {
     pub(super) fn record_selected_interface_sources(
@@ -81,8 +81,7 @@ impl Lowerer {
                 let target = selections
                     .get(&(owner, slot))
                     .expect("the declaration retains its selected interface source")
-                    .selection()
-                    .declaration();
+                    .callable_target();
                 selected.entry((owner, slot)).or_insert(target);
             }
         }

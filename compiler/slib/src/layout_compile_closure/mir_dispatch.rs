@@ -70,17 +70,6 @@ impl Replay<'_> {
         &self,
         source: &hir::InheritanceSlotTargetV1,
     ) -> Result<CallableDefinitionOwner, Error> {
-        if matches!(
-            source.declaration(),
-            hir::InheritanceCallableDeclarationV1::DerivedEquality(_)
-        ) {
-            let callable =
-                PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::DerivedEquality {
-                    exact_owner: source.signature().receiver(),
-                })
-                .map_err(Error::Key)?;
-            return Ok(StrongCallableDefinitionOwner::GeneratedCallable(callable).into());
-        }
         mir::dispatch_exact_declaration_target(
             self.identities,
             declaration(source.declaration()),
@@ -98,9 +87,6 @@ fn declaration(owner: hir::InheritanceCallableDeclarationV1) -> DispatchDeclarat
         hir::InheritanceCallableDeclarationV1::Getter(id)
         | hir::InheritanceCallableDeclarationV1::Setter(id) => {
             DispatchDeclarationOwner::Accessor(id)
-        }
-        hir::InheritanceCallableDeclarationV1::DerivedEquality(_) => {
-            unreachable!("checked abstract slots have ordinary source declarations")
         }
     }
 }

@@ -22,14 +22,16 @@ fn ordinary_member_calls_can_use_structural_comparison() {
 }
 
 #[test]
-fn explicit_operator_interface_can_use_a_derived_implementation() {
+fn explicit_operator_interface_uses_its_declared_implementation() {
     lower_user_output(
         scoop_parser::parse(
             r#"
         interface EqualOperator<T> {
             public operator fun equals(other: T): Boolean
         }
-        struct Point(val x: Int) : EqualOperator<Point>
+        struct Point(val x: Int) : EqualOperator<Point> {
+            public override operator fun equals(other: Point): Boolean = x == other.x
+        }
         fun <T : EqualOperator<T>> same(left: T, right: T): Boolean = left == right
         fun main() { val result = same(Point(1), Point(1)) }
     "#,

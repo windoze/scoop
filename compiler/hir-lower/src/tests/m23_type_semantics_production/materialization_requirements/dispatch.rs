@@ -26,7 +26,7 @@ fn selected_nonvirtual_interface_implementations_require_their_complete_callable
                                     .records()
                                     .iter()
                                     .any(|selection| selection.callable_target()
-                                        == Some(callable.declaration()))
+                                        == callable.declaration())
                             );
                             assert!(found.insert(owner_name));
                         }

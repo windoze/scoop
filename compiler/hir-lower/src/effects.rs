@@ -149,11 +149,7 @@ impl Lowerer {
             .functions
             .iter()
             .filter_map(|(id, function)| {
-                // Derived equality uses the interface contract; its operands
-                // still pass the ordinary unsafe value-use checks at each call.
-                (function.attributes.safety == hir::Safety::Safe
-                    && !matches!(function.kind, hir::FunctionKind::DerivedEquality))
-                .then_some(id)
+                (function.attributes.safety == hir::Safety::Safe).then_some(id)
             })
             .collect();
         for id in safe_functions {

@@ -89,6 +89,9 @@ impl Lowerer {
             return Err(Box::new(state));
         }
         let other = state.adapt_to(other, owner);
+        if state.requires_unsafe_use(owner) {
+            state.require_unsafe_operation(call.span, "calling an unsafe dependency function");
+        }
         let expression = state.imported_equality_call(target, receiver, other, call.span);
         Ok(ImportedDerivedEqualityProbe {
             target,

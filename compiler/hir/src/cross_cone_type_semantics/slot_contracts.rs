@@ -60,19 +60,7 @@ impl InheritanceSlotContractV1 {
         {
             return Err(InheritanceSlotContractBuildError::DefaultModality);
         }
-        let same_role = match (declaration, target.declaration()) {
-            (InheritanceCallableDeclarationV1::DerivedEquality(_), _) => false,
-            (
-                InheritanceCallableDeclarationV1::Function(_),
-                InheritanceCallableDeclarationV1::DerivedEquality(_),
-            ) => {
-                matches!(role, InheritanceSlotSchemaRoleV1::Interface { .. })
-                    && matches!(implementation, InheritanceSlotImplementationV1::Concrete(_))
-                    && target.modality() == CallableModalityV1::Final
-            }
-            (root, selected) => std::mem::discriminant(&root) == std::mem::discriminant(&selected),
-        };
-        if !same_role {
+        if std::mem::discriminant(&declaration) != std::mem::discriminant(&target.declaration()) {
             return Err(InheritanceSlotContractBuildError::DeclarationRole);
         }
         Ok(Self {

@@ -655,7 +655,7 @@ struct Key(val value: Int) : Equality<Key> {
 
 `lhs == rhs` 只从 lhs 静态类型的成员、继承成员及 bounds 中收集 equals operator，按普通参数适配和重载规则选择唯一目标；两侧按顺序各求值一次，`!=` 对同一调用结果取反。class/object/struct/enum/interface 都可直接声明该成员，实际覆写时才使用 override。普通同名非 operator 函数与 extension 不参与。`Any` 没有该成员；`===` / `!==` 继续表示引用 identity。
 
-`T : Equality<T>` 只允许调用 `equalTo`，不保证 generic body 中的 `==` 合法。需要泛型 operator 的用户接口可以直接声明 `operator fun equals(other: T): Boolean`，无需继承 core Equality。泛型正文按声明处的普通 bounds 绑定调用，具体化不另选更具体的成员。
+`T : Equality<T>` 只允许调用 `equalTo`，不保证 generic body 中的 `==` 合法。需要泛型 operator 的用户接口可以直接声明 `operator fun equals(other: T): Boolean`，无需继承 core Equality。普通泛型调用沿用既有的 bound 规则，本轮不改变泛型结构比较算法。
 
 | 类型／来源 | operator equals | Equality |
 | --- | --- | --- |
@@ -676,11 +676,11 @@ Float/Double 的 operator 与 core `equalTo` 均保持 `NaN != NaN` 和正负零
 实现收敛到两条现有路径：
 
 1. 运算符使用普通成员／bound 决议及结构比较派生；移除 core Equality 专用协议身份、operator 必须关联其 slot 的限制，以及派生 Equality conformance、条件接口与配套 itable 生成规则。`equalTo` 使用普通 interface 声明、override、单态化和产物消费，无需新的编译器协议。
-2. core 显式提供所需的两个成员。整数、Char、浮点 operator 保留 NoGc intrinsic；普通 `equalTo` 可用源码转发。已有 NoGc 值方法实现 Managed slot 的通用 adapter 继续适用，直接数值比较不增加装箱、间接调用或 GC 操作。普通接口保持自身的调用 effect，不整体标为 NoGc。
+2. core 保留已有 operator，显式实现普通 `equalTo`；Unit 使用既有结构 operator。整数、Char、浮点 operator 保留 NoGc intrinsic，`equalTo` 可用源码转发。已有 NoGc 值方法实现 Managed slot 的通用 adapter 继续适用，直接数值比较不增加装箱、间接调用或 GC 操作。普通接口保持自身的调用 effect，不整体标为 NoGc。
 
 迁移时同步 core、fixtures、golden 与实际受影响的产物兼容指纹。原来要求“未实现 Equality 的 operator”及“不继承 core Equality 的 operator 接口”报错的用例改为正例；新增两个入口独立、显式 Equality 缺少 `equalTo`、结构比较不满足 Equality bound 的验证。旧统一接口方案的实施记录保留为历史结果，不再把泛型／tuple 的自动接口派生作为交付条件。
 
-基础拆分与既有非泛型结构比较迁移已完成，验证记录见验收文档 M33-7f。后续继续区分泛型声明处与闭合类型各自选定的字段调用，保存跨 Cone 模板中的选择，并补齐泛型／tuple 组合与里程碑总验收。
+本轮以 Git 提交 `23cbfb7de` 的 operator 路径为恢复基线：`00d4e5858` 开始绑定 core Equality，`e46302c5b` 随后增加自动 Equality 派生。交付范围是针对性撤销这些关联，并由 core 源码显式实现普通 invariant `Equality<T>.equalTo`；保留其他 M33 功能和独立修复。撤回为不同泛型上下文新增的比较模板、生成身份及配套产物格式调整。基线已存在的泛型结构比较问题记录在 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)，不升级为本轮验收门槛。基础拆分和恢复后的三平台验证分别见 [ACCEPTANCE.md](ACCEPTANCE.md) 的 M33-7f、M33-7g。
 
 ## 10. 决策记录与实施跟踪
 
@@ -763,7 +763,7 @@ D3 的 shutdown 失败与显式 exit 已同步到语言规范 12.4.4、运行时
 - **原子内存序与 GC lowering**：覆盖全部五种 order、CAS 成功/失败序矩阵、默认 SeqCst、非编译期常量的拒绝、strong CAS 与 fetch 旧值返回；AtomicRef 的对象与所指对象分别移动、跨 GC 的读取结果和 expected/new 引用保活、old→young 引用与成功/失败 CAS。10.2 的 LLVM IR 验证与实际 Scoop/三 target 结果分开记录，不把前者替代后者。
 - **UTF-8 三种转换**：合法多字节、空输入、U+0000、已有 U+FFFD、孤立 continuation、截断、过长编码、代理项和超范围码点；严格异常检查准确的 byteOffset，OrNone 在相同错误输入上返回 None，lossy 精确断言 6.3 的替换数量及合法前后缀。检查结果 byteLength、length、输入/结果存储独立、pointer 严格重载和分配期间 moving GC；argv 仍拒绝非法 UTF-8。
 - **运算符与 Equality 分离**：没有 Equality 的手写 operator、直接声明 operator 的用户接口及其 generic bound 均可用于 `==`；只有 Equality 的类型通过 `equalTo` 和普通 bound 调用比较。验证同一类型两个方法返回不同结果时，operator 与库调用各自选择正确入口。仅 Equality bound 下的 `==`、仅 operator／结构比较下的 Equality bound、显式 Equality 缺少 `equalTo`、错误 override、Any 比较、重载歧义与缺失 operator bound 均有 negative fixture；验证左右求值一次及 `!=` 只取反。
-- **结构比较与普通接口产物**：struct、enum、tuple、Unit、嵌套及 generic application 保持直接结构比较；除 core 的显式声明外，不自动满足 Equality bound，也不产生其装箱／`is` / `as` 关系。字段不可比较的 application 仍可构造、传递与装箱，比较时报错，phantom 参数不产生条件。显式实现 Equality 的 class/struct/enum 及 core 类型经 bound、接口调用、装箱与跨 Cone 正常工作，invariant 规则保持。泛型模板与 artifact-only 链接覆盖独立 operator callable、普通 equalTo slot／adapter 和必要 ODR，受影响 HIR/MIR/LIR 保留 golden。
+- **结构比较与普通接口产物**：struct、enum、tuple、Unit、嵌套及 generic application 保持直接结构比较；除 core 的显式声明外，不自动满足 Equality bound，也不产生其装箱／`is` / `as` 关系。字段不可比较的 application 仍可构造、传递与装箱，比较时报错，phantom 参数不产生条件。显式实现 Equality 的 class/struct/enum 及 core 类型经 bound、接口调用、装箱与跨 Cone 正常工作，invariant 规则保持。复用既有 operator 回归，验证普通 equalTo 调用、泛型 bound、基础类型、两个入口独立与必要的跨库和 artifact-only 组合；不增加结构比较模板或 ODR 方案作为验收要求。
 - **浮点、Hash 与 NoGc 组合**：基本类型的两个相等入口分别覆盖 NaN、正负零及 debug/release；含浮点字段的结构 operator 保留 IEEE 语义，Float/Double 不满足 Hash。普通 Equality 与 Hash 双 bound 的 key 比较 helper 调用 `equalTo`。直接整数／Char／浮点 operator 继续可用于 NoGC 代码，接口调用使用自身 Managed 合同；覆盖显式 equalTo 的装箱、moving GC 与 NoGc 实现的 Managed adapter，优化后标量 operator 没有新增装箱、间接调用或 safepoint。
 - **errno 返回与语义**：覆盖 scalar、pointer、C-layout struct 与 void 的 native 返回，验证 Scoop 得到 `(R, Int)` 或 `(Unit, Int)`；覆盖调用前清零、成功但 errno 非零、失败时的原始错误值，以及忽略第二项时仍采用捕获模式。错误 tuple 元数、第二项非 `Int`、非法 native `R`、含 ref、Scoop ABI/extern 变量启用捕获、未启用捕获却返回 tuple，均有 negative fixture；HIR/MIR/LIR golden 区分 Scoop tuple、native `R` 与 bridge 的整数返回。
 - **errno 生命周期与重入**：保存一次结果后进行其他捕获调用、分配、GC 与协程挂起/恢复，再读取原值；普通 NativeSafe 回调中嵌套捕获，验证每次结果独立。GC 在当前线程执行带捕获的 release hook 时，mutator 先前的错误值不变；hook 的非法 `ReleaseValue` 与 raw leaf 操作继续拒绝。清零与读取仅触及 libc errno，不产生 Scoop TLS/thread runtime 或 collector 保存/恢复调用。

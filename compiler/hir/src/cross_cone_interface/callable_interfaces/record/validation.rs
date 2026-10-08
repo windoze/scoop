@@ -86,10 +86,7 @@ pub(super) fn validate_dispatch_shape(
     ) || matches!(
         declaration,
         CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
-    ) || matches!(
-        effects.implementation(),
-        CallableImplementationV1::SourceExternScoop | CallableImplementationV1::SourceExternC(..)
-    );
+    ) || effects.implementation() != CallableImplementationV1::Scoop;
     if direct_only
         && (modality != CallableModalityV1::Final || access != PublicLookupAccessV1::DirectOnly)
     {

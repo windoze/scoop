@@ -9,13 +9,13 @@ Module
   enum CoroutineSlot<IntReader>
     Empty()
     Value(value: IntReader)
-  class IntReader vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class CallableHost<Int> vtable=0 itables=0
   class CallableCell<Int> vtable=0 itables=0
   class CallableBase<Int> vtable=0 itables=0
+  class IntReader vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   interface CallableReader<Int>
   interface Continuation<IntReader>
@@ -78,12 +78,7 @@ Module
   generated_callable gc10 function=@fn63 id=cdc9f04da4245fe759dee9a3fb1038bb15816e51f6a8832ca6aa351725aea096
   generated_callable gc11 function=@fn69 id=dbe15f95ad41097fb3149fc99aaff10dc0c94e58c90919f35d4e7427de51aa63
   generated_callable gc12 function=@fn70 id=f3d4e17a65584f2827bd5ad87ca7b96f0f31366e54d3beba686e3acf1a017c2b
-  fun IntReader.read @fn0(this: IntReader, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
-  fun verifyDefault @fn1(value: Boolean) -> Unit
+  fun verifyDefault @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -118,10 +113,10 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun unitValue @fn2() -> Unit
+  fun unitValue @fn1() -> Unit
     bb0 entry
       return
-  fun main @fn3() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
       call host: CallableHost<Int> = @fn4 direct
       val $dependency.receiver: CallableHost<Int>
@@ -160,7 +155,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -202,7 +197,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: Int
@@ -249,7 +244,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -317,7 +312,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       call $dependency.receiver: Int = @fn9 direct
@@ -339,7 +334,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -372,7 +367,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -405,7 +400,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -438,7 +433,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -482,7 +477,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -527,7 +522,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -574,7 +569,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -605,10 +600,10 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
-      call @fn2 direct
+      call @fn1 direct
       val unit: Unit
         Type Unit
         UnitLiteral
@@ -644,7 +639,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -689,7 +684,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       call base: CallableBase<Int> = @fn30 direct
@@ -747,7 +742,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -780,7 +775,7 @@ Module
       val $default.local.5: Int
         Type Int
         Local $default.local.4
-      call $dependency.parameter.value: Int = @fn0 direct
+      call $dependency.parameter.value: Int = @fn3 direct
         Type IntReader
         Local $default.local.3
         Type Int
@@ -810,7 +805,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -856,7 +851,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -898,7 +893,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -936,7 +931,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: CallableHost<Int>
@@ -1067,10 +1062,15 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn0 direct
         Type Boolean
         Local $parameter.value
       return
+  fun IntReader.read @fn3(this: IntReader, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
   fun callableHost @fn4() -> CallableHost<Int>
     bb0 entry
       assign $new.1
@@ -1710,4 +1710,4 @@ Module
   str @str3 "captured"
   str @str4 "captured"
   str @str5 "pair"
-  output executable @fn3
+  output executable @fn2

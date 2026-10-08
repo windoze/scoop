@@ -1,32 +1,6 @@
 use super::*;
 
 #[test]
-fn generated_equality_retains_its_nominal_identity_without_a_source_function() {
-    let fixture = Fixture::new();
-    for (owner, family) in [
-        (
-            crate::SourceNominalId::Concrete(fixture.enumeration_id),
-            Family::Type,
-        ),
-        (
-            crate::SourceNominalId::GenericTemplate(fixture.generic),
-            Family::GenericType,
-        ),
-    ] {
-        let value = InheritanceCallableDeclarationV1::DerivedEquality(owner);
-        let mut expected = vec![0xa2, 0, 4, 1];
-        expected.extend(encode(&owner).unwrap());
-        assert_eq!(encode(&value).unwrap(), expected);
-        assert_eq!(value.origin(), None);
-        let decoded: crate::DecodedInheritanceCallableDeclarationV1 = parsed(&value);
-        assert_eq!(encode(&decoded).unwrap(), expected);
-        let mut resolver = fixture.resolver();
-        assert_eq!(decoded.resolve(&mut resolver).unwrap(), value);
-        assert_eq!(resolver.calls, [family]);
-    }
-}
-
-#[test]
 fn all_selected_use_leaves_preserve_the_frozen_wire_and_typed_resolution() {
     let f = Fixture::new();
     let cases = f.cases();

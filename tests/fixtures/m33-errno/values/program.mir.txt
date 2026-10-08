@@ -25,16 +25,18 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
-  class Cell vtable=0 itables=0
-  class Owner vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class Cell vtable=0 itables=0
+  class Owner vtable=0 itables=0
   class Companion vtable=0 itables=2
   class UnwrapException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<(Int, Int)> vtable=0 itables=0
   interface ToString
+  interface Equality<Double>
+  interface Equality<Ptr<Int8>>
   interface Decodable<String>
   interface Decoder
   interface KeyedDecodingContainer
@@ -43,16 +45,19 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface Equality<Float>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn23 captures=0
-    bridge function_type1 -> @fn27 id=62434b421d7fbcaff9a7ce12993a1152ce3e50984ff1a8302df0ded0dc0aed66
+  interface Equality<String>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn24 captures=0
+    bridge function_type1 -> @fn28 id=62434b421d7fbcaff9a7ce12993a1152ce3e50984ff1a8302df0ded0dc0aed66
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -61,8 +66,27 @@ Module
   generated_exact_type get5 location=closure0 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
   generated_exact_type get6 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn27 id=62434b421d7fbcaff9a7ce12993a1152ce3e50984ff1a8302df0ded0dc0aed66
-  fun capture @fn0(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
+  generated_callable gc0 function=@fn28 id=62434b421d7fbcaff9a7ce12993a1152ce3e50984ff1a8302df0ded0dc0aed66
+  fun equalTo @fn0(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      val $dependency.local.4: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn19 direct
+        Type Ptr<Int8>
+        Local $dependency.local.2
+        Type Ptr<Int8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun capture @fn1(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
     bb0 entry
       call $call.1: (Int, Int) = extern0 @m33_errno_int direct
         Type Int
@@ -74,14 +98,6 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun record @fn1(arg0: Int, arg1: Int) -> Unit
-    bb0 entry
-      call extern10 @m33_errno_record direct
-        Type Int
-        Local arg0
-        Type Int
-        Local arg1
-      return
   fun leaf @fn2(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
     bb0 entry
       call $call.1: (Int, Int) = extern1 @m33_errno_int direct
@@ -160,13 +176,21 @@ Module
     bb0 entry
       call extern9 @m33_errno_disturb direct
       return
-  fun released @fn11() -> Int <no-gc>
+  fun record @fn11(arg0: Int, arg1: Int) -> Unit
+    bb0 entry
+      call extern10 @m33_errno_record direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+  fun released @fn12() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern11 @m33_errno_released direct
       return
         Type Int
         Local $call.1
-  fun expect @fn12(value: Boolean) -> Unit
+  fun expect @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -201,7 +225,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun argument @fn13() -> Int
+  fun argument @fn14() -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -212,7 +236,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn24 direct
+      call @fn25 direct
         Type Cell
         Local $new.1
         Type Int
@@ -226,12 +250,12 @@ Module
         FieldAccess 0
           Type Cell
           Local cell
-  fun discard @fn14() -> Unit
+  fun discard @fn15() -> Unit
     bb0 entry
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn25 direct
+      call @fn26 direct
         Type Owner
         Local $new.1
       publish_release_ready Owner
@@ -241,7 +265,7 @@ Module
         Type Owner
         Local $new.1
       return
-  fun noGcCapture @fn15() -> (Int, Int) <no-gc>
+  fun noGcCapture @fn16() -> (Int, Int) <no-gc>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -268,7 +292,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun referencedCapture @fn16(value: Int, error: Int, mode: Int) -> (Int, Int)
+  fun referencedCapture @fn17(value: Int, error: Int, mode: Int) -> (Int, Int)
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -298,7 +322,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun main @fn17() -> Unit
+  fun main @fn18() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -309,7 +333,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn24 direct
+      call @fn25 direct
         Type Cell
         Local $new.1
         Type Int
@@ -318,7 +342,7 @@ Module
         Type Cell
         Local $new.1
       call extern9 @m33_errno_disturb direct
-      call $argument.0: Int = @fn13 direct
+      call $argument.0: Int = @fn14 direct
       val $argument.1: Int
         Type Int
         IntegerLiteral Int value=23 bits=0x00000017
@@ -500,7 +524,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -544,7 +568,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val reference: (Int, Int, Int) -> (Int, Int)
@@ -621,7 +645,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -671,7 +695,7 @@ Module
       val voidError: Int
         Type Int
         Local $binding.projection.17
-      call $call.3: Boolean = @fn18 direct
+      call $call.3: Boolean = @fn20 direct
         Type Unit
         Local empty
         Type Unit
@@ -709,7 +733,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Boolean
@@ -775,7 +799,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -796,7 +820,7 @@ Module
       val $parameter.fraction: Double
         Type Double
         Local $argument.2
-      call $argument.0: Pair = @fn26 direct
+      call $argument.0: Pair = @fn27 direct
         Type Int
         Local $parameter.number
         Type Boolean
@@ -931,7 +955,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Pair
@@ -1017,7 +1041,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -1086,7 +1110,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -1114,7 +1138,7 @@ Module
       val absentError: Int
         Type Int
         Local $binding.projection.36
-      call $call.6: Boolean = @fn20 direct
+      call $call.6: Boolean = @fn21 direct
         Type Option<Ptr<Int8>>
         Local absent
         Type Option<Ptr<Int8>>
@@ -1191,10 +1215,10 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
-      call $binding.subject.38: (Int, Int) = @fn15 direct
+      call $binding.subject.38: (Int, Int) = @fn16 direct
       val $binding.projection.39: Int
         Type Int
         FieldAccess 0
@@ -1257,7 +1281,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Cell
@@ -1266,7 +1290,7 @@ Module
       val $parameter.value: Cell
         Type Cell
         Local $argument.0
-      call $call.7: Cell = @fn21 direct
+      call $call.7: Cell = @fn22 direct
         Type Cell
         Local $parameter.value
       branch bb46 bb47
@@ -1308,10 +1332,10 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
-      call @fn14 direct
+      call @fn15 direct
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
       call $dependency.receiver: Int = extern11 @m33_errno_released direct
@@ -1331,7 +1355,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: String
@@ -1340,15 +1364,10 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn22 direct
+      call @fn23 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun $derived.equals.0 @fn18(this: Unit, other: Unit) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        BoolLiteral true
   fun equals @fn19(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int8>
@@ -1371,7 +1390,12 @@ Module
           PtrToULong
             Type Ptr<Int8>
             Local $dependency.local.3
-  fun $derived.equals.1 @fn20(this: Option<Ptr<Int8>>, other: Option<Ptr<Int8>>) -> Boolean
+  fun $derived.equals.0 @fn20(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun $derived.equals.1 @fn21(this: Option<Ptr<Int8>>, other: Option<Ptr<Int8>>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<Int8>>
         Type Option<Ptr<Int8>>
@@ -1458,7 +1482,7 @@ Module
         BoolLiteral false
     bb12 pattern.merge.12
       unreachable
-  fun retained @fn21(value: Cell) -> Cell
+  fun retained @fn22(value: Cell) -> Cell
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -1475,7 +1499,7 @@ Module
       val $parameter.mode: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      call $binding.subject.0: (Int, Int) = @fn0 direct
+      call $binding.subject.0: (Int, Int) = @fn1 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -1509,13 +1533,13 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn12 direct
+      call @fn13 direct
         Type Boolean
         Local $parameter.value
       return
         Type Cell
         Local value
-  fun println @fn22(value: String) -> Unit
+  fun println @fn23(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1539,9 +1563,9 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun $reference.0 @fn23($closure: (Int, Int, Int) -> (Int, Int), arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
+  fun $reference.0 @fn24($closure: (Int, Int, Int) -> (Int, Int), arg0: Int, arg1: Int, arg2: Int) -> (Int, Int)
     bb0 entry
-      call $call.1: (Int, Int) = @fn16 direct
+      call $call.1: (Int, Int) = @fn17 direct
         Type Int
         Local arg0
         Type Int
@@ -1551,7 +1575,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun init.Cell.$c0 @fn24(this: Cell, value: Int) -> Unit
+  fun init.Cell.$c0 @fn25(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -1559,10 +1583,10 @@ Module
         Type Int
         Local value
       return
-  fun init.Owner.$c1 @fn25(this: Owner) -> Unit
+  fun init.Owner.$c1 @fn26(this: Owner) -> Unit
     bb0 entry
       return
-  fun ctor.Pair.$c0 @fn26(number: Int, flag: Boolean, fraction: Double) -> Pair <no-gc>
+  fun ctor.Pair.$c0 @fn27(number: Int, flag: Boolean, fraction: Double) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -1573,7 +1597,7 @@ Module
           Local flag
           Type Double
           Local fraction
-  fun function_bridge.$Closure$reference0.(Any, Any, Any) -> Any @fn27($source: (Int, Int, Int) -> (Int, Int), arg0: Any, arg1: Any, arg2: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any, Any, Any) -> Any @fn28($source: (Int, Int, Int) -> (Int, Int), arg0: Any, arg1: Any, arg2: Any) -> Any
     bb0 entry
       call $call.1: (Int, Int) = <closure:function_type0> closure[function_type0]
         Type (Int, Int, Int) -> (Int, Int)
@@ -1656,11 +1680,12 @@ Module
         Type Int
         Local $parameter.error
       return
-  instance mi0 function=@fn19 <- equals
-  instance mi1 function=@fn21 <- retained
-  instance mi2 function=@fn22 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn19 <- equals
+  instance mi2 function=@fn22 <- retained
+  instance mi3 function=@fn23 <- println
   str @str0 "illegal state"
   str @str1 "errno"
   str @str2 "errno-values-ok"
   str @str3 "\n"
-  output executable @fn17
+  output executable @fn18

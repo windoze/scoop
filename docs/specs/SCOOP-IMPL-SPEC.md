@@ -75,7 +75,7 @@ singleton、runtime property 与 generic delegated application 保存完整初�
 
 判定派生签名是否被手写成员占用时，检查名为 `equals`、参数为完整宿主类型的原成员签名，不以 operator 标记或当前调用处的可见性过滤。普通同签名成员仍可按普通函数调用，但不会成为 operator；导入的 nominal 使用已保存的成员声明执行相同判断，不因成员正文或源码不可见而重新派生。
 
-结构比较的字段／payload 调用使用既有 typed 派生与泛型模板表示。generic body 已选定的成员和 bound callable 随 ExportHir 保存，具体化只替换类型、连接实现并产生完整普通正文，不重新做源码重载决议。未存储的形参不产生比较条件；字段的比较需求与 nominal 构造条件分开，仅构造或装箱不要求生成比较正文，也不产生条件 Equality conformance。LocalConcreteHir 对实际使用的比较给出完整 typed 调用与短路控制流，MIR 不再求解字段是否可比较。
+结构比较沿用引入 Equality 统一方案之前的派生、具体化与产物路径。M33 只撤销 operator 对 Equality 的依赖，不新增按泛型上下文区分的比较模板、生成身份或 ODR 规则。`Equality.equalTo` 的新增实现由普通接口、泛型正文、装箱和跨库调用机制承担。原有泛型结构比较问题单独记录，不作为本轮库接口拆分的前置条件。
 
 派生比较保留值传递、可见性和 InteriorMutable 的实际类型使用检查。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，适用于显式 `equalTo` 及其他普通接口方法；独立的 intrinsic operator 比较保留原 effect。其他签名、访问、ordinary/suspend 与安全性检查遵守普通规则。
 
@@ -248,7 +248,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/67`、`cross-cone-type-semantics/25` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/14`、`cross-cone-interface/68`、`cross-cone-type-semantics/26` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/17` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/12`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
@@ -262,7 +262,7 @@ executable entry 的四种形态、main 的完整源码签名、root gateway 的
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equality<T>.equalTo` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；两者没有隐式关联，也不保存 Equality 专用的 core protocol 或条件接口规则。
 
-`core-bootstrap-interface/14` 删除旧 Equality protocol 字段；`cross-cone-interface/67` 按独立的 operator 与普通 `equalTo` 成员解释调用和接口关系。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。
+`core-bootstrap-interface/14` 删除旧 Equality protocol 字段；`cross-cone-interface/68` 与 `cross-cone-type-semantics/26` 移除统一方案添加的派生比较接口槽位声明，恢复普通源码接口实现。旧版本产物必须重建，不能把旧 Equality slot 当作新接口成员或独立 operator 使用。既有结构 operator 的生成身份和单态化格式保持不变。
 
 派生 operator 使用既有 typed 生成身份和普通单态化／ODR 规则，所需的宿主、完整签名及字段调用在各自边界确定；没有源码声明的生成 callable 不伪装成 SourceFunctionId。导入的 operator 候选来自已保存的成员或派生签名，不借用 Equality slot。artifact-only 链接只消费已闭合的实现，不重新扫描字段或选择重载；普通接口 adapter 引用实际声明或继承的实现，不因值支持结构比较而新增 itable 项。
 
@@ -282,7 +282,7 @@ C extern 的 NativeSafe/GcLeaf 模式作为声明及调用的语义字段进入�
 
 `captureErrno`、完整 Scoop 结果类型、native 返回投影及 bridge 结果适配进入对应声明、调用与 bridge 的 HIR/MIR/LIR metadata、语义/Code 指纹和缓存。编译消费方按已保存的结果适配生成 `(R, Int)`，链接消费方保留实际 bridge 及 native requirements；不按合并后的 native symbol 重新决定捕获，也不将旧的单结果 bridge 当作捕获 bridge。必需字段与 recipe key 的变化按既有 metadata/schema 兼容规则演进，旧产物不能缺字段后静默当作不捕获。
 
-HIR `cross-cone-interface/67` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
+HIR `cross-cone-interface/68` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
 
 DirectC/StorageBridge 及其完整物理调用计划进入相应 LIR metadata 与既有语义/Code 指纹和缓存投影，不加入 source native symbol 的 ABI 冲突键。DirectC 保留真实 native undefined reference、contract 与 library requirement；没有实际桥接用途时，不生成 outbound bridge recipe、物理定义或 member 要求。跨 Cone 与泛型消费按当前 target 得到同一完整计划；artifact-only 链接只消费产物记录，不重做 ABI lowering，也不为直接调用重新插入 bridge。
 

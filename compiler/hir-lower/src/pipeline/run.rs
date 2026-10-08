@@ -430,7 +430,6 @@ impl Lowerer {
         // cycles, property shadowing, override rules and interface
         // implementation (classes and value types alike). Needs every
         // signature and inheritance clause.
-        self.declare_derived_equality_methods();
         self.check_inheritance(
             &pending_classes,
             &pending_structs,
@@ -438,8 +437,10 @@ impl Lowerer {
             &pending_objects,
             &pending_methods,
         );
-        self.prepare_published_equalities();
         self.validate_signature_exposure();
+        // Defaults and constructor expressions can select derived equality.
+        // Publish its conditional signatures before any of those bodies lower.
+        self.declare_derived_equality_methods();
         self.lower_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
@@ -508,6 +509,9 @@ impl Lowerer {
             self.error(Span::new(0, 0), error);
         }
         self.complete_imported_generic_bodies();
+        if self.diagnostics.is_empty() {
+            self.prepare_published_equalities();
+        }
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.

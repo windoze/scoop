@@ -42,9 +42,6 @@ impl PendingFunction {
 impl Concretizer<'_> {
     pub(super) fn is_emittable_source_function(&self, id: export::FunctionId) -> bool {
         let function = &self.source.functions[id];
-        if let export::FunctionKind::Intrinsic(intrinsic) = function.kind {
-            return intrinsic.kind.equality_member().is_some();
-        }
         if !matches!(
             function.kind,
             export::FunctionKind::User(_)

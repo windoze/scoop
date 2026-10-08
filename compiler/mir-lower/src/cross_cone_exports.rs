@@ -61,6 +61,18 @@ pub fn lower_type_bridge_exports(
     )
     .map_err(Error::Objects)?
     .into_parts();
+    let source_tables = with_local(&source_callables, dependencies.callables)?;
+    let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
+    let source_index = mir::MirTypeBridgeCallableIndexV1::try_new(&source_tables, &direct_tables)
+        .map_err(Error::Lookup)?;
+    let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+        input.mir,
+        &types,
+        input.identities,
+        &type_index,
+        &source_index,
+    )
+    .map_err(Error::Boxing)?;
     let equality = crate::lower_derived_equality_bindings(
         input.hir,
         input.mir,
@@ -69,22 +81,13 @@ pub fn lower_type_bridge_exports(
         &type_index,
     )
     .map_err(Error::Equality)?;
-    let implementations =
-        callables::combine([source_callables, constructors, object_callables, equality])?;
-    let implementation_tables = with_local(&implementations, dependencies.callables)?;
-    let direct_tables = with_local(input.ordinary, dependencies.direct_callables)?;
-    let implementation_index =
-        mir::MirTypeBridgeCallableIndexV1::try_new(&implementation_tables, &direct_tables)
-            .map_err(Error::Lookup)?;
-    let boxing = mir::CanonicalMirCallableBindingsV1::from_boxing_adjusts(
-        input.mir,
-        &types,
-        input.identities,
-        &type_index,
-        &implementation_index,
-    )
-    .map_err(Error::Boxing)?;
-    let callables = callables::combine([implementations, boxing])?;
+    let callables = callables::combine([
+        source_callables,
+        constructors,
+        object_callables,
+        boxing,
+        equality,
+    ])?;
     let callable_tables = with_local(&callables, dependencies.callables)?;
     let callable_index =
         mir::MirTypeBridgeCallableIndexV1::try_new(&callable_tables, &direct_tables)

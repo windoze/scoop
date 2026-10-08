@@ -377,17 +377,26 @@ Module
           Local $dependency.parameter.other
   fun Point.equals @fn2(this: Point, other: Point) -> Boolean
     bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
       return
         Type Boolean
         IntegerCompare equal operands=Int result=Boolean
           Type Int
-          FieldAccess 0
-            Type Point
-            Local this
+          Local $dependency.receiver
           Type Int
-          FieldAccess 0
-            Type Point
-            Local other
+          Local $dependency.parameter.other
   fun same @fn3(left: Key, right: Key) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn1 direct

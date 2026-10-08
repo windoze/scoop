@@ -136,29 +136,6 @@ impl Lowerer {
                 let selection = selections
                     .get(&(interface_ty, slot))
                     .ok_or(ImportedSignatureTypeError::Structural)?;
-                if let hir::InheritanceCallableDeclarationV1::DerivedEquality(owner) =
-                    selection.selection().declaration()
-                {
-                    if owner != declaration.owner() {
-                        return Err(ImportedSignatureTypeError::Structural);
-                    }
-                    let target = self
-                        .imported_derived_equality(ty)
-                        .ok_or(ImportedSignatureTypeError::Structural)?;
-                    let hir::MethodCallee::ImportedDerivedEquality { target, .. } =
-                        self.imported_equality_callee(target, ty)
-                    else {
-                        unreachable!()
-                    };
-                    methods.push(hir::InterfaceMethodImplementation {
-                        member: hir::InterfaceMethodReference::Imported {
-                            owner: interface_ty,
-                            slot,
-                        },
-                        target: hir::InterfaceImplementationTarget::ImportedDerivedEquality(target),
-                    });
-                    continue;
-                }
                 let callable = self.select_imported_dispatch_target(selection, ty)?;
                 let hir::PublicDeclarationOwnerV1::Nominal(owner) = method.declaration.owner()
                 else {
@@ -206,11 +183,7 @@ impl Lowerer {
             .dependencies
             .as_ref()
             .expect("dependency dispatch retains its declaration catalog")
-            .callable_declaration(
-                selection
-                    .callable_target()
-                    .ok_or(ImportedSignatureTypeError::Structural)?,
-            )
+            .callable_declaration(selection.callable_target())
             .map_err(|_| ImportedSignatureTypeError::Structural)?;
         let receiver = self.imported_dispatch_receiver(selection.receiver(), receiver)?;
         self.resolve_imported_dispatch_callable(candidate, receiver)

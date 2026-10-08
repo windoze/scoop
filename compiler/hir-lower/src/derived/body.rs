@@ -97,8 +97,7 @@ impl Lowerer {
         stack: &mut Vec<hir::TypeId>,
     ) -> Result<hir::Expr, String> {
         match self.types[ty].clone() {
-            Type::Unit => self.resolve_derived_field_member_equality(lhs, rhs, path, span),
-            Type::Tuple(_) => {
+            Type::Unit | Type::Tuple(_) => {
                 let (_, application) =
                     self.ensure_structural_derived_equality_application(ty, span, stack)?;
                 Ok(self.derived_call(lhs, rhs, application, self.boolean, span))

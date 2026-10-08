@@ -58,9 +58,9 @@ impl Lowerer {
         self.lower_extern_functions(module);
 
         // Declare every fully concrete user function first, so calls resolve
-        // regardless of declaration order. Scalar equality intrinsics also
-        // have callable entries for interface implementations; direct calls
-        // keep their normalized operations. HIR has already instantiated
+        // regardless of declaration order. Intrinsics have no body;
+        // their callsites map to `Callee::Runtime` shims (see
+        // `BodyLowerer::lower_call`). HIR has already closed and instantiated
         // every generic dependency before this stage starts.
         // Member functions are declared too (hir-lower keeps them out of
         // `top_level`). Abstract interface declarations emit the same fatal
@@ -68,17 +68,13 @@ impl Lowerer {
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
-            let equality_entry = matches!(function.kind, hir::FunctionKind::Intrinsic(intrinsic)
-                if intrinsic.kind.equality_member().is_some());
-            if !equality_entry
-                && !matches!(
-                    function.kind,
-                    hir::FunctionKind::User(_)
-                        | hir::FunctionKind::Abstract { .. }
-                        | hir::FunctionKind::InitializationEnsure
-                        | hir::FunctionKind::Extern(_)
-                )
-            {
+            if !matches!(
+                function.kind,
+                hir::FunctionKind::User(_)
+                    | hir::FunctionKind::Abstract { .. }
+                    | hir::FunctionKind::InitializationEnsure
+                    | hir::FunctionKind::Extern(_)
+            ) {
                 continue;
             }
             let id = self.declare_function(module, hir_id);
@@ -185,27 +181,24 @@ impl Lowerer {
             .collect::<HashMap<_, _>>();
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = if let hir::FunctionKind::Extern(external) =
-                module.functions[hir_id].kind
-            {
-                self.lower_native_function(module, hir_id, mir_id, external)
-            } else if let hir::FunctionKind::Intrinsic(intrinsic) = module.functions[hir_id].kind {
-                self.lower_intrinsic_entry(module, hir_id, mir_id, intrinsic.kind)
-            } else if matches!(
-                module.functions[hir_id].kind,
-                hir::FunctionKind::InitializationEnsure
-            ) {
-                let unit = ensure_units[&mir_id];
-                self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
-            } else {
-                let string_owner = initialization_string_owners
-                    .get(&hir_id)
-                    .copied()
-                    .unwrap_or(mir::ImmortalObjectOwner::Callable(
-                        module.functions[hir_id].materialization,
-                    ));
-                self.lower_user_function(module, hir_id, mir_id, string_owner)
-            };
+            let (params, return_ty, body) =
+                if let hir::FunctionKind::Extern(external) = module.functions[hir_id].kind {
+                    self.lower_native_function(module, hir_id, mir_id, external)
+                } else if matches!(
+                    module.functions[hir_id].kind,
+                    hir::FunctionKind::InitializationEnsure
+                ) {
+                    let unit = ensure_units[&mir_id];
+                    self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
+                } else {
+                    let string_owner = initialization_string_owners
+                        .get(&hir_id)
+                        .copied()
+                        .unwrap_or(mir::ImmortalObjectOwner::Callable(
+                            module.functions[hir_id].materialization,
+                        ));
+                    self.lower_user_function(module, hir_id, mir_id, string_owner)
+                };
             let body = finish_cfg_body(
                 &mut self.local_values,
                 &mut self.coroutines,

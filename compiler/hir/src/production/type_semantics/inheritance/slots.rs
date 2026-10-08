@@ -9,8 +9,6 @@ use super::*;
 
 type Declaration = InheritanceCallableDeclarationV1;
 
-mod equality;
-
 /// Projects the checked declaration with each actual receiver application.
 pub(in crate::production::type_semantics) struct SlotContracts<'a> {
     metadata: SharedTypeMetadataV1<'a>,
@@ -86,28 +84,23 @@ impl<'a> SlotContracts<'a> {
                     .ok_or_else(|| {
                         invalid("dispatch slot has no resolved implementation selection")
                     })?;
-                let implementation =
-                    match selection.selection() {
-                        InheritanceSourceSlotSelectionV1::Abstract(target) => {
-                            InheritanceSlotImplementationV1::Abstract(self.selected_target(
-                                selection.receiver(),
-                                target,
-                                &source,
-                            )?)
-                        }
-                        InheritanceSourceSlotSelectionV1::Concrete(target) => {
-                            InheritanceSlotImplementationV1::Concrete(self.selected_target(
-                                selection.receiver(),
-                                target,
-                                &source,
-                            )?)
-                        }
-                        InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
-                            InheritanceSlotImplementationV1::InterfaceDefault(
-                                self.selected_target(selection.receiver(), target, &source)?,
-                            )
-                        }
-                    };
+                let implementation = match selection.selection() {
+                    InheritanceSourceSlotSelectionV1::Abstract(target) => {
+                        InheritanceSlotImplementationV1::Abstract(
+                            self.target(selection.receiver(), target)?,
+                        )
+                    }
+                    InheritanceSourceSlotSelectionV1::Concrete(target) => {
+                        InheritanceSlotImplementationV1::Concrete(
+                            self.target(selection.receiver(), target)?,
+                        )
+                    }
+                    InheritanceSourceSlotSelectionV1::InterfaceDefault(target) => {
+                        InheritanceSlotImplementationV1::InterfaceDefault(
+                            self.target(selection.receiver(), target)?,
+                        )
+                    }
+                };
                 let contract = InheritanceSlotContractV1::try_new(
                     schema.role(),
                     *slot,
@@ -129,16 +122,13 @@ impl<'a> SlotContracts<'a> {
         root: PersistentExactTypeId,
         declaration: Declaration,
     ) -> Result<InheritanceSlotTargetV1, Error> {
-        let origin = declaration
-            .origin()
-            .ok_or_else(|| invalid("a generated implementation cannot declare a dispatch slot"))?;
         let (metadata, source) = std::iter::once(self.metadata)
             .chain(self.dependencies.iter().copied())
             .find_map(|metadata| {
                 metadata
                     .public
                     .callable_interfaces()
-                    .declaration(origin)
+                    .declaration(declaration.origin())
                     .map(|source| (metadata, source))
             })
             .ok_or_else(|| invalid("dispatch declaration has no callable contract"))?;

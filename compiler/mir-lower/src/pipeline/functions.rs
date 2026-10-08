@@ -1,6 +1,5 @@
 use super::*;
 
-mod intrinsic;
 mod native;
 
 impl Lowerer {

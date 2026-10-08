@@ -6,7 +6,7 @@ Module
   global4 $singleton$86cfc1b0f0f87a79ba1b054fbab31a00a728d1e67c73aca4290e203f27c2cd48: UnitDecoder imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=e15ad9640aef8483eb6eee0aa13db08bf466794b5eee1a62f243fe721a9d6cbe
   global5 $singleton$892d83739c24001e6c28aad599b7dfade0b20ccd06e06d8d97171b06c63999b8: Json imported provider=38b48d480954af57c7a81599af88e9a85c7412edc6f5ad9c608a6c884705cf18 storage=026945f606bf54daf4171a1ecb8b4384e089880c55f3eb80fb1b8fa8a5fad2ad
   global6 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 companion:Row.Companion singleton lazy global1 initializer=@fn10 ensure=@fn11 failure=6 deps=[]
+  init0 companion:Row.Companion singleton lazy global1 initializer=@fn7 ensure=@fn8 failure=6 deps=[]
   struct Row (empty: Unit, count: Int)
   struct Generic<Unit> (value: Unit)
   struct JsonMember (name: String, value: JsonValue)
@@ -56,9 +56,6 @@ Module
   enum CoroutineSlot<Row.Companion>
     Empty()
     Value(value: Row.Companion)
-  class Bound vtable=0 itables=1
-  class Throws vtable=0 itables=1
-  class UsesReference vtable=0 itables=1
   class Row.Companion vtable=0 itables=2
   class UnitEncoder vtable=0 itables=1
   class Companion vtable=0 itables=2
@@ -70,8 +67,11 @@ Module
   class Throwable vtable=0 itables=0
   class Json vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
+  class Bound vtable=0 itables=1
   class GenericEncoder<Unit> vtable=0 itables=1
+  class Throws vtable=0 itables=1
   class IllegalArgumentException vtable=0 itables=0
+  class UsesReference vtable=0 itables=1
   class ListIterator<Option<String>> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class ListIterator<String> vtable=0 itables=1
@@ -93,13 +93,14 @@ Module
   class box<Option<JsonValue>> vtable=0 itables=0
   class box<Option<JsonMember>> vtable=0 itables=0
   class box<Option<String>> vtable=0 itables=0
-  interface Encodable<Unit>
+  interface Encodable<Row>
   interface Encoder
   interface KeyedEncodingContainer
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
-  interface Encodable<Row>
+  interface Equality<Float>
+  interface Equality<Double>
   interface Decodable<Row>
   interface Decoder
   interface KeyedDecodingContainer
@@ -108,6 +109,7 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface Encodable<Unit>
   interface Encodable<Int>
   interface Decodable<Int>
   interface Decodable<Unit>
@@ -120,6 +122,7 @@ Module
   interface Iterable<Unit>
   interface Iterator<Unit>
   interface Hash
+  interface Equality<Int>
   interface List<Option<JsonMember>> : Iterable<Option<JsonMember>>
   interface Iterable<Option<JsonMember>>
   interface Iterator<Option<JsonMember>>
@@ -134,17 +137,20 @@ Module
   interface List<JsonValue> : Iterable<JsonValue>
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
+  interface Equality<Unit>
+  interface Equality<Char>
   interface Iterator<Char>
   interface Iterable<Char>
+  interface Equality<String>
   interface Continuation<Row>
   interface SuspendTask<Row>
   interface SuspendRegistration<Row>
   interface Continuation<Row.Companion>
   interface SuspendTask<Row.Companion>
   interface SuspendRegistration<Row.Companion>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn41 captures=0
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn39 captures=0
     bridge function_type3 -> @fn127 id=1cf82f8777375a9d8c59bc76d644c77661279e1066a894c95bb54ee62fa07fb2
-  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn43 captures=0
+  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn42 captures=0
     bridge function_type5 -> @fn128 id=28304cb45a5e043b0f47ffa6c64e086dee1b48d50a594f62ec6befece0a923d3
   closure cc2 $Closure$lambda2 type=function_type6 invoke=@fn81 captures=3
     bridge function_type5 -> @fn129 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
@@ -225,81 +231,7 @@ Module
       return
         Type Boolean
         BoolLiteral true
-  fun Bound.encode @fn2(this: Bound, value: Unit, encoder: Encoder) -> Unit
-    bb0 entry
-      val $dependency.receiver: Encodable<Unit>
-        Type Encodable<Unit>
-        FieldAccess 0
-          Type Bound
-          Local this
-      val $dependency.argument.0: Unit
-        Type Unit
-        Local value
-      val $dependency.argument.1: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.parameter.value: Unit
-        Type Unit
-        Local $dependency.argument.0
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.1
-      call @fn14 interface Encodable<Unit>[0]
-        Type Encodable<Unit>
-        Local $dependency.receiver
-        Type Unit
-        Local $dependency.parameter.value
-        Type Encoder
-        Local $dependency.parameter.encoder
-      return
-  fun Throws.encode @fn3(this: Throws, value: Unit, encoder: Encoder) -> Unit
-    bb0 entry
-      call external55 direct
-      val $dependency.receiver: UnitEncoder
-        Type UnitEncoder
-        GlobalRead $singleton$582c47b2162a9ab9c977861c0ffba3ef63f48fe177b7f90ebc3c38c7d953a4bc
-      val $argument.0: Boolean
-        Type Boolean
-        BoolLiteral true
-      val $parameter.fail: Boolean
-        Type Boolean
-        Local $argument.0
-      call @fn8 direct
-        Type Boolean
-        Local $parameter.fail
-      val $dependency.argument.0: Unit
-        Type Unit
-        UnitLiteral
-      val $dependency.argument.1: Encoder
-        Type Encoder
-        Local encoder
-      val $dependency.parameter.value: Unit
-        Type Unit
-        Local $dependency.argument.0
-      val $dependency.parameter.encoder: Encoder
-        Type Encoder
-        Local $dependency.argument.1
-      call external15 direct
-        Type UnitEncoder
-        Local $dependency.receiver
-        Type Unit
-        Local $dependency.parameter.value
-        Type Encoder
-        Local $dependency.parameter.encoder
-      return
-  fun UsesReference.encode @fn4(this: UsesReference, value: Unit, encoder: Encoder) -> Unit
-    bb0 entry
-      call <closure:function_type0> closure[function_type0]
-        Type (Unit, Encoder) -> Unit
-        FieldAccess 0
-          Type UsesReference
-          Local this
-        Type Unit
-        Local value
-        Type Encoder
-        Local encoder
-      return
-  fun Row.Companion.encode @fn5(this: Row.Companion, value: Row, encoder: Encoder) -> Unit
+  fun Row.Companion.encode @fn2(this: Row.Companion, value: Row, encoder: Encoder) -> Unit
     bb0 entry
       val __coding_value: Encoder
         Type Encoder
@@ -362,7 +294,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.1
-      call @fn14 interface Encodable<Unit>[0]
+      call @fn11 interface Encodable<Unit>[0]
         Type Encodable<Unit>
         Local $dependency.receiver
         Type Unit
@@ -421,7 +353,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.1
-      call @fn15 interface Encodable<Int>[0]
+      call @fn12 interface Encodable<Int>[0]
         Type Encodable<Int>
         Local $dependency.receiver
         Type Int
@@ -438,7 +370,7 @@ Module
         Type KeyedEncodingContainer
         Local $dependency.receiver
       return
-  fun Row.Companion.decode @fn6(this: Row.Companion, decoder: Decoder) -> Row
+  fun Row.Companion.decode @fn3(this: Row.Companion, decoder: Decoder) -> Row
     bb0 entry
       val __coding_value: Decoder
         Type Decoder
@@ -487,7 +419,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call @fn16 interface Decodable<Unit>[0]
+      call @fn13 interface Decodable<Unit>[0]
         Type Decodable<Unit>
         Local $dependency.receiver
         Type Decoder
@@ -533,7 +465,7 @@ Module
       val $dependency.parameter.decoder: Decoder
         Type Decoder
         Local $dependency.argument.0
-      call __coding_value: Int = @fn17 interface Decodable<Int>[0]
+      call __coding_value: Int = @fn14 interface Decodable<Int>[0]
         Type Decodable<Int>
         Local $dependency.receiver
         Type Decoder
@@ -579,7 +511,7 @@ Module
       return
         Type Row
         Local $call.1
-  fun check @fn7(value: Boolean, code: Int) -> Unit
+  fun check @fn4(value: Boolean, code: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -622,7 +554,7 @@ Module
       val $dependency.parameter.part: Int
         Type Int
         Local $dependency.argument.0
-      call $call.3: StringBuilder = @fn29 direct
+      call $call.3: StringBuilder = @fn26 direct
         Type StringBuilder
         Local $dependency.receiver
         Type Int
@@ -657,9 +589,9 @@ Module
         Local $new.4
     bb2 if.merge.2
       return
-  fun produce @fn8(fail: Boolean) -> Unit
+  fun produce @fn5(fail: Boolean) -> Unit
     bb0 entry
-      call $old.1: Int = @fn12 direct
+      call $old.1: Int = @fn9 direct
       val $dependency.receiver: Int
         Type Int
         Local $old.1
@@ -669,7 +601,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn10 direct
         Type Int
         IntegerBinary add kind=Int
           Type Int
@@ -707,7 +639,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun main @fn9() -> Unit
+  fun main @fn6() -> Unit
     bb0 entry
       call external57 direct
       val $dependency.receiver: Json
@@ -728,7 +660,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -755,7 +687,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -775,7 +707,7 @@ Module
       val $parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $argument.1
-      call $dependency.receiver: String = @fn34 direct
+      call $dependency.receiver: String = @fn31 direct
         Type Unit
         Local $parameter.value
         Type Encodable<Unit>
@@ -800,7 +732,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -812,7 +744,7 @@ Module
       val $parameter.fail: Boolean
         Type Boolean
         BoolLiteral false
-      call @fn8 direct
+      call @fn5 direct
         Type Boolean
         Local $parameter.fail
       val $dependency.argument.0: Unit
@@ -830,7 +762,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -852,7 +784,7 @@ Module
         Type Boolean
         Local $call.1
     bb1 if.then.1
-      call $dependency.receiver: Int = @fn12 direct
+      call $dependency.receiver: Int = @fn9 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
@@ -885,7 +817,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -896,7 +828,7 @@ Module
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call fromAny: Any = @fn35 direct
+      call fromAny: Any = @fn32 direct
         Type Unit
         Local $parameter.value
       val $dependency.receiver: Boolean
@@ -918,7 +850,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -968,7 +900,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -995,7 +927,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1022,7 +954,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1049,7 +981,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1070,7 +1002,7 @@ Module
       assign $new.3
         Type Bound
         ClassAlloc Bound
-      call @fn111 direct
+      call @fn112 direct
         Type Bound
         Local $new.3
         Type Encodable<Unit>
@@ -1086,7 +1018,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1113,7 +1045,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1125,7 +1057,7 @@ Module
       val $dependency.argument.0: String
         Type String
         StringConst @str12
-      call @fn11 direct
+      call @fn8 direct
       val $dependency.argument.1: Decodable<Row>
         Type Decodable<Row>
         Retype Decodable<Row>
@@ -1137,7 +1069,7 @@ Module
       val $dependency.parameter.codec: Decodable<Row>
         Type Decodable<Row>
         Local $dependency.argument.1
-      call record: Row = @fn36 direct
+      call record: Row = @fn34 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -1162,7 +1094,7 @@ Module
       val $dependency.argument.0: Row
         Type Row
         Local record
-      call @fn11 direct
+      call @fn8 direct
       val $dependency.argument.1: Encodable<Row>
         Type Encodable<Row>
         Retype Encodable<Row>
@@ -1174,7 +1106,7 @@ Module
       val $dependency.parameter.codec: Encodable<Row>
         Type Encodable<Row>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn37 direct
+      call $dependency.receiver: String = @fn35 direct
         Type Json
         Local $dependency.receiver
         Type Row
@@ -1211,7 +1143,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1241,7 +1173,7 @@ Module
       assign $new.5
         Type GenericEncoder<Unit>
         ClassAlloc GenericEncoder<Unit>
-      call @fn115 direct
+      call @fn113 direct
         Type GenericEncoder<Unit>
         Local $new.5
         Type Encodable<Unit>
@@ -1257,7 +1189,7 @@ Module
       val $dependency.parameter.codec: Encodable<Generic<Unit>>
         Type Encodable<Generic<Unit>>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn39 direct
+      call $dependency.receiver: String = @fn37 direct
         Type Json
         Local $dependency.receiver
         Type Generic<Unit>
@@ -1284,7 +1216,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1312,7 +1244,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.argument.0: String = @fn33 direct
+      call $dependency.argument.0: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1331,7 +1263,7 @@ Module
       val $dependency.parameter.codec: Decodable<Unit>
         Type Decodable<Unit>
         Local $dependency.argument.1
-      call @fn40 direct
+      call @fn38 direct
         Type Json
         Local $dependency.receiver
         Type String
@@ -1352,7 +1284,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1388,7 +1320,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1410,7 +1342,7 @@ Module
         Type Boolean
         Local $call.6
     bb9 if.then.9
-      call $dependency.receiver: Int = @fn12 direct
+      call $dependency.receiver: Int = @fn9 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
@@ -1443,7 +1375,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1472,7 +1404,7 @@ Module
       end_catch
       resume
     bb18 try.end.18
-      call $dependency.receiver: Int = @fn12 direct
+      call $dependency.receiver: Int = @fn9 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
@@ -1495,7 +1427,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1536,7 +1468,7 @@ Module
       assign $new.7
         Type Throws
         ClassAlloc Throws
-      call @fn112 direct
+      call @fn114 direct
         Type Throws
         Local $new.7
       val $dependency.argument.1: Encodable<Unit>
@@ -1550,7 +1482,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $call.8: String = @fn33 direct
+      call $call.8: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1569,7 +1501,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1599,7 +1531,7 @@ Module
       val $dependency.parameter._1: String
         Type String
         Local $dependency.argument.0
-      call $argument.0: Boolean = @fn42 direct
+      call $argument.0: Boolean = @fn41 direct
         Type Option<String>
         Local $equality.lhs
         Type Option<String>
@@ -1615,7 +1547,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1656,7 +1588,7 @@ Module
       val sequence: Array<Unit>
         Type Array<Unit>
         Local $array.5
-      call $dependency.receiver: Long = @fn32 direct
+      call $dependency.receiver: Long = @fn29 direct
         Type Array<Unit>
         Local sequence
       val $dependency.argument.0: Long
@@ -1706,7 +1638,7 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      call @fn31 direct
+      call @fn28 direct
         Type Array<Unit>
         Local $dependency.receiver
         Type Long
@@ -1735,7 +1667,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1756,7 +1688,7 @@ Module
       assign $new.11
         Type UsesReference
         ClassAlloc UsesReference
-      call @fn113 direct
+      call @fn115 direct
         Type UsesReference
         Local $new.11
         Type (Unit, Encoder) -> Unit
@@ -1772,7 +1704,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn33 direct
+      call $dependency.receiver: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -1799,7 +1731,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1826,7 +1758,7 @@ Module
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call $call.13: Any = @fn35 direct
+      call $call.13: Any = @fn32 direct
         Type Unit
         Local $parameter.value
       val $dependency.receiver: Boolean
@@ -1858,7 +1790,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1866,7 +1798,7 @@ Module
       val $parameter.fail: Boolean
         Type Boolean
         BoolLiteral false
-      call @fn8 direct
+      call @fn5 direct
         Type Boolean
         Local $parameter.fail
       val $argument.0: Unit
@@ -1875,7 +1807,7 @@ Module
       val $parameter.value: Unit
         Type Unit
         Local $argument.0
-      call $call.14: Any = @fn35 direct
+      call $call.14: Any = @fn32 direct
         Type Unit
         Local $parameter.value
       val $dependency.receiver: Boolean
@@ -1889,7 +1821,7 @@ Module
           Type Boolean
           Local $dependency.receiver
     bb35 if.then.35
-      call $dependency.receiver: Int = @fn12 direct
+      call $dependency.receiver: Int = @fn9 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
@@ -1922,7 +1854,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -1981,7 +1913,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -2020,7 +1952,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn7 direct
+      call @fn4 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -2035,19 +1967,19 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun $init$body$0 @fn10() -> Unit
+  fun $init$body$0 @fn7() -> Unit
     bb0 entry
       assign $new.1
         Type Row.Companion
         ClassAlloc Row.Companion
-      call @fn114 direct
+      call @fn111 direct
         Type Row.Companion
         Local $new.1
       global_assign $singleton$Companion
         Type Row.Companion
         Local $new.1
       return
-  fun $init$ensure$0 @fn11() -> Unit
+  fun $init$ensure$0 @fn8() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -2092,7 +2024,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn10 direct
+      call @fn7 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 companion:Row.Companion
@@ -2145,30 +2077,30 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$evaluations @fn12() -> Int <no-gc>
+  fun $get$evaluations @fn9() -> Int <no-gc>
     bb0 entry
       return
         Type Int
         GlobalRead evaluations
-  fun $set$evaluations @fn13(value: Int) -> Unit <no-gc>
+  fun $set$evaluations @fn10(value: Int) -> Unit <no-gc>
     bb0 entry
       global_assign evaluations
         Type Int
         Local value
       return
-  fun Encodable.encode @fn14(this: Encodable<Unit>, value: Unit, encoder: Encoder) -> Unit
+  fun Encodable.encode @fn11(this: Encodable<Unit>, value: Unit, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
-  fun Encodable.encode @fn15(this: Encodable<Int>, value: Int, encoder: Encoder) -> Unit
+  fun Encodable.encode @fn12(this: Encodable<Int>, value: Int, encoder: Encoder) -> Unit
     bb0 entry
       trap "call to abstract method `Encodable.encode`"
-  fun Decodable.decode @fn16(this: Decodable<Unit>, decoder: Decoder) -> Unit
+  fun Decodable.decode @fn13(this: Decodable<Unit>, decoder: Decoder) -> Unit
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun Decodable.decode @fn17(this: Decodable<Int>, decoder: Decoder) -> Int
+  fun Decodable.decode @fn14(this: Decodable<Int>, decoder: Decoder) -> Int
     bb0 entry
       trap "call to abstract method `Decodable.decode`"
-  fun iterator @fn18(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
+  fun iterator @fn15(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
     bb0 entry
       val $dependency.local.1: List<Option<String>>
         Type List<Option<String>>
@@ -2207,7 +2139,7 @@ Module
         Retype Iterator<Option<String>>
           Type ListIterator<Option<String>>
           Local $new.1
-  fun get @fn19(this: MutableArray<Option<String>>, index: Long) -> Option<String>
+  fun get @fn16(this: MutableArray<Option<String>>, index: Long) -> Option<String>
     bb0 entry
       val $dependency.local.2: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -2269,7 +2201,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn20(this: MutableArray<Option<String>>) -> Long
+  fun size @fn17(this: MutableArray<Option<String>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -2279,7 +2211,7 @@ Module
         ArrayLen MutableArray<Option<String>>
           Type MutableArray<Option<String>>
           Local $dependency.local.1
-  fun iterator @fn21(this: ArrayList<String>) -> Iterator<String>
+  fun iterator @fn18(this: ArrayList<String>) -> Iterator<String>
     bb0 entry
       val $dependency.local.1: List<String>
         Type List<String>
@@ -2318,7 +2250,7 @@ Module
         Retype Iterator<String>
           Type ListIterator<String>
           Local $new.1
-  fun get @fn22(this: ArrayList<String>, index: Long) -> String
+  fun get @fn19(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
@@ -2345,7 +2277,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<String> = @fn19 direct
+      call $opt.1: Option<String> = @fn16 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.5
         Type Long
@@ -2376,14 +2308,14 @@ Module
       return
         Type String
         Local $uw.2
-  fun size @fn23(this: ArrayList<String>) -> Long
+  fun size @fn20(this: ArrayList<String>) -> Long
     bb0 entry
       return
         Type Long
         FieldAccess 1
           Type ArrayList<String>
           Local this
-  fun set @fn24(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun set @fn21(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.3: ArrayList<String>
         Type ArrayList<String>
@@ -2479,7 +2411,7 @@ Module
         Type Option<String>
         Local $value.3
       return
-  fun add @fn25(this: ArrayList<String>, value: String) -> Unit
+  fun add @fn22(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
@@ -2589,7 +2521,7 @@ Module
           Type Long
           Local $dependency.local.12
       return
-  fun add @fn26(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun add @fn23(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
         Type Long
@@ -2763,7 +2695,7 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<String> = @fn19 direct
+      call $dependency.local.23: Option<String> = @fn16 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.18
         Type Long
@@ -2904,7 +2836,7 @@ Module
           Type Long
           Local $dependency.local.38
       return
-  fun removeAt @fn27(this: ArrayList<String>, index: Long) -> String
+  fun removeAt @fn24(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
         Type ArrayList<String>
@@ -2931,7 +2863,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<String> = @fn19 direct
+      call $opt.1: Option<String> = @fn16 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.8
         Type Long
@@ -3072,7 +3004,7 @@ Module
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.21
-      call $dependency.local.25: Option<String> = @fn19 direct
+      call $dependency.local.25: Option<String> = @fn16 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.20
         Type Long
@@ -3200,7 +3132,7 @@ Module
       return
         Type String
         Local $dependency.local.2
-  fun clear @fn28(this: ArrayList<String>) -> Unit
+  fun clear @fn25(this: ArrayList<String>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
         Type Long
@@ -3325,7 +3257,7 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun add @fn29(this: StringBuilder, part: Int) -> StringBuilder
+  fun add @fn26(this: StringBuilder, part: Int) -> StringBuilder
     bb0 entry
       val $dependency.local.3: Int
         Type Int
@@ -3344,7 +3276,7 @@ Module
       val $dependency.local.6: String
         Type String
         Local $dependency.local.5
-      call @fn25 direct
+      call @fn22 direct
         Type ArrayList<String>
         Local $dependency.local.4
         Type String
@@ -3352,7 +3284,7 @@ Module
       return
         Type StringBuilder
         Local this
-  fun iterator @fn30(this: Array<Unit>) -> Iterator<Unit>
+  fun iterator @fn27(this: Array<Unit>) -> Iterator<Unit>
     bb0 entry
       val $dependency.local.1: List<Unit>
         Type List<Unit>
@@ -3391,7 +3323,7 @@ Module
         Retype Iterator<Unit>
           Type ListIterator<Unit>
           Local $new.1
-  fun get @fn31(this: Array<Unit>, index: Long) -> Unit
+  fun get @fn28(this: Array<Unit>, index: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Array<Unit>
         Type Array<Unit>
@@ -3453,7 +3385,7 @@ Module
         Type Long
         Local $idx.2
       return
-  fun size @fn32(this: Array<Unit>) -> Long
+  fun size @fn29(this: Array<Unit>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Unit>
         Type Array<Unit>
@@ -3463,7 +3395,7 @@ Module
         ArrayLen Array<Unit>
           Type Array<Unit>
           Local $dependency.local.1
-  fun encode @fn33(this: Json, value: Unit, codec: Encodable<Unit>) -> String
+  fun encode @fn30(this: Json, value: Unit, codec: Encodable<Unit>) -> String
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -3499,7 +3431,7 @@ Module
       val $dependency.local.10: Encoder
         Type Encoder
         Local $dependency.local.8
-      call @fn14 interface Encodable<Unit>[0]
+      call @fn11 interface Encodable<Unit>[0]
         Type Encodable<Unit>
         Local $dependency.local.6
         Type Unit
@@ -3521,7 +3453,7 @@ Module
       return
         Type String
         Local $call.2
-  fun encoded @fn34(value: Unit, codec: Encodable<Unit>) -> String
+  fun encoded @fn31(value: Unit, codec: Encodable<Unit>) -> String
     bb0 entry
       call external57 direct
       val $dependency.receiver: Json
@@ -3539,7 +3471,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $call.1: String = @fn33 direct
+      call $call.1: String = @fn30 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -3549,14 +3481,41 @@ Module
       return
         Type String
         Local $call.1
-  fun erase @fn35(value: Unit) -> Any
+  fun erase @fn32(value: Unit) -> Any
     bb0 entry
       return
         Type Any
         Box
           Type Unit
           Local value
-  fun decode @fn36(this: Json, text: String, codec: Decodable<Row>) -> Row
+  fun Bound.encode @fn33(this: Bound, value: Unit, encoder: Encoder) -> Unit
+    bb0 entry
+      val $dependency.receiver: Encodable<Unit>
+        Type Encodable<Unit>
+        FieldAccess 0
+          Type Bound
+          Local this
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call @fn11 interface Encodable<Unit>[0]
+        Type Encodable<Unit>
+        Local $dependency.receiver
+        Type Unit
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      return
+  fun decode @fn34(this: Json, text: String, codec: Decodable<Row>) -> Row
     bb0 entry
       val $dependency.local.5: String
         Type String
@@ -3625,7 +3584,7 @@ Module
       return
         Type Row
         Local $dependency.local.4
-  fun encode @fn37(this: Json, value: Row, codec: Encodable<Row>) -> String
+  fun encode @fn35(this: Json, value: Row, codec: Encodable<Row>) -> String
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -3683,7 +3642,7 @@ Module
       return
         Type String
         Local $call.2
-  fun GenericEncoder.encode @fn38(this: GenericEncoder<Unit>, value: Generic<Unit>, encoder: Encoder) -> Unit
+  fun GenericEncoder.encode @fn36(this: GenericEncoder<Unit>, value: Generic<Unit>, encoder: Encoder) -> Unit
     bb0 entry
       val __coding_value: Encoder
         Type Encoder
@@ -3745,7 +3704,7 @@ Module
       val $dependency.parameter.encoder: Encoder
         Type Encoder
         Local $dependency.argument.1
-      call @fn14 interface Encodable<Unit>[0]
+      call @fn11 interface Encodable<Unit>[0]
         Type Encodable<Unit>
         Local $dependency.receiver
         Type Unit
@@ -3762,7 +3721,7 @@ Module
         Type KeyedEncodingContainer
         Local $dependency.receiver
       return
-  fun encode @fn39(this: Json, value: Generic<Unit>, codec: Encodable<Generic<Unit>>) -> String
+  fun encode @fn37(this: Json, value: Generic<Unit>, codec: Encodable<Generic<Unit>>) -> String
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -3820,7 +3779,7 @@ Module
       return
         Type String
         Local $call.2
-  fun decode @fn40(this: Json, text: String, codec: Decodable<Unit>) -> Unit
+  fun decode @fn38(this: Json, text: String, codec: Decodable<Unit>) -> Unit
     bb0 entry
       val $dependency.local.5: String
         Type String
@@ -3875,7 +3834,7 @@ Module
       val $dependency.local.14: Decoder
         Type Decoder
         Local $dependency.local.13
-      call @fn16 interface Decodable<Unit>[0]
+      call @fn13 interface Decodable<Unit>[0]
         Type Decodable<Unit>
         Local $dependency.local.12
         Type Decoder
@@ -3892,16 +3851,51 @@ Module
       Type Unit
       Local $dependency.local.4
       return
-  fun $lambda.0 @fn41($closure: () -> Unit) -> Unit
+  fun $lambda.0 @fn39($closure: () -> Unit) -> Unit
     bb0 entry
       val $parameter.fail: Boolean
         Type Boolean
         BoolLiteral false
-      call @fn8 direct
+      call @fn5 direct
         Type Boolean
         Local $parameter.fail
       return
-  fun $derived.equals.1 @fn42(this: Option<String>, other: Option<String>) -> Boolean
+  fun Throws.encode @fn40(this: Throws, value: Unit, encoder: Encoder) -> Unit
+    bb0 entry
+      call external55 direct
+      val $dependency.receiver: UnitEncoder
+        Type UnitEncoder
+        GlobalRead $singleton$582c47b2162a9ab9c977861c0ffba3ef63f48fe177b7f90ebc3c38c7d953a4bc
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.fail: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $parameter.fail
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: Encoder
+        Type Encoder
+        Local encoder
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.encoder: Encoder
+        Type Encoder
+        Local $dependency.argument.1
+      call external15 direct
+        Type UnitEncoder
+        Local $dependency.receiver
+        Type Unit
+        Local $dependency.parameter.value
+        Type Encoder
+        Local $dependency.parameter.encoder
+      return
+  fun $derived.equals.1 @fn41(this: Option<String>, other: Option<String>) -> Boolean
     bb0 entry
       val $when.1: Option<String>
         Type Option<String>
@@ -3988,8 +3982,20 @@ Module
         BoolLiteral false
     bb12 pattern.merge.12
       unreachable
-  fun $lambda.1 @fn43($closure: (Long) -> Unit, $arg.0: Long) -> Unit
+  fun $lambda.1 @fn42($closure: (Long) -> Unit, $arg.0: Long) -> Unit
     bb0 entry
+      return
+  fun UsesReference.encode @fn43(this: UsesReference, value: Unit, encoder: Encoder) -> Unit
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type (Unit, Encoder) -> Unit
+        FieldAccess 0
+          Type UsesReference
+          Local this
+        Type Unit
+        Local value
+        Type Encoder
+        Local encoder
       return
   fun erase @fn44(value: UnitEncoder) -> Any
     bb0 entry
@@ -4319,7 +4325,7 @@ Module
           Local $dependency.local.7
           Type Long
           Local $dependency.local.9
-      call $dependency.local.2: Long = @fn20 direct
+      call $dependency.local.2: Long = @fn17 direct
         Type MutableArray<Option<String>>
         FieldAccess 0
           Type ArrayList<String>
@@ -6984,7 +6990,7 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<String> = @fn19 direct
+      call $call.1: Option<String> = @fn16 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.4
         Type Long
@@ -8138,7 +8144,7 @@ Module
       trap "call to abstract method `SuspendRegistration.register`"
   fun $reference.0 @fn110($closure: (Unit, Encoder) -> Unit, arg0: Unit, arg1: Encoder) -> Unit
     bb0 entry
-      call @fn14 interface Encodable<Unit>[0]
+      call @fn11 interface Encodable<Unit>[0]
         Type Encodable<Unit>
         ClosureCapture cc5 0
           Type (Unit, Encoder) -> Unit
@@ -8148,7 +8154,10 @@ Module
         Type Encoder
         Local arg1
       return
-  fun init.Bound.$c1 @fn111(this: Bound, codec: Encodable<Unit>) -> Unit
+  fun init.Row.Companion.$c4 @fn111(this: Row.Companion) -> Unit
+    bb0 entry
+      return
+  fun init.Bound.$c1 @fn112(this: Bound, codec: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type Bound
@@ -8156,27 +8165,24 @@ Module
         Type Encodable<Unit>
         Local codec
       return
-  fun init.Throws.$c2 @fn112(this: Throws) -> Unit
-    bb0 entry
-      return
-  fun init.UsesReference.$c3 @fn113(this: UsesReference, body: (Unit, Encoder) -> Unit) -> Unit
-    bb0 entry
-      field_set 0
-        Type UsesReference
-        Local this
-        Type (Unit, Encoder) -> Unit
-        Local body
-      return
-  fun init.Row.Companion.$c4 @fn114(this: Row.Companion) -> Unit
-    bb0 entry
-      return
-  fun init.GenericEncoder.$c0 @fn115(this: GenericEncoder<Unit>, element: Encodable<Unit>) -> Unit
+  fun init.GenericEncoder.$c0 @fn113(this: GenericEncoder<Unit>, element: Encodable<Unit>) -> Unit
     bb0 entry
       field_set 0
         Type GenericEncoder<Unit>
         Local this
         Type Encodable<Unit>
         Local element
+      return
+  fun init.Throws.$c2 @fn114(this: Throws) -> Unit
+    bb0 entry
+      return
+  fun init.UsesReference.$c3 @fn115(this: UsesReference, body: (Unit, Encoder) -> Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type UsesReference
+        Local this
+        Type (Unit, Encoder) -> Unit
+        Local body
       return
   fun init.ListIterator.$c0 @fn116(this: ListIterator<Option<String>>, source: List<Option<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
@@ -8574,33 +8580,33 @@ Module
   coroutine_start ct1 result=Row.Companion function=fn126
   coroutine_fn cf0 @fn104 source_return=Row step=cs0 immediate
   coroutine_fn cf1 @fn108 source_return=Row.Companion step=cs1 immediate
-  instance mi0 function=@fn14 <- Encodable.encode
-  instance mi1 function=@fn15 <- Encodable.encode
-  instance mi2 function=@fn16 <- Decodable.decode
-  instance mi3 function=@fn17 <- Decodable.decode
-  instance mi4 function=@fn18 <- iterator
-  instance mi5 function=@fn19 <- get
-  instance mi6 function=@fn20 <- size
-  instance mi7 function=@fn21 <- iterator
-  instance mi8 function=@fn22 <- get
-  instance mi9 function=@fn23 <- size
-  instance mi10 function=@fn24 <- set
-  instance mi11 function=@fn25 <- add
-  instance mi12 function=@fn26 <- add
-  instance mi13 function=@fn27 <- removeAt
-  instance mi14 function=@fn28 <- clear
-  instance mi15 function=@fn29 <- add
-  instance mi16 function=@fn30 <- iterator
-  instance mi17 function=@fn31 <- get
-  instance mi18 function=@fn32 <- size
-  instance mi19 function=@fn33 <- encode
-  instance mi20 function=@fn34 <- encoded
-  instance mi21 function=@fn35 <- erase
-  instance mi22 function=@fn36 <- decode
-  instance mi23 function=@fn37 <- encode
-  instance mi24 function=@fn38 <- GenericEncoder.encode
-  instance mi25 function=@fn39 <- encode
-  instance mi26 function=@fn40 <- decode
+  instance mi0 function=@fn11 <- Encodable.encode
+  instance mi1 function=@fn12 <- Encodable.encode
+  instance mi2 function=@fn13 <- Decodable.decode
+  instance mi3 function=@fn14 <- Decodable.decode
+  instance mi4 function=@fn15 <- iterator
+  instance mi5 function=@fn16 <- get
+  instance mi6 function=@fn17 <- size
+  instance mi7 function=@fn18 <- iterator
+  instance mi8 function=@fn19 <- get
+  instance mi9 function=@fn20 <- size
+  instance mi10 function=@fn21 <- set
+  instance mi11 function=@fn22 <- add
+  instance mi12 function=@fn23 <- add
+  instance mi13 function=@fn24 <- removeAt
+  instance mi14 function=@fn25 <- clear
+  instance mi15 function=@fn26 <- add
+  instance mi16 function=@fn27 <- iterator
+  instance mi17 function=@fn28 <- get
+  instance mi18 function=@fn29 <- size
+  instance mi19 function=@fn30 <- encode
+  instance mi20 function=@fn31 <- encoded
+  instance mi21 function=@fn32 <- erase
+  instance mi22 function=@fn34 <- decode
+  instance mi23 function=@fn35 <- encode
+  instance mi24 function=@fn36 <- GenericEncoder.encode
+  instance mi25 function=@fn37 <- encode
+  instance mi26 function=@fn38 <- decode
   instance mi27 function=@fn44 <- erase
   instance mi28 function=@fn45 <- erase
   instance mi29 function=@fn46 <- println
@@ -8694,4 +8700,4 @@ Module
   str @str24 ""
   str @str25 ""
   str @str26 "\n"
-  output executable @fn9
+  output executable @fn6

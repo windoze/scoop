@@ -134,7 +134,6 @@ impl DependencyHirOutput {
                         declaration: callable,
                     } => callable,
                     concrete::InterfaceImplementationTarget::Method(_)
-                    | concrete::InterfaceImplementationTarget::ImportedDerivedEquality(_)
                     | concrete::InterfaceImplementationTarget::Abstract { .. } => continue,
                 };
                 if callable.into_raw().into_u32() as usize

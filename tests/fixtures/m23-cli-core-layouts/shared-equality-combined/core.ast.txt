@@ -1353,7 +1353,6 @@ SourceFile
   RootPackage
     @Intrinsic("core_unit")
   public struct Unit <representation omitted> : Equality<Unit>
-    public operator fun equals
     public fun equalTo
 SourceFile
   RootPackage

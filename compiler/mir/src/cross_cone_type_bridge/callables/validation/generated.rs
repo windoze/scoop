@@ -219,9 +219,6 @@ impl MirCallableBridgeAuthority<'_> {
             | CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::PropertyAccessor(_)) => {
                 true
             }
-            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::GeneratedCallable(
-                id,
-            )) => self.equality_adjust_target(binding, id, implementor)?,
             CallableDefinitionOwner::Odr(member)
                 if member.role() == OdrMemberRole::CallableBody =>
             {
@@ -237,9 +234,6 @@ impl MirCallableBridgeAuthority<'_> {
                             | CallableTemplateOrigin::GenericFunction(_)
                             | CallableTemplateOrigin::Accessor(_)
                     ),
-                    OdrMemberDiscriminator::GeneratedCallable(id) => {
-                        self.equality_adjust_target(binding, *id, implementor)?
-                    }
                     _ => false,
                 }
             }
@@ -271,20 +265,5 @@ impl MirCallableBridgeAuthority<'_> {
         } else {
             Err(MirCallableBridgeError::InvalidAdjustTarget)
         }
-    }
-
-    fn equality_adjust_target(
-        &self,
-        binding: &ParamFreeMirCallableBindingV1,
-        callable: scoop_identity::PersistentGeneratedCallableId,
-        implementor: PersistentExactTypeId,
-    ) -> Result<bool, MirCallableBridgeError> {
-        Ok(
-            matches!(binding.role, MirCallableLoweringRoleV1::BoxingAdjust { .. })
-                && matches!(
-                    self.identities.canonical_key::<_, GeneratedCallableKey>(callable)?.as_ref(),
-                    GeneratedCallableKey::DerivedEquality { exact_owner } if *exact_owner == implementor
-                ),
-        )
     }
 }

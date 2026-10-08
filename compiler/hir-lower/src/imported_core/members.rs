@@ -216,9 +216,7 @@ impl Lowerer {
                             || selected_sources
                                 .get(&(*receiver, *slot))
                                 .is_some_and(|target| {
-                                    target.origin().is_none_or(|target| {
-                                        target != declaration && available.contains(&target)
-                                    })
+                                    *target != declaration && available.contains(target)
                                 })
                     })
             })

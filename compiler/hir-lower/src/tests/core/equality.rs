@@ -17,16 +17,13 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                     )
                 };
                 value.supertypes.push(supertype(owner.clone()));
-                if matches!(value.name.text.as_str(), "Unit" | "Ptr") {
-                    let body = if value.name.text == "Unit" {
-                        FunctionBody::Expr(Box::new(bool_lit(true)))
-                    } else {
+                if value.name.text == "Ptr" {
+                    let body =
                         FunctionBody::Block(block(vec![unsafe_block(vec![ret(Some(binary(
                             BinOp::Eq,
                             method_call(this_expr(), "toULong", vec![]),
                             method_call(var("other"), "toULong", vec![]),
-                        )))])]))
-                    };
+                        )))])]));
                     value
                         .members
                         .push(ast::StructMember::Function(Box::new(method_full(
@@ -54,11 +51,13 @@ pub(super) fn adopt_equality(declarations: &mut [Decl]) {
                     let no_gc = value.members.iter().any(|member| matches!(member,
                         ast::StructMember::Function(function) if function.name.text == "equals"
                             && function.annotations.iter().any(|annotation| annotation.name.text == "NoGC")));
+                    let mut method = equal_to(owner, no_gc);
+                    if value.name.text == "Unit" {
+                        method.body = FunctionBody::Expr(Box::new(bool_lit(true)));
+                    }
                     value
                         .members
-                        .push(ast::StructMember::Function(Box::new(equal_to(
-                            owner, no_gc,
-                        ))));
+                        .push(ast::StructMember::Function(Box::new(method)));
                 }
             }
             Decl::Class(value) if value.name.text == "String" => {

@@ -44,29 +44,6 @@ pub enum IntrinsicFunctionKind {
 }
 
 impl IntrinsicFunctionKind {
-    /// Scalar equality operations with an ordinary callable entry in addition
-    /// to their directly normalized call sites.
-    pub const fn equality_member(self) -> Option<PrimitiveMemberIntrinsic> {
-        match self {
-            Self::Integer(
-                kind @ IntegerIntrinsicKind::NoGcOperation {
-                    operation: NoGcIntegerOperation::Equals,
-                    ..
-                },
-            ) => Some(PrimitiveMemberIntrinsic::Integer(kind)),
-            Self::Char(CharIntrinsic::Equals) => {
-                Some(PrimitiveMemberIntrinsic::Char(CharIntrinsic::Equals))
-            }
-            Self::Float(
-                kind @ FloatIntrinsicKind::Binary {
-                    operation: FloatBinaryOperator::Equal,
-                    ..
-                },
-            ) => Some(PrimitiveMemberIntrinsic::Float(kind)),
-            _ => None,
-        }
-    }
-
     pub const fn is_foreign_callback(self) -> bool {
         matches!(
             self,

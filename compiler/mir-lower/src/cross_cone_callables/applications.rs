@@ -24,8 +24,7 @@ pub(super) fn append(
             function.materialization.context(),
             CallableMaterializationContext::Application(_)
         ) || (function.receiver.method().is_none() && !function.is_suspend)
-            || matches!(function.kind, hir::concrete::FunctionKind::Intrinsic(intrinsic)
-                if intrinsic.kind.equality_member().is_none())
+            || matches!(function.kind, hir::concrete::FunctionKind::Intrinsic(_))
         {
             continue;
         }

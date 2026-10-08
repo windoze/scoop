@@ -253,12 +253,18 @@ Module
     store local1 -> local2
     t2 = integer_compare_Equal<Int> local0, local2 : i1
     ret t2
-  fun @scoop$1$cb$9f075c6153e3577f6fd60ccb32efbec219fa5b583a411d921e02f045176c8a81(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$938ccfd96f71e58eb7885e27b823fcfeaa304acf8506444ac23972f6e006c1b5(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
+    local %0 $dependency.receiver: i32
+    local %1 $dependency.argument.0: i32
+    local %2 $dependency.parameter.other: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i32
+    store t0 -> local0
     t1 = extract param1, 0 : i32
-    t2 = integer_compare_Equal<Int> t0, t1 : i1
+    store t1 -> local1
+    store local1 -> local2
+    t2 = integer_compare_Equal<Int> local0, local2 : i1
     ret t2
   fun @scoop$1$cb$1cdf6d73eb2628dacd42c19e3f9ede94b7410a51c93435f05a5867262ebf265c(ptr<managed>, ptr<managed>) -> i1
     local %0 $call.1: i1

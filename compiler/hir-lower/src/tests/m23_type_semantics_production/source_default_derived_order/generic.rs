@@ -94,6 +94,6 @@ fn open_default_equality_keeps_source_applications_and_exact_executable_bindings
                 ));
             }
         }
-        assert_eq!((open, exact, open_only), (3, 2, 1));
+        assert_eq!((open, exact, open_only), (3, 3, 1));
     });
 }

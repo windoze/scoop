@@ -77,21 +77,12 @@ Module
       val $dependency.parameter.right: Unit
         Type Unit
         Local $dependency.argument.1
-      val $default.local.2: Unit
+      call $dependency.parameter.value: Boolean = @fn2 direct
         Type Unit
         Local $dependency.parameter.left
-      val $default.local.3: Unit
         Type Unit
         Local $dependency.parameter.right
-      val $default.local.4: Unit
-        Type Unit
-        Local $default.local.3
-      call $dependency.parameter.value: Boolean = external2 direct
-        Type Unit
-        Local $default.local.2
-        Type Unit
-        Local $default.local.4
-      call $dependency.receiver: Boolean = external3 direct
+      call $dependency.receiver: Boolean = external2 direct
         Type Unit
         Local $dependency.parameter.left
         Type Unit
@@ -127,20 +118,11 @@ Module
         Type IllegalStateException
         Local $new.2
     bb4 if.merge.4
-      val $dependency.receiver: Unit
+      call $dependency.receiver: Boolean = @fn2 direct
         Type Unit
         Local value
-      val $dependency.argument.0: Unit
         Type Unit
         Local value
-      val $dependency.parameter.other: Unit
-        Type Unit
-        Local $dependency.argument.0
-      call $dependency.receiver: Boolean = external2 direct
-        Type Unit
-        Local $dependency.receiver
-        Type Unit
-        Local $dependency.parameter.other
       branch bb5 bb6
         Type Boolean
         Unary BoolNot
@@ -171,6 +153,11 @@ Module
         Local $new.3
     bb6 if.merge.6
       return
+  fun $derived.equals.0 @fn2(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "illegal state"

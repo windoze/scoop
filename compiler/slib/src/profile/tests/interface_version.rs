@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v67_separates_operators_from_library_equality() {
+fn source_interface_v68_retires_derived_interface_targets() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        67,
+        68,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v67_separates_operators_from_library_equality() {
 }
 
 #[test]
-fn type_semantics_v25_retains_atomic_type_families() {
+fn type_semantics_v26_retires_derived_interface_targets() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        25,
+        26,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

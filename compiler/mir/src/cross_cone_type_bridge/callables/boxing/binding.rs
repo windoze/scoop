@@ -50,9 +50,7 @@ pub(super) fn project(
         .ok_or(Error::MissingTargetBinding(target))?;
     if !matches!(
         source.lowering_role(),
-        MirCallableLoweringRoleV1::Ordinary
-            | MirCallableLoweringRoleV1::Accessor
-            | MirCallableLoweringRoleV1::DerivedEquality { .. }
+        MirCallableLoweringRoleV1::Ordinary | MirCallableLoweringRoleV1::Accessor
     ) {
         return Err(Error::TargetMismatch(target));
     }

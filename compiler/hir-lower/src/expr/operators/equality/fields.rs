@@ -21,7 +21,7 @@ impl Lowerer {
                 self.type_name(lhs.ty)
             )
         };
-        let local = state.equality_method_candidates(lhs.ty);
+        let local = state.methods_by_operator(lhs.ty, hir::OperatorKind::Equals);
         let imported = state
             .imported_member_call_candidates(
                 lhs.ty,

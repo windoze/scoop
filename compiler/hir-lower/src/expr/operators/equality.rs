@@ -40,13 +40,19 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let mut candidates = self.equality_method_candidates(lhs.ty);
+        let mut candidates = self.methods_by_operator(lhs.ty, hir::OperatorKind::Equals);
         let mut derived = None;
         let mut structural_derived = None;
         let mut derivation_failure = None;
         if self.types_equal(lhs.ty, rhs.ty) {
             match self.derived_equality_candidate(lhs.ty, span) {
                 Ok(Some(crate::derived::DerivedEqualityCandidate::Imported(target))) => {
+                    if self.requires_unsafe_use(lhs.ty) {
+                        self.require_unsafe_operation(
+                            span,
+                            "calling an unsafe dependency function",
+                        );
+                    }
                     let call = self.imported_equality_call(target, lhs, rhs, span);
                     return Some(if negate {
                         hir::Expr {
@@ -67,11 +73,7 @@ impl Lowerer {
                     application,
                 })) => {
                     derived = Some((overload.function, application));
-                    if !candidates.iter().any(|candidate| {
-                        candidate.function == overload.function && candidate.owner == overload.owner
-                    }) {
-                        candidates.push(overload);
-                    }
+                    candidates.push(overload);
                 }
                 Ok(Some(crate::derived::DerivedEqualityCandidate::TypeOwned {
                     function,
@@ -225,7 +227,7 @@ impl Lowerer {
         literal: hir::Expr,
         span: Span,
     ) -> Option<(hir::Expr, hir::LiteralPatternEquality)> {
-        let candidates = self.equality_method_candidates(subject_ty);
+        let candidates = self.methods_by_operator(subject_ty, hir::OperatorKind::Equals);
         if candidates.is_empty()
             && let Some(probe) = self
                 .select_imported_equality(

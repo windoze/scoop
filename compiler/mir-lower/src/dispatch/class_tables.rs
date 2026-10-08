@@ -65,11 +65,6 @@ impl Lowerer {
                         .collect::<Vec<_>>();
                     for method in &implementation.methods {
                         let target = match method.target {
-                            hir::InterfaceImplementationTarget::ImportedDerivedEquality(_) => {
-                                unreachable!(
-                                    "derived equality implementations are owned by value types"
-                                )
-                            }
                             hir::InterfaceImplementationTarget::Method(function)
                             | hir::InterfaceImplementationTarget::Abstract {
                                 declaration: function,

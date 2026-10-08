@@ -1,17 +1,6 @@
 use super::*;
 
 impl Projection<'_> {
-    pub(super) fn derived_selection(&self, receiver: TypeId) -> Result<Selection, Error> {
-        let owner = match self.export.types[receiver] {
-            Type::Struct(application) => self.export.struct_applications[application].template,
-            Type::Enum(application) => self.export.enum_applications[application].template,
-            _ => return Err(invalid("nominal derived equality has a non-value owner")),
-        };
-        Ok(Selection::Concrete(
-            InheritanceCallableDeclarationV1::DerivedEquality(owner),
-        ))
-    }
-
     pub(super) fn imported_selection(
         &self,
         id: ImportedDependencyCallableUseId,
@@ -53,7 +42,7 @@ impl Projection<'_> {
                     .records()
                     .iter()
             })
-            .find(|selection| selection.callable_target() == Some(target))
+            .find(|selection| selection.callable_target() == target)
             .map(NominalDispatchSelectionV1::selection)
             .ok_or_else(|| invalid("imported dispatch target has no actual declaration selection"))
     }

@@ -1,8 +1,7 @@
 use super::*;
 use crate::DecodedInheritanceCallableDeclarationV1;
 use scoop_identity::{
-    DecodedPersistentId, PersistentFunctionId, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentPropertyAccessorId, PersistentTypeId,
+    DecodedPersistentId, PersistentFunctionId, PersistentIdResolver, PersistentPropertyAccessorId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -20,8 +19,6 @@ pub trait SelectedTypeUseResolver<E>:
     + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
     + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
     + PersistentIdResolver<PersistentObjectValueId, Error = E>
-    + PersistentIdResolver<PersistentTypeId, Error = E>
-    + PersistentIdResolver<PersistentGenericTypeId, Error = E>
 {
 }
 impl<R, E> SelectedTypeUseResolver<E> for R where
@@ -33,8 +30,6 @@ impl<R, E> SelectedTypeUseResolver<E> for R where
         + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
         + PersistentIdResolver<PersistentDispatchSlotId, Error = E>
         + PersistentIdResolver<PersistentObjectValueId, Error = E>
-        + PersistentIdResolver<PersistentTypeId, Error = E>
-        + PersistentIdResolver<PersistentGenericTypeId, Error = E>
 {
 }
 

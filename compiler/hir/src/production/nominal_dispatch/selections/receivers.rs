@@ -9,8 +9,6 @@ impl Projection<'_> {
         host: TypeId,
     ) -> Result<TypeId, Error> {
         let candidate = match target {
-            InterfaceImplementationTarget::DerivedEquality(_)
-            | InterfaceImplementationTarget::ImportedDerivedEquality(_) => host,
             InterfaceImplementationTarget::Method(application)
             | InterfaceImplementationTarget::Abstract(application) => {
                 match self.export.method_applications[application].owner {

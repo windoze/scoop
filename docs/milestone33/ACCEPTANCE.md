@@ -4,7 +4,7 @@
 
 本文件只记录实际完成的实现和验证；设计方案与验收要求见 [DESIGN.md](DESIGN.md)，未完成项目不计为通过。
 
-2026-10-08 文档修订将 operator equals 与普通 `Equality<T>.equalTo` 分离。M33-7c、M33-7e 保留旧统一接口方案当时的实现和测试记录，不作为新方案的验收结果；泛型／tuple 的自动 Equality 派生已取消。新方案的代码与 fixture 迁移尚未在本记录中验收。
+2026-10-08 文档修订将 operator equals 与普通 `Equality<T>.equalTo` 分离。M33-7c、M33-7e 保留旧统一接口方案当时的实现和测试记录，不作为新方案的验收结果；泛型／tuple 的自动 Equality 派生已取消。基础拆分见 M33-7f，恢复旧 operator 路径及撤销剩余统一机制的验收见 M33-7g。
 
 | 批次 | 能力 | 状态 |
 | --- | --- | --- |
@@ -14,7 +14,7 @@
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
-| M33-7 | sysroot 默认定位、运算符与库相等 | 默认定位、通用 NoGc 接口适配完成；拆分规范已修订，代码与 fixture 迁移待验收，旧派生接口结果仅作历史记录 |
+| M33-7 | sysroot 默认定位、运算符与库相等 | 完成；恢复原有 operator、普通 Equality.equalTo、通用 NoGc 接口适配及三平台源码／产物／运行闭环通过，旧派生接口结果仅作历史记录 |
 | M33-8 | 原子类型、内存序与 GC | 完成；四类 intrinsic、普通库更新与值存储、产物、真实并发和 GC 均通过三平台验收 |
 | M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
@@ -343,7 +343,18 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin 另外通过 6 项直接受影响的旧 fixture：普通泛型 core 能力、跨库派生相等／reexport、共享 core 布局、内建绑定错误、重定位 String 的 core 重建和原子引用操作，共 8 个变体、43 个进程与 54 次 golden。原子引用仍按 identity 操作，不调用用户的两种比较成员。
 - 本批清理两次本机 target 中已链接的旧对象，共 96 项、1,482,004,352 bytes；保留库、CLI 和热缓存。报告位于 `tmp/m33/equality-split-*-full-results/`、`tmp/m33/native-c/` 及 Linux 隔离副本的相应目录；未运行无关全量 workspace／fixture 测试。
 
-此批完成基础拆分和既有非泛型派生迁移。泛型结构比较在声明处选定的字段调用仍需与闭合类型的比较正确区分，并随跨 Cone 模板保留；泛型／tuple 的完整组合验收及 M33 总验收继续进行。本节不把旧的自动 Equality 派生作为已实现能力或后续目标。
+此批完成基础拆分和既有非泛型派生迁移。随后范围收敛为恢复 `23cbfb7de` 的 operator 路径及添加普通库接口；不再要求新增按泛型上下文区分的结构比较正文或跨 Cone 模板。旧基线已存在的问题见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)，不作为 Equality 或 M33 的新增完成门槛。旧的自动 Equality 派生也不属于已交付能力或后续目标。
+
+## M33-7g：恢复旧 operator 路径并收敛 Equality 实现
+
+- 以 `23cbfb7de` 为恢复基线，逐项核对 `00d4e5858`、`e46302c5b` 和后续差异，只撤销统一方案相关的代码。未提交的上下文相关比较模板、生成身份、ODR 与格式扩展已经撤回；原有 `DerivedEquality` 生成身份和 HIR `DerivedEqualityApplication` 继续服务结构 operator。
+- 删除派生比较填充接口槽位的 HIR/MIR 分支、继承声明变体及配套读写／投影代码。删除标量 equals 的专用 callable 生成；整数、Char、浮点的直接比较继续使用原 intrinsic，普通 `equalTo` 使用 core Scoop 正文及既有接口适配。Unit 恢复原有结构比较，core 只显式实现普通 `equalTo`。
+- 恢复结构比较的声明／正文准备顺序及 unsafe 检查。保留手写同签名成员抑制派生、导入结构成员参与普通重载决议、普通 core/Ptr 物化、NoGc 值方法适配和 amd64 调用帧等独立修复；原子功能保持。对共享 core 组合用例的完整 MIR 按实际函数签名核对，除删除 12 个旧比较入口和编号移动外，其余 831 个函数正文一致。独立 core 用例的旧 golden 同步到已经实现的借用、UTF-8、程序入口和原子 API。
+- 按既有兼容规则将 HIR `cross-cone-interface` 更新为 68、`cross-cone-type-semantics` 更新为 26，拒绝带旧派生接口声明的产物；未增加生成身份格式、MIR/LIR 格式或 runtime ABI。
+- 定向 Rust 回归通过：42 项不同的 HIR-lower 测试、37 项 HIR 接口槽位／选择／core protocol 测试、12 项 MIR callable 测试、19 项 profile 测试，以及 MIR-lower 全部 114 项测试。Unit 两项旧统一方案断言恢复为基线断言；其他通过结果在输入不变时复用。workspace fmt／all-targets clippy 和两地 release CLI 构建通过。
+- Darwin、GNU、musl 各通过 52 项现有正式 fixture、66 个变体、237 个进程和 229 次 golden 检查。覆盖 operator、普通 equalTo／bound、基础类型、入口独立、Hash、浮点、unsafe、普通接口适配和源码删除后的跨库链接／运行；Unit 的默认参数、装箱、编码、errno 及原子操作组合一并通过。旧用例中隐式派生接口实现改为普通显式 override，未为泛型结构比较新增验收要求。
+- Darwin 另以非更新模式复验 5 项关键源码／产物用例，通过 8 个变体、40 个进程、46 次 golden；147 份公共快照在三目标间逐字节一致。GNU/musl 各更新 8 份受影响的目标快照，其他有效结果复用；没有运行无关全量 workspace 或 fixture 测试。报告和审阅记录位于 `tmp/m33/equality-scope-*`。
+- 清理 16 个已链接的过期 Rust 中间对象，释放 50,290,264 字节，保留编译库、CLI 和构建缓存。基线已有的泛型结构比较正文复用问题单独记录在 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)，本轮没有扩展其算法。
 
 ## M33-8a：AtomicRef 的 LLVM 技术验证
 
@@ -370,7 +381,7 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - 新增 4 项正式 fixture，覆盖仅遗留 attachment、两个有 ownership 的 token、已消费 ownership 的活动 OneShot，以及正常 join／release 与显式 exit。用 C 条件变量确定线程已进入相应状态，不依赖睡眠或忙等。正常退出保留 Int 41；失败覆盖 Int 73／91；显式 exit 保留 23。
 - 每个目标均通过 4 项、8 个 debug／release 变体、62 个进程、24 次 golden 检查，包含普通／moving／minor GC；先删除源码再独立链接。诊断与输出逐字断言，正常退出执行 atexit，失败／显式退出不执行。captured struct、String、argv 和 OneShot／Reusable 回调组合验证实际根保活。
 - GNU／musl 的普通模式均使用最终实现通过全部四项。Darwin 先完整通过四项，调整 callback detach 顺序后仅重跑受影响的两项，普通模式通过 4 个变体、34 个进程和 12 次 golden 检查，其余两项复用先前结果。8 份公共 HIR／MIR golden 在三目标间一致。
-- workspace fmt／all-targets clippy 和 Darwin／GNU／musl 的 C 严格警告检查通过；现有 NativeSafe 返回与发布握手回归通过 O0／O2 × full／minor 四种配置。报告位于 `tmp/m33/shutdown-darwin-*-report.json` 与 `tmp/m33/shutdown-linux-reports/`。本批没有重跑无关全量测试；M33-7 泛型／tuple Equality、M33-8 原子语言实现及最终组合验收仍未完成。
+- workspace fmt／all-targets clippy 和 Darwin／GNU／musl 的 C 严格警告检查通过；现有 NativeSafe 返回与发布握手回归通过 O0／O2 × full／minor 四种配置。报告位于 `tmp/m33/shutdown-darwin-*-report.json` 与 `tmp/m33/shutdown-linux-reports/`。本批没有重跑无关全量测试；其他功能与组合验收的后续进展见上方状态表。
 
 ## M33-8c：原子对象的类型、构造与产物
 
@@ -405,4 +416,4 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin／GNU／musl 每个目标均通过本批 10 项正式 fixture、15 个变体、57 个进程与 36 次 golden 检查。五个正例再以非更新模式分别通过 10 个变体、52 个进程和 36 次 golden；十二份公共 HIR／MIR 在三个目标间逐字节一致，Linux LIR 按 target／profile 保存。五个负例在预期固定后通过，复用未变的成功记录；没有重跑无关全量测试。
 - Rust fmt、受影响 crate 的 clippy、C 格式化与严格警告检查通过；使用更新后真实 core 的三个既有源码／导入／MIR 单元测试通过。库实现分别为 192 行与 49 行，新增 C 探针为 21 行。清理 16 个已链接 Rust 中间对象，释放 386,577,496 字节；保留库、CLI 和热缓存。报告位于 `tmp/m33/atomics-library-*-report.json`、`tmp/m33/atomics-*-darwin-first-report.json` 与 `tmp/m33/atomics-library-linux-reports/`。
 
-M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成。M33-7 仍需按设计 9.2 完成运算符／库相等拆分迁移，随后继续 M33-9 的里程碑总验收。
+M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M33-7 的后续收敛见 M33-7g。M33-9 继续完成示例平台 Cone 与里程碑组合总验收。

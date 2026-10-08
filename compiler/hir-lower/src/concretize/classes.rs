@@ -244,23 +244,6 @@ impl Concretizer<'_> {
                         let source_slot = self.interface_reference_slot(method.member);
                         let slot = self.interface_slot_by_source[&(interface, source_slot)];
                         let target = match method.target {
-                            export::InterfaceImplementationTarget::DerivedEquality(application) => {
-                                let concrete::Callable::Function(function) = self
-                                    .lower_derived_equality_application(application, substitution);
-                                concrete::InterfaceImplementationTarget::Method(function)
-                            }
-                            export::InterfaceImplementationTarget::ImportedDerivedEquality(
-                                target,
-                            ) => {
-                                let target = self.imported_derived_equalities.alloc(
-                                    concrete::ImportedDerivedEqualityUse(
-                                        self.source.imported_derived_equalities[target],
-                                    ),
-                                );
-                                concrete::InterfaceImplementationTarget::ImportedDerivedEquality(
-                                    target,
-                                )
-                            }
                             export::InterfaceImplementationTarget::ImportedTemplate(
                                 application,
                             ) => concrete::InterfaceImplementationTarget::Method(

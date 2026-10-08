@@ -45,9 +45,6 @@ impl Lowerer {
         ty: hir::TypeId,
         span: ast::Span,
     ) -> Result<Option<DerivedEqualityCandidate>, String> {
-        if matches!(self.types[ty], Type::Unit) {
-            return Ok(None);
-        }
         let nominal = match self.types[ty].clone() {
             Type::Struct(_) | Type::Enum(_)
                 if self.dependency_nominal_application(ty).is_some() =>
