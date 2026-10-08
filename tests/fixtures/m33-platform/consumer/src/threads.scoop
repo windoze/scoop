@@ -1,0 +1,62 @@
+import fixture.platform.*
+
+class Gate(val ready: AtomicInt, val proceed: AtomicBoolean, val address: AtomicLong)
+
+fun writer(path: String, bytes: Array<UInt8>, gate: Gate): Int {
+    val (fd, error) = openOutput(path)
+    check(fd >= 0 && error == 0)
+    @Unsafe {
+        try {
+            bytes.withDataPointer() { pointer: Ptr<UInt8>, count: Long ->
+                @Unsafe {
+                    val address = pointer.toULong().toInt64()
+                    val previous = gate.address.compareAndExchange(0L, address)
+                    check(previous == 0L || previous == address)
+                    gate.ready.fetchAdd(1, MemoryOrder.Release)
+                    while (!gate.proceed.load(MemoryOrder.Acquire)) {}
+                    var round = 0
+                    while (round < 8) {
+                        gcCollect()
+                        var offset = 0L
+                        while (offset < count) {
+                            val (written, error) = writeBytes(fd, pointer + offset, (count - offset).toUInt64())
+                            if (written < 0L && error == 4) { continue }
+                            check(written > 0L)
+                            offset += written
+                        }
+                        bytes.withDataPointer() { nested: Ptr<UInt8>, length: Long ->
+                            @Unsafe {
+                                check(length == count && nested.toULong().toInt64() == address)
+                                check(pointer.load() == 65u && pointer.load(1L) == 0u)
+                            }
+                        }
+                        round += 1
+                    }
+                }
+            }
+        } finally {
+            check(closeFile(fd) == (0, 0))
+        }
+    }
+    return 8
+}
+
+fun concurrentWrites(first: String, second: String, bytes: Array<UInt8>) {
+    val gate = Gate(AtomicInt(0), AtomicBoolean(false), AtomicLong(0L))
+    val left = spawn({ writer(first, bytes, gate) })
+    val right = spawn({ writer(second, bytes, gate) })
+    while (gate.ready.load(MemoryOrder.Acquire) != 2) {}
+    var round = 0
+    while (round < 4) {
+        gcCollect()
+        round += 1
+    }
+    gate.proceed.store(true, MemoryOrder.Release)
+    round = 0
+    while (round < 4) {
+        gcCollect()
+        round += 1
+    }
+    check(join(left) == 8 && join(right) == 8)
+    gcCollect()
+}

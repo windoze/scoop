@@ -1,0 +1,47 @@
+package fixture.platform
+
+@Extern(name = "m33_platform_open", captureErrno = true)
+private fun openNative(path: Ptr<Int8>, flags: Int): (Int, Int)
+@Extern(name = "m33_platform_size", captureErrno = true)
+private fun sizeNative(path: Ptr<Int8>): (Long, Int)
+@Extern(name = "m33_platform_entries", captureErrno = true)
+private fun entriesNative(path: Ptr<Int8>): (Long, Int)
+
+@Extern(name = "read", captureErrno = true)
+public fun readBytes(fd: Int, data: Ptr<UInt8>, length: ULong): (Long, Int)
+@Extern(name = "write", captureErrno = true)
+public fun writeBytes(fd: Int, data: Ptr<UInt8>, length: ULong): (Long, Int)
+@Extern(name = "close", captureErrno = true)
+public fun closeFile(fd: Int): (Int, Int)
+
+public fun openInput(path: String): (Int, Int) {
+    @Unsafe {
+        return path.withCString(fun(pointer: Ptr<Int8>): (Int, Int) {
+            @Unsafe { return openNative(pointer, 0) }
+        })
+    }
+}
+
+public fun openOutput(path: String): (Int, Int) {
+    @Unsafe {
+        return path.withCString(fun(pointer: Ptr<Int8>): (Int, Int) {
+            @Unsafe { return openNative(pointer, outputFlags()) }
+        })
+    }
+}
+
+public fun fileSize(path: String): (Long, Int) {
+    @Unsafe {
+        return path.withCString(fun(pointer: Ptr<Int8>): (Long, Int) {
+            @Unsafe { return sizeNative(pointer) }
+        })
+    }
+}
+
+public fun directoryEntries(path: String): (Long, Int) {
+    @Unsafe {
+        return path.withCString(fun(pointer: Ptr<Int8>): (Long, Int) {
+            @Unsafe { return entriesNative(pointer) }
+        })
+    }
+}

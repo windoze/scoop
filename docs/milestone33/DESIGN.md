@@ -703,7 +703,7 @@ D1～D7 均已有结论；D8 的前置依赖已满足。保留编号用于对应
 
 | 项目 | 当前状态 | 后续任务与完成条件 |
 | --- | --- | --- |
-| native 头文件缓存与输入一致性 | 7.2 和实现规范 2.7 已补齐契约；实现尚未开始 | M33-6 在外层缓存命中前发现/复核 include 依赖，把 C/C++ 源码、非系统头、公开 runtime 头和配置纳入现有输入快照；key 与子编译器读取相同内容。验收仅头文件修改、依赖集合变化、快照完成后工作区变化、配置/SDK 变化和不变输入复用；不再仅依赖 child 编译后写 depfile。 |
+| native 头文件缓存与输入一致性 | M33-6b、M33-6d 已完成并验收 | 外层缓存命中前准备包含传递头文件的不可变预处理输入，缓存键与子编译器消费相同内容；头文件／配置变化、快照后工作区变化、目录搬迁和不变输入复用均已验证，记录见 ACCEPTANCE.md。 |
 | AtomicRef 与 LLVM moving GC | M33-8a～8e 已完成 IR、类型、操作、普通库组合、跨 Cone 产物及三目标运行 | 实际并发、对象和所指对象分别移动、返回值及 expected/new 保活、成功/失败 CAS、old→young 写屏障均已验收；记录见 ACCEPTANCE.md。 |
 | M32 基线与实施依赖 | 已纠正文档，并核对 roots.scoop 的 Any/Nothing 声明及 M32 验收记录；依赖已满足 | M33-4 直接消费实际 Nothing 实现 exit，验证无正常返回控制流、源码与 artifact-only 消费；以当前 runtime ABI 10 / metadata ABI 6 为旧版基线，验收 M33 的 11/7 升级与不兼容产物拒绝。其他批次复用 M32 已交付能力，按实际编码增量更新受影响版本。 |
 
@@ -756,7 +756,7 @@ D3 的 shutdown 失败与显式 exit 已同步到语言规范 12.4.4、运行时
 
 重点组合：
 
-- **示例平台 Cone**：在 `tests/fixtures` 中建一个最小的平台 Cone，带 C 源码、按平台选择的源码、系统库依赖和 `captureErrno` 的 extern，实现 open/read/write/close、stat、readdir，以及基于 pthread 加 OneShot callback 的线程 spawn/join，由 executable 经产物依赖消费并运行。它只用于验收，不作为公开平台库发布。
+- **示例平台 Cone**：在 `tests/fixtures` 中建一个最小的平台 Cone，带 C 源码、按平台选择的源码、系统库依赖和 `captureErrno` 的 extern，实现 open/read/write/close、stat、readdir，以及基于 pthread 加 OneShot callback 的线程 spawn/join，由 executable 经产物依赖消费并运行。它只用于验收，不作为公开平台库发布。具体组合使用 Unicode 路径与含 NUL 的 UTF-8 字节，两个 OneShot 线程经原子同步同时借用同一不可变数组并写入独立文件，主线程在借用期间执行 GC；删除库与 executable 源码后独立链接。阻塞输出和最后一次 unpin 后的实际移动复用 M33-4a、M33-2 的既有验收。
 - **阻塞与 GC**：一个线程阻塞在 `read(pipe)` 或写满的 stdout 上，另一个线程反复 `gcCollect()` 并分配，验证 GC 不被阻塞；同时打开 moving GC 的强制 relocation 模式。
 - **借用与并发**：两个线程同时借用同一个已通过同步发布、借用期间不再修改的数组，调用 C `write` 读取其内容，同时触发 minor/full GC，验证对象不移动且借用结束后可以正常移动。
 - **原子操作与同步**：多线程 `fetchAdd` 计数、`AtomicBoolean` 自旋锁保护普通字段及数组元素、`AtomicRef` 的 CAS 栈（含 moving GC 与 nursery 晋升，验证写屏障与 CAS 失败路径）、Acquire/Release 发布对象、`Atomic<T>` 在多线程读写 struct、tuple 和 tagged enum 时始终读到完整的值（含引用字段和 moving GC）；非法内存序组合、继承原子类型、访问其值字段的 negative fixture；debug 与 release 两种 profile 都要通过。

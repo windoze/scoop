@@ -417,3 +417,12 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Rust fmt、受影响 crate 的 clippy、C 格式化与严格警告检查通过；使用更新后真实 core 的三个既有源码／导入／MIR 单元测试通过。库实现分别为 192 行与 49 行，新增 C 探针为 21 行。清理 16 个已链接 Rust 中间对象，释放 386,577,496 字节；保留库、CLI 和热缓存。报告位于 `tmp/m33/atomics-library-*-report.json`、`tmp/m33/atomics-*-darwin-first-report.json` 与 `tmp/m33/atomics-library-linux-reports/`。
 
 M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M33-7 的后续收敛见 M33-7g。M33-9 继续完成示例平台 Cone 与里程碑组合总验收。
+
+## M33-9b：最小平台 Cone 与并发文件操作
+
+- 新增 `tests/fixtures/m33-platform`：library Cone 内编译两个 C 文件，显式依赖目标系统的 pthread，按 Darwin／Linux 选择真实 open flags。普通 Scoop 包装与 `captureErrno` extern 提供 open/read/write/close、stat、readdir，以及 pthread + OneShot callback 的 spawn/join；没有新增编译器、runtime 或公开平台库 API。
+- executable 从已构建的 `.slib` 消费库。删除 provider 源码后构建 consumer，再删除 consumer 源码、禁用 LLVM 配置并独立链接，核对 link-plan fingerprint；普通 Array<String> 入口接收工作目录，正常退出保留 Int 37。
+- 两个 OneShot 线程经 Release/Acquire 同步，同时借用同一不可变字节数组并向两个 Unicode 路径写入内容。主线程在两个 pin 帧同时存活时执行固定轮次 GC，线程在 C write 前后执行 GC 和嵌套借用，核对地址与字节；最终 join 检查 Completed／failure 并释放 observer。内容包含 NUL、Unicode 和换行，读取后逐字节比较并严格解码，stat/readdir 检查大小与条目数，已保存的缺失文件 errno 跨调用和 GC 保持不变。
+- 压力模式永久隔离已移动块；初稿主线程无界 GC 循环耗尽测试 arena，改为固定轮次的同步交错后通过。没有改变 runtime 分配规则或增加预算机制。阻塞 stdio／pipe 时的 GC 和最后一次 unpin 后实际移动，分别复用 M33-4a、M33-2 已通过的独立验收。
+- Darwin／GNU／musl 静态在非更新模式下各通过 1 项、2 个 debug/release 变体、12 个进程、12 次 golden 检查；musl PIE 另通过 1 项、2 个变体、12 个进程，实际产物分别为静态 ELF 与带 musl interpreter 的 PIE。全部运行覆盖普通／moving／minor GC。consumer HIR/MIR 在三平台逐字节一致，provider 的 Darwin／Linux 差异只来自所选源码和 open flags，LIR 保留目标差异。报告为 `tmp/m33/platform-{darwin,gnu,musl}-report.json`。
+- 新增 C/Scoop 文件为 4～62 行。C 经格式化和严格告警检查，workspace fmt／all-targets clippy 通过。本批清理 249 个已完成链接的 Rust 中间对象，释放 2,083,970,944 bytes，保留库、CLI 与热缓存。
