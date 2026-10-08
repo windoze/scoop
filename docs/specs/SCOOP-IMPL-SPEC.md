@@ -310,7 +310,7 @@ SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Exec
 
 非 core Cone 未显式声明 core 时，注入 `scoop:scoop.core:0.1.0` direct edge；core 不依赖自身。core 是普通库，显式 locator 遵守同一发现规则。缺省 sysroot 来源先取 `lib/scoop.core`；只有目录不存在时才取 `artifacts/<canonical-target-id>/scoop.core.slib`。已选来源损坏或不兼容时直接报错，不回退到另一来源。
 
-其他已声明的 `scoop` group 依赖在没有显式 locator、且全部显式 artifact search root 均无候选时，最后检查 `<sysroot>/lib/<name>/Cone.toml`。匹配完整 coordinate 和 library kind 后，按普通 source Cone 递归构建并使用普通缓存；不要求额外的 cone-path。其他 group 不查该默认位置；显式来源失败、候选歧义或已选 artifact 不兼容时不回退。它只补充源码依赖定位，不注入依赖或扩大可见性；artifact-only link 仍不读取 sysroot 源码或补建缺失 artifact。
+其他已声明的 `scoop` group 依赖在没有显式 locator、且全部显式 artifact search root 均无候选时，最后检查 `<sysroot>/lib/<name>/Cone.toml`。匹配完整 coordinate 和 library kind 后，按普通 source Cone 递归构建并使用普通缓存；不要求额外的 cone-path。新发现的默认源码 Cone 的显式依赖继续优先展开，直至普通依赖工作队列为空；缺失或损坏的默认源码按普通 source locator 报错。其他 group 不查该默认位置；显式来源失败、候选歧义或已选 artifact 不兼容时不回退。它只补充源码依赖定位，不注入依赖或扩大可见性；artifact-only link 仍不读取 sysroot 源码或补建缺失 artifact。
 
 配套 scoopc 默认来自 scoop executable 同目录，允许显式指定；必须匹配 machine capability 和实际编译输入。每个 source cache miss 启动一次 single-Cone 编译，传入完整 direct/support artifact。direct 与 manifest edge 一一对应，support 恰为其余传递闭包，两组互斥。缺失、不可达额外输入、identity/content 冲突、stale edge、错分或 executable dependency 均在 parse 当前源码前失败。
 

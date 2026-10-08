@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LOCATOR_AMBIGUOUS_ARTIFACT",
+    "message": "artifact scoop:scoop.platform:0.1.0 has 2 candidates with different fingerprints",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LOCATOR_NOT_FOUND",
+    "message": "artifact different:scoop.platform:0.1.0 was not found in 0 checked search roots",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

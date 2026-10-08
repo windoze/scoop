@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "invalid Cone manifest root ${work}/cone/missing: cannot inspect: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/cone/missing",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

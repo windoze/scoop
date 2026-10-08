@@ -1,0 +1,2 @@
+package platformlib
+public fun answer(): Int = 42

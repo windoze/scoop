@@ -17,6 +17,8 @@ use crate::ArtifactSearchRoot;
 
 mod default_core;
 pub(crate) use default_core::locate_default_core;
+mod default_library;
+pub(crate) use default_library::locate_build_dependency;
 
 pub(crate) fn artifact_candidate_path(root: &Path, coordinate: &ConeCoordinate) -> PathBuf {
     root.join(coordinate.group())

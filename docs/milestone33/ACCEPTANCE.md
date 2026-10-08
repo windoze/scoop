@@ -12,7 +12,7 @@
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
-| M33-7 | sysroot 默认定位、Equality | 待实现 |
+| M33-7 | sysroot 默认定位、Equality | 默认定位完成；Equality 待实现 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
 
@@ -255,3 +255,15 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - negative 用例覆盖字段类型、受 driver 管理的参数、缺少开关、参数不隐式开启 C++、缺配套 driver／标准库、target／版本不匹配。musl 通过 6 项适用配置用例、7 个变体，包含未选中 C++ 源码时 static/dynamic 均拒绝的检查。Linux 另有真实产物读取测试：删除源码后读取带 C++ 要求的 GNU Link 闭包，分别选择 musl static/dynamic final-link profile，均在解析 C++ 工具链前拒绝并指出 Cone。
 - 三平台各通过 1 项既有纯 C fixture、2 个变体、8 个进程与 6 份 golden，验证混合功能改动后原有 C 路径。最后清理本机 262 项 target 中间对象／incremental 目录，共 2,369,074,897 bytes，保留热缓存和配套 CLI；没有运行无关全量测试。
 - 最后补充工具链错误中的当前 Cone 来源，只复验 GNU 的 4 项工具链诊断、musl 的 static/dynamic 两个拒绝变体和混合 native 输入测试，均通过；其余已通过结果直接复用。
+
+## M33-7a：sysroot 默认库源码定位
+
+- 已声明的普通 `scoop` 依赖没有显式 locator，且 artifact search roots 没有候选时，从 `<sysroot>/lib/<name>` 读取普通 library Cone。复用已有 coordinate、manifest、来源冲突和循环检查；其他 group 不参与，core 保持原规则。新发现源码的显式依赖继续优先展开，直至依赖工作队列为空。
+- 显式 path／artifact 和搜索根中的有效产物优先；损坏、歧义或不兼容候选直接报错。默认定位不注入依赖或扩大可见性，独立链接仍要求完整的产物闭包。定位逻辑为 22 行独立模块，依赖图复用普通 source 节点、缓存和编译流程。
+
+已完成的验证：
+
+- Rust fmt 与受影响 crate 的 clippy 通过；依赖发现 16 项测试通过，其中新增 4 项覆盖默认源码的传递显式依赖、两种显式来源优先和其他 group 不回退。
+- Darwin／GNU／musl 各通过 15 项正式 CLI fixture、17 个变体、43 个进程、12 次 stage golden 检查。两个正例完成非更新复验，4 份公共 HIR/MIR 在 Darwin 与 Linux 完全一致。
+- 组合用例覆盖默认库、传递依赖、泛型、native C 与普通／moving／minor GC；重复构建命中，头文件变化使结果由 42 变为 43。删除全部用户源码后独立链接运行成功且链接计划相同；缺少依赖产物时即使 sysroot 中仍有源码也正常报错。
+- 13 个 negative fixture 固定完整诊断，覆盖 coordinate 的 group/name/version、不合法 library、缺失／损坏默认源码、其他 group、未声明依赖、显式来源失败、损坏／歧义搜索候选和依赖循环。复用已有热缓存与已通过结果，没有增加无关全量测试。

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_GRAPH_EXECUTABLE_DEPENDENCY",
+    "message": "dependency scoop:scoop.platform:0.1.0 at ${work}/sysroot/lib/scoop.platform/Cone.toml is executable; dependencies must be libraries",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/sysroot/lib/scoop.platform/Cone.toml",
+      "start": null
+    },
+    "phase": "GraphVersionKind",
+    "severity": "error"
+  }
+]
