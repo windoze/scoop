@@ -526,6 +526,9 @@ impl Concretizer<'_> {
             export::ExprKind::AtomicNew(initial) => concrete::ExprKind::AtomicNew(Box::new(
                 self.lower_expr(initial, substitution, locals),
             )),
+            export::ExprKind::Atomic(atomic) => concrete::ExprKind::Atomic(Box::new(
+                atomic.map(|value| self.lower_expr(value, substitution, locals)),
+            )),
             export::ExprKind::Call {
                 callee,
                 binding,

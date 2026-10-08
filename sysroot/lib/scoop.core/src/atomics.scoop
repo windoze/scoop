@@ -1,11 +1,112 @@
+public enum MemoryOrder { Relaxed, Acquire, Release, AcqRel, SeqCst }
+
 @Intrinsic("core_atomic_int")
-public class AtomicInt {}
+public class AtomicInt {
+    @NoGC @Intrinsic("atomic_int_load")
+    public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_store")
+    public fun store(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Unit
+
+    @NoGC @Intrinsic("atomic_int_exchange")
+    public fun exchange(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_compare_and_set")
+    public fun compareAndSet(expected: Int, value: Int, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_int_compare_and_exchange")
+    public fun compareAndExchange(expected: Int, value: Int, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_fetch_add")
+    public fun fetchAdd(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_fetch_sub")
+    public fun fetchSub(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_fetch_and")
+    public fun fetchAnd(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_fetch_or")
+    public fun fetchOr(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    @NoGC @Intrinsic("atomic_int_fetch_xor")
+    public fun fetchXor(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+}
 
 @Intrinsic("core_atomic_long")
-public class AtomicLong {}
+public class AtomicLong {
+    @NoGC @Intrinsic("atomic_long_load")
+    public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_store")
+    public fun store(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Unit
+
+    @NoGC @Intrinsic("atomic_long_exchange")
+    public fun exchange(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_compare_and_set")
+    public fun compareAndSet(expected: Long, value: Long, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_long_compare_and_exchange")
+    public fun compareAndExchange(expected: Long, value: Long, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_fetch_add")
+    public fun fetchAdd(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_fetch_sub")
+    public fun fetchSub(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_fetch_and")
+    public fun fetchAnd(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_fetch_or")
+    public fun fetchOr(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    @NoGC @Intrinsic("atomic_long_fetch_xor")
+    public fun fetchXor(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+}
 
 @Intrinsic("core_atomic_boolean")
-public class AtomicBoolean {}
+public class AtomicBoolean {
+    @NoGC @Intrinsic("atomic_boolean_load")
+    public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_store")
+    public fun store(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Unit
+
+    @NoGC @Intrinsic("atomic_boolean_exchange")
+    public fun exchange(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_compare_and_set")
+    public fun compareAndSet(expected: Boolean, value: Boolean, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_compare_and_exchange")
+    public fun compareAndExchange(expected: Boolean, value: Boolean, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_fetch_and")
+    public fun fetchAnd(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_fetch_or")
+    public fun fetchOr(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_boolean_fetch_xor")
+    public fun fetchXor(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+}
 
 @Intrinsic("core_atomic_ref")
-public class AtomicRef<T : ref> {}
+public class AtomicRef<T : ref> {
+    @NoGC @Intrinsic("atomic_ref_load")
+    public fun load(order: MemoryOrder = MemoryOrder.SeqCst): T
+
+    @NoGC @Intrinsic("atomic_ref_store")
+    public fun store(value: T, order: MemoryOrder = MemoryOrder.SeqCst): Unit
+
+    @NoGC @Intrinsic("atomic_ref_exchange")
+    public fun exchange(value: T, order: MemoryOrder = MemoryOrder.SeqCst): T
+
+    @NoGC @Intrinsic("atomic_ref_compare_and_set")
+    public fun compareAndSet(expected: T, value: T, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    @NoGC @Intrinsic("atomic_ref_compare_and_exchange")
+    public fun compareAndExchange(expected: T, value: T, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): T
+}

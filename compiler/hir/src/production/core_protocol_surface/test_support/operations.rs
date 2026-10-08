@@ -19,6 +19,9 @@ pub(super) fn fixture_operation_owner(
     fundamental: &CoreFundamentalTypeProtocolV1,
 ) -> Option<DefinitionOwnerAtom> {
     match kind {
+        IntrinsicFunctionKind::Atomic(_) => {
+            unreachable!("the bootstrap fixture does not define ordinary atomic classes")
+        }
         IntrinsicFunctionKind::Float(kind) => {
             let index = match kind.owner() {
                 crate::IntrinsicTypeKind::Float(crate::FloatKind::F32) => 16,

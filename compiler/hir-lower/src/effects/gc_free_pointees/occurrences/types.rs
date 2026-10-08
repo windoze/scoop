@@ -164,6 +164,11 @@ pub(in super::super) fn collect_expr_types(
     out.push(expression.ty);
     use hir::ExprKind;
     match &expression.kind {
+        ExprKind::Atomic(atomic) => {
+            for operand in atomic.operands() {
+                collect_expr_types(lowerer, operand, out);
+            }
+        }
         ExprKind::GenericDelegateStorageRead(reference) => {
             out.extend(reference.arguments.iter().copied());
         }

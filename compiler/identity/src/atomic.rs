@@ -1,6 +1,8 @@
 //! Atomic value kinds and complete operation orderings shared by the IRs.
 
+mod expression;
 mod wire;
+pub use expression::{AtomicExpression, AtomicOperation};
 
 /// Complete storage shape of an atomic nominal application. Only the
 /// reference family has a source type argument.

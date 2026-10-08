@@ -7,6 +7,7 @@
 use super::*;
 
 mod arrays;
+mod atomics;
 mod callbacks;
 mod characters;
 mod common;

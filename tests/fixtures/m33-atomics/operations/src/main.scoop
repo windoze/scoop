@@ -1,0 +1,12 @@
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    integerOperations()
+    longOperations()
+    booleanOperations()
+    referenceOperations()
+    evaluationOrder()
+    println("atomic operations")
+}

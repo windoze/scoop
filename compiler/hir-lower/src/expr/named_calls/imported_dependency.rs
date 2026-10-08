@@ -44,6 +44,7 @@ enum ImportedCallImplementation {
 }
 
 enum ImportedIntrinsicCall {
+    Atomic(hir::AtomicIntrinsic),
     Expression(hir::Expr),
     PointerMember(hir::PointerIntrinsic),
     ArrayConversion(hir::ArrayIntrinsic),

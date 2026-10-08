@@ -493,6 +493,7 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
     },
     AtomicNew(Box<Expr>),
+    Atomic(Box<mir::AtomicExpression<Expr>>),
     Binary {
         op: mir::BinOp,
         lhs: Box<Expr>,

@@ -219,6 +219,11 @@ pub(in super::super) fn collect_expr_type_occurrences(
 
     use hir::ExprKind;
     match &expression.kind {
+        ExprKind::Atomic(atomic) => {
+            for operand in atomic.operands() {
+                collect_expr_type_occurrences(lowerer, operand, out);
+            }
+        }
         ExprKind::GenericDelegateStorageRead(reference) => {
             for argument in reference.arguments.iter() {
                 push_type_at_expression(*argument, expression, out);

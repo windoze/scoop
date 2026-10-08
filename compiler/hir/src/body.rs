@@ -424,6 +424,7 @@ pub enum ExprKind {
     /// kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
     AtomicNew(Box<Expr>),
+    Atomic(Box<AtomicExpression<Expr>>),
     Call {
         callee: CallableTarget,
         /// Namespace lookup routes when this occurrence used an import.

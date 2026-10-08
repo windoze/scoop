@@ -3,6 +3,12 @@ use super::*;
 impl<'a> Traversal<'a> {
     pub(super) fn expression(&mut self, expression: &'a Expr) -> Result<(), StructureError> {
         match &expression.kind {
+            ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands().rev() {
+                    self.push(Item::Expression(operand))?;
+                }
+                Ok(())
+            }
             ExprKind::ReleaseFieldLoad { .. } | ExprKind::ContextLookup { .. } => Ok(()),
             ExprKind::TupleLiteral(values)
             | ExprKind::ArrayLiteral(values)

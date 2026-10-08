@@ -204,6 +204,11 @@ impl Lowerer {
                     native_type: solution.callable[0],
                 },
             }
+        } else if let Some(kind) = candidate.atomic_intrinsic() {
+            ImportedCallImplementation::Intrinsic {
+                template,
+                operation: ImportedIntrinsicCall::Atomic(kind),
+            }
         } else if let Some(operation) = candidate.array_intrinsic() {
             ImportedCallImplementation::Intrinsic {
                 template,

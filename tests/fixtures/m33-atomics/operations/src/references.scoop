@@ -1,0 +1,45 @@
+var comparisons: Int = 0
+class Payload(val key: Int) : Equality<Payload> {
+    public override operator fun equals(other: Payload): Boolean {
+        comparisons = comparisons + 1
+        return key == other.key
+    }
+}
+
+fun <T : ref> observed(cell: AtomicRef<T>, expected: T, value: T): T =
+    cell.compareAndExchange(expected, value, MemoryOrder.AcqRel, MemoryOrder.Acquire)
+
+fun <C, T : ref> boundReference(cell: C, expected: T, value: T): T where C : AtomicRef<T> =
+    cell.compareAndExchange(expected, value)
+
+fun referenceOperations() {
+    val first = Payload(1)
+    val equal = Payload(1)
+    val second = Payload(2)
+    val cell = AtomicRef(first)
+    check(cell.load() === first)
+    cell.store(second)
+    check(cell.exchange(first) === second)
+    check(!cell.compareAndSet(equal, second))
+    check(cell.load() === first)
+    check(cell.compareAndSet(first, second))
+    check(observed(cell, first, equal) === second)
+    check(observed(cell, second, first) === second)
+    check(boundReference(cell, first, second) === first)
+    check(comparisons == 0)
+    gcCollect()
+    check(cell.load() === second)
+    val contract: Equality<Payload> = first
+    val contractCell = AtomicRef(contract)
+    check(contractCell.load() === contract)
+    val any: Any = first
+    val anyCell = AtomicRef(any)
+    check(anyCell.load() === any)
+    val action: () -> Int = { 7 }
+    val next: () -> Int = { 9 }
+    val callable = AtomicRef(action)
+    val old = callable.exchange(next)
+    gcCollect()
+    check(old() == 7)
+    check(callable.load()() == 9)
+}

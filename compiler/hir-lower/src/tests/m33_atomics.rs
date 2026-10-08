@@ -1,8 +1,10 @@
 use scoop_hir as hir;
 use scoop_mir as mir;
 
+mod operations;
+
 #[test]
-fn imported_atomic_constructors_retain_binders_and_default_expressions() {
+fn imported_atomic_calls_retain_binders_and_default_expressions() {
     use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core_from_source};
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -24,6 +26,11 @@ fn imported_atomic_constructors_retain_binders_and_default_expressions() {
         fun wide(): AtomicLong = AtomicLong(23L)
         fun flag(): AtomicBoolean = AtomicBoolean(false)
         fun use(): AtomicRef<Payload> = make(Payload())
+        fun increment(cell: AtomicInt): Int = cell.fetchAdd(3)
+        fun flagValue(cell: AtomicBoolean): Boolean = cell.exchange(true)
+        fun read(cell: AtomicLong): Long = cell.load(MemoryOrder.Acquire)
+        fun <T : ref> swap(cell: AtomicRef<T>, expected: T, value: T): T =
+            cell.compareAndExchange(expected, value, MemoryOrder.Release, MemoryOrder.Relaxed)
         fun aliases() {
             val direct = AtomicInt(17)
             val counter = Counter(23)
@@ -65,6 +72,17 @@ fn imported_atomic_constructors_retain_binders_and_default_expressions() {
         hir::Type::Param(make.type_params()[0].id)
     );
     let dump = hir::dump(export);
+    for operation in [
+        "AtomicLoad Acquire",
+        "AtomicRmw Add SeqCst",
+        "AtomicRmw Exchange SeqCst",
+        "AtomicCmpXchg Release ObservedValue",
+    ] {
+        assert!(
+            dump.contains(operation),
+            "missing imported operation {operation}"
+        );
+    }
     for ty in [
         "AtomicInt",
         "AtomicLong",

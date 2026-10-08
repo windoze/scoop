@@ -1,0 +1,44 @@
+import atomicoperations.*
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    val i = AtomicInt(1)
+    check(exchanged(i) == 1)
+    check(fetched(i) == 5)
+    check(i.load() == 7)
+    check(exchanged(i, 23) == 23)
+    check(i.load() == 7)
+
+    val a = Payload(11)
+    val b = Payload(22)
+    val c = Payload(33)
+    val cell = AtomicRef(a)
+    check(read(cell) === a)
+    stored(cell, b)
+    check(compared(cell, a, c) === b)
+    check(read(cell) === b)
+    check(compared(cell, b, c) === b)
+    check(acquire(cell) === c)
+    check(replace(cell, c, a))
+    val old = swap(cell, b)
+    publish(cell, c)
+    gcCollect()
+    check(old === a)
+    check(old.id == 11)
+    check(read(cell).id == 33)
+
+    val f: () -> Int = { 17 }
+    val g: () -> Int = { 29 }
+    val function = AtomicRef(f)
+    check(compared(function, f, g)() == 17)
+    gcCollect()
+    check(read(function)() == 29)
+    check(readFlag(AtomicBoolean(true)))
+    val wide = AtomicLong(20L)
+    check(addLong(wide, 3L) == 20L)
+    check(wide.load() == 23L)
+    println("atomic operation artifacts")
+}

@@ -373,6 +373,9 @@ impl BodyLowerer<'_> {
             hir::ExprKind::AtomicNew(initial) => {
                 smir::ExprKind::AtomicNew(Box::new(self.lower_expr(initial)))
             }
+            hir::ExprKind::Atomic(atomic) => {
+                smir::ExprKind::Atomic(Box::new(atomic.map(|value| self.lower_expr(value))))
+            }
             hir::ExprKind::PtrFromNonZeroULong(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
                     unreachable!("PtrFromNonZeroULong has a pointer type")

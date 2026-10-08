@@ -13,7 +13,7 @@
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
-| M33-8 | 原子类型、内存序与 GC | LLVM、typed LIR／codegen，以及四类原子对象的类型、构造与跨 Cone 产物完成；操作 API、并发与完整 GC 验收待继续 |
+| M33-8 | 原子类型、内存序与 GC | 四类原子对象的类型、构造、操作 API、内存序与跨 Cone 产物完成；普通库组合、真实并发与完整 GC 验收待继续 |
 | M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
@@ -357,3 +357,15 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Rust fmt、workspace all-targets clippy 及 54 项定向测试通过，覆盖类型合同、导入的 binder、默认表达式 wire、真实源码到 MIR、三目标布局与产物 profile；没有重跑无关全量测试。新实现模块最长 65 行，测试模块最长 120 行；清理 201 个 Rust 中间对象，释放 1,558,605,536 字节。报告保存在 `tmp/m33/atomics-types-*-report.json` 与 Linux 隔离副本的同名目录。
 
 本批只完成对象构造。load／store／fetch／CAS 的源码 API、内存序诊断、普通库组合 Atomic<T>、并发和完整 AtomicRef GC 验收仍在后续批次完成。
+
+## M33-8d：原子操作 API、内存序与泛型产物
+
+- 四个 core 原子类公开 33 个 NoGC intrinsic 方法；普通 MemoryOrder 枚举保留五种内存序。每个 intrinsic 同时保存实际原子族与方法身份，真实 owner、值类型、参数和默认值形态在源码／导入边界检查，复用普通泛型、实参与默认参数流程。没有扩展固定 core bootstrap 协议。
+- HIR 在实参物化后解析实际枚举 variant，只追踪本次调用产生的临时值；源码变量、属性、参数和调用不能成为内存序常量。load／store 使用各自合法序，CAS 保留完整的九种成功／失败组合；省略的失败序继续取 SeqCst。原子方法的 callable reference 明确拒绝，固定内存序的普通 lambda 可正常调用。
+- HIR、默认表达式／泛型产物、MIR 使用完整的 typed AtomicExpression，按 receiver、expected、new 的顺序保存所需操作数；LIR 直接消费既有 typed 原子指令及引用屏障。原子调用在语句位置可丢弃结果，参数异常发生在原子访问前。cross-cone-interface 升为 66，新增默认表达式 tag 72，其他类型、布局和 runtime 契约不变。
+- 新增三个正式正例，覆盖全部方法、整数 wrapping、旧值返回、strong CAS 成功／失败、九种合法序、别名、class bound、Equality／Any／函数引用实参，以及求值顺序与异常。AtomicRef 按对象身份比较，不调用用户 equals；跨 GC 保留旧引用和函数值。产物用例在删除 provider 源码后消费 load／store／RMW／CAS 默认表达式和普通泛型正文，再删除 consumer 源码独立链接。
+- 十五个新增 negative fixture 固定完整诊断及位置，覆盖全部十六种非法 CAS 序、非法 load／store 序、独立的默认失败序、各种非常量实参、错误值／内存序类型、受限方法引用，以及 Boolean／reference 不支持的方法。
+- Rust fmt、工作区 all-targets clippy 通过；3 项源码／导入检查、30 项 intrinsic 相关测试、11 项默认表达式编码测试、52 项产物 profile 相关测试通过。仅在更新固定指纹后复验两个受影响用例，复用 M33-8b 已通过的后端矩阵。新生产模块最长 158 行；本批清理 201 个已链接 Rust 中间对象，释放 1,778,619,424 字节，保留库、CLI 和热缓存。
+- Darwin／GNU／musl 每个目标均覆盖并通过 29 项原子 fixture、34 个变体、72 个进程与 42 次 golden 检查。Darwin 的新增负例与五个正例以非更新模式复验通过；GNU 只复验新增负例，再与 musl 分别以非更新模式复验五个正例，其余已通过的负例复用首轮结果。十四份公共 HIR／MIR 在三目标间逐字节一致，GNU 的新增诊断与 Darwin 一致；Linux LIR 按 target／profile 独立保存。报告位于 `tmp/m33/atomics-operations-*-report.json` 与 `tmp/m33/atomics-operations-linux-reports/`，没有重跑无关全量测试。
+
+本批尚未完成普通库便利方法、Atomic<T>、真实并发与完整 AtomicRef GC 验收；这些仍作为后续功能单独实现和提交。

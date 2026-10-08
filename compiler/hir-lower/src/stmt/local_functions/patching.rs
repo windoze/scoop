@@ -140,6 +140,11 @@ impl LocalFunctionCallPatcher<'_> {
         let span = expr.span;
         let origin = expr.origin;
         match &mut expr.kind {
+            hir::ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands_mut() {
+                    self.expression(operand);
+                }
+            }
             hir::ExprKind::Lambda(id) => {
                 let mut closure = self.lowerer.lambdas[*id].clone();
                 for capture in &mut closure.captures {

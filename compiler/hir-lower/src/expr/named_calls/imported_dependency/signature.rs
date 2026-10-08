@@ -44,6 +44,7 @@ impl Lowerer {
         let generic = generic_constructor
             || candidate.pointer_intrinsic().is_some()
             || candidate.array_intrinsic().is_some()
+            || candidate.atomic_intrinsic().is_some()
             || candidate.callback_intrinsic().is_some()
             || matches!(
                 interface.effects().implementation(),

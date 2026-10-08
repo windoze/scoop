@@ -1,4 +1,6 @@
 use super::*;
+mod atomics;
+pub use atomics::*;
 mod data_borrow;
 pub use data_borrow::*;
 mod registry;
@@ -38,6 +40,7 @@ pub enum IntrinsicFunctionKind {
     Float(FloatIntrinsicKind),
     Pointer(PointerIntrinsic),
     DataBorrow(DataBorrowIntrinsic),
+    Atomic(AtomicIntrinsic),
 }
 
 impl IntrinsicFunctionKind {
@@ -112,6 +115,7 @@ impl IntrinsicFunctionKind {
             Self::Float(kind) => kind.name(),
             Self::Pointer(kind) => kind.name().to_string(),
             Self::DataBorrow(kind) => kind.name().to_string(),
+            Self::Atomic(kind) => kind.name(),
         }
     }
 

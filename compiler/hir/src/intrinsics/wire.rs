@@ -35,6 +35,7 @@ impl WireEncode for IntrinsicFunctionKind {
             Self::Char(kind) => encode_unsigned_value_sum(encoder, 21, kind.wire_tag()),
             Self::Pointer(kind) => encode_unsigned_value_sum(encoder, 20, pointer_tag(*kind)),
             Self::DataBorrow(kind) => encode_unsigned_value_sum(encoder, 23, kind.wire_tag()),
+            Self::Atomic(kind) => encode_value_sum(encoder, 24, kind),
         }
     }
 }
@@ -50,6 +51,10 @@ impl WireDecode for IntrinsicFunctionKind {
         }
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            24 => {
+                require_intrinsic_sum_length(decoder, fields, 2)?;
+                decoder.field(1, AtomicIntrinsic::decode).map(Self::Atomic)
+            }
             1 => decode_empty_intrinsic(decoder, fields, Self::GcPinRaw),
             2 => decode_empty_intrinsic(decoder, fields, Self::GcUnpinRaw),
             3 => decode_empty_intrinsic(decoder, fields, Self::GcGetHandleRaw),

@@ -210,6 +210,7 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::Char(_)
             | hir::IntrinsicFunctionKind::Integer(_)
             | hir::IntrinsicFunctionKind::Array(_)
+            | hir::IntrinsicFunctionKind::Atomic(_)
             | hir::IntrinsicFunctionKind::ArrayAccess(_)
             | hir::IntrinsicFunctionKind::PrimitiveUnary(_)
             | hir::IntrinsicFunctionKind::PrimitiveBinary(_)

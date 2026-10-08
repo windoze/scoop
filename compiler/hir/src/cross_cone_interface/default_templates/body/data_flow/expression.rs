@@ -79,6 +79,12 @@ impl Validator<'_> {
         reachable: bool,
     ) -> Result<(), ExportDefaultLocalDataFlowValidationError> {
         match expression.kind() {
+            DefaultExpressionKindV1::Atomic(atomic) => {
+                for operand in atomic.operands().rev() {
+                    self.push_expression(pending, operand)?;
+                }
+                Ok(())
+            }
             DefaultExpressionKindV1::Capture(index) => Err(
                 ExportDefaultLocalDataFlowValidationError::UnboundCapture(*index),
             ),

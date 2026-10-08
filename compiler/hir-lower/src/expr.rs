@@ -57,6 +57,7 @@ use crate::{
     PendingCapture, ReturnInference, SuspensionContext, VariantStyle,
 };
 
+mod atomics;
 mod callable_literals;
 mod callable_references;
 mod callables;

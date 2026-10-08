@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v65_retains_atomic_construction() {
+fn source_interface_v66_retains_atomic_operations_and_orders() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        65,
+        66,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

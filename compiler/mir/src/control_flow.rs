@@ -845,6 +845,7 @@ pub enum ExprKind {
         operand: Box<Expr>,
     },
     AtomicNew(Box<Expr>),
+    Atomic(Box<AtomicExpression<Expr>>),
     Binary {
         op: BinOp,
         lhs: Box<Expr>,

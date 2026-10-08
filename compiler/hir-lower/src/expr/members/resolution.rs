@@ -41,6 +41,7 @@ impl Lowerer {
         &mut self,
         resolved: crate::overload::ResolvedCallee,
         span: Span,
+        sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         let ty = resolved.return_ty;
         let receiver = resolved
@@ -49,6 +50,11 @@ impl Lowerer {
             .expect("an instance call returns its materialized receiver");
         let function = resolved.function();
         self.check_call_effects(hir::Callable::Function(function), span);
+        if let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind
+            && let hir::IntrinsicFunctionKind::Atomic(kind) = intrinsic.kind
+        {
+            return self.normalize_atomic_method(kind, receiver, resolved.args, ty, span, sink);
+        }
         if matches!(
             self.functions[function].kind,
             hir::FunctionKind::DerivedEquality

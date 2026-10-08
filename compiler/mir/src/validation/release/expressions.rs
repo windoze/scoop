@@ -103,6 +103,7 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::ArrayLen { .. }
         | ExprKind::ArrayClone { .. }
         | ExprKind::AtomicNew(_)
+        | ExprKind::Atomic(_)
         | ExprKind::SafeIntegerDivRem { .. } => Err(invalid(
             "operation is outside the release body's GC-free subset",
         )),

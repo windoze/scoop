@@ -586,6 +586,15 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}AtomicNew : {ty}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::Atomic(atomic) => {
+            out.push_str(&format!(
+                "{pad}{} {:?} : {ty}\n",
+                atomic.operation, atomic.kind
+            ));
+            for operand in atomic.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
 
         ExprKind::ConstructorReceiver => {
             out.push_str(&format!("{pad}ConstructorReceiver : {ty}\n"))

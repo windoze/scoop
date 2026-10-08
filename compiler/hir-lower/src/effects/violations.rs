@@ -127,6 +127,11 @@ impl Lowerer {
         use hir::ExprKind;
         self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
+            ExprKind::Atomic(atomic) => {
+                for operand in atomic.operands() {
+                    self.collect_no_gc_expr_violations(operand, out, requirements);
+                }
+            }
             ExprKind::ContextLookup(_) => out.push((
                 expr.span,
                 "context lookup is not allowed in `@NoGC` code".into(),

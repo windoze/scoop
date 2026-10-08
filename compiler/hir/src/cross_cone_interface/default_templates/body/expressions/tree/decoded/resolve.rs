@@ -386,6 +386,11 @@ impl DecodedDefaultExpressionKindV1 {
             Self::AtomicNew(operand) => {
                 DefaultExpressionKindV1::AtomicNew(resolve_child(operand, resolver, locals, 71, 1)?)
             }
+            Self::Atomic(atomic) => {
+                DefaultExpressionKindV1::Atomic(Box::new(atomic.try_into_map(|operand| {
+                    resolve_child(Box::new(operand), resolver, locals, 72, 1).map(|v| *v)
+                })?))
+            }
             Self::Call {
                 callee,
                 arguments,

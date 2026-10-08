@@ -327,6 +327,9 @@ impl Lowerer {
             hir::ExprKind::AtomicNew(value) => {
                 hir::ExprKind::AtomicNew(Box::new(self.instantiate_default_expr(value, context)))
             }
+            hir::ExprKind::Atomic(atomic) => hir::ExprKind::Atomic(Box::new(
+                atomic.map(|value| self.instantiate_default_expr(value, context)),
+            )),
             hir::ExprKind::Call {
                 callee,
                 binding,

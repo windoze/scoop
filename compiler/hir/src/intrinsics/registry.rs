@@ -430,6 +430,7 @@ pub enum IntrinsicRegistryEntry {
     Standard(&'static IntrinsicSpec),
     Integer(IntegerIntrinsicKind),
     Float(FloatIntrinsicKind),
+    Atomic(AtomicIntrinsic),
 }
 
 impl IntrinsicRegistryEntry {
@@ -438,13 +439,14 @@ impl IntrinsicRegistryEntry {
             Self::Standard(spec) => spec.name.to_string(),
             Self::Integer(kind) => kind.name(),
             Self::Float(kind) => kind.name(),
+            Self::Atomic(kind) => kind.name(),
         }
     }
 
     pub const fn stage(self) -> IntrinsicStage {
         match self {
             Self::Standard(spec) => spec.stage,
-            Self::Integer(_) | Self::Float(_) => IntrinsicStage::Hir,
+            Self::Integer(_) | Self::Float(_) | Self::Atomic(_) => IntrinsicStage::Hir,
         }
     }
 
@@ -453,20 +455,21 @@ impl IntrinsicRegistryEntry {
             Self::Standard(spec) => spec.kind,
             Self::Integer(kind) => IntrinsicFunctionKind::Integer(kind),
             Self::Float(kind) => IntrinsicFunctionKind::Float(kind),
+            Self::Atomic(kind) => IntrinsicFunctionKind::Atomic(kind),
         }
     }
 
     pub const fn target(self) -> IntrinsicTarget {
         match self {
             Self::Standard(spec) => spec.target,
-            Self::Integer(_) | Self::Float(_) => IntrinsicTarget::Member,
+            Self::Integer(_) | Self::Float(_) | Self::Atomic(_) => IntrinsicTarget::Member,
         }
     }
 
     pub const fn effects(self) -> IntrinsicEffects {
         match self {
             Self::Standard(spec) => spec.effects,
-            Self::Float(_) => IntrinsicEffects::NO_GC,
+            Self::Float(_) | Self::Atomic(_) => IntrinsicEffects::NO_GC,
             Self::Integer(kind) => match kind.gc_effect() {
                 GcEffect::NoGc => IntrinsicEffects::NO_GC,
                 GcEffect::Managed => IntrinsicEffects::NONE,
@@ -476,6 +479,9 @@ impl IntrinsicRegistryEntry {
 }
 
 pub fn intrinsic_spec(name: &str) -> Option<IntrinsicRegistryEntry> {
+    if let Some(kind) = AtomicIntrinsic::all().find(|kind| kind.name() == name) {
+        return Some(IntrinsicRegistryEntry::Atomic(kind));
+    }
     if let Some(kind) = float_intrinsic_kinds()
         .into_iter()
         .find(|kind| kind.name() == name)
@@ -499,6 +505,7 @@ pub fn intrinsic_function_kinds() -> Vec<IntrinsicFunctionKind> {
         .iter()
         .map(|spec| spec.kind)
         .collect::<Vec<_>>();
+    kinds.extend(AtomicIntrinsic::all().map(IntrinsicFunctionKind::Atomic));
     for kind in IntegerKind::ALL {
         kinds.extend(
             NoGcIntegerOperation::ALL

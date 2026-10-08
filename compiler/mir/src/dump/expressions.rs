@@ -369,6 +369,12 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}AtomicNew {}\n", type_name(module, &expr.ty)));
             dump_expr(module, locals, initial, indent + 1, out);
         }
+        ExprKind::Atomic(atomic) => {
+            out.push_str(&format!("{pad}{} {:?}\n", atomic.operation, atomic.kind));
+            for operand in atomic.operands() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
         ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));
             dump_expr(module, locals, lhs, indent + 1, out);

@@ -345,9 +345,11 @@ impl Lowerer {
                 PropertyExtensionInvokeOutcome::Failed(Box::new(state))
             }
             OverloadResolutionOutcome::Resolved(resolved) => {
-                let expression = state
-                    .finish_resolved_method_call(*resolved, call.span)
-                    .expect("a resolved member call always materializes an expression");
+                let Some(expression) =
+                    state.finish_resolved_method_call(*resolved, call.span, &layer_sink)
+                else {
+                    return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+                };
                 PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
                     state: Box::new(state),
                     expression,

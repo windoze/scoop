@@ -10,6 +10,7 @@ impl Flow<'_> {
         }
         let complete = |value: &hir::Expr| self.expression_can_complete(value);
         match &expression.kind {
+            E::Atomic(atomic) => atomic.operands().all(complete),
             E::Binary {
                 op: hir::BinOp::And | hir::BinOp::Or,
                 lhs,

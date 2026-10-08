@@ -14,8 +14,9 @@
 
 mod atomic;
 pub use atomic::{
-    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicLoadOrder, AtomicMemoryOrder,
-    AtomicRmwOperation, AtomicStorage, AtomicStoreOrder, AtomicValueKind,
+    AtomicCompareExchangeOrder, AtomicCompareExchangeResult, AtomicExpression, AtomicLoadOrder,
+    AtomicMemoryOrder, AtomicOperation, AtomicRmwOperation, AtomicStorage, AtomicStoreOrder,
+    AtomicValueKind,
 };
 mod capability;
 mod cone;

@@ -1,6 +1,8 @@
 use super::*;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod expression;
+
 macro_rules! atomic_wire {
     ($name:ident { $($variant:ident = $tag:literal),+ $(,)? }) => {
         impl $name {

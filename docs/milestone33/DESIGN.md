@@ -196,7 +196,7 @@ public final class AtomicRef<T : ref>(initial: T)
 
 ### 3.3 IR 与代码生成
 
-M33-8b 已实现 typed LIR 指令、LLVM 原子 lowering 及引用写屏障；M33-8c 已接入四类 core 声明、HIR／MIR 构造、隐藏槽布局与跨 Cone 产物，并通过三个目标的 debug／release 及构造的 moving／minor GC 验收，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。操作方法、内存序诊断与实际并发／完整 GC 验收仍在后续批次接入。
+M33-8b 已实现 typed LIR 指令、LLVM 原子 lowering 及引用写屏障；M33-8c 接入四类 core 声明、HIR／MIR 构造、隐藏槽布局与跨 Cone 产物；M33-8d 接入全部 33 个操作方法、五种内存序、合法与非法序矩阵、默认参数／泛型产物，并通过三个目标的 debug／release 与普通／moving／minor GC 运行，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。普通库组合、实际并发与完整 GC 验收继续实施。
 
 - HIR/MIR 为原子操作使用独立的 typed intrinsic，携带操作种类、值类型和内存序，不复用普通字段读写节点，也不以 `Option` 字段区分原子与非原子访问。
 - LIR 使用专门的指令：`AtomicLoad`、`AtomicStore`、`AtomicRmw`、`AtomicCmpXchg`，携带对象 base、值字段的字节偏移、值类型和内存序。
@@ -697,7 +697,7 @@ D1～D7 均已有结论；D8 的前置依赖已满足。保留编号用于对应
 | 项目 | 当前状态 | 后续任务与完成条件 |
 | --- | --- | --- |
 | native 头文件缓存与输入一致性 | 7.2 和实现规范 2.7 已补齐契约；实现尚未开始 | M33-6 在外层缓存命中前发现/复核 include 依赖，把 C/C++ 源码、非系统头、公开 runtime 头和配置纳入现有输入快照；key 与子编译器读取相同内容。验收仅头文件修改、依赖集合变化、快照完成后工作区变化、配置/SDK 变化和不变输入复用；不再仅依赖 child 编译后写 depfile。 |
-| AtomicRef 与 LLVM moving GC | M33-8a 完成 AS1 最小 IR 技术验证；M33-8b 完成 typed LIR／LLVM 操作与屏障；M33-8c 完成源码构造、扫描与产物消费 | 继续接入操作方法，用真实 Scoop fixture 覆盖对象和所指对象移动、返回引用保活、成功/失败 CAS、old→young 写屏障及 debug/release；编译级验证不代替实际 GC 验收。 |
+| AtomicRef 与 LLVM moving GC | M33-8a 完成 AS1 最小 IR 技术验证；M33-8b 完成 typed LIR／LLVM 操作与屏障；M33-8c／8d 完成源码构造、操作、扫描、返回引用保活与产物消费 | 继续用真实并发 Scoop fixture 覆盖对象和所指对象分别移动、成功/失败 CAS、old→young 写屏障及 debug/release；顺序运行与编译级验证不代替完整 GC 验收。 |
 | M32 基线与实施依赖 | 已纠正文档，并核对 roots.scoop 的 Any/Nothing 声明及 M32 验收记录；依赖已满足 | M33-4 直接消费实际 Nothing 实现 exit，验证无正常返回控制流、源码与 artifact-only 消费；以当前 runtime ABI 10 / metadata ABI 6 为旧版基线，验收 M33 的 11/7 升级与不兼容产物拒绝。其他批次复用 M32 已交付能力，按实际编码增量更新受影响版本。 |
 
 ## 11. 需要修订的规范章节

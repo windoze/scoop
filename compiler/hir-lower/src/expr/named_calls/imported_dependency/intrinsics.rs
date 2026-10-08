@@ -11,6 +11,14 @@ impl Lowerer {
         sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         match operation {
+            ImportedIntrinsicCall::Atomic(kind) => self.normalize_atomic_method(
+                kind,
+                receiver.expect("an atomic member has a receiver"),
+                arguments,
+                result_type,
+                span,
+                sink,
+            ),
             ImportedIntrinsicCall::ForeignCallback { kind, native_type } => {
                 use hir::IntrinsicFunctionKind as Kind;
                 let operation = match kind {
