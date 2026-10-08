@@ -91,6 +91,7 @@ Module
   interface Continuation<Unit>
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface SuspendTask<Int>
   interface SuspendRegistration<Int>
   interface SuspendRegistration<Unit>

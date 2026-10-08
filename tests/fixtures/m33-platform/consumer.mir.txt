@@ -20,13 +20,13 @@ Module
     Release()
     AcqRel()
     SeqCst()
+  class Gate vtable=0 itables=0
   class Companion vtable=0 itables=2
   class IllegalArgumentException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class ArithmeticException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
-  class Gate vtable=0 itables=0
   class ListIterator<UInt8> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class ListIterator<String> vtable=0 itables=1

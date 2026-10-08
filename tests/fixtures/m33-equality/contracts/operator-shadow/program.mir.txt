@@ -33,7 +33,29 @@ Module
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn9 id=b06f758d41c0802963220aaf02adc9a189a19bf441ab7b03ae963d54cf4d3673
-  fun main @fn0() -> Unit
+  fun Key.equals @fn0(this: Key, other: Key) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn1() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -175,31 +197,9 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun Key.equals @fn1(this: Key, other: Key) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Key
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Key
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
   fun same @fn2(left: Key, right: Key) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn1 direct
+      call $call.1: Boolean = @fn0 direct
         Type Key
         Local left
         Type Key
@@ -345,4 +345,4 @@ Module
   str @str0 "illegal state"
   str @str1 "operator-shadow"
   str @str2 "\n"
-  output executable @fn0
+  output executable @fn1

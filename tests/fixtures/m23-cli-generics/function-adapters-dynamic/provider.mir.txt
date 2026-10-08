@@ -83,6 +83,7 @@ Module
   interface DetailedReadable : Readable, Tagged
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<ValueReader>
   interface SuspendTask<ValueReader>
   interface SuspendRegistration<ValueReader>

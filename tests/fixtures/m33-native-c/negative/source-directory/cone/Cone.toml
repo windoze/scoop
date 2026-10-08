@@ -6,4 +6,4 @@ version = "0.1.0"
 kind = "executable"
 [native]
 [[native.sources]]
-path = "native"
+path = "directory.c"

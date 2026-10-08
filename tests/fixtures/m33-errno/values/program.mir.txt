@@ -25,11 +25,11 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  class Cell vtable=0 itables=0
+  class Owner vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Cell vtable=0 itables=0
-  class Owner vtable=0 itables=0
   class Companion vtable=0 itables=2
   class UnwrapException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
@@ -98,7 +98,15 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun leaf @fn2(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
+  fun record @fn2(arg0: Int, arg1: Int) -> Unit
+    bb0 entry
+      call extern10 @m33_errno_record direct
+        Type Int
+        Local arg0
+        Type Int
+        Local arg1
+      return
+  fun leaf @fn3(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
     bb0 entry
       call $call.1: (Int, Int) = extern1 @m33_errno_int direct
         Type Int
@@ -110,7 +118,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun plain @fn3(arg0: Int, arg1: Int, arg2: Int) -> Int <no-gc>
+  fun plain @fn4(arg0: Int, arg1: Int, arg2: Int) -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern2 @m33_errno_int direct
         Type Int
@@ -122,7 +130,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun captureVoid @fn4(arg0: Int) -> (Unit, Int) <no-gc>
+  fun captureVoid @fn5(arg0: Int) -> (Unit, Int) <no-gc>
     bb0 entry
       call $call.1: (Unit, Int) = extern3 @m33_errno_void direct
         Type Int
@@ -130,7 +138,7 @@ Module
       return
         Type (Unit, Int)
         Local $call.1
-  fun capturePair @fn5(arg0: Pair, arg1: Int) -> (Pair, Int)
+  fun capturePair @fn6(arg0: Pair, arg1: Int) -> (Pair, Int)
     bb0 entry
       call $call.1: (Pair, Int) = extern4 @m33_errno_pair direct
         Type Pair
@@ -140,7 +148,7 @@ Module
       return
         Type (Pair, Int)
         Local $call.1
-  fun plainPair @fn6(arg0: Pair, arg1: Int) -> Pair <no-gc>
+  fun plainPair @fn7(arg0: Pair, arg1: Int) -> Pair <no-gc>
     bb0 entry
       call $call.1: Pair = extern5 @m33_errno_pair direct
         Type Pair
@@ -150,7 +158,7 @@ Module
       return
         Type Pair
         Local $call.1
-  fun captureBoolean @fn7(arg0: Boolean) -> (Boolean, Int) <no-gc>
+  fun captureBoolean @fn8(arg0: Boolean) -> (Boolean, Int) <no-gc>
     bb0 entry
       call $call.1: (Boolean, Int) = extern6 @m33_errno_bool direct
         Type Boolean
@@ -158,7 +166,7 @@ Module
       return
         Type (Boolean, Int)
         Local $call.1
-  fun capturePointer @fn8(arg0: Int) -> (Option<Ptr<Int8>>, Int) <no-gc>
+  fun capturePointer @fn9(arg0: Int) -> (Option<Ptr<Int8>>, Int) <no-gc>
     bb0 entry
       call $call.1: (Option<Ptr<Int8>>, Int) = extern7 @m33_errno_pointer direct
         Type Int
@@ -166,23 +174,15 @@ Module
       return
         Type (Option<Ptr<Int8>>, Int)
         Local $call.1
-  fun missingError @fn9() -> Int <no-gc>
+  fun missingError @fn10() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern8 @m33_errno_missing direct
       return
         Type Int
         Local $call.1
-  fun disturb @fn10() -> Unit <no-gc>
+  fun disturb @fn11() -> Unit <no-gc>
     bb0 entry
       call extern9 @m33_errno_disturb direct
-      return
-  fun record @fn11(arg0: Int, arg1: Int) -> Unit
-    bb0 entry
-      call extern10 @m33_errno_record direct
-        Type Int
-        Local arg0
-        Type Int
-        Local arg1
       return
   fun released @fn12() -> Int <no-gc>
     bb0 entry

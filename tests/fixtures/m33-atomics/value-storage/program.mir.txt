@@ -1,11 +1,5 @@
 Module
   struct Snapshot (serial: Int, payload: Payload)
-  enum MemoryOrder
-    Relaxed()
-    Acquire()
-    Release()
-    AcqRel()
-    SeqCst()
   enum State
     Empty()
     Item(_1: Int, _2: Payload)
@@ -18,6 +12,12 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
@@ -36,12 +36,12 @@ Module
   enum CoroutineSlot<State>
     Empty()
     Value(value: State)
+  class Payload vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Atomic<Int> vtable=0 itables=0
   class Atomic<Unit> vtable=0 itables=0
-  class Payload vtable=0 itables=0
   class Atomic<Snapshot> vtable=0 itables=0
   class Atomic<(Int, Payload)> vtable=0 itables=0
   class Atomic<State> vtable=0 itables=0
@@ -54,24 +54,23 @@ Module
   interface List<Atomic<Snapshot>> : Iterable<Atomic<Snapshot>>
   interface Iterable<Atomic<Snapshot>>
   interface Iterator<Atomic<Snapshot>>
-  interface Equality<MemoryOrder>
   interface ToString
   interface Hash
   interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
   interface Equality<String>
-  interface Continuation<Payload>
-  interface SuspendTask<Payload>
-  interface SuspendRegistration<Payload>
   interface Continuation<Snapshot>
   interface SuspendTask<Snapshot>
   interface SuspendRegistration<Snapshot>
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
   interface Continuation<State>
   interface SuspendTask<State>
   interface SuspendRegistration<State>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn17 captures=1
-    bridge function_type1 -> @fn45 id=ed69cc085afbb28ccef0b722252191366bbda549cf2fc619690c4735526e05c9
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn18 captures=1
+    bridge function_type1 -> @fn46 id=ed69cc085afbb28ccef0b722252191366bbda549cf2fc619690c4735526e05c9
   generated_exact_type get0 location=enum10 nominal_id=cbba3707b0eff106356504da55f7c6d06cf8ba27a6bb020a3d3b1ddb1a1b7367 exact_id=04ca2160b47f40b822030f2b6d45e7d4a53242eeaf39b09fd1c4100fe856de23
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=enum6 nominal_id=d06d9bdbb3cfc8ea3b7f3694854dc06ff5c443f8c55f3c43bd2804628c86094b exact_id=114a626ce1465d2f61bb07d94226ba5813da4c006d5c06c8dd7364345bbe7491
@@ -87,10 +86,10 @@ Module
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get13 location=closure0 nominal_id=cf51eebe2d8819b0d1f5eb2c36f8e1b12a28e88483cbc736657a256d8bda4947 exact_id=f1db51cd018b8e8988042f56fd6cee509ac43c2a02f0f6f9227331054ec18d16
   generated_exact_type get14 location=class16 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
-  generated_callable gc0 function=@fn43 id=42353fb05e3141bdecd34f6d1786ef16e28ca49d162d532b20f574295bb8b6b4
-  generated_callable gc1 function=@fn42 id=cbd959378854f4e30a93fb58b72035d4d2112548936e6f2a2ed681b505756a52
-  generated_callable gc2 function=@fn44 id=d0c047d68be6c367348d2b11edfc5bd6d73e04f28cb4cbb53fe34f8780b8fb81
-  generated_callable gc3 function=@fn45 id=ed69cc085afbb28ccef0b722252191366bbda549cf2fc619690c4735526e05c9
+  generated_callable gc0 function=@fn44 id=42353fb05e3141bdecd34f6d1786ef16e28ca49d162d532b20f574295bb8b6b4
+  generated_callable gc1 function=@fn43 id=cbd959378854f4e30a93fb58b72035d4d2112548936e6f2a2ed681b505756a52
+  generated_callable gc2 function=@fn45 id=d0c047d68be6c367348d2b11edfc5bd6d73e04f28cb4cbb53fe34f8780b8fb81
+  generated_callable gc3 function=@fn46 id=ed69cc085afbb28ccef0b722252191366bbda549cf2fc619690c4735526e05c9
   fun check @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -137,7 +136,7 @@ Module
       assign $new.1
         Type Atomic<Int>
         ClassAlloc Atomic<Int>
-      call @fn35 direct
+      call @fn36 direct
         Type Atomic<Int>
         Local $new.1
         Type Int
@@ -256,7 +255,7 @@ Module
       assign $new.2
         Type Atomic<Unit>
         ClassAlloc Atomic<Unit>
-      call @fn36 direct
+      call @fn37 direct
         Type Atomic<Unit>
         Local $new.2
         Type Unit
@@ -292,20 +291,11 @@ Module
         Local $dependency.receiver
         Type Unit
         Local $dependency.parameter.value
-      val $dependency.receiver: Unit
+      call $argument.0: Boolean = @fn10 direct
         Type Unit
         UnitLiteral
-      val $dependency.argument.0: Unit
         Type Unit
         UnitLiteral
-      val $dependency.parameter.other: Unit
-        Type Unit
-        Local $dependency.argument.0
-      call $argument.0: Boolean = external1 direct
-        Type Unit
-        Local $dependency.receiver
-        Type Unit
-        Local $dependency.parameter.other
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
@@ -321,7 +311,7 @@ Module
       assign $new.3
         Type Payload
         ClassAlloc Payload
-      call @fn34 direct
+      call @fn35 direct
         Type Payload
         Local $new.3
         Type Int
@@ -338,7 +328,7 @@ Module
       assign $new.4
         Type Payload
         ClassAlloc Payload
-      call @fn34 direct
+      call @fn35 direct
         Type Payload
         Local $new.4
         Type Int
@@ -358,7 +348,7 @@ Module
       val $parameter.payload: Payload
         Type Payload
         Local $argument.1
-      call $dependency.argument.0: Snapshot = @fn41 direct
+      call $dependency.argument.0: Snapshot = @fn42 direct
         Type Int
         Local $parameter.serial
         Type Payload
@@ -369,7 +359,7 @@ Module
       assign $new.5
         Type Atomic<Snapshot>
         ClassAlloc Atomic<Snapshot>
-      call @fn37 direct
+      call @fn38 direct
         Type Atomic<Snapshot>
         Local $new.5
         Type Snapshot
@@ -380,7 +370,7 @@ Module
       val $dependency.receiver: Atomic<Snapshot>
         Type Atomic<Snapshot>
         Local snapshot
-      call copy: Snapshot = @fn10 direct
+      call copy: Snapshot = @fn11 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
       val alias: Atomic<Snapshot>
@@ -401,7 +391,7 @@ Module
       val $parameter.payload: Payload
         Type Payload
         Local $argument.1
-      call $dependency.argument.0: Snapshot = @fn41 direct
+      call $dependency.argument.0: Snapshot = @fn42 direct
         Type Int
         Local $parameter.serial
         Type Payload
@@ -409,7 +399,7 @@ Module
       val $dependency.parameter.value: Snapshot
         Type Snapshot
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
         Type Snapshot
@@ -429,7 +419,7 @@ Module
       val $parameter.payload: Payload
         Type Payload
         Local $argument.1
-      call $dependency.argument.0: Snapshot = @fn41 direct
+      call $dependency.argument.0: Snapshot = @fn42 direct
         Type Int
         Local $parameter.serial
         Type Payload
@@ -437,7 +427,7 @@ Module
       val $dependency.parameter.value: Snapshot
         Type Snapshot
         Local $dependency.argument.0
-      call old: Snapshot = @fn12 direct
+      call old: Snapshot = @fn13 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
         Type Snapshot
@@ -545,7 +535,7 @@ Module
       val $dependency.receiver: Atomic<Snapshot>
         Type Atomic<Snapshot>
         Local snapshot
-      call $call.7: Snapshot = @fn10 direct
+      call $call.7: Snapshot = @fn11 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
       val $argument.0: Boolean
@@ -576,7 +566,7 @@ Module
       assign $new.8
         Type Atomic<(Int, Payload)>
         ClassAlloc Atomic<(Int, Payload)>
-      call @fn38 direct
+      call @fn39 direct
         Type Atomic<(Int, Payload)>
         Local $new.8
         Type (Int, Payload)
@@ -597,7 +587,7 @@ Module
       val $dependency.parameter.value: (Int, Payload)
         Type (Int, Payload)
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn14 direct
         Type Atomic<(Int, Payload)>
         Local $dependency.receiver
         Type (Int, Payload)
@@ -615,7 +605,7 @@ Module
       val $dependency.parameter.value: (Int, Payload)
         Type (Int, Payload)
         Local $dependency.argument.0
-      call $binding.subject.2: (Int, Payload) = @fn14 direct
+      call $binding.subject.2: (Int, Payload) = @fn15 direct
         Type Atomic<(Int, Payload)>
         Local $dependency.receiver
         Type (Int, Payload)
@@ -685,7 +675,7 @@ Module
       assign $new.10
         Type Atomic<State>
         ClassAlloc Atomic<State>
-      call @fn39 direct
+      call @fn40 direct
         Type Atomic<State>
         Local $new.10
         Type State
@@ -718,7 +708,7 @@ Module
       val $dependency.parameter.value: State
         Type State
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn16 direct
         Type Atomic<State>
         Local $dependency.receiver
         Type State
@@ -732,7 +722,7 @@ Module
       val $dependency.parameter.value: State
         Type State
         Local $dependency.argument.0
-      call saved: State = @fn16 direct
+      call saved: State = @fn17 direct
         Type Atomic<State>
         Local $dependency.receiver
         Type State
@@ -869,7 +859,7 @@ Module
       assign $new.13
         Type IllegalArgumentException
         ClassAlloc IllegalArgumentException
-      call external5 direct
+      call external4 direct
         Type IllegalArgumentException
         Local $new.13
       throw
@@ -923,7 +913,7 @@ Module
       val $parameter.payload: Payload
         Type Payload
         Local $argument.1
-      call $dependency.argument.0: Snapshot = @fn41 direct
+      call $dependency.argument.0: Snapshot = @fn42 direct
         Type Int
         Local $parameter.serial
         Type Payload
@@ -931,7 +921,7 @@ Module
       val $dependency.parameter.value: Snapshot
         Type Snapshot
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
         Type Snapshot
@@ -951,7 +941,7 @@ Module
         Local $dependency.receiver
         Type Long
         Local $dependency.parameter.index
-      call $call.14: Snapshot = @fn10 direct
+      call $call.14: Snapshot = @fn11 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
       val $dependency.receiver: Int
@@ -992,7 +982,7 @@ Module
         Local $dependency.receiver
         Type Long
         Local $dependency.parameter.index
-      call $call.15: Snapshot = @fn10 direct
+      call $call.15: Snapshot = @fn11 direct
         Type Atomic<Snapshot>
         Local $dependency.receiver
       val $dependency.receiver: Int
@@ -1027,7 +1017,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn19 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -1077,7 +1067,7 @@ Module
       assign $new.1
         Type ListIterator<Atomic<Snapshot>>
         ClassAlloc ListIterator<Atomic<Snapshot>>
-      call @fn40 direct
+      call @fn41 direct
         Type ListIterator<Atomic<Snapshot>>
         Local $new.1
         Type List<Atomic<Snapshot>>
@@ -1139,7 +1129,7 @@ Module
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
-      call external6 direct
+      call external5 direct
         Type IndexOutOfBoundsException
         Local $new.2
       throw
@@ -1270,7 +1260,7 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.1
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -1382,7 +1372,7 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -1501,7 +1491,7 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -1613,7 +1603,7 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
@@ -1732,14 +1722,19 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun load @fn10(this: Atomic<Snapshot>) -> Snapshot
+  fun $derived.equals.0 @fn10(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun load @fn11(this: Atomic<Snapshot>) -> Snapshot
     bb0 entry
       var $dependency.local.1: Int
         Type Int
@@ -1846,14 +1841,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.1
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun store @fn11(this: Atomic<Snapshot>, value: Snapshot) -> Unit
+  fun store @fn12(this: Atomic<Snapshot>, value: Snapshot) -> Unit
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -1958,14 +1953,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun exchange @fn12(this: Atomic<Snapshot>, value: Snapshot) -> Snapshot
+  fun exchange @fn13(this: Atomic<Snapshot>, value: Snapshot) -> Snapshot
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2077,14 +2072,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun store @fn13(this: Atomic<(Int, Payload)>, value: (Int, Payload)) -> Unit
+  fun store @fn14(this: Atomic<(Int, Payload)>, value: (Int, Payload)) -> Unit
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2189,14 +2184,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun exchange @fn14(this: Atomic<(Int, Payload)>, value: (Int, Payload)) -> (Int, Payload)
+  fun exchange @fn15(this: Atomic<(Int, Payload)>, value: (Int, Payload)) -> (Int, Payload)
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2308,14 +2303,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun store @fn15(this: Atomic<State>, value: State) -> Unit
+  fun store @fn16(this: Atomic<State>, value: State) -> Unit
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2420,14 +2415,14 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun exchange @fn16(this: Atomic<State>, value: State) -> State
+  fun exchange @fn17(this: Atomic<State>, value: State) -> State
     bb0 entry
       var $dependency.local.2: Int
         Type Int
@@ -2539,32 +2534,32 @@ Module
           Type Int
           IntegerLiteral Int value=64 bits=0x00000040
     bb4 if.then.4
-      call $call.1: Int = external2 direct
+      call $call.1: Int = external1 direct
       assign $dependency.local.2
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       goto bb5
     bb5 if.merge.5
       goto bb1
-  fun $lambda.0 @fn17($closure: (Long) -> Atomic<Snapshot>, index: Long) -> Atomic<Snapshot>
+  fun $lambda.0 @fn18($closure: (Long) -> Atomic<Snapshot>, index: Long) -> Atomic<Snapshot>
     bb0 entry
       return
         Type Atomic<Snapshot>
         ClosureCapture cc0 0
           Type (Long) -> Atomic<Snapshot>
           Local $closure
-  fun println @fn18(value: String) -> Unit
+  fun println @fn19(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
         Local value
-      call $dependency.local.2: String = external3 direct
+      call $dependency.local.2: String = external2 direct
         Type String
         Local $dependency.local.1
       val $dependency.local.3: String
         Type String
         Local $dependency.local.2
-      call external4 direct
+      call external3 direct
         Type String
         Local $dependency.local.3
       val $dependency.local.4: String
@@ -2573,11 +2568,11 @@ Module
       val $dependency.local.5: String
         Type String
         Local $dependency.local.4
-      call external4 direct
+      call external3 direct
         Type String
         Local $dependency.local.5
       return
-  fun next @fn19(this: ListIterator<Atomic<Snapshot>>) -> Option<Atomic<Snapshot>>
+  fun next @fn20(this: ListIterator<Atomic<Snapshot>>) -> Option<Atomic<Snapshot>>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -2594,7 +2589,7 @@ Module
         FieldAccess 1
           Type ListIterator<Atomic<Snapshot>>
           Local this
-      call $dependency.local.3: Long = @fn20 interface List<Atomic<Snapshot>>[2]
+      call $dependency.local.3: Long = @fn21 interface List<Atomic<Snapshot>>[2]
         Type List<Atomic<Snapshot>>
         FieldAccess 0
           Type ListIterator<Atomic<Snapshot>>
@@ -2636,7 +2631,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Atomic<Snapshot> = @fn21 interface List<Atomic<Snapshot>>[1]
+      call $dependency.local.1: Atomic<Snapshot> = @fn22 interface List<Atomic<Snapshot>>[1]
         Type List<Atomic<Snapshot>>
         Local $dependency.local.5
         Type Long
@@ -2672,49 +2667,49 @@ Module
         VariantConstruct Option<Atomic<Snapshot>> v0
           Type Atomic<Snapshot>
           Local $dependency.local.12
-  fun List.$get$size @fn20(this: List<Atomic<Snapshot>>) -> Long
+  fun List.$get$size @fn21(this: List<Atomic<Snapshot>>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn21(this: List<Atomic<Snapshot>>, index: Long) -> Atomic<Snapshot>
+  fun List.get @fn22(this: List<Atomic<Snapshot>>, index: Long) -> Atomic<Snapshot>
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun Continuation.resume @fn22(this: Continuation<Payload>, value: Payload) -> Unit
+  fun Continuation.resume @fn23(this: Continuation<Snapshot>, value: Snapshot) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn23(this: Continuation<Payload>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn24(this: Continuation<Snapshot>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn24(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+  fun SuspendTask.run @fn25(this: SuspendTask<Snapshot>, $completion: Continuation<Snapshot>) -> CoroutineStep<Snapshot>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Snapshot>, continuation: Continuation<Snapshot>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn26(this: Continuation<Snapshot>, value: Snapshot) -> Unit
+  fun Continuation.resume @fn27(this: Continuation<Payload>, value: Payload) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn27(this: Continuation<Snapshot>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn28(this: Continuation<Payload>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn28(this: SuspendTask<Snapshot>, $completion: Continuation<Snapshot>) -> CoroutineStep<Snapshot>
+  fun SuspendTask.run @fn29(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Snapshot>, continuation: Continuation<Snapshot>) -> Unit
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn30(this: Continuation<State>, value: State) -> Unit
+  fun Continuation.resume @fn31(this: Continuation<State>, value: State) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn31(this: Continuation<State>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn32(this: Continuation<State>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn32(this: SuspendTask<State>, $completion: Continuation<State>) -> CoroutineStep<State>
+  fun SuspendTask.run @fn33(this: SuspendTask<State>, $completion: Continuation<State>) -> CoroutineStep<State>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn33(this: SuspendRegistration<State>, continuation: Continuation<State>) -> Unit
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<State>, continuation: Continuation<State>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Payload.$c0 @fn34(this: Payload, value: Int) -> Unit
+  fun init.Payload.$c0 @fn35(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -2722,7 +2717,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Atomic.$c0 @fn35(this: Atomic<Int>, initial: Int) -> Unit
+  fun init.Atomic.$c0 @fn36(this: Atomic<Int>, initial: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
         Type Boolean
@@ -2743,7 +2738,7 @@ Module
         Type Int
         Local initial
       return
-  fun init.Atomic.$c0 @fn36(this: Atomic<Unit>, initial: Unit) -> Unit
+  fun init.Atomic.$c0 @fn37(this: Atomic<Unit>, initial: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
         Type Boolean
@@ -2764,7 +2759,7 @@ Module
         Type Unit
         Local initial
       return
-  fun init.Atomic.$c0 @fn37(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
+  fun init.Atomic.$c0 @fn38(this: Atomic<Snapshot>, initial: Snapshot) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
         Type Boolean
@@ -2785,7 +2780,7 @@ Module
         Type Snapshot
         Local initial
       return
-  fun init.Atomic.$c0 @fn38(this: Atomic<(Int, Payload)>, initial: (Int, Payload)) -> Unit
+  fun init.Atomic.$c0 @fn39(this: Atomic<(Int, Payload)>, initial: (Int, Payload)) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
         Type Boolean
@@ -2806,7 +2801,7 @@ Module
         Type (Int, Payload)
         Local initial
       return
-  fun init.Atomic.$c0 @fn39(this: Atomic<State>, initial: State) -> Unit
+  fun init.Atomic.$c0 @fn40(this: Atomic<State>, initial: State) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Boolean
         Type Boolean
@@ -2827,7 +2822,7 @@ Module
         Type State
         Local initial
       return
-  fun init.ListIterator.$c1 @fn40(this: ListIterator<Atomic<Snapshot>>, source: List<Atomic<Snapshot>>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c1 @fn41(this: ListIterator<Atomic<Snapshot>>, source: List<Atomic<Snapshot>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Atomic<Snapshot>>
@@ -2845,7 +2840,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Snapshot.$c0 @fn41(serial: Int, payload: Payload) -> Snapshot <no-gc>
+  fun ctor.Snapshot.$c0 @fn42(serial: Int, payload: Payload) -> Snapshot <no-gc>
     bb0 entry
       return
         Type Snapshot
@@ -2854,7 +2849,7 @@ Module
           Local serial
           Type Payload
           Local payload
-  fun startCoroutine<Payload> @fn42(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+  fun startCoroutine<Payload> @fn43(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2877,7 +2872,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn22 interface Continuation<Payload>[0]
+      call @fn27 interface Continuation<Payload>[0]
         Type Continuation<Payload>
         Local completion
         Type Payload
@@ -2890,7 +2885,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn23 interface Continuation<Payload>[1]
+      call @fn28 interface Continuation<Payload>[1]
         Type Continuation<Payload>
         Local completion
         Type Throwable
@@ -2909,7 +2904,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Payload> = @fn24 interface SuspendTask<Payload>[0]
+      call $step: CoroutineStep<Payload> = @fn29 interface SuspendTask<Payload>[0]
         Type SuspendTask<Payload>
         Local task
         Type Continuation<Payload>
@@ -2935,7 +2930,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Snapshot> @fn43(task: SuspendTask<Snapshot>, completion: Continuation<Snapshot>) -> Unit
+  fun startCoroutine<Snapshot> @fn44(task: SuspendTask<Snapshot>, completion: Continuation<Snapshot>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -2958,7 +2953,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn26 interface Continuation<Snapshot>[0]
+      call @fn23 interface Continuation<Snapshot>[0]
         Type Continuation<Snapshot>
         Local completion
         Type Snapshot
@@ -2971,7 +2966,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn27 interface Continuation<Snapshot>[1]
+      call @fn24 interface Continuation<Snapshot>[1]
         Type Continuation<Snapshot>
         Local completion
         Type Throwable
@@ -2990,7 +2985,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Snapshot> = @fn28 interface SuspendTask<Snapshot>[0]
+      call $step: CoroutineStep<Snapshot> = @fn25 interface SuspendTask<Snapshot>[0]
         Type SuspendTask<Snapshot>
         Local task
         Type Continuation<Snapshot>
@@ -3016,7 +3011,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<State> @fn44(task: SuspendTask<State>, completion: Continuation<State>) -> Unit
+  fun startCoroutine<State> @fn45(task: SuspendTask<State>, completion: Continuation<State>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -3039,7 +3034,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn30 interface Continuation<State>[0]
+      call @fn31 interface Continuation<State>[0]
         Type Continuation<State>
         Local completion
         Type State
@@ -3052,7 +3047,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn31 interface Continuation<State>[1]
+      call @fn32 interface Continuation<State>[1]
         Type Continuation<State>
         Local completion
         Type Throwable
@@ -3071,7 +3066,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<State> = @fn32 interface SuspendTask<State>[0]
+      call $step: CoroutineStep<State> = @fn33 interface SuspendTask<State>[0]
         Type SuspendTask<State>
         Local task
         Type Continuation<State>
@@ -3097,7 +3092,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn45($source: (Long) -> Atomic<Snapshot>, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn46($source: (Long) -> Atomic<Snapshot>, arg0: Any) -> Any
     bb0 entry
       call $call.1: Atomic<Snapshot> = <closure:function_type0> closure[function_type0]
         Type (Long) -> Atomic<Snapshot>
@@ -3117,12 +3112,12 @@ Module
   coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
   coroutine_slot cl1 CoroutineSlot<Snapshot> value=Snapshot
   coroutine_slot cl2 CoroutineSlot<State> value=State
-  coroutine_start ct0 result=Payload function=fn42
-  coroutine_start ct1 result=Snapshot function=fn43
-  coroutine_start ct2 result=State function=fn44
-  coroutine_fn cf0 @fn24 source_return=Payload step=cs0 immediate
-  coroutine_fn cf1 @fn28 source_return=Snapshot step=cs1 immediate
-  coroutine_fn cf2 @fn32 source_return=State step=cs2 immediate
+  coroutine_start ct0 result=Payload function=fn43
+  coroutine_start ct1 result=Snapshot function=fn44
+  coroutine_start ct2 result=State function=fn45
+  coroutine_fn cf0 @fn25 source_return=Snapshot step=cs1 immediate
+  coroutine_fn cf1 @fn29 source_return=Payload step=cs0 immediate
+  coroutine_fn cf2 @fn33 source_return=State step=cs2 immediate
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- get
   instance mi2 function=@fn4 <- size
@@ -3131,29 +3126,29 @@ Module
   instance mi5 function=@fn7 <- exchange
   instance mi6 function=@fn8 <- store
   instance mi7 function=@fn9 <- exchange
-  instance mi8 function=@fn10 <- load
-  instance mi9 function=@fn11 <- store
-  instance mi10 function=@fn12 <- exchange
-  instance mi11 function=@fn13 <- store
-  instance mi12 function=@fn14 <- exchange
-  instance mi13 function=@fn15 <- store
-  instance mi14 function=@fn16 <- exchange
-  instance mi15 function=@fn18 <- println
-  instance mi16 function=@fn19 <- next
-  instance mi17 function=@fn20 <- List.$get$size
-  instance mi18 function=@fn21 <- List.get
-  instance mi19 function=@fn22 <- Continuation.resume
-  instance mi20 function=@fn23 <- Continuation.resumeWithException
-  instance mi21 function=@fn24 <- SuspendTask.run
-  instance mi22 function=@fn25 <- SuspendRegistration.register
-  instance mi23 function=@fn26 <- Continuation.resume
-  instance mi24 function=@fn27 <- Continuation.resumeWithException
-  instance mi25 function=@fn28 <- SuspendTask.run
-  instance mi26 function=@fn29 <- SuspendRegistration.register
-  instance mi27 function=@fn30 <- Continuation.resume
-  instance mi28 function=@fn31 <- Continuation.resumeWithException
-  instance mi29 function=@fn32 <- SuspendTask.run
-  instance mi30 function=@fn33 <- SuspendRegistration.register
+  instance mi8 function=@fn11 <- load
+  instance mi9 function=@fn12 <- store
+  instance mi10 function=@fn13 <- exchange
+  instance mi11 function=@fn14 <- store
+  instance mi12 function=@fn15 <- exchange
+  instance mi13 function=@fn16 <- store
+  instance mi14 function=@fn17 <- exchange
+  instance mi15 function=@fn19 <- println
+  instance mi16 function=@fn20 <- next
+  instance mi17 function=@fn21 <- List.$get$size
+  instance mi18 function=@fn22 <- List.get
+  instance mi19 function=@fn23 <- Continuation.resume
+  instance mi20 function=@fn24 <- Continuation.resumeWithException
+  instance mi21 function=@fn25 <- SuspendTask.run
+  instance mi22 function=@fn26 <- SuspendRegistration.register
+  instance mi23 function=@fn27 <- Continuation.resume
+  instance mi24 function=@fn28 <- Continuation.resumeWithException
+  instance mi25 function=@fn29 <- SuspendTask.run
+  instance mi26 function=@fn30 <- SuspendRegistration.register
+  instance mi27 function=@fn31 <- Continuation.resume
+  instance mi28 function=@fn32 <- Continuation.resumeWithException
+  instance mi29 function=@fn33 <- SuspendTask.run
+  instance mi30 function=@fn34 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "atomic values"

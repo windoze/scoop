@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_BUILD_FAILED",
-    "message": "native compilation: native must be a regular file",
+    "message": "native compilation: directory.c must be a regular file",
     "notes": [],
     "origin": {
       "kind": "none"

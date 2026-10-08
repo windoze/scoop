@@ -37,8 +37,11 @@ Module
   interface Iterator<Item>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Int>
   interface Continuation<Item>
   interface SuspendTask<Item>
   interface SuspendRegistration<Item>

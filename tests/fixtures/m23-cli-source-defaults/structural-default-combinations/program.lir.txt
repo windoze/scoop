@@ -235,13 +235,14 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$c30db59be256a67f9bf2912290ad9e7b0797ff424f71300afbbe90c6f4e14c68() -> i32
+  fun @scoop$1$cb$c30db59be256a67f9bf2912290ad9e7b0797ff424f71300afbbe90c6f4e14c68(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

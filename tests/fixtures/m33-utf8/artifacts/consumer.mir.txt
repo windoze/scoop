@@ -38,14 +38,18 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Result>
   interface SuspendTask<Result>
   interface SuspendRegistration<Result>

@@ -3,6 +3,10 @@ Module
   global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
+  fun @scoop$1$cb$289abd882fb69939caddfa8732c6a6fe5cd0ac72c4e7780cb5e6b17f694f8cf1(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret true
   fun @scoop$1$cb$ee10ac29c77b87229ee16ee0d271f17e3b48beb3779a4cfb0c1e2bcaeb1a2e78() -> elided-zst<struct0 size=0 align=1>
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
@@ -11,7 +15,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000001) -> local0
     store local0 -> local1
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn2(local1)
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn3(local1)
     t0 = aggregate () : {}
     call no-gc-elided-zst-target0 t1 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn6()
     store t1 -> local2
@@ -41,19 +45,19 @@ Module
     local %21 $new.4: ptr<managed>
   block entry
     poll managed-void-target7 sp<managed-poll:0> live=[]
-    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn0()
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn1()
     store t0 -> local18
     t1 = box_zst td3 sp<managed-call:1> live=[]
     store t1 -> local0
     call no-gc-direct-target0 t2 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td3)
     store t2 -> local1
     store local1 -> local2
-    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0] sig=void0 (i1) local-fn3(local2)
+    call managed-void-target0 sp<managed-call:2> live=[local0:ptr<managed>@0] sig=void0 (i1) local-fn4(local2)
     t3 = aggregate () : {}
     call no-gc-direct-target1 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td4)
     store t4 -> local3
     store local3 -> local4
-    call managed-void-target1 sp<managed-call:3> live=[local0:ptr<managed>@0] sig=void1 (i1) local-fn3(local4)
+    call managed-void-target1 sp<managed-call:3> live=[local0:ptr<managed>@0] sig=void1 (i1) local-fn4(local4)
     t5 = aggregate () : {}
     store local0 -> local14
     call no-gc-direct-target2 t6 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local14, td3)
@@ -72,10 +76,10 @@ Module
     store local15 -> local5
     call no-gc-elided-zst-target0 t11 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> local-fn6()
     store t11 -> local20
-    call managed-direct-target1 sp<managed-call:4> live=[] t12 = sig=direct4 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 local-fn4(elided-zst local5, elided-zst local20)
+    call managed-direct-target1 sp<managed-call:4> live=[] t12 = sig=direct4 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 local-fn0(elided-zst local5, elided-zst local20)
     store t12 -> local6
     store local6 -> local7
-    call managed-void-target3 sp<managed-call:5> live=[] sig=void3 (i1) local-fn3(local7)
+    call managed-void-target3 sp<managed-call:5> live=[] sig=void3 (i1) local-fn4(local7)
     t13 = aggregate () : {}
     t14 = aggregate () : {}
     t15 = box_zst external-td2 sp<managed-call:6> live=[]
@@ -83,7 +87,7 @@ Module
     call no-gc-direct-target3 t16 = sig=direct5 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local8, external-td2)
     store t16 -> local9
     store local9 -> local10
-    call managed-void-target4 sp<managed-call:7> live=[local8:ptr<managed>@0] sig=void4 (i1) local-fn3(local10)
+    call managed-void-target4 sp<managed-call:7> live=[local8:ptr<managed>@0] sig=void4 (i1) local-fn4(local10)
     t17 = aggregate () : {}
     store local8 -> local16
     call no-gc-direct-target4 t18 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local16, external-td2)
@@ -104,7 +108,7 @@ Module
     call managed-direct-target3 sp<managed-call:8> live=[] t24 = sig=direct8 (elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1 local-fn5(elided-zst local11, elided-zst t23)
     store t24 -> local12
     store local12 -> local13
-    call managed-void-target6 sp<managed-call:9> live=[] sig=void6 (i1) local-fn3(local13)
+    call managed-void-target6 sp<managed-call:9> live=[] sig=void6 (i1) local-fn4(local13)
     t25 = aggregate () : {}
     ret
   fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
@@ -145,10 +149,6 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$289abd882fb69939caddfa8732c6a6fe5cd0ac72c4e7780cb5e6b17f694f8cf1(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    ret true
   fun @scoop$1$cb$f8da311adb5c5511acc0695ec3b17fd856fe459e77c1c8117ae20cbe58c0125e(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -165,7 +165,7 @@ Module
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
     raw_store param2 integer<Int>(0x00000000) align 4

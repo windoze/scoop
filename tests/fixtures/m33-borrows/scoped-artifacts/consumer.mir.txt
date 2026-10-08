@@ -26,36 +26,40 @@ Module
   class IndexOutOfBoundsException vtable=0 itables=0
   class ListIterator<Pair> vtable=0 itables=1
   class box<Pair> vtable=0 itables=0
-  class box<Ptr<Pair>> vtable=0 itables=0
+  class box<Ptr<Pair>> vtable=0 itables=1
   class box<Long> vtable=0 itables=0
-  class box<Ptr<Int>> vtable=0 itables=0
+  class box<Ptr<Int>> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
+  interface Equality<Ptr<Int>>
   interface List<Pair> : Iterable<Pair>
   interface Iterable<Pair>
   interface Iterator<Pair>
+  interface Equality<Ptr<Pair>>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Pair>
   interface SuspendTask<Pair>
   interface SuspendRegistration<Pair>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn40 id=922180241a543ec5c65f3f54ff315095993e2e7389ae1bf0dec339a1d9ba707f
-  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn15 captures=0
-    bridge function_type1 -> @fn41 id=45ab65ae59b741a84601dcc8a8b9228bb03adf41001dde8755e2a498ef5deb17
-  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn17 captures=0
-    bridge function_type3 -> @fn42 id=04d20a75a9a9857ef25e926ed96463142b9c3850e58c9bab58f2868580b2cb9f
-  closure cc3 $Closure$anonymous0 type=function_type2 invoke=@fn12 captures=0
-    bridge function_type3 -> @fn43 id=450ae9eae673f10b72d6b99c2d6205de561e1ab4efc1362257746bd1c2bebcfd
-  closure cc4 $Closure$anonymous1 type=function_type6 invoke=@fn23 captures=0
-    bridge function_type3 -> @fn44 id=f162346fb5000303cb1c92833b820598e6bad6e513804281511ebaa39730e13d
-  closure cc5 $Closure$anonymous2 type=function_type7 invoke=@fn25 captures=0
-    bridge function_type3 -> @fn45 id=1772a05b83a06e77b887ea18c7ccbd3a4d8bd04c9ff98774892a37396108d19f
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn46 id=922180241a543ec5c65f3f54ff315095993e2e7389ae1bf0dec339a1d9ba707f
+  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn47 id=45ab65ae59b741a84601dcc8a8b9228bb03adf41001dde8755e2a498ef5deb17
+  closure cc2 $Closure$lambda2 type=function_type5 invoke=@fn18 captures=0
+    bridge function_type3 -> @fn48 id=04d20a75a9a9857ef25e926ed96463142b9c3850e58c9bab58f2868580b2cb9f
+  closure cc3 $Closure$anonymous0 type=function_type2 invoke=@fn13 captures=0
+    bridge function_type3 -> @fn49 id=450ae9eae673f10b72d6b99c2d6205de561e1ab4efc1362257746bd1c2bebcfd
+  closure cc4 $Closure$anonymous1 type=function_type6 invoke=@fn25 captures=0
+    bridge function_type3 -> @fn50 id=f162346fb5000303cb1c92833b820598e6bad6e513804281511ebaa39730e13d
+  closure cc5 $Closure$anonymous2 type=function_type7 invoke=@fn28 captures=0
+    bridge function_type3 -> @fn51 id=1772a05b83a06e77b887ea18c7ccbd3a4d8bd04c9ff98774892a37396108d19f
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure2 nominal_id=066814d145aa4f6fd848ab7d9b54fce537d7b2206c0a4c853c5758bf4479cdc3 exact_id=29d9030f8bc38d01d92a68589468573ee3623c0933b71ac8943123cae24cedae
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -75,13 +79,15 @@ Module
   generated_exact_type get16 location=enum5 nominal_id=0f9f87cb039deddd8ddac323b6b99d5743235e527977098296a72832d63514fa exact_id=f039348e26226163bc2922bc6ec512c4d74df9233dbdee9068227a4dcca0595f
   generated_exact_type get17 location=class13 nominal_id=f6d0c91a411ef1e42258670255772b7f33d8425df0395f6cb630fb4671f26ced exact_id=f36e0e01b2296cdc98234bb1ef848d9313e4cf8f8a89d04bbd11c4ddc1714c6c
   generated_exact_type get18 location=class12 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
-  generated_callable gc0 function=@fn39 id=0195db85be0724595bd21e82a2a6848994aa17b5d320768ee6d08f048a355c51
-  generated_callable gc1 function=@fn42 id=04d20a75a9a9857ef25e926ed96463142b9c3850e58c9bab58f2868580b2cb9f
-  generated_callable gc2 function=@fn45 id=1772a05b83a06e77b887ea18c7ccbd3a4d8bd04c9ff98774892a37396108d19f
-  generated_callable gc3 function=@fn43 id=450ae9eae673f10b72d6b99c2d6205de561e1ab4efc1362257746bd1c2bebcfd
-  generated_callable gc4 function=@fn41 id=45ab65ae59b741a84601dcc8a8b9228bb03adf41001dde8755e2a498ef5deb17
-  generated_callable gc5 function=@fn40 id=922180241a543ec5c65f3f54ff315095993e2e7389ae1bf0dec339a1d9ba707f
-  generated_callable gc6 function=@fn44 id=f162346fb5000303cb1c92833b820598e6bad6e513804281511ebaa39730e13d
+  generated_callable gc0 function=@fn43 id=0195db85be0724595bd21e82a2a6848994aa17b5d320768ee6d08f048a355c51
+  generated_callable gc1 function=@fn45 id=03404110e47aa750647d7c29ca48a3cfea4b3937462b4c82559608ec155fcf82
+  generated_callable gc2 function=@fn48 id=04d20a75a9a9857ef25e926ed96463142b9c3850e58c9bab58f2868580b2cb9f
+  generated_callable gc3 function=@fn51 id=1772a05b83a06e77b887ea18c7ccbd3a4d8bd04c9ff98774892a37396108d19f
+  generated_callable gc4 function=@fn49 id=450ae9eae673f10b72d6b99c2d6205de561e1ab4efc1362257746bd1c2bebcfd
+  generated_callable gc5 function=@fn47 id=45ab65ae59b741a84601dcc8a8b9228bb03adf41001dde8755e2a498ef5deb17
+  generated_callable gc6 function=@fn46 id=922180241a543ec5c65f3f54ff315095993e2e7389ae1bf0dec339a1d9ba707f
+  generated_callable gc7 function=@fn50 id=f162346fb5000303cb1c92833b820598e6bad6e513804281511ebaa39730e13d
+  generated_callable gc8 function=@fn44 id=f2d503bc6510a55fcfdfc29569a5d84e80fcb7b644517f7ca80f3f0aab1d7d15
   fun expect @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -188,7 +194,7 @@ Module
       val $dependency.parameter.block: (Ptr<Int>, Long) -> Pair
         Type (Ptr<Int>, Long) -> Pair
         Local $dependency.argument.1
-      call result: Pair = @fn13 direct
+      call result: Pair = @fn14 direct
         Type MutableArray<Int>
         Local $dependency.parameter.values
         Type (Ptr<Int>, Long) -> Pair
@@ -278,7 +284,7 @@ Module
       val $dependency.parameter.values: Array<Int>
         Type Array<Int>
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn14 direct
+      call $dependency.receiver: Int = @fn15 direct
         Type Array<Int>
         Local $dependency.parameter.values
       val $dependency.argument.0: Int
@@ -363,7 +369,7 @@ Module
       val $dependency.parameter.values: Array<Pair>
         Type Array<Pair>
         Local $dependency.argument.0
-      call $call.3: Pair = @fn16 direct
+      call $call.3: Pair = @fn17 direct
         Type Array<Pair>
         Local $dependency.parameter.values
       val $dependency.receiver: Long
@@ -470,7 +476,7 @@ Module
       val $dependency.parameter.block: (Ptr<Int>, Long) -> Unit
         Type (Ptr<Int>, Long) -> Unit
         Local $dependency.argument.1
-      call @fn18 direct
+      call @fn19 direct
         Type MutableArray<Int>
         Local $dependency.parameter.values
         Type (Ptr<Int>, Long) -> Unit
@@ -544,7 +550,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn19 direct
+      call @fn20 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -573,7 +579,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn36 direct
+      call @fn40 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -659,7 +665,26 @@ Module
         ArrayLen MutableArray<Int>
           Type MutableArray<Int>
           Local $dependency.local.1
-  fun iterator @fn5(this: Array<Int>) -> Iterator<Int>
+  fun equalTo @fn5(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn22 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun iterator @fn6(this: Array<Int>) -> Iterator<Int>
     bb0 entry
       val $dependency.local.1: List<Int>
         Type List<Int>
@@ -684,7 +709,7 @@ Module
       assign $new.1
         Type ListIterator<Int>
         ClassAlloc ListIterator<Int>
-      call @fn36 direct
+      call @fn40 direct
         Type ListIterator<Int>
         Local $new.1
         Type List<Int>
@@ -698,7 +723,7 @@ Module
         Retype Iterator<Int>
           Type ListIterator<Int>
           Local $new.1
-  fun get @fn6(this: Array<Int>, index: Long) -> Int
+  fun get @fn7(this: Array<Int>, index: Long) -> Int
     bb0 entry
       val $dependency.local.2: Array<Int>
         Type Array<Int>
@@ -760,7 +785,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn7(this: Array<Int>) -> Long
+  fun size @fn8(this: Array<Int>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Int>
         Type Array<Int>
@@ -770,7 +795,7 @@ Module
         ArrayLen Array<Int>
           Type Array<Int>
           Local $dependency.local.1
-  fun iterator @fn8(this: Array<Pair>) -> Iterator<Pair>
+  fun iterator @fn9(this: Array<Pair>) -> Iterator<Pair>
     bb0 entry
       val $dependency.local.1: List<Pair>
         Type List<Pair>
@@ -795,7 +820,7 @@ Module
       assign $new.1
         Type ListIterator<Pair>
         ClassAlloc ListIterator<Pair>
-      call @fn37 direct
+      call @fn41 direct
         Type ListIterator<Pair>
         Local $new.1
         Type List<Pair>
@@ -809,7 +834,7 @@ Module
         Retype Iterator<Pair>
           Type ListIterator<Pair>
           Local $new.1
-  fun get @fn9(this: Array<Pair>, index: Long) -> Pair
+  fun get @fn10(this: Array<Pair>, index: Long) -> Pair
     bb0 entry
       val $dependency.local.2: Array<Pair>
         Type Array<Pair>
@@ -871,7 +896,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn10(this: Array<Pair>) -> Long
+  fun size @fn11(this: Array<Pair>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Pair>
         Type Array<Pair>
@@ -881,12 +906,12 @@ Module
         ArrayLen Array<Pair>
           Type Array<Pair>
           Local $dependency.local.1
-  fun $lambda.0 @fn11($closure: (Long) -> Int, $arg.0: Long) -> Int
+  fun $lambda.0 @fn12($closure: (Long) -> Int, $arg.0: Long) -> Int
     bb0 entry
       return
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-  fun $anonymous.0 @fn12($closure: (Ptr<Int>, Long) -> Pair, pointer: Ptr<Int>, count: Long) -> Pair
+  fun $anonymous.0 @fn13($closure: (Ptr<Int>, Long) -> Pair, pointer: Ptr<Int>, count: Long) -> Pair
     bb0 entry
       val $dependency.receiver: Ptr<Int>
         Type Ptr<Int>
@@ -937,7 +962,7 @@ Module
       val $parameter.extra: Long
         Type Long
         Local $argument.1
-      call $call.1: Pair = @fn38 direct
+      call $call.1: Pair = @fn42 direct
         Type Int
         Local $parameter.number
         Type Long
@@ -945,7 +970,7 @@ Module
       return
         Type Pair
         Local $call.1
-  fun withValues @fn13(values: MutableArray<Int>, block: (Ptr<Int>, Long) -> Pair) -> Pair
+  fun withValues @fn14(values: MutableArray<Int>, block: (Ptr<Int>, Long) -> Pair) -> Pair
     bb0 entry
       val $dependency.local.2: MutableArray<Int>
         Type MutableArray<Int>
@@ -956,7 +981,7 @@ Module
       val $dependency.local.4: (Ptr<Int>, Long) -> Pair
         Type (Ptr<Int>, Long) -> Pair
         Local $dependency.local.3
-      call $call.1: Pair = @fn22 direct
+      call $call.1: Pair = @fn24 direct
         Type MutableArray<Int>
         Local $dependency.local.2
         Type (Ptr<Int>, Long) -> Pair
@@ -964,7 +989,7 @@ Module
       return
         Type Pair
         Local $call.1
-  fun first @fn14(values: Array<Int>) -> Int
+  fun first @fn15(values: Array<Int>) -> Int
     bb0 entry
       val $dependency.local.1: Array<Int>
         Type Array<Int>
@@ -975,7 +1000,7 @@ Module
       val $dependency.local.3: (Ptr<Int>, Long) -> Int
         Type (Ptr<Int>, Long) -> Int
         Local $dependency.local.2
-      call $call.1: Int = @fn24 direct
+      call $call.1: Int = @fn26 direct
         Type Array<Int>
         Local $dependency.local.1
         Type (Ptr<Int>, Long) -> Int
@@ -983,7 +1008,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $lambda.1 @fn15($closure: (Long) -> Pair, $arg.0: Long) -> Pair
+  fun $lambda.1 @fn16($closure: (Long) -> Pair, $arg.0: Long) -> Pair
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -997,7 +1022,7 @@ Module
       val $parameter.extra: Long
         Type Long
         Local $argument.1
-      call $call.1: Pair = @fn38 direct
+      call $call.1: Pair = @fn42 direct
         Type Int
         Local $parameter.number
         Type Long
@@ -1005,7 +1030,7 @@ Module
       return
         Type Pair
         Local $call.1
-  fun first @fn16(values: Array<Pair>) -> Pair
+  fun first @fn17(values: Array<Pair>) -> Pair
     bb0 entry
       val $dependency.local.1: Array<Pair>
         Type Array<Pair>
@@ -1016,7 +1041,7 @@ Module
       val $dependency.local.3: (Ptr<Pair>, Long) -> Pair
         Type (Ptr<Pair>, Long) -> Pair
         Local $dependency.local.2
-      call $call.1: Pair = @fn26 direct
+      call $call.1: Pair = @fn29 direct
         Type Array<Pair>
         Local $dependency.local.1
         Type (Ptr<Pair>, Long) -> Pair
@@ -1024,7 +1049,7 @@ Module
       return
         Type Pair
         Local $call.1
-  fun $lambda.2 @fn17($closure: (Ptr<Int>, Long) -> Unit, pointer: Ptr<Int>, count: Long) -> Unit
+  fun $lambda.2 @fn18($closure: (Ptr<Int>, Long) -> Unit, pointer: Ptr<Int>, count: Long) -> Unit
     bb0 entry
       val $default.local.0: String
         Type String
@@ -1048,7 +1073,7 @@ Module
       throw
         Type IllegalStateException
         Local $new.1
-  fun withValues @fn18(values: MutableArray<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
+  fun withValues @fn19(values: MutableArray<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<Int>
         Type MutableArray<Int>
@@ -1059,13 +1084,13 @@ Module
       val $dependency.local.4: (Ptr<Int>, Long) -> Unit
         Type (Ptr<Int>, Long) -> Unit
         Local $dependency.local.3
-      call @fn27 direct
+      call @fn30 direct
         Type MutableArray<Int>
         Local $dependency.local.2
         Type (Ptr<Int>, Long) -> Unit
         Local $dependency.local.4
       return
-  fun println @fn19(value: String) -> Unit
+  fun println @fn20(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1089,7 +1114,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun next @fn20(this: ListIterator<Int>) -> Option<Int>
+  fun next @fn21(this: ListIterator<Int>) -> Option<Int>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1106,7 +1131,7 @@ Module
         FieldAccess 1
           Type ListIterator<Int>
           Local this
-      call $dependency.local.3: Long = @fn28 interface List<Int>[2]
+      call $dependency.local.3: Long = @fn31 interface List<Int>[2]
         Type List<Int>
         FieldAccess 0
           Type ListIterator<Int>
@@ -1148,7 +1173,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Int = @fn29 interface List<Int>[1]
+      call $dependency.local.1: Int = @fn32 interface List<Int>[1]
         Type List<Int>
         Local $dependency.local.5
         Type Long
@@ -1184,7 +1209,29 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun next @fn21(this: ListIterator<Pair>) -> Option<Pair>
+  fun equals @fn22(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun next @fn23(this: ListIterator<Pair>) -> Option<Pair>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1201,7 +1248,7 @@ Module
         FieldAccess 1
           Type ListIterator<Pair>
           Local this
-      call $dependency.local.3: Long = @fn30 interface List<Pair>[2]
+      call $dependency.local.3: Long = @fn33 interface List<Pair>[2]
         Type List<Pair>
         FieldAccess 0
           Type ListIterator<Pair>
@@ -1243,7 +1290,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: Pair = @fn31 interface List<Pair>[1]
+      call $dependency.local.1: Pair = @fn34 interface List<Pair>[1]
         Type List<Pair>
         Local $dependency.local.5
         Type Long
@@ -1279,7 +1326,7 @@ Module
         VariantConstruct Option<Pair> v0
           Type Pair
           Local $dependency.local.12
-  fun $extension.withDataPointer @fn22(this: MutableArray<Int>, block: (Ptr<Int>, Long) -> Pair) -> Pair
+  fun $extension.withDataPointer @fn24(this: MutableArray<Int>, block: (Ptr<Int>, Long) -> Pair) -> Pair
     bb0 entry
       val $dependency.local.2: MutableArray<Int>
         Type MutableArray<Int>
@@ -1346,7 +1393,7 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun $anonymous @fn23($argument.0: (Ptr<Int>, Long) -> Int, $argument.1: Ptr<Int>, $argument.2: Long) -> Int
+  fun $anonymous @fn25($argument.0: (Ptr<Int>, Long) -> Int, $argument.1: Ptr<Int>, $argument.2: Long) -> Int
     bb0 entry
       call @scoop_rt_gc_collect direct
       val $dependency.local.2: Ptr<Int>
@@ -1357,7 +1404,7 @@ Module
         PtrLoad Int
           Type Ptr<Int>
           Local $dependency.local.2
-  fun $extension.withDataPointer @fn24(this: Array<Int>, block: (Ptr<Int>, Long) -> Int) -> Int
+  fun $extension.withDataPointer @fn26(this: Array<Int>, block: (Ptr<Int>, Long) -> Int) -> Int
     bb0 entry
       val $dependency.local.2: Array<Int>
         Type Array<Int>
@@ -1424,7 +1471,26 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun $anonymous @fn25($argument.0: (Ptr<Pair>, Long) -> Pair, $argument.1: Ptr<Pair>, $argument.2: Long) -> Pair
+  fun equalTo @fn27(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      val $dependency.local.4: Ptr<Pair>
+        Type Ptr<Pair>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn35 direct
+        Type Ptr<Pair>
+        Local $dependency.local.2
+        Type Ptr<Pair>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $anonymous @fn28($argument.0: (Ptr<Pair>, Long) -> Pair, $argument.1: Ptr<Pair>, $argument.2: Long) -> Pair
     bb0 entry
       call @scoop_rt_gc_collect direct
       val $dependency.local.2: Ptr<Pair>
@@ -1435,7 +1501,7 @@ Module
         PtrLoad Pair
           Type Ptr<Pair>
           Local $dependency.local.2
-  fun $extension.withDataPointer @fn26(this: Array<Pair>, block: (Ptr<Pair>, Long) -> Pair) -> Pair
+  fun $extension.withDataPointer @fn29(this: Array<Pair>, block: (Ptr<Pair>, Long) -> Pair) -> Pair
     bb0 entry
       val $dependency.local.2: Array<Pair>
         Type Array<Pair>
@@ -1502,7 +1568,7 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun $extension.withDataPointer @fn27(this: MutableArray<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
+  fun $extension.withDataPointer @fn30(this: MutableArray<Int>, block: (Ptr<Int>, Long) -> Unit) -> Unit
     bb0 entry
       val $dependency.local.2: MutableArray<Int>
         Type MutableArray<Int>
@@ -1572,31 +1638,53 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun List.$get$size @fn28(this: List<Int>) -> Long
+  fun List.$get$size @fn31(this: List<Int>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn29(this: List<Int>, index: Long) -> Int
+  fun List.get @fn32(this: List<Int>, index: Long) -> Int
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun List.$get$size @fn30(this: List<Pair>) -> Long
+  fun List.$get$size @fn33(this: List<Pair>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn31(this: List<Pair>, index: Long) -> Pair
+  fun List.get @fn34(this: List<Pair>, index: Long) -> Pair
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun Continuation.resume @fn32(this: Continuation<Pair>, value: Pair) -> Unit
+  fun equals @fn35(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Pair>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Pair>
+            Local $dependency.local.3
+  fun Continuation.resume @fn36(this: Continuation<Pair>, value: Pair) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn33(this: Continuation<Pair>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn37(this: Continuation<Pair>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn34(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+  fun SuspendTask.run @fn38(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn35(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+  fun SuspendRegistration.register @fn39(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.ListIterator.$c0 @fn36(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c0 @fn40(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Int>
@@ -1614,7 +1702,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun init.ListIterator.$c0 @fn37(this: ListIterator<Pair>, source: List<Pair>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c0 @fn41(this: ListIterator<Pair>, source: List<Pair>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<Pair>
@@ -1632,7 +1720,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Pair.$c0 @fn38(number: Int, extra: Long) -> Pair <no-gc>
+  fun ctor.Pair.$c0 @fn42(number: Int, extra: Long) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -1641,7 +1729,7 @@ Module
           Local number
           Type Long
           Local extra
-  fun startCoroutine<Pair> @fn39(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+  fun startCoroutine<Pair> @fn43(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1664,7 +1752,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn32 interface Continuation<Pair>[0]
+      call @fn36 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         Local completion
         Type Pair
@@ -1677,7 +1765,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn33 interface Continuation<Pair>[1]
+      call @fn37 interface Continuation<Pair>[1]
         Type Continuation<Pair>
         Local completion
         Type Throwable
@@ -1696,7 +1784,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Pair> = @fn34 interface SuspendTask<Pair>[0]
+      call $step: CoroutineStep<Pair> = @fn38 interface SuspendTask<Pair>[0]
         Type SuspendTask<Pair>
         Local task
         Type Continuation<Pair>
@@ -1722,7 +1810,31 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn40($source: (Long) -> Int, arg0: Any) -> Any
+  fun thunk<Ptr<Pair>> Equality.equalTo(Ptr<Pair>) @fn44(this: Equality<Ptr<Pair>>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn27 direct
+        Type Ptr<Pair>
+        Unbox
+          Type Equality<Ptr<Pair>>
+          Local this
+        Type Ptr<Pair>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Ptr<Int>> Equality.equalTo(Ptr<Int>) @fn45(this: Equality<Ptr<Int>>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn5 direct
+        Type Ptr<Int>
+        Unbox
+          Type Equality<Ptr<Int>>
+          Local this
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn46($source: (Long) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Long) -> Int
@@ -1736,7 +1848,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn41($source: (Long) -> Pair, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn47($source: (Long) -> Pair, arg0: Any) -> Any
     bb0 entry
       call $call.1: Pair = <closure:function_type4> closure[function_type4]
         Type (Long) -> Pair
@@ -1750,7 +1862,7 @@ Module
         Box
           Type Pair
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn42($source: (Ptr<Int>, Long) -> Unit, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any, Any) -> Any @fn48($source: (Ptr<Int>, Long) -> Unit, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call <closure:function_type5> closure[function_type5]
         Type (Ptr<Int>, Long) -> Unit
@@ -1768,7 +1880,7 @@ Module
         Box
           Type Unit
           UnitLiteral
-  fun function_bridge.$Closure$anonymous0.(Any, Any) -> Any @fn43($source: (Ptr<Int>, Long) -> Pair, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$anonymous0.(Any, Any) -> Any @fn49($source: (Ptr<Int>, Long) -> Pair, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Pair = <closure:function_type2> closure[function_type2]
         Type (Ptr<Int>, Long) -> Pair
@@ -1786,7 +1898,7 @@ Module
         Box
           Type Pair
           Local $call.1
-  fun function_bridge.$Closure$anonymous1.(Any, Any) -> Any @fn44($source: (Ptr<Int>, Long) -> Int, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$anonymous1.(Any, Any) -> Any @fn50($source: (Ptr<Int>, Long) -> Int, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type6> closure[function_type6]
         Type (Ptr<Int>, Long) -> Int
@@ -1804,7 +1916,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous2.(Any, Any) -> Any @fn45($source: (Ptr<Pair>, Long) -> Pair, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$anonymous2.(Any, Any) -> Any @fn51($source: (Ptr<Pair>, Long) -> Pair, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Pair = <closure:function_type7> closure[function_type7]
         Type (Ptr<Pair>, Long) -> Pair
@@ -1824,38 +1936,42 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Pair> result=Pair
   coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
-  coroutine_start ct0 result=Pair function=fn39
-  coroutine_fn cf0 @fn34 source_return=Pair step=cs0 immediate
+  coroutine_start ct0 result=Pair function=fn43
+  coroutine_fn cf0 @fn38 source_return=Pair step=cs0 immediate
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- get
   instance mi2 function=@fn4 <- size
-  instance mi3 function=@fn5 <- iterator
-  instance mi4 function=@fn6 <- get
-  instance mi5 function=@fn7 <- size
-  instance mi6 function=@fn8 <- iterator
-  instance mi7 function=@fn9 <- get
-  instance mi8 function=@fn10 <- size
-  instance mi9 function=@fn13 <- withValues
-  instance mi10 function=@fn14 <- first
-  instance mi11 function=@fn16 <- first
-  instance mi12 function=@fn18 <- withValues
-  instance mi13 function=@fn19 <- println
-  instance mi14 function=@fn20 <- next
+  instance mi3 function=@fn5 <- equalTo
+  instance mi4 function=@fn6 <- iterator
+  instance mi5 function=@fn7 <- get
+  instance mi6 function=@fn8 <- size
+  instance mi7 function=@fn9 <- iterator
+  instance mi8 function=@fn10 <- get
+  instance mi9 function=@fn11 <- size
+  instance mi10 function=@fn14 <- withValues
+  instance mi11 function=@fn15 <- first
+  instance mi12 function=@fn17 <- first
+  instance mi13 function=@fn19 <- withValues
+  instance mi14 function=@fn20 <- println
   instance mi15 function=@fn21 <- next
-  instance mi16 function=@fn22 <- $extension.withDataPointer
-  instance mi17 function=@fn23 <- $anonymous
+  instance mi16 function=@fn22 <- equals
+  instance mi17 function=@fn23 <- next
   instance mi18 function=@fn24 <- $extension.withDataPointer
   instance mi19 function=@fn25 <- $anonymous
   instance mi20 function=@fn26 <- $extension.withDataPointer
-  instance mi21 function=@fn27 <- $extension.withDataPointer
-  instance mi22 function=@fn28 <- List.$get$size
-  instance mi23 function=@fn29 <- List.get
-  instance mi24 function=@fn30 <- List.$get$size
-  instance mi25 function=@fn31 <- List.get
-  instance mi26 function=@fn32 <- Continuation.resume
-  instance mi27 function=@fn33 <- Continuation.resumeWithException
-  instance mi28 function=@fn34 <- SuspendTask.run
-  instance mi29 function=@fn35 <- SuspendRegistration.register
+  instance mi21 function=@fn27 <- equalTo
+  instance mi22 function=@fn28 <- $anonymous
+  instance mi23 function=@fn29 <- $extension.withDataPointer
+  instance mi24 function=@fn30 <- $extension.withDataPointer
+  instance mi25 function=@fn31 <- List.$get$size
+  instance mi26 function=@fn32 <- List.get
+  instance mi27 function=@fn33 <- List.$get$size
+  instance mi28 function=@fn34 <- List.get
+  instance mi29 function=@fn35 <- equals
+  instance mi30 function=@fn36 <- Continuation.resume
+  instance mi31 function=@fn37 <- Continuation.resumeWithException
+  instance mi32 function=@fn38 <- SuspendTask.run
+  instance mi33 function=@fn39 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "ABC"
   str @str2 "scoped-data-artifacts-ok"

@@ -71,8 +71,11 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   generated_exact_type get0 location=class22 nominal_id=65b542b0d51381e315d32d93df88a848cf1ef2d9b8bb292f237030bcad48a4f3 exact_id=0be2e05f7df7943a83f182f13f74ce4074248da59bdd8c531efba0416f035225
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=class26 nominal_id=ccd7e31b7524c2af519f6bae74be04e1d910640e328f1d80d9e018f02aa5ee32 exact_id=209e740e45be23d9dd75997c60b1ea7ea4a02c7fbd08f557c5495bb33e6222fd

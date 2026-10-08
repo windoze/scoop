@@ -21,10 +21,10 @@ Module
   extern ef15 scoopSingle @scalar_single(Float) -> Float <abi=scoop no-gc lib=fixture_native>
   extern ef16 scoopWide @scalar_wide(Double) -> Double <abi=scoop no-gc lib=fixture_native>
   extern ef17 scoopPair @scoop_pair(Pair) -> Pair <abi=scoop no-gc lib=fixture_native>
-  callback cb0 @fn18 -> @fn27 function_type0 id=af0da517a2e054885d829e3c25ac75e3360572c1966b8ef321b22f9cd494e855
-  callback cb1 @fn19 -> @fn28 function_type2 id=428848995ed82ecf0e54e30d35c446ec740a95b6af9df1ac1120be6930747a83
+  callback cb0 @fn21 -> @fn33 function_type0 id=af0da517a2e054885d829e3c25ac75e3360572c1966b8ef321b22f9cd494e855
+  callback cb1 @fn22 -> @fn34 function_type2 id=428848995ed82ecf0e54e30d35c446ec740a95b6af9df1ac1120be6930747a83
   foreign_callback_family fcf0 callback=ForeignCallback<(Float, Ptr<Unit>) -> Float> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type3 managed=function_type0 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn29
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type3 managed=function_type0 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn35
   struct Singles (first: Float, second: Float) <c-layout aligned=natural packed=natural>
   struct Doubles (first: Double, second: Double) <c-layout aligned=natural packed=natural>
   struct Mixed (small: Float, tag: Int, wide: Double) <c-layout aligned=natural packed=natural>
@@ -44,9 +44,15 @@ Module
   class Throwable vtable=0 itables=0
   class box<Float> vtable=0 itables=0
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
+  interface Equality<Ptr<Float>>
+  interface Equality<Ptr<Double>>
+  interface Equality<Ptr<Unit>>
   interface Hash
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn22 captures=0
-    bridge function_type1 -> @fn30 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn28 captures=0
+    bridge function_type1 -> @fn36 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -54,11 +60,68 @@ Module
   generated_exact_type get4 location=class1 nominal_id=eaca4dc37715ad1f78cf6cd36c21e55a2a2d824cd1a7a77eaabc6c57eee021f7 exact_id=5dc4260661c5a026586bfdc89df330646e485f6d2d290bb39a2f365c840cf8ea
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn30 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
-  generated_callable gc1 function=@fn28 id=428848995ed82ecf0e54e30d35c446ec740a95b6af9df1ac1120be6930747a83
-  generated_callable gc2 function=@fn27 id=af0da517a2e054885d829e3c25ac75e3360572c1966b8ef321b22f9cd494e855
-  generated_callable gc3 function=@fn29 id=f742f200eb00d339a0a96a60a439924906a0bf216634d6c0442bfd67444241e0
-  fun fromFloatBits @fn0(arg0: UInt) -> Float
+  generated_callable gc0 function=@fn36 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn34 id=428848995ed82ecf0e54e30d35c446ec740a95b6af9df1ac1120be6930747a83
+  generated_callable gc2 function=@fn33 id=af0da517a2e054885d829e3c25ac75e3360572c1966b8ef321b22f9cd494e855
+  generated_callable gc3 function=@fn35 id=f742f200eb00d339a0a96a60a439924906a0bf216634d6c0442bfd67444241e0
+  fun equalTo @fn0(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Float>
+        Type Ptr<Float>
+        Local this
+      val $dependency.local.3: Ptr<Float>
+        Type Ptr<Float>
+        Local other
+      val $dependency.local.4: Ptr<Float>
+        Type Ptr<Float>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn24 direct
+        Type Ptr<Float>
+        Local $dependency.local.2
+        Type Ptr<Float>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn1(this: Ptr<Double>, other: Ptr<Double>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Double>
+        Type Ptr<Double>
+        Local this
+      val $dependency.local.3: Ptr<Double>
+        Type Ptr<Double>
+        Local other
+      val $dependency.local.4: Ptr<Double>
+        Type Ptr<Double>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn25 direct
+        Type Ptr<Double>
+        Local $dependency.local.2
+        Type Ptr<Double>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn2(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn26 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun fromFloatBits @fn3(arg0: UInt) -> Float
     bb0 entry
       call $call.1: Float = extern0 @float_from_bits direct
         Type UInt
@@ -66,7 +129,7 @@ Module
       return
         Type Float
         Local $call.1
-  fun fromDoubleBits @fn1(arg0: ULong) -> Double
+  fun fromDoubleBits @fn4(arg0: ULong) -> Double
     bb0 entry
       call $call.1: Double = extern1 @double_from_bits direct
         Type ULong
@@ -74,7 +137,7 @@ Module
       return
         Type Double
         Local $call.1
-  fun floatBits @fn2(arg0: Float) -> UInt
+  fun floatBits @fn5(arg0: Float) -> UInt
     bb0 entry
       call $call.1: UInt = extern2 @float_bits direct
         Type Float
@@ -82,7 +145,7 @@ Module
       return
         Type UInt
         Local $call.1
-  fun doubleBits @fn3(arg0: Double) -> ULong
+  fun doubleBits @fn6(arg0: Double) -> ULong
     bb0 entry
       call $call.1: ULong = extern3 @double_bits direct
         Type Double
@@ -90,7 +153,7 @@ Module
       return
         Type ULong
         Local $call.1
-  fun roundSingles @fn4(arg0: Singles) -> Singles
+  fun roundSingles @fn7(arg0: Singles) -> Singles
     bb0 entry
       call $call.1: Singles = extern4 @round_singles direct
         Type Singles
@@ -98,7 +161,7 @@ Module
       return
         Type Singles
         Local $call.1
-  fun roundDoubles @fn5(arg0: Doubles) -> Doubles
+  fun roundDoubles @fn8(arg0: Doubles) -> Doubles
     bb0 entry
       call $call.1: Doubles = extern5 @round_doubles direct
         Type Doubles
@@ -106,7 +169,7 @@ Module
       return
         Type Doubles
         Local $call.1
-  fun roundMixed @fn6(arg0: Mixed) -> Mixed
+  fun roundMixed @fn9(arg0: Mixed) -> Mixed
     bb0 entry
       call $call.1: Mixed = extern6 @round_mixed direct
         Type Mixed
@@ -114,7 +177,7 @@ Module
       return
         Type Mixed
         Local $call.1
-  fun pointerSingle @fn7(arg0: Ptr<Float>) -> Float
+  fun pointerSingle @fn10(arg0: Ptr<Float>) -> Float
     bb0 entry
       call $call.1: Float = extern7 @pointer_single direct
         Type Ptr<Float>
@@ -122,7 +185,7 @@ Module
       return
         Type Float
         Local $call.1
-  fun pointerWide @fn8(arg0: Ptr<Double>) -> Double
+  fun pointerWide @fn11(arg0: Ptr<Double>) -> Double
     bb0 entry
       call $call.1: Double = extern8 @pointer_wide direct
         Type Ptr<Double>
@@ -130,7 +193,7 @@ Module
       return
         Type Double
         Local $call.1
-  fun tlsMatches @fn9(arg0: UInt, arg1: ULong) -> Int
+  fun tlsMatches @fn12(arg0: UInt, arg1: ULong) -> Int
     bb0 entry
       call $call.1: Int = extern9 @tls_matches direct
         Type UInt
@@ -140,19 +203,19 @@ Module
       return
         Type Int
         Local $call.1
-  fun nativeSingle @fn10() -> FunPtr<(Float) -> Float>
+  fun nativeSingle @fn13() -> FunPtr<(Float) -> Float>
     bb0 entry
       call $call.1: FunPtr<(Float) -> Float> = extern10 @native_single direct
       return
         Type FunPtr<(Float) -> Float>
         Local $call.1
-  fun nativeWide @fn11() -> FunPtr<(Double) -> Double>
+  fun nativeWide @fn14() -> FunPtr<(Double) -> Double>
     bb0 entry
       call $call.1: FunPtr<(Double) -> Double> = extern11 @native_wide direct
       return
         Type FunPtr<(Double) -> Double>
         Local $call.1
-  fun invokeSingle @fn12(arg0: FunPtr<(Float) -> Float>, arg1: Float) -> Float
+  fun invokeSingle @fn15(arg0: FunPtr<(Float) -> Float>, arg1: Float) -> Float
     bb0 entry
       call $call.1: Float = extern12 @invoke_single direct
         Type FunPtr<(Float) -> Float>
@@ -162,7 +225,7 @@ Module
       return
         Type Float
         Local $call.1
-  fun invokeWide @fn13(arg0: FunPtr<(Double) -> Double>, arg1: Double) -> Double
+  fun invokeWide @fn16(arg0: FunPtr<(Double) -> Double>, arg1: Double) -> Double
     bb0 entry
       call $call.1: Double = extern13 @invoke_wide direct
         Type FunPtr<(Double) -> Double>
@@ -172,7 +235,7 @@ Module
       return
         Type Double
         Local $call.1
-  fun invokeManaged @fn14(arg0: FunPtr<(Float, Ptr<Unit>) -> Float>, arg1: Ptr<Unit>, arg2: Float) -> Float
+  fun invokeManaged @fn17(arg0: FunPtr<(Float, Ptr<Unit>) -> Float>, arg1: Ptr<Unit>, arg2: Float) -> Float
     bb0 entry
       call $call.1: Float = extern14 @invoke_managed direct
         Type FunPtr<(Float, Ptr<Unit>) -> Float>
@@ -184,7 +247,7 @@ Module
       return
         Type Float
         Local $call.1
-  fun scoopSingle @fn15(arg0: Float) -> Float
+  fun scoopSingle @fn18(arg0: Float) -> Float
     bb0 entry
       call $call.1: Float = extern15 @scalar_single direct
         Type Float
@@ -192,7 +255,7 @@ Module
       return
         Type Float
         Local $call.1
-  fun scoopWide @fn16(arg0: Double) -> Double
+  fun scoopWide @fn19(arg0: Double) -> Double
     bb0 entry
       call $call.1: Double = extern16 @scalar_wide direct
         Type Double
@@ -200,7 +263,7 @@ Module
       return
         Type Double
         Local $call.1
-  fun scoopPair @fn17(arg0: Pair) -> Pair
+  fun scoopPair @fn20(arg0: Pair) -> Pair
     bb0 entry
       call $call.1: Pair = extern17 @scoop_pair direct
         Type Pair
@@ -208,17 +271,17 @@ Module
       return
         Type Pair
         Local $call.1
-  fun identitySingle @fn18(value: Float) -> Float <no-gc>
+  fun identitySingle @fn21(value: Float) -> Float <no-gc>
     bb0 entry
       return
         Type Float
         Local value
-  fun identityWide @fn19(value: Double) -> Double <no-gc>
+  fun identityWide @fn22(value: Double) -> Double <no-gc>
     bb0 entry
       return
         Type Double
         Local value
-  fun main @fn20() -> Unit
+  fun main @fn23() -> Unit
     bb0 entry
       val $argument.0: UInt
         Type UInt
@@ -299,7 +362,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       var localSingle: Float
@@ -408,7 +471,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Float
@@ -423,7 +486,7 @@ Module
       val $parameter.second: Float
         Type Float
         Local $argument.1
-      call $argument.0: Singles = @fn23 direct
+      call $argument.0: Singles = @fn29 direct
         Type Float
         Local $parameter.first
         Type Float
@@ -446,7 +509,7 @@ Module
       val $parameter.second: Double
         Type Double
         Local $argument.1
-      call $argument.0: Doubles = @fn24 direct
+      call $argument.0: Doubles = @fn30 direct
         Type Double
         Local $parameter.first
         Type Double
@@ -475,7 +538,7 @@ Module
       val $parameter.wide: Double
         Type Double
         Local $argument.2
-      call $argument.0: Mixed = @fn25 direct
+      call $argument.0: Mixed = @fn31 direct
         Type Float
         Local $parameter.small
         Type Int
@@ -719,7 +782,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       val $argument.0: Float
@@ -734,7 +797,7 @@ Module
       val $parameter.wide: Double
         Type Double
         Local $argument.1
-      call $argument.0: Pair = @fn26 direct
+      call $argument.0: Pair = @fn32 direct
         Type Float
         Local $parameter.small
         Type Double
@@ -885,7 +948,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       global_assign tlsSingle
@@ -1005,7 +1068,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       val callbackSingle: FunPtr<(Float) -> Float>
@@ -1190,7 +1253,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: (Float) -> Float
@@ -1267,7 +1330,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn21 direct
+      call @fn27 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Float, Ptr<Unit>) -> Float>
@@ -1281,7 +1344,73 @@ Module
         Type ForeignCallback<(Float, Ptr<Unit>) -> Float>
         Local $dependency.parameter.callback
       return
-  fun println @fn21(value: Boolean) -> Unit
+  fun equals @fn24(this: Ptr<Float>, other: Ptr<Float>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Float>
+        Type Ptr<Float>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Float>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Float>
+        Type Ptr<Float>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Float>
+            Local $dependency.local.3
+  fun equals @fn25(this: Ptr<Double>, other: Ptr<Double>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Double>
+        Type Ptr<Double>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Double>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Double>
+        Type Ptr<Double>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Double>
+            Local $dependency.local.3
+  fun equals @fn26(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun println @fn27(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -1305,13 +1434,13 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun $lambda.0 @fn22($closure: (Float) -> Float, value: Float) -> Float
+  fun $lambda.0 @fn28($closure: (Float) -> Float, value: Float) -> Float
     bb0 entry
       call @scoop_rt_gc_collect direct
       return
         Type Float
         Local value
-  fun ctor.Singles.$c0 @fn23(first: Float, second: Float) -> Singles <no-gc>
+  fun ctor.Singles.$c0 @fn29(first: Float, second: Float) -> Singles <no-gc>
     bb0 entry
       return
         Type Singles
@@ -1320,7 +1449,7 @@ Module
           Local first
           Type Float
           Local second
-  fun ctor.Doubles.$c1 @fn24(first: Double, second: Double) -> Doubles <no-gc>
+  fun ctor.Doubles.$c1 @fn30(first: Double, second: Double) -> Doubles <no-gc>
     bb0 entry
       return
         Type Doubles
@@ -1329,7 +1458,7 @@ Module
           Local first
           Type Double
           Local second
-  fun ctor.Mixed.$c2 @fn25(small: Float, tag: Int, wide: Double) -> Mixed <no-gc>
+  fun ctor.Mixed.$c2 @fn31(small: Float, tag: Int, wide: Double) -> Mixed <no-gc>
     bb0 entry
       return
         Type Mixed
@@ -1340,7 +1469,7 @@ Module
           Local tag
           Type Double
           Local wide
-  fun ctor.Pair.$c3 @fn26(small: Float, wide: Double) -> Pair <no-gc>
+  fun ctor.Pair.$c3 @fn32(small: Float, wide: Double) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -1349,9 +1478,9 @@ Module
           Local small
           Type Double
           Local wide
-  fun callback bridge for identitySingle @fn27($result: Ptr<Float>, $arg0: Ptr<Float>) -> Unit <no-gc>
+  fun callback bridge for identitySingle @fn33($result: Ptr<Float>, $arg0: Ptr<Float>) -> Unit <no-gc>
     bb0 entry
-      call $value: Float = @fn18 direct
+      call $value: Float = @fn21 direct
         Type Float
         PtrLoad Float
           Type Ptr<Float>
@@ -1363,9 +1492,9 @@ Module
         Type Float
         Local $value
       return
-  fun callback bridge for identityWide @fn28($result: Ptr<Double>, $arg0: Ptr<Double>) -> Unit <no-gc>
+  fun callback bridge for identityWide @fn34($result: Ptr<Double>, $arg0: Ptr<Double>) -> Unit <no-gc>
     bb0 entry
-      call $value: Double = @fn19 direct
+      call $value: Double = @fn22 direct
         Type Double
         PtrLoad Double
           Type Ptr<Double>
@@ -1377,7 +1506,7 @@ Module
         Type Double
         Local $value
       return
-  fun foreign callback adapter 0 @fn29($closure: (Float) -> Float, $snapshot: internal<context-node>, $result: Ptr<Float>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn35($closure: (Float) -> Float, $snapshot: internal<context-node>, $result: Ptr<Float>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1452,7 +1581,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn30($source: (Float) -> Float, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn36($source: (Float) -> Float, arg0: Any) -> Any
     bb0 entry
       call $call.1: Float = <closure:function_type0> closure[function_type0]
         Type (Float) -> Float
@@ -1466,6 +1595,12 @@ Module
         Box
           Type Float
           Local $call.1
-  instance mi0 function=@fn21 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn1 <- equalTo
+  instance mi2 function=@fn2 <- equalTo
+  instance mi3 function=@fn24 <- equals
+  instance mi4 function=@fn25 <- equals
+  instance mi5 function=@fn26 <- equals
+  instance mi6 function=@fn27 <- println
   str @str0 "\n"
-  output executable @fn20
+  output executable @fn23

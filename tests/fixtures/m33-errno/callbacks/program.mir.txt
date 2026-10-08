@@ -5,7 +5,7 @@ Module
   extern ef3 barrier @m13_callback_barrier() -> Unit <abi=c no-gc lib=fixture_errno>
   extern ef4 disturb @m33_errno_disturb() -> Unit <abi=c gc-leaf no-gc lib=fixture_errno>
   foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn11
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn13
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option<String>
     Some(_0: String)
@@ -29,12 +29,15 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn8 captures=0
-    bridge function_type3 -> @fn12 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  interface Equality<String>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn10 captures=0
+    bridge function_type3 -> @fn14 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -42,9 +45,28 @@ Module
   generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get5 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn12 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
-  generated_callable gc1 function=@fn11 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
-  fun callCallback @fn0(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> (Int, Int)
+  generated_callable gc0 function=@fn14 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn13 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn9 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun callCallback @fn1(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> (Int, Int)
     bb0 entry
       call $call.1: (Int, Int) = extern0 @m33_errno_callback direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -56,7 +78,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun parallel @fn1(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>) -> (Int, Int)
+  fun parallel @fn2(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>) -> (Int, Int)
     bb0 entry
       call $call.1: (Int, Int) = extern1 @m33_errno_parallel direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -66,7 +88,7 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun leaf @fn2(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
+  fun leaf @fn3(arg0: Int, arg1: Int, arg2: Int) -> (Int, Int) <no-gc>
     bb0 entry
       call $call.1: (Int, Int) = extern2 @m33_errno_int direct
         Type Int
@@ -78,15 +100,15 @@ Module
       return
         Type (Int, Int)
         Local $call.1
-  fun barrier @fn3() -> Unit
+  fun barrier @fn4() -> Unit
     bb0 entry
       call extern3 @m13_callback_barrier direct
       return
-  fun disturb @fn4() -> Unit <no-gc>
+  fun disturb @fn5() -> Unit <no-gc>
     bb0 entry
       call extern4 @m33_errno_disturb direct
       return
-  fun expect @fn5(value: Boolean) -> Unit
+  fun expect @fn6(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -121,7 +143,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun nested @fn6(input: Int) -> Int
+  fun nested @fn7(input: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -132,7 +154,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn10 direct
+      call @fn12 direct
         Type Cell
         Local $new.1
         Type Int
@@ -314,13 +336,13 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Boolean
         Local $parameter.value
       return
         Type Int
         Local value
-  fun main @fn7() -> Unit
+  fun main @fn8() -> Unit
     bb0 entry
       val $dependency.argument.0: (Int) -> Int
         Type (Int) -> Int
@@ -436,7 +458,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -522,7 +544,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -541,7 +563,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn5 direct
+      call @fn6 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -591,7 +613,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -622,7 +644,29 @@ Module
       unreachable
     bb12 pattern.merge.12
       unreachable
-  fun $lambda.0 @fn8($closure: (Int) -> Int, input: Int) -> Int
+  fun equals @fn9(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $lambda.0 @fn10($closure: (Int) -> Int, input: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -630,13 +674,13 @@ Module
       val $parameter.input: Int
         Type Int
         Local $argument.0
-      call $call.1: Int = @fn6 direct
+      call $call.1: Int = @fn7 direct
         Type Int
         Local $parameter.input
       return
         Type Int
         Local $call.1
-  fun println @fn9(value: String) -> Unit
+  fun println @fn11(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -660,7 +704,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun init.Cell.$c0 @fn10(this: Cell, value: Int) -> Unit
+  fun init.Cell.$c0 @fn12(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -668,7 +712,7 @@ Module
         Type Int
         Local value
       return
-  fun foreign callback adapter 0 @fn11($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn13($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -743,7 +787,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn14($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -757,9 +801,11 @@ Module
         Box
           Type Int
           Local $call.1
-  instance mi0 function=@fn9 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn9 <- equals
+  instance mi2 function=@fn11 <- println
   str @str0 "illegal state"
   str @str1 "illegal state"
   str @str2 "errno-callbacks-ok"
   str @str3 "\n"
-  output executable @fn7
+  output executable @fn8

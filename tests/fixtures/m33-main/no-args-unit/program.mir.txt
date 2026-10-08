@@ -1,20 +1,40 @@
 Module
   global0 eagerCount: Int managed initial=zeroed-for-runtime-unit
   global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 top-level:eagerCount eager global0 initializer=@fn5 ensure=@fn6 failure=1 deps=[]
+  init0 top-level:eagerCount eager global0 initializer=@fn6 ensure=@fn7 failure=1 deps=[]
   extern ef0 argc @scoop_rt_program_argc() -> Int <abi=c gc-leaf no-gc>
   extern ef1 argv @scoop_rt_program_argv(Int) -> Option<Ptr<Int8>> <abi=c gc-leaf no-gc>
-  callback cb0 @fn3 -> @fn10 function_type0 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
+  callback cb0 @fn4 -> @fn11 function_type0 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
   enum Option<Ptr<Int8>>
     Some(_0: Ptr<Int8>)
     None()
+  interface Equality<Ptr<Int8>>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn10 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
-  fun check @fn0(value: Boolean) -> Unit
+  generated_callable gc0 function=@fn11 id=c4ccca275eb01c0dd03781d2b7a682e6abf3688860dbe27b44410198ccc381b8
+  fun equalTo @fn0(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      val $dependency.local.4: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn9 direct
+        Type Ptr<Int8>
+        Local $dependency.local.2
+        Type Ptr<Int8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun check @fn1(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -37,13 +57,13 @@ Module
       unreachable
     bb2 if.merge.2
       return
-  fun argc @fn1() -> Int <no-gc>
+  fun argc @fn2() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @scoop_rt_program_argc direct
       return
         Type Int
         Local $call.1
-  fun argv @fn2(arg0: Int) -> Option<Ptr<Int8>> <no-gc>
+  fun argv @fn3(arg0: Int) -> Option<Ptr<Int8>> <no-gc>
     bb0 entry
       call $call.1: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
         Type Int
@@ -51,15 +71,15 @@ Module
       return
         Type Option<Ptr<Int8>>
         Local $call.1
-  fun count @fn3() -> Int <no-gc>
+  fun count @fn4() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern0 @scoop_rt_program_argc direct
       return
         Type Int
         Local $call.1
-  fun main @fn4() -> Unit
+  fun main @fn5() -> Unit
     bb0 entry
-      call $dependency.receiver: Int = @fn7 direct
+      call $dependency.receiver: Int = @fn8 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
@@ -76,11 +96,11 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
-      call $dependency.receiver: Int = @fn3 direct
-      call $dependency.argument.0: Int = @fn7 direct
+      call $dependency.receiver: Int = @fn4 direct
+      call $dependency.argument.0: Int = @fn8 direct
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
@@ -94,7 +114,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -106,7 +126,7 @@ Module
       call $call.1: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
         Type Int
         Local $parameter.index
-      call $argument.0: Boolean = @fn9 direct
+      call $argument.0: Boolean = @fn10 direct
         Type Option<Ptr<Int8>>
         Local $call.1
         Type Option<Ptr<Int8>>
@@ -114,7 +134,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -126,7 +146,7 @@ Module
       call $call.2: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
         Type Int
         Local $parameter.index
-      call $argument.0: Boolean = @fn9 direct
+      call $argument.0: Boolean = @fn10 direct
         Type Option<Ptr<Int8>>
         Local $call.2
         Type Option<Ptr<Int8>>
@@ -134,7 +154,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -146,7 +166,7 @@ Module
       call $call.3: Option<Ptr<Int8>> = extern1 @scoop_rt_program_argv direct
         Type Int
         Local $parameter.index
-      call $call.4: Boolean = @fn9 direct
+      call $call.4: Boolean = @fn10 direct
         Type Option<Ptr<Int8>>
         Local $call.3
         Type Option<Ptr<Int8>>
@@ -159,7 +179,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: String
@@ -172,14 +192,14 @@ Module
         Type String
         Local $dependency.parameter.message
       return
-  fun $init$body$0 @fn5() -> Unit
+  fun $init$body$0 @fn6() -> Unit
     bb0 entry
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn4 direct
       global_assign eagerCount
         Type Int
         Local $call.1
       return
-  fun $init$ensure$0 @fn6() -> Unit
+  fun $init$ensure$0 @fn7() -> Unit
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
@@ -224,7 +244,7 @@ Module
     bb10 try.end.10
       goto bb3
     bb11 try.body.11 unwind bb4
-      call @fn5 direct
+      call @fn6 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:eagerCount
@@ -277,13 +297,13 @@ Module
       unreachable
     bb19 if.merge.19
       unreachable
-  fun $get$eagerCount @fn7() -> Int
+  fun $get$eagerCount @fn8() -> Int
     bb0 entry
-      call @fn6 direct
+      call @fn7 direct
       return
         Type Int
         GlobalRead eagerCount
-  fun equals @fn8(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+  fun equals @fn9(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
     bb0 entry
       val $dependency.local.2: Ptr<Int8>
         Type Ptr<Int8>
@@ -305,7 +325,7 @@ Module
           PtrToULong
             Type Ptr<Int8>
             Local $dependency.local.3
-  fun $derived.equals.0 @fn9(this: Option<Ptr<Int8>>, other: Option<Ptr<Int8>>) -> Boolean
+  fun $derived.equals.0 @fn10(this: Option<Ptr<Int8>>, other: Option<Ptr<Int8>>) -> Boolean
     bb0 entry
       val $when.1: Option<Ptr<Int8>>
         Type Option<Ptr<Int8>>
@@ -352,7 +372,7 @@ Module
         VariantPayloadProject Option<Ptr<Int8>> v0 f0
           Type Option<Ptr<Int8>>
           Local $pattern.subject.4
-      call $call.1: Boolean = @fn8 direct
+      call $call.1: Boolean = @fn9 direct
         Type Ptr<Int8>
         Local $left.0.0
         Type Ptr<Int8>
@@ -392,9 +412,9 @@ Module
         BoolLiteral false
     bb12 pattern.merge.12
       unreachable
-  fun callback bridge for count @fn10($result: Ptr<Int>) -> Unit <no-gc>
+  fun callback bridge for count @fn11($result: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
-      call $value: Int = @fn3 direct
+      call $value: Int = @fn4 direct
       Type Unit
       PtrStore Int
         Type Ptr<Int>
@@ -402,6 +422,7 @@ Module
         Type Int
         Local $value
       return
-  instance mi0 function=@fn8 <- equals
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn9 <- equals
   str @str0 "unit-main\n"
-  output executable @fn4
+  output executable @fn5

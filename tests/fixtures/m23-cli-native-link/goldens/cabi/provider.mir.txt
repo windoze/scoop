@@ -46,6 +46,7 @@ Module
   class box<Envelope> vtable=0 itables=0
   class box<Widths> vtable=0 itables=0
   class box<Packed> vtable=0 itables=0
+  interface Equality<Ptr<Int>>
   interface Continuation<Widths>
   interface SuspendTask<Widths>
   interface SuspendRegistration<Widths>
@@ -69,10 +70,29 @@ Module
   generated_exact_type get11 location=class3 nominal_id=e680bcd49499271f10a9cf16e92c2fb4f4a97caa73ecec686a835c9d308d91bf exact_id=ef6af16e1f60b38396cf66d46f264bad074b77da2d758a4911be1f77b4e1c0c3
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get13 location=enum8 nominal_id=d7affe8512bd6749009d64fbd42612a5286c0c2a32bf7a439f5ab21ebe6e33a7 exact_id=ffe97b91549b053fc7a9a74a73f2dc8fd868b7bbbc369ecc06fbf86559c98693
-  generated_callable gc0 function=@fn29 id=3c71a0070330ba983ee598ccbbbab566270d629f7cb29b4a850aa9af9c678681
-  generated_callable gc1 function=@fn31 id=85cac0c35055b3e277a95bb79f95fc8f2baedeb50e186b28fbc57cda316b814d
-  generated_callable gc2 function=@fn30 id=bd8eff5260df4034d241e7e2318c5b82d27826af164adbc22ec888fe3edfdfbc
-  fun Packed.equals @fn0(this: Packed, other: Packed) -> Boolean
+  generated_callable gc0 function=@fn31 id=3c71a0070330ba983ee598ccbbbab566270d629f7cb29b4a850aa9af9c678681
+  generated_callable gc1 function=@fn33 id=85cac0c35055b3e277a95bb79f95fc8f2baedeb50e186b28fbc57cda316b814d
+  generated_callable gc2 function=@fn32 id=bd8eff5260df4034d241e7e2318c5b82d27826af164adbc22ec888fe3edfdfbc
+  fun equalTo @fn0(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn15 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Packed.equals @fn1(this: Packed, other: Packed) -> Boolean
     bb0 entry
       call $call.1: Boolean = external0 direct
         Type Boolean
@@ -108,7 +128,7 @@ Module
       return
         Type Boolean
         Local $logic.2
-  fun Envelope.equals @fn1(this: Envelope, other: Envelope) -> Boolean
+  fun Envelope.equals @fn2(this: Envelope, other: Envelope) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -122,7 +142,7 @@ Module
             Type Envelope
             Local other
     bb1 logic.rhs.1
-      call $call.2: Boolean = @fn0 direct
+      call $call.2: Boolean = @fn1 direct
         Type Packed
         FieldAccess 1
           Type Envelope
@@ -166,7 +186,7 @@ Module
       return
         Type Boolean
         Local $logic.3
-  fun Widths.equals @fn2(this: Widths, other: Widths) -> Boolean
+  fun Widths.equals @fn3(this: Widths, other: Widths) -> Boolean
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -333,7 +353,7 @@ Module
       return
         Type Boolean
         Local $logic.7
-  fun roundI8 @fn3(arg0: Int8) -> Int8
+  fun roundI8 @fn4(arg0: Int8) -> Int8
     bb0 entry
       call $call.1: Int8 = extern0 @m23_i8 direct
         Type Int8
@@ -341,7 +361,7 @@ Module
       return
         Type Int8
         Local $call.1
-  fun roundI16 @fn4(arg0: Int16) -> Int16
+  fun roundI16 @fn5(arg0: Int16) -> Int16
     bb0 entry
       call $call.1: Int16 = extern1 @m23_i16 direct
         Type Int16
@@ -349,7 +369,7 @@ Module
       return
         Type Int16
         Local $call.1
-  fun roundI32 @fn5(arg0: Int) -> Int
+  fun roundI32 @fn6(arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = extern2 @m23_i32 direct
         Type Int
@@ -357,7 +377,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun roundI64 @fn6(arg0: Long) -> Long
+  fun roundI64 @fn7(arg0: Long) -> Long
     bb0 entry
       call $call.1: Long = extern3 @m23_i64 direct
         Type Long
@@ -365,7 +385,7 @@ Module
       return
         Type Long
         Local $call.1
-  fun roundU8 @fn7(arg0: UInt8) -> UInt8
+  fun roundU8 @fn8(arg0: UInt8) -> UInt8
     bb0 entry
       call $call.1: UInt8 = extern4 @m23_u8 direct
         Type UInt8
@@ -373,7 +393,7 @@ Module
       return
         Type UInt8
         Local $call.1
-  fun roundU16 @fn8(arg0: UInt16) -> UInt16
+  fun roundU16 @fn9(arg0: UInt16) -> UInt16
     bb0 entry
       call $call.1: UInt16 = extern5 @m23_u16 direct
         Type UInt16
@@ -381,7 +401,7 @@ Module
       return
         Type UInt16
         Local $call.1
-  fun roundU32 @fn9(arg0: UInt) -> UInt
+  fun roundU32 @fn10(arg0: UInt) -> UInt
     bb0 entry
       call $call.1: UInt = extern6 @m23_u32 direct
         Type UInt
@@ -389,7 +409,7 @@ Module
       return
         Type UInt
         Local $call.1
-  fun roundU64 @fn10(arg0: ULong) -> ULong
+  fun roundU64 @fn11(arg0: ULong) -> ULong
     bb0 entry
       call $call.1: ULong = extern7 @m23_u64 direct
         Type ULong
@@ -397,7 +417,7 @@ Module
       return
         Type ULong
         Local $call.1
-  fun transformWidths @fn11(arg0: Widths) -> Widths
+  fun transformWidths @fn12(arg0: Widths) -> Widths
     bb0 entry
       call $call.1: Widths = extern8 @m23_widths direct
         Type Widths
@@ -405,7 +425,7 @@ Module
       return
         Type Widths
         Local $call.1
-  fun transformEnvelope @fn12(arg0: Envelope, arg1: FunPtr<(Envelope) -> Envelope>) -> Envelope
+  fun transformEnvelope @fn13(arg0: Envelope, arg1: FunPtr<(Envelope) -> Envelope>) -> Envelope
     bb0 entry
       call $call.1: Envelope = extern9 @m23_envelope direct
         Type Envelope
@@ -415,7 +435,7 @@ Module
       return
         Type Envelope
         Local $call.1
-  fun transformPointer @fn13(arg0: Ptr<Int>, arg1: Option<Ptr<Int>>, arg2: Option<FunPtr<(Int) -> Int>>) -> Int
+  fun transformPointer @fn14(arg0: Ptr<Int>, arg1: Option<Ptr<Int>>, arg2: Option<FunPtr<(Int) -> Int>>) -> Int
     bb0 entry
       call $call.1: Int = extern10 @m23_pointer direct
         Type Ptr<Int>
@@ -427,43 +447,65 @@ Module
       return
         Type Int
         Local $call.1
-  fun Continuation.resume @fn14(this: Continuation<Widths>, value: Widths) -> Unit
+  fun equals @fn15(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun Continuation.resume @fn16(this: Continuation<Widths>, value: Widths) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn15(this: Continuation<Widths>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn17(this: Continuation<Widths>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn16(this: SuspendTask<Widths>, $completion: Continuation<Widths>) -> CoroutineStep<Widths>
+  fun SuspendTask.run @fn18(this: SuspendTask<Widths>, $completion: Continuation<Widths>) -> CoroutineStep<Widths>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Widths>, continuation: Continuation<Widths>) -> Unit
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Widths>, continuation: Continuation<Widths>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn18(this: Continuation<Envelope>, value: Envelope) -> Unit
+  fun Continuation.resume @fn20(this: Continuation<Envelope>, value: Envelope) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn19(this: Continuation<Envelope>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn21(this: Continuation<Envelope>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn20(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
+  fun SuspendTask.run @fn22(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn22(this: Continuation<Packed>, value: Packed) -> Unit
+  fun Continuation.resume @fn24(this: Continuation<Packed>, value: Packed) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn23(this: Continuation<Packed>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn25(this: Continuation<Packed>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn24(this: SuspendTask<Packed>, $completion: Continuation<Packed>) -> CoroutineStep<Packed>
+  fun SuspendTask.run @fn26(this: SuspendTask<Packed>, $completion: Continuation<Packed>) -> CoroutineStep<Packed>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Packed>, continuation: Continuation<Packed>) -> Unit
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Packed>, continuation: Continuation<Packed>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.Widths.$c2 @fn26(signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) -> Widths <no-gc>
+  fun ctor.Widths.$c2 @fn28(signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) -> Widths <no-gc>
     bb0 entry
       return
         Type Widths
@@ -484,7 +526,7 @@ Module
           Local unsigned32
           Type ULong
           Local unsigned64
-  fun ctor.Packed.$c0 @fn27(flag: Boolean, value: Int) -> Packed <no-gc>
+  fun ctor.Packed.$c0 @fn29(flag: Boolean, value: Int) -> Packed <no-gc>
     bb0 entry
       return
         Type Packed
@@ -493,7 +535,7 @@ Module
           Local flag
           Type Int
           Local value
-  fun ctor.Envelope.$c1 @fn28(tag: UInt16, packed: Packed, tail: Long) -> Envelope <no-gc>
+  fun ctor.Envelope.$c1 @fn30(tag: UInt16, packed: Packed, tail: Long) -> Envelope <no-gc>
     bb0 entry
       return
         Type Envelope
@@ -504,7 +546,7 @@ Module
           Local packed
           Type Long
           Local tail
-  fun startCoroutine<Envelope> @fn29(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+  fun startCoroutine<Envelope> @fn31(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -527,7 +569,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn18 interface Continuation<Envelope>[0]
+      call @fn20 interface Continuation<Envelope>[0]
         Type Continuation<Envelope>
         Local completion
         Type Envelope
@@ -540,7 +582,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn19 interface Continuation<Envelope>[1]
+      call @fn21 interface Continuation<Envelope>[1]
         Type Continuation<Envelope>
         Local completion
         Type Throwable
@@ -559,7 +601,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Envelope> = @fn20 interface SuspendTask<Envelope>[0]
+      call $step: CoroutineStep<Envelope> = @fn22 interface SuspendTask<Envelope>[0]
         Type SuspendTask<Envelope>
         Local task
         Type Continuation<Envelope>
@@ -585,7 +627,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Widths> @fn30(task: SuspendTask<Widths>, completion: Continuation<Widths>) -> Unit
+  fun startCoroutine<Widths> @fn32(task: SuspendTask<Widths>, completion: Continuation<Widths>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -608,7 +650,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn14 interface Continuation<Widths>[0]
+      call @fn16 interface Continuation<Widths>[0]
         Type Continuation<Widths>
         Local completion
         Type Widths
@@ -621,7 +663,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn15 interface Continuation<Widths>[1]
+      call @fn17 interface Continuation<Widths>[1]
         Type Continuation<Widths>
         Local completion
         Type Throwable
@@ -640,7 +682,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Widths> = @fn16 interface SuspendTask<Widths>[0]
+      call $step: CoroutineStep<Widths> = @fn18 interface SuspendTask<Widths>[0]
         Type SuspendTask<Widths>
         Local task
         Type Continuation<Widths>
@@ -666,7 +708,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun startCoroutine<Packed> @fn31(task: SuspendTask<Packed>, completion: Continuation<Packed>) -> Unit
+  fun startCoroutine<Packed> @fn33(task: SuspendTask<Packed>, completion: Continuation<Packed>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -689,7 +731,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn22 interface Continuation<Packed>[0]
+      call @fn24 interface Continuation<Packed>[0]
         Type Continuation<Packed>
         Local completion
         Type Packed
@@ -702,7 +744,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn23 interface Continuation<Packed>[1]
+      call @fn25 interface Continuation<Packed>[1]
         Type Continuation<Packed>
         Local completion
         Type Throwable
@@ -721,7 +763,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Packed> = @fn24 interface SuspendTask<Packed>[0]
+      call $step: CoroutineStep<Packed> = @fn26 interface SuspendTask<Packed>[0]
         Type SuspendTask<Packed>
         Local task
         Type Continuation<Packed>
@@ -753,22 +795,24 @@ Module
   coroutine_slot cl0 CoroutineSlot<Envelope> value=Envelope
   coroutine_slot cl1 CoroutineSlot<Widths> value=Widths
   coroutine_slot cl2 CoroutineSlot<Packed> value=Packed
-  coroutine_start ct0 result=Envelope function=fn29
-  coroutine_start ct1 result=Widths function=fn30
-  coroutine_start ct2 result=Packed function=fn31
-  coroutine_fn cf0 @fn16 source_return=Widths step=cs1 immediate
-  coroutine_fn cf1 @fn20 source_return=Envelope step=cs0 immediate
-  coroutine_fn cf2 @fn24 source_return=Packed step=cs2 immediate
-  instance mi0 function=@fn14 <- Continuation.resume
-  instance mi1 function=@fn15 <- Continuation.resumeWithException
-  instance mi2 function=@fn16 <- SuspendTask.run
-  instance mi3 function=@fn17 <- SuspendRegistration.register
-  instance mi4 function=@fn18 <- Continuation.resume
-  instance mi5 function=@fn19 <- Continuation.resumeWithException
-  instance mi6 function=@fn20 <- SuspendTask.run
-  instance mi7 function=@fn21 <- SuspendRegistration.register
-  instance mi8 function=@fn22 <- Continuation.resume
-  instance mi9 function=@fn23 <- Continuation.resumeWithException
-  instance mi10 function=@fn24 <- SuspendTask.run
-  instance mi11 function=@fn25 <- SuspendRegistration.register
+  coroutine_start ct0 result=Envelope function=fn31
+  coroutine_start ct1 result=Widths function=fn32
+  coroutine_start ct2 result=Packed function=fn33
+  coroutine_fn cf0 @fn18 source_return=Widths step=cs1 immediate
+  coroutine_fn cf1 @fn22 source_return=Envelope step=cs0 immediate
+  coroutine_fn cf2 @fn26 source_return=Packed step=cs2 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn15 <- equals
+  instance mi2 function=@fn16 <- Continuation.resume
+  instance mi3 function=@fn17 <- Continuation.resumeWithException
+  instance mi4 function=@fn18 <- SuspendTask.run
+  instance mi5 function=@fn19 <- SuspendRegistration.register
+  instance mi6 function=@fn20 <- Continuation.resume
+  instance mi7 function=@fn21 <- Continuation.resumeWithException
+  instance mi8 function=@fn22 <- SuspendTask.run
+  instance mi9 function=@fn23 <- SuspendRegistration.register
+  instance mi10 function=@fn24 <- Continuation.resume
+  instance mi11 function=@fn25 <- Continuation.resumeWithException
+  instance mi12 function=@fn26 <- SuspendTask.run
+  instance mi13 function=@fn27 <- SuspendRegistration.register
   output library

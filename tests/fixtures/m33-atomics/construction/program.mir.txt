@@ -15,10 +15,10 @@ Module
   enum CoroutineSlot<Payload>
     Empty()
     Value(value: Payload)
+  class Payload vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Payload vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class IllegalArgumentException vtable=0 itables=0
   class ListIterator<AtomicRef<Payload>> vtable=0 itables=1

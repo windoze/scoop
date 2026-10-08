@@ -7,8 +7,11 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   closure cc0 $Closure$reference0 type=function_type0 invoke=@fn24 captures=1
     bridge function_type1 -> @fn29 id=590aba15207bddfbd26461db8d406f4eb0ded95a208ebdaf735d4d0e66afd99d
   closure cc1 $Closure$reference1 type=function_type0 invoke=@fn25 captures=0

@@ -27,6 +27,8 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer

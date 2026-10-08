@@ -13,6 +13,8 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Pair> vtable=0 itables=0
+  interface Equality<Ptr<Pair>>
+  interface Equality<Ptr<Int>>
   interface Continuation<Pair>
   interface SuspendTask<Pair>
   interface SuspendRegistration<Pair>
@@ -24,7 +26,7 @@ Module
   generated_exact_type get5 location=enum1 nominal_id=5cb1e2cd1cbd158a6e81a2c8a0d7545767d3fb80a1d93163f7ff0f0a9ae465a7 exact_id=935b67cf6bbfcb57ade2b691f86e94338c6876bb4c9c4e5243f176fffedc5ef9
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get7 location=enum2 nominal_id=ac58306cf31e80a72b04e2ab7fbf595a64a7f862412b2dd621c76716dbff3066 exact_id=f61dd78b29db11b0cd2e2773ccf6d3788bf903f2ee56577febb927d134bafb15
-  generated_callable gc0 function=@fn12 id=3e1a8c14dccb6fb0149621f17819a49dc72563c6d874b9e0baa61ff349e39b36
+  generated_callable gc0 function=@fn16 id=3e1a8c14dccb6fb0149621f17819a49dc72563c6d874b9e0baa61ff349e39b36
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: Int
@@ -53,7 +55,7 @@ Module
       val $parameter.second: Int
         Type Int
         Local $argument.1
-      call $argument.0: Pair = @fn11 direct
+      call $argument.0: Pair = @fn15 direct
         Type Int
         Local $parameter.first
         Type Int
@@ -106,7 +108,7 @@ Module
       val $dependency.parameter.raw: ULong
         Type ULong
         Local $dependency.argument.0
-      call raw: ULong = @fn4 direct
+      call raw: ULong = @fn5 direct
         Type ULong
         Local $dependency.parameter.raw
       val $dependency.argument.0: ULong
@@ -115,7 +117,7 @@ Module
       val $dependency.parameter.raw: ULong
         Type ULong
         Local $dependency.argument.0
-      call $dependency.receiver: Ptr<Pair> = @fn5 direct
+      call $dependency.receiver: Ptr<Pair> = @fn6 direct
         Type ULong
         Local $dependency.parameter.raw
       return
@@ -139,7 +141,7 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $dependency.local.5: Ptr<Int> = @fn6 direct
+      call $dependency.local.5: Ptr<Int> = @fn8 direct
         Type ULong
         Local $dependency.local.4
       return
@@ -147,7 +149,26 @@ Module
         PtrLoad Int
           Type Ptr<Int>
           Local $dependency.local.5
-  fun reencode @fn4(raw: ULong) -> ULong
+  fun equalTo @fn4(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      val $dependency.local.4: Ptr<Pair>
+        Type Ptr<Pair>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn9 direct
+        Type Ptr<Pair>
+        Local $dependency.local.2
+        Type Ptr<Pair>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reencode @fn5(raw: ULong) -> ULong
     bb0 entry
       val $dependency.local.1: Ptr<Pair>
         Type Ptr<Pair>
@@ -159,33 +180,96 @@ Module
         PtrToULong
           Type Ptr<Pair>
           Local $dependency.local.1
-  fun reconstruct @fn5(raw: ULong) -> Ptr<Pair>
+  fun reconstruct @fn6(raw: ULong) -> Ptr<Pair>
     bb0 entry
       return
         Type Ptr<Pair>
         PtrFromNonZeroULong Pair
           Type ULong
           Local raw
-  fun reconstruct @fn6(raw: ULong) -> Ptr<Int>
+  fun equalTo @fn7(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn10 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun reconstruct @fn8(raw: ULong) -> Ptr<Int>
     bb0 entry
       return
         Type Ptr<Int>
         PtrFromNonZeroULong Int
           Type ULong
           Local raw
-  fun Continuation.resume @fn7(this: Continuation<Pair>, value: Pair) -> Unit
+  fun equals @fn9(this: Ptr<Pair>, other: Ptr<Pair>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Pair>
+        Type Ptr<Pair>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Pair>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Pair>
+        Type Ptr<Pair>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Pair>
+            Local $dependency.local.3
+  fun equals @fn10(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun Continuation.resume @fn11(this: Continuation<Pair>, value: Pair) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn8(this: Continuation<Pair>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn12(this: Continuation<Pair>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn9(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+  fun SuspendTask.run @fn13(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun ctor.Pair.$c0 @fn11(first: Int, second: Int) -> Pair <no-gc>
+  fun ctor.Pair.$c0 @fn15(first: Int, second: Int) -> Pair <no-gc>
     bb0 entry
       return
         Type Pair
@@ -194,7 +278,7 @@ Module
           Local first
           Type Int
           Local second
-  fun startCoroutine<Pair> @fn12(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+  fun startCoroutine<Pair> @fn16(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -217,7 +301,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn7 interface Continuation<Pair>[0]
+      call @fn11 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         Local completion
         Type Pair
@@ -230,7 +314,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn8 interface Continuation<Pair>[1]
+      call @fn12 interface Continuation<Pair>[1]
         Type Continuation<Pair>
         Local completion
         Type Throwable
@@ -249,7 +333,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Pair> = @fn9 interface SuspendTask<Pair>[0]
+      call $step: CoroutineStep<Pair> = @fn13 interface SuspendTask<Pair>[0]
         Type SuspendTask<Pair>
         Local task
         Type Continuation<Pair>
@@ -277,16 +361,20 @@ Module
       goto bb6
   coroutine_step cs0 CoroutineStep<Pair> result=Pair
   coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
-  coroutine_start ct0 result=Pair function=fn12
-  coroutine_fn cf0 @fn9 source_return=Pair step=cs0 immediate
+  coroutine_start ct0 result=Pair function=fn16
+  coroutine_fn cf0 @fn13 source_return=Pair step=cs0 immediate
   instance mi0 function=@fn1 <- exercise
   instance mi1 function=@fn2 <- roundTrip
   instance mi2 function=@fn3 <- copy
-  instance mi3 function=@fn4 <- reencode
-  instance mi4 function=@fn5 <- reconstruct
+  instance mi3 function=@fn4 <- equalTo
+  instance mi4 function=@fn5 <- reencode
   instance mi5 function=@fn6 <- reconstruct
-  instance mi6 function=@fn7 <- Continuation.resume
-  instance mi7 function=@fn8 <- Continuation.resumeWithException
-  instance mi8 function=@fn9 <- SuspendTask.run
-  instance mi9 function=@fn10 <- SuspendRegistration.register
+  instance mi6 function=@fn7 <- equalTo
+  instance mi7 function=@fn8 <- reconstruct
+  instance mi8 function=@fn9 <- equals
+  instance mi9 function=@fn10 <- equals
+  instance mi10 function=@fn11 <- Continuation.resume
+  instance mi11 function=@fn12 <- Continuation.resumeWithException
+  instance mi12 function=@fn13 <- SuspendTask.run
+  instance mi13 function=@fn14 <- SuspendRegistration.register
   output library

@@ -400,7 +400,7 @@ musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固�
 
 普通 archive 保留真实 member index、offset、length 与 digest，允许 BSD/GNU 命名；拒绝 thin、外部或嵌套 archive 和损坏边界。必要格式与定义索引覆盖候选，完整 relocation/EH/TLS/初始化检查只作用于实际选入的 member。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
 
-选入的 native 对象不能包含未声明的 constructor/destructor、动态 TLS initializer、bitcode/LTO、embedded linker actions、可执行栈或未声明运行库需求的 C++ EH 依赖。允许普通 C unwind 与静态／零初始化 TLS；已声明 C++ 模式的对象可使用相应运行库的 EH／RTTI 和标准 native 初始化／析构记录，由目标 CRT／C++ 运行库执行，不注册为 Scoop initialization unit 或 managed destructor。C++ 异常与初始化边界遵守运行时规范 5.5、第 7 章。普通 native 重复定义不使用 Scoop ODR 判等。
+选入的 native 对象不能包含未声明的 constructor/destructor、动态 TLS initializer、bitcode/LTO、embedded linker actions、可执行栈或未声明运行库需求的 C++ EH 依赖。允许普通 C unwind 与静态／零初始化 TLS；已声明 C++ 模式的对象可使用相应运行库的 EH／RTTI 和标准 native 初始化／析构记录，由目标 CRT／C++ 运行库执行，不注册为 Scoop initialization unit 或 managed destructor。C++ 异常与初始化边界遵守运行时规范 5.5、第 7 章。普通 native 重复定义不使用 Scoop ODR 判等；同一符号空间内的强／弱绑定沿用目标对象格式规则，强定义覆盖同名弱定义，两个同名强定义报冲突。
 
 非空 `@Extern(lib=L)` 在 Darwin 的每个显式 library root R 下，对 TargetDefault 检查 `R/L.o`、`R/libL.a`、`R/libL.dylib`、`R/libL.tbd` 与 `R/L.framework/L`；不去掉已有 lib 前缀或扩展名，不递归扫描。显式 kind 只收窄对应格式；相同内容及加载合同的重复候选可合并，不同候选为歧义。空 lib 只查询已引入的 runtime/native 对象和动态 exports，不扫描目录搜索任意库。
 

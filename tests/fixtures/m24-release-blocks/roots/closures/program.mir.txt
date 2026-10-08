@@ -3,7 +3,7 @@ Module
   extern ef1 count @m24_release_owner_count(Int) -> Int <abi=c no-gc lib=m24_release>
   extern ef2 invokeNative @m24_release_invoke(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int) -> Int <abi=c no-gc lib=m24_release>
   foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type4 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn14
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type4 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn16
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum ForeignCallbackMode
     Reusable()
@@ -19,12 +19,14 @@ Module
   class Owner vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
   interface ToString
   interface Hash
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn11 captures=1
-    bridge function_type3 -> @fn15 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
-  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn12 captures=1
-    bridge function_type5 -> @fn16 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn13 captures=1
+    bridge function_type3 -> @fn17 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
+  closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn14 captures=1
+    bridge function_type5 -> @fn18 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=closure1 nominal_id=52a0548e4bdf579c7a785277e2527c514df21b295d6c362a8b70695c89645ec0 exact_id=1f7759043c1e6fb7d31419eb681a5149bc19922787fe0216d46bc4949f1ae693
   generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
@@ -33,16 +35,35 @@ Module
   generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get6 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn14 id=0bdc847b8abc86d111e1e98fc344849e94e021c32a31b13190891d13e7b85809
-  generated_callable gc1 function=@fn16 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
-  generated_callable gc2 function=@fn15 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
-  fun record @fn0(arg0: Int) -> Unit
+  generated_callable gc0 function=@fn16 id=0bdc847b8abc86d111e1e98fc344849e94e021c32a31b13190891d13e7b85809
+  generated_callable gc1 function=@fn18 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
+  generated_callable gc2 function=@fn17 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn11 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun record @fn1(arg0: Int) -> Unit
     bb0 entry
       call extern0 @m24_release_owner direct
         Type Int
         Local arg0
       return
-  fun count @fn1(arg0: Int) -> Int
+  fun count @fn2(arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = extern1 @m24_release_owner_count direct
         Type Int
@@ -50,7 +71,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun retained @fn2(id: Int) -> Unit
+  fun retained @fn3(id: Int) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
@@ -79,11 +100,11 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       return
-  fun reclaimed @fn3(id: Int) -> Unit
+  fun reclaimed @fn4(id: Int) -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
@@ -112,11 +133,11 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       return
-  fun invokeNative @fn4(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Int
+  fun invokeNative @fn5(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Int
     bb0 entry
       call $call.1: Int = extern2 @m24_release_invoke direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -128,7 +149,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun makeClosure @fn5() -> () -> Int
+  fun makeClosure @fn6() -> () -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -139,7 +160,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn13 direct
+      call @fn15 direct
         Type Owner
         Local $new.1
         Type Int
@@ -156,16 +177,16 @@ Module
           CaptureInit field=0
             Type Owner
             Local owner
-  fun closureRoot @fn6() -> Unit
+  fun closureRoot @fn7() -> Unit
     bb0 entry
-      call read: () -> Int = @fn5 direct
+      call read: () -> Int = @fn6 direct
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn2 direct
+      call @fn3 direct
         Type Int
         Local $parameter.id
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -187,11 +208,11 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       return
-  fun registered @fn7() -> ForeignCallback<(Int, Ptr<Unit>) -> Int>
+  fun registered @fn8() -> ForeignCallback<(Int, Ptr<Unit>) -> Int>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -202,7 +223,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn13 direct
+      call @fn15 direct
         Type Owner
         Local $new.1
         Type Int
@@ -239,9 +260,9 @@ Module
         ForeignCallbackRegister fcb0 family=fcf0
           Type (Int) -> Int
           Local $dependency.parameter.callback
-  fun foreignRoots @fn8() -> Unit
+  fun foreignRoots @fn9() -> Unit
     bb0 entry
-      call callback: ForeignCallback<(Int, Ptr<Unit>) -> Int> = @fn7 direct
+      call callback: ForeignCallback<(Int, Ptr<Unit>) -> Int> = @fn8 direct
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=8 bits=0x00000008
@@ -251,7 +272,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn13 direct
+      call @fn15 direct
         Type Owner
         Local $new.1
         Type Int
@@ -268,7 +289,7 @@ Module
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn2 direct
+      call @fn3 direct
         Type Int
         Local $parameter.id
       val $argument.0: Int
@@ -277,7 +298,7 @@ Module
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn2 direct
+      call @fn3 direct
         Type Int
         Local $parameter.id
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -325,7 +346,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.receiver: Int
@@ -349,7 +370,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -363,26 +384,26 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
-  fun main @fn9() -> Unit
+  fun main @fn10() -> Unit
     bb0 entry
-      call @fn6 direct
+      call @fn7 direct
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=5 bits=0x00000005
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Int
         Local $parameter.id
-      call @fn8 direct
+      call @fn9 direct
       val $argument.0: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Int
         Local $parameter.id
       val $argument.0: Int
@@ -391,11 +412,33 @@ Module
       val $parameter.id: Int
         Type Int
         Local $argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Int
         Local $parameter.id
       return
-  fun println @fn10(value: Boolean) -> Unit
+  fun equals @fn11(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun println @fn12(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -419,7 +462,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun $lambda.0 @fn11($closure: () -> Int) -> Int
+  fun $lambda.0 @fn13($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
@@ -428,7 +471,7 @@ Module
           ClosureCapture cc0 0
             Type () -> Int
             Local $closure
-  fun $lambda.1 @fn12($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.1 @fn14($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call @scoop_rt_gc_collect direct
       val $dependency.receiver: Int
@@ -451,7 +494,7 @@ Module
           Local $dependency.receiver
           Type Int
           Local $dependency.parameter.other
-  fun init.Owner.$c0 @fn13(this: Owner, code: Int) -> Unit
+  fun init.Owner.$c0 @fn15(this: Owner, code: Int) -> Unit
     bb0 entry
       field_set 0
         Type Owner
@@ -459,7 +502,7 @@ Module
         Type Int
         Local code
       return
-  fun foreign callback adapter 0 @fn14($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn16($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -534,7 +577,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> Int) -> Any
+  fun function_bridge.$Closure$lambda0.() -> Any @fn17($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type () -> Int
@@ -544,7 +587,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn16($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn18($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
@@ -570,6 +613,8 @@ Module
         Type Int
         Local $parameter.id
       return
-  instance mi0 function=@fn10 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn11 <- equals
+  instance mi2 function=@fn12 <- println
   str @str0 "\n"
-  output executable @fn9
+  output executable @fn10

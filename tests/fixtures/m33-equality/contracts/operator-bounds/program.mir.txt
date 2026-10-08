@@ -23,22 +23,22 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Point> vtable=0 itables=2
-  interface Child<Key> : Similar<Key>
-  interface Similar<Key>
   interface Child<Point> : Similar<Point>
   interface Similar<Point>
+  interface Child<Key> : Similar<Key>
+  interface Similar<Key>
   interface ToString
   interface Hash
   interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
   interface Equality<String>
-  interface Continuation<Key>
-  interface SuspendTask<Key>
-  interface SuspendRegistration<Key>
   interface Continuation<Point>
   interface SuspendTask<Point>
   interface SuspendRegistration<Point>
+  interface Continuation<Key>
+  interface SuspendTask<Key>
+  interface SuspendRegistration<Key>
   generated_exact_type get0 location=enum4 nominal_id=ccac458f1167fa753072394c97ec264da000aaa86840136c77a9e04f70980f83 exact_id=01289d22dae9748bde2ad73b697df11cc3845128f52d08b8da0523f629da6cae
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get2 location=enum2 nominal_id=e659a8a2244b704e0071d777f4f97132541eb3b86d06fac6b934d22c0d32e6dd exact_id=1de5a990ae743e8e529f4938e584d60bd00fafe901c2e3960ac209234772ba4d
@@ -53,7 +53,51 @@ Module
   generated_callable gc1 function=@fn19 id=5be2146a4951c1454a83d9acd484f709b2818e8e3b2abe23b4baf58e0073435a
   generated_callable gc2 function=@fn20 id=72b02fc1061732eed0d07eb56cce777db98421b0391cd1cf5a3b557aebcb0252
   generated_callable gc3 function=@fn18 id=9c3eacc6da778e5cdcbb647c0ce7ff05550d13da7c1852ec458744374c78ae6c
-  fun main @fn0() -> Unit
+  fun Point.equals @fn0(this: Point, other: Point) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Key.equals @fn1(this: Key, other: Key) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Key
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn2() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -353,50 +397,6 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun Key.equals @fn1(this: Key, other: Key) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Key
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Key
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun Point.equals @fn2(this: Point, other: Point) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Point
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Point
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
   fun same @fn3(left: Key, right: Key) -> Boolean
     bb0 entry
       call $call.1: Boolean = @fn1 direct
@@ -409,7 +409,7 @@ Module
         Local $call.1
   fun same @fn4(left: Point, right: Point) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn2 direct
+      call $call.1: Boolean = @fn0 direct
         Type Point
         Local left
         Type Point
@@ -441,28 +441,28 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn6(this: Continuation<Key>, value: Key) -> Unit
+  fun Continuation.resume @fn6(this: Continuation<Point>, value: Point) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn7(this: Continuation<Key>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn7(this: Continuation<Point>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn8(this: SuspendTask<Key>, $completion: Continuation<Key>) -> CoroutineStep<Key>
+  fun SuspendTask.run @fn8(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Key>, continuation: Continuation<Key>) -> Unit
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn10(this: Continuation<Point>, value: Point) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<Key>, value: Key) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn11(this: Continuation<Point>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn11(this: Continuation<Key>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn12(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
+  fun SuspendTask.run @fn12(this: SuspendTask<Key>, $completion: Continuation<Key>) -> CoroutineStep<Key>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
+  fun SuspendRegistration.register @fn13(this: SuspendRegistration<Key>, continuation: Continuation<Key>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
   fun Similar.equals @fn14(this: Similar<Point>, other: Point) -> Boolean
@@ -506,7 +506,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn6 interface Continuation<Key>[0]
+      call @fn10 interface Continuation<Key>[0]
         Type Continuation<Key>
         Local completion
         Type Key
@@ -519,7 +519,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn7 interface Continuation<Key>[1]
+      call @fn11 interface Continuation<Key>[1]
         Type Continuation<Key>
         Local completion
         Type Throwable
@@ -538,7 +538,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Key> = @fn8 interface SuspendTask<Key>[0]
+      call $step: CoroutineStep<Key> = @fn12 interface SuspendTask<Key>[0]
         Type SuspendTask<Key>
         Local task
         Type Continuation<Key>
@@ -587,7 +587,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn10 interface Continuation<Point>[0]
+      call @fn6 interface Continuation<Point>[0]
         Type Continuation<Point>
         Local completion
         Type Point
@@ -600,7 +600,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn11 interface Continuation<Point>[1]
+      call @fn7 interface Continuation<Point>[1]
         Type Continuation<Point>
         Local completion
         Type Throwable
@@ -619,7 +619,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Point> = @fn12 interface SuspendTask<Point>[0]
+      call $step: CoroutineStep<Point> = @fn8 interface SuspendTask<Point>[0]
         Type SuspendTask<Point>
         Local task
         Type Continuation<Point>
@@ -647,7 +647,7 @@ Module
       goto bb6
   fun thunk<Point> Child.equals(Point) @fn19(this: Child<Point>, other: Point) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn2 direct
+      call $call.1: Boolean = @fn0 direct
         Type Point
         Unbox
           Type Child<Point>
@@ -659,7 +659,7 @@ Module
         Local $call.1
   fun thunk<Point> Similar.equals(Point) @fn20(this: Similar<Point>, other: Point) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn2 direct
+      call $call.1: Boolean = @fn0 direct
         Type Point
         Unbox
           Type Similar<Point>
@@ -675,8 +675,8 @@ Module
   coroutine_slot cl1 CoroutineSlot<Point> value=Point
   coroutine_start ct0 result=Key function=fn17
   coroutine_start ct1 result=Point function=fn18
-  coroutine_fn cf0 @fn8 source_return=Key step=cs0 immediate
-  coroutine_fn cf1 @fn12 source_return=Point step=cs1 immediate
+  coroutine_fn cf0 @fn8 source_return=Point step=cs1 immediate
+  coroutine_fn cf1 @fn12 source_return=Key step=cs0 immediate
   instance mi0 function=@fn3 <- same
   instance mi1 function=@fn4 <- same
   instance mi2 function=@fn5 <- println
@@ -694,4 +694,4 @@ Module
   str @str2 "illegal state"
   str @str3 "operator-bounds"
   str @str4 "\n"
-  output executable @fn0
+  output executable @fn2

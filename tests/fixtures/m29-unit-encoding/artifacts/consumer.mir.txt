@@ -38,6 +38,7 @@ Module
   enum Option<Option<JsonValue>>
     Some(_0: Option<JsonValue>)
     None()
+  class UsesReference vtable=0 itables=1
   class StringBuilder vtable=0 itables=0
   class ArrayList<String> vtable=0 itables=3
   class IllegalStateException vtable=0 itables=0
@@ -47,7 +48,6 @@ Module
   class Companion<Unit> vtable=0 itables=0
   class ClassCastException vtable=0 itables=0
   class UnitEncoder vtable=0 itables=1
-  class UsesReference vtable=0 itables=1
   class UnitDecoder vtable=0 itables=1
   class ListIterator<Option<String>> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
@@ -70,14 +70,6 @@ Module
   class box<Option<JsonValue>> vtable=0 itables=0
   class box<Option<JsonMember>> vtable=0 itables=0
   class box<Option<String>> vtable=0 itables=0
-  interface List<Option<String>> : Iterable<Option<String>>
-  interface Iterable<Option<String>>
-  interface Iterator<Option<String>>
-  interface MutableList<String> : List<String>
-  interface List<String> : Iterable<String>
-  interface Iterable<String>
-  interface Iterator<String>
-  interface Encodable<Unit>
   interface Encoder
   interface KeyedEncodingContainer
   interface UnkeyedEncodingContainer
@@ -85,6 +77,14 @@ Module
   interface ToString
   interface Equality<Float>
   interface Equality<Double>
+  interface Encodable<Unit>
+  interface List<Option<String>> : Iterable<Option<String>>
+  interface Iterable<Option<String>>
+  interface Iterator<Option<String>>
+  interface MutableList<String> : List<String>
+  interface List<String> : Iterable<String>
+  interface Iterable<String>
+  interface Iterator<String>
   interface Encodable<Box<Unit>>
   interface Decodable<Unit>
   interface Decoder
@@ -135,7 +135,19 @@ Module
   generated_callable gc0 function=@fn92 id=40b40038af11641262a6048a895c58353a0ed868c75cbf0954c7e5010287676b
   generated_callable gc1 function=@fn91 id=b6ba18e5ce1502205e80d5795d96bf8a8b81a82b0b79a00cf75930008cf7c808
   generated_callable gc2 function=@fn90 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
-  fun check @fn0(value: Boolean, code: Int) -> Unit
+  fun UsesReference.encode @fn0(this: UsesReference, value: Unit, encoder: Encoder) -> Unit
+    bb0 entry
+      call <closure:function_type0> closure[function_type0]
+        Type (Unit, Encoder) -> Unit
+        FieldAccess 0
+          Type UsesReference
+          Local this
+        Type Unit
+        Local value
+        Type Encoder
+        Local encoder
+      return
+  fun check @fn1(value: Boolean, code: Int) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -178,7 +190,7 @@ Module
       val $dependency.parameter.part: Int
         Type Int
         Local $dependency.argument.0
-      call $call.3: StringBuilder = @fn13 direct
+      call $call.3: StringBuilder = @fn14 direct
         Type StringBuilder
         Local $dependency.receiver
         Type Int
@@ -213,7 +225,7 @@ Module
         Local $new.4
     bb2 if.merge.2
       return
-  fun main @fn1() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
       call providerValue: Any = external4 direct
       val $dependency.receiver: Boolean
@@ -235,7 +247,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -285,7 +297,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn14 direct
+      call $dependency.receiver: String = @fn15 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -312,7 +324,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -330,7 +342,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $call.3: Any = @fn15 direct
+      call $call.3: Any = @fn16 direct
         Type Unit
         Local $dependency.parameter.value
       val $shortCircuit.1: Boolean
@@ -357,7 +369,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -376,7 +388,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn14 direct
+      call $dependency.receiver: String = @fn15 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -403,7 +415,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -424,7 +436,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.0
-      call $dependency.argument.1: Encodable<Unit> = @fn16 direct
+      call $dependency.argument.1: Encodable<Unit> = @fn17 direct
         Type Encodable<Unit>
         Local $dependency.parameter.codec
       val $dependency.parameter.value: Unit
@@ -433,7 +445,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn14 direct
+      call $dependency.receiver: String = @fn15 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -460,7 +472,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -483,7 +495,7 @@ Module
       val $dependency.parameter.value: Box<Unit>
         Type Box<Unit>
         Local $dependency.argument.0
-      call $call.4: Any = @fn17 direct
+      call $call.4: Any = @fn18 direct
         Type Box<Unit>
         Local $dependency.parameter.value
       val $dependency.receiver: Boolean
@@ -515,7 +527,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -533,7 +545,7 @@ Module
       val $dependency.parameter.element: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.0
-      call boxCodec: Encodable<Box<Unit>> = @fn18 direct
+      call boxCodec: Encodable<Box<Unit>> = @fn19 direct
         Type Companion<Unit>
         Local $dependency.receiver
         Type Encodable<Unit>
@@ -580,7 +592,7 @@ Module
       val $dependency.parameter.codec: Encodable<Box<Unit>>
         Type Encodable<Box<Unit>>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn19 direct
+      call $dependency.receiver: String = @fn20 direct
         Type Json
         Local $dependency.receiver
         Type Box<Unit>
@@ -607,7 +619,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -622,7 +634,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call $dependency.argument.0: Box<Unit> = @fn20 direct
+      call $dependency.argument.0: Box<Unit> = @fn21 direct
         Type Unit
         Local $dependency.parameter.value
       val $dependency.argument.1: Encodable<Box<Unit>>
@@ -634,7 +646,7 @@ Module
       val $dependency.parameter.codec: Encodable<Box<Unit>>
         Type Encodable<Box<Unit>>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn19 direct
+      call $dependency.receiver: String = @fn20 direct
         Type Json
         Local $dependency.receiver
         Type Box<Unit>
@@ -661,7 +673,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -696,7 +708,7 @@ Module
       val $dependency.parameter.codec: Encodable<Unit>
         Type Encodable<Unit>
         Local $dependency.argument.1
-      call $dependency.receiver: String = @fn14 direct
+      call $dependency.receiver: String = @fn15 direct
         Type Json
         Local $dependency.receiver
         Type Unit
@@ -723,7 +735,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -768,7 +780,7 @@ Module
       val $parameter.code: Int
         Type Int
         Local $argument.1
-      call @fn0 direct
+      call @fn1 direct
         Type Boolean
         Local $parameter.value
         Type Int
@@ -783,7 +795,7 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun iterator @fn2(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
+  fun iterator @fn3(this: MutableArray<Option<String>>) -> Iterator<Option<String>>
     bb0 entry
       val $dependency.local.1: List<Option<String>>
         Type List<Option<String>>
@@ -822,7 +834,7 @@ Module
         Retype Iterator<Option<String>>
           Type ListIterator<Option<String>>
           Local $new.1
-  fun get @fn3(this: MutableArray<Option<String>>, index: Long) -> Option<String>
+  fun get @fn4(this: MutableArray<Option<String>>, index: Long) -> Option<String>
     bb0 entry
       val $dependency.local.2: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -884,7 +896,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn4(this: MutableArray<Option<String>>) -> Long
+  fun size @fn5(this: MutableArray<Option<String>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Option<String>>
         Type MutableArray<Option<String>>
@@ -894,7 +906,7 @@ Module
         ArrayLen MutableArray<Option<String>>
           Type MutableArray<Option<String>>
           Local $dependency.local.1
-  fun iterator @fn5(this: ArrayList<String>) -> Iterator<String>
+  fun iterator @fn6(this: ArrayList<String>) -> Iterator<String>
     bb0 entry
       val $dependency.local.1: List<String>
         Type List<String>
@@ -933,7 +945,7 @@ Module
         Retype Iterator<String>
           Type ListIterator<String>
           Local $new.1
-  fun get @fn6(this: ArrayList<String>, index: Long) -> String
+  fun get @fn7(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
@@ -960,7 +972,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $opt.1: Option<String> = @fn3 direct
+      call $opt.1: Option<String> = @fn4 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.5
         Type Long
@@ -991,14 +1003,14 @@ Module
       return
         Type String
         Local $uw.2
-  fun size @fn7(this: ArrayList<String>) -> Long
+  fun size @fn8(this: ArrayList<String>) -> Long
     bb0 entry
       return
         Type Long
         FieldAccess 1
           Type ArrayList<String>
           Local this
-  fun set @fn8(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun set @fn9(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.3: ArrayList<String>
         Type ArrayList<String>
@@ -1094,7 +1106,7 @@ Module
         Type Option<String>
         Local $value.3
       return
-  fun add @fn9(this: ArrayList<String>, value: String) -> Unit
+  fun add @fn10(this: ArrayList<String>, value: String) -> Unit
     bb0 entry
       val $dependency.local.2: ArrayList<String>
         Type ArrayList<String>
@@ -1204,7 +1216,7 @@ Module
           Type Long
           Local $dependency.local.12
       return
-  fun add @fn10(this: ArrayList<String>, index: Long, value: String) -> Unit
+  fun add @fn11(this: ArrayList<String>, index: Long, value: String) -> Unit
     bb0 entry
       val $dependency.local.4: Long
         Type Long
@@ -1378,7 +1390,7 @@ Module
       val $dependency.local.20: Long
         Type Long
         Local $dependency.local.19
-      call $dependency.local.23: Option<String> = @fn3 direct
+      call $dependency.local.23: Option<String> = @fn4 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.18
         Type Long
@@ -1519,7 +1531,7 @@ Module
           Type Long
           Local $dependency.local.38
       return
-  fun removeAt @fn11(this: ArrayList<String>, index: Long) -> String
+  fun removeAt @fn12(this: ArrayList<String>, index: Long) -> String
     bb0 entry
       val $dependency.local.5: ArrayList<String>
         Type ArrayList<String>
@@ -1546,7 +1558,7 @@ Module
       val $dependency.local.10: Long
         Type Long
         Local $dependency.local.9
-      call $opt.1: Option<String> = @fn3 direct
+      call $opt.1: Option<String> = @fn4 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.8
         Type Long
@@ -1687,7 +1699,7 @@ Module
       val $dependency.local.22: Long
         Type Long
         Local $dependency.local.21
-      call $dependency.local.25: Option<String> = @fn3 direct
+      call $dependency.local.25: Option<String> = @fn4 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.20
         Type Long
@@ -1815,7 +1827,7 @@ Module
       return
         Type String
         Local $dependency.local.2
-  fun clear @fn12(this: ArrayList<String>) -> Unit
+  fun clear @fn13(this: ArrayList<String>) -> Unit
     bb0 entry
       var $dependency.local.1: Long
         Type Long
@@ -1940,7 +1952,7 @@ Module
           Type Long
           Local $dependency.local.12
       goto bb1
-  fun add @fn13(this: StringBuilder, part: Int) -> StringBuilder
+  fun add @fn14(this: StringBuilder, part: Int) -> StringBuilder
     bb0 entry
       val $dependency.local.3: Int
         Type Int
@@ -1959,7 +1971,7 @@ Module
       val $dependency.local.6: String
         Type String
         Local $dependency.local.5
-      call @fn9 direct
+      call @fn10 direct
         Type ArrayList<String>
         Local $dependency.local.4
         Type String
@@ -1967,7 +1979,7 @@ Module
       return
         Type StringBuilder
         Local this
-  fun encode @fn14(this: Json, value: Unit, codec: Encodable<Unit>) -> String
+  fun encode @fn15(this: Json, value: Unit, codec: Encodable<Unit>) -> String
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -2025,26 +2037,26 @@ Module
       return
         Type String
         Local $call.2
-  fun erase @fn15(value: Unit) -> Any
+  fun erase @fn16(value: Unit) -> Any
     bb0 entry
       return
         Type Any
         Box
           Type Unit
           Local value
-  fun expose @fn16(codec: Encodable<Unit>) -> Encodable<Unit>
+  fun expose @fn17(codec: Encodable<Unit>) -> Encodable<Unit>
     bb0 entry
       return
         Type Encodable<Unit>
         Local codec
-  fun erase @fn17(value: Box<Unit>) -> Any
+  fun erase @fn18(value: Box<Unit>) -> Any
     bb0 entry
       return
         Type Any
         Box
           Type Box<Unit>
           Local value
-  fun encoder @fn18(this: Companion<Unit>, element: Encodable<Unit>) -> Encodable<Box<Unit>>
+  fun encoder @fn19(this: Companion<Unit>, element: Encodable<Unit>) -> Encodable<Box<Unit>>
     bb0 entry
       val $dependency.local.2: Encodable<Unit>
         Type Encodable<Unit>
@@ -2065,7 +2077,7 @@ Module
         Retype Encodable<Box<Unit>>
           Type BoxEncoder<Unit>
           Local $new.1
-  fun encode @fn19(this: Json, value: Box<Unit>, codec: Encodable<Box<Unit>>) -> String
+  fun encode @fn20(this: Json, value: Box<Unit>, codec: Encodable<Box<Unit>>) -> String
     bb0 entry
       val $dependency.local.4: String
         Type String
@@ -2123,7 +2135,7 @@ Module
       return
         Type String
         Local $call.2
-  fun makeBox @fn20(value: Unit) -> Box<Unit>
+  fun makeBox @fn21(value: Unit) -> Box<Unit>
     bb0 entry
       val $dependency.local.1: Unit
         Type Unit
@@ -2137,18 +2149,6 @@ Module
       return
         Type Box<Unit>
         Local $call.1
-  fun UsesReference.encode @fn21(this: UsesReference, value: Unit, encoder: Encoder) -> Unit
-    bb0 entry
-      call <closure:function_type0> closure[function_type0]
-        Type (Unit, Encoder) -> Unit
-        FieldAccess 0
-          Type UsesReference
-          Local this
-        Type Unit
-        Local value
-        Type Encoder
-        Local encoder
-      return
   fun decode @fn22(this: Json, text: String, codec: Decodable<Unit>) -> Unit
     bb0 entry
       val $dependency.local.5: String
@@ -2650,7 +2650,7 @@ Module
           Local $dependency.local.7
           Type Long
           Local $dependency.local.9
-      call $dependency.local.2: Long = @fn4 direct
+      call $dependency.local.2: Long = @fn5 direct
         Type MutableArray<Option<String>>
         FieldAccess 0
           Type ArrayList<String>
@@ -5296,7 +5296,7 @@ Module
       val $dependency.local.6: Long
         Type Long
         Local $dependency.local.5
-      call $call.1: Option<String> = @fn3 direct
+      call $call.1: Option<String> = @fn4 direct
         Type MutableArray<Option<String>>
         Local $dependency.local.4
         Type Long
@@ -6594,25 +6594,25 @@ Module
         Box
           Type Option<JsonValue>
           Local $call.1
-  instance mi0 function=@fn2 <- iterator
-  instance mi1 function=@fn3 <- get
-  instance mi2 function=@fn4 <- size
-  instance mi3 function=@fn5 <- iterator
-  instance mi4 function=@fn6 <- get
-  instance mi5 function=@fn7 <- size
-  instance mi6 function=@fn8 <- set
-  instance mi7 function=@fn9 <- add
-  instance mi8 function=@fn10 <- add
-  instance mi9 function=@fn11 <- removeAt
-  instance mi10 function=@fn12 <- clear
-  instance mi11 function=@fn13 <- add
-  instance mi12 function=@fn14 <- encode
-  instance mi13 function=@fn15 <- erase
-  instance mi14 function=@fn16 <- expose
-  instance mi15 function=@fn17 <- erase
-  instance mi16 function=@fn18 <- encoder
-  instance mi17 function=@fn19 <- encode
-  instance mi18 function=@fn20 <- makeBox
+  instance mi0 function=@fn3 <- iterator
+  instance mi1 function=@fn4 <- get
+  instance mi2 function=@fn5 <- size
+  instance mi3 function=@fn6 <- iterator
+  instance mi4 function=@fn7 <- get
+  instance mi5 function=@fn8 <- size
+  instance mi6 function=@fn9 <- set
+  instance mi7 function=@fn10 <- add
+  instance mi8 function=@fn11 <- add
+  instance mi9 function=@fn12 <- removeAt
+  instance mi10 function=@fn13 <- clear
+  instance mi11 function=@fn14 <- add
+  instance mi12 function=@fn15 <- encode
+  instance mi13 function=@fn16 <- erase
+  instance mi14 function=@fn17 <- expose
+  instance mi15 function=@fn18 <- erase
+  instance mi16 function=@fn19 <- encoder
+  instance mi17 function=@fn20 <- encode
+  instance mi18 function=@fn21 <- makeBox
   instance mi19 function=@fn22 <- decode
   instance mi20 function=@fn24 <- println
   instance mi21 function=@fn25 <- Companion$initialize$Initializer
@@ -6684,4 +6684,4 @@ Module
   str @str11 ""
   str @str12 "\n"
   str @str13 "value"
-  output executable @fn1
+  output executable @fn2

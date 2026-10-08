@@ -17,6 +17,7 @@ Module
   class box<Unit> vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<LocalValue> vtable=0 itables=0
+  interface Equality<Unit>
   interface Continuation<LocalValue>
   interface SuspendTask<LocalValue>
   interface SuspendRegistration<LocalValue>

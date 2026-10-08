@@ -24,6 +24,7 @@ Module
   class box<Unit> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Wide>
   interface SuspendTask<Wide>
   interface SuspendRegistration<Wide>

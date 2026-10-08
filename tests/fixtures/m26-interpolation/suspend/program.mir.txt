@@ -82,6 +82,7 @@ Module
   interface Iterable<String>
   interface Iterator<String>
   interface Hash
+  interface Equality<Int>
   interface SuspendTask<Int>
   interface SuspendRegistration<String>
   interface Continuation<Journal>

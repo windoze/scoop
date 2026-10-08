@@ -247,13 +247,14 @@ Module
     store local0 -> local2
     t0 = box_value td6, local2 scan=none sp<managed-call:1> live=[]
     ret t0
-  fun @scoop$1$cb$bfa3e47702eb0530b18af9dfd92483428b5ca89cc60eb4300282be610bc64455() -> i32
+  fun @scoop$1$cb$bfa3e47702eb0530b18af9dfd92483428b5ca89cc60eb4300282be610bc64455(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

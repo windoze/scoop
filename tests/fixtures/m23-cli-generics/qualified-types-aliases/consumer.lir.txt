@@ -32,7 +32,7 @@ Module
     store integer<Int>(0x00000028) -> local0
     store integer<Int>(0x00000002) -> local1
     store local1 -> local2
-    call no-gc-indirect-target0 local15 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn2(local2)
+    call no-gc-indirect-target0 local15 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn4(local2)
     store local15 -> local3
     t0 = local_address local0 : ptr
     store t0 -> local4
@@ -55,10 +55,38 @@ Module
     raw_store local12 local14 align 4
     t7 = aggregate () : {}
     ret local0
+  fun @scoop$1$cb$aefb014273e0beeb534f58fee527f3a9a80a492578c7f9b86e35dd081479b845(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn3(local0, local2)
+    store t0 -> local3
+    ret local3
+  fun @scoop$1$cb$5a6abb171a03e58adf7c3cb6a63cff00accc8026986c499a85167bbc80089dff(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = ptr_to_ulong local0 : i64
+    store t0 -> local2
+    store param1 -> local1
+    t1 = ptr_to_ulong local1 : i64
+    t2 = integer_compare_Equal<ULong> local2, t1 : i1
+    ret t2
   fun @scoop$1$cb$5c20d2d83fae8feff681e11d6a2f0f1095a65f8f5c5898f61141eebea835071f(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.paths;o=-;k=S;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$752a5456b0a2783b00d2a32bfef4debe960b3049bd538d843987067a3f5de48d type-id=16554596730385784203 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$417d849ab9faf4ee7cc245d7444316539a92fddeb0d74a52baa9166df5b641dd type-id=6625804449091664072 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.paths;o=-;k=S;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$752a5456b0a2783b00d2a32bfef4debe960b3049bd538d843987067a3f5de48d type-id=16554596730385784203 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Box size=4 align=4 refs=[]
+  layout Equality value size=8 align=8 refs=[0]
   output library

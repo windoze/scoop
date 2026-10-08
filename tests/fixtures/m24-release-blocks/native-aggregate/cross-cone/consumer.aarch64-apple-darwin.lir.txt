@@ -3,8 +3,8 @@ Module
   global @scoop$1$ss$baa7fe7c6122bda5fce8e11253f6c5121fd70ea318324d742e29acc862f56918 : ptr<managed> scan=refs[0]
   c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
   extern ef0 count @m24_release_wide_count() -> i64 <c exact=()->Long direct-c=()->i64 gc-leaf nounwind lib=m24_release>
-  extern ef1 m24_release_rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$92cd0ed8eb7d41f615bf13c82d9f915de5fe8b690e1408e9c3234d1f38d5e68e gc-leaf nounwind lib=m24_release>
-  extern ef2 m24_release_wide @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$78b00dfaf6d34fef384ad6b34db64761219360d9e298a0a2f1ac96d78dfa2f0a gc-leaf nounwind lib=m24_release>
+  extern ef1 m24_release_rotate @m24_release_rotate(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$da31a160c5568137095a3600fb3616da8cf02f9d94e7dd963bf2d5968574abc5 gc-leaf nounwind lib=m24_release>
+  extern ef2 m24_release_wide @m24_release_wide(struct0) -> void <c exact=(c-struct0)->void bridge=@scoop$1$br$2a65480411b6eed0a5cea63ca08e214093abcdb5acfc99275b3ea2e3c8702e7e gc-leaf nounwind lib=m24_release>
   fun @scoop$1$cb$439f831e5987b260bffd7ea029960341c538f4fa2c15d3f2be0137648e77e16b() -> i64
     local %0 $call.1: i64
   block entry
@@ -118,7 +118,7 @@ Module
     store local27 -> local31
     store local28 -> local32
     store local29 -> local33
-    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(96)))
+    call managed-direct-target1 sp<managed-call:1> live=[] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(96)))
     store t1 -> local51
     store local31 -> local57
     store local32 -> local58
@@ -144,7 +144,7 @@ Module
     store local43 -> local47
     store local44 -> local48
     store local45 -> local49
-    call managed-direct-target2 sp<managed-call:3> live=[] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(88)))
+    call managed-direct-target2 sp<managed-call:3> live=[] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(88)))
     store t4 -> local52
     store local47 -> local61
     store local48 -> local62
@@ -274,13 +274,14 @@ Module
   block entry
     t0 = aggregate (param0) : struct2
     ret t0
-  fun @scoop$1$cb$661f86ac68dd640d4732e11d13f1f9f2fff22210267795ab32cd07ea007a5cdb() -> i32
+  fun @scoop$1$cb$661f86ac68dd640d4732e11d13f1f9f2fff22210267795ab32cd07ea007a5cdb(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -430,12 +431,14 @@ Module
     call release-native-leaf-void-target0 sig=void1 (ptr<raw>) extern2(c-arg-address(local26))
     t10 = aggregate () : {}
     ret
-  td td0 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$f4c274be7cf956ffb3e6761996aa7b821561024c120c6cf2ea0d027e4c41ada3 type-id=17532523244189442665 shape=FixedObject minimum-size=96 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$38d449fe02afce9b912366cb66bfbbc9ee6538b2e738ae3c536688d836815f0a type-id=11396903734121643374 shape=FixedObject minimum-size=88 align=8 parent=none vtable=[] itables=[]
-  td td2 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=S;x=Native);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$163ea1e9a9990497a77a3ff5c4f55ae9c4463e72623e5a991632bfc0afb1cce3 type-id=7941041030873073574 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=S;x=Native);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$793d2c77d036957edb823e0f0ea0da9c4773c2d60559d363a4d26cc828040458 type-id=6355093908539276154 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$a029704dbc1ea0fb62b31835a65fe61da1e837f77ca3df0677c1ccbfeb2fde68 type-id=5074273259029904722 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$f4c274be7cf956ffb3e6761996aa7b821561024c120c6cf2ea0d027e4c41ada3 type-id=17532523244189442665 shape=FixedObject minimum-size=96 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=C;x=Owner);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$38d449fe02afce9b912366cb66bfbbc9ee6538b2e738ae3c536688d836815f0a type-id=11396903734121643374 shape=FixedObject minimum-size=88 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=S;x=Native);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$163ea1e9a9990497a77a3ff5c4f55ae9c4463e72623e5a991632bfc0afb1cce3 type-id=7941041030873073574 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=test%3Arelease-aggregate-provider%3A0.1.0;p=releaseaggregate;o=-;k=S;x=Native);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit)]) @scoop$1$td$793d2c77d036957edb823e0f0ea0da9c4773c2d60559d363a4d26cc828040458 type-id=6355093908539276154 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
   layout Native size=4 align=4 refs=[]
   layout Native size=0 align=1 refs=[]
+  layout Equality value size=8 align=8 refs=[0]
   layout Owner value size=8 align=8 refs=[0]
   layout Owner size=96 align=8 refs=[]
   layout Owner value size=8 align=8 refs=[0]

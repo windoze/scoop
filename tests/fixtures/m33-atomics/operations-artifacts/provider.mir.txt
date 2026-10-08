@@ -1,13 +1,13 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
   enum MemoryOrder
     Relaxed()
     Acquire()
     Release()
     AcqRel()
     SeqCst()
-  enum Option<String>
-    Some(_0: String)
-    None()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
@@ -18,7 +18,6 @@ Module
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  interface Equality<MemoryOrder>
   interface Continuation<Payload>
   interface SuspendTask<Payload>
   interface SuspendRegistration<Payload>

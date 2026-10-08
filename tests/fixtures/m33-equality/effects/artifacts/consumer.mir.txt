@@ -1,6 +1,6 @@
 Module
-  struct Reading (base: Int)
   struct LocalReading (base: Int)
+  struct Reading (base: Int)
   enum Option<String>
     Some(_0: String)
     None()
@@ -30,7 +30,27 @@ Module
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn8 id=d14a9807d07bba2f74ff08bc89ecbb0eb94a8c53e230f10bc33f46f022562c36
   generated_callable gc1 function=@fn9 id=e16407be70e443cffad67fe0f80ce91de48794fe7c0a4b04bad657c4cfa1f7c5
-  fun importedDirect @fn0(value: Reading) -> Int <no-gc>
+  fun LocalReading.measure @fn0(this: LocalReading, delta: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type LocalReading
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun importedDirect @fn1(value: Reading) -> Int <no-gc>
     bb0 entry
       val $dependency.receiver: Reading
         Type Reading
@@ -49,7 +69,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun check @fn1(value: Boolean) -> Unit
+  fun check @fn2(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -84,7 +104,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun main @fn2() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -101,7 +121,7 @@ Module
       val $parameter.value: Reading
         Type Reading
         Local $argument.0
-      call $dependency.receiver: Int = @fn0 direct
+      call $dependency.receiver: Int = @fn1 direct
         Type Reading
         Local $parameter.value
       val $dependency.argument.0: Int
@@ -120,7 +140,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: Reading
@@ -148,7 +168,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: Reading
@@ -176,7 +196,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: Measure
@@ -206,7 +226,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -250,7 +270,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -284,7 +304,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val boxed: Any
@@ -300,7 +320,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $cast.1: Any
@@ -356,7 +376,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: String
@@ -369,26 +389,6 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun LocalReading.measure @fn3(this: LocalReading, delta: Int) -> Int <no-gc>
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type LocalReading
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        Local delta
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
   fun bounded @fn4(value: Reading) -> Int
     bb0 entry
       val $dependency.local.1: Reading
@@ -419,7 +419,7 @@ Module
       val $dependency.local.3: Int
         Type Int
         Local $dependency.local.2
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn0 direct
         Type LocalReading
         Local $dependency.local.1
         Type Int
@@ -460,7 +460,7 @@ Module
           Local base
   fun thunk<LocalReading> DetailedMeasure.measure(Int) @fn8(this: DetailedMeasure, delta: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn0 direct
         Type LocalReading
         Unbox
           Type DetailedMeasure
@@ -472,7 +472,7 @@ Module
         Local $call.1
   fun thunk<LocalReading> Measure.measure(Int) @fn9(this: Measure, delta: Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn3 direct
+      call $call.1: Int = @fn0 direct
         Type LocalReading
         Unbox
           Type Measure
@@ -488,4 +488,4 @@ Module
   str @str0 "illegal state"
   str @str1 "artifact effect adapters"
   str @str2 "\n"
-  output executable @fn2
+  output executable @fn3

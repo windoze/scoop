@@ -7,6 +7,19 @@ Module
   enum Option niche(kind=raw,payload_variant=0)
   extern ef0 argc @scoop_rt_program_argc() -> i32 <c exact=()->Int direct-c=()->i32 gc-leaf nounwind mode=gc-leaf>
   extern ef1 argv @scoop_rt_program_argv(i32) -> enum0 <c exact=(Int)->data-ptr<Int8,nullable=enum0<Int8>> direct-c=(i32)->enum0 gc-leaf nounwind mode=gc-leaf>
+  fun @scoop$1$cb$0b590a7253c3c38c5587e73c420390a58b0d9be3204c7748b7aaec11788d4f1e(ptr<raw>, ptr<raw>) -> i1
+    local %0 $dependency.local.2: ptr<raw>
+    local %1 $dependency.local.3: ptr<raw>
+    local %2 $dependency.local.4: ptr<raw>
+    local %3 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn9(local0, local2)
+    store t0 -> local3
+    ret local3
   fun @scoop$1$cb$3cedf0de9b76866d9ba600a4c13289528105a4945a06929e8d3be7c56ac9f396(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $dependency.argument.0: i32
@@ -74,56 +87,56 @@ Module
     local %27 $call.4: i1
   block entry
     poll managed-void-target6 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn7()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 local-fn8()
     store t0 -> local0
     store integer<Int>(0x00000003) -> local1
     store local1 -> local2
     t1 = integer_compare_Equal<Int> local0, local2 : i1
     store t1 -> local3
     store local3 -> local4
-    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i1) local-fn0(local4)
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i1) local-fn1(local4)
     t2 = aggregate () : {}
-    call no-gc-direct-target0 t3 = sig=direct1 () -> i32 local-fn3()
+    call no-gc-direct-target0 t3 = sig=direct1 () -> i32 local-fn4()
     store t3 -> local5
-    call managed-direct-target1 sp<managed-call:2> live=[] t4 = sig=direct2 () -> i32 local-fn7()
+    call managed-direct-target1 sp<managed-call:2> live=[] t4 = sig=direct2 () -> i32 local-fn8()
     store t4 -> local6
     store local6 -> local7
     t5 = integer_compare_Equal<Int> local5, local7 : i1
     store t5 -> local8
     store local8 -> local9
-    call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn0(local9)
+    call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn1(local9)
     t6 = aggregate () : {}
     store integer<Int>(0xffffffff) -> local10
     store local10 -> local11
     call native-gc-leaf-direct-target0 t7 = sig=direct3 (i32) -> enum0 extern1(local11)
     store t7 -> local24
     t8 = enum_wrap e0 v1 () : enum0
-    call managed-direct-target2 sp<managed-call:4> live=[] t9 = sig=direct4 (enum0, enum0) -> i1 local-fn9(local24, t8)
+    call managed-direct-target2 sp<managed-call:4> live=[] t9 = sig=direct4 (enum0, enum0) -> i1 local-fn10(local24, t8)
     store t9 -> local12
     store local12 -> local13
-    call managed-void-target2 sp<managed-call:5> live=[] sig=void2 (i1) local-fn0(local13)
+    call managed-void-target2 sp<managed-call:5> live=[] sig=void2 (i1) local-fn1(local13)
     t10 = aggregate () : {}
     store integer<Int>(0x00000003) -> local14
     store local14 -> local15
     call native-gc-leaf-direct-target1 t11 = sig=direct5 (i32) -> enum0 extern1(local15)
     store t11 -> local25
     t12 = enum_wrap e0 v1 () : enum0
-    call managed-direct-target3 sp<managed-call:6> live=[] t13 = sig=direct6 (enum0, enum0) -> i1 local-fn9(local25, t12)
+    call managed-direct-target3 sp<managed-call:6> live=[] t13 = sig=direct6 (enum0, enum0) -> i1 local-fn10(local25, t12)
     store t13 -> local16
     store local16 -> local17
-    call managed-void-target3 sp<managed-call:7> live=[] sig=void3 (i1) local-fn0(local17)
+    call managed-void-target3 sp<managed-call:7> live=[] sig=void3 (i1) local-fn1(local17)
     t14 = aggregate () : {}
     store integer<Int>(0x00000000) -> local18
     store local18 -> local19
     call native-gc-leaf-direct-target2 t15 = sig=direct7 (i32) -> enum0 extern1(local19)
     store t15 -> local26
     t16 = enum_wrap e0 v1 () : enum0
-    call managed-direct-target4 sp<managed-call:8> live=[] t17 = sig=direct8 (enum0, enum0) -> i1 local-fn9(local26, t16)
+    call managed-direct-target4 sp<managed-call:8> live=[] t17 = sig=direct8 (enum0, enum0) -> i1 local-fn10(local26, t16)
     store t17 -> local27
     t18 = Not local27 : i1
     store t18 -> local20
     store local20 -> local21
-    call managed-void-target4 sp<managed-call:9> live=[] sig=void4 (i1) local-fn0(local21)
+    call managed-void-target4 sp<managed-call:9> live=[] sig=void4 (i1) local-fn1(local21)
     t19 = aggregate () : {}
     store global0 -> local22
     store local22 -> local23
@@ -134,7 +147,7 @@ Module
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn3()
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn4()
     store t0 -> local0
     global_store global1, local0
     ret
@@ -180,7 +193,7 @@ Module
   block try.end.10
     br @if.merge.3
   block try.body.11
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn5() normal @invoke.normal.1 unwind @try.unwind.4
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block try.catch.12
     call managed-direct-target1 sp<managed-call:4> live=[local7:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local7)
@@ -220,7 +233,7 @@ Module
   fun @scoop$1$cb$feae1d379c11295d02dead07129efb94190280ae5bf8df1cfc16530508bac19f() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn6()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn7()
     t0 = aggregate () : {}
     t1 = global_load global1 : i32
     ret t1
@@ -268,7 +281,7 @@ Module
   block pattern.pass.4
     t4 = variant_payload_project e0 v0 f0 local5 : ptr<raw>
     store t4 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t5 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn8(local0, local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t5 = sig=direct0 (ptr<raw>, ptr<raw>) -> i1 local-fn9(local0, local1)
     store t5 -> local9
     ret local9
   block pattern.else.5
@@ -287,7 +300,7 @@ Module
   fun @scoop$1$cb$ea6bedd7b507ae76a95786eb3b174cd287116450441ab9b3f10be1b08ad7b1c7(ptr<raw>) -> void <no-gc>
     local %0 $value: i32
   block entry
-    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn3()
+    call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn4()
     store t0 -> local0
     raw_store param0 local0 align 4
     t1 = aggregate () : {}
@@ -296,7 +309,7 @@ Module
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn5() normal @success unwind @failure
     br @success
   block success
     raw_store param2 integer<Int>(0x00000000) align 4
@@ -312,7 +325,7 @@ Module
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @success unwind @failure
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn7() normal @success unwind @failure
     br @success
   block success
     ret integer<UInt>(0x00000000)
@@ -321,6 +334,8 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8))]) @scoop$1$td$5f4d08e960f3ce10850fc5f6c70bf9a8206036302742de2e5584b8610c3b6ff6 type-id=9720100696492051448 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8))]) @scoop$1$td$fb59aef23979074c9e6890cd327b4c20f0750b5ebedafb17a39f1c7e1d6c12ef type-id=4164116447681568470 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int8))]) @scoop$1$td$5f4d08e960f3ce10850fc5f6c70bf9a8206036302742de2e5584b8610c3b6ff6 type-id=9720100696492051448 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=none
+  layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

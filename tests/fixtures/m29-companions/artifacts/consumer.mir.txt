@@ -39,8 +39,10 @@ Module
   interface Maker<String>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn30 captures=1
     bridge function_type1 -> @fn44 id=0ea1941fbc21e2db1abea6ac0dcd7b3ebe1f45b1df2b4ecf2707583cd52f6e71
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn32 captures=0

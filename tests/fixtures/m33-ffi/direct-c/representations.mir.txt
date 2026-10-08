@@ -32,40 +32,97 @@ Module
   enum CoroutineSlot<Cell>
     Empty()
     Value(value: Cell)
+  enum CoroutineStep<Item>
+    Completed(value: Item)
+    Suspended()
+  enum CoroutineSlot<Item>
+    Empty()
+    Value(value: Item)
   class Cell vtable=0 itables=0
   class Owner vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class UnwrapException vtable=0 itables=0
+  class box<Item> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
+  interface Equality<Ptr<Int>>
+  interface Equality<Double>
+  interface Equality<Ptr<Item>>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Cell>
   interface SuspendTask<Cell>
   interface SuspendRegistration<Cell>
+  interface Continuation<Item>
+  interface SuspendTask<Item>
+  interface SuspendRegistration<Item>
   generated_exact_type get0 location=enum5 nominal_id=31b107c279ea6ba5f6907a679f8cafd7beb066fda1794257319a7c52faa3e440 exact_id=0d83c5e2b7457c02a269d896588d08dd46debc22439064efd8e2731675e90b37
   generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
-  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
-  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
-  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
-  generated_exact_type get5 location=enum4 nominal_id=56c670da7300e7853cafb9e2561dbb122e8160713b35d9700560a4459df8d1e3 exact_id=af5ce0d57a08d3a483316fe7b633be884e55334ae0b0511c0dbb2033231e374f
-  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn29 id=504dd258f2ff1f12576abec3b9ffec50a9424028b2472a1c0c201e7c334be4f8
-  fun leafRecord @fn0(arg0: Int) -> Unit <no-gc>
+  generated_exact_type get2 location=enum6 nominal_id=c50f8183a16b9df7477d363bbbcc9a11782f8dc0813a46b10c47e8eef738ae64 exact_id=1fed6dcd2a6ec9cfd49fd759332d48791e7411dd3574d5f8c8ed01382f2a96f3
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class6 nominal_id=2a579c3fdc974165b1a05320b0b63595259bb3ee442fe99ad505e23dbfb67aa9 exact_id=965bdba2f4379f583aafcb2541fead9e307c8cd41167a4a27aa69d1fc4d6ced7
+  generated_exact_type get7 location=enum7 nominal_id=d73b411b03ed13f5dcd9a9aeef246a2c5f13d16a4ef0152860a0969f137c4bc2 exact_id=a3c14951fcd8808dfeda58554ca1f79823773e7f6556b01d797c96e973fd757d
+  generated_exact_type get8 location=enum4 nominal_id=56c670da7300e7853cafb9e2561dbb122e8160713b35d9700560a4459df8d1e3 exact_id=af5ce0d57a08d3a483316fe7b633be884e55334ae0b0511c0dbb2033231e374f
+  generated_exact_type get9 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn37 id=504dd258f2ff1f12576abec3b9ffec50a9424028b2472a1c0c201e7c334be4f8
+  generated_callable gc1 function=@fn38 id=b926e4764eb1dcce00bcf57dbbe4c2f2aa9579c1a4d237349268dadee6978720
+  fun equalTo @fn0(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      val $dependency.local.4: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn17 direct
+        Type Ptr<Int>
+        Local $dependency.local.2
+        Type Ptr<Int>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun equalTo @fn1(this: Ptr<Item>, other: Ptr<Item>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Item>
+        Type Ptr<Item>
+        Local this
+      val $dependency.local.3: Ptr<Item>
+        Type Ptr<Item>
+        Local other
+      val $dependency.local.4: Ptr<Item>
+        Type Ptr<Item>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn18 direct
+        Type Ptr<Item>
+        Local $dependency.local.2
+        Type Ptr<Item>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun leafRecord @fn2(arg0: Int) -> Unit <no-gc>
     bb0 entry
       call extern9 @m33_record direct
         Type Int
         Local arg0
       return
-  fun safeRecord @fn1(arg0: Int) -> Unit
+  fun safeRecord @fn3(arg0: Int) -> Unit
     bb0 entry
       call extern10 @m33_record direct
         Type Int
         Local arg0
       return
-  fun pinWord @fn2(arg0: PinnedPtr<Cell>) -> PinnedPtr<Cell> <no-gc>
+  fun pinWord @fn4(arg0: PinnedPtr<Cell>) -> PinnedPtr<Cell> <no-gc>
     bb0 entry
       call $call.1: PinnedPtr<Cell> = extern0 @m33_word direct
         Type PinnedPtr<Cell>
@@ -73,7 +130,7 @@ Module
       return
         Type PinnedPtr<Cell>
         Local $call.1
-  fun handleWord @fn3(arg0: GcHandle<Cell>) -> GcHandle<Cell>
+  fun handleWord @fn5(arg0: GcHandle<Cell>) -> GcHandle<Cell>
     bb0 entry
       call $call.1: GcHandle<Cell> = extern1 @m33_handle_word direct
         Type GcHandle<Cell>
@@ -81,7 +138,7 @@ Module
       return
         Type GcHandle<Cell>
         Local $call.1
-  fun character @fn4(arg0: Char) -> Char <no-gc>
+  fun character @fn6(arg0: Char) -> Char <no-gc>
     bb0 entry
       call $call.1: Char = extern2 @m33_char direct
         Type Char
@@ -89,7 +146,7 @@ Module
       return
         Type Char
         Local $call.1
-  fun pointer @fn5(arg0: Option<Ptr<Int>>) -> Option<Ptr<Int>> <no-gc>
+  fun pointer @fn7(arg0: Option<Ptr<Int>>) -> Option<Ptr<Int>> <no-gc>
     bb0 entry
       call $call.1: Option<Ptr<Int>> = extern3 @m33_pointer direct
         Type Option<Ptr<Int>>
@@ -97,7 +154,7 @@ Module
       return
         Type Option<Ptr<Int>>
         Local $call.1
-  fun safePointer @fn6(arg0: Ptr<Int>) -> Ptr<Int>
+  fun safePointer @fn8(arg0: Ptr<Int>) -> Ptr<Int>
     bb0 entry
       call $call.1: Ptr<Int> = extern4 @m33_safe_pointer direct
         Type Ptr<Int>
@@ -105,7 +162,7 @@ Module
       return
         Type Ptr<Int>
         Local $call.1
-  fun itemPointer @fn7(arg0: Ptr<Item>) -> Ptr<Item> <no-gc>
+  fun itemPointer @fn9(arg0: Ptr<Item>) -> Ptr<Item> <no-gc>
     bb0 entry
       call $call.1: Ptr<Item> = extern5 @m33_item_pointer direct
         Type Ptr<Item>
@@ -113,13 +170,13 @@ Module
       return
         Type Ptr<Item>
         Local $call.1
-  fun function @fn8() -> FunPtr<(Int) -> Int> <no-gc>
+  fun function @fn10() -> FunPtr<(Int) -> Int> <no-gc>
     bb0 entry
       call $call.1: FunPtr<(Int) -> Int> = extern6 @m33_function direct
       return
         Type FunPtr<(Int) -> Int>
         Local $call.1
-  fun optionalFunction @fn9(arg0: Option<FunPtr<(Int) -> Int>>) -> Option<FunPtr<(Int) -> Int>> <no-gc>
+  fun optionalFunction @fn11(arg0: Option<FunPtr<(Int) -> Int>>) -> Option<FunPtr<(Int) -> Int>> <no-gc>
     bb0 entry
       call $call.1: Option<FunPtr<(Int) -> Int>> = extern7 @m33_optional_function direct
         Type Option<FunPtr<(Int) -> Int>>
@@ -127,7 +184,7 @@ Module
       return
         Type Option<FunPtr<(Int) -> Int>>
         Local $call.1
-  fun invoke @fn10(arg0: FunPtr<(Int) -> Int>, arg1: Int) -> Int <no-gc>
+  fun invoke @fn12(arg0: FunPtr<(Int) -> Int>, arg1: Int) -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern8 @m33_invoke direct
         Type FunPtr<(Int) -> Int>
@@ -137,13 +194,13 @@ Module
       return
         Type Int
         Local $call.1
-  fun recorded @fn11() -> Int <no-gc>
+  fun recorded @fn13() -> Int <no-gc>
     bb0 entry
       call $call.1: Int = extern11 @m33_recorded direct
       return
         Type Int
         Local $call.1
-  fun releaseValues @fn12() -> Unit
+  fun releaseValues @fn14() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -154,7 +211,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn25 direct
+      call @fn33 direct
         Type Owner
         Local $new.1
         Type Int
@@ -166,7 +223,7 @@ Module
         Type Owner
         Local $new.1
       return
-  fun expect @fn13(value: Boolean) -> Unit
+  fun expect @fn15(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -201,7 +258,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun main @fn14() -> Unit
+  fun main @fn16() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -212,7 +269,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn24 direct
+      call @fn32 direct
         Type Cell
         Local $new.1
         Type Int
@@ -226,7 +283,7 @@ Module
       val $dependency.parameter.v: Cell
         Type Cell
         Local $dependency.argument.0
-      call pinned: PinnedPtr<Cell> = @fn15 direct
+      call pinned: PinnedPtr<Cell> = @fn19 direct
         Type Cell
         Local $dependency.parameter.v
       val $argument.0: PinnedPtr<Cell>
@@ -261,7 +318,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       call @scoop_rt_gc_collect direct
@@ -271,7 +328,7 @@ Module
       val $dependency.parameter.p: PinnedPtr<Cell>
         Type PinnedPtr<Cell>
         Local $dependency.argument.0
-      call $call.2: Cell = @fn16 direct
+      call $call.2: Cell = @fn20 direct
         Type PinnedPtr<Cell>
         Local $dependency.parameter.p
       val $argument.0: Boolean
@@ -284,7 +341,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: Cell
@@ -293,7 +350,7 @@ Module
       val $dependency.parameter.v: Cell
         Type Cell
         Local $dependency.argument.0
-      call handle: GcHandle<Cell> = @fn17 direct
+      call handle: GcHandle<Cell> = @fn21 direct
         Type Cell
         Local $dependency.parameter.v
       val $argument.0: GcHandle<Cell>
@@ -328,7 +385,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       call @scoop_rt_gc_collect direct
@@ -338,7 +395,7 @@ Module
       val $dependency.parameter.h: GcHandle<Cell>
         Type GcHandle<Cell>
         Local $dependency.argument.0
-      call $call.3: Cell = @fn18 direct
+      call $call.3: Cell = @fn22 direct
         Type GcHandle<Cell>
         Local $dependency.parameter.h
       val $argument.0: Boolean
@@ -351,7 +408,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Char
@@ -383,7 +440,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Option<Ptr<Int>>
@@ -429,7 +486,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       var number: Int
@@ -511,7 +568,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Ptr<Int>
@@ -554,7 +611,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -569,7 +626,7 @@ Module
       val $parameter.extra: Double
         Type Double
         Local $argument.1
-      call item: Item = @fn26 direct
+      call item: Item = @fn34 direct
         Type Int
         Local $parameter.value
         Type Double
@@ -638,7 +695,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Option<FunPtr<(Int) -> Int>>
@@ -684,7 +741,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       call callback: FunPtr<(Int) -> Int> = extern6 @m33_function direct
@@ -770,7 +827,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -791,7 +848,7 @@ Module
       call extern10 @m33_record direct
         Type Int
         Local $parameter.value
-      call @fn12 direct
+      call @fn14 direct
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
       call $dependency.receiver: Int = extern11 @m33_recorded direct
@@ -811,7 +868,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn13 direct
+      call @fn15 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: String
@@ -820,11 +877,55 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn19 direct
+      call @fn23 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun pin @fn15(v: Cell) -> PinnedPtr<Cell>
+  fun equals @fn17(this: Ptr<Int>, other: Ptr<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int>
+        Type Ptr<Int>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.3
+  fun equals @fn18(this: Ptr<Item>, other: Ptr<Item>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Item>
+        Type Ptr<Item>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Item>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Item>
+        Type Ptr<Item>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Item>
+            Local $dependency.local.3
+  fun pin @fn19(v: Cell) -> PinnedPtr<Cell>
     bb0 entry
       val $dependency.local.1: Cell
         Type Cell
@@ -838,13 +939,13 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $call.1: PinnedPtr<Cell> = @fn27 direct
+      call $call.1: PinnedPtr<Cell> = @fn35 direct
         Type ULong
         Local $dependency.local.4
       return
         Type PinnedPtr<Cell>
         Local $call.1
-  fun unpin @fn16(p: PinnedPtr<Cell>) -> Cell
+  fun unpin @fn20(p: PinnedPtr<Cell>) -> Cell
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
@@ -860,7 +961,7 @@ Module
       return
         Type Cell
         Local $call.1
-  fun getGcHandle @fn17(v: Cell) -> GcHandle<Cell>
+  fun getGcHandle @fn21(v: Cell) -> GcHandle<Cell>
     bb0 entry
       val $dependency.local.1: Cell
         Type Cell
@@ -874,13 +975,13 @@ Module
       val $dependency.local.4: ULong
         Type ULong
         Local $dependency.local.3
-      call $call.1: GcHandle<Cell> = @fn28 direct
+      call $call.1: GcHandle<Cell> = @fn36 direct
         Type ULong
         Local $dependency.local.4
       return
         Type GcHandle<Cell>
         Local $call.1
-  fun releaseGcHandle @fn18(h: GcHandle<Cell>) -> Cell
+  fun releaseGcHandle @fn22(h: GcHandle<Cell>) -> Cell
     bb0 entry
       val $dependency.local.1: ULong
         Type ULong
@@ -896,7 +997,7 @@ Module
       return
         Type Cell
         Local $call.1
-  fun println @fn19(value: String) -> Unit
+  fun println @fn23(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -920,19 +1021,31 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn20(this: Continuation<Cell>, value: Cell) -> Unit
+  fun Continuation.resume @fn24(this: Continuation<Cell>, value: Cell) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn21(this: Continuation<Cell>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn25(this: Continuation<Cell>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn22(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+  fun SuspendTask.run @fn26(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Cell.$c0 @fn24(this: Cell, value: Int) -> Unit
+  fun Continuation.resume @fn28(this: Continuation<Item>, value: Item) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Item>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Item>, $completion: Continuation<Item>) -> CoroutineStep<Item>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Item>, continuation: Continuation<Item>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Cell.$c0 @fn32(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -940,7 +1053,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Owner.$c1 @fn25(this: Owner, value: Int) -> Unit
+  fun init.Owner.$c1 @fn33(this: Owner, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Owner
@@ -948,7 +1061,7 @@ Module
         Type Int
         Local value
       return
-  fun ctor.Item.$c0 @fn26(value: Int, extra: Double) -> Item <no-gc>
+  fun ctor.Item.$c0 @fn34(value: Int, extra: Double) -> Item <no-gc>
     bb0 entry
       return
         Type Item
@@ -957,21 +1070,21 @@ Module
           Local value
           Type Double
           Local extra
-  fun ctor.PinnedPtr.$c0 @fn27(raw: ULong) -> PinnedPtr<Cell> <no-gc>
+  fun ctor.PinnedPtr.$c0 @fn35(raw: ULong) -> PinnedPtr<Cell> <no-gc>
     bb0 entry
       return
         Type PinnedPtr<Cell>
         StructInit PinnedPtr<Cell>
           Type ULong
           Local raw
-  fun ctor.GcHandle.$c1 @fn28(raw: ULong) -> GcHandle<Cell> <no-gc>
+  fun ctor.GcHandle.$c1 @fn36(raw: ULong) -> GcHandle<Cell> <no-gc>
     bb0 entry
       return
         Type GcHandle<Cell>
         StructInit GcHandle<Cell>
           Type ULong
           Local raw
-  fun startCoroutine<Cell> @fn29(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+  fun startCoroutine<Cell> @fn37(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -994,7 +1107,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn20 interface Continuation<Cell>[0]
+      call @fn24 interface Continuation<Cell>[0]
         Type Continuation<Cell>
         Local completion
         Type Cell
@@ -1007,7 +1120,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn21 interface Continuation<Cell>[1]
+      call @fn25 interface Continuation<Cell>[1]
         Type Continuation<Cell>
         Local completion
         Type Throwable
@@ -1026,7 +1139,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Cell> = @fn22 interface SuspendTask<Cell>[0]
+      call $step: CoroutineStep<Cell> = @fn26 interface SuspendTask<Cell>[0]
         Type SuspendTask<Cell>
         Local task
         Type Continuation<Cell>
@@ -1037,6 +1150,87 @@ Module
           Type machine<enum-tag>
           EnumTag
             Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
+  fun startCoroutine<Item> @fn38(task: SuspendTask<Item>, completion: Continuation<Item>) -> Unit
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb3 completed unwind bb0
+      call @fn28 interface Continuation<Item>[0]
+        Type Continuation<Item>
+        Local completion
+        Type Item
+        EnumField v0 f0
+          Type CoroutineStep<Item>
+          Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb4 failed unwind bb0
+      call @fn29 interface Continuation<Item>[1]
+        Type Continuation<Item>
+        Local completion
+        Type Throwable
+        Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      return
+    bb5 body_failure unwind bb1
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb6 run unwind bb5
+      call $step: CoroutineStep<Item> = @fn30 interface SuspendTask<Item>[0]
+        Type SuspendTask<Item>
+        Local task
+        Type Continuation<Item>
+        Local completion
+      branch bb3 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Item>
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
@@ -1074,19 +1268,31 @@ Module
         Local $parameter.value
       return
   coroutine_step cs0 CoroutineStep<Cell> result=Cell
+  coroutine_step cs1 CoroutineStep<Item> result=Item
   coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
-  coroutine_start ct0 result=Cell function=fn29
-  coroutine_fn cf0 @fn22 source_return=Cell step=cs0 immediate
-  instance mi0 function=@fn15 <- pin
-  instance mi1 function=@fn16 <- unpin
-  instance mi2 function=@fn17 <- getGcHandle
-  instance mi3 function=@fn18 <- releaseGcHandle
-  instance mi4 function=@fn19 <- println
-  instance mi5 function=@fn20 <- Continuation.resume
-  instance mi6 function=@fn21 <- Continuation.resumeWithException
-  instance mi7 function=@fn22 <- SuspendTask.run
-  instance mi8 function=@fn23 <- SuspendRegistration.register
+  coroutine_slot cl1 CoroutineSlot<Item> value=Item
+  coroutine_start ct0 result=Cell function=fn37
+  coroutine_start ct1 result=Item function=fn38
+  coroutine_fn cf0 @fn26 source_return=Cell step=cs0 immediate
+  coroutine_fn cf1 @fn30 source_return=Item step=cs1 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn1 <- equalTo
+  instance mi2 function=@fn17 <- equals
+  instance mi3 function=@fn18 <- equals
+  instance mi4 function=@fn19 <- pin
+  instance mi5 function=@fn20 <- unpin
+  instance mi6 function=@fn21 <- getGcHandle
+  instance mi7 function=@fn22 <- releaseGcHandle
+  instance mi8 function=@fn23 <- println
+  instance mi9 function=@fn24 <- Continuation.resume
+  instance mi10 function=@fn25 <- Continuation.resumeWithException
+  instance mi11 function=@fn26 <- SuspendTask.run
+  instance mi12 function=@fn27 <- SuspendRegistration.register
+  instance mi13 function=@fn28 <- Continuation.resume
+  instance mi14 function=@fn29 <- Continuation.resumeWithException
+  instance mi15 function=@fn30 <- SuspendTask.run
+  instance mi16 function=@fn31 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "direct-c-representations-ok"
   str @str2 "\n"
-  output executable @fn14
+  output executable @fn16

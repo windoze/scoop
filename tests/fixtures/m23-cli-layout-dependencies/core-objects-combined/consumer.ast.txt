@@ -4,8 +4,8 @@ SourceFile
   ImportExact Local dependency.api.imageValue
   ImportExact Local dependency.api.imageMutable
   ImportExact Local dependency.api.computedValue
-    @Extern(name = "scoop_test_identity")
-  fun nativeIdentity(value: Int): Int
+    @Extern(name = "scoop_test_identity", captureErrno = true)
+  fun nativeIdentity(value: Int): (Int, Int)
     @Extern(name = "scoop_test_other")
   fun nativeOther(value: Int): Int
   fun defaultRead(value: Int = <expr>): Int
@@ -26,9 +26,11 @@ SourceFile
       Var value
   public fun nativeCalls(value: Int): Int
     @Unsafe block
+      val (result, _)
+        Call nativeIdentity
+          Var value
       return
         Binary Add
-          Call nativeIdentity
-            Var value
+          Var result
           Call nativeOther
             Var value

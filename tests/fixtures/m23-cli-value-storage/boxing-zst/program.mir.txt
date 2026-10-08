@@ -23,7 +23,12 @@ Module
   generated_exact_type get5 location=class4 nominal_id=adbd94568be41d19f0050c168d95ace51f23ee3c672c62100768f367e9c35e98 exact_id=7ec847aa3315c0304f43a1c33232a89b38c41e6e3f59748524d02395e3d4cb48
   generated_exact_type get6 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun observedEmpty @fn0() -> Empty
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun observedEmpty @fn1() -> Empty
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -31,16 +36,16 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn2 direct
+      call @fn3 direct
         Type Int
         Local $dependency.parameter.value
       call $call.1: Empty = @fn6 direct
       return
         Type Empty
         Local $call.1
-  fun main @fn1() -> Unit
+  fun main @fn2() -> Unit
     bb0 entry
-      call $call.1: Empty = @fn0 direct
+      call $call.1: Empty = @fn1 direct
       val boxed: Any
         Type Any
         Box
@@ -54,7 +59,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: Boolean
@@ -65,7 +70,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Boolean
         Local $dependency.parameter.value
       val $cast.1: Any
@@ -98,7 +103,7 @@ Module
         Type Empty
         Local $ub.2
       call $call.3: Empty = @fn6 direct
-      call $dependency.argument.0: Boolean = @fn4 direct
+      call $dependency.argument.0: Boolean = @fn0 direct
         Type Empty
         Local restored
         Type Empty
@@ -106,7 +111,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Boolean
         Local $dependency.parameter.value
       val unitBox: Any
@@ -122,7 +127,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Boolean
         Local $dependency.parameter.value
       val $cast.3: Any
@@ -162,11 +167,11 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn3 direct
+      call @fn4 direct
         Type Boolean
         Local $dependency.parameter.value
       return
-  fun println @fn2(value: Int) -> Unit
+  fun println @fn3(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -190,7 +195,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn3(value: Boolean) -> Unit
+  fun println @fn4(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -214,11 +219,6 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Empty.equals @fn4(this: Empty, other: Empty) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        BoolLiteral true
   fun $derived.equals.1 @fn5(this: Unit, other: Unit) -> Boolean
     bb0 entry
       return
@@ -234,8 +234,8 @@ Module
       return
         Type OtherEmpty
         StructInit OtherEmpty
-  instance mi0 function=@fn2 <- println
-  instance mi1 function=@fn3 <- println
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
   str @str0 "\n"
   str @str1 "\n"
-  output executable @fn1
+  output executable @fn2

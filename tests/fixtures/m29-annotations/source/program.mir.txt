@@ -54,8 +54,10 @@ Module
   interface View
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Names>
   interface SuspendTask<Names>
   interface SuspendRegistration<Names>

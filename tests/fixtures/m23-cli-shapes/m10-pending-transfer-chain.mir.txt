@@ -64,8 +64,10 @@ Module
   interface Continuation<Node>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface SuspendTask<Unit>
   interface SuspendRegistration<Node>
   generated_exact_type get0 location=enum4 nominal_id=8acc2d18c02ed1d11986f7cdcc6367a6f64dc11b79fe26c1bf339fec8797ebaf exact_id=017212fda02d7a6fe3161cf59db8e5f70eceac9246af471cc0a1e17c3bbb4695

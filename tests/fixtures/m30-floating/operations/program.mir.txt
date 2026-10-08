@@ -30,6 +30,8 @@ Module
   class box<Long> vtable=0 itables=0
   class box<Option<String>> vtable=0 itables=0
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface List<Option<String>> : Iterable<Option<String>>
   interface Iterable<Option<String>>
   interface Iterator<Option<String>>
@@ -38,8 +40,11 @@ Module
   interface Iterable<String>
   interface Iterator<String>
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   closure cc0 $Closure$lambda0 type=function_type4 invoke=@fn34 captures=3
     bridge function_type1 -> @fn47 id=f52e9fb1ee54d8ae79a0433ee9cf3d2128458dc56c0c19c7d013431b7395a700
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn35 captures=1

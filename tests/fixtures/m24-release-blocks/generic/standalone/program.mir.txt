@@ -27,6 +27,7 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface Continuation<Container>
   interface SuspendTask<Container>
   interface SuspendRegistration<Container>

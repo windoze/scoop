@@ -88,8 +88,11 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface SuspendTask<Boolean>
   interface SuspendTask<Choice>
   generated_exact_type get0 location=class19 nominal_id=4916385bb08da46b98e7d642f435a2cbd721463843c1e7aff471c238309ae1b1 exact_id=0429584d65c9ae235d25e42465a47d6b8366dae66ce6ab8d9d01a9e0a036eb13

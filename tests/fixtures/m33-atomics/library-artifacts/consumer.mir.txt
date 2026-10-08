@@ -1,17 +1,17 @@
 Module
   struct Snapshot (serial: Int, payload: Payload)
-  enum MemoryOrder
-    Relaxed()
-    Acquire()
-    Release()
-    AcqRel()
-    SeqCst()
   enum Option<String>
     Some(_0: String)
     None()
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -19,7 +19,6 @@ Module
   class Atomic<Snapshot> vtable=0 itables=0
   class Atomic<(Int, Payload)> vtable=0 itables=0
   class box<Snapshot> vtable=0 itables=0
-  interface Equality<MemoryOrder>
   interface ToString
   interface Hash
   interface Equality<Char>

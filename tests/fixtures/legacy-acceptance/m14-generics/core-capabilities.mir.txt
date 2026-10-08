@@ -71,7 +71,93 @@ Module
   generated_callable gc3 function=@fn38 id=9c3eacc6da778e5cdcbb647c0ce7ff05550d13da7c1852ec458744374c78ae6c
   generated_callable gc4 function=@fn40 id=bf7496d894f6f7a072d520b5ec3e29d946670550b81855b04bbaf16ca33f2229
   generated_callable gc5 function=@fn41 id=fc431d6518085342b546e79c8ca3e0c6b39f0171c432421a68a220fba0c3d95b
-  fun main @fn0() -> Unit
+  fun Point.toString @fn0(this: Point) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Point.hash @fn1(this: Point) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+  fun Point.label @fn2(this: Point) -> String
+    bb0 entry
+      val $receiver: Point
+        Type Point
+        Local this
+      call $call.1: String = @fn0 direct
+        Type Point
+        Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun User.toString @fn3(this: User) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun User.hash @fn4(this: User) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+  fun User.equals @fn5(this: User, other: User) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun User.equalTo @fn6(this: User, other: User) -> Boolean
+    bb0 entry
+      val $receiver: User
+        Type User
+        Local this
+      val $argument.0: User
+        Type User
+        Local other
+      val $parameter.other: User
+        Type User
+        Local $argument.0
+      call $call.1: Boolean = @fn5 direct
+        Type User
+        Local $receiver
+        Type User
+        Local $parameter.other
+      return
+        Type Boolean
+        Local $call.1
+  fun main @fn7() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -96,19 +182,19 @@ Module
       val $dependency.parameter.value: Point
         Type Point
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn11 direct
         Type Point
         Local $dependency.parameter.value
       val $receiver: Point
         Type Point
         Local point
-      call $dependency.argument.0: Long = @fn2 direct
+      call $dependency.argument.0: Long = @fn1 direct
         Type Point
         Local $receiver
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn11 direct
+      call @fn12 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: Int
@@ -145,7 +231,7 @@ Module
       val second: User
         Type User
         Local $new.2
-      call $dependency.argument.0: Boolean = @fn12 direct
+      call $dependency.argument.0: Boolean = @fn5 direct
         Type User
         Local first
         Type User
@@ -235,91 +321,27 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun Point.toString @fn1(this: Point) -> String
-    bb0 entry
-      return
-        Type String
-        StringConst @str0
-  fun Point.hash @fn2(this: Point) -> Long
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Point
-          Local this
-      return
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local $dependency.receiver
-  fun Point.label @fn3(this: Point) -> String
-    bb0 entry
-      val $receiver: Point
-        Type Point
-        Local this
-      call $call.1: String = @fn1 direct
-        Type Point
-        Local $receiver
-      return
-        Type String
-        Local $call.1
-  fun User.toString @fn4(this: User) -> String
-    bb0 entry
-      return
-        Type String
-        StringConst @str1
-  fun User.hash @fn5(this: User) -> Long
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type User
-          Local this
-      return
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local $dependency.receiver
-  fun User.equalTo @fn6(this: User, other: User) -> Boolean
-    bb0 entry
-      val $receiver: User
-        Type User
-        Local this
-      val $argument.0: User
-        Type User
-        Local other
-      val $parameter.other: User
-        Type User
-        Local $argument.0
-      call $call.1: Boolean = @fn12 direct
-        Type User
-        Local $receiver
-        Type User
-        Local $parameter.other
-      return
-        Type Boolean
-        Local $call.1
-  fun RenderBox.toString @fn7(this: RenderBox<Point>) -> String
+  fun RenderBox.toString @fn8(this: RenderBox<Point>) -> String
     bb0 entry
       val $dependency.receiver: Point
         Type Point
         FieldAccess 0
           Type RenderBox<Point>
           Local this
-      call $call.1: String = @fn1 direct
+      call $call.1: String = @fn0 direct
         Type Point
         Local $dependency.receiver
       return
         Type String
         Local $call.1
-  fun RenderPair.toString @fn8(this: RenderPair<Point>) -> String
+  fun RenderPair.toString @fn9(this: RenderPair<Point>) -> String
     bb0 entry
       val $dependency.receiver: Point
         Type Point
         FieldAccess 0
           Type RenderPair<Point>
           Local this
-      call $dependency.receiver: String = @fn1 direct
+      call $dependency.receiver: String = @fn0 direct
         Type Point
         Local $dependency.receiver
       val $dependency.receiver: Point
@@ -327,7 +349,7 @@ Module
         FieldAccess 1
           Type RenderPair<Point>
           Local this
-      call $dependency.argument.0: String = @fn1 direct
+      call $dependency.argument.0: String = @fn0 direct
         Type Point
         Local $dependency.receiver
       val $dependency.parameter.other: String
@@ -341,7 +363,7 @@ Module
       return
         Type String
         Local $call.1
-  fun RenderState.toString @fn9(this: RenderState<Point>) -> String
+  fun RenderState.toString @fn10(this: RenderState<Point>) -> String
     bb0 entry
       val $when.1: RenderState<Point>
         Type RenderState<Point>
@@ -363,7 +385,7 @@ Module
       val $dependency.receiver: Point
         Type Point
         Local value
-      call $call.1: String = @fn1 direct
+      call $call.1: String = @fn0 direct
         Type Point
         Local $dependency.receiver
       assign $result.0
@@ -392,12 +414,12 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun println @fn10(value: Point) -> Unit
+  fun println @fn11(value: Point) -> Unit
     bb0 entry
       val $dependency.local.1: Point
         Type Point
         Local value
-      call $dependency.local.2: String = @fn1 direct
+      call $dependency.local.2: String = @fn0 direct
         Type Point
         Local $dependency.local.1
       val $dependency.local.3: String
@@ -416,7 +438,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn11(value: Long) -> Unit
+  fun println @fn12(value: Long) -> Unit
     bb0 entry
       val $dependency.local.1: Long
         Type Long
@@ -440,28 +462,6 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun User.equals @fn12(this: User, other: User) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type User
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type User
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
   fun println @fn13(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -491,7 +491,7 @@ Module
       val $dependency.local.1: RenderBox<Point>
         Type RenderBox<Point>
         Local value
-      call $dependency.local.2: String = @fn7 direct
+      call $dependency.local.2: String = @fn8 direct
         Type RenderBox<Point>
         Local $dependency.local.1
       val $dependency.local.3: String
@@ -515,7 +515,7 @@ Module
       val $dependency.local.1: RenderPair<Point>
         Type RenderPair<Point>
         Local value
-      call $dependency.local.2: String = @fn8 direct
+      call $dependency.local.2: String = @fn9 direct
         Type RenderPair<Point>
         Local $dependency.local.1
       val $dependency.local.3: String
@@ -539,7 +539,7 @@ Module
       val $dependency.local.1: RenderState<Point>
         Type RenderState<Point>
         Local value
-      call $dependency.local.2: String = @fn9 direct
+      call $dependency.local.2: String = @fn10 direct
         Type RenderState<Point>
         Local $dependency.local.1
       val $dependency.local.3: String
@@ -563,7 +563,7 @@ Module
       val $dependency.receiver: Point
         Type Point
         Local value
-      call $call.1: String = @fn1 direct
+      call $call.1: String = @fn0 direct
         Type Point
         Local $dependency.receiver
       return
@@ -911,7 +911,7 @@ Module
       goto bb6
   fun thunk<Point> ToString.toString() @fn39(this: ToString) -> String
     bb0 entry
-      call $call.1: String = @fn1 direct
+      call $call.1: String = @fn0 direct
         Type Point
         Unbox
           Type ToString
@@ -921,7 +921,7 @@ Module
         Local $call.1
   fun thunk<Point> Hash.hash() @fn40(this: Hash) -> Long
     bb0 entry
-      call $call.1: Long = @fn2 direct
+      call $call.1: Long = @fn1 direct
         Type Point
         Unbox
           Type Hash
@@ -931,7 +931,7 @@ Module
         Local $call.1
   fun thunk<Point> Label.label() @fn41(this: Label) -> String
     bb0 entry
-      call $call.1: String = @fn3 direct
+      call $call.1: String = @fn2 direct
         Type Point
         Unbox
           Type Label
@@ -951,11 +951,11 @@ Module
   coroutine_fn cf0 @fn21 source_return=Point step=cs2 immediate
   coroutine_fn cf1 @fn25 source_return=Label step=cs0 immediate
   coroutine_fn cf2 @fn29 source_return=User step=cs1 immediate
-  instance mi0 function=@fn7 <- RenderBox.toString
-  instance mi1 function=@fn8 <- RenderPair.toString
-  instance mi2 function=@fn9 <- RenderState.toString
-  instance mi3 function=@fn10 <- println
-  instance mi4 function=@fn11 <- println
+  instance mi0 function=@fn8 <- RenderBox.toString
+  instance mi1 function=@fn9 <- RenderPair.toString
+  instance mi2 function=@fn10 <- RenderState.toString
+  instance mi3 function=@fn11 <- println
+  instance mi4 function=@fn12 <- println
   instance mi5 function=@fn13 <- println
   instance mi6 function=@fn14 <- println
   instance mi7 function=@fn15 <- println
@@ -984,4 +984,4 @@ Module
   str @str7 "\n"
   str @str8 "\n"
   str @str9 "\n"
-  output executable @fn0
+  output executable @fn7

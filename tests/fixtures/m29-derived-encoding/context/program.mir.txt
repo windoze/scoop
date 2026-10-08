@@ -75,6 +75,8 @@ Module
   interface UnkeyedEncodingContainer
   interface SingleValueEncodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Decodable<Int>
   interface Decoder
   interface KeyedDecodingContainer
@@ -103,8 +105,10 @@ Module
   interface Iterable<JsonValue>
   interface Iterator<JsonValue>
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Encodable<Array<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=0
     bridge function_type1 -> @fn83 id=e30dcc4b5306fb8008bed126a2a9af2284e877248a4c5018b7cf4042978ac5df

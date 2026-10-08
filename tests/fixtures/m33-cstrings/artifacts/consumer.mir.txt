@@ -27,9 +27,9 @@ Module
   class ListIterator<UInt8> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class box<Result> vtable=0 itables=0
-  class box<Ptr<UInt8>> vtable=0 itables=0
+  class box<Ptr<UInt8>> vtable=0 itables=1
   class box<Long> vtable=0 itables=0
-  class box<Ptr<Int8>> vtable=0 itables=0
+  class box<Ptr<Int8>> vtable=0 itables=1
   class box<UInt8> vtable=0 itables=0
   interface Decodable<String>
   interface Decoder
@@ -40,6 +40,8 @@ Module
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
   interface ToString
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer
@@ -48,18 +50,22 @@ Module
   interface List<UInt8> : Iterable<UInt8>
   interface Iterable<UInt8>
   interface Iterator<UInt8>
+  interface Equality<Ptr<Int8>>
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Ptr<UInt8>>
   interface Continuation<Result>
   interface SuspendTask<Result>
   interface SuspendRegistration<Result>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn15 captures=2
-    bridge function_type1 -> @fn25 id=df413801f4df8d4fe7e0c42447b12732015da6fa632cbe99904fbccdcd4fbc8f
-  closure cc1 $Closure$anonymous0 type=function_type0 invoke=@fn5 captures=0
-    bridge function_type1 -> @fn26 id=52429aebddab97029209a8ca8417f593ea60f48e02dce74ddecd555cb7b5bdfc
-  closure cc2 $Closure$anonymous1 type=function_type3 invoke=@fn16 captures=1
-    bridge function_type4 -> @fn27 id=a71aa669666bb98aeba330ea506c19acee0e4e4a4b88e0f1e0d3fa03c6b26b60
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn18 captures=2
+    bridge function_type1 -> @fn31 id=df413801f4df8d4fe7e0c42447b12732015da6fa632cbe99904fbccdcd4fbc8f
+  closure cc1 $Closure$anonymous0 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn32 id=52429aebddab97029209a8ca8417f593ea60f48e02dce74ddecd555cb7b5bdfc
+  closure cc2 $Closure$anonymous1 type=function_type3 invoke=@fn19 captures=1
+    bridge function_type4 -> @fn33 id=a71aa669666bb98aeba330ea506c19acee0e4e4a4b88e0f1e0d3fa03c6b26b60
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -75,10 +81,12 @@ Module
   generated_exact_type get12 location=closure1 nominal_id=080fe5ff5cf793e8948216a998b2067718e2316492939d4da745086959bd10a7 exact_id=c39fc20e4c503745e23e44d2bc4e004e72204f243ae19e959d6b9ece0bd11e11
   generated_exact_type get13 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_exact_type get14 location=class11 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
-  generated_callable gc0 function=@fn24 id=30df56eb7a22a225c1fd8830bd5084454d43b9df9dda66941f4859729494c862
-  generated_callable gc1 function=@fn26 id=52429aebddab97029209a8ca8417f593ea60f48e02dce74ddecd555cb7b5bdfc
-  generated_callable gc2 function=@fn27 id=a71aa669666bb98aeba330ea506c19acee0e4e4a4b88e0f1e0d3fa03c6b26b60
-  generated_callable gc3 function=@fn25 id=df413801f4df8d4fe7e0c42447b12732015da6fa632cbe99904fbccdcd4fbc8f
+  generated_callable gc0 function=@fn28 id=30df56eb7a22a225c1fd8830bd5084454d43b9df9dda66941f4859729494c862
+  generated_callable gc1 function=@fn32 id=52429aebddab97029209a8ca8417f593ea60f48e02dce74ddecd555cb7b5bdfc
+  generated_callable gc2 function=@fn29 id=6c50a4c9e65e6baba3fe39e1ba87d275ce062f7a46e6ef0f217eb11d0048af9c
+  generated_callable gc3 function=@fn30 id=72949478cf03cafe0562eb9390bb4c230ef44642421cb840038d08cb47967712
+  generated_callable gc4 function=@fn33 id=a71aa669666bb98aeba330ea506c19acee0e4e4a4b88e0f1e0d3fa03c6b26b60
+  generated_callable gc5 function=@fn31 id=df413801f4df8d4fe7e0c42447b12732015da6fa632cbe99904fbccdcd4fbc8f
   fun expect @fn0(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
@@ -149,7 +157,7 @@ Module
       val $dependency.parameter.block: (Ptr<Int8>) -> Result
         Type (Ptr<Int8>) -> Result
         Local $dependency.argument.1
-      call result: Result = @fn6 direct
+      call result: Result = @fn7 direct
         Type String
         Local $dependency.parameter.text
         Type (Ptr<Int8>) -> Result
@@ -311,7 +319,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn8 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -397,7 +405,7 @@ Module
       assign $new.1
         Type ListIterator<UInt8>
         ClassAlloc ListIterator<UInt8>
-      call @fn22 direct
+      call @fn26 direct
         Type ListIterator<UInt8>
         Local $new.1
         Type List<UInt8>
@@ -483,7 +491,26 @@ Module
         ArrayLen Array<UInt8>
           Type Array<UInt8>
           Local $dependency.local.1
-  fun $anonymous.0 @fn5($closure: (Ptr<Int8>) -> Result, pointer: Ptr<Int8>) -> Result
+  fun equalTo @fn5(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      val $dependency.local.4: Ptr<Int8>
+        Type Ptr<Int8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn10 direct
+        Type Ptr<Int8>
+        Local $dependency.local.2
+        Type Ptr<Int8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $anonymous.0 @fn6($closure: (Ptr<Int8>) -> Result, pointer: Ptr<Int8>) -> Result
     bb0 entry
       call @scoop_rt_gc_collect direct
       call external15 direct
@@ -510,7 +537,7 @@ Module
       val $parameter.count: Long
         Type Long
         Local $argument.1
-      call $call.1: Result = @fn23 direct
+      call $call.1: Result = @fn27 direct
         Type String
         Local $parameter.text
         Type Long
@@ -518,7 +545,7 @@ Module
       return
         Type Result
         Local $call.1
-  fun useCString @fn6(text: String, block: (Ptr<Int8>) -> Result) -> Result
+  fun useCString @fn7(text: String, block: (Ptr<Int8>) -> Result) -> Result
     bb0 entry
       val $dependency.local.2: String
         Type String
@@ -529,7 +556,7 @@ Module
       val $dependency.local.4: (Ptr<Int8>) -> Result
         Type (Ptr<Int8>) -> Result
         Local $dependency.local.3
-      call $call.1: Result = @fn9 direct
+      call $call.1: Result = @fn11 direct
         Type String
         Local $dependency.local.2
         Type (Ptr<Int8>) -> Result
@@ -537,7 +564,7 @@ Module
       return
         Type Result
         Local $call.1
-  fun println @fn7(value: String) -> Unit
+  fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -561,7 +588,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun next @fn8(this: ListIterator<UInt8>) -> Option<UInt8>
+  fun next @fn9(this: ListIterator<UInt8>) -> Option<UInt8>
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -578,7 +605,7 @@ Module
         FieldAccess 1
           Type ListIterator<UInt8>
           Local this
-      call $dependency.local.3: Long = @fn10 interface List<UInt8>[2]
+      call $dependency.local.3: Long = @fn12 interface List<UInt8>[2]
         Type List<UInt8>
         FieldAccess 0
           Type ListIterator<UInt8>
@@ -620,7 +647,7 @@ Module
       val $dependency.local.7: Long
         Type Long
         Local $dependency.local.6
-      call $dependency.local.1: UInt8 = @fn11 interface List<UInt8>[1]
+      call $dependency.local.1: UInt8 = @fn13 interface List<UInt8>[1]
         Type List<UInt8>
         Local $dependency.local.5
         Type Long
@@ -656,7 +683,29 @@ Module
         VariantConstruct Option<UInt8> v0
           Type UInt8
           Local $dependency.local.12
-  fun $extension.withCString @fn9(this: String, block: (Ptr<Int8>) -> Result) -> Result
+  fun equals @fn10(this: Ptr<Int8>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Int8>
+        Type Ptr<Int8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Int8>
+        Type Ptr<Int8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Int8>
+            Local $dependency.local.3
+  fun $extension.withCString @fn11(this: String, block: (Ptr<Int8>) -> Result) -> Result
     bb0 entry
       val $dependency.local.2: String
         Type String
@@ -844,7 +893,7 @@ Module
       val $dependency.local.28: (Ptr<UInt8>, Long) -> Result
         Type (Ptr<UInt8>, Long) -> Result
         Local $dependency.local.27
-      call $call.4: Result = @fn17 direct
+      call $call.4: Result = @fn20 direct
         Type MutableArray<UInt8>
         Local $dependency.local.26
         Type (Ptr<UInt8>, Long) -> Result
@@ -873,13 +922,13 @@ Module
           Type Long
           IntegerLiteral Long value=1 bits=0x0000000000000001
       goto bb8
-  fun List.$get$size @fn10(this: List<UInt8>) -> Long
+  fun List.$get$size @fn12(this: List<UInt8>) -> Long
     bb0 entry
       trap "call to abstract method `List.$get$size`"
-  fun List.get @fn11(this: List<UInt8>, index: Long) -> UInt8
+  fun List.get @fn13(this: List<UInt8>, index: Long) -> UInt8
     bb0 entry
       trap "call to abstract method `List.get`"
-  fun iterator @fn12(this: MutableArray<UInt8>) -> Iterator<UInt8>
+  fun iterator @fn14(this: MutableArray<UInt8>) -> Iterator<UInt8>
     bb0 entry
       val $dependency.local.1: List<UInt8>
         Type List<UInt8>
@@ -904,7 +953,7 @@ Module
       assign $new.1
         Type ListIterator<UInt8>
         ClassAlloc ListIterator<UInt8>
-      call @fn22 direct
+      call @fn26 direct
         Type ListIterator<UInt8>
         Local $new.1
         Type List<UInt8>
@@ -918,7 +967,7 @@ Module
         Retype Iterator<UInt8>
           Type ListIterator<UInt8>
           Local $new.1
-  fun get @fn13(this: MutableArray<UInt8>, index: Long) -> UInt8
+  fun get @fn15(this: MutableArray<UInt8>, index: Long) -> UInt8
     bb0 entry
       val $dependency.local.2: MutableArray<UInt8>
         Type MutableArray<UInt8>
@@ -980,7 +1029,7 @@ Module
           Local $arr.1
           Type Long
           Local $idx.2
-  fun size @fn14(this: MutableArray<UInt8>) -> Long
+  fun size @fn16(this: MutableArray<UInt8>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<UInt8>
         Type MutableArray<UInt8>
@@ -990,7 +1039,26 @@ Module
         ArrayLen MutableArray<UInt8>
           Type MutableArray<UInt8>
           Local $dependency.local.1
-  fun $lambda @fn15($argument.0: (Long) -> UInt8, $argument.1: Long) -> UInt8
+  fun equalTo @fn17(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      val $dependency.local.4: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn21 direct
+        Type Ptr<UInt8>
+        Local $dependency.local.2
+        Type Ptr<UInt8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun $lambda @fn18($argument.0: (Long) -> UInt8, $argument.1: Long) -> UInt8
     bb0 entry
       branch bb1 bb2
         Type Boolean
@@ -1036,7 +1104,7 @@ Module
       return
         Type UInt8
         Local $dependency.local.6
-  fun $anonymous @fn16($argument.0: (Ptr<UInt8>, Long) -> Result, $argument.1: Ptr<UInt8>, $argument.2: Long) -> Result
+  fun $anonymous @fn19($argument.0: (Ptr<UInt8>, Long) -> Result, $argument.1: Ptr<UInt8>, $argument.2: Long) -> Result
     bb0 entry
       val $dependency.local.3: (Ptr<Int8>) -> Result
         Type (Ptr<Int8>) -> Result
@@ -1056,7 +1124,7 @@ Module
       return
         Type Result
         Local $call.1
-  fun $extension.withDataPointer @fn17(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> Result) -> Result
+  fun $extension.withDataPointer @fn20(this: MutableArray<UInt8>, block: (Ptr<UInt8>, Long) -> Result) -> Result
     bb0 entry
       val $dependency.local.2: MutableArray<UInt8>
         Type MutableArray<UInt8>
@@ -1123,19 +1191,41 @@ Module
         Type Ptr<Unit>
         Local $pin_frame.3
       rethrow unwind bb3
-  fun Continuation.resume @fn18(this: Continuation<Result>, value: Result) -> Unit
+  fun equals @fn21(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $dependency.local.3
+  fun Continuation.resume @fn22(this: Continuation<Result>, value: Result) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn19(this: Continuation<Result>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn23(this: Continuation<Result>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn20(this: SuspendTask<Result>, $completion: Continuation<Result>) -> CoroutineStep<Result>
+  fun SuspendTask.run @fn24(this: SuspendTask<Result>, $completion: Continuation<Result>) -> CoroutineStep<Result>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Result>, continuation: Continuation<Result>) -> Unit
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Result>, continuation: Continuation<Result>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.ListIterator.$c0 @fn22(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
+  fun init.ListIterator.$c0 @fn26(this: ListIterator<UInt8>, source: List<UInt8>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
         Type ListIterator<UInt8>
@@ -1153,7 +1243,7 @@ Module
         Type Boolean
         Local exhausted
       return
-  fun ctor.Result.$c0 @fn23(text: String, count: Long) -> Result <no-gc>
+  fun ctor.Result.$c0 @fn27(text: String, count: Long) -> Result <no-gc>
     bb0 entry
       return
         Type Result
@@ -1162,7 +1252,7 @@ Module
           Local text
           Type Long
           Local count
-  fun startCoroutine<Result> @fn24(task: SuspendTask<Result>, completion: Continuation<Result>) -> Unit
+  fun startCoroutine<Result> @fn28(task: SuspendTask<Result>, completion: Continuation<Result>) -> Unit
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -1185,7 +1275,7 @@ Module
         Local $context_guard
       return
     bb3 completed unwind bb0
-      call @fn18 interface Continuation<Result>[0]
+      call @fn22 interface Continuation<Result>[0]
         Type Continuation<Result>
         Local completion
         Type Result
@@ -1198,7 +1288,7 @@ Module
         Local $context_guard
       return
     bb4 failed unwind bb0
-      call @fn19 interface Continuation<Result>[1]
+      call @fn23 interface Continuation<Result>[1]
         Type Continuation<Result>
         Local completion
         Type Throwable
@@ -1217,7 +1307,7 @@ Module
       end_catch
       goto bb4
     bb6 run unwind bb5
-      call $step: CoroutineStep<Result> = @fn20 interface SuspendTask<Result>[0]
+      call $step: CoroutineStep<Result> = @fn24 interface SuspendTask<Result>[0]
         Type SuspendTask<Result>
         Local task
         Type Continuation<Result>
@@ -1243,7 +1333,31 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb6
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn25($source: (Long) -> UInt8, arg0: Any) -> Any
+  fun thunk<Ptr<UInt8>> Equality.equalTo(Ptr<UInt8>) @fn29(this: Equality<Ptr<UInt8>>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn17 direct
+        Type Ptr<UInt8>
+        Unbox
+          Type Equality<Ptr<UInt8>>
+          Local this
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun thunk<Ptr<Int8>> Equality.equalTo(Ptr<Int8>) @fn30(this: Equality<Ptr<Int8>>, other: Ptr<Int8>) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn5 direct
+        Type Ptr<Int8>
+        Unbox
+          Type Equality<Ptr<Int8>>
+          Local this
+        Type Ptr<Int8>
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn31($source: (Long) -> UInt8, arg0: Any) -> Any
     bb0 entry
       call $call.1: UInt8 = <closure:function_type2> closure[function_type2]
         Type (Long) -> UInt8
@@ -1257,7 +1371,7 @@ Module
         Box
           Type UInt8
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn26($source: (Ptr<Int8>) -> Result, arg0: Any) -> Any
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn32($source: (Ptr<Int8>) -> Result, arg0: Any) -> Any
     bb0 entry
       call $call.1: Result = <closure:function_type0> closure[function_type0]
         Type (Ptr<Int8>) -> Result
@@ -1271,7 +1385,7 @@ Module
         Box
           Type Result
           Local $call.1
-  fun function_bridge.$Closure$anonymous1.(Any, Any) -> Any @fn27($source: (Ptr<UInt8>, Long) -> Result, arg0: Any, arg1: Any) -> Any
+  fun function_bridge.$Closure$anonymous1.(Any, Any) -> Any @fn33($source: (Ptr<UInt8>, Long) -> Result, arg0: Any, arg1: Any) -> Any
     bb0 entry
       call $call.1: Result = <closure:function_type3> closure[function_type3]
         Type (Ptr<UInt8>, Long) -> Result
@@ -1291,27 +1405,31 @@ Module
           Local $call.1
   coroutine_step cs0 CoroutineStep<Result> result=Result
   coroutine_slot cl0 CoroutineSlot<Result> value=Result
-  coroutine_start ct0 result=Result function=fn24
-  coroutine_fn cf0 @fn20 source_return=Result step=cs0 immediate
+  coroutine_start ct0 result=Result function=fn28
+  coroutine_fn cf0 @fn24 source_return=Result step=cs0 immediate
   instance mi0 function=@fn2 <- iterator
   instance mi1 function=@fn3 <- get
   instance mi2 function=@fn4 <- size
-  instance mi3 function=@fn6 <- useCString
-  instance mi4 function=@fn7 <- println
-  instance mi5 function=@fn8 <- next
-  instance mi6 function=@fn9 <- $extension.withCString
-  instance mi7 function=@fn10 <- List.$get$size
-  instance mi8 function=@fn11 <- List.get
-  instance mi9 function=@fn12 <- iterator
-  instance mi10 function=@fn13 <- get
-  instance mi11 function=@fn14 <- size
-  instance mi12 function=@fn15 <- $lambda
-  instance mi13 function=@fn16 <- $anonymous
-  instance mi14 function=@fn17 <- $extension.withDataPointer
-  instance mi15 function=@fn18 <- Continuation.resume
-  instance mi16 function=@fn19 <- Continuation.resumeWithException
-  instance mi17 function=@fn20 <- SuspendTask.run
-  instance mi18 function=@fn21 <- SuspendRegistration.register
+  instance mi3 function=@fn5 <- equalTo
+  instance mi4 function=@fn7 <- useCString
+  instance mi5 function=@fn8 <- println
+  instance mi6 function=@fn9 <- next
+  instance mi7 function=@fn10 <- equals
+  instance mi8 function=@fn11 <- $extension.withCString
+  instance mi9 function=@fn12 <- List.$get$size
+  instance mi10 function=@fn13 <- List.get
+  instance mi11 function=@fn14 <- iterator
+  instance mi12 function=@fn15 <- get
+  instance mi13 function=@fn16 <- size
+  instance mi14 function=@fn17 <- equalTo
+  instance mi15 function=@fn18 <- $lambda
+  instance mi16 function=@fn19 <- $anonymous
+  instance mi17 function=@fn20 <- $extension.withDataPointer
+  instance mi18 function=@fn21 <- equals
+  instance mi19 function=@fn22 <- Continuation.resume
+  instance mi20 function=@fn23 <- Continuation.resumeWithException
+  instance mi21 function=@fn24 <- SuspendTask.run
+  instance mi22 function=@fn25 <- SuspendRegistration.register
   str @str0 "illegal state"
   str @str1 "界"
   str @str2 "A界B"

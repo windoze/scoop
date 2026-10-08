@@ -1,7 +1,7 @@
 Module
   extern ef0 blockedOutput @blocked_output(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int, Long) -> Int <abi=c no-gc lib=fixture_native>
   foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn5
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn7
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option<String>
     Some(_0: String)
@@ -24,12 +24,15 @@ Module
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class box<Int> vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$anonymous0 type=function_type2 invoke=@fn3 captures=1
-    bridge function_type3 -> @fn6 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
+  interface Equality<String>
+  closure cc0 $Closure$anonymous0 type=function_type2 invoke=@fn5 captures=1
+    bridge function_type3 -> @fn8 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -37,9 +40,28 @@ Module
   generated_exact_type get4 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get5 location=closure0 nominal_id=5e68b0b8cc8e58092426c44b9bc2d9db961f3225bc87056875b5c403c9d51d31 exact_id=ee915ae1b3fcecc6a16b4e9032780c6025784c3d16a3f67460c55addd6bbda3c
   generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn6 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
-  generated_callable gc1 function=@fn5 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
-  fun blockedOutput @fn0(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Long) -> Int
+  generated_callable gc0 function=@fn8 id=4f6e67c61282686fd6a36b5fb39ddfce0f73dc80223731eeb68b38534c3c2707
+  generated_callable gc1 function=@fn7 id=fc8cfa5a18dd07a29b7f325cd1027a57a7533b5ce7218dd8041d9ff846a98dc4
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn4 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun blockedOutput @fn1(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Long) -> Int
     bb0 entry
       call $call.1: Int = extern0 @blocked_output direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -53,7 +75,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun expect @fn1(value: Boolean) -> Unit
+  fun expect @fn2(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -88,7 +110,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun main @fn2() -> Unit
+  fun main @fn3() -> Unit
     bb0 entry
       var growing: String
         Type String
@@ -201,7 +223,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -257,7 +279,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -313,7 +335,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -394,7 +416,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -413,7 +435,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn4 direct
+      call @fn6 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -426,7 +448,29 @@ Module
       unreachable
     bb9 pattern.merge.9
       goto bb6
-  fun $anonymous.0 @fn3($closure: (Int) -> Int, mode: Int) -> Int
+  fun equals @fn4(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $anonymous.0 @fn5($closure: (Int) -> Int, mode: Int) -> Int
     bb0 entry
       val $when.1: Int
         Type Int
@@ -461,7 +505,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn1 direct
+      call @fn2 direct
         Type Boolean
         Local $parameter.value
       goto bb3
@@ -528,7 +572,7 @@ Module
       goto bb9
     bb9 pattern.merge.9
       goto bb6
-  fun println @fn4(value: String) -> Unit
+  fun println @fn6(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -552,7 +596,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun foreign callback adapter 0 @fn5($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn7($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -627,7 +671,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn6($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn8($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -641,10 +685,12 @@ Module
         Box
           Type Int
           Local $call.1
-  instance mi0 function=@fn4 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn4 <- equals
+  instance mi2 function=@fn6 <- println
   str @str0 "illegal state"
   str @str1 "x"
   str @str2 "output-concurrent-ok"
   str @str3 "pending"
   str @str4 "\n"
-  output executable @fn2
+  output executable @fn3

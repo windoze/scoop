@@ -16,14 +16,35 @@ Module
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  interface Equality<Ptr<Unit>>
   interface ToString
   interface Hash
+  interface Equality<Int>
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun Owner.acquire @fn0(this: Owner, value: Int) -> Unit
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn15 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Owner.acquire @fn1(this: Owner, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -45,7 +66,7 @@ Module
           Type Ptr<Unit>
           Local $dependency.parameter._1
       return
-  fun Owner.close @fn1(this: Owner) -> Unit
+  fun Owner.close @fn2(this: Owner) -> Unit
     bb0 entry
       val saved: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -101,18 +122,18 @@ Module
       unreachable
     bb6 pattern.merge.6
       goto bb3
-  fun drop @fn2(arg0: Ptr<Unit>) -> Unit
+  fun drop @fn3(arg0: Ptr<Unit>) -> Unit
     bb0 entry
       call extern1 @m24_drop direct
         Type Ptr<Unit>
         Local arg0
       return
-  fun GetterOwner.$get$handle @fn3(this: GetterOwner) -> Option<Ptr<Unit>>
+  fun GetterOwner.$get$handle @fn4(this: GetterOwner) -> Option<Ptr<Unit>>
     bb0 entry
       return
         Type Option<Ptr<Unit>>
         VariantConstruct Option<Ptr<Unit>> v1
-  fun create @fn4(arg0: Int) -> Ptr<Unit>
+  fun create @fn5(arg0: Int) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @m24_create direct
         Type Int
@@ -120,13 +141,13 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun count @fn5() -> Int
+  fun count @fn6() -> Int
     bb0 entry
       call $call.1: Int = extern2 @m24_count direct
       return
         Type Int
         Local $call.1
-  fun allocateNative @fn6(value: Int) -> Ptr<Unit>
+  fun allocateNative @fn7(value: Int) -> Ptr<Unit>
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -140,7 +161,7 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun closed @fn7() -> Unit
+  fun closed @fn8() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -151,7 +172,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn18 direct
+      call @fn20 direct
         Type Owner
         Local $new.1
         Type Int
@@ -188,35 +209,35 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type Int
         Local $dependency.parameter.value
       call $dependency.argument.0: Int = extern2 @m24_count direct
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type Int
         Local $dependency.parameter.value
       val $receiver: Owner
         Type Owner
         Local owner
-      call @fn1 direct
+      call @fn2 direct
         Type Owner
         Local $receiver
       val $receiver: Owner
         Type Owner
         Local owner
-      call @fn1 direct
+      call @fn2 direct
         Type Owner
         Local $receiver
       return
-  fun delegated @fn8() -> Unit
+  fun delegated @fn9() -> Unit
     bb0 entry
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn19 direct
+      call @fn21 direct
         Type Owner
         Local $new.1
       publish_release_ready Owner
@@ -226,7 +247,7 @@ Module
         Type Owner
         Local $new.1
       return
-  fun lazyAcquisition @fn9() -> Unit
+  fun lazyAcquisition @fn10() -> Unit
     bb0 entry
       val $argument.0: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -240,7 +261,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn17 direct
+      call @fn19 direct
         Type Owner
         Local $new.1
         Type Option<Ptr<Unit>>
@@ -262,13 +283,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn0 direct
+      call @fn1 direct
         Type Owner
         Local $receiver
         Type Int
         Local $parameter.value
       return
-  fun getter @fn10() -> Unit
+  fun getter @fn11() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -285,7 +306,7 @@ Module
       assign $new.1
         Type GetterOwner
         ClassAlloc GetterOwner
-      call @fn20 direct
+      call @fn22 direct
         Type GetterOwner
         Local $new.1
         Type Ptr<Unit>
@@ -297,7 +318,7 @@ Module
         Type GetterOwner
         Local $new.1
       return
-  fun failed @fn11() -> Unit
+  fun failed @fn12() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -357,7 +378,7 @@ Module
       assign $new.1
         Type Owner
         ClassAlloc Owner
-      call @fn17 direct
+      call @fn19 direct
         Type Owner
         Local $new.1
         Type Option<Ptr<Unit>>
@@ -397,7 +418,7 @@ Module
       goto bb12
     bb12 scope.12
       goto bb7
-  fun collectAndPrint @fn12() -> Unit
+  fun collectAndPrint @fn13() -> Unit
     bb0 entry
       call @scoop_rt_gc_collect direct
       call @scoop_rt_gc_collect direct
@@ -405,26 +426,26 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn14 direct
+      call @fn16 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun main @fn13() -> Unit
+  fun main @fn14() -> Unit
     bb0 entry
-      call @fn7 direct
-      call @fn12 direct
       call @fn8 direct
-      call @fn12 direct
+      call @fn13 direct
       call @fn9 direct
-      call @fn12 direct
+      call @fn13 direct
       call @fn10 direct
-      call @fn12 direct
+      call @fn13 direct
       call @fn11 direct
+      call @fn13 direct
       call @fn12 direct
+      call @fn13 direct
       assign $new.1
         Type EmptyOwner
         ClassAlloc EmptyOwner
-      call @fn21 direct
+      call @fn23 direct
         Type EmptyOwner
         Local $new.1
       publish_release_ready EmptyOwner
@@ -434,7 +455,29 @@ Module
         Type EmptyOwner
         Local $new.1
       return
-  fun println @fn14(value: Int) -> Unit
+  fun equals @fn15(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun println @fn16(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -458,7 +501,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun init.Payload.$c0 @fn15(this: Payload, value: Int) -> Unit
+  fun init.Payload.$c0 @fn17(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Payload
@@ -466,7 +509,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Base.$c1 @fn16(this: Base, inherited: Int) -> Unit
+  fun init.Base.$c1 @fn18(this: Base, inherited: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base
@@ -474,7 +517,7 @@ Module
         Type Int
         Local inherited
       return
-  fun init.Owner.$c2 @fn17(this: Owner, initial: Option<Ptr<Unit>>, fail: Boolean) -> Unit
+  fun init.Owner.$c2 @fn19(this: Owner, initial: Option<Ptr<Unit>>, fail: Boolean) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -482,7 +525,7 @@ Module
       val $parameter.inherited: Int
         Type Int
         Local $argument.0
-      call @fn16 direct
+      call @fn18 direct
         Type Base
         Retype Base
           Type Owner
@@ -503,7 +546,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn15 direct
+      call @fn17 direct
         Type Payload
         Local $new.1
         Type Int
@@ -529,7 +572,7 @@ Module
         Local $new.2
     bb2 if.merge.2
       return
-  fun init.Owner.$c3 @fn18(this: Owner, value: Int) -> Unit
+  fun init.Owner.$c3 @fn20(this: Owner, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -537,7 +580,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $dependency.argument.0: Ptr<Unit> = @fn6 direct
+      call $dependency.argument.0: Ptr<Unit> = @fn7 direct
         Type Int
         Local $parameter.value
       val $dependency.parameter._1: Ptr<Unit>
@@ -554,7 +597,7 @@ Module
       val $parameter.fail: Boolean
         Type Boolean
         BoolLiteral false
-      call @fn17 direct
+      call @fn19 direct
         Type Owner
         Local this
         Type Option<Ptr<Unit>>
@@ -562,7 +605,7 @@ Module
         Type Boolean
         Local $parameter.fail
       return
-  fun init.Owner.$c4 @fn19(this: Owner) -> Unit
+  fun init.Owner.$c4 @fn21(this: Owner) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -570,13 +613,13 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn18 direct
+      call @fn20 direct
         Type Owner
         Local this
         Type Int
         Local $parameter.value
       return
-  fun init.GetterOwner.$c5 @fn20(this: GetterOwner, pointer: Ptr<Unit>) -> Unit
+  fun init.GetterOwner.$c5 @fn22(this: GetterOwner, pointer: Ptr<Unit>) -> Unit
     bb0 entry
       val $dependency.argument.0: Ptr<Unit>
         Type Ptr<Unit>
@@ -597,7 +640,7 @@ Module
         Type Unit
         UnitLiteral
       return
-  fun init.EmptyOwner.$c6 @fn21(this: EmptyOwner) -> Unit
+  fun init.EmptyOwner.$c6 @fn23(this: EmptyOwner) -> Unit
     bb0 entry
       return
   release_hook rh0 Owner <no-gc>
@@ -698,6 +741,8 @@ Module
   release_hook rh2 EmptyOwner <no-gc>
     bb0 entry
       return
-  instance mi0 function=@fn14 <- println
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn15 <- equals
+  instance mi2 function=@fn16 <- println
   str @str0 "\n"
-  output executable @fn13
+  output executable @fn14

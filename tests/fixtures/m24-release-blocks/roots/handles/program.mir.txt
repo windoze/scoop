@@ -23,6 +23,7 @@ Module
   class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Boolean>
   interface Continuation<Owner>
   interface SuspendTask<Owner>
   interface SuspendRegistration<Owner>

@@ -318,13 +318,14 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$914879083d62e27ac3449959b8b96ce8d21517712b90a0f19b601df3336ca044() -> i32
+  fun @scoop$1$cb$914879083d62e27ac3449959b8b96ce8d21517712b90a0f19b601df3336ca044(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -333,8 +334,10 @@ Module
     global_store global10, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Generic);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$3d4b5c04bc87cac962e37896910160a9a22929c61dac81510fa6eafa75a5b187 type-id=8331557205875439869 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Generic);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Long)]) @scoop$1$td$3d4b5c04bc87cac962e37896910160a9a22929c61dac81510fa6eafa75a5b187 type-id=8331557205875439869 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Generic size=8 align=8 refs=[]
   layout Option size=8 align=8 enum-scan=refs[0]
+  layout Equality value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$b461eb7a62ff9edefe4fff3f3ed8f48df76d6a93951c6d7e33017ffe6edef878

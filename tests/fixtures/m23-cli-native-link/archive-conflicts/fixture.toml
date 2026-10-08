@@ -198,21 +198,27 @@ stderr = ""
 env = {"ZERO_AR_DATE" = "1"}
 
 [[steps]]
-name = "previous_reject_weak"
+name = "previous_link_weak"
 files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
 checks = []
 
 [[steps]]
-name = "reject_weak"
-diagnostics_normalize = ["native-digests"]
+name = "link_weak"
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", {each = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native"]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_weak.${target}.json"}
+diagnostics = []
 env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
-checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+checks = [{"actual" = "${link_weak.result.kind}", "equals" = "link"}]
+
+[[steps]]
+name = "run_weak"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
 
 [[steps]]
 name = "prepare_first_constructor"

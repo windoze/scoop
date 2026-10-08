@@ -14,13 +14,13 @@ Module
   enum Option<Char>
     Some(_0: Char)
     None()
+  class Child vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class Traced vtable=0 itables=0
+  class Trace vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Child vtable=0 itables=0
-  class Base vtable=0 itables=0
-  class Trace vtable=0 itables=0
-  class Traced vtable=0 itables=0
   interface Equality<Ptr<UInt8>>
   interface ToString
   interface Hash
@@ -33,7 +33,381 @@ Module
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
   generated_exact_type get3 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
   generated_exact_type get4 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  fun check @fn0(value: Boolean) -> Unit
+  fun Base.equals @fn0(this: Base, other: Base) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Base
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Inherited.equals @fn1(this: Inherited, other: Inherited) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local this
+        Type Base
+        Retype Base
+          Type Child
+          FieldAccess 0
+            Type Inherited
+            Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Traced.equals @fn2(this: Traced, other: Traced) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Trace
+          FieldAccess 2
+            Type Traced
+            Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Traced
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Trace
+        FieldAccess 2
+          Type Traced
+          Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Traced
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Traced
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Pair.equals @fn3(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn2 direct
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 0
+          Type Pair
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn2 direct
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local this
+        Type Traced
+        FieldAccess 1
+          Type Pair
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Multiple.equals @fn4(this: Multiple, other: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Multiple
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Multiple.equals @fn5(this: Multiple, other: Multiple) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Multiple
+            Local other
+  fun equalTo @fn6(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      val $dependency.local.4: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn8 direct
+        Type Ptr<UInt8>
+        Local $dependency.local.2
+        Type Ptr<UInt8>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun Raw.equals @fn7(this: Raw, other: Raw) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn8 direct
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local this
+        Type Ptr<UInt8>
+        FieldAccess 0
+          Type Raw
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun equals @fn8(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<UInt8>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<UInt8>
+        Type Ptr<UInt8>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<UInt8>
+            Local $dependency.local.3
+  fun NativeWord.equals @fn9(this: NativeWord, other: NativeWord) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local this
+          Type Int
+          FieldAccess 0
+            Type NativeWord
+            Local other
+  fun Tagged.equals @fn10(this: Tagged, other: Tagged) -> Boolean
+    bb0 entry
+      val $when.1: Tagged
+        Type Tagged
+        Local this
+      val $pattern.subject.2: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Tagged v0
+          Type Tagged
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Pair
+        Type Pair
+        VariantPayloadProject Tagged v0 f0
+          Type Tagged
+          Local $pattern.subject.2
+      val $when.3: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.4: Tagged
+        Type Tagged
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Tagged v0
+          Type Tagged
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Tagged v1
+          Type Tagged
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Pair
+        Type Pair
+        VariantPayloadProject Tagged v0 f0
+          Type Tagged
+          Local $pattern.subject.4
+      call $call.1: Boolean = @fn3 direct
+        Type Pair
+        Local $left.0.0
+        Type Pair
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Traced
+        Type Traced
+        VariantPayloadProject Tagged v1 f0
+          Type Tagged
+          Local $pattern.subject.5
+      val $when.6: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.7: Tagged
+        Type Tagged
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Tagged v1
+          Type Tagged
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Tagged
+        Type Tagged
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Tagged v2
+          Type Tagged
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Traced
+        Type Traced
+        VariantPayloadProject Tagged v1 f0
+          Type Tagged
+          Local $pattern.subject.7
+      call $call.2: Boolean = @fn2 direct
+        Type Traced
+        Local $left.1.0
+        Type Traced
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.2
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $when.9: Tagged
+        Type Tagged
+        Local other
+      val $pattern.subject.10: Tagged
+        Type Tagged
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Tagged v2
+          Type Tagged
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      return
+        Type Boolean
+        BoolLiteral true
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+  fun check @fn11(value: Boolean) -> Unit
     bb0 entry
       val $dependency.receiver: Boolean
         Type Boolean
@@ -68,7 +442,7 @@ Module
         Local $new.1
     bb2 if.merge.2
       return
-  fun main @fn1() -> Unit
+  fun main @fn12() -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -132,7 +506,7 @@ Module
       call $call.3: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
-      call $argument.0: Boolean = @fn3 direct
+      call $argument.0: Boolean = @fn1 direct
         Type Inherited
         Local $equality.lhs
         Type Inherited
@@ -140,7 +514,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -205,7 +579,7 @@ Module
       call $call.6: Inherited = @fn18 direct
         Type Child
         Local $parameter.child
-      call $call.7: Boolean = @fn3 direct
+      call $call.7: Boolean = @fn1 direct
         Type Inherited
         Local $equality.lhs
         Type Inherited
@@ -218,7 +592,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -395,7 +769,7 @@ Module
         Local $parameter.first
         Type Traced
         Local $parameter.second
-      call $argument.0: Boolean = @fn5 direct
+      call $argument.0: Boolean = @fn3 direct
         Type Pair
         Local $equality.lhs
         Type Pair
@@ -403,7 +777,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: Int
@@ -427,7 +801,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       field_set 0
@@ -515,7 +889,7 @@ Module
         Local $parameter.first
         Type Traced
         Local $parameter.second
-      call $call.17: Boolean = @fn5 direct
+      call $call.17: Boolean = @fn3 direct
         Type Pair
         Local $equality.lhs
         Type Pair
@@ -528,7 +902,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: Int
@@ -552,7 +926,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       field_set 0
@@ -579,7 +953,7 @@ Module
       val $parameter._1: Traced
         Type Traced
         Local $argument.0
-      call $call.18: Boolean = @fn7 direct
+      call $call.18: Boolean = @fn10 direct
         Type Tagged
         Local $equality.lhs
         Type Tagged
@@ -594,7 +968,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: Int
@@ -618,7 +992,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Pair
@@ -638,7 +1012,7 @@ Module
       val $parameter._1: Pair
         Type Pair
         Local $argument.0
-      call $argument.0: Boolean = @fn7 direct
+      call $argument.0: Boolean = @fn10 direct
         Type Tagged
         Local $equality.lhs
         Type Tagged
@@ -648,7 +1022,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $dependency.receiver: Int
@@ -672,7 +1046,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -684,7 +1058,7 @@ Module
       call multiple: Multiple = @fn20 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Boolean = @fn8 direct
+      call $argument.0: Boolean = @fn4 direct
         Type Multiple
         Local multiple
         Type Int
@@ -692,7 +1066,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $equality.lhs: Multiple
@@ -707,7 +1081,7 @@ Module
       call $call.19: Multiple = @fn20 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Boolean = @fn9 direct
+      call $argument.0: Boolean = @fn5 direct
         Type Multiple
         Local $equality.lhs
         Type Multiple
@@ -715,7 +1089,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $receiver: Multiple
@@ -727,7 +1101,7 @@ Module
       val $parameter.other: Int
         Type Int
         Local $argument.0
-      call $argument.0: Boolean = @fn8 direct
+      call $argument.0: Boolean = @fn4 direct
         Type Multiple
         Local $receiver
         Type Int
@@ -735,7 +1109,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $receiver: Multiple
@@ -753,7 +1127,7 @@ Module
       val $parameter.other: Multiple
         Type Multiple
         Local $argument.0
-      call $argument.0: Boolean = @fn9 direct
+      call $argument.0: Boolean = @fn5 direct
         Type Multiple
         Local $receiver
         Type Multiple
@@ -761,7 +1135,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Ptr<UInt8>
@@ -775,7 +1149,7 @@ Module
       call raw: Raw = @fn21 direct
         Type Ptr<UInt8>
         Local $parameter.pointer
-      call $argument.0: Boolean = @fn10 direct
+      call $argument.0: Boolean = @fn7 direct
         Type Raw
         Local raw
         Type Raw
@@ -783,7 +1157,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $equality.lhs: Raw
@@ -800,7 +1174,7 @@ Module
       call $call.20: Raw = @fn21 direct
         Type Ptr<UInt8>
         Local $parameter.pointer
-      call $call.21: Boolean = @fn10 direct
+      call $call.21: Boolean = @fn7 direct
         Type Raw
         Local $equality.lhs
         Type Raw
@@ -813,7 +1187,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $receiver: Raw
@@ -825,7 +1199,7 @@ Module
       val $parameter.other: Raw
         Type Raw
         Local $argument.0
-      call $argument.0: Boolean = @fn10 direct
+      call $argument.0: Boolean = @fn7 direct
         Type Raw
         Local $receiver
         Type Raw
@@ -833,7 +1207,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $argument.0: Int
@@ -857,7 +1231,7 @@ Module
       call $call.22: NativeWord = @fn22 direct
         Type Int
         Local $parameter.value
-      call $argument.0: Boolean = @fn12 direct
+      call $argument.0: Boolean = @fn9 direct
         Type NativeWord
         Local $equality.lhs
         Type NativeWord
@@ -865,7 +1239,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $equality.lhs: NativeWord
@@ -880,7 +1254,7 @@ Module
       call $call.23: NativeWord = @fn22 direct
         Type Int
         Local $parameter.value
-      call $call.24: Boolean = @fn12 direct
+      call $call.24: Boolean = @fn9 direct
         Type NativeWord
         Local $equality.lhs
         Type NativeWord
@@ -893,7 +1267,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $receiver: NativeWord
@@ -905,7 +1279,7 @@ Module
       val $parameter.other: NativeWord
         Type NativeWord
         Local $argument.0
-      call $argument.0: Boolean = @fn12 direct
+      call $argument.0: Boolean = @fn9 direct
         Type NativeWord
         Local $receiver
         Type NativeWord
@@ -913,7 +1287,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call @fn0 direct
+      call @fn11 direct
         Type Boolean
         Local $parameter.value
       val $dependency.argument.0: String
@@ -926,380 +1300,6 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun equalTo @fn2(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Ptr<UInt8>
-        Type Ptr<UInt8>
-        Local this
-      val $dependency.local.3: Ptr<UInt8>
-        Type Ptr<UInt8>
-        Local other
-      val $dependency.local.4: Ptr<UInt8>
-        Type Ptr<UInt8>
-        Local $dependency.local.3
-      call $call.1: Boolean = @fn11 direct
-        Type Ptr<UInt8>
-        Local $dependency.local.2
-        Type Ptr<UInt8>
-        Local $dependency.local.4
-      return
-        Type Boolean
-        Local $call.1
-  fun Inherited.equals @fn3(this: Inherited, other: Inherited) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn4 direct
-        Type Base
-        Retype Base
-          Type Child
-          FieldAccess 0
-            Type Inherited
-            Local this
-        Type Base
-        Retype Base
-          Type Child
-          FieldAccess 0
-            Type Inherited
-            Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun Base.equals @fn4(this: Base, other: Base) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Base
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Base
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun Pair.equals @fn5(this: Pair, other: Pair) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn6 direct
-        Type Traced
-        FieldAccess 0
-          Type Pair
-          Local this
-        Type Traced
-        FieldAccess 0
-          Type Pair
-          Local other
-      branch bb1 bb2
-        Type Boolean
-        Local $call.1
-    bb1 logic.rhs.1
-      call $call.3: Boolean = @fn6 direct
-        Type Traced
-        FieldAccess 1
-          Type Pair
-          Local this
-        Type Traced
-        FieldAccess 1
-          Type Pair
-          Local other
-      assign $logic.2
-        Type Boolean
-        Local $call.3
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.2
-        Type Boolean
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      return
-        Type Boolean
-        Local $logic.2
-  fun Traced.equals @fn6(this: Traced, other: Traced) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Trace
-          FieldAccess 2
-            Type Traced
-            Local this
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=10 bits=0x0000000a
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      val $dependency.receiver: Int
-        Type Int
-        IntegerBinary multiply kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 1
-          Type Traced
-          Local this
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      field_set 0
-        Type Trace
-        FieldAccess 2
-          Type Traced
-          Local this
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Traced
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        FieldAccess 0
-          Type Traced
-          Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun Tagged.equals @fn7(this: Tagged, other: Tagged) -> Boolean
-    bb0 entry
-      val $when.1: Tagged
-        Type Tagged
-        Local this
-      val $pattern.subject.2: Tagged
-        Type Tagged
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Tagged v0
-          Type Tagged
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val $left.0.0: Pair
-        Type Pair
-        VariantPayloadProject Tagged v0 f0
-          Type Tagged
-          Local $pattern.subject.2
-      val $when.3: Tagged
-        Type Tagged
-        Local other
-      val $pattern.subject.4: Tagged
-        Type Tagged
-        Local $when.3
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Tagged v0
-          Type Tagged
-          Local $pattern.subject.4
-    bb2 pattern.else.2
-      val $pattern.subject.5: Tagged
-        Type Tagged
-        Local $when.1
-      branch bb7 bb8
-        Type Boolean
-        VariantTest Tagged v1
-          Type Tagged
-          Local $pattern.subject.5
-    bb3 pattern.merge.3
-      unreachable
-    bb4 pattern.pass.4
-      val $right.0.0: Pair
-        Type Pair
-        VariantPayloadProject Tagged v0 f0
-          Type Tagged
-          Local $pattern.subject.4
-      call $call.1: Boolean = @fn5 direct
-        Type Pair
-        Local $left.0.0
-        Type Pair
-        Local $right.0.0
-      return
-        Type Boolean
-        Local $call.1
-    bb5 pattern.else.5
-      return
-        Type Boolean
-        BoolLiteral false
-    bb6 pattern.merge.6
-      unreachable
-    bb7 pattern.pass.7
-      val $left.1.0: Traced
-        Type Traced
-        VariantPayloadProject Tagged v1 f0
-          Type Tagged
-          Local $pattern.subject.5
-      val $when.6: Tagged
-        Type Tagged
-        Local other
-      val $pattern.subject.7: Tagged
-        Type Tagged
-        Local $when.6
-      branch bb10 bb11
-        Type Boolean
-        VariantTest Tagged v1
-          Type Tagged
-          Local $pattern.subject.7
-    bb8 pattern.else.8
-      val $pattern.subject.8: Tagged
-        Type Tagged
-        Local $when.1
-      branch bb13 bb14
-        Type Boolean
-        VariantTest Tagged v2
-          Type Tagged
-          Local $pattern.subject.8
-    bb9 pattern.merge.9
-      unreachable
-    bb10 pattern.pass.10
-      val $right.1.0: Traced
-        Type Traced
-        VariantPayloadProject Tagged v1 f0
-          Type Tagged
-          Local $pattern.subject.7
-      call $call.2: Boolean = @fn6 direct
-        Type Traced
-        Local $left.1.0
-        Type Traced
-        Local $right.1.0
-      return
-        Type Boolean
-        Local $call.2
-    bb11 pattern.else.11
-      return
-        Type Boolean
-        BoolLiteral false
-    bb12 pattern.merge.12
-      unreachable
-    bb13 pattern.pass.13
-      val $when.9: Tagged
-        Type Tagged
-        Local other
-      val $pattern.subject.10: Tagged
-        Type Tagged
-        Local $when.9
-      branch bb16 bb17
-        Type Boolean
-        VariantTest Tagged v2
-          Type Tagged
-          Local $pattern.subject.10
-    bb14 pattern.else.14
-      unreachable
-    bb15 pattern.merge.15
-      unreachable
-    bb16 pattern.pass.16
-      return
-        Type Boolean
-        BoolLiteral true
-    bb17 pattern.else.17
-      return
-        Type Boolean
-        BoolLiteral false
-    bb18 pattern.merge.18
-      unreachable
-  fun Multiple.equals @fn8(this: Multiple, other: Int) -> Boolean
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        FieldAccess 0
-          Type Multiple
-          Local this
-      val $dependency.argument.0: Int
-        Type Int
-        Local other
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun Multiple.equals @fn9(this: Multiple, other: Multiple) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type Multiple
-            Local this
-          Type Int
-          FieldAccess 0
-            Type Multiple
-            Local other
-  fun Raw.equals @fn10(this: Raw, other: Raw) -> Boolean
-    bb0 entry
-      call $call.1: Boolean = @fn11 direct
-        Type Ptr<UInt8>
-        FieldAccess 0
-          Type Raw
-          Local this
-        Type Ptr<UInt8>
-        FieldAccess 0
-          Type Raw
-          Local other
-      return
-        Type Boolean
-        Local $call.1
-  fun equals @fn11(this: Ptr<UInt8>, other: Ptr<UInt8>) -> Boolean
-    bb0 entry
-      val $dependency.local.2: Ptr<UInt8>
-        Type Ptr<UInt8>
-        Local this
-      val $dependency.local.4: ULong
-        Type ULong
-        PtrToULong
-          Type Ptr<UInt8>
-          Local $dependency.local.2
-      val $dependency.local.3: Ptr<UInt8>
-        Type Ptr<UInt8>
-        Local other
-      return
-        Type Boolean
-        IntegerCompare equal operands=ULong result=Boolean
-          Type ULong
-          Local $dependency.local.4
-          Type ULong
-          PtrToULong
-            Type Ptr<UInt8>
-            Local $dependency.local.3
-  fun NativeWord.equals @fn12(this: NativeWord, other: NativeWord) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          FieldAccess 0
-            Type NativeWord
-            Local this
-          Type Int
-          FieldAccess 0
-            Type NativeWord
-            Local other
   fun println @fn13(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -1416,10 +1416,10 @@ Module
         StructInit NativeWord
           Type Int
           Local value
-  instance mi0 function=@fn2 <- equalTo
-  instance mi1 function=@fn11 <- equals
+  instance mi0 function=@fn6 <- equalTo
+  instance mi1 function=@fn8 <- equals
   instance mi2 function=@fn13 <- println
   str @str0 "illegal state"
   str @str1 "derived field semantics"
   str @str2 "\n"
-  output executable @fn1
+  output executable @fn12

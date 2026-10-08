@@ -167,7 +167,7 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td25, machine<byte-size>(ByteSize(48)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td29, machine<byte-size>(ByteSize(48)))
     store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn48(local0)
     t1 = aggregate () : {}
@@ -307,7 +307,7 @@ Module
     t0 = aggregate () : {}
     store integer<Int>(0x00000009) -> local2
     store local2 -> local3
-    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td24, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td28, machine<byte-size>(ByteSize(24)))
     store t1 -> local29
     call managed-void-target1 sp<managed-call:2> live=[local29:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn50(local29, local3)
     t2 = aggregate () : {}
@@ -403,7 +403,7 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td23, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td27, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn49(local0)
     t1 = aggregate () : {}
@@ -759,7 +759,7 @@ Module
     heap_store param0 +32 integer<Int>(0x00000001)
     store integer<Int>(0x0000000a) -> local2
     store local2 -> local3
-    call managed-direct-target2 sp<managed-call:3> live=[param0:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td22, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:3> live=[param0:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td26, machine<byte-size>(ByteSize(24)))
     store t3 -> local10
     call managed-void-target1 sp<managed-call:4> live=[param0:ptr<managed>@0, local10:ptr<managed>@0] sig=void1 (ptr<managed>, i32) local-fn47(local10, local3)
     t4 = aggregate () : {}
@@ -824,12 +824,12 @@ Module
   block completed
     t10 = enum_field e2 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td18)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td22)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td18)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td22)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -844,7 +844,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td19)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td23)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum2 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -897,12 +897,12 @@ Module
   block completed
     t10 = enum_field e4 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td6)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td10)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td6)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td10)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -917,7 +917,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td7)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td11)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum4 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -970,12 +970,12 @@ Module
   block completed
     t10 = enum_field e6 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td15)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td19)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td15)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td19)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -990,7 +990,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td16)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td20)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum6 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -1043,12 +1043,12 @@ Module
   block completed
     t10 = enum_field e8 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td9)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td13)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td9)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td13)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -1063,7 +1063,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td10)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td14)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum8 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -1116,12 +1116,12 @@ Module
   block completed
     t10 = enum_field e10 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td12)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td16)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td12)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td16)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -1136,7 +1136,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td13)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td17)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum10 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -1189,12 +1189,12 @@ Module
   block completed
     t10 = enum_field e12 v0 f0 local0 : ptr<managed>
     t11 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td3)
+    call no-gc-direct-target0 t12 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t11, td7)
     invoke managed-void-target0 sp<managed-invoke:2> roots=[param1:argument, local2:normal+unwind, t10:argument] sig=void3 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t12(param1, t10) normal @invoke.normal.1 unwind @context.unwind
     br @invoke.normal.1
   block failed
     t16 = heap_load param1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td3)
+    call no-gc-direct-target1 t17 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t16, td7)
     invoke managed-void-target1 sp<managed-invoke:1> roots=[param1:argument, local1:argument, local2:normal+unwind] sig=void5 (ptr<managed>, ptr<managed>) dispatch[Interface:1] t17(param1, local1) normal @invoke.normal.2 unwind @context.unwind
     br @invoke.normal.2
   block body_failure
@@ -1209,7 +1209,7 @@ Module
     br @failed
   block run
     t25 = heap_load param0 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td4)
+    call no-gc-direct-target2 t26 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td8)
     invoke managed-direct-target1 sp<managed-invoke:0> roots=[param0:argument, param1:normal+unwind, local2:normal+unwind] t27 = sig=direct4 (ptr<managed>, ptr<managed>) -> enum12 dispatch[Interface:0] t26(param0, param1) normal @invoke.normal.3 unwind @body_failure
     br @invoke.normal.3
   block entry
@@ -1238,13 +1238,14 @@ Module
     t28 = enum_tag e12 local0 : machine<enum-tag>
     t29 = MachineEq(EnumTag) t28, machine<enum-tag>(EnumTag(0)) : i1
     cbr t29 then @completed else @suspended
-  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn15() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -1254,45 +1255,49 @@ Module
     end_catch
     ret integer<UInt>(0x00000001)
   td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named) @scoop$1$td$059db12bb00d13eac27cf0270a5f4f9b39ddf95ebed40323235121362670d922 type-id=11856196089485123319 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$2b2ae35130036ca00ad7981ebb5e6feb3148fe1a75ae983311a58cad32e133eb type-id=2273537389575592657 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$96b0b772b7cc4d682b6aee407c503efa1e54da720efbb51d7ef8b63e8a15d766 type-id=8780652736538428631 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$e52df9f451ad89d2af2108593b74b21fa4c4b7fc10b48ea32268dfee9a06a07f type-id=5603707953850321194 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$935fa7dd71524dc61a2b9458996c7acac514da8acb1d00cd1aed80871a8536e4 type-id=5894156528961235081 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$80c8693ec7b40f38bfafa6a1e26a44a80db8603a527a5e445c060916ff93bb20 type-id=7827974097411296551 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td8 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$21c0f8d220929fabf9e471c0c695021c17b4eb29e2809e60c9137f1aac5ef3f1 type-id=2862272961748400951 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$a991b79639d4ec71401efb06bb2d4092951104ed70ef4a0720b1e7c6c24cccd4 type-id=2382829446209068576 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$548897f77aa70d3707858b27ef374681d40aa154296874a5cf11d2e5d7e5795d type-id=2263703463587796019 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td11 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$8b0d48c86f568fdba21fe329e409af49e01d2ba58be169410236a52db901052a type-id=14565730123747625612 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td12 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$cdc2d1eadfd29558b1ffcd5d22b7474bec5fae94e56226696e56b8e5488b02cb type-id=459388943271772207 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td13 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$26a904ed23e1e95a34ba5e81655934e02f2ab21755f57ddb11ab03a5c1826703 type-id=16785802144634417228 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td14 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$219afd79cc88f743c98c6ff34719d0f7f3d97059f26c1284ba2fbbb1d4ea0336 type-id=15017072258149111503 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td15 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$01f2c1a1de82b9b93d5d2b355a482eefe1b1f3fc33bc7a370ee5d7a74f8208cf type-id=1162745925374419807 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td16 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$2d1c814417fdfcc154fec9dfaa109b0a923e97ce29cf77ecd2fa7c582e113e5d type-id=7432242506454344397 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td17 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$863694a11188bf4210329204af8943d5aa48391d6f701cffad4d4291d4aa4b02 type-id=15949033523602801880 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td18 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$50ae59fca65e3315c43718626f78f6caf4823f1aaab594f9142d05c742361c30 type-id=4894470457314464410 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td19 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$8f64cbd7a96e0ed5165f0978da18ed8e8d5a8f71576e522389338831dc9d12a9 type-id=8411505425405108429 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td20 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$5fd09732ffa2dcaad47421d1c71cda477a78fd9aae4500d8441be358a5c6a52e type-id=3090146153805183467 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
-  td td21 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base) @scoop$1$td$7478b96874ea6fab040e5db4adfda5cc7c3dc52ef48f1cfdc53fbf7df4660a83 type-id=14673526173061897487 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td22 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate) @scoop$1$td$332b600ac8f7c20b473ed33cd284367b95382432de6ec4832a9c02f091f8f4f5 type-id=13883461171005451318 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td23 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested) @scoop$1$td$108d8550869c56308e4e5e9ff02b4364f6563da99d5ca575dffa4577e28f4824 type-id=7543575234354705432 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td24 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token) @scoop$1$td$e19e2fa7b27ab03fdefb7e5aef2221376a0412a481bd1a6f61d2cf2437e81f6a type-id=15486232583744453528 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td25 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry) @scoop$1$td$1730194ad480821877aacd50efc4ee33a278a0c38200bad305d62e08deca3af7 type-id=14933447804213237168 shape=FixedObject minimum-size=48 align=8 parent=td21 vtable=[] itables=[td0:[local-fn45]]
-  td td26 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td27 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td28 g(r=00000007;i=ecb3cc55b536090b090e7c41caa20fb6d172eb5206872870da07eddbba39f6d7) @scoop$1$td$110a4e6b3f86e2285fe3c58f0c870908ae6c4aaf4cf074448ac1faf49d5c46d5 type-id=1627895330978254232 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td29 g(r=00000005;i=c9c7dbad7d7747877a8554d7ede10018519263b4deb0c62c87b004fabb388dfc) @scoop$1$td$30c3d47b616de282df650ecba12903184d6225bb5fbbbccb9d295004b3e8c3cd type-id=4419824596678259503 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td30 g(r=00000007;i=a6b906966e5206265544e6fb80d5573783aa705dd5538c798e20024fcd928d51) @scoop$1$td$40af1bdcac10ed11183598156edf5f35e3717b79765a4e927bb60fd0bbe6d331 type-id=1560594181371966158 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td31 g(r=00000007;i=85d5effee1fdfea807c04bfa2ff9a8748e46273557023968468748b5b9d1b6a8) @scoop$1$td$458265e07cfb9c5c2e052fd4bd4ae3307ab65213110eb739df80beb55708e256 type-id=14396395067635642416 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td32 g(r=00000005;i=126e880653f3f9865ef0c3b8122aaeabbf6fa15cd0730a0ed881c8871c2a3b90) @scoop$1$td$4f352bbe28f103cf1923f0210f0ed6c9d4dc67390679e96e6108be0a864bb3bb type-id=10103596999164379445 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td33 g(r=00000005;i=4cd67e9bd23fbc6caa725bafd1081b01e1a46db1a7e3870f2cc551ed848b14ec) @scoop$1$td$7054fb2e96fcec1e5bcd818c01c4cc084835185bf849f4a6414a4eed121f8ad0 type-id=2507154600860748892 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td34 g(r=00000007;i=93666cc01a1a2b21c3cb7c332d15e38c21bf1e950644dd354b82eb87266268bd) @scoop$1$td$7577af9bc6a8af6971ad0008e0d6a4f1a3a59febd93ad3f53e2c6f1bcba81d8b type-id=6010662056374613597 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td35 g(r=00000007;i=ba805e188ccfedc6d5b380c7fe7053669a82b2dd08cdc02c396618d3ff59b1fe) @scoop$1$td$7f532af6fcab75a03f96398dc4021b51437cec08029044f5a950968a2cff1dcf type-id=6998100524734208243 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td36 g(r=00000005;i=1d86c8752dd4ecf957d17071709c2b98f155b761612163788fb2b19fd02a27ff) @scoop$1$td$86f73bbed6d9f19f3497530a388cdd4f33293adbd2eb846be4849a87013fd396 type-id=2093173840557115624 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td37 g(r=00000005;i=2b5b18f4b91cb2a234ae16b2d6a69a700d0ba71b384b2e5e199b7d2f339785db) @scoop$1$td$98ebbfd8e108ac1b1ab3a1e98026a3e652e061961b60f8f4dd4a539a9416b313 type-id=2214325993793364811 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td38 g(r=00000005;i=74e65f7849af761c3b33644779a9dec7fd4eeb57553224668dbc10dc892078e3) @scoop$1$td$b6889f34f487a28b87f9b4a4a13e784adc21f525393b8d29a77f896e846a6291 type-id=8935489631770394650 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td39 g(r=00000007;i=71fa71b145836752cf638f5869b83a9e33f10294e828d5116c88840886cb7e03) @scoop$1$td$b9e6401cab1864abe5ac50ff011c90e3db77d5fafeb0c8c1a025c9ee6d67cb7a type-id=11809863324083974610 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$0f4d8eca35177919534de9ce0291a10ee5574dac0e99777edd7eb05ecc820465 type-id=3821555638981672158 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$0d8186dad7dc186993ac409f3c89912796864b66fe505b6840799771e02438d5 type-id=10328602540278925084 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)]) @scoop$1$td$e516c798cd62cc191cdf46333dc921b4e3639305065abc8cb9318e8d276cad36 type-id=5680730302189010564 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$2b2ae35130036ca00ad7981ebb5e6feb3148fe1a75ae983311a58cad32e133eb type-id=2273537389575592657 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td8 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$96b0b772b7cc4d682b6aee407c503efa1e54da720efbb51d7ef8b63e8a15d766 type-id=8780652736538428631 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td9 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=I;x=Named)]) @scoop$1$td$e52df9f451ad89d2af2108593b74b21fa4c4b7fc10b48ea32268dfee9a06a07f type-id=5603707953850321194 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$935fa7dd71524dc61a2b9458996c7acac514da8acb1d00cd1aed80871a8536e4 type-id=5894156528961235081 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td11 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$80c8693ec7b40f38bfafa6a1e26a44a80db8603a527a5e445c060916ff93bb20 type-id=7827974097411296551 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td12 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base)]) @scoop$1$td$21c0f8d220929fabf9e471c0c695021c17b4eb29e2809e60c9137f1aac5ef3f1 type-id=2862272961748400951 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td13 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$a991b79639d4ec71401efb06bb2d4092951104ed70ef4a0720b1e7c6c24cccd4 type-id=2382829446209068576 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td14 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$548897f77aa70d3707858b27ef374681d40aa154296874a5cf11d2e5d7e5795d type-id=2263703463587796019 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td15 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate)]) @scoop$1$td$8b0d48c86f568fdba21fe329e409af49e01d2ba58be169410236a52db901052a type-id=14565730123747625612 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td16 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$cdc2d1eadfd29558b1ffcd5d22b7474bec5fae94e56226696e56b8e5488b02cb type-id=459388943271772207 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td17 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$26a904ed23e1e95a34ba5e81655934e02f2ab21755f57ddb11ab03a5c1826703 type-id=16785802144634417228 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td18 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry)]) @scoop$1$td$219afd79cc88f743c98c6ff34719d0f7f3d97059f26c1284ba2fbbb1d4ea0336 type-id=15017072258149111503 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td19 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$01f2c1a1de82b9b93d5d2b355a482eefe1b1f3fc33bc7a370ee5d7a74f8208cf type-id=1162745925374419807 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td20 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$2d1c814417fdfcc154fec9dfaa109b0a923e97ce29cf77ecd2fa7c582e113e5d type-id=7432242506454344397 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td21 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested)]) @scoop$1$td$863694a11188bf4210329204af8943d5aa48391d6f701cffad4d4291d4aa4b02 type-id=15949033523602801880 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td22 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Continuation);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$50ae59fca65e3315c43718626f78f6caf4823f1aaab594f9142d05c742361c30 type-id=4894470457314464410 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td23 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendTask);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$8f64cbd7a96e0ed5165f0978da18ed8e8d5a8f71576e522389338831dc9d12a9 type-id=8411505425405108429 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td24 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=SuspendRegistration);[n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token)]) @scoop$1$td$5fd09732ffa2dcaad47421d1c71cda477a78fd9aae4500d8441be358a5c6a52e type-id=3090146153805183467 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td25 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Base) @scoop$1$td$7478b96874ea6fab040e5db4adfda5cc7c3dc52ef48f1cfdc53fbf7df4660a83 type-id=14673526173061897487 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td26 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=ObjectDelegate) @scoop$1$td$332b600ac8f7c20b473ed33cd284367b95382432de6ec4832a9c02f091f8f4f5 type-id=13883461171005451318 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td27 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=O;x=Nested) @scoop$1$td$108d8550869c56308e4e5e9ff02b4364f6563da99d5ca575dffa4577e28f4824 type-id=7543575234354705432 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td28 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=O:Registry;k=C;x=Token) @scoop$1$td$e19e2fa7b27ab03fdefb7e5aef2221376a0412a481bd1a6f61d2cf2437e81f6a type-id=15486232583744453528 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td29 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Registry) @scoop$1$td$1730194ad480821877aacd50efc4ee33a278a0c38200bad305d62e08deca3af7 type-id=14933447804213237168 shape=FixedObject minimum-size=48 align=8 parent=td25 vtable=[] itables=[td0:[local-fn45]]
+  td td30 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td31 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td32 g(r=00000007;i=ecb3cc55b536090b090e7c41caa20fb6d172eb5206872870da07eddbba39f6d7) @scoop$1$td$110a4e6b3f86e2285fe3c58f0c870908ae6c4aaf4cf074448ac1faf49d5c46d5 type-id=1627895330978254232 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td33 g(r=00000005;i=c9c7dbad7d7747877a8554d7ede10018519263b4deb0c62c87b004fabb388dfc) @scoop$1$td$30c3d47b616de282df650ecba12903184d6225bb5fbbbccb9d295004b3e8c3cd type-id=4419824596678259503 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td34 g(r=00000007;i=a6b906966e5206265544e6fb80d5573783aa705dd5538c798e20024fcd928d51) @scoop$1$td$40af1bdcac10ed11183598156edf5f35e3717b79765a4e927bb60fd0bbe6d331 type-id=1560594181371966158 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td35 g(r=00000007;i=85d5effee1fdfea807c04bfa2ff9a8748e46273557023968468748b5b9d1b6a8) @scoop$1$td$458265e07cfb9c5c2e052fd4bd4ae3307ab65213110eb739df80beb55708e256 type-id=14396395067635642416 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td36 g(r=00000005;i=126e880653f3f9865ef0c3b8122aaeabbf6fa15cd0730a0ed881c8871c2a3b90) @scoop$1$td$4f352bbe28f103cf1923f0210f0ed6c9d4dc67390679e96e6108be0a864bb3bb type-id=10103596999164379445 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td37 g(r=00000005;i=4cd67e9bd23fbc6caa725bafd1081b01e1a46db1a7e3870f2cc551ed848b14ec) @scoop$1$td$7054fb2e96fcec1e5bcd818c01c4cc084835185bf849f4a6414a4eed121f8ad0 type-id=2507154600860748892 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td38 g(r=00000007;i=93666cc01a1a2b21c3cb7c332d15e38c21bf1e950644dd354b82eb87266268bd) @scoop$1$td$7577af9bc6a8af6971ad0008e0d6a4f1a3a59febd93ad3f53e2c6f1bcba81d8b type-id=6010662056374613597 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td39 g(r=00000007;i=ba805e188ccfedc6d5b380c7fe7053669a82b2dd08cdc02c396618d3ff59b1fe) @scoop$1$td$7f532af6fcab75a03f96398dc4021b51437cec08029044f5a950968a2cff1dcf type-id=6998100524734208243 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td40 g(r=00000005;i=1d86c8752dd4ecf957d17071709c2b98f155b761612163788fb2b19fd02a27ff) @scoop$1$td$86f73bbed6d9f19f3497530a388cdd4f33293adbd2eb846be4849a87013fd396 type-id=2093173840557115624 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td41 g(r=00000005;i=2b5b18f4b91cb2a234ae16b2d6a69a700d0ba71b384b2e5e199b7d2f339785db) @scoop$1$td$98ebbfd8e108ac1b1ab3a1e98026a3e652e061961b60f8f4dd4a539a9416b313 type-id=2214325993793364811 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td42 g(r=00000005;i=74e65f7849af761c3b33644779a9dec7fd4eeb57553224668dbc10dc892078e3) @scoop$1$td$b6889f34f487a28b87f9b4a4a13e784adc21f525393b8d29a77f896e846a6291 type-id=8935489631770394650 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td43 g(r=00000007;i=71fa71b145836752cf638f5869b83a9e33f10294e828d5116c88840886cb7e03) @scoop$1$td$b9e6401cab1864abe5ac50ff011c90e3db77d5fafeb0c8c1a025c9ee6d67cb7a type-id=11809863324083974610 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Option size=16 align=8 enum-scan=none
   layout CoroutineStep<Registry.Token> size=8 align=8 enum-scan=refs[0]
@@ -1308,8 +1313,12 @@ Module
   layout CoroutineStep<Named> size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot<Named> size=8 align=8 enum-scan=refs[0]
   layout Named value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
   layout Iterable value size=8 align=8 refs=[0]
   layout Iterator value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
+  layout Equality value size=8 align=8 refs=[0]
   layout Continuation value size=8 align=8 refs=[0]
   layout SuspendTask value size=8 align=8 refs=[0]
   layout SuspendRegistration value size=8 align=8 refs=[0]

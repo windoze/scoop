@@ -19,6 +19,7 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
   interface Decodable<String>
@@ -29,6 +30,8 @@ Module
   interface Iterator<String>
   interface UnkeyedDecodingContainer
   interface SingleValueDecodingContainer
+  interface Equality<Float>
+  interface Equality<Double>
   interface Encodable<String>
   interface Encoder
   interface KeyedEncodingContainer

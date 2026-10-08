@@ -59,6 +59,7 @@ Module
   interface SuspendRegistration<Int>
   interface ToString
   interface Hash
+  interface Equality<Boolean>
   interface SuspendTask<Int>
   interface Continuation<Any>
   interface SuspendTask<Any>

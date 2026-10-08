@@ -27,7 +27,7 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn8(local0)
     t1 = aggregate () : {}
@@ -116,7 +116,7 @@ Module
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
     store t0 -> local0
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn9(local0)
     t1 = aggregate () : {}
@@ -250,13 +250,14 @@ Module
     store t0 -> local0
     heap_store param0 +16 local0
     ret
-  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -265,8 +266,10 @@ Module
     global_store global5, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Left) @scoop$1$td$e7e075486bf2bcb6b9e36610f8de3db2f16f5028e308c278bbd0c86fba29e602 type-id=9660262099633312131 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Right) @scoop$1$td$a74cd5800e7634cafb8a7b2f9c7aa7096c94c46f8d8e1c93dac71437b92f5b7e type-id=16112648166410842811 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Left) @scoop$1$td$e7e075486bf2bcb6b9e36610f8de3db2f16f5028e308c278bbd0c86fba29e602 type-id=9660262099633312131 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=O;x=Right) @scoop$1$td$a74cd5800e7634cafb8a7b2f9c7aa7096c94c46f8d8e1c93dac71437b92f5b7e type-id=16112648166410842811 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Equality value size=8 align=8 refs=[0]
   layout Left value size=8 align=8 refs=[0]
   layout Left size=24 align=8 refs=[]
   layout Right value size=8 align=8 refs=[0]

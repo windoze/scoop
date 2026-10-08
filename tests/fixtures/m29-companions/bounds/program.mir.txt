@@ -89,8 +89,10 @@ Module
   interface Factory<Sample>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
   interface Continuation<Sample>
   interface SuspendTask<Sample>
   interface SuspendRegistration<Sample>

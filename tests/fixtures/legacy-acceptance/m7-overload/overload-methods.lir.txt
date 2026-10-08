@@ -29,7 +29,7 @@ Module
     local %11 $new.1: ptr<managed>
   block entry
     poll managed-void-target3 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(16)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(16)))
     store t0 -> local11
     call managed-void-target0 sp<managed-call:1> live=[local11:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn6(local11)
     t1 = aggregate () : {}
@@ -82,13 +82,14 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn5(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -97,8 +98,10 @@ Module
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=A) @scoop$1$td$5f44e23386643d005d33640c4402f1643bdbd0ba33501dda52d9ae9443eede85 type-id=17148043744345258883 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
-  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=B) @scoop$1$td$82ddd05d40586d54e7084201921e3c5b15acbcfd50730c947bba314372f822f8 type-id=11624347681970807733 shape=FixedObject minimum-size=16 align=8 parent=td0 vtable=[local-fn2] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Equality);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$6fb0bdfcaef72d458561b350a56fb80e86e68f4c020173148c7fe1ec239ea687 type-id=940003777485400453 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=A) @scoop$1$td$5f44e23386643d005d33640c4402f1643bdbd0ba33501dda52d9ae9443eede85 type-id=17148043744345258883 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[local-fn0] itables=[]
+  td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=B) @scoop$1$td$82ddd05d40586d54e7084201921e3c5b15acbcfd50730c947bba314372f822f8 type-id=11624347681970807733 shape=FixedObject minimum-size=16 align=8 parent=td1 vtable=[local-fn2] itables=[]
+  layout Equality value size=8 align=8 refs=[0]
   layout A value size=8 align=8 refs=[0]
   layout A size=16 align=8 refs=[]
   layout B value size=8 align=8 refs=[0]

@@ -23,8 +23,11 @@ Module
   interface Describable
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
+  interface Equality<String>
+  interface Equality<Boolean>
   interface Continuation<Describable>
   interface SuspendTask<Describable>
   interface SuspendRegistration<Describable>

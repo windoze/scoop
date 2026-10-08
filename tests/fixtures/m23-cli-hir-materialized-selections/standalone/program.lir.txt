@@ -84,13 +84,14 @@ Module
     call managed-void-target2 sp<managed-call:3> live=[] sig=void2 () external-fn3()
     t8 = aggregate () : {}
     ret
-  fun @scoop$1$cb$55daebc335e6c033e42a1af0b4666c9f764eb4b70b9cce7c6e3dd14c89c0ed33() -> i32
+  fun @scoop$1$cb$55daebc335e6c033e42a1af0b4666c9f764eb4b70b9cce7c6e3dd14c89c0ed33(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
+    raw_store param2 integer<Int>(0x00000000) align 4
     ret integer<UInt>(0x00000000)
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)

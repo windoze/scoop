@@ -2,7 +2,7 @@ Module
   extern ef0 startMany @m13_start_many(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int, Int) -> Ptr<Unit> <abi=c no-gc lib=fixture_native>
   extern ef1 joinMany @m13_join_many(Ptr<Unit>) -> Int <abi=c no-gc lib=fixture_native>
   foreign_callback_family fcf0 callback=ForeignCallback<(Int, Ptr<Unit>) -> Int> state=ForeignCallbackState failure=Option<Throwable>
-  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn19
+  foreign_callback_bridge fcb0 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn21
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option<Ptr<Unit>>
     Some(_0: Ptr<Unit>)
@@ -50,15 +50,20 @@ Module
   class box<Int> vtable=0 itables=0
   class CoroutineFrame<RaceTask.run> vtable=0 itables=0
   class CoroutineAdapter<RaceTask.run>$1 vtable=0 itables=1
+  interface Equality<Ptr<Unit>>
   interface SuspendRegistration<Int>
   interface Continuation<Int>
   interface SuspendTask<Int>
   interface ToString
   interface Hash
+  interface Equality<Char>
   interface Iterable<Char>
   interface Iterator<Char>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=1
-    bridge function_type3 -> @fn20 id=be8c6b26267174ad19782a6ca85d2df42f7fe8061b2754fd5a1f5d98e0a18a61
+  interface Equality<String>
+  interface Equality<Int>
+  interface Equality<Boolean>
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn9 captures=1
+    bridge function_type3 -> @fn22 id=be8c6b26267174ad19782a6ca85d2df42f7fe8061b2754fd5a1f5d98e0a18a61
   generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
   generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
   generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
@@ -72,12 +77,31 @@ Module
   generated_exact_type get10 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
   generated_exact_type get11 location=closure0 nominal_id=6ec6a01c8d642f1be6aa4bafaff3cd729156cf0768f0fc9cbf0c80e92922f4dc exact_id=eebdfd48c554b846aefa3165e3b9d0d6acd38b46a3891cd1891704c9b5540903
   generated_exact_type get12 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
-  generated_callable gc0 function=@fn19 id=27ccad906a095f0f74093b6b0980d5de8e24a6a146302d05f41592a23564441f
-  generated_callable gc1 function=@fn21 id=32ad059ee9dfa90ca0feb088588e97e6f755013abbed672f9431c94cd9a205ad
-  generated_callable gc2 function=@fn23 id=40457da431c4d794c6e0b5d01ccdea8286dbc6f8513b93cb870096dee037517e
-  generated_callable gc3 function=@fn22 id=82c22e77686c9324d00e387e604b2782e214fc3d25e83889c82737160f1816ca
-  generated_callable gc4 function=@fn20 id=be8c6b26267174ad19782a6ca85d2df42f7fe8061b2754fd5a1f5d98e0a18a61
-  fun RaceRegistration.register @fn0(this: RaceRegistration, continuation: Continuation<Int>) -> Unit
+  generated_callable gc0 function=@fn21 id=27ccad906a095f0f74093b6b0980d5de8e24a6a146302d05f41592a23564441f
+  generated_callable gc1 function=@fn23 id=32ad059ee9dfa90ca0feb088588e97e6f755013abbed672f9431c94cd9a205ad
+  generated_callable gc2 function=@fn25 id=40457da431c4d794c6e0b5d01ccdea8286dbc6f8513b93cb870096dee037517e
+  generated_callable gc3 function=@fn24 id=82c22e77686c9324d00e387e604b2782e214fc3d25e83889c82737160f1816ca
+  generated_callable gc4 function=@fn22 id=be8c6b26267174ad19782a6ca85d2df42f7fe8061b2754fd5a1f5d98e0a18a61
+  fun equalTo @fn0(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.3
+      call $call.1: Boolean = @fn8 direct
+        Type Ptr<Unit>
+        Local $dependency.local.2
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      return
+        Type Boolean
+        Local $call.1
+  fun RaceRegistration.register @fn1(this: RaceRegistration, continuation: Continuation<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: (Int) -> Int
         Type (Int) -> Int
@@ -170,7 +194,7 @@ Module
           Type Ptr<Unit>
           Local $dependency.parameter._1
       return
-  fun RaceTask.run @fn1(this: RaceTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun RaceTask.run @fn2(this: RaceTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<RaceTask.run>
         Type CoroutineFrame<RaceTask.run>
@@ -207,7 +231,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn21 direct
+      call $step: CoroutineStep<Int> = @fn23 direct
         Type CoroutineFrame<RaceTask.run>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -215,7 +239,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun RaceCompletion.resume @fn2(this: RaceCompletion, value: Int) -> Unit
+  fun RaceCompletion.resume @fn3(this: RaceCompletion, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
@@ -223,11 +247,11 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun RaceCompletion.resumeWithException @fn3(this: RaceCompletion, exception: Throwable) -> Unit
+  fun RaceCompletion.resumeWithException @fn4(this: RaceCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
@@ -235,11 +259,11 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun startMany @fn4(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Int) -> Ptr<Unit>
+  fun startMany @fn5(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int, arg3: Int) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @m13_start_many direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -253,7 +277,7 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun joinMany @fn5(arg0: Ptr<Unit>) -> Int
+  fun joinMany @fn6(arg0: Ptr<Unit>) -> Int
     bb0 entry
       call $call.1: Int = extern1 @m13_join_many direct
         Type Ptr<Unit>
@@ -261,7 +285,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun main @fn6() -> Unit
+  fun main @fn7() -> Unit
     bb0 entry
       val $argument.0: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -278,7 +302,7 @@ Module
       assign $new.1
         Type RaceGate
         ClassAlloc RaceGate
-      call @fn15 direct
+      call @fn17 direct
         Type RaceGate
         Local $new.1
         Type Option<Ptr<Unit>>
@@ -297,7 +321,7 @@ Module
       assign $new.2
         Type RaceTask
         ClassAlloc RaceTask
-      call @fn17 direct
+      call @fn19 direct
         Type RaceTask
         Local $new.2
         Type RaceGate
@@ -310,7 +334,7 @@ Module
       assign $new.3
         Type RaceCompletion
         ClassAlloc RaceCompletion
-      call @fn18 direct
+      call @fn20 direct
         Type RaceCompletion
         Local $new.3
       val $dependency.argument.1: Continuation<Int>
@@ -335,7 +359,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn8 direct
+      call @fn10 direct
         Type String
         Local $dependency.parameter.value
       val $opt.1: Option<Ptr<Unit>>
@@ -378,7 +402,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn9 direct
+      call @fn11 direct
         Type Int
         Local $dependency.parameter.value
       val $opt.3: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
@@ -428,7 +452,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -475,7 +499,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type Boolean
         Local $dependency.parameter.value
       val $dependency.argument.0: ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -489,7 +513,29 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
-  fun $lambda.0 @fn7($closure: (Int) -> Int, value: Int) -> Int
+  fun equals @fn8(this: Ptr<Unit>, other: Ptr<Unit>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Ptr<Unit>
+        Type Ptr<Unit>
+        Local this
+      val $dependency.local.4: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: Ptr<Unit>
+        Type Ptr<Unit>
+        Local other
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.4
+          Type ULong
+          PtrToULong
+            Type Ptr<Unit>
+            Local $dependency.local.3
+  fun $lambda.0 @fn9($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       val $dependency.receiver: Continuation<Int>
         Type Continuation<Int>
@@ -502,7 +548,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn11 interface Continuation<Int>[0]
+      call @fn13 interface Continuation<Int>[0]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Int
@@ -510,7 +556,7 @@ Module
       return
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
-  fun println @fn8(value: String) -> Unit
+  fun println @fn10(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -534,7 +580,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn9(value: Int) -> Unit
+  fun println @fn11(value: Int) -> Unit
     bb0 entry
       val $dependency.local.1: Int
         Type Int
@@ -558,7 +604,7 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun println @fn10(value: Boolean) -> Unit
+  fun println @fn12(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
         Type Boolean
@@ -582,19 +628,19 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun Continuation.resume @fn11(this: Continuation<Int>, value: Int) -> Unit
+  fun Continuation.resume @fn13(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn12(this: Continuation<Int>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn14(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn13(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun SuspendTask.run @fn15(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.RaceGate.$c0 @fn15(this: RaceGate, group: Option<Ptr<Unit>>, callback: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>) -> Unit
+  fun init.RaceGate.$c0 @fn17(this: RaceGate, group: Option<Ptr<Unit>>, callback: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>) -> Unit
     bb0 entry
       field_set 0
         Type RaceGate
@@ -607,7 +653,7 @@ Module
         Type Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
         Local callback
       return
-  fun init.RaceRegistration.$c1 @fn16(this: RaceRegistration, gate: RaceGate) -> Unit
+  fun init.RaceRegistration.$c1 @fn18(this: RaceRegistration, gate: RaceGate) -> Unit
     bb0 entry
       field_set 0
         Type RaceRegistration
@@ -615,7 +661,7 @@ Module
         Type RaceGate
         Local gate
       return
-  fun init.RaceTask.$c2 @fn17(this: RaceTask, gate: RaceGate) -> Unit
+  fun init.RaceTask.$c2 @fn19(this: RaceTask, gate: RaceGate) -> Unit
     bb0 entry
       field_set 0
         Type RaceTask
@@ -623,10 +669,10 @@ Module
         Type RaceGate
         Local gate
       return
-  fun init.RaceCompletion.$c3 @fn18(this: RaceCompletion) -> Unit
+  fun init.RaceCompletion.$c3 @fn20(this: RaceCompletion) -> Unit
     bb0 entry
       return
-  fun foreign callback adapter 0 @fn19($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+  fun foreign callback adapter 0 @fn21($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 context.unwind
       landing_pad cleanup=true
       Type Unit
@@ -701,7 +747,7 @@ Module
           Type internal<task-context>
           Local $child_context
       goto bb3
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn20($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
@@ -715,7 +761,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun RaceTask.run$drive @fn21($frame: CoroutineFrame<RaceTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
+  fun RaceTask.run$drive @fn23($frame: CoroutineFrame<RaceTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $argument.0: RaceGate
         Type RaceGate
@@ -728,7 +774,7 @@ Module
       assign $new.1
         Type RaceRegistration
         ClassAlloc RaceRegistration
-      call @fn16 direct
+      call @fn18 direct
         Type RaceRegistration
         Local $new.1
         Type RaceGate
@@ -777,7 +823,7 @@ Module
           Type Int
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn14 interface SuspendRegistration<Int>[0]
+      call @fn16 interface SuspendRegistration<Int>[0]
         Type SuspendRegistration<Int>
         Local $dependency.parameter.registration
         Type CoroutineAdapter<RaceTask.run>$1
@@ -1075,7 +1121,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn22(this: CoroutineAdapter<RaceTask.run>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn24(this: CoroutineAdapter<RaceTask.run>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1109,7 +1155,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn11 interface Continuation<Int>[0]
+      call @fn13 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<RaceTask.run>
@@ -1139,7 +1185,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[1]
+      call @fn14 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<RaceTask.run>
@@ -1185,7 +1231,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn21 direct
+      call $step: CoroutineStep<Int> = @fn23 direct
         Type CoroutineFrame<RaceTask.run>
         FieldAccess 0
           Type CoroutineAdapter<RaceTask.run>$1
@@ -1275,7 +1321,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CoroutineAdapter.resumeWithException$1 @fn23(this: CoroutineAdapter<RaceTask.run>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn25(this: CoroutineAdapter<RaceTask.run>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1309,7 +1355,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn11 interface Continuation<Int>[0]
+      call @fn13 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<RaceTask.run>
@@ -1339,7 +1385,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[1]
+      call @fn14 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<RaceTask.run>
@@ -1385,7 +1431,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn21 direct
+      call $step: CoroutineStep<Int> = @fn23 direct
         Type CoroutineFrame<RaceTask.run>
         FieldAccess 0
           Type CoroutineAdapter<RaceTask.run>$1
@@ -1483,24 +1529,26 @@ Module
   coroutine_saved cv1 class=CoroutineFrame<RaceTask.run> field=4 slot=cl1 value=Int
   coroutine_failure cx0 class=CoroutineFrame<RaceTask.run> field=5 slot=cl2 throwable=Throwable
   coroutine_frame cr0 CoroutineFrame<RaceTask.run> id=4104f09613db6362f8e78e20d6376bf3a856abad46659c6587cacb7d9ef64a6c owner=cf0 state=field0 completion=field1 task=field2 saved=[cv0,cv1] failure=cx0
-  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<RaceTask.run>$1 environment_id=67e77d3d30588ff66244f1ade8f21a1729b459fce8dc0e1adfe3708313c3f0d4 resume=@fn22 success_id=82c22e77686c9324d00e387e604b2782e214fc3d25e83889c82737160f1816ca failure=@fn23 failure_id=40457da431c4d794c6e0b5d01ccdea8286dbc6f8513b93cb870096dee037517e
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<RaceTask.run>$1 environment_id=67e77d3d30588ff66244f1ade8f21a1729b459fce8dc0e1adfe3708313c3f0d4 resume=@fn24 success_id=82c22e77686c9324d00e387e604b2782e214fc3d25e83889c82737160f1816ca failure=@fn25 failure_id=40457da431c4d794c6e0b5d01ccdea8286dbc6f8513b93cb870096dee037517e
     success suspended.1 -> Fallthrough(bb1)
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn1 source_return=Int step=cs0 frame=cr0 driver=@fn21 id=32ad059ee9dfa90ca0feb088588e97e6f755013abbed672f9431c94cd9a205ad resumes=[cp0]
-  coroutine_fn cf1 @fn13 source_return=Int step=cs0 immediate
-  instance mi0 function=@fn8 <- println
-  instance mi1 function=@fn9 <- println
+  coroutine_fn cf0 @fn2 source_return=Int step=cs0 frame=cr0 driver=@fn23 id=32ad059ee9dfa90ca0feb088588e97e6f755013abbed672f9431c94cd9a205ad resumes=[cp0]
+  coroutine_fn cf1 @fn15 source_return=Int step=cs0 immediate
+  instance mi0 function=@fn0 <- equalTo
+  instance mi1 function=@fn8 <- equals
   instance mi2 function=@fn10 <- println
-  instance mi3 function=@fn11 <- Continuation.resume
-  instance mi4 function=@fn12 <- Continuation.resumeWithException
-  instance mi5 function=@fn13 <- SuspendTask.run
-  instance mi6 function=@fn14 <- SuspendRegistration.register
+  instance mi3 function=@fn11 <- println
+  instance mi4 function=@fn12 <- println
+  instance mi5 function=@fn13 <- Continuation.resume
+  instance mi6 function=@fn14 <- Continuation.resumeWithException
+  instance mi7 function=@fn15 <- SuspendTask.run
+  instance mi8 function=@fn16 <- SuspendRegistration.register
   str @str0 "completed"
   str @str1 "failed"
   str @str2 "suspended"
   str @str3 "\n"
   str @str4 "\n"
   str @str5 "\n"
-  output executable @fn6
+  output executable @fn7

@@ -32,10 +32,12 @@ Module
   interface RightReader<Int> : Reader<Int>
   interface ToString
   interface Hash
+  interface Equality<Int>
   interface BothReader<Unit> : LeftReader<Unit>, RightReader<Unit>
   interface LeftReader<Unit> : Reader<Unit>
   interface Reader<Unit>
   interface RightReader<Unit> : Reader<Unit>
+  interface Equality<Unit>
   interface Continuation<Later>
   interface SuspendTask<Later>
   interface SuspendRegistration<Later>

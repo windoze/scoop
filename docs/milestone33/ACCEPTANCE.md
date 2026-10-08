@@ -448,3 +448,13 @@ M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M3
 在既有 FFI benchmark 中补齐 C／NativeSafe／GCLeaf 的 errno 捕获对照。三条路径使用同一独立 native callee，清零、立即读取并将 errno 和返回值一并计入校验和。Darwin/GNU 各完成 1/2/4/8 线程 × 三条路径 × 三轮，共 36 个无 GC 样本；计时期间被测机器不运行其他构建、fixture 或清理任务。两平台实际机器码确认调用同一个 C 函数、保留捕获 bridge，GCLeaf 包装没有额外状态切换或 caller-root 操作，普通循环 poll 保持。
 
 Python 经 Ruff 0.16.10 格式化及检查，C 经格式化和严格警告检查，新增三条路径的双线程校验和在两平台通过。新增 `--errno-only` 直接服务本次补测，复用已有 aggregate 与 GC 压力记录；没有增加编译器或 runtime 机制。源码文件分别为 110、169、82 行，原始样本和测量条件见 [PERFORMANCE.md](PERFORMANCE.md)。
+
+## 收尾回归：正式 CLI 的 core、诊断与结构预期
+
+- 既有 AST／HIR／MIR／LIR 与 link-plan 预期同步完整 M33 core、普通 Equality 实现、DirectC 与完整程序入口。大量用例保存了 core 的完整转储，因此同一声明变化会出现在多份快照中；继续保留类型、实例、布局、ABI、GC、符号与引用关系的精确断言。
+- 226 个 imported-class 用例的 core 文本准备步骤同步 Long 的显式 Equality 接口；其中六个 primitive-inherited 用例同时同步 Boolean／String 的声明，保留原本要追加的接口与方法正文。按每个用例的步骤顺序核对共 710 次文本替换，全部匹配当前 core。
+- 旧 operator 负例保留缺少适用 operator 的诊断；缺少或错误声明 Nothing 的 core 负例加入实际 process.scoop 使用点。native source-directory 用例以 directory.c 命名目录，准确触发“必须为普通文件”的输入诊断。
+- 24 份 native 库解析诊断同步合并后的 Cone 来源表示；符号及合同冲突仍保留声明身份。runtime lifecycle 的 C companion 同步现有五参数 scoop_rt_run_program 原型，并通过 C 格式化与严格告警检查。
+- GNU／musl 各定向复验 native archive／candidate／required-library 三项及 runtime lifecycle 两项，全部以普通模式通过；每个平台合计 5 个变体、37 个进程与 30 次 golden 检查。M33 更新轮的 133 份公共快照，以及这组旧回归的 4 份公共快照，与 Darwin 逐字节一致；目标相关快照分别保留。记录见 tmp/m33/final-linux-regression-reports/、final-linux-common-snapshot-review.json 和 final-linux-regression-snapshot-review.json。
+- 后续普通复验同步 archive 引用链中的两个 DirectC caller、native 候选列表的实际表示，以及损坏产物的成员标识与末字节截断长度。已有强／弱符号解析规则补充到实现规范 2.8；旧 archive 弱定义负例改为实际链接和运行，强实现返回 42、弱实现返回 1042，断言强实现被选择，两个强定义冲突和未声明初始化段仍作为负例。Darwin／GNU／musl 各通过该用例的 1 个变体、20 个进程、4 次 golden 检查；新增 3 份公共快照对照一致。C companion 经格式化和严格告警检查，移除三个已无对应错误规则的弱符号诊断文件。
+- Darwin 最后 554 项普通复验首轮通过 541 项；10 项超时或相关清理失败以 2 个并发、原有时限复验通过，3 项后续诊断预期按上述规则修正后通过，archive 用例在其最终输入上另行完整复验。没有扩大时限、跳过进程或放松文件保留、诊断与运行断言。

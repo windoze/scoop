@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native candidate ${work}/native/m23_math.o: native input must be an ordinary little-endian arm64 Mach-O object; requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:direct:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([141, 18, 74, 180, 227, 66, 19, 82, 220, 222, 192, 5, 128, 99, 235, 64, 0, 240, 235, 214, 180, 21, 121, 86, 218, 234, 32, 54, 216, 139, 239, 111])])",
+    "message": "native candidate ${work}/native/m23_math.o: native input must be an ordinary little-endian arm64 Mach-O object; requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:direct:0.1.0",
     "notes": [],
     "origin": {
       "kind": "none"

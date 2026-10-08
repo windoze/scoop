@@ -1,31 +1,30 @@
 Module
-  enum MemoryOrder
-    Relaxed()
-    Acquire()
-    Release()
-    AcqRel()
-    SeqCst()
   enum Option<String>
     Some(_0: String)
     None()
   enum Option<Char>
     Some(_0: Char)
     None()
+  enum MemoryOrder
+    Relaxed()
+    Acquire()
+    Release()
+    AcqRel()
+    SeqCst()
   enum CoroutineStep<Payload>
     Completed(value: Payload)
     Suspended()
   enum CoroutineSlot<Payload>
     Empty()
     Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Attempts vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class Attempts vtable=0 itables=0
-  class Payload vtable=0 itables=0
   class box<Int> vtable=0 itables=0
   class box<Boolean> vtable=0 itables=0
   class box<Long> vtable=0 itables=0
-  interface Equality<MemoryOrder>
   interface ToString
   interface Hash
   interface Equality<Char>
@@ -149,7 +148,7 @@ Module
       assign $new.1
         Type Attempts
         ClassAlloc Attempts
-      call @fn19 direct
+      call @fn20 direct
         Type Attempts
         Local $new.1
         Type Int
@@ -464,7 +463,7 @@ Module
       assign $new.4
         Type Payload
         ClassAlloc Payload
-      call @fn20 direct
+      call @fn19 direct
         Type Payload
         Local $new.4
         Type Int
@@ -889,7 +888,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn20 direct
+      call @fn19 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1003,7 +1002,7 @@ Module
       assign $new.1
         Type Payload
         ClassAlloc Payload
-      call @fn20 direct
+      call @fn19 direct
         Type Payload
         Local $new.1
         Type Int
@@ -1139,18 +1138,18 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.Attempts.$c1 @fn19(this: Attempts, value: Int) -> Unit
+  fun init.Payload.$c0 @fn19(this: Payload, value: Int) -> Unit
     bb0 entry
       field_set 0
-        Type Attempts
+        Type Payload
         Local this
         Type Int
         Local value
       return
-  fun init.Payload.$c0 @fn20(this: Payload, value: Int) -> Unit
+  fun init.Attempts.$c1 @fn20(this: Attempts, value: Int) -> Unit
     bb0 entry
       field_set 0
-        Type Payload
+        Type Attempts
         Local this
         Type Int
         Local value

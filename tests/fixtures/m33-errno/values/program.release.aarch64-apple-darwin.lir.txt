@@ -50,6 +50,12 @@ Module
     t1 = aggregate (local4, t0) : {i32, i32}
     store t1 -> local0
     ret local0
+  fun @scoop$1$cb$2211ca52bbfbcdbb8c865549a614036fc3e28d62145548f3131bf90b1388f290(i32, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i32, i32) extern10(param0, param1)
+    t0 = aggregate () : {}
+    ret
   fun @scoop$1$cb$e18aad1b61f84a88c134c2028073895cb7e247ff650e74a0ac6c98bb25697719(i32, i32, i32) -> sret<{i32, i32} size=8 align=4 scan=none> <no-gc>
     local %0 $call.1: {i32, i32}
     local %1 $sc.1: i32
@@ -133,12 +139,6 @@ Module
   fun @scoop$1$cb$6630860fa2a761dab81b7947713d122df7751e0bd60722f86354a2bf344de0ed() -> void <no-gc>
   block entry
     call native-gc-leaf-void-target0 sig=void0 () extern9()
-    t0 = aggregate () : {}
-    ret
-  fun @scoop$1$cb$2211ca52bbfbcdbb8c865549a614036fc3e28d62145548f3131bf90b1388f290(i32, i32) -> void
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (i32, i32) extern10(param0, param1)
     t0 = aggregate () : {}
     ret
   fun @scoop$1$cb$46b88d814871fb104d24369a7017829551a57047cb1847a2de169510ebce4b09() -> i32 <no-gc>
