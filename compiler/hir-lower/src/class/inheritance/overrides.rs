@@ -81,7 +81,7 @@ impl Lowerer {
         let matching_overrides = candidates
             .iter()
             .filter(|(candidate, args)| {
-                self.same_instantiated_signature(*candidate, &short, &sig, args)
+                self.same_instantiated_signature(owner, *candidate, &short, &sig, args)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -127,7 +127,11 @@ impl Lowerer {
             .iter()
             .filter(|member| {
                 sig.type_params.len() == sig.owner_type_param_count
-                    && self.same_interface_signature(&signature, &member.signature)
+                    && self.implementation_satisfies_interface_signature(
+                        owner,
+                        &signature,
+                        &member.signature,
+                    )
             })
             .cloned()
             .collect::<Vec<_>>();

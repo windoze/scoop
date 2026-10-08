@@ -416,6 +416,8 @@ itable 以实际 interface TD 为键，不要求跨 Cone 的全局槽编号。ge
 
 按语言规范 13.2，NoGc value method 可以实现 Managed interface slot。源级实现兼容性允许这种 effect 收紧，但实际 itable entry 仍须符合 slot 的完整 Managed ABI：由普通 value/interface adapter 完成 receiver 适配，并以 NoGc 合同调用实际实现；adapter 保留自身的 Managed effect、入口 poll 与必要 roots。具体类型直接调用原 NoGc 方法不经过该 adapter。签名与产物分别记录 slot、adapter 和实现，不能用强制转换或抹去 GC effect 代替适配；不引入新的 runtime 分派机制。
 
+ExportHir 的 interface slot 合同允许目标实现的 NoGc effect 收紧 Managed 声明，并分别保存二者的原始 effect；class vtable override 不采用这项适配规则。值类型与 GC-free 限制由 HIR 的普通声明和 effect 检查完成，产物只检查对应的签名兼容关系，不重新执行源码语义检查。
+
 引用 receiver 适配为 Identity 或 ReferenceDispatch，并满足实际继承／接口关系；物理 pointer 形状相同不足以接受不兼容签名。装箱值的方法 receiver 按值取得 payload 副本，可观察的 this 存储不能指向 box；interface default 可以使用同一 box 的合法 interface 视图。
 
 qualified super 保存实际 direct target。dispatch 数据不重新进行 overload、default 或 override 选择，也不因 provider 为 core 使用另一套规则。

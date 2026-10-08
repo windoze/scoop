@@ -1,0 +1,489 @@
+Module
+  struct LocalReading (base: Int)
+  struct Reading (base: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Reading> vtable=0 itables=0
+  class box<LocalReading> vtable=0 itables=2
+  interface DetailedMeasure : Measure
+  interface Measure
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=class5 nominal_id=a74aa366eee5f689caab8b2157cc2b29cf6bf8d2e13aaf40db02555fd5f3d308 exact_id=7d15823ed1b0e60a88234fa64581057b5d2068037f4f3e27d737d980a3a8e2a4
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=class4 nominal_id=b20f45a0b2b2461b7f37e9fd3b94ace69a6f1c909640a00b343325bc6ea5814e exact_id=897b4844499d6879878253326af644703cd721c3826ebac3e25de0eb16947077
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn8 id=d14a9807d07bba2f74ff08bc89ecbb0eb94a8c53e230f10bc33f46f022562c36
+  generated_callable gc1 function=@fn9 id=e16407be70e443cffad67fe0f80ce91de48794fe7c0a4b04bad657c4cfa1f7c5
+  fun LocalReading.measure @fn0(this: LocalReading, delta: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type LocalReading
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local delta
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun importedDirect @fn1(value: Reading) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Reading
+        Type Reading
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.delta: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external0 direct
+        Type Reading
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.delta
+      return
+        Type Int
+        Local $call.1
+  fun check @fn2(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.base: Int
+        Type Int
+        Local $dependency.argument.0
+      call reading: Reading = external2 direct
+        Type Int
+        Local $dependency.parameter.base
+      val $argument.0: Reading
+        Type Reading
+        Local reading
+      val $parameter.value: Reading
+        Type Reading
+        Local $argument.0
+      call $dependency.receiver: Int = @fn1 direct
+        Type Reading
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Reading
+        Type Reading
+        Local reading
+      val $dependency.parameter.value: Reading
+        Type Reading
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external3 direct
+        Type Reading
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Reading
+        Type Reading
+        Local reading
+      val $dependency.parameter.value: Reading
+        Type Reading
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type Reading
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Measure
+        Type Measure
+        Box
+          Type Reading
+          Local reading
+      val $dependency.parameter.value: Measure
+        Type Measure
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external4 direct
+        Type Measure
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=50 bits=0x00000032
+      val $parameter.base: Int
+        Type Int
+        Local $argument.0
+      call $call.1: LocalReading = @fn7 direct
+        Type Int
+        Local $parameter.base
+      val view: DetailedMeasure
+        Type DetailedMeasure
+        Box
+          Type LocalReading
+          Local $call.1
+      val $dependency.argument.0: Measure
+        Type Measure
+        Retype Measure
+          Type DetailedMeasure
+          Local view
+      val $dependency.parameter.value: Measure
+        Type Measure
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external4 direct
+        Type Measure
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=54 bits=0x00000036
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=50 bits=0x00000032
+      val $parameter.base: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: LocalReading = @fn7 direct
+        Type Int
+        Local $parameter.base
+      val $dependency.parameter.value: LocalReading
+        Type LocalReading
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn5 direct
+        Type LocalReading
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=53 bits=0x00000035
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val boxed: Any
+        Type Any
+        Box
+          Type Reading
+          Local reading
+      val $argument.0: Boolean
+        Type Boolean
+        IsInstance Measure
+          Type Any
+          Local boxed
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Measure
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external8 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $dependency.receiver: Measure
+        Type Measure
+        Retype Measure
+          Type Any
+          Local $cast.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.delta: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external5 interface Measure[0]
+        Type Measure
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.delta
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=45 bits=0x0000002d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn2 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun bounded @fn4(value: Reading) -> Int
+    bb0 entry
+      val $dependency.local.1: Reading
+        Type Reading
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $call.1: Int = external0 direct
+        Type Reading
+        Local $dependency.local.1
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun bounded @fn5(value: LocalReading) -> Int
+    bb0 entry
+      val $dependency.local.1: LocalReading
+        Type LocalReading
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $call.1: Int = @fn0 direct
+        Type LocalReading
+        Local $dependency.local.1
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun println @fn6(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external7 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external7 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.LocalReading.$c0 @fn7(base: Int) -> LocalReading <no-gc>
+    bb0 entry
+      return
+        Type LocalReading
+        StructInit LocalReading
+          Type Int
+          Local base
+  fun thunk<LocalReading> DetailedMeasure.measure(Int) @fn8(this: DetailedMeasure, delta: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type LocalReading
+        Unbox
+          Type DetailedMeasure
+          Local this
+        Type Int
+        Local delta
+      return
+        Type Int
+        Local $call.1
+  fun thunk<LocalReading> Measure.measure(Int) @fn9(this: Measure, delta: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type LocalReading
+        Unbox
+          Type Measure
+          Local this
+        Type Int
+        Local delta
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn4 <- bounded
+  instance mi1 function=@fn5 <- bounded
+  instance mi2 function=@fn6 <- println
+  str @str0 "illegal state"
+  str @str1 "artifact effect adapters"
+  str @str2 "\n"
+  output executable @fn3

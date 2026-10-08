@@ -12,7 +12,7 @@
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
-| M33-7 | sysroot 默认定位、Equality | 默认定位完成；Equality 待实现 |
+| M33-7 | sysroot 默认定位、Equality | 默认定位与 NoGc 接口适配完成；Equality 实施中 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
 
@@ -267,3 +267,15 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin／GNU／musl 各通过 15 项正式 CLI fixture、17 个变体、43 个进程、12 次 stage golden 检查。两个正例完成非更新复验，4 份公共 HIR/MIR 在 Darwin 与 Linux 完全一致。
 - 组合用例覆盖默认库、传递依赖、泛型、native C 与普通／moving／minor GC；重复构建命中，头文件变化使结果由 42 变为 43。删除全部用户源码后独立链接运行成功且链接计划相同；缺少依赖产物时即使 sysroot 中仍有源码也正常报错。
 - 13 个 negative fixture 固定完整诊断，覆盖 coordinate 的 group/name/version、不合法 library、缺失／损坏默认源码、其他 group、未声明依赖、显式来源失败、损坏／歧义搜索候选和依赖循环。复用已有热缓存与已通过结果，没有增加无关全量测试。
+
+## M33-7b：NoGc 值方法实现 Managed 接口
+
+- struct／enum 的 NoGc 方法可实现普通 Managed interface slot，保留相同的参数、结果、访问、安全性和 ordinary/suspend 规则；本地和导入接口使用相同的实现匹配。class vtable override 保持原 effect。slot 与实际实现的导出合同分别保留 Managed／NoGc，没有抹去实现属性。
+- 复用 MIR 已有的 Managed boxing adjust：适配函数解箱并以目标方法的 NoGc 合同调用。具体值直接调用仍为 NoGc；接口和仅有 interface bound 的调用保持 Managed。没有新增 runtime API 或分派机制。
+
+已完成的验证：
+
+- Rust fmt 与受影响 crate 的 clippy 通过。13 项 slot 合同测试、12 项既有 NoGc 及泛型 effect 测试通过；新增 slot 测试确认 effect 收紧只允许指定方向，class vtable 的差异仍被拒绝。
+- Darwin／GNU／musl 各通过 3 项正式 CLI fixture、5 个变体、21 个进程与 18 次 golden 检查。覆盖 struct／enum、接口继承、直接调用、泛型 bound、装箱、`is/as` 和普通／moving／minor GC，debug/release 均运行；6 份公共 HIR/MIR 一致。
+- 跨 Cone 用例删除 provider 源码后继续消费其接口、值方法和 generic body，并以本地 NoGc 值方法实现导入接口；删除 consumer 源码后独立链接，链接计划与原构建一致。negative 用例固定 NoGc generic body 调用 Managed interface slot 的诊断，实际 NoGc 实参不能改变声明处的调用合同。
+- 清理 196 项 target 中间对象与 incremental 内容，共 1,697,653,676 bytes，保留库、CLI 和热缓存。运行结果与 golden 均复验，不运行无关全量测试。
