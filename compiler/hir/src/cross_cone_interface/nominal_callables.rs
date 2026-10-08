@@ -100,7 +100,7 @@ fn eligible_declaration(
         || !callable.type_parameters().is_empty()
         || matches!(
             callable.effects().implementation(),
-            CallableImplementationV1::Intrinsic(_)
+            CallableImplementationV1::Intrinsic(kind) if kind.equality_member().is_none()
         )
     {
         return None;

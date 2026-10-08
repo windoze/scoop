@@ -33,7 +33,7 @@ impl CanonicalMirCallableBindingsV1 {
                         .canonical_key::<_, ExactTypeKey>(*payload)
                         .map_err(MirCallableBridgeError::from)?
                         .as_ref(),
-                    ExactTypeKey::Tuple(_)
+                    ExactTypeKey::Tuple(_) | ExactTypeKey::RawPointer(_)
                 )
             {
                 continue;

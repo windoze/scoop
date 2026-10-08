@@ -11,17 +11,21 @@ Module
         Local value
   fun inProvider @fn1(left: Unit, right: Unit) -> Boolean
     bb0 entry
-      call $call.1: Boolean = @fn2 direct
+      val $dependency.receiver: Unit
         Type Unit
         Local left
+      val $dependency.argument.0: Unit
         Type Unit
         Local right
+      val $dependency.parameter.other: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call $call.1: Boolean = external0 direct
+        Type Unit
+        Local $dependency.receiver
+        Type Unit
+        Local $dependency.parameter.other
       return
         Type Boolean
         Local $call.1
-  fun $derived.equals.0 @fn2(this: Unit, other: Unit) -> Boolean
-    bb0 entry
-      return
-        Type Boolean
-        BoolLiteral true
   output library

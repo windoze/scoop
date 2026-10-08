@@ -24,6 +24,7 @@ pub(super) fn append(
                     .canonical_key::<_, scoop_identity::ExactTypeKey>(*payload)?
                     .as_ref(),
                 scoop_identity::ExactTypeKey::Tuple(_)
+                    | scoop_identity::ExactTypeKey::RawPointer(_)
             ) && !record.base_and_interfaces().interfaces.is_empty() =>
             {
                 *payload

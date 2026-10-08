@@ -14,6 +14,14 @@ use super::{
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(iteration_core_declarations());
+    let mut equals = bodyless_method(
+        false,
+        "equals",
+        vec![("other", ty_named("T"))],
+        Some(ty_named("Boolean")),
+    );
+    equals.operator = Some(ast::OperatorModifier { span: sp() });
+    declarations.push(generic_interface_decl("Equality", vec!["T"], vec![equals]));
     declarations.extend(intrinsic_type_declarations());
     declarations.extend(super::floating::floating_declarations());
     declarations.extend([
@@ -83,6 +91,7 @@ pub(crate) fn core_file() -> SourceFile {
         print,
         println,
     ]);
+    super::equality::adopt_equality(&mut declarations);
     let mut source = file(declarations);
     make_core_public(&mut source);
     source

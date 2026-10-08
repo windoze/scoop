@@ -1,6 +1,7 @@
 use super::*;
 
 mod candidates;
+mod equality;
 mod interface_members;
 
 impl Lowerer {

@@ -370,6 +370,7 @@ impl Lowerer {
             pending_option_enum: None,
             option_core: None,
             iteration_core: None,
+            equality_core: None,
             core_prelude_variants: CorePreludeVariantBindings::default(),
             throwable_candidates: Vec::new(),
             throwable: None,

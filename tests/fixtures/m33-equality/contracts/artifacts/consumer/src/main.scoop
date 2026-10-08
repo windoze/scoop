@@ -1,0 +1,38 @@
+import equality.api.Key
+import equality.api.Match
+import equality.api.Number
+import equality.api.same
+import equality.api.sameKey
+import equality.api.through
+
+struct Local(val value: Int) : Match<Local> {
+    @NoGC
+    public override operator fun equals(other: Local): Boolean = value == other.value
+}
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun main() {
+    check(same(42, 42))
+    check(!same(42, 43))
+    check(same("跨库", "跨库"))
+    check(same(0f, -0f))
+    check(!same(Float.NaN, Float.NaN))
+    check(same(Key("left", 7), Key("right", 7)))
+    check(sameKey(Key(1, 7), Key(2, 7)))
+    check(through(42, 42))
+    check(through(Key(1, 7), Key(2, 7)))
+    check(Number(42) == 42)
+    check(same(Local(42), Local(42)))
+    val view: Match<Local> = Local(42)
+    check(view.equals(Local(42)))
+    val boxed: Any = Local(42)
+    check(boxed is Equality<Local>)
+    check((boxed as Equality<Local>).equals(Local(42)))
+    val key: Any = Key("payload", 7)
+    check(key is Equality<Key<String>>)
+    check((key as Equality<Key<String>>).equals(Key("other", 7)))
+    println("artifact equality contracts")
+}

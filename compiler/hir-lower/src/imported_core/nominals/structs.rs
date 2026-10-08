@@ -35,6 +35,7 @@ impl Lowerer {
                     if matches!(
                         shape.family(),
                         hir::IntrinsicTypeKind::FunPtr
+                            | hir::IntrinsicTypeKind::Ptr
                             | hir::IntrinsicTypeKind::Float(_)
                             | hir::IntrinsicTypeKind::Char
                     ) =>

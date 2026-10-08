@@ -13,6 +13,7 @@ mod common;
 mod context;
 mod coroutines;
 mod data_borrow;
+mod equality;
 mod exceptions;
 mod ffi;
 mod floating;

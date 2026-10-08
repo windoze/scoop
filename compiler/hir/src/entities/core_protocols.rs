@@ -15,6 +15,8 @@ pub enum CoreProtocols {
 /// a `Module` can be returned.
 #[derive(Debug, Clone)]
 pub struct DefinedCoreProtocols {
+    /// Ordinary value-equality interface and its source dispatch slot.
+    pub equality: EqualityCore,
     /// Ordinary core body that constructs the root entry argument array.
     pub program_arguments: FunctionId,
     /// Checked `Option<T>` source contract used by nullable syntax.
@@ -33,6 +35,12 @@ pub struct DefinedCoreProtocols {
     pub fundamental_types: IntrinsicTypeCore,
     /// Source-location value shape and intrinsic operation.
     pub source_location: SourceLocationCore,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EqualityCore {
+    pub interface: InterfaceId,
+    pub equals: InterfaceMethodId,
 }
 
 #[derive(Debug, Clone, Copy)]

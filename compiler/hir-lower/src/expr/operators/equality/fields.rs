@@ -21,7 +21,7 @@ impl Lowerer {
                 self.type_name(lhs.ty)
             )
         };
-        let local = state.methods_by_operator(lhs.ty, hir::OperatorKind::Equals);
+        let local = state.equality_method_candidates(lhs.ty);
         let imported = state
             .imported_member_call_candidates(
                 lhs.ty,
@@ -56,7 +56,7 @@ impl Lowerer {
             }
         }
         for candidate in imported {
-            if let Ok(probe) = state.probe_imported_member_callable(
+            if let Ok(mut probe) = state.probe_imported_member_callable(
                 candidate,
                 ImportedMemberReceiver::Value(lhs.clone()),
                 &name,
@@ -64,7 +64,9 @@ impl Lowerer {
                 Some(state.boolean),
                 false,
             ) {
-                probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)));
+                if probe.matches_equality_contract() {
+                    probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)));
+                }
             }
         }
         if probes.is_empty() {

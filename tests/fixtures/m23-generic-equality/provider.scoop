@@ -4,9 +4,7 @@ public struct Counter<T>(val number: Int)
 
 public fun <T> compareCounters(left: Counter<T>, right: Counter<T>): Boolean = left == right
 
-public interface EqualTo<T> {
-    public operator fun equals(other: T): Boolean
-}
+public interface EqualTo<T> : Equality<T> {}
 
 public class Key<T> public constructor(public val payload: T, public val number: Int) : EqualTo<Key<T>> {
     public override operator fun equals(other: Key<T>): Boolean = this.number == other.number
@@ -32,12 +30,12 @@ public fun <T : EqualTo<T>> compareNested(left: Nested<T>, right: Nested<T>): Bo
 public fun <T : EqualTo<T>> compareChoices(left: Choice<T>, right: Choice<T>): Boolean = left == right
 public fun <T : EqualTo<T>> compareWide(left: Wide<T>, right: Wide<T>): Boolean = left == right
 
-public struct Manual<T>(val payload: T, val number: Int) {
-    public operator fun equals(other: Manual<T>): Boolean = this.number == other.number
+public struct Manual<T>(val payload: T, val number: Int) : Equality<Manual<T>> {
+    public override operator fun equals(other: Manual<T>): Boolean = this.number == other.number
 }
 
-public struct Different<T>(val number: Int) {
-    public operator fun equals(other: Int): Boolean = this.number == other
+public struct Different<T>(val number: Int) : Equality<Int> {
+    public override operator fun equals(other: Int): Boolean = this.number == other
 }
 
 public class Trace<T> public constructor(public var visits: Int)

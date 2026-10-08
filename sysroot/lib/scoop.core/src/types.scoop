@@ -1,3 +1,7 @@
+public interface Equality<T> {
+    public operator fun equals(other: T): Boolean
+}
+
 public interface ToString {
     public fun toString(): String
 }
@@ -16,8 +20,8 @@ public typealias UInt32 = UInt
 public typealias UInt64 = ULong
 
 @Intrinsic("core_boolean")
-public struct Boolean : ToString, Hash {
-    public operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+public struct Boolean : Equality<Boolean>, ToString, Hash {
+    public override operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
     @Intrinsic("boolean_not")
     public operator fun not(): Boolean

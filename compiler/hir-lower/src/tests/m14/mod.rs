@@ -84,6 +84,10 @@ fn operator_equals(is_override: bool, bodyless: bool, other: TypeRef) -> ast::Fu
         },
     );
     method.operator = Some(ast::OperatorModifier { span: sp() });
+    method.visibility = ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Public,
+        span: sp(),
+    };
     method
 }
 

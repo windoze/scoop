@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `equals` is ambiguous in member candidate layer:\n  - fun Choice.equals(other: Left): Boolean — tied after pairwise declaration forwarding\n  - fun Choice.equals(other: Right): Boolean — tied after pairwise declaration forwarding",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 296,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 278
+    },
+    "severity": "error"
+  }
+]

@@ -1,5 +1,5 @@
 @Intrinsic("core_int8")
-public struct Int8 : ToString, Hash {
+public struct Int8 : Equality<Int8>, ToString, Hash {
     @NoGC @Intrinsic("int8_to_float")
     public fun toFloat(): Float
 
@@ -8,7 +8,7 @@ public struct Int8 : ToString, Hash {
 
     @NoGC
     @Intrinsic("int8_equals")
-    public operator fun equals(other: Int8): Boolean
+    public override operator fun equals(other: Int8): Boolean
 
     @NoGC
     @Intrinsic("int8_unary_plus")

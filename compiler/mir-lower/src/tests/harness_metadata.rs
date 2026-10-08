@@ -1,5 +1,6 @@
 //! Complete declaration metadata for directly assembled MIR test inputs.
 
+mod equality;
 mod finish;
 
 use super::*;

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v62_retains_errno_adaptation() {
+fn source_interface_v63_retains_equality_protocol() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        62,
+        63,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -58,10 +58,10 @@ fn lir_layout_abi_v11_retains_root_references() {
 }
 
 #[test]
-fn compiler_protocol_v12_retains_source_roots() {
+fn compiler_protocol_v13_retains_equality_protocol() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        12,
+        13,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

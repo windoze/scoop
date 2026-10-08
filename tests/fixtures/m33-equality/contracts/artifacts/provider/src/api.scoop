@@ -1,0 +1,18 @@
+package equality.api
+
+public interface Match<T> : Equality<T> {}
+
+public struct Key<T>(val payload: T, val number: Int) : Match<Key<T>>, Hash {
+    public override operator fun equals(other: Key<T>): Boolean = number == other.number
+    public override fun hash(): Long = number.toInt64()
+}
+
+public class Number public constructor(public val value: Int) : Equality<Int> {
+    public override operator fun equals(other: Int): Boolean = value == other
+}
+
+public fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+public fun <T> through(view: Equality<T>, other: T): Boolean = view.equals(other)
+
+public fun <T> sameKey(left: T, right: T): Boolean where T : Equality<T>, T : Hash =
+    left.hash() == right.hash() && left == right

@@ -16,6 +16,7 @@ use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
 
 mod eh;
+mod machine;
 mod qualification;
 #[cfg(test)]
 use eh::{EhArtifactInspection, PersonalityAbi, UnwindModel, UnwindProvider};
@@ -356,6 +357,7 @@ impl ValidatedBackendProfile {
         self,
         optimization: OptimizationLevel,
     ) -> Result<TargetMachine, CodegenError> {
+        machine::initialize_options();
         self.llvm_target_backend.initialize();
         let triple = TargetTriple::create(self.canonical_triple);
         let target = Target::from_triple(&triple).map_err(|error| {

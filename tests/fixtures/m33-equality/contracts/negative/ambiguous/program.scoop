@@ -1,0 +1,8 @@
+interface Left {}
+interface Right {}
+class Both() : Left, Right
+class Choice() : Equality<Left>, Equality<Right> {
+    public override operator fun equals(other: Left): Boolean = true
+    public override operator fun equals(other: Right): Boolean = false
+}
+fun main() { println(Choice() == Both()) }

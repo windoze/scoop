@@ -79,6 +79,20 @@ impl ImportedCoreOptionProtocol {
     }
 }
 
+impl ImportedCoreEqualityProtocol {
+    pub fn interface(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
+        generic_nominal(&self.0, 0)
+    }
+
+    pub fn equals(&self) -> &ImportedCoreProtocolCallable {
+        callable(&self.0, 1)
+    }
+
+    pub fn equals_dispatch(&self) -> ImportedHirId<PersistentDispatchSlotId> {
+        dispatch_slot(&self.0, 2)
+    }
+}
+
 impl ImportedCoreIterationProtocol {
     pub fn iterator(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)

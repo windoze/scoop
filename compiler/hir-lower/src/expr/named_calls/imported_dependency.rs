@@ -74,6 +74,19 @@ pub(crate) struct ImportedDependencyCallProbe {
 }
 
 impl ImportedDependencyCallProbe {
+    pub(in crate::expr) fn matches_equality_contract(&mut self) -> bool {
+        let ImportedCallReceiver::Member { static_type, .. } = self.receiver else {
+            return false;
+        };
+        let [parameter] = self.parameter_types.as_slice() else {
+            return false;
+        };
+        self.state
+            .equality_parameter_types(static_type)
+            .into_iter()
+            .any(|expected| self.state.types_equal(*parameter, expected))
+    }
+
     pub(in crate::expr) fn safety(&self) -> hir::CallableSafetyV1 {
         self.candidate.interface().effects().safety()
     }

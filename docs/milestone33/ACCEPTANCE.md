@@ -12,7 +12,7 @@
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
-| M33-7 | sysroot 默认定位、Equality | 默认定位与 NoGc 接口适配完成；Equality 实施中 |
+| M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配与显式 Equality 完成；条件派生实施中 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
 
@@ -279,3 +279,20 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin／GNU／musl 各通过 3 项正式 CLI fixture、5 个变体、21 个进程与 18 次 golden 检查。覆盖 struct／enum、接口继承、直接调用、泛型 bound、装箱、`is/as` 和普通／moving／minor GC，debug/release 均运行；6 份公共 HIR/MIR 一致。
 - 跨 Cone 用例删除 provider 源码后继续消费其接口、值方法和 generic body，并以本地 NoGc 值方法实现导入接口；删除 consumer 源码后独立链接，链接计划与原构建一致。negative 用例固定 NoGc generic body 调用 Managed interface slot 的诊断，实际 NoGc 实参不能改变声明处的调用合同。
 - 清理 196 项 target 中间对象与 incremental 内容，共 1,697,653,676 bytes，保留库、CLI 和热缓存。运行结果与 golden 均复验，不运行无关全量测试。
+
+## M33-7c：显式 Equality 与可调用的标量实现
+
+- core 以普通 invariant `Equality<T>` 接口定义相等合同，compiler protocol 保存其实际 interface、source callable 与 dispatch slot 身份。整数、Boolean、Char、Float/Double、String、Unit 和 Ptr 显式实现对应 application；相等运算只从实际 core 合同收集手写成员，同形或同名用户接口不获得该能力。接口继承、普通 override、多个不同参数的 application 和独立 Hash bound 沿用普通类型规则。
+- 整数、Char 和浮点 intrinsic equals 增加可寻址的普通实现入口，复用直接比较使用的 primitive operation。直接调用保留 NoGc，接口表继续使用 Managed value adapter。Unit 使用普通 core 方法。Ptr 保留真实声明、完整 interface conformance、装箱接口表和跨 Cone callable 绑定；没有增加地址相等 fallback 或新的 runtime API。
+- 产物保存必要的 Equality 协议字段，core-bootstrap-interface 与 cross-cone-interface 升为 13/63，固定编码、版本拒绝和 profile 指纹同步。结构表示的装箱表使用 LocalConcrete HIR 已完成的接口决议，产物边界继续检查引用、slot 和 callable 签名，删除旧的“结构表示必须没有接口”假设。
+- GNU 的 release moving GC 暴露 LLVM X86 call-frame size optimization 在按值参数处临时 push/pop 的问题，实际 SP 与固定 stackmap frame size 不一致。codegen 在创建 target machine 前统一关闭该项优化，保留其余 O2 及原 ABI；不放宽 runtime 栈边界检查。新增后端模块 25 行，独立机器码测试覆盖 GNU/musl 的按值参数和跨调用 managed root。
+
+已完成的验证：
+
+- Rust fmt 与受影响 crate 的 clippy 通过；20 项相等相关 HIR 测试、14 项 core protocol 测试、19 项 capability profile 测试通过。38 项 statepoint 相关测试覆盖既有 SSA relocation、O0/O2、异常及新的 amd64 固定调用帧；已有通过项复用结果。
+- Darwin/GNU/musl 各通过 16 项适用正式 CLI fixture、19 个变体、41 个进程和 24 次 stage golden 检查；8 份公共 HIR/MIR 一致。GNU 修复后的 3 个正例与 musl 的 3 个正例均完成普通模式复验，先前通过的 13 类诊断复用。
+- Darwin 的 4 项旧 core 重建／身份、派生相等及 Unit 跨 Cone 回归在非更新模式下通过，共 5 个变体、37 个进程、44 次 golden 检查；相关测试声明同步现有 Equality 和 String API。
+- 新增 16 项正式 CLI fixture，覆盖全部标量、手写 struct/class、接口继承、多参数合同、求值顺序、泛型与 Hash 组合、装箱和 `is/as`。Float/Double 的 NaN 与正负零保持原比较语义；指针用例在作用域借用内跨普通／moving／minor GC 比较与装箱。
+- 13 个 negative fixture 保存实际完整诊断与源码位置，覆盖缺少合同或 override、同形／同名假接口、Any、仅 Hash、Float 的 Hash bound、缺少泛型 bound、invariant、接口视图操作数、歧义、左右操作数顺序及 NoGc generic body 调用 Managed slot。
+- 跨 Cone 用例在移除 provider 源码后消费普通与泛型 Equality，实现导入接口；移除 consumer 源码后独立链接，链接计划保持一致。直接数值比较的 MIR/LIR 仍是 integer/float compare，自定义 NoGc 比较保持直接调用，不引入装箱或 safepoint。
+- 本机清理 94 项已链接中间对象及 incremental 内容，共 3,039,163,000 bytes，保留编译库、CLI 和热缓存。条件派生作为下一项继续实现，不将本节的显式合同验收视为整个 Equality 或 M33 完成。

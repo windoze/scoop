@@ -103,9 +103,25 @@ impl Lowerer {
         // Abstract declarations retain only their parameter environment;
         // executable methods are lowered in pass 3.
         let host_ty = self.owner_ty(owner);
-        if !matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_))
-            && (decl.modifier == ast::MethodModifier::Abstract
-                || matches!(decl.body, ast::FunctionBody::None))
+        if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
+            // Callable entries and direct normalization share this complete
+            // signature, including the physical value receiver.
+            self.functions[id].params = std::iter::once(("this".to_string(), host_ty))
+                .chain(
+                    self.signatures[&id]
+                        .params
+                        .iter()
+                        .map(|p| (p.name.text.clone(), p.ty)),
+                )
+                .enumerate()
+                .map(|(index, (name, ty))| hir::Param {
+                    name,
+                    ty,
+                    local: hir::LocalId::from_raw((index as u32).into()),
+                })
+                .collect();
+        } else if decl.modifier == ast::MethodModifier::Abstract
+            || matches!(decl.body, ast::FunctionBody::None)
         {
             let locals = self.build_abstract_parameter_locals(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::Abstract { locals };

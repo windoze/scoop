@@ -324,7 +324,7 @@ fn generic_equality_requires_an_operator_bound() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "type `T` has no member operator `equals` for `==`"
+        "type `T` has no applicable Equality contract for `==`"
     );
 }
 

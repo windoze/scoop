@@ -133,6 +133,10 @@ impl Concretizer<'_> {
         receiver: concrete::TypeId,
     ) -> Vec<concrete::InterfaceImplementation> {
         match self.types[receiver].kind {
+            concrete::TypeKind::Ptr(pointee) => {
+                let owner = self.ensure_pointer_source(pointee);
+                self.structs[owner].interface_implementations.clone()
+            }
             concrete::TypeKind::Struct(id) => self.structs[id].interface_implementations.clone(),
             concrete::TypeKind::Enum(id) => self.enums[id].interface_implementations.clone(),
             concrete::TypeKind::Class(id) => self.classes[id].interface_implementations.clone(),

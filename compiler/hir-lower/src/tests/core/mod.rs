@@ -2,6 +2,7 @@ mod arrays;
 mod capabilities;
 mod coroutines;
 mod data_borrow;
+mod equality;
 mod exceptions;
 mod ffi;
 mod floating;

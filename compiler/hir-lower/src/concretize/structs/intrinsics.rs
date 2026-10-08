@@ -5,6 +5,10 @@ use super::*;
 impl Concretizer<'_> {
     pub(in crate::concretize) fn ensure_box_source(&mut self, ty: concrete::TypeId) {
         let (family, application) = match self.types[ty].kind {
+            concrete::TypeKind::Ptr(pointee) => {
+                self.ensure_pointer_source(pointee);
+                return;
+            }
             concrete::TypeKind::Tuple(_) => {
                 self.shared_types.insert(ty);
                 return;
@@ -42,6 +46,27 @@ impl Concretizer<'_> {
         let definition = ResolvedStructDefinition::from_intrinsic(source, family, application);
         let id = self.allocate_struct_definition(&definition, Vec::new());
         self.complete_struct_definition(id, definition, &[]);
+    }
+
+    pub(in crate::concretize) fn ensure_pointer_source(
+        &mut self,
+        pointee: concrete::TypeId,
+    ) -> concrete::StructId {
+        let owner = match self.core {
+            export::CoreProtocols::Defined(core) => {
+                self.source.nominal_identities[core.ffi.ptr].declaration_id()
+            }
+            export::CoreProtocols::Imported(core) => export::SourceNominalId::GenericTemplate(
+                core.fundamental_types().ptr().persistent(),
+            ),
+        };
+        self.ensure_struct_definition(
+            owner,
+            vec![pointee],
+            ConcreteApplicationRepresentation::Intrinsic(
+                concrete::IntrinsicTypeRepresentation::Ptr { pointee },
+            ),
+        )
     }
 
     pub(in crate::concretize) fn ensure_coercion_box_sources(

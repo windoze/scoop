@@ -37,6 +37,7 @@ mod tests;
 pub(crate) const FUNDAMENTAL_TYPE_COUNT: usize = 20;
 pub(crate) const OPTION_PROTOCOL_COUNT: usize = 4;
 pub(crate) const ITERATION_PROTOCOL_COUNT: usize = 3;
+pub(crate) const EQUALITY_PROTOCOL_COUNT: usize = 3;
 pub(crate) const EXCEPTION_PROTOCOL_COUNT: usize = 17;
 pub(crate) const COROUTINE_PROTOCOL_COUNT: usize = 13;
 pub(crate) const FFI_PROTOCOL_COUNT: usize = 19;
@@ -82,6 +83,7 @@ macro_rules! protocol_product {
 protocol_product!(CoreFundamentalTypeProtocolV1, FUNDAMENTAL_TYPE_COUNT);
 protocol_product!(CoreOptionProtocolV1, OPTION_PROTOCOL_COUNT);
 protocol_product!(CoreIterationProtocolV1, ITERATION_PROTOCOL_COUNT);
+protocol_product!(CoreEqualityProtocolV1, EQUALITY_PROTOCOL_COUNT);
 protocol_product!(CoreExceptionProtocolV1, EXCEPTION_PROTOCOL_COUNT);
 protocol_product!(CoreCoroutineProtocolV1, COROUTINE_PROTOCOL_COUNT);
 protocol_product!(CoreFfiProtocolV1, FFI_PROTOCOL_COUNT);
@@ -109,6 +111,7 @@ pub struct CoreCompilerProtocolSurfaceV1 {
     fundamental_types: CoreFundamentalTypeProtocolV1,
     option_protocol: CoreOptionProtocolV1,
     iteration_protocol: CoreIterationProtocolV1,
+    equality_protocol: CoreEqualityProtocolV1,
     exception_protocol: CoreExceptionProtocolV1,
     coroutine_protocol: CoreCoroutineProtocolV1,
     ffi_protocol: CoreFfiProtocolV1,
@@ -173,6 +176,17 @@ impl CoreCompilerProtocolSurfaceV1 {
                 export.interface_methods[iteration.next()].function,
             )?,
             dispatch_slot(export, iteration.next()),
+        ]));
+
+        let equality = protocols.equality;
+        let equality_protocol = CoreEqualityProtocolV1(product([
+            generic(interface_nominal(export, equality.interface)?)?,
+            callable(
+                export,
+                protocols,
+                export.interface_methods[equality.equals].function,
+            )?,
+            dispatch_slot(export, equality.equals),
         ]));
 
         let exceptions = protocols.exceptions;
@@ -315,6 +329,7 @@ impl CoreCompilerProtocolSurfaceV1 {
             fundamental_types,
             option_protocol,
             iteration_protocol,
+            equality_protocol,
             exception_protocol,
             coroutine_protocol,
             ffi_protocol,
@@ -338,6 +353,10 @@ impl CoreCompilerProtocolSurfaceV1 {
 
     pub const fn option_protocol(&self) -> &CoreOptionProtocolV1 {
         &self.option_protocol
+    }
+
+    pub const fn equality_protocol(&self) -> &CoreEqualityProtocolV1 {
+        &self.equality_protocol
     }
 
     pub const fn iteration_protocol(&self) -> &CoreIterationProtocolV1 {

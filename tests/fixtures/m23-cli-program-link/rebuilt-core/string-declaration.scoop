@@ -1,9 +1,9 @@
 @Intrinsic("core_string")
-public class String : ToString, Hash, Iterable<Char> {
+public class String : Equality<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
-    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+    public override operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
     @Intrinsic("string_concat")
     public operator fun plus(other: String): String
@@ -51,6 +51,23 @@ public class String : ToString, Hash, Iterable<Char> {
         @Unsafe
         public fun fromUtf8Unchecked(bytes: List<Byte>): String =
             coreStringFromBytes(bytes.toArray())
+
+        public fun fromUtf8(bytes: Array<UInt8>): String =
+            requireValidUtf8(decodeUtf8(bytes))
+
+        public fun fromUtf8OrNone(bytes: Array<UInt8>): String? = decodeUtf8(bytes)._1
+
+        public fun fromUtf8Lossy(bytes: Array<UInt8>): String = decodeUtf8Lossy(bytes)
+
+        @Unsafe
+        public fun fromUtf8(pointer: Ptr<UInt8>, length: Long): String {
+            if (length < 0L) { throw IllegalArgumentException() }
+            return requireValidUtf8(coreStringDecodeUtf8(pointer, length))
+        }
+
+        @Unsafe
+        public fun fromCString(pointer: Ptr<Int8>): String =
+            fromUtf8(pointer.cast<UInt8>(), coreCStringLength(pointer).toInt64())
     }
 }
 

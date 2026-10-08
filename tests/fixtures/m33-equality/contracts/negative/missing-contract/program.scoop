@@ -1,0 +1,4 @@
+class Counter(val value: Int) {
+    public operator fun equals(other: Counter): Boolean = value == other.value
+}
+fun main() {}

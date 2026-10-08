@@ -54,6 +54,10 @@ impl Lowerer {
         &mut self,
         ty: hir::TypeId,
     ) -> Result<(), ImportedSignatureTypeError> {
+        if let hir::Type::Ptr(pointee) = self.types[ty] {
+            self.pointer_interfaces(pointee);
+            return Ok(());
+        }
         let kind = match self.types[ty] {
             hir::Type::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
             hir::Type::Unit => hir::IntrinsicTypeKind::Unit,

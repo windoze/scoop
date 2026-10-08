@@ -31,6 +31,8 @@ impl Lowerer {
         for (ty, _) in self.types.iter() {
             if let Some(application) = self.nominal_application(ty) {
                 pending.extend(application.arguments.iter().copied());
+            } else if matches!(self.types[ty], hir::Type::Ptr(_)) {
+                pending.push(ty);
             }
         }
         let mut visited = std::collections::HashSet::new();
@@ -49,7 +51,10 @@ impl Lowerer {
                     pending.extend(function.parameter_types.iter().copied());
                     pending.push(function.return_type);
                 }
-                hir::Type::Ptr(pointee) => pending.push(*pointee),
+                hir::Type::Ptr(pointee) => {
+                    pending.push(*pointee);
+                    self.retain_imported_box_source(ty)?;
+                }
                 _ => self.retain_imported_box_source(ty)?,
             }
         }

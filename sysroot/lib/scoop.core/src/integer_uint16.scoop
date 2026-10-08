@@ -1,5 +1,5 @@
 @Intrinsic("core_uint16")
-public struct UInt16 : ToString, Hash {
+public struct UInt16 : Equality<UInt16>, ToString, Hash {
     @NoGC @Intrinsic("uint16_to_float")
     public fun toFloat(): Float
 
@@ -8,7 +8,7 @@ public struct UInt16 : ToString, Hash {
 
     @NoGC
     @Intrinsic("uint16_equals")
-    public operator fun equals(other: UInt16): Boolean
+    public override operator fun equals(other: UInt16): Boolean
 
     @NoGC
     @Intrinsic("uint16_unary_plus")

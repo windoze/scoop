@@ -4,14 +4,16 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
   fun @scoop$1$cb$9d36e0567ab1f9f72092d1a4ab3370eb8d370e78956efab4cbe0f8556cdce8c4(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
-    local %0 $call.1: i1
+    local %0 $dependency.receiver: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %1 $dependency.argument.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %2 $dependency.parameter.other: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %3 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1 local-fn2(elided-zst param0, elided-zst param1)
-    store t0 -> local0
-    ret local0
-  fun @scoop$1$cb$f8da311adb5c5511acc0695ec3b17fd856fe459e77c1c8117ae20cbe58c0125e(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
-  block entry
-    poll managed-void-target0 sp<managed-poll:0> live=[]
-    ret true
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1 external-fn0(elided-zst local0, elided-zst local2)
+    store t0 -> local3
+    ret local3
   output library

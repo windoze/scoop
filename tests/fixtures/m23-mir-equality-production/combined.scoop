@@ -2,13 +2,13 @@ public struct Leaf() {}
 public struct Pair(val first: Leaf, val second: Leaf)
 public enum Choice { Empty, Full(Pair) }
 
-public struct Manual() {
-    public operator fun equals(other: Manual): Boolean = false
+public struct Manual() : Equality<Manual> {
+    public override operator fun equals(other: Manual): Boolean = false
 }
 public struct UsesManual(val value: Manual)
 
-public struct Overloaded() {
-    public operator fun equals(other: Leaf): Boolean = true
+public struct Overloaded() : Equality<Leaf> {
+    public override operator fun equals(other: Leaf): Boolean = true
 }
 
 public class Reference {}

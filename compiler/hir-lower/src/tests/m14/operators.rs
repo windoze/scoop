@@ -3,10 +3,7 @@ use super::*;
 #[test]
 fn operator_equals_is_a_typed_hir_contract() {
     let output = lower_user_output(file(vec![
-        interface_decl(
-            "EqualTo",
-            vec![operator_equals(false, true, ty_named("EqualTo"))],
-        ),
+        inherited_equality(),
         class_decl(
             ast::ClassModifier::Final,
             "Value",
@@ -62,10 +59,7 @@ fn operator_equals_is_a_typed_hir_contract() {
         FunctionBody::Expr(Box::new(bool_lit(true))),
     );
     let errors = lower_user(file(vec![
-        interface_decl(
-            "EqualTo",
-            vec![operator_equals(false, true, ty_named("EqualTo"))],
-        ),
+        inherited_equality(),
         class_decl(
             ast::ClassModifier::Final,
             "Plain",
@@ -89,11 +83,6 @@ fn operator_equals_is_a_typed_hir_contract() {
 
 #[test]
 fn generic_equality_resolves_the_exact_operator_bound_member() {
-    let equality = generic_interface_decl(
-        "Equality",
-        vec!["T"],
-        vec![operator_equals(false, true, ty_named("T"))],
-    );
     let mut value = struct_decl_full(
         "Value",
         Vec::new(),
@@ -121,7 +110,6 @@ fn generic_equality_resolves_the_exact_operator_bound_member() {
     equal_decl.type_params[0] = upper("T", ty_generic("Equality", vec![ty_named("T")]));
 
     let output = lower_user_output(file(vec![
-        equality,
         value,
         equal,
         fun(
@@ -326,4 +314,19 @@ fn operator_modifier_requires_a_dispatch_or_extension_receiver() {
             .iter()
             .any(|error| error.message == "`operator` requires a member or extension receiver")
     );
+}
+
+fn inherited_equality() -> Decl {
+    let mut declaration = interface_decl(
+        "EqualTo",
+        vec![operator_equals(true, true, ty_named("EqualTo"))],
+    );
+    let Decl::Interface(interface) = &mut declaration else {
+        unreachable!()
+    };
+    interface.supertypes = vec![bare_supertype(ty_generic(
+        "Equality",
+        vec![ty_named("EqualTo")],
+    ))];
+    declaration
 }

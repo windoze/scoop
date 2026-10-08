@@ -1,9 +1,9 @@
 @Intrinsic("core_string")
-public class String : ToString, Hash, Iterable<Char> {
+public class String : Equality<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 
-    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+    public override operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
     @Intrinsic("string_concat")
     public operator fun plus(other: String): String

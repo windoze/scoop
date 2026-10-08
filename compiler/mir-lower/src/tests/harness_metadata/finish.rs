@@ -189,6 +189,7 @@ impl Harness {
             hir::OptionCore::checked(&self.enums, &self.types, option_some_payload, option_none)
                 .expect("test Option has the core shape");
         let iteration_core = self.test_iteration_core(option_core);
+        let equality_core = self.test_equality_core();
         let nominal_identities = test_nominal_identities_without_objects(
             &self.structs,
             &self.enums,
@@ -699,6 +700,7 @@ impl Harness {
                 program_arguments: entry,
                 option: option_core,
                 iteration: iteration_core,
+                equality: equality_core,
                 exceptions: exception_core,
                 coroutines: coroutine_core,
                 ffi: ffi_core,
