@@ -13,7 +13,7 @@
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
-| M33-8 | 原子类型、内存序与 GC | 待实现 |
+| M33-8 | 原子类型、内存序与 GC | LLVM AS1 原子操作技术验证完成；语言与 runtime 实现待继续 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
@@ -319,3 +319,10 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin 在普通模式下完整通过 7 项、10 个变体、32 个进程、24 次 golden 检查。GNU／musl 各通过同样的 7 项和计数：发布根调整后，仅重跑受阶段 dump 变化影响的两项，普通模式各通过 4 个变体、16 个进程、12 次 golden，其余五项复用已通过的普通运行。新增 fixture 的 8 份公共 HIR/MIR 在三目标间一致。
 - 跨 Cone fixture 在删除 provider 源码后消费其派生接口、手写字段实现和 generic 调用，再删除 consumer 源码独立链接。正例覆盖 debug／release 与普通／moving／minor GC；未运行无关全量 fixture。最终报告及 Linux 分批记录位于 `tmp/m33/equality-derived-*-report.json`。
 - 本批两次清理共删除 197 项 target 中间对象与 incremental 内容，释放 3,644,615,617 bytes，保留库、CLI 和热缓存。新增生产子模块分别为 51 行和 66 行；泛型条件及 tuple 的完整 conformance 继续实施，不计为本批完成。
+
+## M33-8a：AtomicRef 的 LLVM 技术验证
+
+- `compiler/codegen/src/statepoint_tests/atomic_refs.ll` 保留最小 IR：AS1 对象 base、expected 和 new 引用跨前一个 safepoint；原子读取／exchange／CAS 的旧值与这三个引用一起跨后一个 safepoint。store 继续保留写入引用，真实 SSA alias 在 rewrite 前合并。
+- 四种原子指令覆盖全部合法序：3 种 load、3 种 store、5 种 exchange、9 种 strong CAS，共 20 种操作／顺序组合。每组执行 debug／release × Darwin arm64／GNU amd64／musl amd64，共 120 个组合。
+- 每个组合均通过 Scoop 实际优化与 RewriteStatepointsForGC、严格根计划检查、LLVM `verify<safepoint-ir>`／IR verifier 及目标 object 生成；原子指令仍存在，managed reference 不转成整数，CAS 未变为 weak。
+- Darwin 的 LLVM 22.1.8 与 nuc12 的 LLVM 22.1.2 分别通过全部 120 个组合；fmt 与 codegen all-targets clippy 通过。日志为 `tmp/m33/atomic-ir-tests.log` 和 `tmp/m33/atomic-ir-linux-tests.log`。本批只完成后端可行性验证，尚不代表 Atomic 类型、内存序源码诊断、写屏障或实际 moving GC fixture 已实现；没有重跑无关 CLI 测试。

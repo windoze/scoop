@@ -11,6 +11,8 @@ use super::{
 };
 use crate::{CodegenError, ValidatedBackendProfile};
 
+#[path = "statepoint_tests/atomic_refs.rs"]
+mod atomic_refs;
 #[path = "statepoint_tests/call_frame.rs"]
 mod call_frame;
 #[path = "statepoint_tests/no_gc.rs"]

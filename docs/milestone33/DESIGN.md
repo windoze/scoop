@@ -201,7 +201,7 @@ public final class AtomicRef<T : ref>(initial: T)
 - codegen 降低为 LLVM 的 `load atomic`、`store atomic`、`atomicrmw`、`cmpxchg`，对象地址按现有 HeapLoad/HeapStore 的方式计算。Boolean 按 i8 原子操作处理。
 - 普通字段、数组元素、全局存储和聚合值复制仍按普通非原子访问生成；不为竞争场景改用 `unordered` 原子 load/store，也不增加单字或逐字段不撕裂的实现要求。runtime/GC 自身的同步操作仍按各自协议实现。
 - `AtomicRef` 的特殊处理：
-  - **技术验证待完成**：在 `addrspace(1)` 指针上执行 `load atomic`/`store atomic`/`xchg`/`cmpxchg` 的 lowering 尚未验证。M33-8 首先用 LLVM 22.1 的最小 IR 检查 RewriteStatepointsForGC、GC verifier 与 target codegen，再以真实 Scoop fixture 验证，不能把本设计当作后端已经支持的证据。具体任务见 10.2。
+  - **技术验证**：M33-8a 的最小 IR 已验证 `addrspace(1)` 指针上的 `load atomic`/`store atomic`/`xchg`/`cmpxchg`，覆盖全部合法序、RewriteStatepointsForGC、GC verifier 与三个目标的 codegen，实际记录见 [ACCEPTANCE.md](ACCEPTANCE.md)。语言 API、写屏障与真实 Scoop moving GC fixture 仍须单独完成，不能用这项编译验证代替运行验收。
   - `store`、`exchange` 和成功的 `compareAndSet`/`compareAndExchange` 写入引用后，按普通引用存储生成写屏障（标记卡表）；多 mutator 下卡表标记已是原子操作。CAS 失败时没有写入，不需要屏障。
   - 从计算对象地址到原子指令完成，以及引用写入到写屏障完成之间不能插入 safepoint；base、expected/new 引用和读取结果跨后续 GC 时须正常保活并重定位。这些要求纳入 M33 的 GC 验证。
 - M31 的 release 优化：确认首批 IR pass 不会合并或删除原子操作，也不会把非原子访问移过 Acquire/Release 边界（LLVM 本身保证，用 golden 和运行测试锁定）。
@@ -692,7 +692,7 @@ D1～D7 均已有结论；D8 的前置依赖已满足。保留编号用于对应
 | 项目 | 当前状态 | 后续任务与完成条件 |
 | --- | --- | --- |
 | native 头文件缓存与输入一致性 | 7.2 和实现规范 2.7 已补齐契约；实现尚未开始 | M33-6 在外层缓存命中前发现/复核 include 依赖，把 C/C++ 源码、非系统头、公开 runtime 头和配置纳入现有输入快照；key 与子编译器读取相同内容。验收仅头文件修改、依赖集合变化、快照完成后工作区变化、配置/SDK 变化和不变输入复用；不再仅依赖 child 编译后写 depfile。 |
-| AtomicRef 与 LLVM moving GC | lowering 方向已写入 3.3；LLVM 22.1 / RewriteStatepointsForGC 组合尚未验证 | M33-8 首先检查 addrspace(1) 原子 load/store/xchg/cmpxchg 的最小 IR、statepoint rewrite/verifier 与三个 target codegen；再用真实 Scoop fixture 覆盖对象和所指对象移动、返回引用保活、成功/失败 CAS、old→young 写屏障及 debug/release。将实际结果写入实施/验收记录；若后端受限，调整 lowering 并保持已定原子语义与 GC 契约。 |
+| AtomicRef 与 LLVM moving GC | M33-8a 已完成全部合法序的 AS1 最小 IR、statepoint rewrite/verifier 与三目标 codegen 验证 | 继续实现语言 API，用真实 Scoop fixture 覆盖对象和所指对象移动、返回引用保活、成功/失败 CAS、old→young 写屏障及 debug/release；编译级验证不代替实际 GC 验收。 |
 | M32 基线与实施依赖 | 已纠正文档，并核对 roots.scoop 的 Any/Nothing 声明及 M32 验收记录；依赖已满足 | M33-4 直接消费实际 Nothing 实现 exit，验证无正常返回控制流、源码与 artifact-only 消费；以当前 runtime ABI 10 / metadata ABI 6 为旧版基线，验收 M33 的 11/7 升级与不兼容产物拒绝。其他批次复用 M32 已交付能力，按实际编码增量更新受影响版本。 |
 
 ## 11. 需要修订的规范章节
