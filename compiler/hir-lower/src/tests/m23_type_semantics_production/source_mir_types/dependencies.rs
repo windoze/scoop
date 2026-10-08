@@ -38,12 +38,9 @@ pub(super) fn boolean(
     graph: &scoop_identity::ValidatedIdentityGraph,
 ) -> CanonicalParamFreeMirTypeExportsV1 {
     use scoop_mir::*;
-    let boolean = input
-        .module()
-        .meta
-        .source_exact_types
-        .get(&Type::Boolean)
-        .unwrap();
+    let Some(boolean) = input.module().meta.source_exact_types.get(&Type::Boolean) else {
+        return CanonicalParamFreeMirTypeExportsV1::default();
+    };
     let scoop_identity::ExactTypeKey::Nominal(nominal) = *boolean.identity_record().key() else {
         unreachable!()
     };

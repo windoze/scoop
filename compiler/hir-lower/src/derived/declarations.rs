@@ -55,10 +55,7 @@ impl Lowerer {
             Owner::Interface(id) => self.interfaces[id].span,
             Owner::Object(id) => self.objects[id].span,
         };
-        let mut attributes = hir::FunctionAttributes::default();
-        if self.requires_unsafe_use(owner_ty) {
-            attributes.safety = hir::Safety::Unsafe;
-        }
+        let attributes = hir::FunctionAttributes::default();
         // Derived declarations do not own a body-local arena. Every requested
         // application supplies one whose first two locals are structurally
         // the receiver and argument, so the declaration can name those slots
@@ -145,10 +142,7 @@ impl Lowerer {
         owner_ty: hir::TypeId,
         span: ast::Span,
     ) -> hir::FunctionId {
-        let mut attributes = hir::FunctionAttributes::default();
-        if self.requires_unsafe_use(owner_ty) {
-            attributes.safety = hir::Safety::Unsafe;
-        }
+        let attributes = hir::FunctionAttributes::default();
         let this = hir::LocalId::from_raw(0.into());
         let other = hir::LocalId::from_raw(1.into());
         let access = hir::DeclarationAccess {

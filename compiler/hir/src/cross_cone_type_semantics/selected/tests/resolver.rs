@@ -10,6 +10,8 @@ pub(super) enum Family {
     Accessor,
     Slot,
     Object,
+    Type,
+    GenericType,
 }
 pub(super) struct Resolver<'a> {
     pub fixture: &'a Fixture,
@@ -54,3 +56,5 @@ resolve_family!(
 );
 resolve_family!(PersistentDispatchSlotId, Slot, f, [f.slot]);
 resolve_family!(PersistentObjectValueId, Object, f, [f.object]);
+resolve_family!(PersistentTypeId, Type, f, [f.enumeration_id]);
+resolve_family!(PersistentGenericTypeId, GenericType, f, [f.generic]);

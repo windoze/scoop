@@ -79,6 +79,8 @@ Equality 与 Iterator 一样，在 core 声明检查边界解析并记录普通 
 
 generic value 的 Equality 条件只包含实际字段／payload 的比较需求；开放字段保存原类型表达式与实际 Equality 协议身份，已有 bound 足以决议的成员保留其已绑定契约，未存储的形参不产生条件。ExportHir 保存这些条件和成员身份，HIR 具体化时按语言规定完成派生，LocalConcreteHir 对每个需要的 exact application 给出确定的接口闭包、slot implementation 与完整正文，不能把“接口是否存在”留为后续 stage 猜测。该派生不允许用户 generic body 越过已声明的 bound 使用能力。NoGc 实现满足 Managed interface slot 时分别保留实现体 effect 和接口调用 effect，其他签名、访问、ordinary/suspend 与安全性规则照常检查。
 
+派生 Equality 的 safe 方法合同来自已确定的接口 slot，生成入口不再作为手写 safe 函数重复执行 InteriorMutable 签名暴露检查。实际值的构造、读取、传递和比较仍执行语言规范 13.7 的 unsafe 类型使用检查；普通源码函数和 extern 的检查保持原规则。
+
 extern 声明产生完整 `SourceNativeExternalContract`：symbol bytes、逻辑 library/default namespace、function/data/TLS、mutability、C/Scoop ABI、calling convention、完整的 native 签名、GC effect 与定义位置。Scoop callable 另保留完整源码签名；启用 errno 捕获时，两者按语言规范 13.4.2 建立明确的结果适配关系。普通／suspend 效果与 GC effect 独立，后续不得由 symbol 或参数类型反推。
 
 C ABI extern 函数的声明按语言规范 13.4.1 另存非可选的调用模式 `NativeSafe` 或 `GcLeaf`：未标注时前端填入 NativeSafe，合法 `@GCLeaf` 填入 GcLeaf。此模式随声明、模板实例化和实际调用经 HIR/MIR 传递，不由参数 GC-free、`@NoGC` 或 native symbol 名称推导。它属于当前 Scoop 声明的 caller 协议，不进入目标 C symbol 的物理 ABI 合并键；同一 C symbol 的不同声明可以选择不同模式，但不得因此放宽签名等既有 native 合同检查。
@@ -88,6 +90,8 @@ C extern 的结果适配明确区分普通返回与 errno 捕获。前端检查 
 C-FFI-safe、Scoop ABI、GC-free 与 release-safe 是不同合同。C 参数不得含 managed reference，Scoop ABI direct ref 不改为 handle 或 pin。generic 条件按原 binder 保存并在实际 application 检查。
 
 实际依赖分为 lookup observations 与 committed uses。前者包括空查找、不适用候选、star surface 和 re-export；后者才形成 MIR/LIR 的 callable、类型、布局与 native 需求。未展开默认值和未物化模板不产生机器调用。
+
+正式 Cone 的初始 nominal 物化根来自已收集的发布声明闭包；正文调用、存储及其他实际类型用途继续扩展具体化闭包。未使用且不在发布闭包中的私有类型不因可以派生 Equality 而先物化其接口 application，再反向成为发布根。其语言层 conformance 仍存在，实际使用时按同一规则生成完整表示和实现。
 
 ### 2.3 MIR
 
@@ -242,7 +246,7 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 | 位置 / namespace | section 与 major |
 | --- | --- |
 | Manifest / `org.scoop-lang.manifest` | `single-cone-production/6` |
-| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/13`、`cross-cone-interface/63`、`cross-cone-type-semantics/23` |
+| HIR / `org.scoop-lang.hir` | `identity-foundation/8`、`core-bootstrap-interface/13`、`cross-cone-interface/64`、`cross-cone-type-semantics/24` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/5`、`core-bootstrap-bridge/1`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/16` |
 | LIR / `org.scoop-lang.lir` | `identity-foundation/8`、`cross-cone-param-free-bridge/1`、`cross-cone-link-closure/1`、`cross-cone-layout-abi/11`、`cross-cone-layout-link-closure/5`、`cone-production/11`、`link-identity-closure/15`、`link-support/1` |
 
@@ -255,6 +259,12 @@ production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR �
 executable entry 的四种形态、main 的完整源码签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 main、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M33 的 runtime ABI contract 11、metadata ABI 7 同时进入兼容检查、runtime 与启动对象的构建输入；旧 gateway 或旧产物不能按缺省 `main(): Unit` 解释，也不能与新的 runtime 混用。
 
 Equality 的显式／派生 conformance、generic 字段条件、原接口 slot、实际派生／手写实现及必要的分派适配随普通 interface、callable 与 exact-type metadata 保存，进入相应 semantic／ABI fingerprints 和 section profiles。相同 value application 跨 Cone 的派生 body、boxing adapter 与 itable 仍按既有身份和 ODR 规则唯一；artifact-only 链接只消费已闭合的实现，不重新扫描字段或按方法名称推导相等能力。旧 core 或产物缺少所需 Equality 合同时按兼容规则重建或拒绝。
+
+派生 Equality 在 nominal 的 slot selection 中使用独立的 `DerivedEquality(原 nominal declaration)` 目标种类；它引用真实宿主身份，不占用普通 SourceFunctionId，也不创建第二个接口 slot。exact 实现继续使用 `GeneratedCallableKey::DerivedEquality { exact_owner }`。源接口 slot 的签名、所选宿主和生成 callable 的引用在各自边界连接；派生目标没有普通源码函数声明，不能为了复用普通函数查询而伪造一条声明。产物读取验证保存的 slot、receiver、签名和生成目标关系，不重做字段的重载决议。
+
+装箱适配器可直接引用同一宿主的派生 Equality callable。MIR 先登记实际实现的绑定，再据此生成和连接适配器绑定；目标的生成身份、完整签名和 GC effect 与普通实现一样参与调用检查，不增加一条虚构源码函数作为中转。
+
+导入的派生方法依已保存的 conformance 提供完整重载候选签名，与宿主的其他 `equals` 重载共同参与普通成员决议。候选使用实际 Equality application 的原接口函数声明，保留完整参数替换，经普通接口分派到定义方生成 callable；不建立虚构源码函数，也不重新生成定义方正文。不同 Equality application 共用根 slot 时，候选选择须保留各自完整的宿主与参数类型。
 
 `single-cone-production/6` 的 field 4 为完整 typed registration projection，field 6 为 RuntimeImage fingerprint，field 11 为物理 ODR member 目录，field 12 为 OptimizationMode；field 5 保留不用。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。
 
@@ -270,7 +280,7 @@ C extern 的 NativeSafe/GcLeaf 模式作为声明及调用的语义字段进入�
 
 `captureErrno`、完整 Scoop 结果类型、native 返回投影及 bridge 结果适配进入对应声明、调用与 bridge 的 HIR/MIR/LIR metadata、语义/Code 指纹和缓存。编译消费方按已保存的结果适配生成 `(R, Int)`，链接消费方保留实际 bridge 及 native requirements；不按合并后的 native symbol 重新决定捕获，也不将旧的单结果 bridge 当作捕获 bridge。必需字段与 recipe key 的变化按既有 metadata/schema 兼容规则演进，旧产物不能缺字段后静默当作不捕获。
 
-HIR `cross-cone-interface/63` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
+HIR `cross-cone-interface/64` 的 C extern implementation 必须保存调用模式与结果适配；LIR `identity-foundation/8` 的 OutboundFunction key 必须保存结果适配。generated-C 的 OutboundWrappers 模板版本为 2。目标工具链展开 `<errno.h>` 后产生的 libc errno accessor 引用作为普通 target-support native requirement 保留：Darwin 为 `__error`，GNU/musl 为 `__errno_location`，均为无参数、返回 native pointer 的 C 函数。源码生成仍只使用 `errno` 宏，不自行生成目标 accessor 调用。
 
 DirectC/StorageBridge 及其完整物理调用计划进入相应 LIR metadata 与既有语义/Code 指纹和缓存投影，不加入 source native symbol 的 ABI 冲突键。DirectC 保留真实 native undefined reference、contract 与 library requirement；没有实际桥接用途时，不生成 outbound bridge recipe、物理定义或 member 要求。跨 Cone 与泛型消费按当前 target 得到同一完整计划；artifact-only 链接只消费产物记录，不重做 ABI lowering，也不为直接调用重新插入 bridge。
 

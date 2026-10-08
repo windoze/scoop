@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot derive `equals` for `Container`: field `Container.value` has an ambiguous member operator `equals` for type `Ambiguous`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 362,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 349
+    },
+    "severity": "error"
+  }
+]

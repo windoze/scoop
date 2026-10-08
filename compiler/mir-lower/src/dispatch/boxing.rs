@@ -180,6 +180,21 @@ impl Lowerer {
             .find(|implementation| implementation.slot.into_raw() as usize == method_index)
             .expect("concrete HIR supplies every boxed itable slot");
         let (callee, implementation_params, implementation_result) = match implementation.target {
+            hir::InterfaceImplementationTarget::ImportedDerivedEquality(target) => {
+                let target = module.imported_derived_equalities[target].0;
+                let owner = module
+                    .exact_type_identities
+                    .type_for_identity(target.owner())
+                    .expect("a derived interface implementation retains its exact value owner");
+                (
+                    mir::Callee::External(crate::current::external_equality(
+                        &self.external_callables,
+                        target,
+                    )),
+                    vec![owner, owner],
+                    module.boolean,
+                )
+            }
             hir::InterfaceImplementationTarget::Method(function) => {
                 let implementation = &module.functions[function];
                 (

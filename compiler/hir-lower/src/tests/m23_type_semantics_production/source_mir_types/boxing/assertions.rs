@@ -119,14 +119,29 @@ pub(super) fn selection(
     }
     let owners = source_dispatch::owners(output);
     if case == "standalone" {
-        assert_eq!(bindings.entries().len(), 2);
-        assert_eq!(payloads, BTreeSet::from([owners["Token"]]));
-        assert!(input.module().meta.boxing_adjusts.len() > bindings.entries().len());
+        let (hidden, _) = input
+            .module()
+            .structs
+            .iter()
+            .find(|(_, ty)| ty.name == "Hidden")
+            .unwrap();
+        let hidden = input
+            .module()
+            .meta
+            .source_exact_types
+            .get(&scoop_mir::Type::Struct(hidden))
+            .unwrap()
+            .identity_record()
+            .id();
+        assert_eq!(bindings.entries().len(), 6);
+        assert_eq!(payloads, BTreeSet::from([owners["Token"], hidden]));
+        assert!(targets.contains("Token.equals"));
+        assert!(targets.contains("Hidden.equals"));
     } else {
-        assert_eq!(bindings.entries().len(), 24);
+        assert_eq!(bindings.entries().len(), 26);
         assert_eq!(
             payloads,
-            BTreeSet::from([owners["Choice"], owners["Payload"]])
+            BTreeSet::from([owners["Choice"], owners["Payload"], owners["Token"]])
         );
         assert!(targets.contains("Diamond.echo"));
         assert!(targets.contains("Root.$get$token"));

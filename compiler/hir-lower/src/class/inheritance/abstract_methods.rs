@@ -50,16 +50,21 @@ impl Lowerer {
                             selection.selection(),
                             hir::InheritanceSourceSlotSelectionV1::Abstract(_)
                         ) {
-                            let declaration = self
-                                .dependencies
-                                .as_ref()
-                                .expect("dependency class has a catalog")
-                                .callable_declaration(selection.callable_target())
-                                .expect("dependency slot has an actual declaration");
+                            let declaration =
+                                self.dependencies
+                                    .as_ref()
+                                    .expect("dependency class has a catalog")
+                                    .callable_declaration(selection.callable_target().expect(
+                                        "an abstract class slot selects a source declaration",
+                                    ))
+                                    .expect("dependency slot has an actual declaration");
                             let kind = match selection.selection().declaration() {
                                 hir::InheritanceCallableDeclarationV1::Function(_) => "method",
                                 hir::InheritanceCallableDeclarationV1::Getter(_) => "getter",
                                 hir::InheritanceCallableDeclarationV1::Setter(_) => "setter",
+                                hir::InheritanceCallableDeclarationV1::DerivedEquality(_) => {
+                                    unreachable!("class slots cannot select value equality")
+                                }
                             };
                             self.error(
                                 span,

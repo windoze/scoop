@@ -71,6 +71,11 @@ impl Lowerer {
             .into_iter()
             .map(|function| crate::CallableCandidate::method(function, own_owner))
             .collect::<Vec<_>>();
+        let owner_ty = self.owner_ty(owner);
+        if let Some(&application) = self.derived_equality_application_by_type.get(&owner_ty) {
+            let function = self.derived_equality_applications[application].function;
+            candidates.push(crate::CallableCandidate::method(function, own_owner));
+        }
         if let Some(class) = class {
             candidates.extend(self.base_chain_methods(class));
         }
@@ -140,6 +145,16 @@ impl Lowerer {
                     span,
                 );
                 let target = match implemented {
+                    Some(candidate)
+                        if matches!(
+                            self.functions[candidate.function].kind,
+                            hir::FunctionKind::DerivedEquality
+                        ) =>
+                    {
+                        Some(hir::InterfaceImplementationTarget::DerivedEquality(
+                            self.derived_equality_application_by_type[&owner_ty],
+                        ))
+                    }
                     Some(candidate) if !self.is_abstract_method(candidate.function) => {
                         let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {
                             unreachable!("nominal candidates are methods")

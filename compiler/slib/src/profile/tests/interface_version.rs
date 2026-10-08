@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v63_retains_equality_protocol() {
+fn source_interface_v64_retains_derived_equality_targets() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        63,
+        64,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v63_retains_equality_protocol() {
 }
 
 #[test]
-fn type_semantics_v23_retains_root_representation() {
+fn type_semantics_v24_retains_derived_equality_targets() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        23,
+        24,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

@@ -17,6 +17,8 @@ pub(super) struct Fixture {
     pub setter: PersistentPropertyAccessorId,
     pub slot: PersistentDispatchSlotId,
     pub object: PersistentObjectValueId,
+    pub enumeration_id: PersistentTypeId,
+    pub generic: PersistentGenericTypeId,
 }
 impl Fixture {
     pub fn new() -> Self {
@@ -30,7 +32,8 @@ impl Fixture {
             .unwrap();
         let (owner, owner_id, _) = nominal(provider, "Base", SourceNominalKind::Class);
         let (derived, _, _) = nominal(provider, "Derived", SourceNominalKind::Class);
-        let (enumeration, _, enum_key) = nominal(provider, "Choice", SourceNominalKind::Enum);
+        let (enumeration, enumeration_id, enum_key) =
+            nominal(provider, "Choice", SourceNominalKind::Enum);
         let (interface, _, _) = nominal(provider, "Readable", SourceNominalKind::Interface);
         let (object_exact, _, object_key) =
             nominal(provider, "Singleton", SourceNominalKind::Object);
@@ -77,6 +80,16 @@ impl Fixture {
             slot: PersistentDispatchSlotId::from_key(&DispatchSlotKey::virtual_method(function))
                 .unwrap(),
             object: PersistentObjectValueId::from_source_object(&object_key).unwrap(),
+            enumeration_id,
+            generic: PersistentGenericTypeId::from_source_declaration(
+                &SourceDeclarationKey::nominal(
+                    site(provider, None),
+                    name("Value"),
+                    SourceNominalKind::Struct,
+                    1,
+                ),
+            )
+            .unwrap(),
         }
     }
     pub fn record(&self, usage: SelectedTypeUseV1) -> SelectedExternalTypeUseV1 {

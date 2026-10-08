@@ -12,7 +12,7 @@
 | M33-4 | main、argv、退出码、输出与 ABI 11/7 | 完成并通过三平台验收 |
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
-| M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配与显式 Equality 完成；条件派生实施中 |
+| M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
 | M33-8 | 原子类型、内存序与 GC | 待实现 |
 | M33-9 | 线程退出规则与组合验收 | 待实现 |
 
@@ -303,3 +303,19 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - `tests/fixtures/m33-equality/derivation/collisions` 覆盖 struct、enum、泛型私有成员的精确 negative 诊断，以及移除提供方源码后调用普通／泛型成员、结构派生和再次拒绝相等运算；成功程序在移除消费方源码后独立链接运行。
 - Darwin、GNU、musl 均在非更新模式下通过 4 项、5 个变体、13 个进程、12 次 HIR/MIR/LIR golden 检查。三个正式报告保存在 `tmp/m33/equality-collision-{darwin,gnu,musl}-final-report.json`。本地 fmt 和 HIR-lower 全 target clippy、Linux fmt/clippy 及两地主 CLI release 构建通过；此次没有重跑无关全量测试。
 - 这项修复只完成同签名冲突边界；自动派生的真实 Equality conformance 和泛型条件仍继续实施。
+
+## M33-7e：非泛型值类型的派生 Equality
+
+- 普通非泛型 struct／enum 在全部字段可比较时建立真实 `Equality<Self>` conformance，并用完整派生正文满足原接口 slot。直接 `==`／`!=`、普通 `.equals`、泛型 bound、接口调用、装箱和 `is/as` 使用同一关系。不可比较字段不限制值的构造，也不会产生空正文或恒真实现。
+- 派生接口目标使用 `DerivedEquality(原 nominal declaration)`，exact 实现继续使用已有 generated callable identity。HIR nominal selection、MIR binding、boxing adjust 和 `.slib` 闭包连接真实生成目标；没有伪造 SourceFunctionId。cross-cone-interface／cross-cone-type-semantics 升为 64／24，固定编码、版本拒绝与 profile 指纹同步。
+- 导入 `.equals` 保留完整的 Equality application，与手写的其他参数重载共同决议，再经普通接口调用提供方的派生正文。跨 Cone 的接口表可以直接引用提供方生成 callable；绑定装配先收集普通与派生实现，再生成 boxing adjust。
+- 派生方法保持 Equality 的 safe 调用合同；InteriorMutable 的 unsafe 类型使用规则在实际构造、读取、传递及比较处执行。删除生成入口上的重复源码 API 暴露检查，并移除旧的发布阶段重复派生准备。
+- 正式物化从发布声明闭包出发，实际正文和表示需求继续补齐私有支持类型。新增接口不再把完全未使用的私有类型反向带入发布闭包；已有字节稳定性测试保留。实际装箱的私有类型仍提供完整 Equality 接口和表示支持。
+
+已完成的验证：
+
+- Rust fmt、workspace all-targets clippy 及两地主 CLI release 构建通过。20 项相等测试、26 项类型导出／装箱／派发表测试、4 项自动物化测试、3 项 InteriorMutable 测试和 114 项 MIR 类型桥接测试通过；19 项 capability profile、11 项 selected declaration 编码及新增派生 slot 合同测试通过。
+- 新增 7 项正式 fixture，覆盖非泛型 struct／enum、空值、嵌套字段、继承 `Equality<Base>` 的字段、字段求值顺序与短路、enum tag／active payload、多参数 Equality 重载、Ptr、InteriorMutable、NaN 与正负零。四类 negative 固定不可比较 payload、歧义字段、无法满足显式 Equality 及 safe context 使用 InteriorMutable 的诊断。
+- Darwin 在普通模式下完整通过 7 项、10 个变体、32 个进程、24 次 golden 检查。GNU／musl 各通过同样的 7 项和计数：发布根调整后，仅重跑受阶段 dump 变化影响的两项，普通模式各通过 4 个变体、16 个进程、12 次 golden，其余五项复用已通过的普通运行。新增 fixture 的 8 份公共 HIR/MIR 在三目标间一致。
+- 跨 Cone fixture 在删除 provider 源码后消费其派生接口、手写字段实现和 generic 调用，再删除 consumer 源码独立链接。正例覆盖 debug／release 与普通／moving／minor GC；未运行无关全量 fixture。最终报告及 Linux 分批记录位于 `tmp/m33/equality-derived-*-report.json`。
+- 本批两次清理共删除 197 项 target 中间对象与 incremental 内容，释放 3,644,615,617 bytes，保留库、CLI 和热缓存。新增生产子模块分别为 51 行和 66 行；泛型条件及 tuple 的完整 conformance 继续实施，不计为本批完成。

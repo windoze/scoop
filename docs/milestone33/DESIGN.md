@@ -663,9 +663,9 @@ Equality 表示“提供比较操作”，不保证任意实现都满足自反�
 
 Equality 保持 invariant。继承 `Equality<Base>` 不自动成为 `Equality<Derived>`；两个 `Equality<Point>` 接口值的 equals 参数仍是 Point，不能因二者类型相同就彼此比较。`Any` 没有 Equality 契约，装箱不提供 Any 级相等 fallback。值类型已有的派生接口则可正常用于 bound、装箱、itable、`is` / `as`，这些位置使用同一个 conformance。
 
-实现需要完成两处当前尚缺的衔接：
+实现需要保持以下两处衔接：
 
-1. HIR 在普通类型／继承信息齐备后、完成相关 interface obligation 和 bound 检查前，建立派生 Equality 签名、字段条件与真实 conformance。目前 `check_inheritance` 早于 `declare_derived_equality_methods`，直接在 core 添加接口还不能让派生体满足接口。普通接口、MIR/LIR、boxing／itable、`.slib` 和跨 Cone 泛型消费都须保存同一 slot 到实现的关系。
+1. HIR 在普通类型／继承信息齐备后、完成相关 interface obligation 和 bound 检查前，建立派生 Equality 签名、字段条件与真实 conformance；派生声明必须先于接口实现检查可用。普通接口、MIR/LIR、boxing／itable、`.slib` 和跨 Cone 泛型消费都须保存同一 slot 到实现的关系。派生方法保持 Equality 的 safe slot 合同，InteriorMutable 的 unsafe 限制在实际值使用处执行。
 2. 保留整数、Char、浮点 equals 的 NoGc intrinsic 实现。value method 允许以 NoGc 实现普通 Managed interface 方法；静态具体类型直接调用仍为 NoGc，接口／bound 调用遵循接口合同，实际 itable 使用匹配 Managed ABI 的普通 value/interface adapter。不能为了实现 Equality 就把普通数值比较改为必须装箱、间接调用或进入 GC；也不能把允许任意用户实现的 Equality 接口整体标为 NoGc。
 
 这是源码规则的统一：既有手写 operator equals 的类型需要补齐 Equality application 与 override；已有用户相等接口需要继承 Equality。普通结构相等的使用方式保持，接口实现由编译器同步派生。不保留“未实现 Equality 但 operator equals 仍可参与 `==`”的兼容分支；M33 同批更新 core、相关 fixtures 和受影响的产物兼容指纹。

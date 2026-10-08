@@ -70,7 +70,7 @@ impl CanonicalNominalInterfacesV1 {
                 .records();
 
             for selection in selections {
-                dispatched.insert(selection.callable_target());
+                dispatched.extend(selection.callable_target());
             }
             let fields = nominal.source_shape().declared_fields();
 

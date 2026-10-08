@@ -75,9 +75,10 @@ pub(super) fn source_families(
     output: &hir::DependencyHirOutput,
     families: &CanonicalMirShapeSupportsV1,
     types: &CanonicalParamFreeMirTypeExportsV1,
+    private_sources: usize,
 ) {
     let names = source_dispatch::owners(output);
-    assert_eq!(names.len(), families.records().len());
+    assert_eq!(names.len() + private_sources, families.records().len());
     for exact in names.values() {
         let family = families
             .records()
@@ -91,6 +92,8 @@ pub(super) fn source_families(
 }
 
 pub(super) fn hidden_box(input: &scoop_mir::ConeMirInput, families: &CanonicalMirShapeSupportsV1) {
+    // The evaluated box now owns an Equality<Hidden> application, whose
+    // published representation includes Hidden as a private support type.
     let module = input.module();
     let hidden = module.meta.boxed_types.iter().find(|boxed| matches!(boxed.payload(), scoop_mir::Type::Struct(id) if module.structs[*id].name == "Hidden")).unwrap();
     let exact = module
@@ -104,6 +107,6 @@ pub(super) fn hidden_box(input: &scoop_mir::ConeMirInput, families: &CanonicalMi
         families
             .records()
             .iter()
-            .all(|family| family.exact() != exact)
+            .any(|family| family.exact() == exact)
     );
 }

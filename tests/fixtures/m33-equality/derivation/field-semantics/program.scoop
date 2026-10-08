@@ -1,0 +1,67 @@
+class Trace(var order: Int)
+
+open class Base(val key: Int) : Equality<Base> {
+    public override operator fun equals(other: Base): Boolean = key == other.key
+}
+
+class Child(val detail: Int, key: Int) : Base(key)
+struct Inherited(val child: Child)
+
+class Traced(val value: Int, val digit: Int, val trace: Trace) : Equality<Traced> {
+    public override operator fun equals(other: Traced): Boolean {
+        trace.order = trace.order * 10 + digit
+        return value == other.value
+    }
+}
+
+struct Pair(val first: Traced, val second: Traced)
+enum Tagged { First(Pair), Second(Traced), Empty }
+
+struct Multiple(val value: Int) : Equality<Int> {
+    public override operator fun equals(other: Int): Boolean = value == other
+}
+
+struct Raw(val pointer: Ptr<UInt8>)
+@InteriorMutable
+struct NativeWord(val value: Int)
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
+
+fun main() {
+    check(same(Inherited(Child(10, 1)), Inherited(Child(20, 1))))
+    check(!same(Inherited(Child(10, 1)), Inherited(Child(10, 2))))
+    val trace = Trace(0)
+    val left = Pair(Traced(1, 1, trace), Traced(2, 2, trace))
+    check(same(left, Pair(Traced(1, 1, trace), Traced(2, 2, trace))))
+    check(trace.order == 12)
+    trace.order = 0
+    check(!same(left, Pair(Traced(3, 1, trace), Traced(2, 2, trace))))
+    check(trace.order == 1)
+    trace.order = 0
+    check(!same(Tagged.First(left), Tagged.Second(left.first)))
+    check(trace.order == 0)
+    check(same(Tagged.First(left), Tagged.First(left)))
+    check(trace.order == 12)
+    val multiple = Multiple(7)
+    check(multiple == 7)
+    check(multiple == Multiple(7))
+    check(multiple.equals(7))
+    check(multiple.equals(Multiple(7)))
+    @Unsafe {
+        val raw = Raw(Ptr<UInt8>(1UL))
+        check(same(raw, raw))
+        check(!same(raw, Raw(Ptr<UInt8>(2UL))))
+        val view: Equality<Raw> = raw
+        check(view.equals(raw))
+        val word = NativeWord(7)
+        check(same(word, NativeWord(7)))
+        check(!same(word, NativeWord(8)))
+        val wordView: Equality<NativeWord> = word
+        check(wordView.equals(word))
+    }
+    println("derived field semantics")
+}

@@ -56,13 +56,26 @@ impl NominalDispatchSelectionV1 {
         self.selection
     }
 
-    pub fn callable_target(&self) -> scoop_identity::CallableTemplateOrigin {
-        use crate::InheritanceCallableDeclarationV1 as Declaration;
-        use scoop_identity::CallableTemplateOrigin as Target;
-        let declaration = self.selection.declaration();
-        match declaration {
-            Declaration::Function(id) => Target::Function(id),
-            Declaration::Getter(id) | Declaration::Setter(id) => Target::Accessor(id),
+    pub fn callable_target(&self) -> Option<scoop_identity::CallableTemplateOrigin> {
+        self.selection.declaration().origin()
+    }
+
+    pub fn dependency_target(&self) -> crate::ExternalHirTargetV1 {
+        use crate::{
+            ExternalHirTargetV1 as Target, InheritanceCallableDeclarationV1 as Declaration,
+        };
+        match self.selection.declaration() {
+            Declaration::DerivedEquality(owner) => Target::Nominal(match owner {
+                crate::SourceNominalId::Concrete(id) => {
+                    scoop_identity::NominalDeclarationOwner::Concrete(id)
+                }
+                crate::SourceNominalId::GenericTemplate(id) => {
+                    scoop_identity::NominalDeclarationOwner::GenericTemplate(id)
+                }
+            }),
+            declaration => {
+                Target::Callable(declaration.origin().expect("ordinary dispatch target"))
+            }
         }
     }
 }

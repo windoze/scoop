@@ -185,11 +185,9 @@ impl Loaded {
 }
 
 pub(in super::super) fn origin(member: InheritanceCallableDeclarationV1) -> CallableTemplateOrigin {
-    match member {
-        InheritanceCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
-        InheritanceCallableDeclarationV1::Getter(id)
-        | InheritanceCallableDeclarationV1::Setter(id) => CallableTemplateOrigin::Accessor(id),
-    }
+    member
+        .origin()
+        .expect("the fixture declares an ordinary source callable")
 }
 
 pub(super) fn with_tables(

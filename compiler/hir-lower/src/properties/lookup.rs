@@ -118,7 +118,8 @@ impl Lowerer {
                 unreachable!("selected interface members have method owners");
             };
             let hir::MethodOwnerApplication::Interface(application) = owner else {
-                unreachable!("selected interface members retain their interface application");
+                // Derived value methods do not provide interface properties.
+                continue;
             };
             let application = self.interface_applications[application].clone();
             let interface = self.source_interface_id(application.template)?;

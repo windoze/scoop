@@ -1,5 +1,6 @@
 use scoop_identity::{
-    DecodedPersistentId, PersistentFunctionId, PersistentIdResolver, PersistentPropertyAccessorId,
+    DecodedPersistentId, PersistentFunctionId, PersistentGenericTypeId, PersistentIdResolver,
+    PersistentPropertyAccessorId, PersistentTypeId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -10,15 +11,17 @@ pub enum InheritanceCallableDeclarationV1 {
     Function(PersistentFunctionId),
     Getter(PersistentPropertyAccessorId),
     Setter(PersistentPropertyAccessorId),
+    DerivedEquality(crate::SourceNominalId),
 }
 
 impl InheritanceCallableDeclarationV1 {
-    pub const fn origin(self) -> scoop_identity::CallableTemplateOrigin {
+    pub const fn origin(self) -> Option<scoop_identity::CallableTemplateOrigin> {
         match self {
-            Self::Function(id) => scoop_identity::CallableTemplateOrigin::Function(id),
+            Self::Function(id) => Some(scoop_identity::CallableTemplateOrigin::Function(id)),
             Self::Getter(id) | Self::Setter(id) => {
-                scoop_identity::CallableTemplateOrigin::Accessor(id)
+                Some(scoop_identity::CallableTemplateOrigin::Accessor(id))
             }
+            Self::DerivedEquality(_) => None,
         }
     }
 }
@@ -29,6 +32,7 @@ impl WireEncode for InheritanceCallableDeclarationV1 {
             Self::Function(id) => (1, id),
             Self::Getter(id) => (2, id),
             Self::Setter(id) => (3, id),
+            Self::DerivedEquality(owner) => (4, owner),
         };
         wire::tag(encoder, 2, tag)?;
         encoder.field(1)?;
@@ -41,12 +45,15 @@ pub enum DecodedInheritanceCallableDeclarationV1 {
     Function(DecodedPersistentId<PersistentFunctionId>),
     Getter(DecodedPersistentId<PersistentPropertyAccessorId>),
     Setter(DecodedPersistentId<PersistentPropertyAccessorId>),
+    DerivedEquality(crate::DecodedSourceNominalId),
 }
 impl DecodedInheritanceCallableDeclarationV1 {
     pub fn resolve<R, E>(self, resolver: &mut R) -> Result<InheritanceCallableDeclarationV1, E>
     where
         R: PersistentIdResolver<PersistentFunctionId, Error = E>
-            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>,
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentTypeId, Error = E>
+            + PersistentIdResolver<PersistentGenericTypeId, Error = E>,
     {
         match self {
             Self::Function(id) => resolver
@@ -58,6 +65,9 @@ impl DecodedInheritanceCallableDeclarationV1 {
             Self::Setter(id) => resolver
                 .resolve(id)
                 .map(InheritanceCallableDeclarationV1::Setter),
+            Self::DerivedEquality(owner) => owner
+                .resolve(resolver)
+                .map(InheritanceCallableDeclarationV1::DerivedEquality),
         }
     }
 }
@@ -67,6 +77,7 @@ impl WireEncode for DecodedInheritanceCallableDeclarationV1 {
             Self::Function(id) => (1, id),
             Self::Getter(id) => (2, id),
             Self::Setter(id) => (3, id),
+            Self::DerivedEquality(owner) => (4, owner),
         };
         wire::tag(encoder, 2, tag)?;
         encoder.field(1)?;
@@ -86,6 +97,9 @@ impl WireDecode for DecodedInheritanceCallableDeclarationV1 {
             3 => decoder
                 .field(1, DecodedPersistentId::decode)
                 .map(Self::Setter),
+            4 => decoder
+                .field(1, crate::DecodedSourceNominalId::decode)
+                .map(Self::DerivedEquality),
             tag => Err(wire::error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }

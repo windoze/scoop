@@ -145,6 +145,12 @@ impl Lowerer {
             );
         }
         for &(id, decl, file_index) in pending_structs {
+            self.prepare_value_equality_conformance(Owner::Struct(id), decl.span, file_index);
+        }
+        for &(id, decl, file_index) in pending_enums {
+            self.prepare_value_equality_conformance(Owner::Enum(id), decl.span, file_index);
+        }
+        for &(id, decl, file_index) in pending_structs {
             self.current_file = file_index;
             self.current_owner = Some(Owner::Struct(id));
             self.check_value_interface_implementation(Owner::Struct(id), decl.span);

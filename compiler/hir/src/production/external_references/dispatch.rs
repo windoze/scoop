@@ -2,9 +2,7 @@ use super::{
     ExternalHirReferenceProductionError, ExternalHirReferenceProductionInput,
     accumulator::ExternalReferenceAccumulator,
 };
-use crate::{
-    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1,
-};
+use crate::{ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority};
 
 pub(super) fn collect<A, E>(
     input: ExternalHirReferenceProductionInput<'_>,
@@ -20,9 +18,8 @@ where
             .records()
             .iter()
         {
-            let target = record.callable_target();
             accumulator.observe(
-                ExternalHirTargetV1::Callable(target),
+                record.dependency_target(),
                 ExternalHirReferenceRoleV1::InheritanceDependency,
             )?;
         }

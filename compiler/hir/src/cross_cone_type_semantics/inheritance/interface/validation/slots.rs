@@ -57,6 +57,20 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             return Err(Error::SlotSelection);
         }
         let target = slot.implementation().target();
+        if matches!(
+            target.declaration(),
+            InheritanceCallableDeclarationV1::DerivedEquality(_)
+        ) {
+            if target.modality() != CallableModalityV1::Final
+                || !matches!(
+                    slot.implementation(),
+                    InheritanceSlotImplementationV1::Concrete(_)
+                )
+            {
+                return Err(Error::SourceContract);
+            }
+            return Ok(CheckedInheritanceSourceSlotContractV1 { contract });
+        }
         let source = authority
             .inheritance_callable_source(target.declaration(), target.signature().receiver())
             .map_err(Error::Foundation)?;

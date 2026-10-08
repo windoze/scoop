@@ -9,7 +9,7 @@ use scoop_identity::{
 
 use crate::{
     CallableDeclarationRecordV1, CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
-    InheritanceCallableDeclarationV1, ProtectedDeclarationRefV1, SharedTypeMetadataError as Error,
+    ProtectedDeclarationRefV1, SharedTypeMetadataError as Error,
 };
 
 mod constructors;
@@ -50,9 +50,13 @@ pub fn select_param_free_source_callables<'a>(
             }
         }
         for slot in nominal.slots().records() {
-            selection.insert(origin(slot.declaration()))?;
+            if let Some(origin) = slot.declaration().origin() {
+                selection.insert(origin)?;
+            }
             let target = slot.implementation().target();
-            selection.insert(origin(target.declaration()))?;
+            if let Some(origin) = target.declaration().origin() {
+                selection.insert(origin)?;
+            }
         }
     }
     selection.properties()?;
@@ -95,13 +99,5 @@ impl Selection<'_, '_> {
 
         self.required.insert(declaration, source);
         Ok(())
-    }
-}
-
-fn origin(declaration: InheritanceCallableDeclarationV1) -> Origin {
-    match declaration {
-        InheritanceCallableDeclarationV1::Function(id) => Origin::Function(id),
-        InheritanceCallableDeclarationV1::Getter(id)
-        | InheritanceCallableDeclarationV1::Setter(id) => Origin::Accessor(id),
     }
 }

@@ -12,9 +12,9 @@ use crate::{
 };
 
 mod body;
+mod conformances;
 mod declarations;
 mod imported;
-mod publication;
 
 pub(crate) enum DerivedEqualityCandidate {
     Imported(hir::ImportedDerivedEquality),

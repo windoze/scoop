@@ -77,7 +77,11 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
         )?;
         &target_data
     };
-    if root.key.name() != implementation.key.name() {
+    if !matches!(
+        target.declaration(),
+        crate::InheritanceCallableDeclarationV1::DerivedEquality(_)
+    ) && root.key.name() != implementation.key.name()
+    {
         return Err(Error::TargetName);
     }
     let source = graph

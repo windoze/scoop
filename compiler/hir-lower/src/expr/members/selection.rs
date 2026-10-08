@@ -42,6 +42,27 @@ impl Lowerer {
                 Ok(candidates) => candidates,
                 Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
             };
+        let mut imported = imported
+            .into_iter()
+            .map(|candidate| (candidate, receiver.clone()))
+            .collect::<Vec<_>>();
+        if kind == MemberCallKind::Ordinary
+            && name.text == "equals"
+            && context.imported_derived_equality(receiver.ty).is_some()
+            && let Some(interface) = context.equality_interface(receiver.ty)
+        {
+            let candidates =
+                match context.imported_member_call_candidates(interface, name, required, kind) {
+                    Ok(candidates) => candidates,
+                    Err(failure) => return PropertyExtensionInvokeOutcome::Failed(failure),
+                };
+            let view = context.adapt_to(receiver.clone(), interface);
+            imported.extend(
+                candidates
+                    .into_iter()
+                    .map(|candidate| (candidate, view.clone())),
+            );
+        }
         let operator_set = required.operator == Some(hir::OperatorKind::Set);
         if imported.is_empty() && kind == MemberCallKind::Ordinary {
             return context.probe_local_member_call_partition(
@@ -91,10 +112,10 @@ impl Lowerer {
                 }
             }
         }
-        for candidate in imported {
+        for (candidate, receiver) in imported {
             match context.probe_imported_member_callable(
                 candidate,
-                ImportedMemberReceiver::Value(receiver.clone()),
+                ImportedMemberReceiver::Value(receiver),
                 name,
                 call.into(),
                 expected,

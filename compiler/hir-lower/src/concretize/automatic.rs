@@ -5,6 +5,12 @@ use super::*;
 pub(super) struct AutomaticNominalRoots(export::NominalMaterializationClosure);
 
 impl AutomaticNominalRoots {
+    pub(super) fn from_output(
+        source: &export::ExportHirOutput,
+    ) -> Result<Self, export::PublicNominalShapeProjectionError> {
+        export::NominalMaterializationClosure::from_export_hir(source).map(Self)
+    }
+
     pub(super) fn new(
         source: &export::Module,
     ) -> Result<Self, export::PublicNominalShapeProjectionError> {

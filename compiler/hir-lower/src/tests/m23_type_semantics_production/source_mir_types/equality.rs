@@ -31,7 +31,11 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
             );
             let calls = assertions::calls(input, &bindings);
             let expected = if name == "standalone" {
-                BTreeMap::from([("Token.equals", vec![]), ("Unrequested.equals", vec![])])
+                BTreeMap::from([
+                    ("Hidden.equals", vec![]),
+                    ("Token.equals", vec![]),
+                    ("Unrequested.equals", vec![]),
+                ])
             } else {
                 BTreeMap::from([
                     ("Leaf.equals", vec![]),

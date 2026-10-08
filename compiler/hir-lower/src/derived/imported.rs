@@ -21,7 +21,7 @@ impl Lowerer {
         ))
     }
 
-    pub(super) fn imported_derived_equality(
+    pub(crate) fn imported_derived_equality(
         &self,
         ty: hir::TypeId,
     ) -> Option<hir::ImportedDerivedEquality> {

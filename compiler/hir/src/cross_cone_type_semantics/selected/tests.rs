@@ -4,9 +4,9 @@ use scoop_identity::{
     DecodedPersistentId, DefinitionOwnerAtom, DefinitionOwnerChain, DispatchSlotKey,
     EnumVariantIdentityKey, ExactTypeKey, PackagePath, PersistentConstructorId,
     PersistentDispatchSlotId, PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
-    PersistentIdResolver, PersistentObjectValueId, PersistentPropertyAccessorId,
-    PersistentPropertyId, PersistentTypeId, PropertyAccessorKey, PropertyOwner,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    PersistentGenericTypeId, PersistentIdResolver, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeId, PropertyAccessorKey,
+    PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 use scoop_wire::{
     Encoder, WireDecode, WireEncode, WireErrorKind, WirePath, decode_canonical, encode,

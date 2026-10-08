@@ -59,6 +59,9 @@ pub(super) fn validate<'a>(
                     slot.signature().receiver(),
                 )?;
                 let target = slot.implementation().target();
+                if matches!(target.declaration(), Declaration::DerivedEquality(_)) {
+                    continue;
+                }
                 signatures::project(
                     &mut data,
                     provider.metadata,

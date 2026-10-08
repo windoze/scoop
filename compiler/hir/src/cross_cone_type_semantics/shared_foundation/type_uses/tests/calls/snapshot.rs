@@ -29,6 +29,9 @@ pub(super) fn snapshot(name: &str, selected: &CanonicalSelectedExternalTypeUsesV
                     InheritanceCallableDeclarationV1::Setter(id) => {
                         format!("MemberCall {receiver} Setter {id}")
                     }
+                    InheritanceCallableDeclarationV1::DerivedEquality(owner) => {
+                        format!("MemberCall {receiver} DerivedEquality {owner:?}")
+                    }
                 },
                 SelectedTypeUseV1::Inheritance { derived, edge } => match edge {
                     SelectedDirectInheritanceEdgeV1::ClassBase { exact } => {

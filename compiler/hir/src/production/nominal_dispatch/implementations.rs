@@ -13,6 +13,13 @@ impl Projection<'_> {
             for method in &implementation.methods {
                 let slot = self.interface_slot(method.member)?;
                 let selection = match method.target {
+                    InterfaceImplementationTarget::DerivedEquality(application) => self
+                        .derived_selection(
+                            self.export.derived_equality_applications[application].owner_ty,
+                        )?,
+                    InterfaceImplementationTarget::ImportedDerivedEquality(_) => {
+                        self.derived_selection(host)?
+                    }
                     InterfaceImplementationTarget::Method(application) => {
                         self.target(application)?
                     }

@@ -60,10 +60,33 @@ impl Lowerer {
             .into_iter()
             .flat_map(|implementation| implementation.methods)
         {
+            let derived = match method.target {
+                hir::InterfaceImplementationTarget::DerivedEquality(application) => {
+                    let application = &self.derived_equality_applications[application];
+                    let hir::DerivedEqualityOrigin::Nominal(owner) = application.origin else {
+                        unreachable!("nominal conformances retain their nominal equality owner");
+                    };
+                    Some(crate::CallableCandidate::method(
+                        application.function,
+                        owner,
+                    ))
+                }
+                _ => None,
+            };
+            if let Some(candidate) = derived {
+                if !out.iter().any(|(existing, _, _)| {
+                    existing.function == candidate.function && existing.owner == candidate.owner
+                }) {
+                    out.push((candidate, 0, 0));
+                }
+                continue;
+            }
             let application = match method.target {
                 hir::InterfaceImplementationTarget::Method(application)
                 | hir::InterfaceImplementationTarget::Abstract(application) => application,
                 hir::InterfaceImplementationTarget::Imported(_)
+                | hir::InterfaceImplementationTarget::DerivedEquality(_)
+                | hir::InterfaceImplementationTarget::ImportedDerivedEquality(_)
                 | hir::InterfaceImplementationTarget::ImportedTemplate(_)
                 | hir::InterfaceImplementationTarget::ImportedAbstractTemplate(_)
                 | hir::InterfaceImplementationTarget::ImportedAbstract(_) => continue,

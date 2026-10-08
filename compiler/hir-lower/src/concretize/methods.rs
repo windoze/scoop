@@ -65,6 +65,9 @@ impl Concretizer<'_> {
                 .find(|method| method.slot == slot)
                 .expect("a concrete conformance retains the declared interface slot");
             match method.target {
+                concrete::InterfaceImplementationTarget::ImportedDerivedEquality(target) => {
+                    return concrete::CallableTarget::DerivedEquality(target);
+                }
                 concrete::InterfaceImplementationTarget::Method(function) => {
                     return concrete::CallableTarget::Local(concrete::Callable::Function(function));
                 }

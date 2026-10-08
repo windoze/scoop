@@ -6,7 +6,8 @@ pub(crate) fn lower_output(
     output: &mut export::ExportHirOutput,
     dependencies: Option<&export::SelectedImportedDependencySet>,
 ) -> Result<export::LocalConcreteHirOutput, Vec<scoop_ast::Diagnostic>> {
-    let mut concretizer = Concretizer::new(output.module()).map_err(nominal_root_diagnostic)?;
+    let automatic = AutomaticNominalRoots::from_output(output).map_err(nominal_root_diagnostic)?;
+    let mut concretizer = Concretizer::new(output.module(), automatic);
     let prepared = concretizer.prepare_source();
     let nominals = concretizer.shared_nominal_roots();
     let shared = output

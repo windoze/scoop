@@ -20,6 +20,9 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
     access: &DeclarationAccessSourceV1,
     authority: &'s A,
 ) -> Result<Declaration<'s>, Error<E>> {
+    if let Decl::DerivedEquality(owner) = declaration {
+        return derived_equality(graph, owner, signature, access, authority);
+    }
     let key = match declaration {
         Decl::Function(id) => {
             let key = authority.function_key(id).map_err(Error::Foundation)?;
@@ -51,6 +54,7 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
             }
             key
         }
+        Decl::DerivedEquality(_) => unreachable!("derived targets use their nominal declaration"),
     };
     let exact_owner = signature.receiver();
     let source = graph.get(exact_owner).ok_or(Error::ReceiverOwner)?.source();
@@ -134,5 +138,42 @@ pub(super) fn root_key(declaration: Decl, kind: SourceDeclarationKind) -> Option
         Decl::Function(id) => DispatchSlotKey::interface_method(id),
         Decl::Getter(id) => DispatchSlotKey::property_getter(id),
         Decl::Setter(id) => DispatchSlotKey::property_setter(id),
+        Decl::DerivedEquality(_) => return None,
+    })
+}
+
+fn derived_equality<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    owner: SourceNominalId,
+    signature: &InheritanceCallableSignatureV1,
+    access: &DeclarationAccessSourceV1,
+    authority: &'s A,
+) -> Result<Declaration<'s>, Error<E>> {
+    let exact_owner = signature.receiver();
+    if graph
+        .get(exact_owner)
+        .is_none_or(|node| node.source() != owner)
+        || signature.exact_signature().parameters() != [exact_owner]
+        || !signature.context_keys().is_empty()
+        || access.declared_visibility() != DeclaredVisibilityV1::Public
+    {
+        return Err(Error::Signature);
+    }
+    let key = authority
+        .nominal_declaration_key(owner)
+        .map_err(Error::Foundation)?;
+    if !matches!(
+        key.declaration_kind(),
+        SourceDeclarationKind::Struct | SourceDeclarationKind::Enum
+    ) {
+        return Err(Error::DeclarationIdentity(Decl::DerivedEquality(owner)));
+    }
+    graph
+        .check_declaration_source(access, key, authority)
+        .map_err(Error::Source)?;
+    Ok(Declaration {
+        key,
+        exact_owner,
+        source: owner,
     })
 }

@@ -6,14 +6,22 @@ use scoop_identity::{
 };
 
 impl Collector<'_> {
-    /// Slot declarations and adjust targets cannot be top-level or extension
-    /// callables from the frozen M23-5 partition.
+    /// Member dependencies retain their source or generated callable identity.
     pub fn member_target(
         &mut self,
         target: CallableDefinitionOwner,
     ) -> Result<(), MirTypeBridgeReferenceError> {
         let source = match target {
             CallableDefinitionOwner::Odr(_) => {
+                return self.push(MirTypeBridgeTargetV1::Callable(target));
+            }
+            CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::GeneratedCallable(
+                id,
+            )) => {
+                let key = self.graph.canonical_key::<_, GeneratedCallableKey>(id)?;
+                if !matches!(key.as_ref(), GeneratedCallableKey::DerivedEquality { .. }) {
+                    return Err(MirTypeBridgeReferenceError::NonMemberCallableTarget(target));
+                }
                 return self.push(MirTypeBridgeTargetV1::Callable(target));
             }
             CallableDefinitionOwner::Strong(StrongCallableDefinitionOwner::Function(id)) => {

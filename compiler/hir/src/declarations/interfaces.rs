@@ -131,6 +131,8 @@ pub enum InterfaceImplementationTarget {
     /// Exact ordinary method application selected by HIR conformance
     /// checking. Generic methods cannot implement interface slots.
     Method(MethodApplicationId),
+    DerivedEquality(DerivedEqualityApplicationId),
+    ImportedDerivedEquality(ImportedDerivedEqualityUseId),
     Imported(ImportedDependencyCallableUseId),
     ImportedAbstract(ImportedDependencyCallableUseId),
     ImportedTemplate(ImportedGenericCallableApplicationId),

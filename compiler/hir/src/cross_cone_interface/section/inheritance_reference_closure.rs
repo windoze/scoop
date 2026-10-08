@@ -24,8 +24,7 @@ impl CrossConeHirInterfaceSectionV1 {
                 .dispatch_selections()
                 .records()
             {
-                let target = choice.callable_target();
-                let target = ExternalHirTargetV1::Callable(target);
+                let target = choice.dependency_target();
                 let expected = authority
                     .external_hir_target_origin(target)
                     .map_err(|error| Error::TargetOrigin { target, error })?;

@@ -1702,6 +1702,7 @@ public fun <T : Equality<T>> same(left: T, right: T): Boolean = left == right
   - 显式写入 implements 列表的 Equality 是普通无条件声明；若依赖派生正文满足它，字段条件必须在该类型的声明及 bounds 下成立，否则在定义处报错，不能把显式接口悄悄变成条件接口。未显式声明时按上述条件派生，不限制该类型原本合法的构造用途。
   - 用户手写相等时显式实现对应 `Equality<R>`，并声明合法的 `public override operator fun equals(other: R): Boolean`；该实现优先于同签名派生体，方法内容不再受字段可比较条件限制。其他参数类型的 Equality application 不屏蔽同类型的派生实现。手写同签名成员遵守普通 override 与冲突规则，不另生成第二个同签名方法；只有普通同名函数不赋予 Equality conformance。
   - 派生方法是该 Equality slot 的真实实现，可满足 bound、经普通接口调用或装箱后的 itable 调用，不是仅供 `==` 使用的隐藏候选。它遵守 value-type `this` 按值传递规则；tuple/Unit 的有效访问域由完整类型决定，tuple 保留全部元素类型的可见性约束，helper 所在文件或首次创建位置不增加源码访问限制。
+  - 派生方法遵守 Equality slot 的 safe 调用合同。`@InteriorMutable` 及包含它的值仍按 13.7 要求在 unsafe context 中使用；这项类型使用限制不把派生方法改成无法实现该 slot 的 unsafe 方法。
   - Float/Double核心`equals`遵守11.2.2；含NaN字段的派生值可能不等于自身。派生相等必须保留字段语义，不能改用bitwise equality、`memcmp`或相同存储/identity的快捷返回；泛型具体化同样适用。
   - **引用类型**：class/object 通过普通声明显式实现或继承 Equality，不自动派生结构相等。只使用表达式静态类型可见的 Equality 契约；`Any == Any`非法，运行期对象另有实现不能补齐静态契约。继承 `Equality<Base>` 不自动产生 `Equality<Derived>`；两个 `Equality<Point>` 视图也不因此能彼此比较，其 equals 的参数仍是 Point。需要identity比较时显式使用`===`。
   - String、Boolean、Char、八种定宽整数、Float/Double 及 `Ptr<T>` 由 core 显式实现各自同类型的 Equality，alias 保持同一 conformance。intrinsic type 不按空字段结构派生；数组、函数、FunPtr 等没有既有相等实现的类型不因本接口获得比较能力。core Equality 的实际声明与 slot identity 决定本协议，用户同名接口不能替代它。

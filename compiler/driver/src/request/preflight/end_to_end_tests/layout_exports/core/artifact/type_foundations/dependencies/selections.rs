@@ -6,7 +6,6 @@ use hir::{
     InheritanceSlotContractV1, InheritanceSlotImplementationV1 as Implementation,
     InheritanceSlotTargetV1, NominalInheritanceInterfaceV1,
 };
-use scoop_identity::CallableTemplateOrigin;
 
 mod claims;
 mod shared;
@@ -40,10 +39,9 @@ fn callable(
     checked: CheckedSharedTypeFoundationV1<'_>,
     declaration: Declaration,
 ) -> &hir::CallableDeclarationRecordV1 {
-    let id = match declaration {
-        Declaration::Function(id) => CallableTemplateOrigin::Function(id),
-        Declaration::Getter(id) | Declaration::Setter(id) => CallableTemplateOrigin::Accessor(id),
-    };
+    let id = declaration
+        .origin()
+        .expect("this fixture selects an ordinary source callable");
     checked
         .metadata()
         .public

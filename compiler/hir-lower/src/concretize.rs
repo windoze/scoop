@@ -72,9 +72,8 @@ fn nominal_root_diagnostic(
 pub(crate) fn lower(
     module: &export::Module,
 ) -> Result<concrete::Module, Vec<scoop_ast::Diagnostic>> {
-    Concretizer::new(module)
-        .map_err(nominal_root_diagnostic)?
-        .run()
+    let automatic = AutomaticNominalRoots::new(module).map_err(nominal_root_diagnostic)?;
+    Concretizer::new(module, automatic).run()
 }
 
 pub(crate) use output::lower_output;
@@ -253,8 +252,7 @@ impl<'a> Concretizer<'a> {
         format!("{prefix}.{name}")
     }
 
-    fn new(source: &'a export::Module) -> Result<Self, export::PublicNominalShapeProjectionError> {
-        let automatic = AutomaticNominalRoots::new(source)?;
+    fn new(source: &'a export::Module, automatic: AutomaticNominalRoots) -> Self {
         let object_by_backing_class = source
             .objects
             .iter()
@@ -281,7 +279,7 @@ impl<'a> Concretizer<'a> {
                 )
             })
             .collect();
-        Ok(Self {
+        Self {
             source,
             automatic,
             core: &source.core_protocols,
@@ -368,6 +366,6 @@ impl<'a> Concretizer<'a> {
             foreign_callback_slots: Vec::new(),
             foreign_callback_by_key: HashMap::new(),
             next_loop_identity: 0,
-        })
+        }
     }
 }
