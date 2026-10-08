@@ -196,7 +196,7 @@ public final class AtomicRef<T : ref>(initial: T)
 
 ### 3.3 IR 与代码生成
 
-M33-8b 已实现 typed LIR 指令、LLVM 原子 lowering 及引用写屏障；M33-8c 接入四类 core 声明、HIR／MIR 构造、隐藏槽布局与跨 Cone 产物；M33-8d 接入全部 33 个操作方法、五种内存序、合法与非法序矩阵、默认参数／泛型产物，并通过三个目标的 debug／release 与普通／moving／minor GC 运行，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。普通库组合、实际并发与完整 GC 验收继续实施。
+M33-8b 已实现 typed LIR 指令、LLVM 原子 lowering 及引用写屏障；M33-8c 接入四类 core 声明、HIR／MIR 构造、隐藏槽布局与跨 Cone 产物；M33-8d 接入全部 33 个操作方法、五种内存序、合法与非法序矩阵、默认参数／泛型产物。M33-8e 完成普通更新方法、Atomic<T>，以及三个目标的 debug／release × 普通／moving／minor GC 真实并发和写屏障验收；M33-8 至此完成，详见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 - HIR/MIR 为原子操作使用独立的 typed intrinsic，携带操作种类、值类型和内存序，不复用普通字段读写节点，也不以 `Option` 字段区分原子与非原子访问。
 - LIR 使用专门的指令：`AtomicLoad`、`AtomicStore`、`AtomicRmw`、`AtomicCmpXchg`，携带对象 base、值字段的字节偏移、值类型和内存序。
@@ -210,19 +210,20 @@ M33-8b 已实现 typed LIR 指令、LLVM 原子 lowering 及引用写屏障；M3
 
 ### 3.4 `Atomic<T : value>`
 
-任意值类型无法直接对应到 LLVM 原子指令，由普通 Scoop 代码组合实现，放在 core 或平台库都可以，不需要编译器支持：
+任意值类型无法直接对应到 LLVM 原子指令，由 core 中的普通 Scoop 代码组合实现，不需要新增 intrinsic：
 
 ```scoop
-public class Atomic<T : value>(initial: T) {
-    private val lock = AtomicBoolean(false)
+public class Atomic<T : value> public constructor(initial: T) {
+    private val lock: AtomicBoolean = AtomicBoolean(false)
     private var value: T = initial
     // Copy the stored value only while holding the lock.
 }
 ```
 
+- 公开构造、`load(): T`、`store(value: T): Unit` 和 `exchange(value: T): T`；exchange 返回旧值，不要求 T 有 Equality。该类不接受 MemoryOrder 参数，通过下述锁提供互斥与 happens-before，不增加不同对象之间的 SeqCst 全序。四个 intrinsic 原子类的 getAndUpdate／updateAndGet 另使用普通 SeqCst CAS 循环，更新函数在持有任何锁之前执行并可能重试。
 - `lock` 用 `compareAndSet(false, true, successOrder = MemoryOrder.Acquire, failureOrder = MemoryOrder.Relaxed)` 加锁、`store(false, MemoryOrder.Release)` 解锁，所有对 `value` 的冲突访问都在同一锁内完成，通过 happens-before 避免 3.1 定义的数据竞争。只传 Acquire 而省略失败序会得到非法的 Acquire/SeqCst 组合。
 - 该方案适用于任意值类型，包括普通 struct、tuple 和 tagged enum：读写都在锁内整体完成，读取方不会观察到撕裂或不同次写入的混合值。
-- 临界区只做值复制，复制是 memcpy，中间没有 safepoint；持锁线程不会因 GC 停在临界区内。
+- 临界区只做完整值复制、必要的引用写屏障与解锁，中间没有 safepoint 或用户回调；持锁线程不会因 GC 停在临界区内。
 - 自旋循环写在 Scoop 代码中，循环回边自带 safepoint poll，自旋的线程不会阻塞 GC。自旋若干次后调用 `sched_yield`，避免持锁线程被 OS 调度走时空转。
 - 读也必须加锁，不能用 seqlock 优化：seqlock 的读者需要无锁地先读一遍数据，这正是 3.1 规定为未定义行为的竞争读。
 - 小而简单的值类型（例如 8 字节以内且不含引用）理论上可以直接用整数原子操作，但需要先有按位转换（transmute），M30 将其留到了后续，M33 不做。
@@ -697,7 +698,7 @@ D1～D7 均已有结论；D8 的前置依赖已满足。保留编号用于对应
 | 项目 | 当前状态 | 后续任务与完成条件 |
 | --- | --- | --- |
 | native 头文件缓存与输入一致性 | 7.2 和实现规范 2.7 已补齐契约；实现尚未开始 | M33-6 在外层缓存命中前发现/复核 include 依赖，把 C/C++ 源码、非系统头、公开 runtime 头和配置纳入现有输入快照；key 与子编译器读取相同内容。验收仅头文件修改、依赖集合变化、快照完成后工作区变化、配置/SDK 变化和不变输入复用；不再仅依赖 child 编译后写 depfile。 |
-| AtomicRef 与 LLVM moving GC | M33-8a 完成 AS1 最小 IR 技术验证；M33-8b 完成 typed LIR／LLVM 操作与屏障；M33-8c／8d 完成源码构造、操作、扫描、返回引用保活与产物消费 | 继续用真实并发 Scoop fixture 覆盖对象和所指对象分别移动、成功/失败 CAS、old→young 写屏障及 debug/release；顺序运行与编译级验证不代替完整 GC 验收。 |
+| AtomicRef 与 LLVM moving GC | M33-8a～8e 已完成 IR、类型、操作、普通库组合、跨 Cone 产物及三目标运行 | 实际并发、对象和所指对象分别移动、返回值及 expected/new 保活、成功/失败 CAS、old→young 写屏障均已验收；记录见 ACCEPTANCE.md。 |
 | M32 基线与实施依赖 | 已纠正文档，并核对 roots.scoop 的 Any/Nothing 声明及 M32 验收记录；依赖已满足 | M33-4 直接消费实际 Nothing 实现 exit，验证无正常返回控制流、源码与 artifact-only 消费；以当前 runtime ABI 10 / metadata ABI 6 为旧版基线，验收 M33 的 11/7 升级与不兼容产物拒绝。其他批次复用 M32 已交付能力，按实际编码增量更新受影响版本。 |
 
 ## 11. 需要修订的规范章节

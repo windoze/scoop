@@ -1,0 +1,60 @@
+class Payload(val value: Int)
+class Counter(var value: Int)
+class Published(var first: Int, var second: Int)
+struct Snapshot(val first: Int, val second: Int, val payload: Payload)
+enum State { Empty, Single(Int, Payload), Pair(Payload, Payload) }
+
+fun sharedValues() {
+    val count = AtomicInt(0)
+    val wide = AtomicLong(0L)
+    val lock = AtomicBoolean(false)
+    val plain = Counter(0)
+    val array = MutableArray<Int>(1L) { index -> 0 }
+    val snapshot = Atomic(Snapshot(0, 1, Payload(0)))
+    val tuple = Atomic((0, 1L, Payload(0)))
+    val state = Atomic<State>(State.Empty)
+    val published = AtomicRef(Published(0, 1))
+    gcCollect()
+    check(together({ worker ->
+        @Unsafe { barrier() }
+        var index = 0
+        while (index < 32) {
+            count.fetchAdd(1, MemoryOrder.Relaxed)
+            wide.fetchAdd(2L, MemoryOrder.AcqRel)
+            while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+            plain.value = plain.value + 1
+            array[0L] = array[0L] + 1
+            lock.store(false, MemoryOrder.Release)
+
+            val value = worker * 32 + index
+            val node = Payload(value)
+            snapshot.store(Snapshot(value, value + 1, node))
+            val observed = snapshot.load()
+            check(observed.first + 1 == observed.second && observed.payload.value == observed.first)
+            val (a, b, c) = tuple.exchange((value, (value + 1).toInt64(), node))
+            check((a + 1).toInt64() == b && c.value == a)
+            if (index % 2 == 0) {
+                state.store(State.Pair(node, node))
+            } else {
+                state.store(State.Single(value, node))
+            }
+            val saved = state.load()
+            if (index % 8 == 0) { gcCollect() }
+            when (saved) {
+                State.Empty -> {}
+                State.Single(number, payload) -> { check(number == payload.value) }
+                State.Pair(left, right) -> { check(left.value == right.value) }
+            }
+            val message = Published(0, 0)
+            message.first = value
+            message.second = value + 1
+            published.store(message, MemoryOrder.Release)
+            val acquired = published.load(MemoryOrder.Acquire)
+            check(acquired.second == acquired.first + 1)
+            index = index + 1
+        }
+        index
+    }) == 128)
+    check(count.load() == 128 && wide.load() == 256L)
+    check(plain.value == 128 && array[0L] == 128)
+}

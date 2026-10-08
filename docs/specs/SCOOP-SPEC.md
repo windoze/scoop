@@ -1955,7 +1955,11 @@ CAS 的合法失败序按成功序精确定义：Relaxed → {Relaxed}；Acquire
 
 Relaxed 只保证该原子位置的原子性与修改顺序。release 写与读到该值或相应 C11 release sequence 的 acquire 读建立同步；每个原子位置的修改顺序、RMW 及其他同步规则遵循 C11。SeqCst 操作另有一个全序，该全序本身不额外建立跨线程 happens-before。原子对象自身也须按 1.2 正确发布；AtomicRef 不自动同步所指对象的后续普通字段访问。
 
-`getAndUpdate`、`updateAndGet` 等便利方法由同一类中的普通 Scoop CAS 循环实现，更新函数可能重试，不增加 intrinsic。无符号宽度包装和任意值类型的 `Atomic<T : value>` 由普通库组合既有原子类型实现；这不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
+四个原子类还提供 `getAndUpdate(update: (V) -> V): V` 与 `updateAndGet(update: (V) -> V): V`，分别返回成功更新前后的值。它们是同一类中的普通 Scoop CAS 循环，读取与 CAS 使用 SeqCst；更新函数可分配、抛出异常并因竞争重试。异常发生前未成功的 CAS 不写入；更新函数自己的副作用不回滚，不增加 intrinsic。
+
+core 的普通 final class `Atomic<T : value>` 由 AtomicBoolean 锁和 T 字段组成，公开 `Atomic(initial: T)`、`load(): T`、`store(value: T): Unit` 与 `exchange(value: T): T`。全部读写在同一锁内复制完整值，exchange 返回原值；不要求 T 实现 Equality。锁采用 Acquire/Relaxed CAS 与 Release 解锁，提供互斥及相应的 happens-before，不接受 MemoryOrder 参数，也不承诺跨不同 Atomic 对象的 SeqCst 全序。成功加锁后只进行值复制、必要的引用屏障与解锁，没有用户回调或 safepoint；失败自旋保留普通循环 safepoint，并周期性调用 sched_yield。
+
+无符号宽度包装也可由普通库组合既有原子类型实现；上述组合不赋予普通字段、数组元素或 aggregate copy 原子语义。首版不提供 `Ptr<T>` 所指 native 内存上的原子操作，后续按平台库的实际需求增加。
 
 ---
 

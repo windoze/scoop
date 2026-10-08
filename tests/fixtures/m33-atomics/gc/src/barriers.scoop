@@ -1,0 +1,36 @@
+fun storeYoung(cell: AtomicRef<Payload>) { cell.store(Payload(11)) }
+fun exchangeYoung(cell: AtomicRef<Payload>) { cell.exchange(Payload(22)) }
+fun casYoung(cell: AtomicRef<Payload>): Boolean {
+    val old = cell.load()
+    return cell.compareAndSet(old, Payload(33))
+}
+fun failedYoung(cell: AtomicRef<Payload>): Boolean = cell.compareAndSet(Payload(99), Payload(44))
+fun storeSnapshot(cell: Atomic<Snapshot>) { cell.store(Snapshot(5, Payload(55))) }
+fun exchangePacket(cell: Atomic<Packet>) { cell.exchange(Packet.Data(6, Payload(66))) }
+
+fun writeBarriers() {
+    val cell = AtomicRef(Payload(0))
+    val snapshot = Atomic(Snapshot(0, Payload(0)))
+    val packet = Atomic<Packet>(Packet.Empty)
+    gcCollect()
+    storeYoung(cell)
+    minorCollection()
+    check(cell.load().value == 11)
+    exchangeYoung(cell)
+    minorCollection()
+    check(cell.load().value == 22)
+    check(casYoung(cell))
+    minorCollection()
+    check(cell.load().value == 33)
+    check(!failedYoung(cell))
+    minorCollection()
+    check(cell.load().value == 33)
+    storeSnapshot(snapshot)
+    exchangePacket(packet)
+    minorCollection()
+    check(snapshot.load().serial == 5 && snapshot.load().payload.value == 55)
+    when (packet.load()) {
+        Packet.Empty -> { throw IllegalStateException() }
+        Packet.Data(number, payload) -> { check(number == 6 && payload.value == 66) }
+    }
+}

@@ -31,6 +31,26 @@ public class AtomicInt {
 
     @NoGC @Intrinsic("atomic_int_fetch_xor")
     public fun fetchXor(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
+
+    public fun getAndUpdate(update: (Int) -> Int): Int {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return current
+    }
+
+    public fun updateAndGet(update: (Int) -> Int): Int {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return next
+    }
 }
 
 @Intrinsic("core_atomic_long")
@@ -64,6 +84,26 @@ public class AtomicLong {
 
     @NoGC @Intrinsic("atomic_long_fetch_xor")
     public fun fetchXor(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
+
+    public fun getAndUpdate(update: (Long) -> Long): Long {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return current
+    }
+
+    public fun updateAndGet(update: (Long) -> Long): Long {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return next
+    }
 }
 
 @Intrinsic("core_atomic_boolean")
@@ -91,6 +131,26 @@ public class AtomicBoolean {
 
     @NoGC @Intrinsic("atomic_boolean_fetch_xor")
     public fun fetchXor(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
+
+    public fun getAndUpdate(update: (Boolean) -> Boolean): Boolean {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return current
+    }
+
+    public fun updateAndGet(update: (Boolean) -> Boolean): Boolean {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return next
+    }
 }
 
 @Intrinsic("core_atomic_ref")
@@ -109,4 +169,24 @@ public class AtomicRef<T : ref> {
 
     @NoGC @Intrinsic("atomic_ref_compare_and_exchange")
     public fun compareAndExchange(expected: T, value: T, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): T
+
+    public fun getAndUpdate(update: (T) -> T): T {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return current
+    }
+
+    public fun updateAndGet(update: (T) -> T): T {
+        var current = load()
+        var next = update(current)
+        while (!compareAndSet(current, next)) {
+            current = load()
+            next = update(current)
+        }
+        return next
+    }
 }

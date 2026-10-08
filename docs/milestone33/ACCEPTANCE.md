@@ -13,7 +13,7 @@
 | M33-5 | errno 捕获 | 完成并通过三平台验收 |
 | M33-6 | native C/C++、系统库与源码选择 | 完成；Darwin/GNU C++、musl 拒绝与纯 C 回归通过 |
 | M33-7 | sysroot 默认定位、Equality | 默认定位、NoGc 接口适配、显式及非泛型派生 Equality 完成；泛型与 tuple 派生实施中 |
-| M33-8 | 原子类型、内存序与 GC | 四类原子对象的类型、构造、操作 API、内存序与跨 Cone 产物完成；普通库组合、真实并发与完整 GC 验收待继续 |
+| M33-8 | 原子类型、内存序与 GC | 完成；四类 intrinsic、普通库更新与值存储、产物、真实并发和 GC 均通过三平台验收 |
 | M33-9 | 线程退出规则与组合验收 | 遗留资源诊断与退出规则完成；里程碑组合总验收待继续 |
 
 开发验证先格式化、lint，再执行受影响测试。运行真实 CLI fixture，覆盖源码、产物消费、链接与运行；新增行为保留独立／组合／negative／golden。全量测试集中在必要的回归节点，已有通过结果在输入不变时复用。
@@ -369,3 +369,15 @@ GCLeaf 并发 fixture 在 release + minor 压力模式下暴露了既有分配�
 - Darwin／GNU／musl 每个目标均覆盖并通过 29 项原子 fixture、34 个变体、72 个进程与 42 次 golden 检查。Darwin 的新增负例与五个正例以非更新模式复验通过；GNU 只复验新增负例，再与 musl 分别以非更新模式复验五个正例，其余已通过的负例复用首轮结果。十四份公共 HIR／MIR 在三目标间逐字节一致，GNU 的新增诊断与 Darwin 一致；Linux LIR 按 target／profile 独立保存。报告位于 `tmp/m33/atomics-operations-*-report.json` 与 `tmp/m33/atomics-operations-linux-reports/`，没有重跑无关全量测试。
 
 本批尚未完成普通库便利方法、Atomic<T>、真实并发与完整 AtomicRef GC 验收；这些仍作为后续功能单独实现和提交。
+
+## M33-8e：普通库组合、真实并发与 GC 验收
+
+- 四类原子对象增加普通 Scoop getAndUpdate／updateAndGet，使用 SeqCst CAS 循环，分别返回成功更新前后的值。更新回调可分配、抛出异常及重试；不持锁，不回滚回调自己的副作用，也没有新增 intrinsic。便利方法可取普通函数引用。
+- core 增加普通 final class Atomic<T : value>，公开构造、load／store／exchange。三个方法分别用 Acquire/Relaxed CAS 加锁、Release 解锁；成功路径只有完整值复制、既有引用屏障与解锁。失败循环保留 GC poll，每 64 次失败通过普通 C FFI 调用 sched_yield。T 不受 Equality 限制，含引用的 struct、tuple、tagged enum 和 Unit 均沿既有布局／ABI 工作。
+- 普通库正例验证回调强制重试、异常副作用、旧值、函数引用及 GC；值存储验证复制结果、引用共享、别名和数组组合。跨 Cone 用例先删除 provider 源码，再读取泛型方法、普通默认表达式与构造，最后删除 consumer 源码独立链接。五个负例固定 value 约束、private 存储、值类型和回调结果的完整诊断。
+- 真实 pthread 用例复用已有 callback 测试驱动，四线程累计 128 次计数，验证 AtomicInt／Long、AtomicBoolean 锁下的普通字段和数组，以及 Atomic<T> 的 struct／tuple／tagged enum 完整值读写。AtomicRef CAS 栈并发推入／弹出 128 个节点，核对数量、总和与最终 sentinel；Acquire/Release 发布在接收线程验证普通字段的完整初始化。全部组合包含显式 GC，正常结束前 join 并释放 callback。
+- GC 专项分别固定所指对象和 AtomicRef 对象，使用已有 handle／pin 与测试 C 地址快照确认 moving 模式下另一方确实移动。另验证旧引用跨调用与 GC 保活、expected／new 求值期间 GC、成功／失败 CAS，以及只由老对象字段保留的新引用。普通模式通过实际分配触发 minor collection；moving 模式保留 full relocation；覆盖 store、exchange、成功／失败 CAS、含引用 struct 和 tagged enum 的写入，没有新 runtime 测试入口。
+- Darwin／GNU／musl 每个目标均通过本批 10 项正式 fixture、15 个变体、57 个进程与 36 次 golden 检查。五个正例再以非更新模式分别通过 10 个变体、52 个进程和 36 次 golden；十二份公共 HIR／MIR 在三个目标间逐字节一致，Linux LIR 按 target／profile 保存。五个负例在预期固定后通过，复用未变的成功记录；没有重跑无关全量测试。
+- Rust fmt、受影响 crate 的 clippy、C 格式化与严格警告检查通过；使用更新后真实 core 的三个既有源码／导入／MIR 单元测试通过。库实现分别为 192 行与 49 行，新增 C 探针为 21 行。清理 16 个已链接 Rust 中间对象，释放 386,577,496 字节；保留库、CLI 和热缓存。报告位于 `tmp/m33/atomics-library-*-report.json`、`tmp/m33/atomics-*-darwin-first-report.json` 与 `tmp/m33/atomics-library-linux-reports/`。
+
+M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成。M33-7 的泛型／tuple Equality 和 M33-9 的里程碑总验收继续实施。
