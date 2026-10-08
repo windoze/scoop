@@ -430,3 +430,7 @@ M33-8 的源码、产物、链接、运行与并发／GC 验收至此完成；M3
 ## 收尾回归：旧 ABI 测试迁移
 
 首次 workspace 回归发现 5 项 codegen 记录测试仍断言 metadata ABI 6，4 项 image 测试共用的 C fixture 仍声明旧的无参数 root gateway。将期望同步为现有 ABI 7，fixture 使用完整 argc/argv/exit-code 原型并写入退出码槽；生产 ABI 与实现不变。格式化、codegen all-targets clippy 后，Darwin/GNU 的这 9 项定向复验均通过。其余已通过测试复用首次结果，尚未执行的 crate 单独继续，不重复整套 workspace。
+
+## 收尾回归：恢复本地 nominal 物化根
+
+对照 `23cbfb7de` 确认 `e46302c5b` 曾把具体化入口从当前 Cone 的声明闭包改成发布声明闭包，导致未发布的本地非泛型类型缺失，并在部分既有迭代／enum 用例中触发 shape 缺失。先修订实现规范 2.2，区分本地物化与发布职责，再恢复原有根集合并删除新增的专用入口；发布闭包及其缓存保持自身用途，没有增加比较模板或产物格式。格式化、HIR-lower all-targets clippy 后，两个 dispatch、NoGC 值类型、嵌套类型、generic iteration 和 enum 路径共 6 项既有回归均通过。完整 fixture 验收在修复后的配套 CLI 上继续。
